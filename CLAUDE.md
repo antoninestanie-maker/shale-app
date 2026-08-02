@@ -1290,8 +1290,40 @@ suivre. C'est un seul blob JSON : le découper est un chantier à part.
    de données serait partie dans le cloud — chiffrée avec elle-même. Toute plomberie
    rangée dans `settings` doit être exclue nommément.
 
+### Côté Supabase — `shale-site/compte/supabase/sync.sql`
+Fichier autonome (comme `site-content.sql`), idempotent, **pas encore joué en production**.
+- **`sync_keys`** : une ligne par utilisateur, les deux enveloppes de la clé de données +
+  les paramètres Argon2id. La colonne de récupération est **nullable** — la décision de
+  garder ou non ce filet reste ouverte sans migration.
+- **`sync_rows`** : PK `(user_id, table_tag, row_tag)`, les deux `*_tag` étant les valeurs
+  AVEUGLÉES. `payload bytea` chiffré, `payload_ref` prévu pour le bucket. Index de pull
+  sur `(user_id, server_seq)`.
+- **Le last-write-wins est appliqué PAR LE SERVEUR** (trigger `sync_rows_lww`) et pas
+  seulement par le client : deux appareils qui poussent en même temps arriveraient dans
+  un ordre quelconque, et le dernier ARRIVÉ écraserait le plus RÉCENT. Le trigger pose
+  aussi lui-même `server_seq` (le client ne choisit pas sa place dans la file) et ignore
+  silencieusement une écriture non strictement plus récente — ce qui rend le renvoi d'un
+  lot **idempotent par construction**.
+- Bucket **privé** `sync-blobs` pour les gros contenus, chemin `<user_id>/…` contraint par
+  politique. (Contrairement à `site-assets`, qui est public parce qu'il sert un site.)
+- `sync_purge_tombstones(interval)` — non planifiée (`pg_cron` n'est pas sur tous les
+  plans). Délai généreux à dessein : un appareil qui n'a jamais vu une pierre tombale
+  garde sa copie locale pour toujours.
+- ⚠️ **PostgREST expose un `bytea` en hexadécimal préfixé** (`"\\x48656c…"`) et l'attend
+  sous cette forme. Pas en base64 — qui serait accepté puis stocké comme du texte,
+  illisible ensuite. (Le protocole binaire, lui, veut des octets bruts : les deux formes
+  coexistent légitimement, cf. `supabase.testutil.ts`.)
+
 ### Tests
 `npm test` (vitest). Aucun runner JS n'existait avant ce chantier.
+- **Le schéma Supabase est exécuté pour de vrai**, via **PGlite** (Postgres 18 compilé en
+  WebAssembly, dev-dep) : ni Postgres, ni Docker, ni la CLI Supabase sur cette machine, et
+  ce fichier porte le LWW serveur et les politiques d'isolation — trop critique pour être
+  livré sans avoir jamais tourné. `sync.sql` est lu **depuis l'autre dépôt** plutôt que
+  recopié (d'où `server.fs.allow` dans `vitest.config.ts`) : une copie divergerait, et on
+  validerait une version qui n'est pas celle exécutée. Les briques Supabase (`auth.uid()`,
+  `storage.*`, rôles) sont simulées fidèlement dans `supabase.testutil.ts` — restent donc
+  à vérifier sur le vrai projet : les politiques du bucket et le rendu PostgREST.
 - Config **séparée** de `vite.config.ts` (`vitest.config.ts`) : la config de build de
   l'app ne dépend pas du runner, ni l'inverse. Pas de `globals: true` → les tests
   importent `describe`/`it`/`expect`, donc le `tsc` du build les typecheck.

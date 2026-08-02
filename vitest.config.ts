@@ -16,5 +16,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Le schéma Supabase vit dans l'AUTRE dépôt (`~/Desktop/shale-site`), et les
+    // tests le lisent tel quel plutôt que d'en garder une copie ici : une copie
+    // divergerait, et c'est précisément le fichier qu'on ne peut pas se
+    // permettre de valider dans une version qui n'est pas celle exécutée.
+    server: { fs: { allow: [".."] } },
   },
 });
