@@ -40,6 +40,13 @@ tokio = { version = "1", features = ["time"] }
 # plutôt qu'en clair dans shale.db. `apple-native` seul — pas de backend Linux/
 # Windows à compiler, l'app est macOS uniquement.
 keyring = { version = "3", features = ["apple-native"] }
+# Dérivation de clé (src/crypto.rs) : Argon2id, pour transformer un mot de passe
+# ou une phrase de récupération en clé de chiffrement. WebCrypto ne propose PAS
+# Argon2 — seulement PBKDF2, bien plus faible face à un attaquant équipé de GPU
+# (Argon2 est coûteux en MÉMOIRE, ce qui neutralise l'avantage du parallélisme).
+# D'où ce passage par le Rust pour la seule opération sensible, rare (une fois
+# par session) et jamais sur le chemin critique d'une écriture.
+argon2 = "0.5"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

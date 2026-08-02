@@ -114,6 +114,13 @@ export const SETTINGS_EXCLUS: readonly string[] = [
   // Sert au moteur de notifications Rust, local par nature : cet appareil-ci
   // a-t-il consulté le Savoir récemment.
   "knowledge.last_viewed_at",
+
+  // Plomberie de la synchronisation elle-même, y compris le REPLI de stockage
+  // de la clé de données quand le trousseau ne répond pas.
+  // ⚠️ Sans cette ligne, `sync.dek` partirait dans le cloud — chiffrée avec
+  // elle-même. Le filtre anti-secret ci-dessous ne l'attrapait pas : « dek »
+  // n'est ni `key`, ni `token`, ni `secret`.
+  "sync.",
 ];
 
 /** Vrai si cette clé de réglage doit rester sur la machine. */

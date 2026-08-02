@@ -1,4 +1,5 @@
 
+pub mod crypto;
 pub mod notifications;
 pub mod secrets;
 
@@ -182,6 +183,7 @@ pub fn run() {
             secrets::secret_set,
             secrets::secret_delete,
             secrets::secret_available,
+            crypto::kdf_argon2id,
             notifications::notif_list,
             notifications::notif_mark_read,
             notifications::notif_mark_all_read,

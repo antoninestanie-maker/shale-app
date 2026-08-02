@@ -220,6 +220,12 @@ describe("portée : ce qui part et ce qui reste", () => {
     for (const cle of ["market.gemini_key", "market.groq_key", "broker.api_token", "x.secret", "un.password"]) {
       expect(settingSynchronisable(cle)).toBe(false);
     }
+    // La clé de données elle-même, quand le trousseau ne répond pas et qu'elle
+    // retombe dans `settings`. « dek » n'est ni key, ni token, ni secret : le
+    // filtre générique ne l'attrape PAS, seule l'exclusion `sync.` la retient.
+    // Sans elle, la clé partait dans le cloud, chiffrée avec elle-même.
+    expect(settingSynchronisable("sync.dek")).toBe(false);
+    expect(settingSynchronisable("sync.device_id")).toBe(false);
   });
 
   it("les réglages écartés sont purgés, pas gardés en attente pour toujours", () => {

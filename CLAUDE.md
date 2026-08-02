@@ -1219,10 +1219,44 @@ suivre. C'est un seul blob JSON : le découper est un chantier à part.
   horodatage départage deux écritures faites sur DEUX APPAREILS, et deux heures locales
   de fuseaux différents ne sont pas comparables. Format `2026-08-02T20:44:33.123Z` —
   tri lexicographique = tri chronologique, précision à la milliseconde.
-- **Deux enveloppes, une seule clé de données.** `Argon2id(mot de passe)` → KEK₁ et
-  `Argon2id(phrase de récupération)` → KEK₂ chiffrent la MÊME DEK aléatoire. Changer de
-  mot de passe re-chiffre 60 octets, jamais les données. La DEK est rangée dans le
-  **trousseau macOS** (`src-tauri/src/secrets.rs`, déjà en place pour les clés LLM).
+- **Deux enveloppes, une seule clé de données** (`src/lib/sync/crypto.ts`).
+  `Argon2id(mot de passe)` → KEK₁ et `Argon2id(code de récupération)` → KEK₂ chiffrent la
+  MÊME DEK aléatoire. Changer de mot de passe re-chiffre quelques dizaines d'octets,
+  jamais les données. La DEK est rangée dans le **trousseau macOS**
+  (`src-tauri/src/secrets.rs`, déjà en place pour les clés LLM).
+  - **Deux sous-clés HKDF** depuis la DEK : `cleLignes` (AES-256-GCM, contenu) et
+    `cleUid` (HMAC-SHA-256, aveuglement). Réutiliser une clé pour deux primitives est
+    une faute classique aux conséquences imprévisibles.
+  - **AAD = `userId|table|uid|ts`** sur chaque ligne, avec `table` et `uid` AVEUGLÉS —
+    c'est ce que le serveur détient, donc ce que le destinataire peut vérifier. Empêche
+    de recoller le contenu d'une ligne sur une autre ou de rejouer une vieille version
+    en réécrivant l'horodatage. Une AAD également posée sur les enveloppes interdit de
+    présenter celle de récupération comme celle du mot de passe, ou celle d'un compte
+    pour un autre.
+  - **Compression gzip AVANT chiffrement**, et seulement si elle fait gagner de la
+    place (une fiche du Savoir pleine d'images base64 est déjà compressée). Après
+    chiffrement tout est incompressible. `CompressionStream` absent (Safari < 16.4) →
+    envoi non compressé, un drapeau dans l'enveloppe dit laquelle des deux formes a été
+    employée : appareils anciens et récents restent interopérables.
+- **Argon2id vit en Rust** (`src-tauri/src/crypto.rs`, crate `argon2`, commande
+  `kdf_argon2id`). WebCrypto n'expose que PBKDF2, qui ne coûte que du CPU — un attaquant
+  qui récupère les enveloppes chez Supabase en teste des milliards par seconde sur GPU.
+  Argon2id coûte de la MÉMOIRE. Paramètres de production : 64 Mio / 3 passes ≈ 150 ms,
+  versionnés et stockés à côté de l'enveloppe pour pouvoir être durcis plus tard.
+  ⚠️ **`kdf.ts` ne retombe VOLONTAIREMENT pas sur PBKDF2** quand le Rust est absent :
+  les deux produisent des clés différentes, donc un repli silencieux fabriquerait des
+  enveloppes illisibles — un échec qui ne se voit qu'une fois la sauvegarde censée
+  exister. Il lève `KdfIndisponible`. (En preview navigateur il n'y a de toute façon ni
+  SQLite ni synchronisation.)
+- **Code de récupération, pas phrase de douze mots** (`src/lib/sync/recovery.ts`).
+  Base 32 de Crockford, 26 caractères = 130 bits, + 2 de contrôle, affichés
+  `SHALE-XXXX-…`. Motif : une liste BIP-39 imposerait 2048 mots ET une langue, or l'app
+  est bilingue et la langue se change dans les réglages — une phrase générée en français
+  devrait rester valable en anglais, donc la liste ne peut pas suivre l'affichage.
+  L'alphabet exclut I, L, O, U ; la saisie tolère minuscules, espaces, absence de tirets
+  et les confusions I/L→1, O→0. La somme de contrôle attrape une faute de recopie AVANT
+  les 150 ms de dérivation — ce n'est PAS une protection cryptographique, c'est AES-GCM
+  qui tranche.
 - **Deux horloges à ne pas confondre** : le curseur de pull suit l'horloge **serveur**
   (`server_seq`), le LWW suit l'horloge **client** (`client_ts`). Les mélanger fait
   rater des lignes dès qu'une machine est mal réglée.
@@ -1246,6 +1280,15 @@ suivre. C'est un seul blob JSON : le découper est un chantier à part.
 3. En SQL, écrire `abs(random() % 4)` et **jamais** `abs(random()) % 4` : `random()`
    peut renvoyer `-9223372036854775808`, dont la valeur absolue déborde l'entier signé
    64 bits et fait échouer la requête.
+4. **`crypto.getRandomValues` refuse au-delà de 65 536 octets** — limite de la
+   spécification, pas du navigateur. `octetsAleatoires()` lève désormais un message
+   explicite : elle sert aux nonces et aux clés, pas à produire des données en volume.
+5. **`Error.cause` n'existe pas en ES2020**, la cible du projet. Une classe d'erreur qui
+   veut porter son origine doit déclarer son propre champ (cf. `KdfIndisponible.origine`).
+6. **Le filtre anti-secret ne devine pas les noms maison.** `sync.dek` ne contient ni
+   `key`, ni `token`, ni `secret` : sans l'exclusion explicite du préfixe `sync.`, la clé
+   de données serait partie dans le cloud — chiffrée avec elle-même. Toute plomberie
+   rangée dans `settings` doit être exclue nommément.
 
 ### Tests
 `npm test` (vitest). Aucun runner JS n'existait avant ce chantier.
