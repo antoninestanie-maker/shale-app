@@ -1,0 +1,246 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import RichNoteEditor from "../components/RichNoteEditor";
+import { norm } from "../lib/actions";
+import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
+import type { AppData, Note } from "../lib/types";
+
+import { t } from "../lib/i18n";
+interface Props {
+  data: AppData;
+  refresh: () => Promise<void>;
+}
+
+const WIKI_RE = /\[\[([^\]]+)\]\]/g;
+
+export default function NotesView({ data, refresh }: Props) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Note[] | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    data.notes[0]?.id ?? null,
+  );
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [saved, setSaved] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const saveTimer = useRef<number | undefined>(undefined);
+  const deleteTimer = useRef<number | undefined>(undefined);
+
+  const list = results ?? data.notes;
+  const selected = data.notes.find((n) => n.id === selectedId) ?? null;
+
+  // charge la note sélectionnée dans l'éditeur
+  useEffect(() => {
+    if (selected) {
+      setTitle(selected.title);
+      setBody(selected.body);
+      setSaved(true);
+      setDeleting(false);
+    }
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // recherche (FTS en natif, LIKE en démo)
+  useEffect(() => {
+    const t = window.setTimeout(async () => {
+      setResults(query.trim() ? await searchNotes(query) : null);
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [query, data.notes]);
+
+  // ouverture d'une note demandée depuis ailleurs (revue hebdo…)
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (id) setSelectedId(id);
+    };
+    window.addEventListener("sb:open-note", onOpen);
+    return () => window.removeEventListener("sb:open-note", onOpen);
+  }, []);
+
+  const scheduleSave = (nextTitle: string, nextBody: string) => {
+    setSaved(false);
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(async () => {
+      if (selectedId === null) return;
+      await updateNote(selectedId, nextTitle.trim() || "Sans titre", nextBody);
+      setSaved(true);
+      await refresh();
+    }, 700);
+  };
+
+  const handleNew = async () => {
+    const id = await createNote(t("Nouvelle note"), "");
+    await refresh();
+    setQuery("");
+    setSelectedId(id);
+  };
+
+  const handleDelete = async () => {
+    if (!selected) return;
+    if (!deleting) {
+      setDeleting(true);
+      window.clearTimeout(deleteTimer.current);
+      deleteTimer.current = window.setTimeout(() => setDeleting(false), 3000);
+      return;
+    }
+    await deleteNote(selected.id);
+    await refresh();
+    setSelectedId(null);
+    setDeleting(false);
+  };
+
+  // liens [[wiki]] sortants + backlinks
+  const links = useMemo(() => {
+    if (!selected) return { out: [], back: [] as Note[] };
+    const out: { label: string; note: Note | null }[] = [];
+    for (const m of body.matchAll(WIKI_RE)) {
+      const label = m[1].trim();
+      out.push({
+        label,
+        note: data.notes.find((n) => norm(n.title) === norm(label)) ?? null,
+      });
+    }
+    const back = data.notes.filter(
+      (n) =>
+        n.id !== selected.id &&
+        [...n.body.matchAll(WIKI_RE)].some(
+          (m) => norm(m[1].trim()) === norm(selected.title),
+        ),
+    );
+    return { out, back };
+  }, [selected, body, data.notes]);
+
+  return (
+    <div className="mx-auto grid h-full max-w-6xl grid-cols-[280px_1fr] gap-4 p-8">
+      {/* Liste + recherche */}
+      <div className="card flex min-h-0 flex-col p-3">
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher…"
+            className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleNew}
+            data-tip={t("Nouvelle note")}
+            data-tip-kbd="⌘⇧N"
+            className="pill shrink-0 bg-blue px-3 py-2 text-sm font-bold text-white hover:opacity-90"
+          >
+            +
+          </button>
+        </div>
+        <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          {list.length === 0 && (
+            <li className="py-8 text-center text-sm text-text-dim">
+              {query ? t("Aucun résultat.") : t("Aucune note. Crée la première !")}
+            </li>
+          )}
+          {list.map((note) => (
+            <li key={note.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedId(note.id)}
+                className={`w-full rounded-[10px] px-3 py-2 text-left transition-colors ${
+                  note.id === selectedId
+                    ? "bg-surface-2 text-text"
+                    : "text-text-dim hover:bg-surface-2/50 hover:text-text"
+                }`}
+              >
+                <p className="truncate text-sm font-medium">{note.title}</p>
+                <p className="mt-0.5 font-mono text-[10px] text-text-dim">
+                  {note.updated_at.slice(0, 10)}
+                </p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Éditeur */}
+      {selected ? (
+        <div className="card flex min-h-0 flex-col p-5">
+          <div className="flex items-center gap-3">
+            <input
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                scheduleSave(e.target.value, body);
+              }}
+              className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold text-text focus:outline-none"
+            />
+            <span className="hud-label shrink-0">
+              {saved ? t("enregistrée") : "…"}
+            </span>
+            <button
+              type="button"
+              onClick={handleDelete}
+              data-tip={deleting ? t("Confirmer la suppression") : t("Supprimer la note")}
+              data-tip-sub={t("Un second clic supprime définitivement la note.")}
+              className={`shrink-0 rounded-md px-2 py-1 text-xs transition-colors ${
+                deleting
+                  ? "bg-red/20 font-semibold text-red"
+                  : "text-text-dim hover:text-red"
+              }`}
+            >
+              {deleting ? t("sûr ?") : "supprimer"}
+            </button>
+          </div>
+
+          <RichNoteEditor
+            noteId={selected.id}
+            initialHtml={selected.body}
+            onChange={(html) => {
+              setBody(html);
+              scheduleSave(title, html);
+            }}
+            placeholder={t("Écris ta note. Mets en forme avec la barre d'outils. Lie une note avec [[son titre]].")}
+          />
+
+          {(links.out.length > 0 || links.back.length > 0) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              {links.out.map((l, i) => (
+                <button
+                  key={`o${i}`}
+                  type="button"
+                  disabled={!l.note}
+                  onClick={() => l.note && setSelectedId(l.note.id)}
+                  className={`pill border px-2.5 py-1 text-[11px] font-medium ${
+                    l.note
+                      ? "border-blue/40 bg-blue/10 text-blue hover:bg-blue/20"
+                      : "border-border text-text-dim opacity-60"
+                  }`}
+                  data-tip={l.note ? t("Ouvrir « {label} »", { label: l.label }) : t("Note inexistante")}
+                  data-tip-sub={l.note ? undefined : t("Crée une note portant ce titre pour activer le lien.")}
+                >
+                  [[{l.label}]]
+                </button>
+              ))}
+              {links.back.length > 0 && (
+                <>
+                  <span className="hud-label ml-2">{t("référencée par")}</span>
+                  {links.back.map((n) => (
+                    <button
+                      key={`b${n.id}`}
+                      type="button"
+                      onClick={() => setSelectedId(n.id)}
+                      className="pill border border-green/40 bg-green/10 px-2.5 py-1 text-[11px] font-medium text-green hover:bg-green/20"
+                    >
+                      ← {n.title}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card flex items-center justify-center">
+          <p className="text-sm text-text-dim">
+            {t("Sélectionne une note, ou crée-en une nouvelle.")}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

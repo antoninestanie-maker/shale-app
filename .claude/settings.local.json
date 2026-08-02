@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//Users/antonin/**)",
+      "Bash(brew --version)",
+      "Bash(xcode-select -p)",
+      "Bash(sw_vers -productVersion)",
+      "Bash(mkdir -p ~/.local)",
+      "Bash(curl -fsSL -o node.tar.xz https://nodejs.org/dist/v22.17.0/node-v22.17.0-darwin-arm64.tar.xz)",
+      "Bash(tar -xf node.tar.xz)",
+      "Bash(mv node-v22.17.0-darwin-arm64 node)",
+      "Bash(rm node.tar.xz)",
+      "Bash(curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs)",
+      "Bash(sh -s -- -y --profile minimal --default-toolchain stable)",
+      "Bash(~/.cargo/bin/rustc --version)",
+      "Bash(~/.cargo/bin/cargo --version)",
+      "Bash(cp '/Users/antonin/Library/Application Support/com.atnfx.secondbrain/second-brain.db' /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db)",
+      "Bash(cp '/Users/antonin/Library/Application Support/com.atnfx.secondbrain/second-brain.db-wal' /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db-wal)",
+      "Bash(cp '/Users/antonin/Library/Application Support/com.atnfx.secondbrain/second-brain.db-shm' /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db-shm)",
+      "Bash(/usr/bin/sqlite3 /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db ' *)",
+      "Bash(/usr/bin/sqlite3 /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db '__CMDSUB_OUTPUT__ *)",
+      "Bash(rm -f /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test.db*)",
+      "Bash(codesign -dv \"/Users/antonin/Desktop/appli claude/src-tauri/target/release/bundle/macos/Second Brain.app\")",
+      "Bash(open \"/Users/antonin/Desktop/appli claude/src-tauri/target/release/bundle/macos/Second Brain.app\")",
+      "Bash(/bin/sleep 6)",
+      "Bash(/usr/bin/sqlite3 '/Users/antonin/Library/Application Support/com.atnfx.secondbrain/second-brain.db' 'SELECT version, description FROM _sqlx_migrations ORDER BY version; SELECT '\\\\''tables: '\\\\'' || GROUP_CONCAT\\(name\\) FROM sqlite_master WHERE type='\\\\''table'\\\\'' AND name IN \\('\\\\''goal_progress_log'\\\\'','\\\\''custom_metrics'\\\\''\\);')",
+      "Bash(curl -fsSL -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-macos-universal.tar.gz)",
+      "Bash(tar -xzf cmake.tar.gz)",
+      "Bash(rm cmake.tar.gz)",
+      "Bash(mv cmake-3.31.7-macos-universal cmake)",
+      "Bash(~/.local/cmake/CMake.app/Contents/bin/cmake --version)",
+      "Bash(/usr/bin/say -v '?')",
+      "Bash(curl -fSL --progress-bar -o '/Users/antonin/Library/Application Support/com.atnfx.secondbrain/models/ggml-small-q5_1.bin' https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin)",
+      "Bash(/usr/bin/say -v Eddy -o /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test-fr.wav --data-format=LEI16@16000 'Ajoute une tâche préparer le script du reel de demain')",
+      "Bash(afinfo /private/tmp/claude-501/-Users-antonin-Desktop-appli-claude/787aa378-389a-46ed-84a2-82d5ff646dc3/scratchpad/test-fr.wav)",
+      "Bash(/bin/sleep 2.5)",
+      "Bash(pkill -f \"target/debug/second-brain\")",
+      "Bash(/bin/sleep 1)",
+      "Bash(pkill -f \"vite\")"
+    ]
+  }
+}

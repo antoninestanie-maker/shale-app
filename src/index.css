@@ -1,0 +1,891 @@
+/* Fonts — bundled locally (app is 100% offline).
+   Instrument Sans remplace Outfit (titres) et DM Sans (texte) : une seule
+   grotesque pour toute la marque, partagée avec le site vitrine. */
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+@import "tailwindcss";
+
+/* ============================================================
+   Design system V6 "Obsidian & Jade"            (voir DESIGN.md)
+   Refonte "Apple-grade" du V5 "Onyx & Émeraude".
+
+   Ce qui change, et pourquoi :
+   - Fond quasi-OLED (#07090d) : sur un écran de trading regardé
+     des heures, chaque cran de luminosité gagné réduit
+     l'éblouissement. Jamais de noir pur (#000) pour que les
+     ombres restent lisibles et que le scroll ne "clignote" pas.
+   - VRAIE hiérarchie d'élévation : le fond, les cartes et les
+     champs sont trois plans distincts (bg → surface → surface-2),
+     chacun avec son ombre et son liseré interne. C'est ce qui
+     donne la profondeur "matériau" d'une app Apple, au lieu
+     d'aplats posés côte à côte.
+   - Accents désaturés : bleu azur, vert jade, rouge corail —
+     lisibles en AA sans "crier". Un seul accent interactif
+     (bleu) ; vert/rouge STRICTEMENT réservés à la sémantique
+     de trading ; ambre = alerte ; indigo = sessions/segments.
+   - Échelle de rayons, d'ombres, de durées et de courbes
+     tokenisée : toutes les micro-interactions partagent la même
+     physique (`--ease-out-quint`, `--ease-spring`).
+   - Zéro glow décoratif : typographie, espace, hairlines.
+   ============================================================ */
+
+@theme {
+  --color-*: initial;
+
+  /* — Thème sombre "Obsidian" (défaut) — */
+  --color-bg: #07090d;
+  --color-surface: #12151c;
+  --color-surface-2: #1c202a;
+  --color-text: #eef1f6;
+  --color-text-dim: #8b94a6;
+  --color-blue: #4d8dff;
+  --color-green: #14c8a0;
+  --color-red: #ff5666;
+  --color-yellow: #f0b341;
+  --color-violet: #8e8bff;
+
+  /* Hairlines & voiles neutres, teintés ardoise (jamais de blanc pur) */
+  --color-border: rgba(160, 175, 200, 0.11);
+  --color-border-strong: rgba(160, 175, 200, 0.2);
+  --color-overlay: rgba(160, 175, 200, 0.06);
+  --color-overlay-2: rgba(160, 175, 200, 0.12);
+
+  /* Texte posé sur un aplat vert (bouton plein) */
+  --color-on-green: #04150f;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+
+  --font-display: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Rayons : légèrement plus généreux qu'en V5 (matériau plus doux) */
+  --radius-card: 18px;
+  --radius-field: 12px;
+  --radius-pill: 100px;
+}
+
+/* Matériaux, élévation & physique du mouvement — sombre */
+:root {
+  color-scheme: dark;
+
+  /* La carte n'est pas un aplat : un dégradé vertical très court
+     simule une source de lumière haute (rendu "matériau"). */
+  --card-bg: linear-gradient(180deg, #171b24 0%, #12151c 100%);
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 16px 40px -14px rgba(0, 0, 0, 0.6);
+  --card-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 24px 56px -16px rgba(0, 0, 0, 0.7);
+  --card-border-hover: rgba(160, 175, 200, 0.22);
+
+  /* Panneau soulevé (drag / resize) */
+  --lift-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 4px 12px -4px rgba(0, 0, 0, 0.5),
+    0 28px 64px -18px rgba(0, 0, 0, 0.75);
+
+  /* Verre : sidebar, barres d'outils flottantes, poignées */
+  --glass-bg: rgba(18, 21, 28, 0.72);
+  --glass-blur: saturate(160%) blur(22px);
+
+  /* Info-bulle : verre plus dense que les panneaux (elle flotte au-dessus
+     de TOUT, y compris d'une carte claire) + ombre portée courte */
+  --tip-bg: rgba(30, 35, 46, 0.9);
+  --tip-border: rgba(160, 175, 200, 0.16);
+  --tip-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 12px 32px -10px rgba(0, 0, 0, 0.65);
+
+  /* Halo ambiant unique, très doux, en haut de fenêtre */
+  --ambient: radial-gradient(
+    1200px 620px at 74% -14%,
+    rgba(77, 141, 255, 0.07),
+    transparent 64%
+  );
+
+  --scrollbar-thumb: rgba(160, 175, 200, 0.18);
+  --scrollbar-thumb-hover: rgba(160, 175, 200, 0.34);
+
+  /* Physique partagée par toutes les micro-interactions */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
+/* — Thème clair "Alabaster" (choix explicite) — */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #ebedf1;
+  --color-text: #0b0d12;
+  --color-text-dim: #5c6474;
+  --color-blue: #1b62e5;
+  --color-green: #06825f;
+  --color-red: #d22b3c;
+  --color-yellow: #96650b;
+  --color-violet: #4b45d6;
+  --color-border: rgba(11, 13, 18, 0.09);
+  --color-border-strong: rgba(11, 13, 18, 0.16);
+  --color-overlay: rgba(11, 13, 18, 0.045);
+  --color-overlay-2: rgba(11, 13, 18, 0.085);
+  --color-on-green: #ffffff;
+
+  --card-bg: #ffffff;
+  --card-shadow:
+    0 1px 2px rgba(11, 13, 18, 0.05),
+    0 12px 32px -12px rgba(11, 13, 18, 0.12);
+  --card-shadow-hover:
+    0 2px 4px rgba(11, 13, 18, 0.07),
+    0 20px 44px -14px rgba(11, 13, 18, 0.18);
+  --card-border-hover: rgba(11, 13, 18, 0.16);
+  --lift-shadow:
+    0 4px 10px -4px rgba(11, 13, 18, 0.12),
+    0 26px 56px -18px rgba(11, 13, 18, 0.26);
+
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-blur: saturate(160%) blur(22px);
+
+  --tip-bg: rgba(255, 255, 255, 0.92);
+  --tip-border: rgba(11, 13, 18, 0.1);
+  --tip-shadow:
+    0 2px 6px rgba(11, 13, 18, 0.08),
+    0 14px 34px -12px rgba(11, 13, 18, 0.28);
+
+  --ambient: radial-gradient(
+    1200px 620px at 74% -14%,
+    rgba(27, 98, 229, 0.06),
+    transparent 64%
+  );
+  --scrollbar-thumb: rgba(11, 13, 18, 0.16);
+  --scrollbar-thumb-hover: rgba(11, 13, 18, 0.3);
+}
+
+/* — Thème système : suit macOS quand aucun choix explicite — */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    color-scheme: light;
+    --color-bg: #f4f5f7;
+    --color-surface: #ffffff;
+    --color-surface-2: #ebedf1;
+    --color-text: #0b0d12;
+    --color-text-dim: #5c6474;
+    --color-blue: #1b62e5;
+    --color-green: #06825f;
+    --color-red: #d22b3c;
+    --color-yellow: #96650b;
+    --color-violet: #4b45d6;
+    --color-border: rgba(11, 13, 18, 0.09);
+    --color-border-strong: rgba(11, 13, 18, 0.16);
+    --color-overlay: rgba(11, 13, 18, 0.045);
+    --color-overlay-2: rgba(11, 13, 18, 0.085);
+    --color-on-green: #ffffff;
+
+    --card-bg: #ffffff;
+    --card-shadow:
+      0 1px 2px rgba(11, 13, 18, 0.05),
+      0 12px 32px -12px rgba(11, 13, 18, 0.12);
+    --card-shadow-hover:
+      0 2px 4px rgba(11, 13, 18, 0.07),
+      0 20px 44px -14px rgba(11, 13, 18, 0.18);
+    --card-border-hover: rgba(11, 13, 18, 0.16);
+    --lift-shadow:
+      0 4px 10px -4px rgba(11, 13, 18, 0.12),
+      0 26px 56px -18px rgba(11, 13, 18, 0.26);
+
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --tip-bg: rgba(255, 255, 255, 0.92);
+    --tip-border: rgba(11, 13, 18, 0.1);
+    --tip-shadow:
+      0 2px 6px rgba(11, 13, 18, 0.08),
+      0 14px 34px -12px rgba(11, 13, 18, 0.28);
+    --ambient: radial-gradient(
+      1200px 620px at 74% -14%,
+      rgba(27, 98, 229, 0.06),
+      transparent 64%
+    );
+    --scrollbar-thumb: rgba(11, 13, 18, 0.16);
+    --scrollbar-thumb-hover: rgba(11, 13, 18, 0.3);
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    user-select: none;
+    cursor: default;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+    cursor: text;
+  }
+
+  /* Titres : graisse contenue, chasse resserrée (plus la taille est
+     grande, plus le tracking se resserre — optique type SF Pro). */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+  h1 {
+    letter-spacing: -0.03em;
+  }
+
+  /* Aucun mot ne doit jamais casser la mise en page */
+  p,
+  li,
+  dd,
+  dt {
+    overflow-wrap: anywhere;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-blue) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-blue) 60%, transparent);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  /* Feedback de pression sur tous les boutons */
+  button {
+    transition: transform var(--dur-fast) var(--ease-out-quint);
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.975);
+  }
+
+  /* Scrollbars fines et translucides */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 100px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Respect des préférences système d'accessibilité */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Panneau : matériau (dégradé court), hairline, ombre à deux étages */
+  .card {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--card-shadow);
+    transition:
+      border-color var(--dur-base) var(--ease-out-quint),
+      box-shadow var(--dur-base) var(--ease-out-quint);
+    /* Un enfant ne peut jamais baver hors du rayon de la carte */
+    min-width: 0;
+  }
+  .card:hover {
+    border-color: var(--card-border-hover);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  /* Surface de modale : aplat strictement opaque. Le dégradé de `.card` est
+     magnifique posé sur le fond de l'app, mais au-dessus d'un backdrop-filter
+     il laisse transparaître la vue floutée — illisible. Les panneaux qui
+     flottent AU-DESSUS du reste (lecteur de note, feuille de croquis) prennent
+     donc cet aplat. */
+  .card-solid {
+    background: var(--color-surface);
+  }
+
+  .pill {
+    border-radius: var(--radius-pill);
+  }
+
+  /* Matériau "verre" : sidebar, barres d'outils flottantes */
+  .glass {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  /* ==========================================================
+     INFO-BULLES « Hover Hints »            (src/components/Tooltip.tsx)
+     ==========================================================
+     Une seule bulle pour toute l'app. Le WRAPPER porte la position
+     (translate3d, composité) ; la BULLE porte l'animation (fondu +
+     léger zoom). Séparer les deux garantit une mesure exacte de la
+     taille naturelle — donc zéro saut au placement — et une
+     animation qui ne touche ni au layout ni à la peinture.
+     ========================================================== */
+  .tip-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200; /* au-dessus de tout, sauf l'écran de démarrage */
+    width: max-content;
+    pointer-events: none; /* la bulle ne vole jamais le survol */
+    will-change: transform;
+  }
+
+  .tip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 264px;
+    padding: 7px 11px;
+    border: 1px solid var(--tip-border);
+    border-radius: 12px;
+    background: var(--tip-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: var(--tip-shadow);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+    text-align: left;
+    opacity: 0;
+    transition:
+      opacity var(--dur-fast) var(--ease-out-quint),
+      transform 190ms var(--ease-spring);
+    will-change: transform, opacity;
+  }
+
+  /* État de départ : la bulle « sort » du bord de l'élément survolé
+     (4px) en grandissant très légèrement — le mouvement raconte d'où
+     elle vient. L'origine du zoom suit le même côté. */
+  .tip-wrap[data-side="top"] .tip {
+    transform: scale(0.96) translateY(4px);
+    transform-origin: bottom center;
+  }
+  .tip-wrap[data-side="bottom"] .tip {
+    transform: scale(0.96) translateY(-4px);
+    transform-origin: top center;
+  }
+  .tip-wrap[data-side="left"] .tip {
+    transform: scale(0.96) translateX(4px);
+    transform-origin: right center;
+  }
+  .tip-wrap[data-side="right"] .tip {
+    transform: scale(0.96) translateX(-4px);
+    transform-origin: left center;
+  }
+  .tip-wrap .tip.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  .tip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tip-label {
+    font-weight: 600;
+  }
+  /* Raccourci clavier : pastille discrète, chiffres/symboles en mono */
+  .tip-kbd {
+    flex-shrink: 0;
+    padding: 1px 5px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-overlay);
+    color: var(--color-text-dim);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .tip-sub {
+    color: var(--color-text-dim);
+    font-size: 11.5px;
+    font-weight: 400;
+  }
+
+  /* Micro-label : petit, calme, sans-serif */
+  .hud-label {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+    /* un label long ne casse jamais l'en-tête d'une carte */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ==========================================================
+     GRILLE REDIMENSIONNABLE — structure réelle des panneaux
+     ==========================================================
+     Objectif : redimensionner un widget doit RESTRUCTURER son
+     contenu, pas juste étirer un cadre vide ("voile").
+
+     Mécanique :
+     1. `.rgrid-fill > .card` devient une COLONNE FLEX qui remplit
+        exactement l'empreinte de grille.
+     2. la région marquée `.panel-grow` (ou `.panel-scroll`)
+        absorbe la hauteur gagnée / rend la hauteur perdue ;
+     3. si aucune région n'est déclarée, un ressort en pied
+        (`::after`) absorbe l'espace — le contenu reste calé en
+        haut, sans étirement anormal.
+     ========================================================== */
+
+  /* Marges de tête/pied neutralisées : la grille gère l'espacement.
+     !important car les utilitaires Tailwind (couche `utilities`)
+     priment sinon sur la couche `components`. */
+  .rgrid-content {
+    min-width: 0;
+  }
+  .rgrid-content > :first-child {
+    margin-top: 0 !important;
+  }
+  .rgrid-content > :last-child {
+    margin-bottom: 0 !important;
+  }
+
+  /* Le cadre fait EXACTEMENT la taille de son empreinte : bords alignés
+     sur la grille 8pt, gouttières verticales constantes (16px, comme
+     l'horizontale).
+     La borne HAUTE est indispensable : sans elle, réduire un widget ne
+     faisait que rogner la carte (contenu coupé par l'`overflow: clip` du
+     wrap) au lieu de contraindre sa colonne flex — la région
+     `.panel-scroll` ne pouvait jamais prendre le relais. C'était LE bug du
+     "voile" : le cadre bougeait, la structure interne non. */
+  .rgrid-fill > :first-child {
+    min-height: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+  }
+
+  /* ⚠️ La colonne flex est attachée à `.rgrid-content`, PAS à `.rgrid-fill` :
+     le moteur retire momentanément `.rgrid-fill` pour lire la hauteur
+     NATURELLE du contenu. Si le flex partait avec, la carte repassait en flux
+     bloc le temps de la mesure (`.panel-chart`, height:0, y valait 0) et la
+     hauteur mesurée ne correspondait plus au rendu réel → contenu tronqué.
+     Seules les BORNES de hauteur doivent dépendre de `.rgrid-fill`.
+     La colonne n'est imposée qu'aux CARTES : un panneau dont la racine est
+     une grille (bandeau de tuiles) garde son display et s'étire via
+     `.panel-stretch`. */
+  .rgrid-content > .card {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Ressort de pied : seulement si le panneau ne déclare aucune
+     région extensible. Évite d'étirer un contenu qui ne s'y prête
+     pas (anneau, jauge, gros chiffre). */
+  .rgrid-content
+    > .card:not(:has(.panel-grow)):not(:has(.panel-scroll)):not(:has(.panel-chart))::after {
+    content: "";
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Dans une colonne de widget, RIEN ne se comprime… (une colonne flex
+     rétrécit ses items par défaut : un en-tête `.hud-label` — qui a
+     `overflow: hidden` — se faisait littéralement écraser à 0px de haut
+     dès que le contenu dépassait). */
+  .rgrid-content :where(.card, .panel-col) > * {
+    flex-shrink: 0;
+  }
+  /* …sauf les régions déclarées ci-dessous, qui absorbent la variation.
+     (Définies APRÈS pour l'emporter à spécificité égale.) */
+
+  /* Régions d'un widget (utilisables à n'importe quelle profondeur,
+     tant que le parent direct est une colonne flex). */
+  .panel-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .panel-grow {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  /* Liste/zone qui défile DANS le widget quand on le rétrécit.
+     Sa présence autorise aussi le moteur de grille à descendre
+     sous la hauteur naturelle du contenu (cf. ResizableGrid). */
+  .panel-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* Racine en grille (bandeaux de tuiles) : les tuiles se
+     répartissent la hauteur au lieu de laisser un vide en bas. */
+  .panel-stretch {
+    align-content: stretch;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  /* Zone de graphique : hauteur TOUJOURS définie (height:0 + min-height),
+     sinon un `<ResponsiveContainer height="100%">` mesure 0 quand la carte
+     est à sa hauteur naturelle. Grandit avec le widget.
+     `min-width: 0` est indispensable : recharts pose une largeur EXPLICITE sur
+     son SVG, qui devient la taille min-content de l'item flex — sans cela, la
+     carte refuse de rétrécir sous la largeur du graphique et déborde.
+     `overflow: hidden` couvre la frame de latence entre le rétrécissement du
+     conteneur et la re-mesure du SVG par recharts. */
+  .panel-chart {
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 140px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Anti-superposition des poignées de grille.
+     ================================================
+     Au survol d'un panneau, la barre de poignées (⠿ déplacer · ✕ masquer,
+     + ⟲ réinitialiser si redimensionné) apparaît en haut à droite. Un en-tête
+     de widget qui porte SES PROPRES contrôles à cet endroit (stepper, boutons
+     de période, formulaire, chip…) se ferait recouvrir — et le bouton le plus
+     à droite deviendrait incliquable. La classe `.rgrid-head`, posée sur la
+     rangée d'en-tête concernée, réserve alors juste la place de la barre :
+     le cluster de droite glisse vers la gauche le temps du survol.
+     Au repos : padding nul, donc AUCUN changement de mise en page ni d'aspect.
+     La largeur réservée (`--rgrid-handle-w`) est fournie par `ResizablePanel`
+     selon que le panneau montre 2 poignées ou 3 (avec réinitialiser). */
+  .rgrid-head {
+    transition: padding-right var(--dur-base) var(--ease-out-quint);
+    /* Fenêtre étroite / split-screen : la rangée d'en-tête doit pouvoir se
+       replier. Sans ça, le cluster de contrôles de droite (segmented control,
+       stepper, mini-formulaire) sortait du panneau, où l'`overflow-x: clip`
+       du wrap le rendait INVISIBLE et donc incliquable. Le repli ne se
+       déclenche que s'il manque réellement de la place : en plein écran les
+       éléments tiennent sur une ligne → rendu strictement inchangé.
+       `row-gap` n'est qu'un repli : les utilitaires `gap-*` de Tailwind
+       (couche utilities) gardent la priorité là où ils sont posés. */
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .group\/panel:hover .rgrid-head {
+    padding-right: var(--rgrid-handle-w, 4rem);
+  }
+
+  /* Éditeur de notes riche (contentEditable) */
+  .note-rich {
+    line-height: 1.65;
+    font-size: 0.9rem;
+  }
+  .note-rich:empty::before {
+    content: attr(data-placeholder);
+    color: var(--color-text-dim);
+    pointer-events: none;
+  }
+  .note-rich h1,
+  .note-rich h2 {
+    font-family: var(--font-display, var(--font-sans));
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0.6em 0 0.3em;
+  }
+  .note-rich h1 {
+    font-size: 1.4rem;
+  }
+  .note-rich h2 {
+    font-size: 1.15rem;
+  }
+  .note-rich ul,
+  .note-rich ol {
+    padding-left: 1.4em;
+    margin: 0.3em 0;
+  }
+  .note-rich ul {
+    list-style: disc;
+  }
+  .note-rich ol {
+    list-style: decimal;
+  }
+  .note-rich a {
+    color: var(--color-blue);
+    text-decoration: underline;
+  }
+  .note-rich blockquote {
+    border-left: 2px solid var(--color-border);
+    padding-left: 0.9em;
+    color: var(--color-text-dim);
+    margin: 0.4em 0;
+  }
+  .note-rich img,
+  .note-rich table {
+    max-width: 100%;
+  }
+
+  /* ==========================================================
+     BLOCS RICHES DES NOTES « SAVOIR »   (NoteComposer.tsx)
+     ==========================================================
+     Une note contient texte, liens, images, croquis et listes à
+     cocher. Ces règles valent pour l'ÉDITION comme pour la
+     lecture : ce qu'on écrit est exactement ce qu'on relit.
+     ========================================================== */
+
+  /* Image / croquis : bloc à part entière, jamais collé au texte */
+  .note-rich figure {
+    margin: 1.1em 0;
+  }
+  .note-rich figure img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-field);
+    background: var(--color-surface-2);
+  }
+  /* Un croquis se rouvre au double-clic : le curseur l'annonce. */
+  .note-rich img[data-sketch] {
+    cursor: pointer;
+    transition: border-color var(--dur-base) var(--ease-out-quint);
+  }
+  .note-rich img[data-sketch]:hover {
+    border-color: var(--color-blue);
+  }
+
+  .note-rich hr {
+    margin: 1.4em 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Liste à cocher : la case est un ::before (rien à sérialiser,
+     donc aucun <input> parasite dans le HTML enregistré). */
+  .note-rich ul.cl {
+    list-style: none;
+    padding-left: 0;
+  }
+  .note-rich ul.cl > li {
+    position: relative;
+    padding-left: 26px;
+    margin: 0.2em 0;
+  }
+  .note-rich ul.cl > li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.28em;
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: 5px;
+    background: var(--color-surface-2);
+    transition:
+      background-color var(--dur-fast) var(--ease-out-quint),
+      border-color var(--dur-fast) var(--ease-out-quint);
+  }
+  .note-rich ul.cl > li[data-checked="true"] {
+    color: var(--color-text-dim);
+    text-decoration: line-through;
+  }
+  .note-rich ul.cl > li[data-checked="true"]::before {
+    border-color: var(--color-green);
+    background: var(--color-green);
+  }
+  /* La coche : un chevron dessiné en CSS, net à toutes les densités. */
+  .note-rich ul.cl > li[data-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 0.48em;
+    width: 4px;
+    height: 8px;
+    border: solid var(--color-on-green);
+    border-width: 0 2px 2px 0;
+    transform: rotate(42deg);
+  }
+
+  /* Zone d'édition : de l'air en bas pour pouvoir cliquer sous le
+     dernier bloc, et un curseur à l'accent de l'app. */
+  .note-rich[contenteditable="true"] {
+    caret-color: var(--color-blue);
+    padding-bottom: 2rem;
+  }
+
+  /* Lecture immersive : mesure de ligne contenue, interlignage aéré. */
+  .note-reading {
+    max-width: 68ch;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+}
+
+@layer utilities {
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Grille interne auto-adaptative : les tuiles se réorganisent
+     selon la largeur RÉELLE du widget (pas du viewport) — aucun
+     chevauchement possible quelle que soit la taille choisie. */
+  .auto-tiles-sm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 72px), 1fr));
+  }
+  .auto-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+  }
+  .auto-tiles-lg {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  }
+
+  /* Tuiles de statistique « pictogramme + 2 lignes de texte » (PerfStrip).
+     `.auto-tiles` (piste mini 120px) est TROP PERMISSIF pour ce contenu :
+     une tuile = padding 32px + donut/icône 48px + gouttière 12px + un label
+     (« focus / 1 h », « trading 7 j ») ⇒ ~180px INCOMPRESSIBLES. À 120px,
+     `auto-fit` laissait donc tenir 4 colonnes dans une largeur où elles ne
+     rentrent pas → label tronqué en « TRA… » et chiffre chevauché en fenêtre
+     étroite / split-screen. Piste mini portée à 190px : `auto-fit` retombe
+     tout seul à 2 colonnes puis 1, sans breakpoint de viewport et sans rien
+     changer en plein écran (4 colonnes dès ~800px de large). */
+  .perf-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  }
+
+  /* Grille de CARTES : `auto-fill` (et non `auto-fit`) — les colonnes vides
+     restent en place, donc une carte seule garde sa largeur normale au lieu
+     de s'étirer sur toute la ligne. C'est la différence avec `.auto-tiles*`,
+     faites pour des tuiles qui DOIVENT se partager la largeur. */
+  .auto-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 232px), 1fr));
+  }
+
+  /* Texte long : coupe propre sur 1 ou 2 lignes */
+  .clamp-1,
+  .clamp-2,
+  .clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .clamp-1 {
+    -webkit-line-clamp: 1;
+  }
+  .clamp-2 {
+    -webkit-line-clamp: 2;
+  }
+  .clamp-3 {
+    -webkit-line-clamp: 3;
+  }
+
+  /* Tableau large : défile DANS la carte, jamais hors du cadre */
+  .table-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .animate-spin-slow {
+    animation: spin 24s linear infinite;
+  }
+  .animate-spin-slower {
+    animation: spin 60s linear infinite reverse;
+  }
+  .animate-pulse-dot {
+    animation: pulse-dot 2.4s ease-in-out infinite;
+  }
+  .animate-fade-up {
+    animation: fade-up 0.42s var(--ease-out-quint) both;
+  }
+  .animate-boot-line {
+    animation: boot-line 1.1s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+}
+
+/* Fond ambiant : un seul halo très doux, theme-aware. Rien d'autre. */
+.hud-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--ambient);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes boot-line {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}

@@ -1,0 +1,1092 @@
+import { getDb } from "./db";
+import { demo } from "./demo";
+import { theoreticalRR } from "./liveTracker";
+import { toDateStr } from "./logic";
+import type { PairConfig } from "./pairs";
+import { t } from "./i18n";
+import type {
+  AppData,
+  BenchmarkResult,
+  BenchTest,
+  Completion,
+  CustomMetric,
+  FocusSession,
+  Goal,
+  GoalProgressPoint,
+  Habit,
+  HabitCheck,
+  JournalEntry,
+  KnowledgeEntry,
+  KnowledgeEntryLite,
+  KnowledgeTopic,
+  LiveOutcome,
+  LivePartial,
+  LivePosition,
+  MetricEntry,
+  Note,
+  PositionSizeCalc,
+  Priority,
+  QuickLink,
+  Tag,
+  Task,
+  Trade,
+} from "./types";
+
+/** Hors Tauri (preview navigateur), on bascule sur des données démo en mémoire. */
+export const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+export interface TaskInput {
+  label: string;
+  tag: string | null;
+  priority: Priority;
+  recurrence: string; // 'none' | 'daily' | 'weekdays' | JSON de jours
+  goal_id: number | null;
+}
+
+/** Datetime local "YYYY-MM-DD HH:MM:SS" : toute la logique "jour" compare du local. */
+export function localNow(): string {
+  const now = new Date();
+  return `${toDateStr(now)} ${now.toTimeString().slice(0, 8)}`;
+}
+
+export async function fetchAll(sinceDate: string): Promise<AppData> {
+  if (!isTauri) return demo.fetchAll();
+  const db = await getDb();
+  const tasks = await db.select<Task[]>("SELECT * FROM tasks");
+  const completions = await db.select<Completion[]>(
+    "SELECT * FROM task_completions WHERE date >= $1",
+    [sinceDate],
+  );
+  const goals = await db.select<Goal[]>("SELECT * FROM goals");
+  const tags = await db.select<Tag[]>("SELECT * FROM tags");
+  const metrics = await db.select<CustomMetric[]>("SELECT * FROM custom_metrics");
+  const metricEntries = await db.select<MetricEntry[]>(
+    "SELECT * FROM metric_entries WHERE date >= $1",
+    [sinceDate],
+  );
+  const goalLog = await db.select<GoalProgressPoint[]>(
+    "SELECT * FROM goal_progress_log WHERE date >= $1",
+    [sinceDate],
+  );
+  const quickLinks = await db.select<QuickLink[]>(
+    "SELECT * FROM quick_links ORDER BY position, id",
+  );
+  const focusSessions = await db.select<FocusSession[]>(
+    "SELECT * FROM focus_sessions WHERE started_at >= $1",
+    [sinceDate],
+  );
+  const notes = await db.select<Note[]>(
+    "SELECT * FROM notes ORDER BY updated_at DESC",
+  );
+  const journal = await db.select<JournalEntry[]>(
+    "SELECT * FROM journal_entries WHERE date >= $1",
+    [sinceDate],
+  );
+  const habits = await db.select<Habit[]>(
+    "SELECT * FROM habits WHERE archived = 0",
+  );
+  const habitChecks = await db.select<HabitCheck[]>(
+    "SELECT * FROM habit_checks WHERE date >= $1",
+    [sinceDate],
+  );
+  const trades = await db.select<Trade[]>(
+    "SELECT * FROM trades WHERE date >= $1 ORDER BY date DESC, id DESC",
+    [sinceDate],
+  );
+  const benchmarks = await db.select<BenchmarkResult[]>(
+    "SELECT * FROM benchmark_results WHERE created_at >= $1 ORDER BY created_at",
+    [sinceDate],
+  );
+  return {
+    tasks,
+    completions,
+    goals,
+    tags,
+    metrics,
+    metricEntries,
+    goalLog,
+    quickLinks,
+    focusSessions,
+    notes,
+    journal,
+    habits,
+    habitChecks,
+    trades,
+    benchmarks,
+  };
+}
+
+// — Human Benchmark —
+
+export async function addBenchmarkResult(input: {
+  test: BenchTest;
+  score: number;
+  detail?: string | null;
+  preSession?: boolean;
+}): Promise<void> {
+  if (!isTauri)
+    return demo.addBenchmarkResult(
+      { ...input, detail: input.detail ?? null, preSession: !!input.preSession },
+      localNow(),
+    );
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO benchmark_results (test, score, detail, pre_session, created_at) VALUES ($1, $2, $3, $4, $5)",
+    [
+      input.test,
+      input.score,
+      input.detail ?? null,
+      input.preSession ? 1 : 0,
+      localNow(),
+    ],
+  );
+}
+
+// — Trading —
+
+export interface TradeInput {
+  date: string;
+  instrument: string;
+  direction: "long" | "short";
+  setup: string | null;
+  result_r: number;
+  screenshot_path: string | null;
+  notes: string | null;
+  mode: "live" | "backtest";
+}
+
+/** Crée un trade dans le journal et renvoie son id (lien tracker → journal). */
+export async function createTrade(input: TradeInput): Promise<number> {
+  if (!isTauri) return demo.createTrade(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    "INSERT INTO trades (date, instrument, direction, setup, result_r, screenshot_path, notes, created_at, mode) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [
+      input.date,
+      input.instrument,
+      input.direction,
+      input.setup,
+      input.result_r,
+      input.screenshot_path,
+      input.notes,
+      localNow(),
+      input.mode,
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateTrade(id: number, input: TradeInput): Promise<void> {
+  if (!isTauri) return demo.updateTrade(id, input);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE trades SET date = $1, instrument = $2, direction = $3, setup = $4, result_r = $5, screenshot_path = $6, notes = $7, mode = $8 WHERE id = $9",
+    [
+      input.date,
+      input.instrument,
+      input.direction,
+      input.setup,
+      input.result_r,
+      input.screenshot_path,
+      input.notes,
+      input.mode,
+      id,
+    ],
+  );
+}
+
+/** Sauvegarde de la base (fichier unique, propre) via VACUUM INTO. */
+export async function exportDb(destPath: string): Promise<void> {
+  if (!isTauri) throw new Error(t("export disponible dans l'app native"));
+  const db = await getDb();
+  await db.execute(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+}
+
+export async function deleteTrade(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteTrade(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM trades WHERE id = $1", [id]);
+}
+
+// — Calculateur de taille de position —
+
+export interface SizingCalcInput {
+  capital: number;
+  risk_percent: number;
+  pair: string;
+  entry_price: number;
+  stop_loss_price: number;
+  take_profit_price: number | null;
+  spread_pips: number | null;
+  include_spread: boolean;
+  direction: "long" | "short";
+  sl_distance_pips: number;
+  position_size_lots: number;
+  risk_amount_usd: number;
+  pip_value_per_lot: number | null;
+  notes: string | null;
+}
+
+// Le calcul est live (chaque frappe), mais l'historique ne doit pas se remplir
+// de doublons : on ignore deux enregistrements identiques consécutifs.
+let lastSizingSignature = "";
+function sizingSignature(i: SizingCalcInput): string {
+  return [
+    i.capital,
+    i.risk_percent,
+    i.pair,
+    i.entry_price,
+    i.stop_loss_price,
+    i.take_profit_price,
+    i.spread_pips,
+    i.include_spread,
+    i.direction,
+    i.position_size_lots,
+  ].join("|");
+}
+
+/** Log automatique d'un calcul valide (débouncé côté UI). Dédoublonné. */
+export async function logSizingCalc(input: SizingCalcInput): Promise<void> {
+  const sig = sizingSignature(input);
+  if (sig === lastSizingSignature) return;
+  lastSizingSignature = sig;
+  if (!isTauri) return demo.logSizingCalc(input, localNow());
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO position_size_calculations (created_at, capital, risk_percent, pair, entry_price, stop_loss_price, take_profit_price, spread_pips, include_spread, direction, sl_distance_pips, position_size_lots, risk_amount_usd, pip_value_per_lot, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+    [
+      localNow(),
+      input.capital,
+      input.risk_percent,
+      input.pair,
+      input.entry_price,
+      input.stop_loss_price,
+      input.take_profit_price,
+      input.spread_pips,
+      input.include_spread ? 1 : 0,
+      input.direction,
+      input.sl_distance_pips,
+      input.position_size_lots,
+      input.risk_amount_usd,
+      input.pip_value_per_lot,
+      input.notes,
+    ],
+  );
+}
+
+export async function fetchSizingHistory(
+  limit = 50,
+): Promise<PositionSizeCalc[]> {
+  if (!isTauri) return demo.fetchSizingHistory(limit);
+  const db = await getDb();
+  return db.select<PositionSizeCalc[]>(
+    "SELECT * FROM position_size_calculations ORDER BY created_at DESC, id DESC LIMIT $1",
+    [limit],
+  );
+}
+
+export async function markSizingUsed(
+  id: number,
+  used: boolean,
+): Promise<void> {
+  if (!isTauri) return demo.markSizingUsed(id, used);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE position_size_calculations SET used_for_trade = $1 WHERE id = $2",
+    [used ? 1 : 0, id],
+  );
+}
+
+export async function deleteSizingCalc(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteSizingCalc(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM position_size_calculations WHERE id = $1", [id]);
+}
+
+// — Tracker live trading —
+// Une position "envoyée" depuis le calculateur vit ici (status 'open') jusqu'au
+// clic Gagnante/Perdante ; la clôture crée la ligne du journal (trades) et la
+// position reste en archive. Événement `sb:live-positions` émis à chaque
+// mutation pour resynchroniser les vues montées.
+
+export interface OpenPositionInput {
+  pair: string;
+  direction: "long" | "short";
+  entry_price: number;
+  stop_loss_price: number;
+  take_profit_price: number | null;
+  lots: number | null;
+  risk_percent: number | null;
+  risk_amount: number | null;
+  sizing_calc_id: number | null;
+  notes: string | null;
+}
+
+function emitLiveChange(): void {
+  window.dispatchEvent(new CustomEvent("sb:live-positions"));
+}
+
+/** Envoie une position au tracker (capture l'heure exacte + R:R théorique). */
+export async function openLivePosition(
+  input: OpenPositionInput,
+): Promise<number> {
+  const rr = theoreticalRR(
+    input.entry_price,
+    input.stop_loss_price,
+    input.take_profit_price,
+    input.direction,
+  );
+  let id: number;
+  if (!isTauri) {
+    id = await demo.openLivePosition(input, rr, localNow());
+  } else {
+    const db = await getDb();
+    const res = await db.execute(
+      "INSERT INTO live_positions (opened_at, pair, direction, entry_price, stop_loss_price, take_profit_price, lots, risk_percent, risk_amount, rr_theoretical, sizing_calc_id, status, partials, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'open', '[]', $12)",
+      [
+        localNow(),
+        input.pair,
+        input.direction,
+        input.entry_price,
+        input.stop_loss_price,
+        input.take_profit_price,
+        input.lots,
+        input.risk_percent,
+        input.risk_amount,
+        rr,
+        input.sizing_calc_id,
+        input.notes,
+      ],
+    );
+    id = res.lastInsertId ?? 0;
+  }
+  emitLiveChange();
+  return id;
+}
+
+/** Positions en attente de dénouement (les archivées vivent dans le journal). */
+export async function fetchLivePositions(): Promise<LivePosition[]> {
+  if (!isTauri) return demo.fetchLivePositions();
+  const db = await getDb();
+  return db.select<LivePosition[]>(
+    "SELECT * FROM live_positions WHERE status = 'open' ORDER BY opened_at DESC, id DESC",
+  );
+}
+
+/** Remplace la liste des sorties partielles (JSON) d'une position ouverte. */
+export async function setLivePartials(
+  id: number,
+  partials: LivePartial[],
+): Promise<void> {
+  if (!isTauri) await demo.setLivePartials(id, partials);
+  else {
+    const db = await getDb();
+    await db.execute("UPDATE live_positions SET partials = $1 WHERE id = $2", [
+      JSON.stringify(partials),
+      id,
+    ]);
+  }
+  emitLiveChange();
+}
+
+/** Met à jour le TP (et le R:R théorique qui en découle). */
+export async function setLiveTakeProfit(
+  id: number,
+  takeProfit: number | null,
+): Promise<void> {
+  if (!isTauri) await demo.setLiveTakeProfit(id, takeProfit);
+  else {
+    const db = await getDb();
+    const rows = await db.select<LivePosition[]>(
+      "SELECT * FROM live_positions WHERE id = $1",
+      [id],
+    );
+    const pos = rows[0];
+    if (!pos) return;
+    const rr = theoreticalRR(
+      pos.entry_price,
+      pos.stop_loss_price,
+      takeProfit,
+      pos.direction,
+    );
+    await db.execute(
+      "UPDATE live_positions SET take_profit_price = $1, rr_theoretical = $2 WHERE id = $3",
+      [takeProfit, rr, id],
+    );
+  }
+  emitLiveChange();
+}
+
+/** Archive la position dénouée (status, résultat, lien vers le journal). */
+export async function closeLivePosition(
+  id: number,
+  outcome: LiveOutcome,
+  resultR: number,
+  tradeId: number | null,
+): Promise<void> {
+  if (!isTauri) await demo.closeLivePosition(id, outcome, resultR, tradeId, localNow());
+  else {
+    const db = await getDb();
+    await db.execute(
+      "UPDATE live_positions SET status = $1, result_r = $2, trade_id = $3, closed_at = $4 WHERE id = $5",
+      [outcome, resultR, tradeId, localNow(), id],
+    );
+  }
+  emitLiveChange();
+}
+
+/** Retire une position du tracker sans la logger (envoi par erreur). */
+export async function deleteLivePosition(id: number): Promise<void> {
+  if (!isTauri) await demo.deleteLivePosition(id);
+  else {
+    const db = await getDb();
+    await db.execute("DELETE FROM live_positions WHERE id = $1", [id]);
+  }
+  emitLiveChange();
+}
+
+// — Réglages du tracker (clé/valeur, table settings partagée) —
+
+export interface TrackerSettings {
+  /** Envoi direct sans popup de confirmation au clic "Trader". */
+  fastTrack: boolean;
+  /** Ouvre la vue Trading (tracker) juste après l'envoi. */
+  autoOpen: boolean;
+  /** Affiche le bouton break-even dans le tracker. */
+  allowBe: boolean;
+}
+
+export const TRACKER_DEFAULTS: TrackerSettings = {
+  fastTrack: false,
+  autoOpen: false,
+  allowBe: true,
+};
+
+const TK = {
+  fastTrack: "tracker.fastTrack",
+  autoOpen: "tracker.autoOpen",
+  allowBe: "tracker.allowBe",
+} as const;
+
+function bool(v: string | null, fallback: boolean): boolean {
+  if (v == null || v === "") return fallback;
+  return v === "1";
+}
+
+export async function fetchTrackerSettings(): Promise<TrackerSettings> {
+  const [fastTrack, autoOpen, allowBe] = await Promise.all([
+    getSetting(TK.fastTrack),
+    getSetting(TK.autoOpen),
+    getSetting(TK.allowBe),
+  ]);
+  return {
+    fastTrack: bool(fastTrack, TRACKER_DEFAULTS.fastTrack),
+    autoOpen: bool(autoOpen, TRACKER_DEFAULTS.autoOpen),
+    allowBe: bool(allowBe, TRACKER_DEFAULTS.allowBe),
+  };
+}
+
+export async function saveTrackerSettings(s: TrackerSettings): Promise<void> {
+  await Promise.all([
+    setSetting(TK.fastTrack, s.fastTrack ? "1" : "0"),
+    setSetting(TK.autoOpen, s.autoOpen ? "1" : "0"),
+    setSetting(TK.allowBe, s.allowBe ? "1" : "0"),
+  ]);
+}
+
+// — Réglages du calculateur (clé/valeur, table settings partagée) —
+
+export interface SizingSettings {
+  capital: number;
+  risk: number;
+  maxRisk: number; // seuil d'alerte risque (%)
+  maxLots: number | null; // limite de lots (prop firm), null = pas de limite
+  currency: string;
+  pipOverrides: Record<string, number>; // symbole → pip value custom
+  customPairs: PairConfig[];
+}
+
+export const SIZING_DEFAULTS: SizingSettings = {
+  capital: 5000,
+  risk: 1,
+  maxRisk: 2,
+  maxLots: null,
+  currency: "USD",
+  pipOverrides: {},
+  customPairs: [],
+};
+
+const SK = {
+  capital: "sizing.capital",
+  risk: "sizing.risk",
+  maxRisk: "sizing.maxRisk",
+  maxLots: "sizing.maxLots",
+  currency: "sizing.currency",
+  pipOverrides: "sizing.pipOverrides",
+  customPairs: "sizing.customPairs",
+} as const;
+
+function num(v: string | null, fallback: number): number {
+  if (v == null || v.trim() === "") return fallback;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function json<T>(v: string | null, fallback: T): T {
+  if (!v) return fallback;
+  try {
+    return JSON.parse(v) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function fetchSizingSettings(): Promise<SizingSettings> {
+  const [capital, risk, maxRisk, maxLots, currency, pipOverrides, customPairs] =
+    await Promise.all([
+      getSetting(SK.capital),
+      getSetting(SK.risk),
+      getSetting(SK.maxRisk),
+      getSetting(SK.maxLots),
+      getSetting(SK.currency),
+      getSetting(SK.pipOverrides),
+      getSetting(SK.customPairs),
+    ]);
+  return {
+    capital: num(capital, SIZING_DEFAULTS.capital),
+    risk: num(risk, SIZING_DEFAULTS.risk),
+    maxRisk: num(maxRisk, SIZING_DEFAULTS.maxRisk),
+    maxLots:
+      maxLots == null || maxLots.trim() === "" ? null : num(maxLots, 0) || null,
+    currency: currency || SIZING_DEFAULTS.currency,
+    pipOverrides: json<Record<string, number>>(pipOverrides, {}),
+    customPairs: json<PairConfig[]>(customPairs, []),
+  };
+}
+
+export async function saveSizingSettings(
+  s: SizingSettings,
+): Promise<void> {
+  await Promise.all([
+    setSetting(SK.capital, String(s.capital)),
+    setSetting(SK.risk, String(s.risk)),
+    setSetting(SK.maxRisk, String(s.maxRisk)),
+    setSetting(SK.maxLots, s.maxLots == null ? "" : String(s.maxLots)),
+    setSetting(SK.currency, s.currency),
+    setSetting(SK.pipOverrides, JSON.stringify(s.pipOverrides)),
+    setSetting(SK.customPairs, JSON.stringify(s.customPairs)),
+  ]);
+}
+
+// — Notes —
+
+export async function createNote(title: string, body: string): Promise<number> {
+  if (!isTauri) return demo.createNote(title, body, localNow());
+  const db = await getDb();
+  const now = localNow();
+  const res = await db.execute(
+    "INSERT INTO notes (title, body, created_at, updated_at) VALUES ($1, $2, $3, $3)",
+    [title, body, now],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateNote(
+  id: number,
+  title: string,
+  body: string,
+): Promise<void> {
+  if (!isTauri) return demo.updateNote(id, title, body, localNow());
+  const db = await getDb();
+  await db.execute(
+    "UPDATE notes SET title = $1, body = $2, updated_at = $3 WHERE id = $4",
+    [title, body, localNow(), id],
+  );
+}
+
+export async function deleteNote(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteNote(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM notes WHERE id = $1", [id]);
+}
+
+/** Recherche plein texte (FTS5) avec repli LIKE si indisponible. */
+export async function searchNotes(query: string): Promise<Note[]> {
+  if (!isTauri) return demo.searchNotes(query);
+  const db = await getDb();
+  const q = query.trim();
+  if (!q) return db.select<Note[]>("SELECT * FROM notes ORDER BY updated_at DESC");
+  try {
+    return await db.select<Note[]>(
+      "SELECT n.* FROM notes_fts f JOIN notes n ON n.id = f.rowid WHERE notes_fts MATCH $1 ORDER BY rank",
+      [q.replace(/[^\p{L}\p{N} ]/gu, " ") + "*"],
+    );
+  } catch {
+    return db.select<Note[]>(
+      "SELECT * FROM notes WHERE title LIKE $1 OR body LIKE $1 ORDER BY updated_at DESC",
+      [`%${q}%`],
+    );
+  }
+}
+
+// — Savoir (base de connaissances) —
+// Deux niveaux de lecture pour ne jamais charger inutilement des images :
+// `fetchKnowledge()` ramène les thèmes + les fiches SANS le média pleine
+// résolution (les cartes n'affichent que `thumb`), et `fetchKnowledgeEntry()`
+// ramène une fiche complète à l'ouverture du lecteur.
+
+/** Colonnes modifiables d'une fiche (liste blanche : les patchs sont dynamiques). */
+const KNOWLEDGE_FIELDS = [
+  "topic_id",
+  "kind",
+  "title",
+  "body",
+  "text",
+  "url",
+  "media",
+  "thumb",
+  "data",
+  "tags",
+  "pinned",
+] as const;
+
+export type KnowledgeField = (typeof KNOWLEDGE_FIELDS)[number];
+export type KnowledgeInput = Partial<Pick<KnowledgeEntry, KnowledgeField>>;
+
+// Le CORPS est volontairement absent : il peut contenir plusieurs centaines de
+// ko d'images. La liste vit sur `text` (recherche + extrait) et `thumb`
+// (couverture) ; `body_len` sert seulement à repérer les fiches à ré-indexer.
+const LITE_COLUMNS =
+  "id, topic_id, kind, title, text, url, thumb, data, tags, pinned, created_at, updated_at, LENGTH(body) AS body_len";
+
+export async function fetchKnowledge(): Promise<{
+  topics: KnowledgeTopic[];
+  entries: KnowledgeEntryLite[];
+}> {
+  if (!isTauri) return demo.fetchKnowledge();
+  const db = await getDb();
+  const topics = await db.select<KnowledgeTopic[]>(
+    "SELECT * FROM knowledge_topics ORDER BY position, id",
+  );
+  const entries = await db.select<KnowledgeEntryLite[]>(
+    `SELECT ${LITE_COLUMNS} FROM knowledge_entries ORDER BY pinned DESC, updated_at DESC, id DESC`,
+  );
+  return { topics, entries };
+}
+
+/** Fiche complète (média inclus) — pour le lecteur immersif. */
+export async function fetchKnowledgeEntry(
+  id: number,
+): Promise<KnowledgeEntry | null> {
+  if (!isTauri) return demo.fetchKnowledgeEntry(id);
+  const db = await getDb();
+  const rows = await db.select<KnowledgeEntry[]>(
+    "SELECT * FROM knowledge_entries WHERE id = $1",
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+export async function createKnowledgeTopic(
+  name: string,
+  color: string,
+): Promise<number> {
+  if (!isTauri) return demo.createKnowledgeTopic(name, color, localNow());
+  const db = await getDb();
+  const rows = await db.select<{ next: number | null }[]>(
+    "SELECT MAX(position) + 1 AS next FROM knowledge_topics",
+  );
+  const res = await db.execute(
+    "INSERT INTO knowledge_topics (name, color, position, created_at) VALUES ($1, $2, $3, $4)",
+    [name, color, rows[0]?.next ?? 0, localNow()],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateKnowledgeTopic(
+  id: number,
+  name: string,
+  color: string,
+): Promise<void> {
+  if (!isTauri) return demo.updateKnowledgeTopic(id, name, color);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE knowledge_topics SET name = $1, color = $2 WHERE id = $3",
+    [name, color, id],
+  );
+}
+
+/** Supprime le thème ; ses fiches ne sont PAS perdues (elles passent « non classées »). */
+export async function deleteKnowledgeTopic(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteKnowledgeTopic(id);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE knowledge_entries SET topic_id = NULL WHERE topic_id = $1",
+    [id],
+  );
+  await db.execute("DELETE FROM knowledge_topics WHERE id = $1", [id]);
+}
+
+export async function createKnowledgeEntry(
+  input: KnowledgeInput & { kind: KnowledgeEntry["kind"]; title: string },
+): Promise<number> {
+  const now = localNow();
+  if (!isTauri) return demo.createKnowledgeEntry(input, now);
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO knowledge_entries
+       (topic_id, kind, title, body, text, url, media, thumb, data, tags, pinned, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)`,
+    [
+      input.topic_id ?? null,
+      input.kind,
+      input.title,
+      input.body ?? "",
+      input.text ?? "",
+      input.url ?? null,
+      input.media ?? null,
+      input.thumb ?? null,
+      input.data ?? null,
+      input.tags ?? "",
+      input.pinned ?? 0,
+      now,
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+/**
+ * Patch partiel : seules les colonnes fournies sont écrites.
+ * `touch: false` préserve `updated_at` — indispensable pour une écriture
+ * technique (ré-indexation du texte, conversion d'une fiche historique) qui
+ * ne doit ni mentir sur la date de modification ni réordonner la liste.
+ */
+export async function updateKnowledgeEntry(
+  id: number,
+  patch: KnowledgeInput,
+  opts: { touch?: boolean } = {},
+): Promise<void> {
+  const touch = opts.touch !== false;
+  const fields = KNOWLEDGE_FIELDS.filter((f) => patch[f] !== undefined);
+  if (fields.length === 0) return;
+  if (!isTauri) return demo.updateKnowledgeEntry(id, patch, touch ? localNow() : null);
+  const db = await getDb();
+  const sets = fields.map((f, i) => `${f} = $${i + 1}`).join(", ");
+  const values = fields.map((f) => patch[f] as string | number | null);
+  await db.execute(
+    touch
+      ? `UPDATE knowledge_entries SET ${sets}, updated_at = $${fields.length + 1} WHERE id = $${fields.length + 2}`
+      : `UPDATE knowledge_entries SET ${sets} WHERE id = $${fields.length + 1}`,
+    touch ? [...values, localNow(), id] : [...values, id],
+  );
+}
+
+export async function deleteKnowledgeEntry(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteKnowledgeEntry(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM knowledge_entries WHERE id = $1", [id]);
+}
+
+// — Journal —
+
+export async function upsertJournal(
+  date: string,
+  entry: { mood: number | null; energy: number | null; body: string },
+): Promise<void> {
+  if (!isTauri) return demo.upsertJournal(date, entry);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO journal_entries (date, mood, energy, body) VALUES ($1, $2, $3, $4) ON CONFLICT(date) DO UPDATE SET mood = $2, energy = $3, body = $4",
+    [date, entry.mood, entry.energy, entry.body],
+  );
+}
+
+// — Habitudes —
+
+export async function addHabit(name: string, color: string): Promise<void> {
+  if (!isTauri) return demo.addHabit(name, color);
+  const db = await getDb();
+  await db.execute("INSERT INTO habits (name, color) VALUES ($1, $2)", [
+    name,
+    color,
+  ]);
+}
+
+export async function deleteHabit(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteHabit(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM habit_checks WHERE habit_id = $1", [id]);
+  await db.execute("DELETE FROM habits WHERE id = $1", [id]);
+}
+
+export async function setHabitCheck(
+  habitId: number,
+  date: string,
+  checked: boolean,
+): Promise<void> {
+  if (!isTauri) return demo.setHabitCheck(habitId, date, checked);
+  const db = await getDb();
+  if (checked)
+    await db.execute(
+      "INSERT INTO habit_checks (habit_id, date) VALUES ($1, $2) ON CONFLICT(habit_id, date) DO NOTHING",
+      [habitId, date],
+    );
+  else
+    await db.execute(
+      "DELETE FROM habit_checks WHERE habit_id = $1 AND date = $2",
+      [habitId, date],
+    );
+}
+
+export interface FocusInput {
+  task_id: number | null;
+  label: string | null;
+  planned_min: number;
+  kind: "focus" | "break";
+}
+
+export async function startFocus(input: FocusInput): Promise<number> {
+  if (!isTauri) return demo.startFocus(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    "INSERT INTO focus_sessions (task_id, label, started_at, planned_min, kind) VALUES ($1, $2, $3, $4, $5)",
+    [input.task_id, input.label, localNow(), input.planned_min, input.kind],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function endFocus(id: number, endedAt: string): Promise<void> {
+  if (!isTauri) return demo.endFocus(id, endedAt);
+  const db = await getDb();
+  await db.execute("UPDATE focus_sessions SET ended_at = $1 WHERE id = $2", [
+    endedAt,
+    id,
+  ]);
+}
+
+/** Session encore ouverte (reprise après redémarrage de l'app). */
+export async function fetchActiveFocus(): Promise<FocusSession | null> {
+  if (!isTauri) return demo.fetchActiveFocus();
+  const db = await getDb();
+  const rows = await db.select<FocusSession[]>(
+    "SELECT * FROM focus_sessions WHERE ended_at IS NULL ORDER BY id DESC LIMIT 1",
+  );
+  return rows[0] ?? null;
+}
+
+export async function addQuickLink(label: string, url: string): Promise<void> {
+  if (!isTauri) return demo.addQuickLink(label, url);
+  const db = await getDb();
+  await db.execute("INSERT INTO quick_links (label, url) VALUES ($1, $2)", [
+    label,
+    url,
+  ]);
+}
+
+export async function deleteQuickLink(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteQuickLink(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM quick_links WHERE id = $1", [id]);
+}
+
+export async function getSetting(key: string): Promise<string | null> {
+  if (!isTauri) return demo.getSetting(key);
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = $1",
+    [key],
+  );
+  return rows[0]?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  if (!isTauri) return demo.setSetting(key, value);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2",
+    [key, value],
+  );
+}
+
+/**
+ * Clé lue par le moteur de notifications (`src-tauri/src/notifications/data.rs`)
+ * pour la règle « savoir délaissé ». Le format DOIT rester celui de `localNow()`
+ * (`YYYY-MM-DD HH:MM:SS`, heure locale) : c'est ce que le Rust sait analyser.
+ */
+export const KNOWLEDGE_LAST_VIEWED_KEY = "knowledge.last_viewed_at";
+
+/**
+ * Marque le Savoir comme consulté — appelée à l'OUVERTURE d'une fiche, pas au
+ * simple affichage de la liste : passer sur l'onglet sans rien lire ne doit pas
+ * désamorcer le rappel d'inactivité.
+ */
+export async function markKnowledgeViewed(): Promise<void> {
+  await setSetting(KNOWLEDGE_LAST_VIEWED_KEY, localNow());
+}
+
+/** Snapshot quotidien de la progression effective des objectifs (appelé au lancement). */
+export async function snapshotGoals(
+  date: string,
+  entries: { goal_id: number; pct: number }[],
+): Promise<void> {
+  if (!isTauri) return; // en démo, l'historique est seedé
+  const db = await getDb();
+  for (const e of entries) {
+    await db.execute(
+      "INSERT INTO goal_progress_log (goal_id, date, pct) VALUES ($1, $2, $3) ON CONFLICT(goal_id, date) DO UPDATE SET pct = $3",
+      [e.goal_id, date, e.pct],
+    );
+  }
+}
+
+export async function addMetric(name: string, unit: string | null): Promise<void> {
+  if (!isTauri) return demo.addMetric(name, unit);
+  const db = await getDb();
+  await db.execute("INSERT INTO custom_metrics (name, unit) VALUES ($1, $2)", [
+    name,
+    unit,
+  ]);
+}
+
+export async function deleteMetric(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteMetric(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM metric_entries WHERE metric_id = $1", [id]);
+  await db.execute("DELETE FROM custom_metrics WHERE id = $1", [id]);
+}
+
+export async function setMetricValue(
+  metricId: number,
+  date: string,
+  value: number,
+): Promise<void> {
+  if (!isTauri) return demo.setMetricValue(metricId, date, value);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO metric_entries (metric_id, date, value) VALUES ($1, $2, $3) ON CONFLICT(metric_id, date) DO UPDATE SET value = $3",
+    [metricId, date, value],
+  );
+}
+
+export async function createTask(input: TaskInput): Promise<void> {
+  if (!isTauri) return demo.createTask(input);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO tasks (label, tag, priority, recurrence, goal_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+    [
+      input.label,
+      input.tag,
+      input.priority,
+      input.recurrence,
+      input.goal_id,
+      localNow(),
+    ],
+  );
+}
+
+export async function updateTask(id: number, input: TaskInput): Promise<void> {
+  if (!isTauri) return demo.updateTask(id, input);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5 WHERE id = $6",
+    [input.label, input.tag, input.priority, input.recurrence, input.goal_id, id],
+  );
+}
+
+export async function deleteTask(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteTask(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM task_completions WHERE task_id = $1", [id]);
+  await db.execute("DELETE FROM tasks WHERE id = $1", [id]);
+}
+
+export async function setTaskDone(
+  taskId: number,
+  date: string,
+  done: boolean,
+): Promise<void> {
+  if (!isTauri) return demo.setTaskDone(taskId, date, done);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO task_completions (task_id, date, done) VALUES ($1, $2, $3) ON CONFLICT(task_id, date) DO UPDATE SET done = $3",
+    [taskId, date, done ? 1 : 0],
+  );
+}
+
+export interface GoalInput {
+  title: string;
+  description: string | null;
+  scope: "short" | "medium" | "long";
+  category: string | null;
+  parent_goal_id: number | null;
+  deadline: string | null;
+  progress_pct: number;
+  manual_progress: number; // 0 | 1
+}
+
+export async function createGoal(input: GoalInput): Promise<void> {
+  if (!isTauri) return demo.createGoal(input);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO goals (title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [
+      input.title,
+      input.description,
+      input.scope,
+      input.category,
+      input.parent_goal_id,
+      input.deadline,
+      input.progress_pct,
+      input.manual_progress,
+      localNow(),
+    ],
+  );
+}
+
+export async function updateGoal(id: number, input: GoalInput): Promise<void> {
+  if (!isTauri) return demo.updateGoal(id, input);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE goals SET title = $1, description = $2, scope = $3, category = $4, parent_goal_id = $5, deadline = $6, progress_pct = $7, manual_progress = $8 WHERE id = $9",
+    [
+      input.title,
+      input.description,
+      input.scope,
+      input.category,
+      input.parent_goal_id,
+      input.deadline,
+      input.progress_pct,
+      input.manual_progress,
+      id,
+    ],
+  );
+}
+
+/** Supprime l'objectif ; ses enfants remontent vers son parent, ses tâches sont déliées. */
+export async function deleteGoal(goal: Goal): Promise<void> {
+  if (!isTauri) return demo.deleteGoal(goal);
+  const db = await getDb();
+  await db.execute("UPDATE goals SET parent_goal_id = $1 WHERE parent_goal_id = $2", [
+    goal.parent_goal_id,
+    goal.id,
+  ]);
+  await db.execute("UPDATE tasks SET goal_id = NULL WHERE goal_id = $1", [goal.id]);
+  await db.execute("DELETE FROM goals WHERE id = $1", [goal.id]);
+}
+
+export async function addTag(name: string, color: string): Promise<void> {
+  if (!isTauri) return demo.addTag(name, color);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO tags (name, color) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET color = $2",
+    [name, color],
+  );
+}
+
+export async function deleteTag(tag: Tag): Promise<void> {
+  if (!isTauri) return demo.deleteTag(tag);
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET tag = NULL WHERE tag = $1", [tag.name]);
+  await db.execute("DELETE FROM tags WHERE id = $1", [tag.id]);
+}

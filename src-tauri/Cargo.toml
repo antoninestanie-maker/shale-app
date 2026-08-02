@@ -1,0 +1,47 @@
+[package]
+name = "shale"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "shale_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "tray-icon", "protocol-asset"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
+tauri-plugin-global-shortcut = "2.3.2"
+tauri-plugin-notification = "2.3.3"
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-http = "2"
+# Notifications intelligentes (src/notifications/) : `chrono` pour l'heure locale,
+# `sqlx` pour lire shale.db EN LECTURE SEULE depuis le Rust (le front reste seul
+# écrivain de la base). Les deux sont déjà dans l'arbre via tauri-plugin-sql —
+# on aligne juste les features, sans nouvelle dépendance compilée.
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }
+# `time` seulement : le planificateur ne veut que `sleep`, l'exécuteur est celui
+# de Tauri (`tauri::async_runtime`, lui-même bâti sur tokio).
+tokio = { version = "1", features = ["time"] }
+# Trousseau système (src/secrets.rs) : range les clés d'API LLM chiffrées au repos
+# plutôt qu'en clair dans shale.db. `apple-native` seul — pas de backend Linux/
+# Windows à compiler, l'app est macOS uniquement.
+keyring = { version = "3", features = ["apple-native"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+tempfile = "3"
+

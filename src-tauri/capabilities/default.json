@@ -1,0 +1,37 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main", "capture"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "sql:default",
+    "sql:allow-execute",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-size",
+    "core:window:allow-inner-size",
+    "core:window:allow-scale-factor",
+    "notification:default",
+    "dialog:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://query1.finance.yahoo.com/*" },
+        { "url": "https://query2.finance.yahoo.com/*" },
+        { "url": "https://nfs.faireconomy.media/*" },
+        { "url": "https://www.forexlive.com/*" },
+        { "url": "https://investinglive.com/*" },
+        { "url": "https://www.investinglive.com/*" },
+        { "url": "https://www.fxstreet.com/*" },
+        { "url": "https://www.coindesk.com/*" },
+        { "url": "https://fapi.binance.com/*" },
+        { "url": "https://api.alternative.me/*" },
+        { "url": "https://generativelanguage.googleapis.com/*" },
+        { "url": "https://api.groq.com/*" }
+      ]
+    }
+  ]
+}
