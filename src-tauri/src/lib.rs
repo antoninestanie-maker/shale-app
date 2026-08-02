@@ -140,6 +140,12 @@ pub fn run() {
             sql: include_str!("../migrations/014_knowledge_text.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 15,
+            description: "sync_identity",
+            sql: include_str!("../migrations/015_sync_identity.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
