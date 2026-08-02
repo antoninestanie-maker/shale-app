@@ -146,6 +146,12 @@ pub fn run() {
             sql: include_str!("../migrations/015_sync_identity.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 16,
+            description: "sync_outbox",
+            sql: include_str!("../migrations/016_sync_outbox.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

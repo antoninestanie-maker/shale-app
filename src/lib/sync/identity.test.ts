@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DatabaseSync } from "node:sqlite";
 
-import { baseNeuve, MIGRATIONS, uidDe, UUID_V4 } from "./schema.testutil";
+import { baseNeuve, MIGRATION_IDENTITE, MIGRATIONS, uidDe, UUID_V4 } from "./schema.testutil";
 
 /**
  * Étape 1 — identité globale des lignes (migration 015).
@@ -204,7 +204,7 @@ describe("garanties indispensables au moteur de sync", () => {
     // Simule une base ANTÉRIEURE à la sync (schéma 001→014, données dedans),
     // puis applique la 015 : c'est très exactement ce qui arrivera à la base
     // réelle d'Antonin au prochain lancement.
-    const ancienne = baseNeuve(14);
+    const ancienne = baseNeuve(MIGRATION_IDENTITE - 1);
     try {
       const tacheId = Number(
         ancienne.prepare("INSERT INTO tasks (label, priority, recurrence) VALUES ('vieille', 'medium', 'none')").run()
@@ -214,8 +214,8 @@ describe("garanties indispensables au moteur de sync", () => {
       ancienne.prepare("INSERT INTO journal_entries (date, body) VALUES ('2026-07-01', 'hier')").run();
       ancienne.prepare("INSERT INTO notes (title, body) VALUES ('note ancienne', 'corps')").run();
 
-      // Application de la migration 015 sur cette base déjà peuplée.
-      ancienne.exec(MIGRATIONS[MIGRATIONS.length - 1]);
+      // Application de la migration d'identité sur cette base déjà peuplée.
+      ancienne.exec(MIGRATIONS[MIGRATION_IDENTITE - 1]);
 
       const TABLES = [
         "tasks", "goals", "habits", "custom_metrics", "quick_links", "focus_sessions", "notes", "trades",

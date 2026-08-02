@@ -2,7 +2,9 @@
 
 **Fork commercial de Second Brain** (déclinaison vendue). App de productivité + trading.
 **Desktop macOS : Tauri v2 (Rust) + React 19 + TypeScript + Tailwind v4 + Vite 7.**
-Le dossier n'est PAS un dépôt git. Specs : `SPEC.md` (V1) et `SPEC-V2.md` (V2 Jarvis, phases A→F faites, G "polish" restante).
+**Le dossier EST un dépôt git** (branche `main`, premier commit le 2026-08-02 — l'ancienne
+mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `SPEC-V2.md`
+(V2 Jarvis, phases A→F faites, G "polish" restante).
 
 ## Couche commerciale (fork Shale, 2026-07-25)
 - **Rebranding** : productName/identifier `com.atnfx.shale`, DB `shale.db`, lib Rust
@@ -28,7 +30,11 @@ Le dossier n'est PAS un dépôt git. Specs : `SPEC.md` (V1) et `SPEC-V2.md` (V2 
 - `npx tsc --noEmit` — typecheck
 - `npx vite build` — build front (`npm run build` = tsc + vite build)
 - `npm run tauri dev` / `npm run tauri build` — app native
-- `cargo check` dans `src-tauri/` — check Rust
+- `cargo check --lib --tests --bins` dans `src-tauri/` — check Rust (⚠️ PAS
+  `--all-targets` : `examples/transcribe.rs` importe `whisper_rs`/`hound`, retirés des
+  dépendances — dette connue, cf. section Notifications)
+- `cargo test --lib` dans `src-tauri/` — 79 tests (moteur de notifications)
+- `npm test` — tests TypeScript (vitest). `npm run test:watch` en continu.
 - Preview navigateur (`npx vite`) = **mode démo** : `isTauri` (src/lib/repo.ts:28) est faux → données factices en mémoire (`src/lib/demo.ts`, `src/lib/market/demo.ts`), pas de SQLite ni de réseau natif.
 
 **⚠️ Règle : après chaque modification majeure, réinstaller l'application.**
@@ -41,10 +47,16 @@ significative (code front ou Rust, et obligatoirement `capabilities/*.json`,
 ## Architecture générale
 - `src/App.tsx` — routing par état `view`, monte `useFocus` + `useMarketBrain` au niveau App.
 - `src/lib/repo.ts` — accès données : SQLite (tauri-plugin-sql) en natif, `demo.ts` sinon. Réglages = table `settings` clé/valeur (`getSetting`/`setSetting`).
-- `src-tauri/migrations/001→010` — migrations SQL enregistrées dans `src-tauri/src/lib.rs`. DB : `~/Library/Application Support/com.atnfx.secondbrain/second-brain.db`.
+- `src-tauri/migrations/001→016` — migrations SQL enregistrées dans `src-tauri/src/lib.rs`.
+  DB : **`~/Library/Application Support/com.atnfx.shale/shale.db`** (l'ancien chemin
+  `com.atnfx.secondbrain/second-brain.db` écrit ici était un reliquat de Second Brain,
+  faux depuis le rebranding — c'est la base de l'AUTRE app).
 - `src-tauri/capabilities/default.json` — **allowlist des domaines HTTP** (tauri-plugin-http). Tout nouveau domaine fetché doit y être ajouté, puis app rebuildée.
 - ~~Vocal Jarvis~~ : **inexistant dans Shale** (le fork n'a jamais embarqué `voice.rs` ni `whisper-rs` ; cette ligne, héritée de Second Brain, était fausse). Vérifié le 2026-07-26 : 0 occurrence de jarvis/whisper/voice, front comme Rust.
-- Vues : Today, Tasks, Timer(Pomodoro), Goals, Performance, Benchmark, Notes(FTS5), Journal, Trading(journal de trades en R), **MarketBrain**, Sizing(calculateur de position), Settings.
+- **15 vues** (`src/views/`) : Today, Tasks, Timer(Pomodoro), Goals, Performance, Benchmark,
+  Notes(FTS5), Journal, **Knowledge(Savoir)**, Trading(journal de trades en R),
+  **MarketBrain**, Sizing(calculateur de position), Settings, **Admin(Personnaliser)**,
+  **Console(mode admin)**.
 
 ## Market Brain (`src/lib/market/` + `src/views/MarketBrainView.tsx`)
 Agent IA qui génère 2×/jour (8h pré-Londres, 14h pré-NY, heure de Paris) un briefing
@@ -231,7 +243,7 @@ Nouvelle vue `admin` (sidebar, épinglée en bas avec Réglages, icône curseurs
   QUE dans la vue Timer. Ne pas remettre de formulaire détaillé dans un widget du dashboard.
 
 ## Code-splitting (2026-07-11, nuit)
-Les 13 vues sont chargées en `React.lazy` + `Suspense` dans `App.tsx` (fallback
+Les vues (13 à l'époque, **15 aujourd'hui**) sont chargées en `React.lazy` + `Suspense` dans `App.tsx` (fallback
 « Chargement… »), et `WeekChart` (recharts) est lazy dans `TodayView` : recharts
 ne fait plus partie du bundle de démarrage. Résultat : chunk principal 867 → 308 kB
 (gzip 253 → 99 kB), recharts (~288 kB) chargé seulement à l'ouverture d'une vue à
@@ -1133,3 +1145,128 @@ langue de macOS (`navigator.language`), anglais si elle n'est ni FR ni EN.
 aussi les traductions manquantes dans la console.
 Vérifié : tsc ✓ · vite build ✓ · cargo check ✓ · 79 tests Rust ✓ · parcours démo
 FR + EN dans le navigateur ✓.
+
+## Synchronisation cloud chiffrée (chantier en cours, depuis le 2026-08-02)
+
+Branche `sync-chiffree`. Objectif : sync **offline-first, chiffrée de bout en bout**,
+entre appareils, sans rien changer au comportement actuel — SQLite local reste la
+source de vérité pour toutes les lectures et écritures. Le réseau n'est JAMAIS sur le
+chemin critique d'une action utilisateur.
+
+### Périmètre : TOUTE l'app
+**Source unique : `src/lib/sync/scope.ts`.** Aucun autre fichier ne décide de la portée.
+Les 19 tables de données y sont listées **dans l'ordre d'application (parents avant
+enfants)** ; les exclusions y sont listées AVEC leur motif, et un test échoue si une
+table de la base n'est ni synchronisée ni explicitement écartée — une table ajoutée plus
+tard ne peut donc pas disparaître en silence de la sauvegarde cloud.
+
+Exclusions, dont aucune n'est un choix de périmètre :
+- `notes_fts` (+ ses tables internes) — index FTS5 **dérivé** de `notes`, reconstruit par
+  ses propres triggers sur chaque appareil. Le transporter corromprait l'index.
+- `goal_progress_log` — ré-écrit à chaque lancement par `snapshotGoals()`.
+- `market_briefings` — régénérable, purgé à 7 jours, gros payloads JSON.
+- `sync_*`, `_sqlx_migrations`, `sqlite_sequence` — plomberie.
+
+**`settings` est synchronisé INTÉGRALEMENT, sauf liste d'exclusion** (`SETTINGS_EXCLUS`).
+⚠️ Posture volontairement inversée par rapport à un refus par défaut : un réglage ajouté
+demain part dans le cloud **sans action de personne**. Sont exclus : `layout.*`,
+`hidden.*`, `sidebar.collapsed`, `ui.config` (géométrie, dépend de la taille d'écran),
+`screen_min_*` (le LWW écrase au lieu d'additionner → jauge d'énergie fausse),
+`market.*_key` (secrets, déjà au trousseau), `knowledge.last_viewed_at` (alimente les
+notifications locales). Filet supplémentaire : toute clé ressemblant à un identifiant de
+connexion (`*_key`, `*_token`, `*secret*`, `*password*`) est refusée même non listée —
+le mode d'échec d'une liste de refus est l'oubli, et il est silencieux.
+⚠️ `ui.config` contient AUSSI l'ordre et les libellés des modules, qui mériteraient de
+suivre. C'est un seul blob JSON : le découper est un chantier à part.
+
+### Décisions structurantes
+- **Identité globale (migration 015)** : colonne `uid TEXT` + index unique sur 18 tables.
+  Les `id` auto-incrémentés sont LOCAUX — deux appareils créent chacun une tâche `id=42`
+  sans rapport. Les `id` et les clés étrangères existantes n'ont PAS bougé : `repo.ts`
+  n'a pas été touché, l'app se comporte à l'identique.
+  - Identité arbitraire (tâche, note, trade) → **UUID v4 aléatoire**.
+  - **Clé naturelle** (« l'habitude X le jour J », `journal_entries.date`, `tags.name`)
+    → **uid DÉRIVÉ** de cette clé, via le `uid` du PARENT (jamais son `id` local).
+    Les deux appareils calculent alors le même uid sans s'être parlé → une seule ligne
+    côté serveur, conflit résolu par LWW. Avec un uid aléatoire, un même fait donnerait
+    deux lignes serveur qui se battraient sans jamais converger.
+  - Génération par **triggers** `WHEN NEW.uid IS NULL` : aucun des ~60 points d'écriture
+    à modifier, et une ligne reçue de la sync **garde son uid d'origine** — sans cette
+    garde, chaque note se dupliquerait à chaque synchronisation.
+- **L'uid ne part jamais en clair.** Un uid dérivé contient du contenu utilisateur
+  (`tg:silver-bullet` révélerait le nom d'un tag). Ce qui transite est
+  `HMAC(clé dérivée, uid)` : déterministe entre appareils, opaque pour le serveur.
+- **Journal de changements (migration 016)** : `sync_outbox`, `sync_state`, `sync_meta`,
+  alimentées par 57 triggers (3 par table). `repo.ts` n'est toujours pas touché.
+  - **Chiffrement au PUSH, pas à l'écriture.** L'outbox ne stocke que
+    `(table, row_id, uid, op, ts)` — jamais de données, ni en clair ni chiffrées. La
+    ligne est relue, compressée et chiffrée au moment de l'envoi. Motif : chiffrer une
+    note de plusieurs centaines de ko sur le chemin d'une frappe clavier violerait le
+    principe offline-first, et vingt modifications ne produisent ainsi qu'un blob.
+  - **File APPEND-ONLY**, regroupée à l'envoi par `regrouper()` (`outbox.ts`, pur donc
+    testable). Des triggers « upsert » seraient plus économes mais nettement plus
+    retors ; une entrée pèse ~60 octets. Les 'upsert' sont regroupés par **row_id** et
+    non par uid (l'uid peut manquer à la création, cf. piège n°1).
+  - **Suppression = pierre tombale**, et le trigger EFFACE d'abord les entrées en
+    attente de cette ligne : une ligne créée puis supprimée hors ligne ne part jamais
+    dans le cloud, et une ligne déjà synchronisée ne peut plus « ressusciter ».
+  - **`sync_meta.applying`** à '1' pendant l'application des changements distants : les
+    triggers se taisent, sinon chaque sync en déclencherait une autre indéfiniment.
+  - **`sync_meta.device_id`** départage deux écritures au même horodatage. Arbitraire
+    mais DÉTERMINISTE : les deux appareils élisent le même vainqueur, donc convergent.
+- **⚠️ `sync_outbox.ts` est le SEUL endroit de l'app en UTC.** Partout ailleurs
+  (`localNow()`, la logique « jour ») c'est de l'heure locale. Ici c'est délibéré : cet
+  horodatage départage deux écritures faites sur DEUX APPAREILS, et deux heures locales
+  de fuseaux différents ne sont pas comparables. Format `2026-08-02T20:44:33.123Z` —
+  tri lexicographique = tri chronologique, précision à la milliseconde.
+- **Deux enveloppes, une seule clé de données.** `Argon2id(mot de passe)` → KEK₁ et
+  `Argon2id(phrase de récupération)` → KEK₂ chiffrent la MÊME DEK aléatoire. Changer de
+  mot de passe re-chiffre 60 octets, jamais les données. La DEK est rangée dans le
+  **trousseau macOS** (`src-tauri/src/secrets.rs`, déjà en place pour les clés LLM).
+- **Deux horloges à ne pas confondre** : le curseur de pull suit l'horloge **serveur**
+  (`server_seq`), le LWW suit l'horloge **client** (`client_ts`). Les mélanger fait
+  rater des lignes dès qu'une machine est mal réglée.
+
+### ⚠️ Pièges rencontrés (pas supposés — reproduits en test)
+1. **SQLite ne garantit AUCUN ordre entre deux triggers `AFTER INSERT`** sur la même
+   table. Conséquence n°1 : le trigger d'uid faisait un `UPDATE` sur `notes`, qui
+   déclenchait la réindexation FTS5 — quand il passait avant `notes_ai`, FTS5 recevait
+   l'ordre de retirer de l'index une ligne pas encore indexée, **index corrompu**
+   (« database disk image is malformed » à chaque création de note). Correctif :
+   `notes_au` restreint à `AFTER UPDATE OF title, body` — l'écriture de l'uid devient
+   invisible pour l'index. Toute future colonne technique ajoutée à `notes` est
+   désormais sans danger.
+   Conséquence n°2 : **l'outbox ne peut pas lire `NEW.uid`** à l'insertion (il peut ne
+   pas encore être posé). Elle enregistre le `rowid` local pour les créations/
+   modifications, et `OLD.uid` pour les suppressions — seul moment où l'uid est
+   indispensable, et où il est garanti présent.
+2. `ALTER TABLE ADD COLUMN` n'accepte ni `UNIQUE` ni un défaut sous forme d'expression :
+   la colonne naît nullable, est remplie par un `UPDATE`, et c'est l'index unique créé
+   ensuite qui tient l'invariant.
+3. En SQL, écrire `abs(random() % 4)` et **jamais** `abs(random()) % 4` : `random()`
+   peut renvoyer `-9223372036854775808`, dont la valeur absolue déborde l'entier signé
+   64 bits et fait échouer la requête.
+
+### Tests
+`npm test` (vitest). Aucun runner JS n'existait avant ce chantier.
+- Config **séparée** de `vite.config.ts` (`vitest.config.ts`) : la config de build de
+  l'app ne dépend pas du runner, ni l'inverse. Pas de `globals: true` → les tests
+  importent `describe`/`it`/`expect`, donc le `tsc` du build les typecheck.
+- Les tests de schéma tournent sur une **vraie base SQLite** montée par les migrations
+  RÉELLES (`node:sqlite`, intégré à Node 22 — aucune dépendance native), lues depuis
+  `src-tauri/migrations/` via `?raw`. **Toute migration ajoutée à `lib.rs` doit l'être
+  aussi dans `src/lib/sync/schema.testutil.ts`**, sinon les tests valident un schéma
+  périmé.
+- `@types/node` est volontairement **absent** : TypeScript inclut automatiquement tous
+  les paquets `@types`, ce qui ferait fuiter les globales Node (`process`, `Buffer`)
+  dans le typage de l'app, où elles n'existent pas à l'exécution. Le strict nécessaire
+  est déclaré à la main dans `src/lib/sync/env.d.ts`.
+
+### Sauvegarde avant migration
+`~/Library/Application Support/com.atnfx.shale/backups/shale-avant-sync-2026-08-02.db`
+(`VACUUM INTO`, `integrity_check` ok). ⚠️ Migration SQL → **rebuild natif obligatoire**
+pour qu'elle s'applique à la base réelle.
+
+### Limite assumée (à connaître)
+Il n'y a **pas de corbeille** : une suppression crée un tombstone qui se propage à tous
+les appareils et ne se rattrape pas. Hors périmètre du chantier, arbitré le 2026-08-02.
