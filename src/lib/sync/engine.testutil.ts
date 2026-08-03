@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 import { deriverSousCles, genererDek, type SousCles } from "./crypto";
 import { oublierSchema, type BaseLocale } from "./local";
@@ -26,7 +26,7 @@ import type { LigneAEnvoyer, LigneDistante, Transport } from "./transport";
 export class BaseSqlite implements BaseLocale {
   constructor(readonly brute: DatabaseSync) {}
 
-  private preparer(sql: string, params: unknown[]): [string, unknown[]] {
+  private preparer(sql: string, params: unknown[]): [string, SQLInputValue[]] {
     const ordre: number[] = [];
     const converti = sql.replace(/\$(\d+)/g, (_, n: string) => {
       ordre.push(Number(n) - 1);
@@ -34,8 +34,12 @@ export class BaseSqlite implements BaseLocale {
     });
     const valeurs = ordre.map((i) => {
       const v = params[i];
+      // SQLite ne connaît ni booléen ni `undefined` ; l'app écrit pourtant les
+      // deux (drapeaux 0/1, colonnes absentes). La conversion est faite ici,
+      // comme la fait `tauri-plugin-sql` côté natif.
       if (typeof v === "boolean") return v ? 1 : 0;
-      return v === undefined ? null : v;
+      if (v === undefined) return null;
+      return v as SQLInputValue;
     });
     return [converti, valeurs];
   }

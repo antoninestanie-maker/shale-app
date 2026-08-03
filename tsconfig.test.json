@@ -1,0 +1,14 @@
+{
+  /* Typage des TESTS, séparé de celui de l'app.
+     Motif : les tests importent des modules Node (`node:sqlite`), ce qui fait
+     entrer tout l'espace global de `@types/node`. Le laisser entrer dans la
+     compilation de l'app rendrait `process`, `Buffer` et consorts valides là où
+     ils n'existent pas à l'exécution — voir le commentaire de `tsconfig.json`.
+     Ici, au contraire, ces globales sont légitimes : on les demande. */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.testutil.ts", "src/lib/sync/env.d.ts"],
+  "exclude": []
+}

@@ -35,6 +35,7 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   dépendances — dette connue, cf. section Notifications)
 - `cargo test --lib` dans `src-tauri/` — 79 tests (moteur de notifications)
 - `npm test` — tests TypeScript (vitest). `npm run test:watch` en continu.
+- `npm run test:types` — typecheck des TESTS (séparé de l'app, cf. section sync)
 - Preview navigateur (`npx vite`) = **mode démo** : `isTauri` (src/lib/repo.ts:28) est faux → données factices en mémoire (`src/lib/demo.ts`, `src/lib/market/demo.ts`), pas de SQLite ni de réseau natif.
 
 **⚠️ Règle : après chaque modification majeure, réinstaller l'application.**
@@ -1352,6 +1353,24 @@ affichent des données différentes, pour toujours.
    horodatage dans la version du gagnant, concluait « je la connais déjà » et gardait
    la sienne.
 
+### Clé de données : ouverture et rangement
+- **`keys.ts`** — activer, ouvrir (mot de passe **ou** code), changer de mot de passe,
+  poser/retirer le code. La dérivation ET le dépôt sont **injectés**, donc toute la
+  mécanique se teste sans Tauri ni réseau (22 tests). Changer de mot de passe re-scelle
+  UNE enveloppe et **ne touche pas au code de récupération** : sinon un changement de
+  mot de passe invaliderait en silence le papier rangé dans un tiroir.
+- **`keystore.ts`** — trousseau macOS + dépôt Supabase. ⚠️ Sans trousseau, la clé vit
+  **en mémoire pour la session** et le mot de passe est redemandé au lancement suivant.
+  On ne retombe PAS sur la table `settings`, contrairement aux clés d'API LLM : une clé
+  d'API en clair n'ouvre qu'un service tiers, la clé de données en clair à côté de la
+  base qu'elle protège annulerait l'intérêt du chiffrement de la copie cloud.
+- **`planificateur.ts`** — démarrage, retour du réseau, retour au premier plan,
+  intervalle de 90 s, recul exponentiel plafonné à 5 min. Un cycle déjà en cours
+  **absorbe** les déclenchements suivants (deux cycles videraient la même file et
+  enverraient deux fois les mêmes lignes). Pas de sonde réseau dédiée :
+  `navigator.onLine` ne sert que de signal NÉGATIF, la tentative de sync EST la sonde.
+  Un échec n'est pas remonté — réseau coupé = état normal, pas exception.
+
 ### ⚠️ Une pierre tombale PORTE une charge utile
 Minuscule (l'identifiant de ligne chiffré), mais indispensable : `row_tag` est un
 HMAC, donc irréversible. Sans elle, l'appareil qui reçoit la pierre tombale ne peut
@@ -1385,10 +1404,20 @@ pas savoir QUELLE ligne supprimer chez lui.
   `src-tauri/migrations/` via `?raw`. **Toute migration ajoutée à `lib.rs` doit l'être
   aussi dans `src/lib/sync/schema.testutil.ts`**, sinon les tests valident un schéma
   périmé.
-- `@types/node` est volontairement **absent** : TypeScript inclut automatiquement tous
-  les paquets `@types`, ce qui ferait fuiter les globales Node (`process`, `Buffer`)
-  dans le typage de l'app, où elles n'existent pas à l'exécution. Le strict nécessaire
-  est déclaré à la main dans `src/lib/sync/env.d.ts`.
+- ⚠️ **Les tests sont typés SÉPARÉMENT de l'app** — `npm run test:types`
+  (`tsconfig.test.json`), pendant que `tsconfig.json` les EXCLUT.
+  Histoire, parce que le piège est retors : `@types/node` était volontairement
+  absent, et `node:sqlite` déclaré à la main, pour que les globales Node
+  (`process`, `Buffer`) ne deviennent pas valides dans le code de l'app, où elles
+  n'existent pas à l'exécution. Puis `@types/node` est arrivé en dépendance
+  **transitive** (vite, vitest, happy-dom) : la déclaration maison a perdu le match
+  contre la vraie, et `process.env.FOO` a cessé d'être une erreur **partout**.
+  `"types": []` ne suffit PAS à refermer la fuite : il ne coupe que l'inclusion
+  automatique, et dès qu'un seul fichier du programme importe un module Node, tout
+  l'espace global arrive avec. Seule l'exclusion des tests de la compilation de l'app
+  tient. Vérifié par sonde (`const x = process.env.FOO` doit lever dans `src/`).
+- `npm run build` (= `tsc && vite build`) ne typecheck donc QUE l'app. Lancer aussi
+  `npm run test:types` après avoir touché aux tests.
 
 ### Sauvegarde avant migration
 `~/Library/Application Support/com.atnfx.shale/backups/shale-avant-sync-2026-08-02.db`

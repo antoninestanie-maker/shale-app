@@ -14,6 +14,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Coupe l'inclusion AUTOMATIQUE des globales de tous les paquets `@types`
+       présents. `@types/node` arrive en dépendance transitive (vite, vitest,
+       happy-dom) sans qu'on l'ait demandé, et rendrait `process`, `Buffer` et
+       consorts silencieusement valides dans le code de l'APP, où ils n'existent
+       pas à l'exécution.
+       Les types de React arrivent par leurs `import`, ceux de Vite par la
+       référence explicite de `src/vite-env.d.ts`. */
+    "types": [],
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -21,5 +30,16 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+
+  /* ⚠️ Les fichiers de TESTS sont exclus de la compilation de l'APP, et c'est
+     la seule parade qui tienne.
+     `types: []` ne suffit pas : il ne coupe que l'inclusion automatique. Dès
+     qu'UN SEUL fichier du programme importe un module Node (`node:sqlite` dans
+     les tests de schéma), tout l'espace global de `@types/node` arrive avec —
+     et `process.env.FOO` redevient valide partout, y compris dans le code de
+     l'app où il n'existe pas à l'exécution. Constaté par sonde, puis refermé.
+     Les tests restent typés, par `tsconfig.test.json` : `npm run test:types`. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.testutil.ts"],
+
   "references": [{ "path": "./tsconfig.node.json" }]
 }
