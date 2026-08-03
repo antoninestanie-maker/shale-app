@@ -38,7 +38,9 @@ async function pousser(
   },
 ) {
   const { table = "tag-table", row = "tag-ligne", ts, device = "appareil-A", deleted = false } = opts;
-  const payload = deleted ? null : (opts.payload ?? faussesDonnees());
+  // Une charge explicite l'emporte, y compris sur une pierre tombale : celles-ci
+  // en portent une, minuscule (l'identifiant de ligne chiffré).
+  const payload = opts.payload ?? (deleted ? null : faussesDonnees());
   return banc.commeUtilisateur(user, () =>
     banc.db.query(
       `insert into public.sync_rows (user_id, table_tag, row_tag, client_ts, device_id, deleted, payload)
@@ -186,17 +188,33 @@ describe("last-write-wins appliqué PAR LE SERVEUR", () => {
     expect((await lire(ALICE)).rows[0].server_seq).toBe(premier);
   });
 
-  it("une pierre tombale efface le contenu mais garde la trace", async () => {
-    await pousser(ALICE, { ts: "2026-08-02T10:00:00.000Z" });
-    await pousser(ALICE, { ts: "2026-08-02T11:00:00.000Z", deleted: true });
+  it("une pierre tombale remplace le contenu et garde la trace", async () => {
+    await pousser(ALICE, { ts: "2026-08-02T10:00:00.000Z", payload: faussesDonnees(400) });
+    // La pierre tombale porte une charge MINUSCULE — l'identifiant de ligne
+    // chiffré, sans quoi l'appareil qui la reçoit ne saurait pas quoi effacer
+    // (`row_tag` est un HMAC, donc irréversible). Le contenu, lui, disparaît.
+    await pousser(ALICE, { ts: "2026-08-02T11:00:00.000Z", deleted: true, payload: faussesDonnees(60) });
 
     const { rows } = await banc.commeUtilisateur(ALICE, () =>
-      banc.db.query<{ deleted: boolean; payload: unknown }>(
+      banc.db.query<{ deleted: boolean; payload: Uint8Array }>(
         "select deleted, payload from public.sync_rows",
       ),
     );
     expect(rows[0].deleted).toBe(true);
-    expect(rows[0].payload).toBeNull();
+    expect(rows[0].payload.length).toBe(60);
+  });
+
+  it("tolère une pierre tombale sans charge (version antérieure de l'app)", async () => {
+    await pousser(ALICE, { ts: "2026-08-02T10:00:00.000Z" });
+    await expect(
+      banc.commeUtilisateur(ALICE, () =>
+        banc.db.query(
+          `update public.sync_rows set deleted = true, payload = null,
+                  client_ts = '2026-08-02T11:00:00.000Z' where user_id = $1`,
+          [ALICE],
+        ),
+      ),
+    ).resolves.toBeDefined();
   });
 
   it("une ligne vivante ne peut pas être vide", async () => {

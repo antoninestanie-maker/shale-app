@@ -47,7 +47,7 @@ significative (code front ou Rust, et obligatoirement `capabilities/*.json`,
 ## Architecture générale
 - `src/App.tsx` — routing par état `view`, monte `useFocus` + `useMarketBrain` au niveau App.
 - `src/lib/repo.ts` — accès données : SQLite (tauri-plugin-sql) en natif, `demo.ts` sinon. Réglages = table `settings` clé/valeur (`getSetting`/`setSetting`).
-- `src-tauri/migrations/001→016` — migrations SQL enregistrées dans `src-tauri/src/lib.rs`.
+- `src-tauri/migrations/001→017` — migrations SQL enregistrées dans `src-tauri/src/lib.rs`.
   DB : **`~/Library/Application Support/com.atnfx.shale/shale.db`** (l'ancien chemin
   `com.atnfx.secondbrain/second-brain.db` écrit ici était un reliquat de Second Brain,
   faux depuis le rebranding — c'est la base de l'AUTRE app).
@@ -1314,8 +1314,61 @@ Fichier autonome (comme `site-content.sql`), idempotent, **pas encore joué en p
   illisible ensuite. (Le protocole binaire, lui, veut des octets bruts : les deux formes
   coexistent légitimement, cf. `supabase.testutil.ts`.)
 
+### Le moteur — `src/lib/sync/engine.ts`
+`synchroniser(ctx)` = **envoyer PUIS recevoir**, jamais l'inverse : recevoir
+d'abord ferait appliquer une ligne distante par-dessus une modification locale non
+encore partie, qui serait perdue au lieu de gagner le conflit.
+- **`resolution.ts`** — la règle, pure et isolée. `arbitrer()` compare
+  `(horodatage, appareil)`, dans cet ordre. Le départage par appareil n'a aucun sens
+  métier : il n'a qu'à être **stable**, pour que les deux appareils élisent le même
+  vainqueur. La MÊME comparaison est écrite dans le trigger Postgres — les deux
+  doivent rester d'accord.
+- **`fk.ts`** — traduction des clés étrangères. `goal_id: 7` ici désigne autre chose
+  là-bas : ce sont les `uid` qui voyagent. Une clé oubliée ne fait pas échouer la
+  sync, elle rattache la tâche au mauvais objectif **sans erreur**. Trois tests
+  confrontent la table au schéma réel, dont un qui balaie les colonnes **par leur
+  nom** (`*_id`) : `live_positions.sizing_calc_id` et `.trade_id` n'ont pas de clause
+  `FOREIGN KEY`, un contrôle par `PRAGMA foreign_key_list` les manquerait.
+  ⚠️ `tasks.tag` n'est PAS une clé à traduire : elle stocke le NOM du tag.
+- **Quarantaine** — un enfant reçu avant son parent est mis de côté et rejoué tant
+  que ça progresse. Le curseur **ne dépasse jamais** une ligne encore en quarantaine,
+  sinon l'orpheline ne reviendrait plus.
+- **`transport.ts`** — la seule pièce non testable ici (elle n'existe que pour parler
+  à un vrai Supabase), d'où sa petitesse délibérée : aucune logique, que de la mise
+  en forme. Le moteur, lui, est testé contre un serveur simulé qui applique la même
+  règle que le trigger.
+
+### ⚠️ Deux bogues de DIVERGENCE DÉFINITIVE, trouvés par les tests
+Tous deux silencieux : pas d'erreur, pas d'alerte — juste deux appareils qui
+affichent des données différentes, pour toujours.
+1. **La photographie des écritures en attente se prend APRÈS l'envoi.** Elle sert à
+   protéger une saisie fraîche contre une ligne distante plus ancienne. Prise avant,
+   elle mentait : une écriture déjà envoyée **et rejetée par le serveur** (un autre
+   appareil avait plus récent) y figurait encore comme en attente, donc l'appareil
+   refusait la version gagnante et gardait la sienne.
+2. **`sync_state` retient le couple `(remote_ts, device_id)`**, jamais l'horodatage
+   seul (migration 017). Quand deux appareils écrivent dans la **même milliseconde**,
+   l'arbitrage se joue sur l'appareil — et le perdant reconnaissait « son »
+   horodatage dans la version du gagnant, concluait « je la connais déjà » et gardait
+   la sienne.
+
+### ⚠️ Une pierre tombale PORTE une charge utile
+Minuscule (l'identifiant de ligne chiffré), mais indispensable : `row_tag` est un
+HMAC, donc irréversible. Sans elle, l'appareil qui reçoit la pierre tombale ne peut
+pas savoir QUELLE ligne supprimer chez lui.
+
 ### Tests
 `npm test` (vitest). Aucun runner JS n'existait avant ce chantier.
+- **Le moteur est testé à DEUX APPAREILS** (`engine.testutil.ts`) : deux vraies bases
+  SQLite montées par les migrations réelles, la vraie couche de chiffrement, et un
+  serveur en mémoire qui applique **mot pour mot** la règle du trigger Postgres. Seul
+  le réseau est simulé. C'est le seul montage capable de prouver ce qui compte : que
+  la saisie faite ici réapparaisse là-bas, qu'un conflit se résolve du même côté des
+  deux côtés, et qu'une suppression ne ressuscite pas.
+- ⚠️ **Jamais de date écrite en dur dans un test.** Une date figée finit par passer
+  dans le passé : les envois sont alors rejetés comme périmés et le test cesse
+  **silencieusement** de couvrir quoi que ce soit. (Constaté : une date du 2 août
+  devenue caduque le 3.) Calculer à partir de `Date.now()`.
 - **Le schéma Supabase est exécuté pour de vrai**, via **PGlite** (Postgres 18 compilé en
   WebAssembly, dev-dep) : ni Postgres, ni Docker, ni la CLI Supabase sur cette machine, et
   ce fichier porte le LWW serveur et les politiques d'isolation — trop critique pour être

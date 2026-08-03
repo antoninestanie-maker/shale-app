@@ -1,0 +1,24 @@
+-- L'état distant doit retenir l'AUTEUR, pas seulement l'horodatage.
+--
+-- BOGUE CORRIGÉ (reproduit en test, pas supposé). `sync_state` sert de raccourci :
+-- « cette ligne, je la connais déjà dans cette version, inutile de la réécrire ».
+-- La comparaison ne portait que sur `remote_ts` — ce qui suffit tant que deux
+-- appareils n'écrivent pas dans la MÊME MILLISECONDE.
+--
+-- Quand cela arrive (et cela arrive : deux modifications hors ligne faites à la
+-- suite l'une de l'autre lors d'un test, ou deux appareils réveillés ensemble),
+-- le last-write-wins se joue sur le `device_id`. L'appareil perdant recevait
+-- alors la version du gagnant, constatait un horodatage identique au sien,
+-- concluait « je la connais déjà » et gardait SA version. Les deux appareils
+-- affichaient chacun la sienne, et aucune synchronisation ultérieure ne pouvait
+-- plus les rapprocher : divergence DÉFINITIVE et silencieuse.
+--
+-- L'état retient donc désormais le couple complet `(remote_ts, device_id)`,
+-- c'est-à-dire exactement ce sur quoi porte l'arbitrage.
+--
+-- La colonne est nullable : les lignes déjà enregistrées n'ont pas d'auteur
+-- connu, et un `NULL` ne peut être égal à rien — donc le raccourci ne
+-- s'appliquera pas et la ligne sera simplement réécrite une fois. Prudent dans
+-- le bon sens.
+
+ALTER TABLE sync_state ADD COLUMN device_id TEXT;
