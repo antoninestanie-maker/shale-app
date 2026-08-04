@@ -1121,4 +1121,75 @@ export const EN: Record<string, string> = {
   "Chiffrée dans le trousseau macOS.": "Encrypted in the macOS Keychain.",
   "Stockée dans la base locale de l'app, en clair (trousseau indisponible).":
     "Stored in the app's local database, in the clear (Keychain unavailable).",
+
+  // ── Synchronisation chiffrée ──────────────────────────────────────────────
+  // Registre volontairement sobre : ces phrases parlent de perte de données
+  // possible. Ni dramatisation, ni euphémisme.
+  "synchronisation chiffrée": "encrypted sync",
+  "sync désactivée": "sync off",
+  "sync verrouillée": "sync locked",
+  "sync en échec": "sync failed",
+  "synchronisation…": "syncing…",
+  "synchronisé": "in sync",
+  "hors ligne": "offline",
+  "{n} en attente": "{n} pending",
+  "Tout est à jour.": "Everything is up to date.",
+  "Tout est synchronisé": "Everything is in sync",
+  "{n} modification(s) en attente": "{n} change(s) pending",
+  "dernier échange {when}": "last exchange {when}",
+  "Dernier échange {when}.": "Last exchange {when}.",
+  "aucun échange pour l'instant": "no exchange yet",
+
+  "Tes données restent sur cet appareil. Active la synchronisation dans Réglages.":
+    "Your data stays on this device. Turn on sync in Settings.",
+  "Ton mot de passe est nécessaire pour déchiffrer tes données sur cet appareil.":
+    "Your password is needed to decrypt your data on this device.",
+  "Tes modifications sont conservées et partiront au retour du réseau.":
+    "Your changes are kept and will be sent when the network is back.",
+  "La dernière tentative a échoué. Une autre suivra automatiquement.":
+    "The last attempt failed. Another one will follow automatically.",
+  "Échange en cours avec le cloud.": "Exchanging with the cloud.",
+  "Modifications pas encore envoyées. Elles partiront au prochain échange.":
+    "Changes not sent yet. They will go out at the next exchange.",
+  "Ouvrir les réglages de synchronisation": "Open sync settings",
+  "Synchroniser maintenant": "Sync now",
+
+  "Retrouve tes tâches, notes et trades sur tes autres appareils. Tout est chiffré sur cet appareil avant d'être envoyé : le serveur ne voit que des données illisibles.":
+    "Find your tasks, notes and trades on your other devices. Everything is encrypted on this device before being sent: the server only ever sees unreadable data.",
+  "ton mot de passe Shale": "your Shale password",
+  "pour créer la clé de chiffrement": "to create the encryption key",
+  "activation…": "turning on…",
+  "Activer la synchronisation": "Turn on sync",
+  "créer un code de récupération (recommandé)": "create a recovery code (recommended)",
+  "Ton mot de passe déchiffre tes données. Si tu le perds, seul le code de récupération pourra les rouvrir.":
+    "Your password decrypts your data. If you lose it, only the recovery code can open it again.",
+  "Sans code de récupération, un mot de passe perdu rendra tes données du cloud DÉFINITIVEMENT illisibles — même pour nous. Tes données locales, elles, resteront intactes.":
+    "Without a recovery code, a lost password makes your cloud data PERMANENTLY unreadable — even to us. Your local data stays intact.",
+
+  "Tes données chiffrées sont dans le cloud. Ton mot de passe est nécessaire une fois, pour les rouvrir sur cet appareil.":
+    "Your encrypted data is in the cloud. Your password is needed once, to open it on this device.",
+  "ouverture…": "opening…",
+  "Déverrouiller": "Unlock",
+  "J'ai perdu mon mot de passe": "I lost my password",
+  "Rouvrir avec le code": "Open with the code",
+  "Revenir au mot de passe": "Back to password",
+
+  "code de récupération": "recovery code",
+  "Note ce code hors de cet appareil. Il est le SEUL moyen de retrouver tes données si tu oublies ton mot de passe — personne, pas même nous, ne peut les déchiffrer sans lui.":
+    "Write this code down somewhere other than this device. It is the ONLY way to recover your data if you forget your password — nobody, not even us, can decrypt it without it.",
+  "copier": "copy",
+  "copié": "copied",
+  "je l'ai noté en lieu sûr": "I have written it down somewhere safe",
+  "Terminé": "Done",
+  "Voir un nouveau code de récupération": "Show a new recovery code",
+  "Un nouveau code annule et remplace le précédent.": "A new code cancels and replaces the previous one.",
+  "Supprimer le code de récupération": "Delete the recovery code",
+  "Le code déjà noté cessera de fonctionner.": "The code you wrote down will stop working.",
+
+  "Le trousseau du système n'a pas répondu : la clé n'est gardée que le temps de cette session, et ton mot de passe sera redemandé au prochain lancement.":
+    "The system Keychain did not respond: the key is only kept for this session, and your password will be asked again at the next launch.",
+  "Oublier la clé sur cet appareil": "Forget the key on this device",
+  "Tes données locales ne sont pas touchées ; la synchronisation s'arrête ici.":
+    "Your local data is untouched; sync simply stops here.",
+  "état simulé (démo)": "simulated state (demo)",
 };

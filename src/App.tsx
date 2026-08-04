@@ -5,6 +5,7 @@ import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
 import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
+import { SyncProvider } from "./components/SyncProvider";
 import TooltipLayer from "./components/Tooltip";
 import UpgradeModal from "./components/UpgradeModal";
 import { useEntitlements } from "./lib/entitlements";
@@ -167,6 +168,10 @@ function App() {
   }, [data, refresh]);
 
   return (
+    /* La synchronisation est montée ICI, sous `AuthGate` (elle a besoin de la
+       session) et au-dessus de tout le reste : l'indicateur vit dans la sidebar,
+       les commandes dans Réglages — une vue chargée en `lazy`. */
+    <SyncProvider>
     <div className="relative flex h-screen bg-bg">
       <BootScreen />
       {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
@@ -246,6 +251,7 @@ function App() {
         </div>
       </div>
     </div>
+    </SyncProvider>
   );
 }
 

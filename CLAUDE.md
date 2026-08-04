@@ -1371,6 +1371,34 @@ affichent des données différentes, pour toujours.
   `navigator.onLine` ne sert que de signal NÉGATIF, la tentative de sync EST la sonde.
   Un échec n'est pas remonté — réseau coupé = état normal, pas exception.
 
+### Interface
+- **`SyncProvider`** monté dans `App.tsx`, SOUS `AuthGate` (besoin de la session). Un
+  contexte plutôt que des props : l'indicateur vit dans la sidebar, les commandes dans
+  Réglages — une vue chargée en `lazy`.
+- **`SyncIndicator`** — pied de sidebar, même grammaire que `SessionIndicator`. Ne montre
+  RIEN quand la synchronisation est indisponible : afficher « indisponible » en
+  permanence dans une app qui marche très bien sans cloud transformerait un choix
+  volontaire en défaut apparent.
+- **`SyncSettings`** — activation, déverrouillage (mot de passe **ou** code), gestion du
+  code, « oublier la clé ». L'avertissement sur la perte de mot de passe est affiché
+  AVANT l'activation, pas découvert le jour où ça arrive.
+- **L'activation est explicite**, dans Réglages. La clé exige le mot de passe, qui
+  n'existe que le temps de l'écran de connexion ; l'intercepter au login mêlerait la
+  porte d'entrée de l'app à une fonctionnalité optionnelle. Ensuite le trousseau prend
+  le relais et les lancements suivants ouvrent en silence.
+- **Mode démo** (`shale.demo.sync`, sélecteur en bas de la section) : sans Tauri ni
+  Supabase, toute cette interface renverrait `null` et ne serait relisible qu'après avoir
+  branché le backend ET reconstruit l'app native. Même parti que « offre simulée » pour
+  le paywall. ⚠️ La section reste affichée même en état « indisponible » quand l'auth
+  n'est pas configurée — sinon le sélecteur disparaîtrait avec elle, sans retour possible.
+
+### ⚠️ Un token de couleur inexistant échoue EN SILENCE
+`text-amber` ne génère aucune classe (le token s'appelle `--color-yellow`) : la couleur
+retombe sur l'héritage, sans erreur ni avertissement. Constaté sur l'encadré
+d'avertissement de `SyncSettings`, qui s'affichait en blanc. Vérifier une couleur au
+`getComputedStyle`, pas à l'œil. Tokens réels : `blue`, `green`, `red`, `yellow`,
+`violet`, `indigo`.
+
 ### ⚠️ Une pierre tombale PORTE une charge utile
 Minuscule (l'identifiant de ligne chiffré), mais indispensable : `row_tag` est un
 HMAC, donc irréversible. Sans elle, l'appareil qui reçoit la pierre tombale ne peut

@@ -40,6 +40,7 @@ import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
 import { demoTier, setDemoTier } from "../lib/auth/useAuth";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
+import SyncSettings from "../components/SyncSettings";
 
 import { t } from "../lib/i18n";
 /** Interrupteur avec libellé + description (sauvegarde immédiate au clic). */
@@ -730,6 +731,10 @@ export default function SettingsView() {
       </section>
       </ResizablePanel>
       )}
+
+      <ResizablePanel id="settings-sync" defaultW={12}>
+        <SyncSettings />
+      </ResizablePanel>
 
       <ResizablePanel id="settings-data" defaultW={12}>
       <section className="card p-5">

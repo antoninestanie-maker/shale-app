@@ -5,6 +5,7 @@ import { isTradingView } from "../lib/features";
 import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
 import SessionIndicator from "./SessionIndicator";
+import SyncIndicator from "./SyncIndicator";
 import { IconLock, IconSliders } from "./icons";
 
 import { t } from "../lib/i18n";
@@ -498,6 +499,7 @@ export default function Sidebar({
       <div className="flex flex-col gap-3 px-5 pb-5 pt-4">
         <Clock />
         <SessionIndicator />
+        <SyncIndicator onOuvrirReglages={() => onNavigate("settings")} />
         {demoMode && (
           <span className="pill inline-block w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim">
             {t("mode démo")}
