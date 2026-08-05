@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "../lib/i18n";
+import { kbd } from "../lib/platform";
 import {
   searchActions,
   type ActionContext,
@@ -114,7 +115,7 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
             {!argAction ? (
               <>
                 <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-                  <span className="font-mono text-sm text-blue">⌘</span>
+                  <span className="font-mono text-sm text-blue">{kbd("⌘")}</span>
                   <input
                     ref={inputRef}
                     value={query}

@@ -9,6 +9,17 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/**/*.test.ts", "src/**/*.testutil.ts", "src/lib/sync/env.d.ts"],
+  /* `src/vite-env.d.ts` : même mécanisme que pour l'app (cf. `tsconfig.json`,
+     qui coupe les globales automatiques et récupère les types de Vite par cette
+     seule référence). Il est devenu nécessaire ici le jour où un test a importé
+     un module de l'app qui lit `import.meta.env` — `src/lib/i18n`, tiré par
+     `src/lib/platform.test.ts`. Sans lui, `import.meta.env` n'existe pas dans la
+     compilation des tests, alors qu'il existe bel et bien à l'exécution. */
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.testutil.ts",
+    "src/lib/sync/env.d.ts",
+    "src/vite-env.d.ts"
+  ],
   "exclude": []
 }

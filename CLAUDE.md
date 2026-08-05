@@ -1455,3 +1455,137 @@ pour qu'elle s'applique à la base réelle.
 ### Limite assumée (à connaître)
 Il n'y a **pas de corbeille** : une suppression crée un tombstone qui se propage à tous
 les appareils et ne se rattrape pas. Hors périmètre du chantier, arbitré le 2026-08-02.
+
+## Support Windows — portage (2026-08-05)
+
+**État : le code est prêt, le build ne l'est pas.** Tout ce qui pouvait être
+préparé et vérifié depuis un Mac l'a été ; **aucun `.msi`/`.exe` n'a été produit
+ni exécuté**, faute de machine Windows. La procédure d'acceptation est écrite et
+prête à dérouler : `RECETTE-WINDOWS.md`. Branche : `windows-build`
+(worktree `~/Desktop/Shale-Windows`).
+
+### La compilation croisée depuis macOS est impraticable — tranché, avec preuve
+Ce n'est pas un pronostic, c'est un essai. `rustup target add
+x86_64-pc-windows-msvc` puis `cargo check --target x86_64-pc-windows-msvc`
+échoue sur la **première dépendance C** de l'arbre, `ring` (tirée par rustls via
+`tauri-plugin-http`) : `fatal error: 'assert.h' file not found` — il n'y a pas
+de SDK Windows sur la machine. Contourner demanderait `cargo-xwin` **plus**
+LLVM (`clang-cl`, `lld-link`), absent et sans Homebrew sur ce Mac.
+Et même en y arrivant, ça ne donnerait qu'un `cargo check` : le **bundler**
+Tauri ne sait pas produire un `.msi` (WiX) ni un `.exe` (NSIS) depuis macOS.
+⚠️ **Conclusion à ne pas re-litiger** : le build Windows exige une machine ou
+une VM Windows, ou un runner CI. Pas de troisième voie.
+
+### Ce que l'audit a trouvé — et qui aurait cassé en silence
+- 🔴 **`RunEvent::Reopen` est `#[cfg(target_os = "macos")]` DANS Tauri.**
+  `lib.rs` le matchait sans garde : **erreur de compilation** sur Windows, pas
+  un avertissement. Trouvé en lisant `tauri-2.11.5/src/app.rs:277`, pas en
+  compilant — c'est le genre de chose qu'un `cargo check` macOS ne dira jamais.
+- 🔴 **`keyring` était figé sur `apple-native`.** La feature tire
+  `security-framework`, qui ne compile que sur Apple. Passé en dépendance **par
+  cible** (`[target.'cfg(target_os = "…")'.dependencies]`) — surtout pas les
+  deux features sur une seule ligne, elles se casseraient mutuellement.
+- 🟠 **`Alt+Espace` est réservé par Windows** (menu système de la fenêtre
+  active). Le raccourci global de capture y devient `Ctrl+Alt+Espace`.
+  ⚠️ **Choix proposé, pas arbitré** — à valider par Antonin. Il vit à DEUX
+  endroits qui doivent bouger ensemble : `CAPTURE_SHORTCUT` dans
+  `src-tauri/src/lib.rs` et dans `src/lib/platform.ts`.
+- 🟠 **Le tray suivait la convention macOS.** `show_menu_on_left_click(true)`
+  sur Windows donnerait une icône qui n'ouvre jamais l'app — le geste que tout
+  le monde essaie en premier. Windows : clic gauche = ouvrir, clic droit =
+  menu, via `on_tray_icon_event`.
+- 🟠 **Le garde-fou « plein écran » de la fermeture est un contournement de bug
+  macOS**, pas une règle d'ergonomie (cf. section du 2026-07-26). Le recopier
+  tel quel ferait quitter l'app à la fermeture d'une fenêtre **maximisée** sous
+  Windows — donc plus aucun rappel, alors que l'utilisateur a demandé le
+  contraire. Condition neutralisée par `cfg` hors macOS.
+- 🟢 **`crypto.rs` (Argon2id) est pur Rust** : portable sans une ligne de
+  changement. Idem le planificateur, qui raisonne déjà sur l'**horloge murale**
+  et non sur `Instant` — écrit pour la veille macOS, correct sur Windows par
+  construction.
+- 🟢 **Aucune API Cocoa** (`NSPanel`, `NSWindow`, `objc`) : vérifié par grep,
+  0 occurrence. La doc de `CLAUDE.md` disait vrai.
+- 🟢 **Chemins** : tout passe par `app_data_dir()` / `app_config_dir()`.
+  `shale.db` atterrit dans `%APPDATA%\com.atnfx.shale\`, comme attendu.
+  ⚠️ **Fragilité latente à connaître** : `tauri-plugin-sql` écrit la base dans
+  `app_config_dir()` alors que le moteur de notifications la lit dans
+  `app_data_dir()` (`notifications/mod.rs:68`). Ça marche parce que macOS **et**
+  Windows font pointer les deux au même endroit — mais pas Linux. Ce n'est pas
+  un bug Windows ; c'est une mine si un portage Linux arrive un jour.
+
+### Raccourcis affichés : le comportement était déjà bon, pas les libellés
+Tous les gestionnaires testaient déjà `(e.metaKey || e.ctrlKey)` — `Ctrl+K`
+fonctionnait donc sur Windows **avant** ce chantier. Ce qui était faux, c'est
+l'étiquette : les glyphes `⌘ ⌥ ⇧` étaient écrits en dur dans 11 endroits
+(palette, réglages, bulles d'édition, croquis, état vide de Savoir). Un
+utilisateur Windows lisait `⌘K` pour un raccourci qui marchait.
+Nouveau `src/lib/platform.ts` : `IS_MAC`, `CAPTURE_SHORTCUT`, et `kbd()` qui
+traduit au point d'affichage. **La forme macOS reste la source dans le code**
+(`kbd("⌘B")`) — c'est la plus compacte, et un oubli d'appel se voit tout de
+suite sur Windows au lieu de dégrader le Mac. 8 tests, dont un qui verrouille
+explicitement « macOS strictement inchangé ».
+⚠️ Détection par `navigator.userAgent`, pas par `@tauri-apps/plugin-os` : la
+réponse est nécessaire **synchronement** au premier rendu (les libellés sont
+dans le JSX), et le plugin est asynchrone.
+
+### Textes qui mentaient sur Windows
+« Réglages **macOS** → Notifications » sur un PC est une consigne fausse, donc
+pire qu'aucune consigne. Deux traitements distincts :
+- ce qui n'est qu'un **label** est passé au neutre (« la langue **du système** »,
+  « les bannières **du système** ») — correct sur les deux, y compris macOS ;
+- ce qui est une **instruction** est branché sur `IS_MAC`, avec deux clés i18n
+  et leurs traductions (« Paramètres Windows → Système → Notifications »).
+
+### ⚠️ Piège Windows des notifications, à ne pas re-diagnostiquer
+Un toast Windows est adressé à un **AppUserModelID**, que le système ne connaît
+qu'à travers un **raccourci du menu Démarrer**. Conséquence : **aucun toast ne
+s'affiche sous `tauri dev`** — le binaire de debug n'est pas installé. Ça
+réapparaît une fois l'app installée par le `.msi`/`.exe`. Un « les notifications
+ne marchent pas » constaté en dev sur Windows **ne prouve rien**. Documenté en
+tête de `notifications/emitter.rs`.
+
+### Nettoyage au passage
+`src-tauri/examples/transcribe.rs` supprimé : vestige Jarvis/whisper que la
+purge du 2026-07-26 avait manqué — son grep de vérification couvrait `src/`,
+`src-tauri/src/`, `capabilities/`, `tauri.conf.json` et `Cargo.toml`, **pas
+`src-tauri/examples/`**. Ses deux dépendances (`whisper-rs`, `hound`) ayant été
+retirées à l'époque, le fichier ne compilait plus : **`cargo test` était cassé
+pour tout le monde depuis**, sur macOS comme ailleurs.
+
+### `tauri.conf.json` — bloc `bundle.windows` ajouté
+`webviewInstallMode: downloadBootstrapper` (silencieux), NSIS en installation
+**par utilisateur** (pas d'UAC), et installateurs **bilingues** FR/EN alignés
+sur l'app (NSIS et WiX). Conformément à la règle, macOS a été revérifié après :
+`cargo check` vert, config reparsée par `tauri-build`.
+Icône Windows : `icons/icon.ico` contient bien les **6 tailles** (16/24/32/48/
+64/256, PNG 32 bpp) et porte le logo « Strates » post-rebranding — vérifié par
+extraction, pas supposé.
+
+### Vérifié / non vérifié
+Vert sur **macOS uniquement** : `cargo check --lib --tests --bins` (0 warning),
+`cargo test` (88), `npm test` (191), `tsc`, `vite build`, `npm run test:types`,
+`npm run i18n:check` (877 clés).
+⚠️ `npm run test:types` a demandé un correctif : `tsconfig.test.json` n'incluait
+pas `src/vite-env.d.ts`, donc `import.meta.env` n'existait pas dès qu'un test
+importait un module de l'app qui le lit (ici `src/lib/i18n`, tiré par le
+nouveau test de plateforme).
+**Non vérifié, et c'est l'essentiel** : rien n'a tourné sur Windows. Ni le
+build, ni les 15 vues sous WebView2, ni les toasts, ni le tray, ni le
+Credential Manager, ni la sync Windows↔macOS.
+
+### Dette
+- **Signature Authenticode : décision en attente d'Antonin.** Sans certificat,
+  SmartScreen avertit à chaque installation. Un certificat OV coûte ~200-400 €/an
+  et demande une validation d'identité ; depuis 2023 les certificats OV exigent
+  un **stockage matériel** (token ou HSM), ce qui complique aussi la signature
+  en CI. Non bloquant pour un build de test.
+- **CI : rien n'existe** — ni `.github/`, ni **aucun remote git**. Un job
+  Windows suppose d'abord d'héberger le dépôt. Question posée, pas tranchée.
+- **Barre de titre** : `titleBarStyle: "Overlay"` est ignoré sur Windows, donc
+  la fenêtre a une barre native **et** le `pt-10` de `Sidebar.tsx` qui dégageait
+  les pastilles macOS — soit ~40 px de vide. Volontairement **non corrigé** :
+  changer une marge sans pouvoir la regarder est pire que la documenter.
+  Point 4.16 de la recette.
+- **Point le plus suspect à l'exécution** : l'affichage des screenshots de trade
+  (`convertFileSrc` + scope `$APPDATA/screenshots/**`) face aux `\` de Windows.
+  Point 4.19 de la recette.

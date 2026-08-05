@@ -1,4 +1,4 @@
-//! Émission : notification système macOS + journal + événement pour le front.
+//! Émission : notification système + journal + événement pour le front.
 //!
 //! ⚠️ Ce qu'on ne peut PAS savoir sur macOS. `tauri-plugin-notification` :
 //!   - `permission_state()` / `request_permission()` renvoient toujours
@@ -14,6 +14,16 @@
 //!   2. `handed_to_system` dit « remise au système », pas « affichée ». Le seul
 //!      moyen fiable de vérifier côté utilisateur est le bouton « envoyer une
 //!      notification de test » (commande `notif_test`), d'où son existence.
+//!
+//! ⚠️ Windows : le même flou, pour une autre raison, et un piège en plus.
+//! Un toast Windows est adressé à un **AppUserModelID**, que le système ne
+//! connaît qu'à travers un raccourci du menu Démarrer. Conséquence pratique :
+//! **les toasts ne s'affichent pas sous `tauri dev`** (le binaire de debug n'est
+//! pas installé, donc pas de raccourci, donc pas d'AUMID enregistré) et
+//! réapparaissent une fois l'app installée par le `.msi`/`.exe`. Un « ça ne
+//! marche pas » constaté en dev sur Windows ne prouve donc rien — le test doit
+//! se faire sur l'app installée. Le centre in-app, lui, reste alimenté dans les
+//! deux cas, ce qui est exactement pourquoi il est la source de vérité.
 
 use chrono::Local;
 use tauri::{AppHandle, Emitter, Manager};
@@ -57,7 +67,11 @@ pub fn deliver_test(app: &AppHandle) -> LogEntry {
         // Clé unique : un test ne doit jamais bloquer une vraie règle par idempotence.
         dedupe_keys: vec![format!("{TEST_RULE}:{}", now.timestamp_millis())],
         title: "Shale — notification de test".into(),
-        body: "Si tu vois cette bannière, les notifications macOS fonctionnent.".into(),
+        body: if cfg!(target_os = "macos") {
+            "Si tu vois cette bannière, les notifications macOS fonctionnent.".into()
+        } else {
+            "Si tu vois ce toast, les notifications Windows fonctionnent.".into()
+        },
         target: None,
         created_at: now,
         read: false,

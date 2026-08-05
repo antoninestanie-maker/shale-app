@@ -669,12 +669,12 @@ export const EN: Record<string, string> = {
   "clé Groq (console.groq.com)": "Groq key (console.groq.com)",
   "Enregistrer les clés": "Save keys",
   "Enregistré": "Saved",
-  "Choisis le thème de l'interface. « Système » suit le réglage de macOS.":
-    "Choose the interface theme. “System” follows your macOS setting.",
+  "Choisis le thème de l'interface. « Système » suit le réglage du système.":
+    "Choose the interface theme. “System” follows your system setting.",
   "langue": "language",
   "Langue de l'interface": "Interface language",
-  "« Système » suit la langue de macOS. Le changement s'applique immédiatement, partout dans l'app.":
-    "“System” follows your macOS language. The change applies immediately, everywhere in the app.",
+  "« Système » suit la langue du système. Le changement s'applique immédiatement, partout dans l'app.":
+    "“System” follows your system language. The change applies immediately, everywhere in the app.",
   "Français": "French",
   "Anglais": "English",
   "La langue des briefings du Market-Brain suit ce réglage.":
@@ -693,6 +693,10 @@ export const EN: Record<string, string> = {
   "Envoyer un test": "Send a test",
   "Emprunte exactement le même chemin qu'un vrai rappel.":
     "Takes exactly the same path as a real reminder.",
+  "Test envoyé. Aucun toast ? Autorise Shale dans Paramètres Windows → Système → Notifications — il est déjà dans la cloche, lui.":
+    "Test sent. No toast? Allow Shale in Windows Settings → System → Notifications — it\u2019s already in the in-app bell either way.",
+  "Si le test n'affiche aucun toast, autorise Shale dans Paramètres Windows → Système → Notifications. Windows ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.":
+    "If the test shows no toast, allow Shale in Windows Settings \u2192 System \u2192 Notifications. Windows never tells us it was refused \u2014 the sidebar bell receives reminders either way.",
   "Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.":
     "Test sent. No banner? Allow Shale in macOS Settings → Notifications — it’s already in the in-app bell either way.",
   "Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.":
@@ -834,8 +838,8 @@ export const EN: Record<string, string> = {
   // ── Notifications ─────────────────────────────────────────────────────────
   "Centre de notifications": "Notification centre",
   "Aucune notification.": "No notifications.",
-  "Les rappels apparaîtront ici, même si tu as coupé les bannières macOS.":
-    "Reminders show up here even if you’ve turned macOS banners off.",
+  "Les rappels apparaîtront ici, même si tu as coupé les bannières du système.":
+    "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
   "Série en danger": "Streak at risk",
   "En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue.":
@@ -956,13 +960,13 @@ export const EN: Record<string, string> = {
   "apparence": "appearance",
   "Clair": "Light",
   "Sombre": "Dark",
-  "Suit l’apparence de macOS, jour et nuit.": "Follows macOS appearance, day and night.",
+  "Suit l’apparence du système, jour et nuit.": "Follows the system appearance, day and night.",
   "Palette claire « Alabaster », en toutes circonstances.":
     "The light “Alabaster” palette, in all circumstances.",
   "Palette sombre « Obsidian », en toutes circonstances.":
     "The dark “Obsidian” palette, in all circumstances.",
-  "Suit la langue de macOS ; anglais si elle n'est ni française ni anglaise.":
-    "Follows your macOS language; falls back to English if it’s neither French nor English.",
+  "Suit la langue du système ; anglais si elle n'est ni française ni anglaise.":
+    "Follows your system language; falls back to English if it’s neither French nor English.",
   "Le bouton": "The button",
   "Tout réinitialiser": "Reset everything",
   "Rétablit l’ordre, la visibilité, les libellés, la densité et l’identité d’origine.":

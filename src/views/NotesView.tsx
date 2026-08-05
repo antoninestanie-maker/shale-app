@@ -5,6 +5,7 @@ import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
 import type { AppData, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
+import { kbd } from "../lib/platform";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -124,7 +125,7 @@ export default function NotesView({ data, refresh }: Props) {
             type="button"
             onClick={handleNew}
             data-tip={t("Nouvelle note")}
-            data-tip-kbd="⌘⇧N"
+            data-tip-kbd={kbd("⌘⇧N")}
             className="pill shrink-0 bg-blue px-3 py-2 text-sm font-bold text-white hover:opacity-90"
           >
             +

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IconCheck, IconReset, IconX } from "./icons";
 
 import { t } from "../lib/i18n";
+import { kbd } from "../lib/platform";
 const SHEET_W = 1440;
 const SHEET_H = 900;
 const PAPER = "#f7f8fa";
@@ -275,7 +276,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
             onClick={undo}
             disabled={count === 0}
             data-tip={t("Annuler le dernier trait")}
-            data-tip-kbd="⌘Z"
+            data-tip-kbd={kbd("⌘Z")}
             className={`${toolBtn(false)} disabled:opacity-30`}
           >
             <IconReset className="h-3.5 w-3.5" /> {t("Annuler")}

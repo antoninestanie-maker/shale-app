@@ -149,7 +149,7 @@ export default function NotificationBell({ onNavigate }: Props) {
                 {t("Aucune notification.")}
                 <br />
                 <span className="text-[12px]">
-                  {t("Les rappels apparaîtront ici, même si tu as coupé les bannières macOS.")}
+                  {t("Les rappels apparaîtront ici, même si tu as coupé les bannières du système.")}
                 </span>
               </p>
             ) : (

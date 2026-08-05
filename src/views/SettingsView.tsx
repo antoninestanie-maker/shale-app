@@ -12,6 +12,7 @@ import {
 } from "../lib/repo";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
 import { getLang, setLangPref, useLangPref, type LangPref } from "../lib/i18n";
+import { kbd, CAPTURE_SHORTCUT, IS_MAC } from "../lib/platform";
 import {
   loadMentalLoadConfig,
   saveMentalLoadConfig,
@@ -228,7 +229,11 @@ export default function SettingsView() {
     const entry = await sendTest();
     setTestMsg(
       entry
-        ? t("Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.")
+        ? // Le chemin des réglages n'est pas le même d'un système à l'autre : une
+          // consigne fausse est pire que pas de consigne du tout.
+          IS_MAC
+          ? t("Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.")
+          : t("Test envoyé. Aucun toast ? Autorise Shale dans Paramètres Windows → Système → Notifications — il est déjà dans la cloche, lui.")
         : null,
     );
     window.setTimeout(() => setTestMsg(null), 10000);
@@ -381,7 +386,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("langue")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("« Système » suit la langue de macOS. Le changement s'applique immédiatement, partout dans l'app.")}
+          {t("« Système » suit la langue du système. Le changement s'applique immédiatement, partout dans l'app.")}
         </p>
         <div className="pill mt-3 inline-flex flex-wrap items-center gap-0.5 border border-border bg-surface-2 p-1">
           {(
@@ -398,7 +403,7 @@ export default function SettingsView() {
               data-tip={it.label}
               data-tip-sub={
                 it.id === "system"
-                  ? t("Suit la langue de macOS ; anglais si elle n'est ni française ni anglaise.")
+                  ? t("Suit la langue du système ; anglais si elle n'est ni française ni anglaise.")
                   : t("La langue des briefings du Market-Brain suit ce réglage.")
               }
               className={`pill px-4 py-1.5 text-xs font-medium transition-colors ${
@@ -416,7 +421,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("apparence")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("Choisis le thème de l'interface. « Système » suit le réglage de macOS.")}
+          {t("Choisis le thème de l'interface. « Système » suit le réglage du système.")}
         </p>
         <div className="pill mt-3 inline-flex flex-wrap items-center gap-0.5 border border-border bg-surface-2 p-1">
           {(
@@ -433,7 +438,7 @@ export default function SettingsView() {
               data-tip={it.label}
               data-tip-sub={
                 it.id === "system"
-                  ? t("Suit l’apparence de macOS, jour et nuit.")
+                  ? t("Suit l’apparence du système, jour et nuit.")
                   : it.id === "light"
                     ? t("Palette claire « Alabaster », en toutes circonstances.")
                     : t("Palette sombre « Obsidian », en toutes circonstances.")
@@ -592,7 +597,9 @@ export default function SettingsView() {
               {!isTauri
                 ? t("Mode démo : le planificateur et les notifications système n'existent que dans l'app native. Les réglages ci-dessus restent manipulables, mais ne sont pas enregistrés.")
                 : (testMsg ??
-                  t("Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas."))}
+                  (IS_MAC
+                    ? t("Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.")
+                    : t("Si le test n'affiche aucun toast, autorise Shale dans Paramètres Windows → Système → Notifications. Windows ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.")))}
             </p>
           </>
         )}
@@ -824,15 +831,18 @@ export default function SettingsView() {
         <ul className="mt-3 flex flex-col gap-2 text-sm text-text">
           <li className="flex justify-between">
             <span>Capture rapide (global)</span>
-            <kbd className="font-mono text-xs text-text-dim">⌥ Espace</kbd>
+            {/* Constante, pas `kbd()` : sur Windows ce raccourci n'est pas la
+                traduction de ⌥Espace, c'en est un autre (Alt+Espace y est pris
+                par le menu système). Cf. `lib/platform.ts`. */}
+            <kbd className="font-mono text-xs text-text-dim">{CAPTURE_SHORTCUT}</kbd>
           </li>
           <li className="flex justify-between">
             <span>{t("Palette de commandes")}</span>
-            <kbd className="font-mono text-xs text-text-dim">⌘ K</kbd>
+            <kbd className="font-mono text-xs text-text-dim">{kbd("⌘ K")}</kbd>
           </li>
           <li className="flex justify-between">
             <span>{t("Nouvelle note")}</span>
-            <kbd className="font-mono text-xs text-text-dim">⌘⇧ N</kbd>
+            <kbd className="font-mono text-xs text-text-dim">{kbd("⌘⇧ N")}</kbd>
           </li>
         </ul>
       </section>

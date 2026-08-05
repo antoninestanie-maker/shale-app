@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { toEditorHtml } from "../lib/richtext";
 
 import { t } from "../lib/i18n";
+import { kbd } from "../lib/platform";
 interface Props {
   /** Change d'identité → recharge le contenu dans l'éditeur (sinon on ne touche pas au DOM). */
   noteId: number;
@@ -99,12 +100,12 @@ export default function RichNoteEditor({
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
       {/* Barre d'outils */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border pb-2">
-        <Btn label={<b>B</b>} title="Gras" kbd="⌘B" onDo={() => exec("bold")} />
-        <Btn label={<i>I</i>} title="Italique" kbd="⌘I" onDo={() => exec("italic")} />
+        <Btn label={<b>B</b>} title="Gras" kbd={kbd("⌘B")} onDo={() => exec("bold")} />
+        <Btn label={<i>I</i>} title="Italique" kbd={kbd("⌘I")} onDo={() => exec("italic")} />
         <Btn
           label={<u>U</u>}
           title={t("Souligné")}
-          kbd="⌘U"
+          kbd={kbd("⌘U")}
           onDo={() => exec("underline")}
         />
         <Btn
