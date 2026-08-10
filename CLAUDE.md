@@ -26,8 +26,12 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   **<https://shale-six.vercel.app>**, espace compte sous `/compte/`), rebrancher
   Stripe (`STRIPE_ENABLED`, cf. fin de fichier), **notariser l'app** (voir plus
   bas), remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
-- Données de trading **toujours 100 % locales** (SQLite) ; le backend ne gère que
-  comptes + abonnements.
+- Données **écrites en local** (SQLite) et utilisables hors ligne. ⚠️ Elles ne
+  restent plus *seulement* là : depuis la synchronisation (2026-08-10), une copie
+  **chiffrée de bout en bout** part vers `sync_rows` dès qu'un compte est
+  connecté. Le backend ne peut pas les lire — il en stocke quand même. La phrase
+  « toujours 100 % locales » qui vivait ici est fausse depuis ce jour-là, et le
+  site la répétait à cinq endroits, politique de confidentialité comprise.
 
 ## Commandes
 - `npx tsc --noEmit` — typecheck
@@ -47,6 +51,37 @@ significative (code front ou Rust, et obligatoirement `capabilities/*.json`,
 `tauri.conf.json` ou une migration SQL) doit se conclure par un
 `npm run tauri build` puis la réinstallation du bundle généré
 (`src-tauri/target/release/bundle/macos/`) pour être visible dans l'app réelle.
+
+## Règle : l'app et le site ne divergent jamais
+
+**Toute modification de l'app se termine par la mise à jour du site
+(`~/Desktop/shale-site`), et réciproquement.** Le site ne décrit pas l'app de
+loin : il la *montre* — sa barre latérale, ses douze modules, son design. Un
+onglet renommé ici et pas là-bas, c'est un visiteur qui télécharge autre chose
+que ce qu'il a vu, et une promesse commerciale que l'app ne tient pas. Ça vaut
+pour le **fond** (ce que fait un module) comme pour la **forme** (couleurs,
+typographie, icônes, disposition).
+
+Rien n'est partagé entre les deux dépôts : le site recopie l'app à la main.
+
+| Ce qui bouge ici | Ce qu'il faut mettre à jour dans `shale-site/vitrine/src/` |
+|---|---|
+| `src/components/Sidebar.tsx` — `ITEMS` / `CATEGORIES` : ajout, retrait, **renommage**, changement de catégorie ou d'ordre | `components/Demo.astro` → `NAV` — **la démo jouable** de la section `#essayer`, celle qui reproduit la barre latérale (+ `ICONS` pour une icône nouvelle) ; `lib/modules.ts` → `MODULES`, même ordre |
+| Une vue de `src/views/` ajoutée ou supprimée | tout ce qui précède **plus** le compte de modules, écrit en toutes lettres à une dizaine d'endroits (« douze modules » dans `content.json` et `lib/i18n/en.ts`, « APERÇU · 3 MODULES SUR 12 » dans `Demo.astro`) |
+| Ce que fait un module (écran, KPI, contenu) | la fiche du module dans `lib/modules.ts` : `desc`, `widget`, `specLabel`/`specValue`. Sa règle de vérité est écrite en tête du fichier — rien n'y figure qui n'existe dans l'app |
+| Un raccourci clavier | le `key: "⌘1"…` du module **et** la ligne « Raccourcis clavier » de `SPECS` (`lib/modules.ts`) |
+| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` **et** `compte/site/assets/style.css` : deux fichiers distincts, à modifier tous les deux |
+| Plateformes, stockage, hors-ligne, clés d'API, sauvegarde, langue, licence, gating | `SPECS` dans `lib/modules.ts` et `content.json` (`features`, `faq`) |
+
+Le sens inverse tient aussi : **une promesse ajoutée au site doit exister dans
+l'app avant d'être publiée** — le site n'est pas un cahier des charges. Et toute
+chaîne française nouvelle côté site a besoin de sa traduction dans
+`lib/i18n/en.ts`, sinon la page anglaise retombe en français sans le dire.
+
+Aucun outil ne vérifie cette ressemblance (`npm run check` du site regarde le
+SEO, l'accessibilité et une liste de valeurs périmées, pas la fidélité à l'app) :
+le seul garde-fou est cette table. Sa jumelle est dans
+`~/Desktop/shale-site/CLAUDE.md`, et les deux doivent rester alignées.
 
 ## Architecture générale
 - `src/App.tsx` — routing par état `view`, monte `useFocus` + `useMarketBrain` au niveau App.

@@ -66,7 +66,10 @@ export default function PerfStrip({ data, week, streak }: Props) {
           <p className="font-display text-2xl font-extrabold leading-none text-green">
             {streak} j
           </p>
-          <p className="hud-label mt-1">streak</p>
+          {/* Seule étiquette du bandeau restée en anglais et hors `t()` dans
+              une interface française — et la vitrine, qui recopie ce bandeau,
+              écrivait « série en cours ». Les deux disent la même chose. */}
+          <p className="hud-label mt-1">{t("série en cours")}</p>
         </div>
       </div>
 

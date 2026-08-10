@@ -128,6 +128,7 @@ export const EN: Record<string, string> = {
   "cette semaine": "this week",
   "cumulé": "cumulative",
   "7 jours": "7 days",
+  "série en cours": "current streak",
   "7 derniers jours": "Last 7 days",
   "Moyenne 30 jours": "30-day average",
   "Jours précis": "Specific days",
