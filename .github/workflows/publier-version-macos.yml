@@ -80,3 +80,4 @@ jobs:
           files: release/*.dmg
           draft: false
           prerelease: false
+        
