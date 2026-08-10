@@ -5,6 +5,19 @@
 # Se déclenche à la main (onglet « Actions » du dépôt) — pas à chaque push :
 # une version se publie quand on l'a décidé, pas quand on a corrigé une virgule.
 #
+# CE DÉPÔT RESTE PRIVÉ. La release ne part donc PAS ici mais dans un second
+# dépôt, public et vide de code (`DEPOT_TELECHARGEMENTS` ci-dessous), qui ne sert
+# qu'à héberger les binaires : un dépôt privé ne sert ses fichiers de release
+# qu'aux comptes qui y ont accès, un visiteur anonyme reçoit un 404.
+#
+# Les fichiers de release ne vivent pas dans l'historique git — ce sont des
+# objets séparés. Le dépôt public ne grossit donc pas d'une version à l'autre,
+# contrairement à ce qui arriverait en committant les .dmg quelque part.
+#
+# L'écriture dans cet autre dépôt demande un jeton personnel, stocké en secret
+# de dépôt sous le nom DOWNLOADS_TOKEN. Le `GITHUB_TOKEN` automatique ne
+# convient pas : sa portée s'arrête au dépôt courant.
+#
 # POURQUOI RENOMMER. Tauri horodate ses fichiers avec la version
 # (« Shale_0.1.0_aarch64.dmg »). Or le site pointe sur
 # `releases/latest/download/<nom>`, une URL qui exige un nom FIGÉ : si le nom
@@ -29,9 +42,11 @@ on:
         required: true
         default: "0.1.0"
 
-# Sans ça, l'étape de publication ne peut pas créer la release.
-permissions:
-  contents: write
+env:
+  # Le dépôt public qui héberge les .dmg. Doit rester ALIGNÉ avec
+  # `config.githubRepo` dans shale-site/vitrine/src/content.json : c'est de là
+  # que le site construit ses URL de téléchargement.
+  DEPOT_TELECHARGEMENTS: antoninestanie-maker/shale-downloads
 
 jobs:
   publier:
@@ -72,12 +87,22 @@ jobs:
       # `prerelease: false` n'est pas décoratif : `releases/latest` IGNORE les
       # pre-releases et les brouillons. Publiée en pre-release, la version
       # donnerait un 404 exactement comme si elle n'existait pas.
-      - name: Publier la release
+      #
+      # `repository` + `token` : la release atterrit dans le dépôt PUBLIC de
+      # téléchargement, pas ici. Sans ces deux lignes elle serait créée dans ce
+      # dépôt-ci, qui est privé — et donc invisible aux visiteurs.
+      - name: Publier la release dans le dépôt public
         uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.DEPOT_TELECHARGEMENTS }}
+          token: ${{ secrets.DOWNLOADS_TOKEN }}
           tag_name: v${{ inputs.version }}
           name: Shale ${{ inputs.version }}
+          body: |
+            Version ${{ inputs.version }} de Shale pour macOS 14+.
+
+            - `Shale_aarch64.dmg` — Mac Apple Silicon (M1 et suivants)
+            - `Shale_x64.dmg` — Mac Intel
           files: release/*.dmg
           draft: false
           prerelease: false
-        
