@@ -1,1 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Publie une version macOS de Shale : compile les deux architectures, leur donne
+# un NOM STABLE, et crée la release GitHub.
+#
+# Se déclenche à la main (onglet « Actions » du dépôt) — pas à chaque push :
+# une version se publie quand on l'a décidé, pas quand on a corrigé une virgule.
+#
+# POURQUOI RENOMMER. Tauri horodate ses fichiers avec la version
+# (« Shale_0.1.0_aarch64.dmg »). Or le site pointe sur
+# `releases/latest/download/<nom>`, une URL qui exige un nom FIGÉ : si le nom
+# bouge à chaque version, tous les boutons de téléchargement du site cassent le
+# jour de la publication suivante. On copie donc sous « Shale_aarch64.dmg » et
+# « Shale_x64.dmg », les noms attendus par `config.dmgApple` et `config.dmgIntel`
+# dans shale-site/vitrine/src/content.json.
+#
+# NON SIGNÉ, NON NOTARISÉ. Aucun certificat Apple n'est configuré ici. Les .dmg
+# produits déclencheront un avertissement Gatekeeper chez le visiteur. Pour y
+# remédier il faudra un compte Apple Developer et quatre secrets de dépôt
+# (APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_ID, APPLE_TEAM_ID),
+# puis leur ajout à l'étape « Compiler » ci-dessous.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Publier une version macOS
 
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numéro de version, sans le « v » (ex. 0.1.0)"
+        required: true
+        default: "0.1.0"
+
+# Sans ça, l'étape de publication ne peut pas créer la release.
+permissions:
+  contents: write
+
+jobs:
+  publier:
+    runs-on: macos-14
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Installer Rust et les deux cibles macOS
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # `beforeBuildCommand` de tauri.conf.json lance déjà `npm run build` :
+      # le front n'a pas d'étape à lui ici.
+      - name: Compiler pour Apple Silicon
+        run: npm run tauri build -- --target aarch64-apple-darwin
+
+      - name: Compiler pour Intel
+        run: npm run tauri build -- --target x86_64-apple-darwin
+
+      - name: Renommer sous les noms attendus par le site
+        run: |
+          mkdir -p release
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg release/Shale_aarch64.dmg
+          cp src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg release/Shale_x64.dmg
+          ls -lh release/
+
+      # `prerelease: false` n'est pas décoratif : `releases/latest` IGNORE les
+      # pre-releases et les brouillons. Publiée en pre-release, la version
+      # donnerait un 404 exactement comme si elle n'existait pas.
+      - name: Publier la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Shale ${{ inputs.version }}
+          files: release/*.dmg
+          draft: false
+          prerelease: false
