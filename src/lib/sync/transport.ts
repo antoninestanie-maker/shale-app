@@ -28,6 +28,18 @@ export interface Transport {
   pousser(lignes: LigneAEnvoyer[]): Promise<void>;
   /** Lignes de `server_seq` strictement supérieur au curseur, dans l'ordre. */
   tirer(curseur: number, limite: number): Promise<LigneDistante[]>;
+  /**
+   * Efface TOUT le contenu synchronisé du compte.
+   *
+   * ⚠️ Destructif et sans retour. Un seul appelant légitime : la republication
+   * après réinitialisation du mot de passe, où les lignes du serveur sont
+   * scellées par une clé que plus personne ne possède — donc déjà perdues. Les
+   * effacer ne détruit rien de récupérable, et évite de laisser traîner
+   * indéfiniment des octets que le moteur devrait ignorer à chaque cycle.
+   *
+   * Les données LOCALES ne sont pas touchées : ce sont elles qu'on republie.
+   */
+  effacerTout(): Promise<void>;
 }
 
 // ─── Encodage des octets pour PostgREST ──────────────────────────────────────
@@ -132,6 +144,21 @@ export class TransportSupabase implements Transport {
         // vient d'envoyer.
         entetes: this.entetes(jeton, { Prefer: "resolution=merge-duplicates,return=minimal" }),
         corps,
+      }),
+    );
+  }
+
+  async effacerTout(): Promise<void> {
+    // `user_id=eq.<moi>` n'est pas une précaution superflue : sans filtre,
+    // PostgREST refuse un DELETE de masse — et la RLS le limiterait de toute
+    // façon à nos propres lignes. Les deux disent la même chose ; les deux
+    // doivent le dire.
+    const url = new URL(`${this.config.url}/rest/v1/sync_rows`);
+    url.searchParams.set("user_id", `eq.${this.config.userId}`);
+    await this.avecJeton((jeton) =>
+      requete(url.toString(), {
+        methode: "DELETE",
+        entetes: this.entetes(jeton, { Prefer: "return=minimal" }),
       }),
     );
   }

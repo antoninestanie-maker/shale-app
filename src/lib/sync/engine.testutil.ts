@@ -85,6 +85,11 @@ export class ServeurSimule implements Transport {
     }
   }
 
+  async effacerTout(): Promise<void> {
+    if (this.horsLigne) throw new Error("réseau indisponible");
+    this.lignes.clear();
+  }
+
   async tirer(curseur: number, limite: number): Promise<LigneDistante[]> {
     if (this.horsLigne) throw new Error("réseau indisponible");
     this.lectures++;

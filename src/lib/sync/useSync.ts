@@ -11,38 +11,56 @@ import { deriverKek } from "./kdf";
 import {
   activer as activerCle,
   changerMotDePasse as reScellerMotDePasse,
-  ouvrirAvecCode,
   ouvrirAvecMotDePasse,
-  poserCodeRecuperation as poserCode,
-  retirerCodeRecuperation as retirerCode,
-  CleAbsente,
+  SecretInvalide,
 } from "./keys";
 import { DepotSupabase, lireDek, oublierDek, rangerDek } from "./keystore";
-import { lireMeta, lireOutbox, type BaseLocale } from "./local";
+import { ecrireMeta, lireMeta, lireOutbox, toutRemettreEnFile, type BaseLocale } from "./local";
 import { nombreEnAttente } from "./outbox";
+import { TABLES_SYNC } from "./scope";
 import { demarrerPlanificateur, type Planificateur } from "./planificateur";
+import { EVENEMENT_SECRET, retirerMotDePasse } from "./sas";
 import { TransportSupabase, type ConfigSupabase } from "./transport";
 
 /**
  * Point d'entrée unique de la synchronisation pour l'interface.
  *
- * ─── POURQUOI L'ACTIVATION EST EXPLICITE ───────────────────────────────────
- * Ouvrir la clé exige le MOT DE PASSE, qui n'existe que le temps de l'écran de
- * connexion — « rester connecté » conserve une session, pas un mot de passe. On
- * pourrait l'intercepter au login, mais cela mêlerait la porte d'entrée de
- * l'app à une fonctionnalité optionnelle, et obligerait à traiter le cas « mot
- * de passe correct mais clé de synchronisation absente » en plein écran de
- * connexion. L'activation se fait donc dans Réglages, une fois. Ensuite la clé
- * vit dans le trousseau et les lancements suivants l'ouvrent en silence.
+ * ─── CONNECTÉ = SYNCHRONISÉ, SANS RIEN DEMANDER ───────────────────────────
+ * Il n'y a ni écran d'activation, ni code à noter. Se connecter suffit.
+ *
+ * Le chiffrement de bout en bout est conservé : ce qui change, c'est d'où vient
+ * le secret. Il exige le MOT DE PASSE, qui n'existe que le temps de l'écran de
+ * connexion — « rester connecté » conserve une session, pas un mot de passe.
+ * Plutôt que de le redemander dans une cérémonie que personne ne comprend, on
+ * le saisit au vol à l'instant où l'utilisateur vient de le taper (`sas.ts`).
+ * Ensuite la clé vit dans le trousseau, et les lancements suivants l'ouvrent
+ * en silence sans rien réclamer.
+ *
+ * ⚠️ CE QUE CE CHOIX COÛTE, ET QUI EST ASSUMÉ. Sans code de récupération, un
+ * mot de passe RÉINITIALISÉ PAR E-MAIL rend la copie cloud illisible : elle est
+ * scellée par l'ancien. Deux garde-fous, et une limite :
+ *   • changement de mot de passe depuis l'app → l'enveloppe est re-scellée
+ *     automatiquement, rien n'est perdu ;
+ *   • un appareil qui détient encore la clé la re-scelle de la même façon ;
+ *   • mais si AUCUN appareil ne l'a plus, la copie cloud est irrécupérable —
+ *     statut `orpheline`. Les données LOCALES, elles, restent intactes, et
+ *     l'utilisateur peut repartir d'elles.
  */
 
 export type Statut =
   /** Mode démo, preview navigateur, ou auth non configurée : rien à synchroniser. */
   | "indisponible"
-  /** Jamais activée sur ce compte. */
+  /** Jamais activée sur ce compte. Transitoire : la connexion suivante l'active. */
   | "inactive"
-  /** Activée, mais la clé n'est pas ouverte ici (nouvel appareil, trousseau muet). */
+  /** La clé n'est pas ouverte ici et le mot de passe n'a pas été retapé. */
   | "verrouillee"
+  /**
+   * Une clé existe dans le cloud, mais le mot de passe actuel ne l'ouvre pas :
+   * il a été réinitialisé par e-mail depuis un autre appareil, et l'enveloppe
+   * est restée scellée par l'ancien. Les données locales sont intactes ; la
+   * copie cloud, elle, est perdue et doit être republiée depuis cet appareil.
+   */
+  | "orpheline"
   | "active";
 
 export type Activite = "repos" | "enCours" | "horsLigne" | "echec";
@@ -79,23 +97,11 @@ export interface EtatSync {
 export interface ApiSync extends EtatSync {
   synchroniserMaintenant(): Promise<void>;
   /**
-   * Première activation sur le compte.
-   *
-   * ⚠️ Le code de récupération est FOURNI, pas renvoyé : quand cette promesse
-   * se résout, la synchronisation existe déjà côté serveur. Le montrer après
-   * reviendrait à faire confirmer « je l'ai noté » à quelqu'un qui n'a plus la
-   * possibilité de renoncer. L'appelant le tire (`genererCode()`), le fait
-   * confirmer, puis active. Cf. `SyncOnboarding.tsx`.
+   * Efface la copie cloud devenue illisible et la reconstruit depuis cet
+   * appareil. Réservé au statut `orpheline` — destructif pour ce qui n'existe
+   * QUE sur un autre appareil.
    */
-  activer(motDePasse: string, codeRecuperation: string | null): Promise<void>;
-  /** Ouvre la clé sur cet appareil-ci. */
-  deverrouiller(motDePasse: string): Promise<void>;
-  /** Ouvre la clé quand le mot de passe est perdu. */
-  deverrouillerAvecCode(code: string): Promise<void>;
-  /** Re-scelle l'enveloppe après un changement de mot de passe. */
-  reSceller(nouveauMotDePasse: string): Promise<void>;
-  regenererCodeRecuperation(): Promise<string>;
-  supprimerCodeRecuperation(): Promise<void>;
+  republier(motDePasse: string): Promise<void>;
   /** Oublie la clé sur CET appareil. Les données locales restent intactes. */
   oublierClé(): Promise<void>;
 }
@@ -124,7 +130,14 @@ const CLE_DEMO = "shale.demo.sync";
 export function statutDemo(): Statut {
   try {
     const v = localStorage.getItem(CLE_DEMO);
-    if (v === "indisponible" || v === "inactive" || v === "verrouillee" || v === "active") return v;
+    if (
+      v === "indisponible" ||
+      v === "inactive" ||
+      v === "verrouillee" ||
+      v === "orpheline" ||
+      v === "active"
+    )
+      return v;
   } catch {
     /* stockage indisponible */
   }
@@ -139,8 +152,6 @@ export function setStatutDemo(v: Statut): void {
   }
 }
 
-const CODE_DEMO = "SHALE-4T7K-9BQZ-2MXE-8PWA-5RVH-3JND-6C1F";
-
 function useSyncDemo(): ApiSync {
   const [statut, setStatut] = useState<Statut>(statutDemo);
   const rien = async () => {};
@@ -153,23 +164,10 @@ function useSyncDemo(): ApiSync {
     raison: null,
     clePersistee: true,
     synchroniserMaintenant: rien,
-    async activer() {
+    async republier() {
       setStatut("active");
       setStatutDemo("active");
     },
-    async deverrouiller() {
-      setStatut("active");
-      setStatutDemo("active");
-    },
-    async deverrouillerAvecCode() {
-      setStatut("active");
-      setStatutDemo("active");
-    },
-    reSceller: rien,
-    async regenererCodeRecuperation() {
-      return CODE_DEMO;
-    },
-    supprimerCodeRecuperation: rien,
     async oublierClé() {
       setStatut("verrouillee");
       setStatutDemo("verrouillee");
@@ -280,43 +278,125 @@ export function useSync(
     [cycle],
   );
 
-  // ─── Ouverture silencieuse au démarrage ────────────────────────────────────
+  /**
+   * Met en service la synchronisation SANS rien demander.
+   *
+   * ─── LA RÈGLE : CONNECTÉ = SYNCHRONISÉ ───────────────────────────────────
+   * Il n'y a plus d'écran d'activation, plus de code à noter, plus de case à
+   * cocher. Se connecter suffit. Le chiffrement de bout en bout est conservé —
+   * ce qui change, c'est d'où vient le secret : le mot de passe que
+   * l'utilisateur vient de taper, saisi au vol par le sas, au lieu d'une
+   * cérémonie qui le lui redemandait.
+   *
+   * Trois chemins, dans cet ordre de préférence :
+   *   1. la clé est déjà dans le trousseau → on démarre, rien à faire ;
+   *   2. un mot de passe attend dans le sas → on crée la clé (premier compte)
+   *      ou on la rouvre (nouvel appareil), en silence ;
+   *   3. ni l'un ni l'autre → on reste verrouillé et l'app fonctionne
+   *      normalement, les écritures s'empilant dans l'outbox.
+   *
+   * Le cas 3 est RARE et ne survient qu'avec « rester connecté » sur un
+   * appareil dont le trousseau a été vidé : la session est restaurée sans que
+   * le mot de passe ait été retapé.
+   */
+  const ouvrirSansRienDemander = useCallback(async (): Promise<void> => {
+    if (!session) return;
+
+    // ⚠️ Retiré dans TOUS les cas, même si on n'en a pas l'usage : le sas ne
+    // doit pas garder un mot de passe en mémoire au-delà de cet instant.
+    const motDePasse = retirerMotDePasse();
+
+    // La clé est-elle déjà à portée — en mémoire, ou dans le trousseau ?
+    const dek = dekRef.current ?? (await lireDek());
+
+    if (dek) {
+      if (!clesRef.current) {
+        const { deriverSousCles } = await import("./crypto");
+        await demarrer(await deriverSousCles(dek), dek);
+      }
+
+      // ⚠️ RE-SCELLEMENT SYSTÉMATIQUE à chaque mot de passe vu.
+      //
+      // Il ne sert pas qu'au changement de mot de passe explicite : il couvre
+      // surtout la RÉINITIALISATION PAR E-MAIL, faite ailleurs, dont l'app
+      // n'est jamais informée. Sans lui, l'enveloppe resterait scellée par
+      // l'ancien mot de passe, et le prochain appareil ne pourrait plus rien
+      // ouvrir — alors que la clé était là, intacte, sur celui-ci.
+      //
+      // Coût : une dérivation (~150 ms) et un POST, une fois par connexion.
+      // Bénéfice : l'enveloppe correspond TOUJOURS au dernier mot de passe
+      // employé. Vérifier d'abord si c'est nécessaire coûterait la même
+      // dérivation — autant re-sceller.
+      //
+      // Best-effort et SILENCIEUX : hors ligne au lancement, ça échoue sans
+      // conséquence, et la connexion suivante rattrapera.
+      if (motDePasse) {
+        try {
+          await reScellerMotDePasse(depot(), deriverKek, session.user.id, dek, motDePasse);
+        } catch {
+          /* réessayé à la prochaine connexion */
+        }
+      }
+      return;
+    }
+
+    if (!motDePasse) {
+      // On ne sait pas encore si le compte a une clé ailleurs, et le savoir
+      // demanderait le réseau. « Verrouillée » est l'hypothèse la moins
+      // destructrice : elle ne propose jamais de créer une clé qui existerait
+      // déjà, ce qui rendrait l'ancienne copie cloud orpheline.
+      setEtat((e) => ({ ...e, statut: "verrouillee" }));
+      return;
+    }
+
+    try {
+      const enveloppes = await depot().lire();
+
+      if (!enveloppes) {
+        // Premier appareil de ce compte : la clé naît ici. Aucun code de
+        // récupération — c'est le choix produit (voir `SyncSettings`).
+        const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, null);
+        await demarrer(r.cles, r.dek);
+        return;
+      }
+
+      const r = await ouvrirAvecMotDePasse(depot(), deriverKek, session.user.id, motDePasse);
+      await demarrer(r.cles, r.dek);
+    } catch (e) {
+      // ⚠️ Un mot de passe VALIDE pour se connecter mais qui n'ouvre pas
+      // l'enveloppe signifie une seule chose : il a été réinitialisé par
+      // e-mail depuis un autre appareil. L'enveloppe est scellée par l'ANCIEN.
+      // Sans clé locale, la copie cloud est irrécupérable — d'où un statut
+      // dédié plutôt qu'un « mot de passe invalide » qui serait mensonger.
+      const perdue = e instanceof SecretInvalide;
+      setEtat((prev) => ({
+        ...prev,
+        statut: perdue ? "orpheline" : "verrouillee",
+        erreur: perdue ? null : lisible(e),
+        raison: perdue ? null : raisonDe(e),
+      }));
+    }
+  }, [depot, demarrer, session]);
+
+  // ─── Mise en service au démarrage ──────────────────────────────────────────
   useEffect(() => {
     if (!utilisable) {
       setEtat({ ...ETAT_INITIAL, statut: "indisponible" });
       return;
     }
-    let annule = false;
+    void ouvrirSansRienDemander();
+  }, [utilisable, ouvrirSansRienDemander]);
 
-    void (async () => {
-      const dek = await lireDek();
-      if (annule) return;
-
-      if (dek) {
-        // La clé est déjà là : rien à demander à l'utilisateur.
-        const { deriverSousCles } = await import("./crypto");
-        await demarrer(await deriverSousCles(dek), dek);
-        return;
-      }
-
-      // Pas de clé ici. Reste à savoir si le compte en a une ailleurs — ce qui
-      // distingue « à activer » de « à déverrouiller », deux écrans différents.
-      try {
-        const enveloppes = await depot().lire();
-        if (!annule) setEtat((e) => ({ ...e, statut: enveloppes ? "verrouillee" : "inactive" }));
-      } catch (e) {
-        // Réseau indisponible au lancement : on ne sait pas trancher. On
-        // n'invente pas — « verrouillée » est l'hypothèse la moins destructrice
-        // (elle ne propose pas de créer une clé qui existerait déjà ailleurs).
-        if (!annule)
-          setEtat((prev) => ({ ...prev, statut: "verrouillee", erreur: lisible(e), raison: raisonDe(e) }));
-      }
-    })();
-
-    return () => {
-      annule = true;
-    };
-  }, [utilisable, depot, demarrer]);
+  // ─── Mot de passe déposé pendant que l'app tourne ──────────────────────────
+  // Connexion (le dépôt précède le montage de ce hook, d'où l'appel ci-dessus)
+  // ET changement de mot de passe (le dépôt arrive bien après). Les deux passent
+  // par le même chemin, qui sait lequel des deux il traite.
+  useEffect(() => {
+    if (!utilisable) return;
+    const surSecret = () => void ouvrirSansRienDemander();
+    window.addEventListener(EVENEMENT_SECRET, surSecret);
+    return () => window.removeEventListener(EVENEMENT_SECRET, surSecret);
+  }, [utilisable, ouvrirSansRienDemander]);
 
   // Le planificateur survit aux rendus mais pas au démontage.
   useEffect(() => () => planRef.current?.arreter(), []);
@@ -333,49 +413,61 @@ export function useSync(
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
-  const activer = useCallback(
-    async (motDePasse: string, codeRecuperation: string | null) => {
-      if (!session) throw new Error("session absente");
-      const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, codeRecuperation);
-      await demarrer(r.cles, r.dek);
-    },
-    [depot, demarrer, session],
-  );
+  /*
+   * Retirées avec l'activation automatique (2026-08-10) : `activer`,
+   * `deverrouiller`, `deverrouillerAvecCode`, `reSceller`,
+   * `regenererCodeRecuperation`, `supprimerCodeRecuperation`.
+   *
+   * Plus aucun écran ne les appelait — l'ouverture se fait toute seule à la
+   * connexion (`ouvrirSansRienDemander`). Les garder aurait laissé, sur un
+   * module de sécurité, une surface publique que rien n'exerce ni ne teste.
+   *
+   * ⚠️ Les fonctions correspondantes de `keys.ts` sont CONSERVÉES, elles, et
+   * restent testées : c'est la couche où le code de récupération reviendrait
+   * si la décision produit changeait. C'est l'exposition à l'interface qui a
+   * disparu, pas la mécanique.
+   */
 
-  const deverrouiller = useCallback(
+
+  /**
+   * Repart de zéro depuis CET appareil.
+   *
+   * Seule issue quand le mot de passe a été réinitialisé par e-mail et qu'aucun
+   * appareil ne détient plus la clé : l'enveloppe du serveur est scellée par un
+   * secret que personne n'a, donc son contenu est déjà perdu — pas par cette
+   * opération, mais avant elle.
+   *
+   * Ce qui est détruit : la copie CLOUD, illisible de toute façon.
+   * Ce qui est préservé : la base locale, intégralement — c'est elle qu'on
+   * republie. L'utilisateur ne perd donc rien de ce qu'il a sur cet appareil.
+   *
+   * ⚠️ En revanche, ce qui n'existait QUE sur un autre appareil et n'a jamais
+   * été rapatrié ici est perdu pour de bon. À dire avant, pas après.
+   */
+  const republier = useCallback(
     async (motDePasse: string) => {
       if (!session) throw new Error("session absente");
-      const r = await ouvrirAvecMotDePasse(depot(), deriverKek, session.user.id, motDePasse);
+
+      // 1. Clé neuve, scellée par le mot de passe actuel.
+      const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, null);
+
+      // 2. Le contenu du serveur devient du bruit : on l'efface AVANT de
+      //    republier, sinon le premier cycle tirerait des lignes illisibles.
+      await new TransportSupabase(config()).effacerTout();
+
+      // 3. Oublier ce qu'on croyait savoir du serveur — plus rien n'est vrai.
+      const db = (await getDb()) as unknown as BaseLocale;
+      await ecrireMeta(db, "cursor", "0");
+      await db.execute("DELETE FROM sync_state");
+
+      // 4. Tout remettre en file : la base locale devient la nouvelle source.
+      await toutRemettreEnFile(db, TABLES_SYNC);
+
       await demarrer(r.cles, r.dek);
+      await planRef.current?.maintenant();
     },
-    [depot, demarrer, session],
+    [config, depot, demarrer, session],
   );
-
-  const deverrouillerAvecCode = useCallback(
-    async (code: string) => {
-      if (!session) throw new Error("session absente");
-      const r = await ouvrirAvecCode(depot(), deriverKek, session.user.id, code);
-      await demarrer(r.cles, r.dek);
-    },
-    [depot, demarrer, session],
-  );
-
-  const reSceller = useCallback(
-    async (nouveauMotDePasse: string) => {
-      if (!session || !dekRef.current) throw new CleAbsente();
-      await reScellerMotDePasse(depot(), deriverKek, session.user.id, dekRef.current, nouveauMotDePasse);
-    },
-    [depot, session],
-  );
-
-  const regenererCodeRecuperation = useCallback(async () => {
-    if (!session || !dekRef.current) throw new CleAbsente();
-    return poserCode(depot(), deriverKek, session.user.id, dekRef.current);
-  }, [depot, session]);
-
-  const supprimerCodeRecuperation = useCallback(async () => {
-    await retirerCode(depot());
-  }, [depot]);
 
   const oublierClé = useCallback(async () => {
     planRef.current?.arreter();
@@ -395,12 +487,7 @@ export function useSync(
   return {
     ...etat,
     synchroniserMaintenant,
-    activer,
-    deverrouiller,
-    deverrouillerAvecCode,
-    reSceller,
-    regenererCodeRecuperation,
-    supprimerCodeRecuperation,
+    republier,
     oublierClé,
   };
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
 import { hasAccess } from "./access";
+import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
 import {
   fetchSubscription,
@@ -255,6 +256,11 @@ export function useAuth(): AuthState {
       const s = AUTH_CONFIGURED
         ? await signInWithPassword(email.trim(), password)
         : demoSession(email.trim());
+      // ⚠️ Le mot de passe est le SEUL secret dont l'utilisateur dispose, et il
+      // n'existe qu'ici. La synchronisation chiffrée en a besoin pour créer ou
+      // rouvrir sa clé ; sans ce dépôt il faudrait le redemander dans un écran
+      // dédié. `useSync` le retire et l'efface dans la foulée — voir `sync/sas.ts`.
+      deposerMotDePasse(password);
       await resolve(s, remember);
     },
     [resolve],
@@ -270,6 +276,7 @@ export function useAuth(): AuthState {
       }
       const s = await signUpWithPassword(email.trim(), password);
       if (!s) return { needsConfirmation: true };
+      deposerMotDePasse(password);
       await resolve(s, remember);
       return { needsConfirmation: false };
     },
@@ -282,12 +289,17 @@ export function useAuth(): AuthState {
       // que d'afficher une erreur sur un écran qui n'a rien fait de mal.
       if (!AUTH_CONFIGURED) return;
       await updatePassword(await jetonFrais(), newPassword);
+      // L'enveloppe de la clé de synchronisation est scellée par l'ANCIEN mot de
+      // passe : sans re-scellement, la copie cloud deviendrait illisible depuis
+      // tout nouvel appareil. `useSync` s'en charge en voyant passer celui-ci.
+      deposerMotDePasse(newPassword);
     },
     [jetonFrais],
   );
 
   const signOut = useCallback(async () => {
     if (session && AUTH_CONFIGURED) await signOutServer(session.access_token);
+    viderSas();
     memoriser(null, rememberRef.current);
     setSubscription(null);
     setError(null);

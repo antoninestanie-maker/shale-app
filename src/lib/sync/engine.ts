@@ -63,6 +63,13 @@ export interface Resultat {
   /** Reçues mais mises de côté : leur parent n'est pas encore arrivé. */
   enQuarantaine: number;
   ignorees: number;
+  /**
+   * Lignes que la clé actuelle n'ouvre pas — résidu d'une republication après
+   * réinitialisation du mot de passe. Comptées à part des « ignorées » : une
+   * ligne ignorée est un non-événement, une ligne illisible est une donnée
+   * perdue, et les confondre masquerait la seconde derrière la première.
+   */
+  illisibles: number;
   /** Vrai si le plafond de pages a coupé court : il reste à tirer au prochain cycle. */
   resteATirer: boolean;
 }
@@ -241,10 +248,11 @@ async function recevoirUnePage(
   const curseur = Number((await lireMeta(ctx.db, "cursor")) ?? "0");
   const lignes = await ctx.transport.tirer(curseur, TAILLE_PAGE);
   if (!lignes.length)
-    return { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, pageComplete: false };
+    return { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, illisibles: 0, pageComplete: false };
 
   const aAppliquer: ARejouer[] = [];
   let ignorees = 0;
+  let illisibles = 0;
 
   for (const ligne of lignes) {
     const table = versTable.get(ligne.table_tag);
@@ -262,7 +270,23 @@ async function recevoirUnePage(
       uid: ligne.row_tag,
       ts: ligne.client_ts,
     };
-    const charge = (await dechiffrerLigne(ctx.cles.cleLignes, ligne.payload, meta)) as Ligne;
+    // ⚠️ Une ligne INDÉCHIFFRABLE ne doit pas faire échouer le cycle entier.
+    // Le cas se produit après une republication : les lignes scellées par
+    // l'ancienne clé restent chez le serveur le temps d'être effacées. Sans
+    // cette tolérance, le moteur relèverait une erreur à chaque tentative et
+    // ne repartirait JAMAIS — un blocage définitif au lieu d'un résidu.
+    //
+    // On les compte comme ignorées et on laisse le curseur les dépasser : on
+    // n'a pas la clé, on ne l'aura pas, il n'y a rien à en tirer. Les données
+    // locales, elles, sont intactes.
+    let charge: Ligne;
+    try {
+      charge = (await dechiffrerLigne(ctx.cles.cleLignes, ligne.payload, meta)) as Ligne;
+    } catch {
+      illisibles++;
+      continue;
+    }
+
     const uid = typeof charge.uid === "string" ? charge.uid : uidDeLigne(table, charge);
     if (!uid) {
       ignorees++;
@@ -331,6 +355,7 @@ async function recevoirUnePage(
     appliquees,
     enQuarantaine: quarantaine.length,
     ignorees,
+    illisibles,
     // ⚠️ Une quarantaine RETIENT le curseur : redemander une page renverrait
     // exactement les mêmes lignes, indéfiniment. L'orpheline attend le cycle
     // suivant, où son parent aura pu arriver.
@@ -372,7 +397,7 @@ export async function synchroniser(ctx: Contexte): Promise<Resultat> {
 
   // On tire TANT QUE les pages sont pleines : le serveur en a alors encore, et
   // rendre la main ici ferait attendre 90 secondes pour les 200 suivantes.
-  const total = { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0 };
+  const total = { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, illisibles: 0 };
   let resteATirer = false;
 
   for (let page = 0; ; page++) {
@@ -381,6 +406,7 @@ export async function synchroniser(ctx: Contexte): Promise<Resultat> {
     total.appliquees += r.appliquees;
     total.enQuarantaine += r.enQuarantaine;
     total.ignorees += r.ignorees;
+    total.illisibles += r.illisibles;
 
     if (!r.pageComplete) break;
     if (page + 1 >= PAGES_MAX) {

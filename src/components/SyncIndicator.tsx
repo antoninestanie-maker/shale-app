@@ -24,18 +24,29 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
   // Chaque état porte SA raison d'être dans l'info-bulle : un indicateur qui se
   // contente d'un mot laisse l'utilisateur deviner ce qu'il doit faire.
   const etats = {
+    // « inactive » et « verrouillée » se ressemblent désormais beaucoup :
+    // l'activation étant automatique à la connexion, les deux se résolvent de
+    // la même façon — se reconnecter. Ils gardent des libellés distincts parce
+    // que la cause diffère (jamais activée / clé absente de cet appareil).
     inactive: {
       classe: "border-border bg-surface-2 text-text-dim",
       pastille: "bg-text-dim/60",
-      libelle: t("sync désactivée"),
-      bulle: t("Tes données restent sur cet appareil. Active la synchronisation dans Réglages."),
+      libelle: t("sync en attente"),
+      bulle: t("Elle se mettra en route à ta prochaine connexion. Tes modifications sont conservées."),
       anime: false,
     },
     verrouillee: {
       classe: "border-yellow/30 bg-yellow/10 text-yellow",
       pastille: "bg-yellow",
       libelle: t("sync verrouillée"),
-      bulle: t("Ton mot de passe est nécessaire pour déchiffrer tes données sur cet appareil."),
+      bulle: t("Reconnecte-toi pour rouvrir tes données chiffrées sur cet appareil."),
+      anime: false,
+    },
+    orpheline: {
+      classe: "border-red/30 bg-red/10 text-red",
+      pastille: "bg-red",
+      libelle: t("sync à rétablir"),
+      bulle: t("Ton mot de passe a été réinitialisé : le cloud n'est plus lisible. Tes données locales sont intactes."),
       anime: false,
     },
     horsLigne: {
@@ -99,6 +110,7 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
   function choisir(): keyof typeof etats {
     if (sync.statut === "inactive") return "inactive";
     if (sync.statut === "verrouillee") return "verrouillee";
+    if (sync.statut === "orpheline") return "orpheline";
     if (sync.activite === "horsLigne") return "horsLigne";
     if (sync.activite === "enCours") return "enCours";
     if (sync.activite === "echec") {

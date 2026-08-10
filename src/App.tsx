@@ -6,7 +6,6 @@ import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
 import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
 import { SyncProvider } from "./components/SyncProvider";
-import SyncUnlock from "./components/SyncUnlock";
 import TooltipLayer from "./components/Tooltip";
 import UpgradeModal from "./components/UpgradeModal";
 import { useEntitlements } from "./lib/entitlements";
@@ -176,11 +175,6 @@ function App() {
     <div className="relative flex h-screen bg-bg">
       <BootScreen />
       {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
-      {/* La clé n'est pas ouverte ici : sans cet écran, l'app démarre
-          normalement, la file d'attente se remplit et RIEN ne part — l'écart
-          ne se découvre que plus tard, sur l'autre appareil. Esquivable :
-          Shale marche entièrement hors ligne. */}
-      <SyncUnlock />
       <div className="hud-bg" aria-hidden />
       <FocusOverlay focus={focus} />
       {/* Info-bulles : une seule instance pour toute l'app (déclenchée par

@@ -1775,3 +1775,79 @@ committée — un déploiement depuis git n'a pas d'autre moyen de la connaître
 Côté app, `config.ts` reste non committé, ce qui veut dire qu'un clone neuf
 compile en **mode démo**. À trancher consciemment. Ce qui n'est pas négociable :
 la clé `service_role` ne quitte jamais le tableau de bord Supabase.
+
+## Sync : connecté = synchronisé (2026-08-10, soir)
+
+**Il n'y a plus rien à activer.** Plus d'écran d'onboarding, plus de code de
+récupération à noter, plus de case à cocher. Se connecter suffit ; la
+synchronisation démarre seule, et hors ligne les écritures s'empilent comme
+avant.
+
+### D'où vient le secret, maintenant
+Le chiffrement de bout en bout est **conservé** — ce qui change, c'est le chemin
+du secret. Il exige le mot de passe, qui n'existe que le temps de l'écran de
+connexion (« rester connecté » conserve une session, **pas** un mot de passe).
+Plutôt que de le redemander dans une cérémonie, on le saisit **au vol** :
+`useAuth` le dépose dans `src/lib/sync/sas.ts`, `useSync` le retire et l'efface.
+
+⚠️ Le sas est une variable de MODULE, pas un état React : un mot de passe dans
+un état React se retrouve dans les outils de développement, survit aux rendus et
+se recopie dans chaque closure. Le retrait est **destructif** — un second appel
+renvoie `null`. Et l'événement `sb:sync-secret` **ne transporte pas** le secret,
+il signale seulement qu'il y en a un à retirer : un mot de passe dans un
+`CustomEvent.detail` serait lisible par tout autre écouteur de la page.
+
+### Trois chemins, dans l'ordre (`ouvrirSansRienDemander`)
+1. clé déjà au trousseau → on démarre, rien à demander ;
+2. mot de passe dans le sas → on **crée** la clé (premier appareil) ou on la
+   **rouvre** (nouvel appareil), en silence ;
+3. ni l'un ni l'autre → verrouillé, l'app fonctionne, la file se remplit.
+
+### ⚠️ Re-scellement SYSTÉMATIQUE à chaque mot de passe vu
+Pas seulement au changement explicite : il couvre surtout la **réinitialisation
+par e-mail**, faite ailleurs, dont l'app n'est jamais informée. Sans lui,
+l'enveloppe resterait scellée par l'ancien mot de passe et le prochain appareil
+ne pourrait plus rien ouvrir — alors que la clé était là, intacte, sur celui-ci.
+Coût : une dérivation (~150 ms) et un POST, une fois par connexion. Vérifier
+d'abord si c'est nécessaire coûterait la même dérivation.
+
+### Ce que le choix coûte — statut `orpheline`
+Sans code de récupération, si le mot de passe est réinitialisé **et** qu'aucun
+appareil ne détient plus la clé, la copie cloud est irrécupérable. Les données
+LOCALES restent intactes. La sortie est `republier(motDePasse)` : nouvelle clé,
+effacement du cloud (`Transport.effacerTout`), remise en file de TOUTES les
+lignes locales. ⚠️ Ce qui n'existait que sur un autre appareil et n'est jamais
+arrivé ici est alors perdu — c'est dit **avant** l'action, pas après.
+
+`toutRemettreEnFile()` écrit `uid = uid` : une mise à jour sans effet qui
+déclenche les triggers existants. Un remplissage manuel de `sync_outbox` aurait
+divergé en silence le jour où son schéma change. Aucune colonne métier n'est
+touchée (test dédié : `updated_at` inchangé).
+
+### Le moteur tolère une charge illisible
+`dechiffrerLigne` levait et faisait échouer le cycle ENTIER — donc à chaque
+tentative, pour toujours. Désormais comptée dans `Resultat.illisibles` et
+enjambée, curseur compris.
+⚠️ **Le cas « autre clé » ne passe PAS par là** : le nom de table est aveuglé
+par une sous-clé de la même DEK, donc une autre clé produit d'autres empreintes
+de table et les lignes sont écartées comme « table inconnue » **avant** tout
+déchiffrement. `illisibles` ne se déclenche que sur une charge réellement
+corrompue. Les deux tests distinguent explicitement les deux chemins.
+
+### Supprimé
+`SyncOnboarding.tsx`, `SyncUnlock.tsx`, et six méthodes de `ApiSync` (`activer`,
+`deverrouiller`, `deverrouillerAvecCode`, `reSceller`, `regenererCodeRecuperation`,
+`supprimerCodeRecuperation`) : plus aucun appelant. Les fonctions de `keys.ts`
+sont **conservées et toujours testées** — c'est la couche où le code de
+récupération reviendrait si la décision produit changeait.
+
+⚠️ Le garde du mode démo est passé de `!AUTH_CONFIGURED` à `!isTauri`. Ce qui
+rend la synchronisation impossible en preview navigateur est l'absence de Tauri,
+pas celle des clés Supabase. Tant que le backend n'était pas branché les deux
+coïncidaient ; depuis qu'il l'est, l'ancien garde faisait disparaître l'état
+simulé, et avec lui toute possibilité de relire ces écrans hors de l'app native.
+
+### Non vérifié dans le navigateur
+`AUTH_CONFIGURED` étant vrai, la preview exige un vrai compte Supabase. Ces
+écrans n'ont donc PAS été relus visuellement cette fois — seulement typés,
+testés (237) et construits. À regarder au premier lancement de l'app native.

@@ -1252,4 +1252,29 @@ export const EN: Record<string, string> = {
   // nuance.
 
   "Aucune session ouverte.": "No open session.",
+
+  // ── Sync : activation automatique (2026-08-10) ────────────────────────────
+  "sync en attente": "sync pending",
+  "sync à rétablir": "sync needs attention",
+  "Elle se mettra en route à ta prochaine connexion. Tes modifications sont conservées.":
+    "It will start at your next sign-in. Your changes are being kept.",
+  "Reconnecte-toi pour rouvrir tes données chiffrées sur cet appareil.":
+    "Sign in again to reopen your encrypted data on this device.",
+  "Ton mot de passe a été réinitialisé : le cloud n'est plus lisible. Tes données locales sont intactes.":
+    "Your password was reset: the cloud copy can no longer be read. Your local data is intact.",
+  "Tes données sont chiffrées sur cet appareil avant d'être envoyées : le serveur ne voit que des données illisibles. La clé se déduit de ton mot de passe — personne d'autre ne peut la reconstituer.":
+    "Your data is encrypted on this device before being sent: the server only ever sees unreadable data. The key comes from your password — nobody else can reconstruct it.",
+  "Le trousseau du système n'a pas répondu : la clé n'est gardée que le temps de cette session, et ton mot de passe sera redemandé à la prochaine connexion.":
+    "The system Keychain did not respond: the key is only kept for this session, and your password will be needed again at the next sign-in.",
+  "La synchronisation se met en route toute seule à la connexion. Déconnecte-toi puis reconnecte-toi pour la réactiver sur cet appareil — tes modifications sont conservées en attendant.":
+    "Sync starts on its own when you sign in. Sign out and back in to bring it up on this device — your changes are kept in the meantime.",
+  "Ton mot de passe a été réinitialisé depuis un autre appareil. Les données déjà dans le cloud avaient été chiffrées avec l'ancien : plus personne ne peut les rouvrir, nous compris.":
+    "Your password was reset from another device. The data already in the cloud was encrypted with the old one: nobody can open it any more, us included.",
+  "Republier remplace le contenu du cloud par celui de CET appareil. Tes données locales ne risquent rien — mais ce qui n'existait que sur un autre appareil, et n'est jamais arrivé ici, sera perdu.":
+    "Republishing replaces the cloud contents with those of THIS device. Your local data is safe — but anything that only ever existed on another device, and never reached this one, will be lost.",
+  "le nouveau, celui que tu viens de définir": "the new one, the one you just set",
+  "republication…": "republishing…",
+  "Republier depuis cet appareil": "Republish from this device",
+  "j'ai compris que le contenu du cloud sera remplacé":
+    "I understand the cloud contents will be replaced",
 };
