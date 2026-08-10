@@ -22,9 +22,10 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   branchement complet (Supabase + Stripe). La table `subscriptions` (statut d'abonnement,
   maintenue par le webhook Stripe) est ce que l'app interroge pour déverrouiller.
 - **À faire pour vendre** : ~~renseigner `src/lib/auth/config.ts`~~ (fait le
-  2026-08-10), **déployer le site** (`shale.app` + `compte.shale.app` n'existent
-  pas encore), rebrancher Stripe (`STRIPE_ENABLED`, cf. fin de fichier),
-  remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
+  2026-08-10), ~~déployer le site~~ (fait le 2026-08-10 :
+  **<https://shale-six.vercel.app>**, espace compte sous `/compte/`), rebrancher
+  Stripe (`STRIPE_ENABLED`, cf. fin de fichier), **notariser l'app** (voir plus
+  bas), remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
 - Données de trading **toujours 100 % locales** (SQLite) ; le backend ne gère que
   comptes + abonnements.
 
@@ -1701,9 +1702,22 @@ codée en dur (`'connecté'`) au lieu de lire l'état réel a produit un faux
 positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
 
 ### Reste à faire
-- **Déploiement** : `shale.app` et `compte.shale.app` n'existent pas. La vitrine
-  y renvoie 170 fois (dont le bouton « Se connecter » de la nav, mort tant que
-  `compte.shale.app` n'est pas servi). Rien ne marchera publiquement avant ça.
+- ~~**Déploiement**~~ — **fait le 2026-08-10 : <https://shale-six.vercel.app>**
+  (Vercel, dépôt `shale-site`, racine `vitrine`). L'espace compte y est servi
+  sous `/compte/`, les liens internes sont relatifs. ⚠️ `shale.app` n'est
+  **pas détenu** et répond 403 : ne plus l'écrire nulle part en dur.
+- **L'app n'est ni signée ni notarisée.** `bundle.macOS` est vide dans
+  `src-tauri/tauri.conf.json`. Depuis que le site propose l'app en
+  téléchargement direct (`/telechargements/Shale_aarch64.dmg`), c'est le frein
+  n°1 : macOS met le `.dmg` en quarantaine et l'utilisateur doit le débloquer à
+  la main dans Réglages Système, juste après le clic que tout le site sert à
+  provoquer. Demande le compte Apple Developer (99 $/an) puis les secrets
+  `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`,
+  `APPLE_TEAM_ID` au moment du build.
+- **Supabase n'autorise pas encore l'adresse de production** dans ses
+  *Redirect URLs* : les e-mails de confirmation et de réinitialisation renvoient
+  vers `localhost:4330`. Réglage tableau de bord, cf.
+  `shale-site/SETUP-SUPABASE.md` § A4.
 - **La vitrine promet encore un essai de 7 jours et des prix** (15 emplacements
   dans `vitrine/src/content.json`) alors que le produit donne tout
   gratuitement. Décision commerciale, volontairement non tranchée ici.
@@ -1714,8 +1728,10 @@ positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
   observée deux fois pendant cette session. Un bloqueur de pub ou un réseau
   d'entreprise suffit à empêcher un visiteur de se connecter. L'embarquer dans
   `assets/` (~120 Ko) supprimerait ce point de rupture.
-- **« Mot de passe oublié » depuis l'app** pointe vers `https://shale.app/reset` :
-  correct une fois déployé (URL propres), inerte d'ici là.
+- ~~**« Mot de passe oublié » depuis l'app**~~ — la cible suit désormais
+  `WEBSITE_URL`, corrigé le 2026-08-10. ⚠️ C'est une constante **compilée dans
+  le binaire** : la correction n'atteint les utilisateurs qu'après une nouvelle
+  version publiée. Les versions déjà distribuées pointent toujours vers le 403.
 
 ## L'espace compte rentre dans le site (2026-08-10, soir)
 
@@ -1726,7 +1742,12 @@ sortir du site.
 Côté app, cela ajoute **`ACCOUNT_URL`** dans `auth/config.ts` :
 
 ```ts
-export const WEBSITE_URL = "https://shale.app";        // vitrine seule
+// Adresse RÉELLE du site. « https://shale.app » n'est PAS détenu (403) : y
+// laisser cette valeur envoyait « Se connecter » et les liens légaux de
+// l'onboarding sur une page d'erreur. Corrigé le 2026-08-10.
+// ⚠️ Existe en DEUX exemplaires : ici (branche `sync-chiffree`) et dans le
+// worktree ~/Desktop/Shale-Windows (branche `windows-build`).
+export const WEBSITE_URL = "https://shale-six.vercel.app";  // vitrine seule
 export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;    // inscription, login, compte
 ```
 
