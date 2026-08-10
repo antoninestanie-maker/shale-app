@@ -13,6 +13,8 @@
  * tentative vouée à l'échec. Le reste du temps, la tentative EST la sonde.
  */
 
+import { delaiImpose, vautLaPeineDeReessayer } from "./http";
+
 export interface OptionsPlanificateur {
   /** Rythme de fond quand tout va bien. */
   intervalleMs?: number;
@@ -86,12 +88,24 @@ export function demarrerPlanificateur(
         etat = "repos";
         recul = opts.reculInitialMs; // le succès efface l'ardoise
         programmer(opts.intervalleMs);
-      } catch {
+      } catch (e) {
         // L'échec n'est pas remonté : un réseau coupé est un état normal d'une
         // app offline-first, pas une erreur à faire éclater dans la console à
         // chaque tentative. L'état est lisible par l'UI, qui décide quoi en dire.
         etat = enLigne() ? "echec" : "horsLigne";
-        programmer(recul);
+
+        // Un échec qui ne guérira PAS tout seul (schéma absent, politique qui
+        // refuse) part directement au plafond : réessayer toutes les 5 secondes
+        // pendant des heures n'apporte rien et brouille les journaux du serveur.
+        // On n'abandonne pas pour autant — le jour où le schéma est joué, la
+        // synchronisation doit repartir sans qu'on ait à relancer l'app.
+        if (!vautLaPeineDeReessayer(e)) recul = opts.reculMaxMs;
+
+        // ⚠️ Un `Retry-After` l'emporte sur notre recul quand il est PLUS LONG.
+        // Repasser avant l'heure dite sur un 429 relance le compteur du serveur
+        // et transforme un ralentissement passager en blocage durable.
+        const impose = delaiImpose(e);
+        programmer(impose !== null ? Math.max(recul, impose) : recul);
         recul = Math.min(recul * 2, opts.reculMaxMs);
       } finally {
         enCours = null;

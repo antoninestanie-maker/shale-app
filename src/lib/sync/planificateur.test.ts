@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { RequeteRefusee, ServeurOccupe } from "./http";
 import { demarrerPlanificateur, type Planificateur } from "./planificateur";
 
 /**
@@ -186,5 +187,52 @@ describe("réseau", () => {
     window.dispatchEvent(new Event("focus"));
     await vider();
     expect(lancer).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ce que le serveur demande", () => {
+  it("respecte un Retry-After plus long que son propre recul", async () => {
+    // ⚠️ Repasser avant l'heure dite sur un 429 relance le compteur du
+    // serveur : un ralentissement passager devient un blocage durable.
+    const lancer = vi.fn().mockRejectedValue(new ServeurOccupe(429, 30_000));
+    plan = demarrerPlanificateur(lancer, { reculInitialMs: 1000, intervalleMs: 60_000 });
+    await vider();
+    expect(lancer).toHaveBeenCalledTimes(1);
+
+    // Le recul propre serait de 1 s : il ne doit RIEN déclencher.
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(lancer).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(26_000);
+    expect(lancer).toHaveBeenCalledTimes(2);
+  });
+
+  it("part au plafond sur une erreur qui ne guérira pas toute seule", async () => {
+    // Schéma jamais joué, politique RLS qui refuse : marteler toutes les
+    // 5 secondes pendant des heures n'apporte rien. Mais on n'abandonne PAS —
+    // le jour où le schéma est joué, ça doit repartir sans relancer l'app.
+    const lancer = vi.fn().mockRejectedValue(new RequeteRefusee(404, "does not exist"));
+    plan = demarrerPlanificateur(lancer, { reculInitialMs: 1000, reculMaxMs: 60_000 });
+    await vider();
+    expect(lancer).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(lancer).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(lancer).toHaveBeenCalledTimes(2);
+  });
+
+  it("un échec ordinaire garde le recul exponentiel", async () => {
+    const lancer = vi.fn().mockRejectedValue(new Error("réseau"));
+    plan = demarrerPlanificateur(lancer, { reculInitialMs: 1000, reculMaxMs: 60_000 });
+    await vider();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(lancer).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(lancer).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(lancer).toHaveBeenCalledTimes(4);
   });
 });

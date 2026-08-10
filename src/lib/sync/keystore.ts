@@ -1,4 +1,5 @@
 import { depuisBase64, versBase64 } from "./crypto";
+import { requete, SessionExpiree } from "./http";
 import type { DepotEnveloppes, Enveloppes } from "./keys";
 import { depuisHex, versHex, type ConfigSupabase } from "./transport";
 
@@ -87,13 +88,23 @@ const CHAMPS =
 export class DepotSupabase implements DepotEnveloppes {
   constructor(private readonly config: ConfigSupabase) {}
 
-  private entetes(extra: Record<string, string> = {}): Record<string, string> {
+  private entetes(jeton: string, extra: Record<string, string> = {}): Record<string, string> {
     return {
       "Content-Type": "application/json",
       apikey: this.config.anonKey,
-      Authorization: `Bearer ${this.config.accessToken}`,
+      Authorization: `Bearer ${jeton}`,
       ...extra,
     };
+  }
+
+  /** Même reprise unique sur jeton expiré que `TransportSupabase`. */
+  private async avecJeton<T>(faire: (jeton: string) => Promise<T>): Promise<T> {
+    try {
+      return await faire(await this.config.jeton());
+    } catch (e) {
+      if (!(e instanceof SessionExpiree)) throw e;
+      return faire(await this.config.jeton(true));
+    }
   }
 
   async lire(): Promise<Enveloppes | null> {
@@ -102,8 +113,9 @@ export class DepotSupabase implements DepotEnveloppes {
     url.searchParams.set("user_id", `eq.${this.config.userId}`);
     url.searchParams.set("limit", "1");
 
-    const res = await fetch(url.toString(), { headers: this.entetes() });
-    if (!res.ok) throw new Error(`lecture des clés refusée (${res.status}) : ${await res.text()}`);
+    const res = await this.avecJeton((jeton) =>
+      requete(url.toString(), { entetes: this.entetes(jeton) }),
+    );
 
     const lignes = (await res.json()) as EnveloppesBrutes[];
     const e = lignes[0];
@@ -132,11 +144,12 @@ export class DepotSupabase implements DepotEnveloppes {
       wrapped_recovery: e.wrapped_recovery ? versHex(e.wrapped_recovery) : null,
     };
 
-    const res = await fetch(`${this.config.url}/rest/v1/sync_keys`, {
-      method: "POST",
-      headers: this.entetes({ Prefer: "resolution=merge-duplicates,return=minimal" }),
-      body: JSON.stringify(corps),
-    });
-    if (!res.ok) throw new Error(`écriture des clés refusée (${res.status}) : ${await res.text()}`);
+    await this.avecJeton((jeton) =>
+      requete(`${this.config.url}/rest/v1/sync_keys`, {
+        methode: "POST",
+        entetes: this.entetes(jeton, { Prefer: "resolution=merge-duplicates,return=minimal" }),
+        corps: JSON.stringify(corps),
+      }),
+    );
   }
 }

@@ -36,6 +36,18 @@ import type { LigneAEnvoyer, LigneDistante, Transport } from "./transport";
 const TAILLE_LOT = 50;
 const TAILLE_PAGE = 200;
 
+/**
+ * Pages tirées au plus dans un cycle — 5 000 lignes.
+ *
+ * ⚠️ Il en fallait une BORNE, mais surtout il fallait une BOUCLE : un seul
+ * appel par cycle signifiait 200 lignes toutes les 90 secondes. Une base de
+ * 5 000 lignes — quelques mois d'usage — aurait mis près de 40 minutes à
+ * descendre sur un appareil neuf, l'app affichant pendant tout ce temps un état
+ * « synchronisé » parfaitement sincère et parfaitement trompeur. Invisible en
+ * test : le montage à deux appareils n'échange que quelques dizaines de lignes.
+ */
+const PAGES_MAX = 25;
+
 export interface Contexte {
   db: BaseLocale;
   transport: Transport;
@@ -51,6 +63,8 @@ export interface Resultat {
   /** Reçues mais mises de côté : leur parent n'est pas encore arrivé. */
   enQuarantaine: number;
   ignorees: number;
+  /** Vrai si le plafond de pages a coupé court : il reste à tirer au prochain cycle. */
+  resteATirer: boolean;
 }
 
 /** Clé sous laquelle voyage l'identifiant d'un réglage. */
@@ -216,14 +230,18 @@ async function appliquerReçue(ctx: Contexte, item: ARejouer): Promise<boolean> 
   return true;
 }
 
-async function recevoir(
+/** Une page. `pageComplete` dit s'il vaut la peine d'en redemander une autre. */
+type Page = Omit<Resultat, "envoyees" | "resteATirer"> & { pageComplete: boolean };
+
+async function recevoirUnePage(
   ctx: Contexte,
   versTable: Map<string, string>,
   entreesEnAttente: Map<string, { ts: string; device: string }>,
-): Promise<Omit<Resultat, "envoyees">> {
+): Promise<Page> {
   const curseur = Number((await lireMeta(ctx.db, "cursor")) ?? "0");
   const lignes = await ctx.transport.tirer(curseur, TAILLE_PAGE);
-  if (!lignes.length) return { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0 };
+  if (!lignes.length)
+    return { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, pageComplete: false };
 
   const aAppliquer: ARejouer[] = [];
   let ignorees = 0;
@@ -308,7 +326,16 @@ async function recevoir(
   await ecrireMeta(ctx.db, "cursor", String(seqBloquant !== null ? seqBloquant - 1 : seqMax));
   await ecrireMeta(ctx.db, "last_pull_at", new Date().toISOString());
 
-  return { recues: lignes.length, appliquees, enQuarantaine: quarantaine.length, ignorees };
+  return {
+    recues: lignes.length,
+    appliquees,
+    enQuarantaine: quarantaine.length,
+    ignorees,
+    // ⚠️ Une quarantaine RETIENT le curseur : redemander une page renverrait
+    // exactement les mêmes lignes, indéfiniment. L'orpheline attend le cycle
+    // suivant, où son parent aura pu arriver.
+    pageComplete: lignes.length === TAILLE_PAGE && seqBloquant === null,
+  };
 }
 
 // ─── Orchestration ───────────────────────────────────────────────────────────
@@ -343,6 +370,25 @@ export async function synchroniser(ctx: Contexte): Promise<Resultat> {
     if (c.uid) enAttente.set(`${c.table}|${c.uid}`, { ts: c.ts, device: ctx.deviceId });
   }
 
-  const reception = await recevoir(ctx, versTable, enAttente);
-  return { envoyees, ...reception };
+  // On tire TANT QUE les pages sont pleines : le serveur en a alors encore, et
+  // rendre la main ici ferait attendre 90 secondes pour les 200 suivantes.
+  const total = { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0 };
+  let resteATirer = false;
+
+  for (let page = 0; ; page++) {
+    const r = await recevoirUnePage(ctx, versTable, enAttente);
+    total.recues += r.recues;
+    total.appliquees += r.appliquees;
+    total.enQuarantaine += r.enQuarantaine;
+    total.ignorees += r.ignorees;
+
+    if (!r.pageComplete) break;
+    if (page + 1 >= PAGES_MAX) {
+      // Le curseur a avancé : le prochain cycle reprendra exactement ici.
+      resteATirer = true;
+      break;
+    }
+  }
+
+  return { envoyees, ...total, resteATirer };
 }

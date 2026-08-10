@@ -68,6 +68,34 @@ export function genererCode(): string {
 }
 
 /**
+ * Nettoyage seul : casse, séparateurs, préfixe, confusions d'alphabet. SANS
+ * aucune validation — d'où le nom.
+ *
+ * ⚠️ Exporté pour que l'écran d'activation, qui fait recopier DEUX GROUPES du
+ * code (donc jamais un code entier validable), applique EXACTEMENT les mêmes
+ * tolérances. Une seconde copie de ces quatre `replace` finirait par diverger,
+ * et la divergence serait vicieuse dans ce sens précis : un contrôle de saisie
+ * plus SÉVÈRE que le déverrouillage qu'il prépare rejetterait un code que le
+ * papier de l'utilisateur ouvre parfaitement, et lui apprendrait à s'en méfier.
+ *
+ * L'ORDRE COMPTE, deux fois.
+ *  1. Les séparateurs partent AVANT le préfixe : sinon une espace ou un saut
+ *     de ligne en tête (copier-coller depuis un gestionnaire de mots de passe,
+ *     un courriel, un carnet) empêche de reconnaître `SHALE` et tout est
+ *     rejeté. C'était un vrai bogue, attrapé en test.
+ *  2. Le préfixe part AVANT la conversion des confondables : `SHALE` contient
+ *     un `L`, qui deviendrait sinon un `1` au milieu des données.
+ */
+export function canoniser(saisie: string): string {
+  return saisie
+    .toUpperCase()
+    .replace(/[\s\-_.]/g, "")
+    .replace(/^SHALE/, "")
+    .replace(/[IL]/g, "1")
+    .replace(/O/g, "0");
+}
+
+/**
  * Ramène une saisie à sa forme canonique, ou `null` si elle est invalide.
  *
  * Tolère : minuscules, espaces, tirets, préfixe absent, et les confusions
@@ -75,19 +103,7 @@ export function genererCode(): string {
  * hors alphabet est une faute de frappe, pas une variante.
  */
 export function normaliserCode(saisie: string): string | null {
-  // L'ORDRE COMPTE, deux fois.
-  //  1. Les séparateurs partent AVANT le préfixe : sinon une espace ou un saut
-  //     de ligne en tête (copier-coller depuis un gestionnaire de mots de passe,
-  //     un courriel, un carnet) empêche de reconnaître `SHALE` et tout est
-  //     rejeté. C'était un vrai bogue, attrapé en test.
-  //  2. Le préfixe part AVANT la conversion des confondables : `SHALE` contient
-  //     un `L`, qui deviendrait sinon un `1` au milieu des données.
-  const nettoye = saisie
-    .toUpperCase()
-    .replace(/[\s\-_.]/g, "")
-    .replace(/^SHALE/, "")
-    .replace(/[IL]/g, "1")
-    .replace(/O/g, "0");
+  const nettoye = canoniser(saisie);
 
   if (nettoye.length !== LONGUEUR_CODE) return null;
   if ([...nettoye].some((c) => !ALPHABET.includes(c))) return null;

@@ -17,8 +17,11 @@ import { useSession } from "./auth/AuthGate";
 const ContexteSync = createContext<ApiSync | null>(null);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { session } = useSession();
-  const api = useSync(session);
+  // ⚠️ `jetonFrais` et non `session.access_token` : un jeton Supabase ne vit
+  // qu'une heure, et la synchronisation tourne toutes les 90 secondes pendant
+  // toute la durée de vie de l'app. Voir `AuthState.jetonFrais`.
+  const { session, jetonFrais } = useSession();
+  const api = useSync(session, jetonFrais);
   return <ContexteSync.Provider value={api}>{children}</ContexteSync.Provider>;
 }
 

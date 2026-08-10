@@ -722,6 +722,23 @@ export const EN: Record<string, string> = {
   "Ne plus demander — envoyer directement (mode fast-track)":
     "Don’t ask again — send straight through (fast-track)",
   "Se déconnecter": "Sign out",
+  "Accès complet": "Full access",
+  // ── Inscription et mot de passe (écran de connexion + Réglages → compte) ──
+  "Créer mon compte": "Create my account",
+  "Création…": "Creating…",
+  "Création de compte impossible.": "Could not create the account.",
+  "Déjà un compte ?": "Already have an account?",
+  "Confirme le mot de passe": "Confirm password",
+  "Le mot de passe doit faire au moins 6 caractères.":
+    "Password must be at least 6 characters.",
+  "Les deux mots de passe ne correspondent pas.": "The two passwords do not match.",
+  "Compte créé. Clique le lien envoyé par e-mail, puis reviens te connecter.":
+    "Account created. Click the link we emailed you, then come back and sign in.",
+  "Changer mon mot de passe": "Change my password",
+  "Nouveau mot de passe": "New password",
+  "Enregistrement…": "Saving…",
+  "Mot de passe modifié.": "Password changed.",
+  "Modification impossible.": "Could not save the change.",
   "Connecté en tant que": "Signed in as",
   "Gérer mon abonnement": "Manage my subscription",
   "mode démo": "demo mode",
@@ -1192,4 +1209,47 @@ export const EN: Record<string, string> = {
   "Tes données locales ne sont pas touchées ; la synchronisation s'arrête ici.":
     "Your local data is untouched; sync simply stops here.",
   "état simulé (démo)": "simulated state (demo)",
+
+  // ── Indicateur : trois échecs qui ne se disent pas pareil ─────────────────
+  "Le serveur n'a pas répondu. Une nouvelle tentative suivra automatiquement.":
+    "The server did not respond. Another attempt will follow automatically.",
+  "reconnexion requise": "sign in again",
+  "Ta session a expiré. Reconnecte-toi pour que la synchronisation reprenne.":
+    "Your session has expired. Sign in again to resume syncing.",
+
+  // ── Activation, en quatre temps ───────────────────────────────────────────
+  "Personne ne peut rouvrir tes données à ta place — ni le support, ni nous. C'est la contrepartie du chiffrement de bout en bout : ton mot de passe et ton code de récupération sont les deux seules clés qui existent.":
+    "Nobody can reopen your data for you — not support, not us. That is the trade-off of end-to-end encryption: your password and your recovery code are the only two keys that exist.",
+  "Commencer": "Start",
+  "Ce mot de passe dérive la clé qui chiffre tes données. Il n'est jamais envoyé.":
+    "This password derives the key that encrypts your data. It is never sent.",
+  "confirme-le": "confirm it",
+  "Retour": "Back",
+  "Continuer": "Continue",
+  "Activer sans filet": "Turn on without a safety net",
+  "Les deux saisies diffèrent.": "The two entries do not match.",
+  "Voici ton code de récupération. Il ne sera plus jamais affiché.":
+    "Here is your recovery code. It will never be shown again.",
+  "Note-le HORS de cet appareil — sur papier, ou dans un gestionnaire de mots de passe. Le garder uniquement ici ne servirait à rien : c'est justement cet appareil qui peut tomber en panne.":
+    "Write it down OFF this device — on paper, or in a password manager. Keeping it only here would be pointless: this device is precisely the one that can fail.",
+  "Je l'ai noté": "I have written it down",
+  "Dernière vérification : recopie les groupes manquants. Une case cochée ne prouve rien — celle-ci se coche aussi quand le code est resté à l'écran.":
+    "Last check: type the missing groups. A ticked box proves nothing — it gets ticked just as easily when the code never left the screen.",
+  "groupe {n}": "group {n}",
+  "J'ai compris que si je perds à la fois mon mot de passe et ce code, mes données du cloud seront définitivement illisibles.":
+    "I understand that if I lose both my password and this code, my cloud data will be permanently unreadable.",
+  "Revoir le code": "Show the code again",
+
+  // ── Déverrouillage au lancement ───────────────────────────────────────────
+  "Déverrouiller la synchronisation": "Unlock sync",
+  "synchronisation verrouillée": "sync locked",
+  "Saisis ton code de récupération pour rouvrir tes données sur cet appareil.":
+    "Enter your recovery code to reopen your data on this device.",
+  "Shale fonctionne normalement sans cette étape : tes données restent sur cet appareil et tes modifications sont conservées. Elles partiront au déverrouillage.":
+    "Shale works normally without this step: your data stays on this device and your changes are kept. They will be sent once you unlock.",
+  // « Plus tard » est déjà traduit plus haut (notifications) : la clé est la
+  // phrase française, donc une seconde entrée serait un doublon, pas une
+  // nuance.
+
+  "Aucune session ouverte.": "No open session.",
 };

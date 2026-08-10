@@ -5,7 +5,7 @@
 // annonce pas une mauvaise nouvelle.
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { WEBSITE_URL } from "../lib/auth/config";
+import { ACCOUNT_URL } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { TRADING_PITCH } from "../lib/features";
 import { t } from "../lib/i18n";
@@ -83,7 +83,7 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
         <div className="mt-7 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => openExternal(`${WEBSITE_URL}/account`)}
+            onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
             className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
             {t("Passer à Shale Trade")}

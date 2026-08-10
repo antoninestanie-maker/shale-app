@@ -101,14 +101,14 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           <p className="mt-5 text-xs text-text-dim">
             En continuant, tu acceptes nos{" "}
             <button
-              onClick={() => openExternal(`${WEBSITE_URL}/cgu.html`)}
+              onClick={() => openExternal(`${WEBSITE_URL}/legal#cgu`)}
               className="text-blue hover:opacity-80"
             >
               CGU
             </button>{" "}
             et notre{" "}
             <button
-              onClick={() => openExternal(`${WEBSITE_URL}/confidentialite.html`)}
+              onClick={() => openExternal(`${WEBSITE_URL}/legal#confidentialite`)}
               className="text-blue hover:opacity-80"
             >
               {t("politique de confidentialité")}

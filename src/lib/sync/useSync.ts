@@ -6,6 +6,7 @@ import { AUTH_CONFIGURED, SUPABASE_ANON_KEY, SUPABASE_URL } from "../auth/config
 import type { Session } from "../auth/supabase";
 import type { SousCles } from "./crypto";
 import { synchroniser } from "./engine";
+import { RequeteRefusee, SessionExpiree } from "./http";
 import { deriverKek } from "./kdf";
 import {
   activer as activerCle,
@@ -46,6 +47,20 @@ export type Statut =
 
 export type Activite = "repos" | "enCours" | "horsLigne" | "echec";
 
+/**
+ * Pourquoi le dernier cycle a échoué. L'indicateur en a besoin : « réessaiera
+ * tout seul » et « n'aboutira jamais sans intervention » ne se disent pas de la
+ * même façon, et les fondre en un seul « échec » revient soit à alarmer pour
+ * une coupure de Wi-Fi, soit à taire un schéma qui n'a jamais été joué.
+ */
+export type Raison =
+  /** Réseau, serveur occupé : ça repartira tout seul. Rien à dire. */
+  | "passagere"
+  /** Session périmée et non renouvelable : il faut se reconnecter. */
+  | "session"
+  /** Refus ferme du serveur (schéma absent, politique RLS) : ça doit se voir. */
+  | "configuration";
+
 export interface EtatSync {
   statut: Statut;
   activite: Activite;
@@ -55,14 +70,24 @@ export interface EtatSync {
   dernierSucces: string | null;
   /** Dernière erreur lisible, ou `null`. */
   erreur: string | null;
+  /** Nature du dernier échec. `null` quand il n'y en a pas. */
+  raison: Raison | null;
   /** Faux si la clé n'a pas pu être rangée durablement (trousseau indisponible). */
   clePersistee: boolean;
 }
 
 export interface ApiSync extends EtatSync {
   synchroniserMaintenant(): Promise<void>;
-  /** Première activation sur le compte. Renvoie le code de récupération. */
-  activer(motDePasse: string, avecRecuperation: boolean): Promise<string | null>;
+  /**
+   * Première activation sur le compte.
+   *
+   * ⚠️ Le code de récupération est FOURNI, pas renvoyé : quand cette promesse
+   * se résout, la synchronisation existe déjà côté serveur. Le montrer après
+   * reviendrait à faire confirmer « je l'ai noté » à quelqu'un qui n'a plus la
+   * possibilité de renoncer. L'appelant le tire (`genererCode()`), le fait
+   * confirmer, puis active. Cf. `SyncOnboarding.tsx`.
+   */
+  activer(motDePasse: string, codeRecuperation: string | null): Promise<void>;
   /** Ouvre la clé sur cet appareil-ci. */
   deverrouiller(motDePasse: string): Promise<void>;
   /** Ouvre la clé quand le mot de passe est perdu. */
@@ -81,6 +106,7 @@ const ETAT_INITIAL: EtatSync = {
   enAttente: 0,
   dernierSucces: null,
   erreur: null,
+  raison: null,
   clePersistee: true,
 };
 
@@ -124,12 +150,12 @@ function useSyncDemo(): ApiSync {
     enAttente: statut === "active" ? 3 : 0,
     dernierSucces: statut === "active" ? new Date(Date.now() - 4 * 60_000).toISOString() : null,
     erreur: null,
+    raison: null,
     clePersistee: true,
     synchroniserMaintenant: rien,
     async activer() {
       setStatut("active");
       setStatutDemo("active");
-      return CODE_DEMO;
     },
     async deverrouiller() {
       setStatut("active");
@@ -156,7 +182,25 @@ function lisible(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export function useSync(session: Session | null): ApiSync {
+/**
+ * ⚠️ `RequeteRefusee` mérite d'être distinguée. C'est l'erreur qu'on obtiendra
+ * si `sync.sql` n'a pas été joué sur le projet (404 sur la table), ou si une
+ * politique RLS refuse (42501) : elle ne guérira pas en attendant, et la
+ * confondre avec une coupure réseau produirait exactement le pire scénario —
+ * une app qui affiche « hors ligne » pendant des jours alors que le backend
+ * n'a jamais existé.
+ */
+function raisonDe(e: unknown): Raison {
+  if (e instanceof SessionExpiree) return "session";
+  if (e instanceof RequeteRefusee) return "configuration";
+  return "passagere";
+}
+
+export function useSync(
+  session: Session | null,
+  /** Voir `AuthState.jetonFrais` : un jeton Supabase ne vit qu'une heure. */
+  jetonFrais: (forcer?: boolean) => Promise<string>,
+): ApiSync {
   // ⚠️ Appelé INCONDITIONNELLEMENT, comme tous les hooks ci-dessous : c'est
   // seulement la valeur RENVOYÉE qui dépend du mode. Un appel conditionnel
   // casserait l'ordre des hooks au premier changement d'état.
@@ -176,10 +220,20 @@ export function useSync(session: Session | null): ApiSync {
     (): ConfigSupabase => ({
       url: SUPABASE_URL,
       anonKey: SUPABASE_ANON_KEY,
-      accessToken: session?.access_token ?? "",
+      // Le renouvellement peut échouer (refresh token révoqué côté serveur, ou
+      // simplement réseau coupé). On le renomme en `SessionExpiree` pour que le
+      // transport et l'indicateur le lisent comme tel, au lieu d'un message
+      // GoTrue brut affiché dans une info-bulle de sidebar.
+      jeton: async (forcer) => {
+        try {
+          return await jetonFrais(forcer);
+        } catch (e) {
+          throw new SessionExpiree(lisible(e));
+        }
+      },
       userId: session?.user.id ?? "",
     }),
-    [session],
+    [jetonFrais, session],
   );
 
   const depot = useCallback(() => new DepotSupabase(config()), [config]);
@@ -204,9 +258,9 @@ export function useSync(session: Session | null): ApiSync {
         userId: session.user.id,
         deviceId: (await lireMeta(db, "device_id")) ?? "inconnu",
       });
-      setEtat((e) => ({ ...e, erreur: null }));
+      setEtat((e) => ({ ...e, erreur: null, raison: null }));
     } catch (e) {
-      setEtat((prev) => ({ ...prev, erreur: lisible(e) }));
+      setEtat((prev) => ({ ...prev, erreur: lisible(e), raison: raisonDe(e) }));
       throw e; // le planificateur a besoin de l'échec pour son recul
     } finally {
       await rafraichirAttente(db);
@@ -221,7 +275,7 @@ export function useSync(session: Session | null): ApiSync {
       const persistee = await rangerDek(dek);
       planRef.current?.arreter();
       planRef.current = demarrerPlanificateur(cycle);
-      setEtat((e) => ({ ...e, statut: "active", clePersistee: persistee, erreur: null }));
+      setEtat((e) => ({ ...e, statut: "active", clePersistee: persistee, erreur: null, raison: null }));
     },
     [cycle],
   );
@@ -254,7 +308,8 @@ export function useSync(session: Session | null): ApiSync {
         // Réseau indisponible au lancement : on ne sait pas trancher. On
         // n'invente pas — « verrouillée » est l'hypothèse la moins destructrice
         // (elle ne propose pas de créer une clé qui existerait déjà ailleurs).
-        if (!annule) setEtat((prev) => ({ ...prev, statut: "verrouillee", erreur: lisible(e) }));
+        if (!annule)
+          setEtat((prev) => ({ ...prev, statut: "verrouillee", erreur: lisible(e), raison: raisonDe(e) }));
       }
     })();
 
@@ -279,11 +334,10 @@ export function useSync(session: Session | null): ApiSync {
   // ─── Actions ───────────────────────────────────────────────────────────────
 
   const activer = useCallback(
-    async (motDePasse: string, avecRecuperation: boolean) => {
+    async (motDePasse: string, codeRecuperation: string | null) => {
       if (!session) throw new Error("session absente");
-      const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, avecRecuperation);
+      const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, codeRecuperation);
       await demarrer(r.cles, r.dek);
-      return r.codeRecuperation;
     },
     [depot, demarrer, session],
   );

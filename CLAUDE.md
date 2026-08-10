@@ -21,8 +21,10 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   schéma Supabase + edge functions Stripe checkout/webhook). Voir son `README.md` pour le
   branchement complet (Supabase + Stripe). La table `subscriptions` (statut d'abonnement,
   maintenue par le webhook Stripe) est ce que l'app interroge pour déverrouiller.
-- **À faire pour vendre** : renseigner `src/lib/auth/config.ts` (URL + clé anon Supabase),
-  déployer le backend/site, remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
+- **À faire pour vendre** : ~~renseigner `src/lib/auth/config.ts`~~ (fait le
+  2026-08-10), **déployer le site** (`shale.app` + `compte.shale.app` n'existent
+  pas encore), rebrancher Stripe (`STRIPE_ENABLED`, cf. fin de fichier),
+  remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
 - Données de trading **toujours 100 % locales** (SQLite) ; le backend ne gère que
   comptes + abonnements.
 
@@ -1455,3 +1457,321 @@ pour qu'elle s'applique à la base réelle.
 ### Limite assumée (à connaître)
 Il n'y a **pas de corbeille** : une suppression crée un tombstone qui se propage à tous
 les appareils et ne se rattrape pas. Hors périmètre du chantier, arbitré le 2026-08-02.
+
+## Sync : passage du « testé » au « livrable » (2026-08-05)
+
+Séance consacrée à ce que les tests ne peuvent PAS atteindre. Le moteur était
+correct contre un serveur simulé ; restaient le vrai réseau, le vrai jeton, et
+un parcours d'activation qui n'existait pas. **Deux étapes de la séance n'ont
+pas pu être exécutées** (voir « Ce qui reste à faire », plus bas) : le schéma
+Supabase n'a pas été joué, et la recette à deux machines n'a pas tourné.
+
+### ⚠️ Le jeton n'était renouvelé qu'AU DÉMARRAGE de l'app
+Le défaut le plus grave trouvé, et il dépassait la synchronisation.
+`useAuth` rafraîchissait la session dans son `useEffect` de montage, et nulle
+part ailleurs. Or un jeton Supabase vit **une heure** et la sync tourne **toutes
+les 90 secondes** : une app laissée ouverte synchronisait pendant une heure,
+puis récoltait un 401 à chaque cycle jusqu'au redémarrage — **sans rien dire**.
+Invisible partout où on l'aurait cherché : les tests n'ont pas de jeton, une
+session de développement dépasse rarement l'heure, et un appel déclenché par un
+clic ne le voit pas (l'utilisateur relance l'app avant de s'en apercevoir).
+
+Correctif : `AuthState.jetonFrais(forcer?)`, et le transport reçoit un
+**fournisseur** de jeton, plus un jeton. Trois précautions qui ne sont pas
+décoratives :
+- **`sessionRef` plutôt que `session`** en dépendance — sinon `jetonFrais`
+  change d'identité à chaque renouvellement et redémarre le planificateur.
+- **Un seul renouvellement en vol** (`renouvellementRef`) : GoTrue fait TOURNER
+  le refresh token à chaque usage, donc trois appels simultanés en grilleraient
+  deux et déconnecteraient l'utilisateur.
+- **Reprise UNE fois** sur 401 dans le transport, jamais en boucle : si le jeton
+  renouvelé est refusé lui aussi, l'expiration n'était pas la cause.
+
+### ⚠️ Le pull ne tirait QU'UNE page de 200 lignes par cycle
+Un cycle toutes les 90 s : 5 000 lignes — quelques mois d'usage — descendaient
+en près de 40 minutes sur un appareil neuf, l'indicateur affichant tout du long
+un « synchronisé » sincère et faux. Le test de volume existant ne l'attrapait
+pas parce qu'il appelait `converger()` deux fois, soit quatre cycles : c'est
+exactement ce qui masquait le défaut. `synchroniser()` boucle désormais tant que
+les pages sont pleines, plafond `PAGES_MAX = 25`.
+⚠️ La boucle s'arrête aussi quand la **quarantaine retient le curseur** — sinon
+elle redemanderait la même page indéfiniment, et le cycle ne rendrait jamais la
+main. Deux tests couvrent les deux sorties.
+
+### `http.ts` — quatre échecs, quatre conduites
+Le réseau échoue de quatre façons que le serveur simulé ne connaît pas, et les
+confondre coûte cher. `ReseauInjoignable` (coupure, timeout) : état NORMAL,
+rien à dire. `SessionExpiree` (401) : réessayer avec le même jeton échouera
+toujours. `ServeurOccupe` (429/5xx) : attendre ce qu'il demande.
+`RequeteRefusee` (400/403/404) : **ne guérira jamais**.
+- ⚠️ `RequeteRefusee` est le cas « `sync.sql` jamais joué » (404 PostgREST) et
+  « politique RLS » (42501). Le noyer dans un recul silencieux produirait le
+  pire scénario possible : une app qui affiche « hors ligne » pendant des jours
+  sur un backend qui n'a jamais existé. Le planificateur part directement au
+  plafond de 5 min — sans abandonner, pour que ça reparte le jour où le schéma
+  est joué, sans relancer l'app.
+- ⚠️ **`Retry-After` a DEUX formes** : un nombre de secondes, ou une date HTTP.
+  Ne gérer que la première donne `NaN` sur la seconde, donc `setTimeout(NaN)`,
+  donc un rappel IMMÉDIAT — l'exact inverse de ce que le serveur demandait.
+- ⚠️ **Le timeout n'est pas un luxe.** Sans lui, une requête partie sur un
+  réseau qui s'évanouit (Wi-Fi d'hôtel, veille du Mac) attend indéfiniment. Le
+  verrou du planificateur étant tenu pendant ce temps, TOUTE synchronisation
+  ultérieure serait absorbée par ce cycle fantôme : l'app cesserait de
+  synchroniser sans jamais signaler d'erreur. 20 s, `AbortController` (pas
+  `AbortSignal.timeout()`, qui date d'ES2022 et la cible est ES2020).
+
+### Le parcours d'activation (`SyncOnboarding.tsx`)
+Quatre temps : ce que ça coûte → mot de passe (saisi deux fois) → code MONTRÉ →
+preuve qu'il a été noté → **puis** activation.
+- ⚠️ **`activer()` reçoit le code, elle ne le tire plus.** Ce n'est pas un
+  détail de signature : `activer()` écrit les enveloppes chez Supabase, donc
+  quand elle rend la main la synchronisation EXISTE. Si le code en sortait, on
+  ne pourrait le montrer qu'APRÈS — et la case « je l'ai noté » deviendrait une
+  formalité cochée sur un fait accompli, ce qui est l'inverse de son rôle.
+  `genererCode()` est pure : la tirer dans l'écran ne coûte et n'engage rien.
+- La preuve est une **re-saisie de deux groupes**, jamais le premier (celui-là
+  se retient sans rien noter). Tirés une seule fois par `useMemo` — les rejouer
+  à chaque frappe changerait la question sous les doigts de l'utilisateur.
+- ⚠️ **La comparaison passe par `canoniser()`, extraite de `recovery.ts`.**
+  Première version : une copie locale des quatre `replace`. Elle rendait cet
+  écran PLUS SÉVÈRE que le déverrouillage qu'il prépare — quelqu'un qui note
+  consciencieusement `O` là où l'alphabet de Crockford n'a qu'un `0` échouait
+  ici, alors que son papier ouvre parfaitement ses données. On lui aurait appris
+  à se méfier d'un code valable. Une seule copie de la règle, comme pour le LWW.
+
+### `SyncUnlock.tsx` — déverrouillage au lancement
+Le trousseau rend ce moment rare, mais **silencieux** : sans écran, l'app
+démarre normalement, `sync_outbox` se remplit, et rien ne part. L'utilisateur
+croit synchroniser et découvre le contraire sur l'autre appareil, plus tard.
+⚠️ **Esquivable, et c'est voulu** : Shale marche entièrement hors ligne, bloquer
+l'entrée sur un mot de passe pour une fonctionnalité facultative transformerait
+un confort en péage. « Plus tard » referme pour la session (variable de module,
+pas d'état React : reproposer à chaque rendu serait du harcèlement), et
+l'indicateur de la sidebar reste le chemin du retour.
+
+### L'indicateur ne peint plus tout en rouge
+Trois échecs très différents se cachaient derrière un seul « sync en échec ».
+`EtatSync.raison` les sépare : `passagere` (gris, pas d'alerte — une coupure est
+un état normal d'une app offline-first, et la peindre en rouge apprend à ignorer
+le rouge), `session` (ambre, « reconnexion requise »), `configuration` (rouge,
+ça doit se voir). Un échec passager n'est plus **cliquable** : ouvrir les
+réglages n'y changerait rien, et le proposer suggérerait le contraire.
+
+### Ce qui a été vérifié, et comment
+- `npx tsc --noEmit`, `npm run test:types`, `npm run build`,
+  `cargo check --lib --tests --bins`, `cargo test --lib` (88), `npm test`
+  (**216 tests**, +33), `npm run i18n:check` (0 clé manquante) — tous verts.
+- **`transport.ts` n'est plus le seul fichier sans tests.** Ce qu'on lui
+  reprochait n'était pas « est-ce que Supabase répond ? » mais « est-ce que ce
+  qu'on envoie a la bonne forme ? » — et ça, c'est vérifiable : `fetch` est
+  remplacé et on regarde l'octet près ce qui part. 14 tests verrouillent
+  l'hexadécimal préfixé (le piège base64), les zéros de tête, `gt.` et non
+  `gte.`, `merge-duplicates`, et la reprise sur 401.
+- **Parcours complet joué dans le navigateur**, en mode démo : les quatre étapes
+  de l'activation, la re-saisie fausse (bordure rouge) puis juste en minuscules
+  (verte), l'activation, l'écran de déverrouillage et son « Plus tard ».
+  Contrôlé que la section reste visible et le sélecteur accessible en état
+  « indisponible » — la règle documentée tient.
+- ⚠️ **La couleur d'avertissement vérifiée au `getComputedStyle`**, pas à l'œil,
+  conformément au piège déjà consigné : `rgb(240, 179, 65)` = `#f0b341` =
+  `--color-yellow`. Le token mord.
+- ⚠️ Au passage : **`--color-indigo` n'existe pas** dans `index.css`, alors que
+  la liste des tokens réels plus haut dans ce fichier le cite. Tokens réels :
+  `blue`, `green`, `red`, `yellow`, `violet`. Un `text-indigo` échouerait en
+  silence exactement comme `text-amber`.
+
+### Ce qui reste à faire — et pourquoi ça n'a pas pu l'être ici
+- ~~**Le schéma Supabase n'est TOUJOURS PAS joué.**~~ **PÉRIMÉ depuis le
+  2026-08-10** : le projet existe, les quatre fichiers SQL sont joués, et
+  `npm run sync:verifier` est passé dessus — 14 contrôles conformes. Voir la
+  section « Authentification réelle + Stripe débranché » en fin de fichier.
+  (Ce qui suit décrit la situation d'avant, gardé pour le raisonnement.)
+- **La recette PC ↔ PC n'a pas tourné** : une seule machine, et elle dépend du
+  point précédent.
+- À la place, `tools/verifier-sync-supabase.mjs` (`npm run sync:verifier`)
+  remplace la vérification « à l'œil dans le dashboard » par une commande. Il se
+  connecte en tant que **vrai utilisateur** — jamais avec une `service_role`,
+  qui contournerait RLS et validerait un schéma refusant tous les vrais clients
+  — et contrôle : présence des tables, **rendu hexadécimal du `bytea`** (avec
+  des octets choisis pour piéger les encodages vicieux : `0x00`, `0x0f`, `0xff`,
+  `0x5c`), LWW serveur qui mord, cloisonnement en écriture et sans session,
+  politiques du bucket, **que le bucket soit bien privé**, et que
+  `sync_purge_tombstones` soit hors de portée des clients. Aucun secret lu ni
+  écrit dans le dépôt : tout passe par l'environnement, le temps d'une commande.
+- `RECETTE-SYNC.md` : les 7 scénarios à deux machines, chacun conclu par une
+  **lecture en base sur les deux côtés** (jamais « ça a l'air bon »), avec le SQL
+  exact. ⚠️ Comparer les `uid`, jamais les `id` — ces derniers sont locaux.
+- **Si un écart apparaît entre la recette et ce que les tests laissaient
+  attendre**, c'est que le serveur simulé de `engine.testutil.ts` n'est pas
+  fidèle à PostgREST : corriger **le simulateur ET le code**, jamais le seul
+  code, sinon le prochain défaut du même genre repassera à travers les tests.
+
+## Authentification réelle + Stripe débranché (2026-08-10)
+
+Le backend commercial est **branché pour de bon** : projet Supabase
+`pdlprlddouzacinfpkes`, URL et clé anon renseignées dans
+`src/lib/auth/config.ts` (et son jumeau `compte/site/assets/config.js` côté
+site). Le mode démo ne se déclenche donc plus. Les quatre fichiers SQL
+(`schema.sql`, `sync.sql`, `site-content.sql`, `migrations/002_admin.sql`) ont
+été exécutés sur le projet.
+
+### `STRIPE_ENABLED` — l'interrupteur, pas la suppression
+Stripe n'est pas encore branché, et **tout compte créé a accès à l'intégralité
+du produit**. C'est porté par un unique booléen, `STRIPE_ENABLED` dans
+`auth/config.ts`, dupliqué côté site dans `assets/config.js` — **les deux
+doivent rester alignés**.
+
+À `false`, il court-circuite quatre choses :
+- `hasAccess()` (`src/lib/auth/access.ts`, nouveau) répond oui sans consulter
+  `my_subscription` → pas d'écran « Abonnement requis » ;
+- `entitlementsOf()` renvoie `shale_trade` / `hasTrading: true` → aucun module
+  verrouillé, `UpgradeModal` inatteignable ;
+- le bandeau d'essai d'`AuthGate` ne s'affiche pas ;
+- Réglages → compte affiche « Accès complet » au lieu du statut brut.
+
+Rien n'est supprimé : les offres, `startCheckout()`, le webhook et la vue
+`my_subscription` restent en place. Repasser le drapeau à `true` **des deux
+côtés** les réactive tels quels.
+
+**Un piège corrigé au passage** : si la lecture de `my_subscription` échouait
+(réseau, vue absente), `resolve()` basculait en `noSub` — donc un mur de
+paiement *accidentel* alors qu'aucun droit n'était à vérifier. Sous
+`STRIPE_ENABLED = false`, cet échec laisse désormais entrer.
+
+### Le bandeau d'essai fantôme — trouvé en ouvrant l'app, pas en la testant
+`AuthGate` lisait `subscription.status` **en direct**, sans passer par
+`entitlementsOf()`. Or la base ouvre une ligne `trialing` à chaque création de
+compte : c'est son rôle, et il ne dépend pas de Stripe. Résultat, un compte tout
+neuf voyait « Essai gratuit — 7 jours restants · Choisir ma formule » — une
+échéance inventée au-dessus d'un produit sans mur de paiement, et un bouton
+d'achat qui ne mène nulle part.
+
+Ni `tsc` ni les tests ne pouvaient le voir : il fallait ouvrir l'app avec un
+vrai compte. **Leçon générale : toute lecture directe de `subscription.status`
+hors de `entitlements.ts` est suspecte.** Les trois autres occurrences ont été
+vérifiées (`SubscriptionRequired` — inatteignable ; `ConsoleView` — statistiques
+admin sur une liste ; `SettingsView` — déjà gardée).
+
+### Inscription et mot de passe dans l'app
+- `signUpWithPassword()` (`auth/supabase.ts`) renvoie `Session | null` : `null`
+  quand le projet exige une confirmation par e-mail. L'écran doit alors dire
+  « va cliquer le lien » au lieu d'attendre une entrée qui ne viendra pas.
+- `updatePassword(token, mdp)` prend un **jeton en paramètre** : macOS passe par
+  `jetonFrais()`, Windows renouvelle à la main avant l'appel (il n'a pas encore
+  `jetonFrais`). Sans ça, une app ouverte depuis plus d'une heure récolte un 401
+  au moment précis où l'utilisateur croit sécuriser son compte.
+- `LoginScreen` bascule inscription ↔ connexion sur place ; l'inscription
+  renvoyait vers le navigateur pour retaper les mêmes identifiants.
+
+### Le rôle admin est une donnée, plus un réglage
+`compte/supabase/migrations/002_admin.sql` crée `public.admins` +
+`public.is_admin()` et réécrit les politiques de `site_content` et du bucket
+`site-assets`.
+
+**Ce qu'elle répare** : ces politiques disaient `auth.role() = 'authenticated'`,
+c'est-à-dire **tout compte connecté**. Ça ne valait « administrateur » que tant
+que les inscriptions publiques étaient fermées — condition vraie nulle part dans
+le code, et qui a disparu le jour où l'inscription s'est ouverte. Sans la
+migration, le premier inscrit venu réécrivait le site public.
+
+Personne ne peut se promouvoir : la table n'a **aucune** politique d'écriture,
+donc seul le SQL Editor (`service_role`) peut y insérer. Le rattachement se fait
+**par e-mail** — rejouer la migration rattrape un compte créé entre-temps.
+
+`src/lib/auth/admin.sql.test.ts` (8 tests) exécute cette migration sous PGlite.
+Le test a été **vérifié non vacueux** : migration neutralisée, l'assertion
+« un inscrit quelconque ne peut pas écrire » échoue — la faille était réelle.
+
+### Ce qui a été vérifié sur le vrai projet
+- Parcours app complet (macOS **et** Windows) : inscription → entrée immédiate,
+  sans mur ni bandeau → changement de mot de passe → déconnexion → **ancien**
+  mot de passe refusé, **nouveau** accepté.
+- Parcours site : connexion → « Accès complet », aucune offre → changement de
+  mot de passe (ancien refusé / nouveau accepté, contrôlé côté GoTrue) →
+  déconnexion, jetons effacés.
+- Verrou admin, **les deux moitiés** : `/edit` refuse un compte non-admin avec
+  identifiants valides ; et côté serveur, ce même compte obtient 0 ligne
+  modifiée sur `site_content` (contenu vérifié intact après coup) et un 403 sur
+  une tentative d'auto-promotion.
+- `npm run sync:verifier` : **premier passage sur un vrai projet**, 14 contrôles
+  conformes — dont le rendu hexadécimal du `bytea`, le seul irrattrapable.
+
+⚠️ **Piège de méthode rencontré** : une vérification qui renvoyait une chaîne
+codée en dur (`'connecté'`) au lieu de lire l'état réel a produit un faux
+positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
+
+### Reste à faire
+- **Déploiement** : `shale.app` et `compte.shale.app` n'existent pas. La vitrine
+  y renvoie 170 fois (dont le bouton « Se connecter » de la nav, mort tant que
+  `compte.shale.app` n'est pas servi). Rien ne marchera publiquement avant ça.
+- **La vitrine promet encore un essai de 7 jours et des prix** (15 emplacements
+  dans `vitrine/src/content.json`) alors que le produit donne tout
+  gratuitement. Décision commerciale, volontairement non tranchée ici.
+- **Les CGV décrivent un essai et un abonnement payants**
+  (`vitrine/src/lib/legal.json`) : document contractuel, à ne pas modifier sans
+  décision explicite.
+- **Le site charge le SDK Supabase depuis `esm.sh`** à chaque connexion. Panne
+  observée deux fois pendant cette session. Un bloqueur de pub ou un réseau
+  d'entreprise suffit à empêcher un visiteur de se connecter. L'embarquer dans
+  `assets/` (~120 Ko) supprimerait ce point de rupture.
+- **« Mot de passe oublié » depuis l'app** pointe vers `https://shale.app/reset` :
+  correct une fois déployé (URL propres), inerte d'ici là.
+
+## L'espace compte rentre dans le site (2026-08-10, soir)
+
+`compte.shale.app` est abandonné : l'espace compte est servi sous **`/compte/`**
+du site vitrine, en un seul déploiement. Cliquer « Se connecter » ne fait plus
+sortir du site.
+
+Côté app, cela ajoute **`ACCOUNT_URL`** dans `auth/config.ts` :
+
+```ts
+export const WEBSITE_URL = "https://shale.app";        // vitrine seule
+export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;    // inscription, login, compte
+```
+
+Tous les `openExternal()` des écrans d'auth passent par `ACCOUNT_URL`, avec des
+**`.html` explicites**. Ce n'est pas de la verbosité : viser `/compte/reset`
+supposerait les « URLs propres » activées chez l'hébergeur, et le jour où elles
+ne le sont pas, c'est le lien de réinitialisation **envoyé par e-mail** qui tombe
+en 404 — le pire endroit pour découvrir un réglage manquant.
+
+**Défaut préexistant corrigé au passage** : `Onboarding.tsx` ouvrait
+`${WEBSITE_URL}/cgu.html` et `${WEBSITE_URL}/confidentialite.html`, des fichiers
+de l'espace compte cherchés à la racine de la vitrine. Ces deux liens étaient
+morts bien avant ce déplacement. Ils visent désormais `/legal#cgu` et
+`/legal#confidentialite`, qui existent réellement.
+
+⚠️ `WEBSITE_URL` reste le **seul** endroit où le domaine est écrit en dur des
+deux côtés (macOS et Windows). À mettre à jour au déploiement — le site, lui,
+n'utilise plus que des chemins relatifs.
+
+### Ce que la batterie de contrôles du site a révélé (2026-08-10, tard)
+
+`shale-site/vitrine` a sa propre suite (`npm run check` : check → audit →
+nojs-check → wrap-check → narrow-audit → behaviour). Lancée après coup, elle a
+sorti deux vrais défauts — dont un que ni `tsc`, ni les 224 tests, ni le build
+ne pouvaient voir :
+
+- **`/compte/` n'existait qu'au build.** La copie de l'espace compte se faisait
+  dans `astro:build:done` seulement, donc en `astro dev` tous les liens vers
+  `/compte/…` renvoyaient 404 : « Se connecter » cassé en développement,
+  fonctionnel en production. Un middleware `astro:server:setup` sert désormais
+  le même dossier, depuis la même constante que le build.
+- **L'audit du site dénonçait les prix courants.** Sa liste de valeurs périmées
+  avait gardé « 19 € » et « 12 €/mois » après que la migration du 2026-08-02 en
+  a fait les tarifs en vigueur — quatre faux positifs par exécution, depuis huit
+  jours.
+
+**La leçon vaut au-delà de ces deux points : un outil de contrôle porte ses
+propres hypothèses, et elles vieillissent.** Avant de conclure « tout est bon »,
+vérifier que ce qui vérifie est lui-même à jour.
+
+⚠️ **Consigne de commit de `config.ts` — arbitrage, pas règle.**
+`RECETTE-SYNC.md` dit « ne pas committer ce fichier renseigné ». La clé `anon`
+est pourtant *publique par conception* : elle part dans le JavaScript servi au
+visiteur, et ce qui protège la base est la RLS. Côté site, elle **est**
+committée — un déploiement depuis git n'a pas d'autre moyen de la connaître.
+Côté app, `config.ts` reste non committé, ce qui veut dire qu'un clone neuf
+compile en **mode démo**. À trancher consciemment. Ce qui n'est pas négociable :
+la clé `service_role` ne quitte jamais le tableau de bord Supabase.

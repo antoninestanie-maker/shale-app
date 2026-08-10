@@ -34,7 +34,7 @@ import { IconSave } from "../components/icons";
 import { MENTAL_LOAD_CONFIG_EVENT } from "../components/MentalLoadGauge";
 import { useSession } from "../components/auth/AuthGate";
 import { useEntitlements, tierLabel } from "../lib/entitlements";
-import { AUTH_CONFIGURED, WEBSITE_URL } from "../lib/auth/config";
+import { ACCOUNT_URL, AUTH_CONFIGURED, STRIPE_ENABLED } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
@@ -143,9 +143,15 @@ function NumberField({
 }
 
 export default function SettingsView() {
-  const { session, subscription, signOut } = useSession();
+  const { session, subscription, signOut, changePassword } = useSession();
   const { tier, isTrialing, hasTrading, billingPeriod } = useEntitlements();
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  // Changement de mot de passe (replié par défaut)
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [geminiKey, setGeminiKey] = useState("");
   const [groqKey, setGroqKey] = useState("");
   const [provider, setProvider] = useState<"auto" | "gemini" | "groq">("auto");
@@ -165,6 +171,38 @@ export default function SettingsView() {
   const [notif, setNotif] = useState<NotifPrefs | null>(null);
   const [notifStatus, setNotifStatus] = useState<NotifStatus | null>(null);
   const [testMsg, setTestMsg] = useState<string | null>(null);
+
+  const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwBusy) return;
+    setPwMsg(null);
+    if (newPw.length < 6) {
+      setPwMsg({ ok: false, text: t("Le mot de passe doit faire au moins 6 caractères.") });
+      return;
+    }
+    if (newPw !== newPw2) {
+      setPwMsg({ ok: false, text: t("Les deux mots de passe ne correspondent pas.") });
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await changePassword(newPw);
+      setNewPw("");
+      setNewPw2("");
+      setPwMsg({ ok: true, text: t("Mot de passe modifié.") });
+      window.setTimeout(() => {
+        setPwOpen(false);
+        setPwMsg(null);
+      }, 2500);
+    } catch (err) {
+      setPwMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : t("Modification impossible."),
+      });
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const exportBackup = async () => {
     const { save } = await import("@tauri-apps/plugin-dialog");
@@ -309,23 +347,29 @@ export default function SettingsView() {
           <div className="min-w-0 basis-[15rem]">
             <p className="truncate text-sm text-text">{session?.user.email}</p>
             <p className="text-xs text-text-dim">
-              {subscription
-                ? [
-                    tierLabel(tier),
-                    isTrialing
-                      ? t("essai en cours")
-                      : billingPeriod === "annual"
-                        ? t("annuel")
-                        : billingPeriod === "monthly"
-                          ? t("mensuel")
-                          : subscription.status,
-                  ].join(" · ")
-                : "Session locale"}
+              {/* Sans mur de paiement, l'état d'abonnement brut de la base
+                  ('trialing', 'none'…) ne veut rien dire pour l'utilisateur :
+                  il n'a rien souscrit et n'a rien à souscrire. On annonce ce
+                  qui est vrai — il a tout. */}
+              {!STRIPE_ENABLED
+                ? t("Accès complet")
+                : subscription
+                  ? [
+                      tierLabel(tier),
+                      isTrialing
+                        ? t("essai en cours")
+                        : billingPeriod === "annual"
+                          ? t("annuel")
+                          : billingPeriod === "monthly"
+                            ? t("mensuel")
+                            : subscription.status,
+                    ].join(" · ")
+                  : "Session locale"}
             </p>
             {!hasTrading && (
               <button
                 type="button"
-                onClick={() => openExternal(`${WEBSITE_URL}/account`)}
+                onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
                 className="mt-1 text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
               >
                 {t("Passer à Shale Trade")}
@@ -339,6 +383,68 @@ export default function SettingsView() {
             {t("Se déconnecter")}
           </button>
         </div>
+
+        {/* Changement de mot de passe — dans l'app, sans passer par le site.
+            Replié par défaut : c'est une action rare, et déployée en
+            permanence elle ferait passer la carte « compte » pour un
+            formulaire alors qu'elle sert d'abord à lire son état. */}
+        {AUTH_CONFIGURED && (
+          <div className="mt-4 border-t border-border pt-4">
+            {!pwOpen ? (
+              <button
+                type="button"
+                onClick={() => setPwOpen(true)}
+                className="text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+              >
+                {t("Changer mon mot de passe")}
+              </button>
+            ) : (
+              <form onSubmit={submitPassword} className="flex flex-col gap-2">
+                <label className="hud-label">{t("Nouveau mot de passe")}</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim"
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPw2}
+                  onChange={(e) => setNewPw2(e.target.value)}
+                  placeholder={t("Confirme le mot de passe")}
+                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim"
+                />
+                {pwMsg && (
+                  <p className={`text-xs ${pwMsg.ok ? "text-green" : "text-red"}`}>{pwMsg.text}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={pwBusy}
+                    className="pill bg-blue px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {pwBusy ? t("Enregistrement…") : t("Enregistrer")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPwOpen(false);
+                      setNewPw("");
+                      setNewPw2("");
+                      setPwMsg(null);
+                    }}
+                    className="pill border border-border bg-surface-2 px-4 py-2 text-sm text-text"
+                  >
+                    {t("Annuler")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
         {/* Mode démo : sans backend, `useAuth` fabrique un abonnement. Ce
             sélecteur permet de vérifier le gating (sidebar verrouillée, paywall,

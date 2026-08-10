@@ -4,6 +4,7 @@ import { t } from "../lib/i18n";
 import { formatWhen } from "../lib/notifications";
 import { AUTH_CONFIGURED } from "../lib/auth/config";
 import { setStatutDemo, statutDemo, type Statut } from "../lib/sync/useSync";
+import SyncOnboarding from "./SyncOnboarding";
 import { useSyncApi } from "./SyncProvider";
 
 /**
@@ -106,7 +107,6 @@ export default function SyncSettings() {
 
   const [motDePasse, setMotDePasse] = useState("");
   const [code, setCode] = useState("");
-  const [avecCode, setAvecCode] = useState(true);
   const [parCode, setParCode] = useState(false);
   const [codeAMontrer, setCodeAMontrer] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -141,57 +141,14 @@ export default function SyncSettings() {
     <section className="card p-5">
       <h2 className="hud-label">{t("synchronisation chiffrée")}</h2>
 
-      {/* ── Jamais activée ──────────────────────────────────────────────── */}
+      {/* ── Jamais activée : le parcours d'activation, pas un bouton ────── */}
       {sync.statut === "inactive" && !codeAMontrer && (
-        <>
-          <p className="mt-3 text-sm leading-relaxed text-text-dim">
-            {t(
-              "Retrouve tes tâches, notes et trades sur tes autres appareils. Tout est chiffré sur cet appareil avant d'être envoyé : le serveur ne voit que des données illisibles.",
-            )}
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <Champ
-              label={t("ton mot de passe Shale")}
-              value={motDePasse}
-              onChange={setMotDePasse}
-              placeholder={t("pour créer la clé de chiffrement")}
-            />
-            <button
-              type="button"
-              disabled={occupe || motDePasse.length === 0}
-              onClick={() =>
-                agir(async () => {
-                  const c = await sync.activer(motDePasse, avecCode);
-                  if (c) setCodeAMontrer(c);
-                })
-              }
-              className={bouton}
-            >
-              {occupe ? t("activation…") : t("Activer la synchronisation")}
-            </button>
-          </div>
-
-          <label className="mt-3 flex items-center gap-2 text-xs text-text-dim">
-            <input
-              type="checkbox"
-              checked={avecCode}
-              onChange={(e) => setAvecCode(e.target.checked)}
-              className="h-4 w-4 accent-[var(--color-blue)]"
-            />
-            {t("créer un code de récupération (recommandé)")}
-          </label>
-
-          <Avertissement>
-            {avecCode
-              ? t(
-                  "Ton mot de passe déchiffre tes données. Si tu le perds, seul le code de récupération pourra les rouvrir.",
-                )
-              : t(
-                  "Sans code de récupération, un mot de passe perdu rendra tes données du cloud DÉFINITIVEMENT illisibles — même pour nous. Tes données locales, elles, resteront intactes.",
-                )}
-          </Avertissement>
-        </>
+        <SyncOnboarding
+          onFini={() => {
+            setMotDePasse("");
+            setErreur(null);
+          }}
+        />
       )}
 
       {/* ── Activée ailleurs, verrouillée ici ───────────────────────────── */}

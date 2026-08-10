@@ -370,4 +370,42 @@ describe("volume", () => {
     await converger();
     expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM trades")[0].n).toBe(300);
   });
+
+  it("un appareil neuf rattrape TOUT en un seul cycle", async () => {
+    // ⚠️ Le test ci-dessus passait déjà avant que le moteur sache paginer —
+    // parce qu'il appelle `converger()` deux fois, soit quatre cycles. C'est
+    // précisément ce qui masquait le défaut : une page de 200 lignes par
+    // cycle, et un cycle toutes les 90 secondes. 300 lignes = trois minutes,
+    // 5 000 lignes = quarante minutes, l'indicateur affichant tout du long un
+    // « synchronisé » sincère et faux. Ici B ne reçoit qu'UN cycle.
+    for (let i = 0; i < 450; i++) {
+      a.ecrire(
+        "INSERT INTO trades (date, instrument, direction, result_r) VALUES (?, 'NQ', 'long', ?)",
+        `2026-0${(i % 9) + 1}-01`,
+        i % 5,
+      );
+    }
+    await sync(a);
+
+    const r = await sync(b);
+    expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM trades")[0].n).toBe(450);
+    // Plus de deux pages : la boucle a bien tourné, sans redemander la dernière.
+    expect(r.recues).toBe(450);
+    expect(r.resteATirer).toBe(false);
+  });
+
+  it("ne redemande pas éternellement une page retenue par la quarantaine", async () => {
+    // Le curseur ne dépasse jamais une orpheline. Si la boucle de pagination
+    // ignorait ce fait, elle retirerait la même page indéfiniment — un cycle
+    // qui ne rend jamais la main, sur une app qui doit rester réactive.
+    const racine = a.ecrire("INSERT INTO goals (title, scope) VALUES ('Racine', 'long')").lastInsertRowid;
+    a.ecrire("INSERT INTO goals (title, scope, parent_goal_id) VALUES ('Branche', 'short', ?)", racine);
+    for (let i = 0; i < 30; i++) {
+      a.ecrire("INSERT INTO tasks (label, priority, recurrence) VALUES (?, 'low', 'none')", `t${i}`);
+    }
+    await sync(a);
+    const r = await sync(b);
+    expect(r.resteATirer).toBe(false);
+    expect(r.recues).toBeGreaterThan(0);
+  });
 });

@@ -45,6 +45,25 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
       bulle: t("Tes modifications sont conservées et partiront au retour du réseau."),
       anime: false,
     },
+    // ⚠️ Un échec RÉSEAU n'est pas rouge. Sur une app offline-first, une
+    // coupure est un état normal : la peindre en alerte apprendrait à
+    // l'utilisateur à ignorer la couleur rouge, qui ne servirait alors plus à
+    // rien le jour où elle compte. La file d'attente est la vraie information.
+    echecPassager: {
+      classe: "border-border bg-surface-2 text-text-dim",
+      pastille: "bg-text-dim/60",
+      libelle: sync.enAttente > 0 ? t("{n} en attente", { n: String(sync.enAttente) }) : t("hors ligne"),
+      bulle: t("Le serveur n'a pas répondu. Une nouvelle tentative suivra automatiquement."),
+      anime: false,
+    },
+    // Ces deux-là, en revanche, ne guériront PAS toutes seules.
+    session: {
+      classe: "border-yellow/30 bg-yellow/10 text-yellow",
+      pastille: "bg-yellow",
+      libelle: t("reconnexion requise"),
+      bulle: t("Ta session a expiré. Reconnecte-toi pour que la synchronisation reprenne."),
+      anime: false,
+    },
     echec: {
       classe: "border-red/30 bg-red/10 text-red",
       pastille: "bg-red",
@@ -82,16 +101,28 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
     if (sync.statut === "verrouillee") return "verrouillee";
     if (sync.activite === "horsLigne") return "horsLigne";
     if (sync.activite === "enCours") return "enCours";
-    if (sync.activite === "echec") return "echec";
+    if (sync.activite === "echec") {
+      // Trois échecs très différents se cachaient derrière un seul « en échec » :
+      // un Wi-Fi qui tombe, une session périmée, et un backend qui n'a jamais
+      // existé. Le premier ne mérite aucune alerte, les deux autres appellent
+      // une action — et se taire dessus revient à laisser croire que ça marche.
+      if (sync.raison === "session") return "session";
+      if (sync.raison === "configuration") return "echec";
+      return "echecPassager";
+    }
     // L'attente prime sur « à jour » : c'est l'information utile quand une
     // saisie n'est pas encore partie.
     return sync.enAttente > 0 ? "enAttente" : "aJour";
   }
 
-  const vue = etats[choisir()];
+  const choix = choisir();
+  const vue = etats[choix];
   // Cliquable seulement quand il y a quelque chose à faire — sinon la pastille
-  // reste un simple témoin, et le clic n'ouvre pas un écran sans objet.
-  const actionnable = sync.statut !== "active" || sync.activite === "echec";
+  // reste un simple témoin, et le clic n'ouvre pas un écran sans objet. Un
+  // échec passager n'est PAS actionnable : ouvrir les réglages n'y changerait
+  // rien, et le proposer suggérerait le contraire.
+  const actionnable =
+    sync.statut !== "active" || choix === "echec" || choix === "session";
 
   return (
     <button
