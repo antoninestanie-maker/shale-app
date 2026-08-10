@@ -41,6 +41,7 @@ import { keychainAvailable } from "../lib/llm/secrets";
 import { demoTier, setDemoTier } from "../lib/auth/useAuth";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SyncSettings from "../components/SyncSettings";
+import Sauvegardes from "../components/Sauvegardes";
 
 import { t } from "../lib/i18n";
 /** Interrupteur avec libellé + description (sauvegarde immédiate au clic). */
@@ -840,6 +841,10 @@ export default function SettingsView() {
 
       <ResizablePanel id="settings-sync" defaultW={12}>
         <SyncSettings />
+      </ResizablePanel>
+
+      <ResizablePanel id="settings-sauvegardes" defaultW={12} minH={200}>
+        <Sauvegardes />
       </ResizablePanel>
 
       <ResizablePanel id="settings-data" defaultW={12}>

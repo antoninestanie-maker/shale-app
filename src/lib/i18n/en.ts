@@ -1277,4 +1277,30 @@ export const EN: Record<string, string> = {
   "Republier depuis cet appareil": "Republish from this device",
   "j'ai compris que le contenu du cloud sera remplacé":
     "I understand the cloud contents will be replaced",
+
+  // ── Sauvegardes locales ───────────────────────────────────────────────────
+  "sauvegardes locales":
+    "local backups",
+  "Une copie datée de toute ta base est faite à chaque premier lancement de la journée. Elle se relit sans mot de passe et sans réseau — c'est ce qui te protège d'une suppression accidentelle, que la synchronisation, elle, recopie fidèlement partout.":
+    "A dated copy of your whole database is made at the first launch of each day. It can be read back without a password and without a network — that is what protects you from an accidental deletion, which sync itself faithfully copies everywhere.",
+  "sauvegarde…":
+    "backing up…",
+  "Sauvegarder maintenant":
+    "Back up now",
+  "Ouvrir le dossier":
+    "Open the folder",
+  "Copie ce dossier ailleurs : sur ce disque, une panne matérielle emporterait tout.":
+    "Copy this folder elsewhere: on this disk, a hardware failure would take everything with it.",
+  "Restauration prête. Elle sera appliquée au prochain démarrage de Shale — quitte et relance l'app. L'état actuel sera mis de côté au passage, rien n'est définitif.":
+    "Restore is ready. It will be applied the next time Shale starts — quit and relaunch the app. The current state is set aside on the way, nothing is final.",
+  "aucune sauvegarde pour l'instant":
+    "no backups yet",
+  "Restaurer":
+    "Restore",
+  "Remplacer toute la base par la copie du {quand} ?":
+    "Replace the whole database with the copy from {quand}?",
+  "Tout ce qui a été saisi depuis sera perdu — sauf que l'état actuel est lui aussi mis de côté avant l'échange, et pourra être restauré à son tour.":
+    "Everything entered since will be lost — except that the current state is also set aside before the swap, and can be restored in turn.",
+  "Oui, restaurer":
+    "Yes, restore",
 };

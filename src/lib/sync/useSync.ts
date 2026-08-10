@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getDb } from "../db";
 import { isTauri } from "../repo";
+import { creer as creerSauvegarde } from "../sauvegardes";
 import { AUTH_CONFIGURED, SUPABASE_ANON_KEY, SUPABASE_URL } from "../auth/config";
 import type { Session } from "../auth/supabase";
 import type { SousCles } from "./crypto";
@@ -447,6 +448,11 @@ export function useSync(
   const republier = useCallback(
     async (motDePasse: string) => {
       if (!session) throw new Error("session absente");
+
+      // 0. Filet AVANT toute manœuvre. Republier ne touche pas à la base
+      //    locale, mais c'est l'opération la plus lourde de l'app : si quelque
+      //    chose devait mal tourner, on veut une copie de l'état d'avant.
+      await creerSauvegarde("avant-republication");
 
       // 1. Clé neuve, scellée par le mot de passe actuel.
       const r = await activerCle(depot(), deriverKek, session.user.id, motDePasse, null);
