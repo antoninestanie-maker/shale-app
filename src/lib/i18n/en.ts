@@ -726,6 +726,24 @@ export const EN: Record<string, string> = {
   "Ne plus demander — envoyer directement (mode fast-track)":
     "Don’t ask again — send straight through (fast-track)",
   "Se déconnecter": "Sign out",
+  "Accès complet": "Full access",
+  // ── Inscription et mot de passe (écran de connexion + Réglages → compte) ──
+  "Créer mon compte": "Create my account",
+  "Création…": "Creating…",
+  "Création de compte impossible.": "Could not create the account.",
+  "Déjà un compte ?": "Already have an account?",
+  "Confirme le mot de passe": "Confirm password",
+  "Le mot de passe doit faire au moins 6 caractères.":
+    "Password must be at least 6 characters.",
+  "Les deux mots de passe ne correspondent pas.": "The two passwords do not match.",
+  "Compte créé. Clique le lien envoyé par e-mail, puis reviens te connecter.":
+    "Account created. Click the link we emailed you, then come back and sign in.",
+  "Changer mon mot de passe": "Change my password",
+  "Nouveau mot de passe": "New password",
+  "Enregistrement…": "Saving…",
+  "Mot de passe modifié.": "Password changed.",
+  "Modification impossible.": "Could not save the change.",
+  "Aucune session ouverte.": "No open session.",
   "Connecté en tant que": "Signed in as",
   "Gérer mon abonnement": "Manage my subscription",
   "mode démo": "demo mode",

@@ -96,6 +96,65 @@ export async function signInWithPassword(email: string, password: string): Promi
   return toSession(await res.json());
 }
 
+/**
+ * Création de compte, e-mail + mot de passe.
+ *
+ * GoTrue répond deux choses différentes selon le réglage « Confirm email » du
+ * projet Supabase, et l'appelant doit savoir laquelle :
+ *
+ *  • confirmation DÉSACTIVÉE → une session complète : le compte est créé ET
+ *    connecté, on peut entrer dans l'app immédiatement ;
+ *  • confirmation ACTIVÉE → un utilisateur sans jeton : il doit d'abord cliquer
+ *    le lien reçu par e-mail.
+ *
+ * D'où le `null` dans le second cas, plutôt qu'une session fabriquée qui
+ * n'ouvrirait aucune porte et ferait échouer la première requête venue.
+ */
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<Session | null> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const body = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    user?: { id: string; email?: string };
+    id?: string;
+  };
+  if (!body.access_token) return null; // confirmation par e-mail requise
+  return toSession(
+    body as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      user: { id: string; email?: string };
+    },
+  );
+}
+
+/**
+ * Change le mot de passe du compte connecté.
+ *
+ * Prend un jeton en paramètre plutôt que de lire la session : l'appelant passe
+ * par `jetonFrais()`, sans quoi une app ouverte depuis plus d'une heure
+ * récolterait un 401 au moment précis où l'utilisateur croit sécuriser son
+ * compte.
+ */
+export async function updatePassword(token: string, password: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+}
+
 /** Rafraîchit une session à partir du refresh_token. */
 export async function refreshSession(refreshToken: string): Promise<Session> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {

@@ -4,7 +4,7 @@ import LoginScreen from "./LoginScreen";
 import SubscriptionRequired from "./SubscriptionRequired";
 import ShaleMark from "./ShaleMark";
 import { openExternal } from "../../lib/auth/external";
-import { WEBSITE_URL } from "../../lib/auth/config";
+import { ACCOUNT_URL, STRIPE_ENABLED } from "../../lib/auth/config";
 
 import { t } from "../../lib/i18n";
 // Contexte d'auth exposé à l'app déverrouillée (déconnexion, e-mail, abonnement).
@@ -51,7 +51,7 @@ function TrialBanner({ days }: { days: number }) {
         </span>
       </span>
       <button
-        onClick={() => openExternal(`${WEBSITE_URL}/account`)}
+        onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
         className="underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
       >
         {t("Choisir ma formule")}
@@ -65,7 +65,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const auth = useAuth();
 
   if (auth.status === "loading") return <Splash />;
-  if (auth.status === "signedOut") return <LoginScreen onSignIn={auth.signIn} />;
+  if (auth.status === "signedOut")
+    return <LoginScreen onSignIn={auth.signIn} onSignUp={auth.signUp} />;
   if (auth.status === "noSub")
     return (
       <SubscriptionRequired
@@ -77,8 +78,20 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       />
     );
 
+  // Le bandeau lit `status` en direct, sans passer par `entitlementsOf` — d'où
+  // le rappel du drapeau ici. Sans lui, la base ouvre bien une ligne
+  // `trialing` à la création du compte (c'est son rôle, indépendamment de
+  // Stripe) et l'app affichait « Essai gratuit — 7 jours restants · Choisir ma
+  // formule » à un utilisateur qui a déjà tout et n'a rien à choisir : une
+  // échéance inventée au-dessus d'un produit sans mur de paiement.
+  //
+  // `entitlementsOf` serait le bon appel, mais `entitlements.ts` importe
+  // `useSession` d'ici : le cycle d'imports rendrait ce module fragile pour un
+  // gain nul, la question tenant en un booléen.
   const trialDays =
-    auth.subscription?.status === "trialing" ? (auth.subscription.trial_days_left ?? null) : null;
+    STRIPE_ENABLED && auth.subscription?.status === "trialing"
+      ? (auth.subscription.trial_days_left ?? null)
+      : null;
 
   return (
     <AuthContext.Provider value={auth}>

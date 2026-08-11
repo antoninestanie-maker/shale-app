@@ -81,7 +81,7 @@ comportement macOS.
 | 3.1 | L'app démarre | fenêtre 1120×780, fond `#0c0c0c`, pas d'écran blanc | ☐ |
 | 3.2 | `%APPDATA%\com.atnfx.shale\shale.db` | créé au premier lancement | ☐ |
 | 3.3 | Migrations | les **17** migrations appliquées (`SELECT * FROM _sqlx_migrations` ou équivalent) | ☐ |
-| 3.4 | Écran d'auth | login si `config.ts` renseigné, **mode démo** sinon | ☐ |
+| 3.4 | Écran d'auth | **écran de connexion réel** — `config.ts` est renseigné depuis le 2026-08-10, le mode démo ne se déclenche plus. Le lien « Créer un compte » ouvre l'inscription **dans l'app**, plus le navigateur. | ☐ |
 | 3.5 | Redémarrage | les données saisies au 1ᵉʳ lancement sont toujours là | ☐ |
 
 ---

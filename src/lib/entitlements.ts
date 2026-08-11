@@ -14,6 +14,7 @@
 // a rien à exfiltrer côté serveur.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useSession } from "../components/auth/AuthGate";
+import { STRIPE_ENABLED } from "./auth/config";
 import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
 
 export interface Entitlements {
@@ -36,6 +37,19 @@ export interface Entitlements {
 
 /** Version pure, sans React : sert au hook et se teste seule. */
 export function entitlementsOf(sub: Subscription | null | undefined): Entitlements {
+  // Sans mur de paiement, il n'y a rien à doser : tout compte dispose de tout.
+  // `isTrialing` reste faux exprès — un bandeau « 5 jours restants » au-dessus
+  // d'un produit qu'on ne peut pas encore acheter n'annonce qu'une échéance
+  // imaginaire. Voir `STRIPE_ENABLED` dans `auth/config.ts`.
+  if (!STRIPE_ENABLED)
+    return {
+      tier: "shale_trade",
+      isTrialing: false,
+      hasTrading: true,
+      billingPeriod: null,
+      trialDaysLeft: null,
+    };
+
   const isTrialing = sub?.status === "trialing";
   const tier: Tier = sub?.tier === "shale_trade" ? "shale_trade" : "shale";
 

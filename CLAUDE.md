@@ -21,8 +21,11 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   schéma Supabase + edge functions Stripe checkout/webhook). Voir son `README.md` pour le
   branchement complet (Supabase + Stripe). La table `subscriptions` (statut d'abonnement,
   maintenue par le webhook Stripe) est ce que l'app interroge pour déverrouiller.
-- **À faire pour vendre** : renseigner `src/lib/auth/config.ts` (URL + clé anon Supabase),
-  déployer le backend/site, remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
+- **À faire pour vendre** : ~~renseigner `src/lib/auth/config.ts`~~ (fait le
+  2026-08-10), ~~déployer le site~~ (fait le 2026-08-10 :
+  **<https://shale-six.vercel.app>**, espace compte sous `/compte/`), rebrancher
+  Stripe (`STRIPE_ENABLED`, cf. fin de fichier), **notariser l'app** (voir plus
+  bas), remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
 - Données de trading **toujours 100 % locales** (SQLite) ; le backend ne gère que
   comptes + abonnements.
 
@@ -44,6 +47,37 @@ significative (code front ou Rust, et obligatoirement `capabilities/*.json`,
 `tauri.conf.json` ou une migration SQL) doit se conclure par un
 `npm run tauri build` puis la réinstallation du bundle généré
 (`src-tauri/target/release/bundle/macos/`) pour être visible dans l'app réelle.
+
+## Règle : l'app et le site ne divergent jamais
+
+**Toute modification de l'app se termine par la mise à jour du site
+(`~/Desktop/shale-site`), et réciproquement.** Le site ne décrit pas l'app de
+loin : il la *montre* — sa barre latérale, ses douze modules, son design. Un
+onglet renommé ici et pas là-bas, c'est un visiteur qui télécharge autre chose
+que ce qu'il a vu, et une promesse commerciale que l'app ne tient pas. Ça vaut
+pour le **fond** (ce que fait un module) comme pour la **forme** (couleurs,
+typographie, icônes, disposition).
+
+Rien n'est partagé entre les deux dépôts : le site recopie l'app à la main.
+
+| Ce qui bouge ici | Ce qu'il faut mettre à jour dans `shale-site/vitrine/src/` |
+|---|---|
+| `src/components/Sidebar.tsx` — `ITEMS` / `CATEGORIES` : ajout, retrait, **renommage**, changement de catégorie ou d'ordre | `components/Demo.astro` → `NAV` — **la démo jouable** de la section `#essayer`, celle qui reproduit la barre latérale (+ `ICONS` pour une icône nouvelle) ; `lib/modules.ts` → `MODULES`, même ordre |
+| Une vue de `src/views/` ajoutée ou supprimée | tout ce qui précède **plus** le compte de modules, écrit en toutes lettres à une dizaine d'endroits (« douze modules » dans `content.json` et `lib/i18n/en.ts`, « APERÇU · 3 MODULES SUR 12 » dans `Demo.astro`) |
+| Ce que fait un module (écran, KPI, contenu) | la fiche du module dans `lib/modules.ts` : `desc`, `widget`, `specLabel`/`specValue`. Sa règle de vérité est écrite en tête du fichier — rien n'y figure qui n'existe dans l'app |
+| Un raccourci clavier | le `key: "⌘1"…` du module **et** la ligne « Raccourcis clavier » de `SPECS` (`lib/modules.ts`) |
+| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` **et** `compte/site/assets/style.css` : deux fichiers distincts, à modifier tous les deux |
+| Plateformes, stockage, hors-ligne, clés d'API, sauvegarde, langue, licence, gating | `SPECS` dans `lib/modules.ts` et `content.json` (`features`, `faq`) |
+
+Le sens inverse tient aussi : **une promesse ajoutée au site doit exister dans
+l'app avant d'être publiée** — le site n'est pas un cahier des charges. Et toute
+chaîne française nouvelle côté site a besoin de sa traduction dans
+`lib/i18n/en.ts`, sinon la page anglaise retombe en français sans le dire.
+
+Aucun outil ne vérifie cette ressemblance (`npm run check` du site regarde le
+SEO, l'accessibilité et une liste de valeurs périmées, pas la fidélité à l'app) :
+le seul garde-fou est cette table. Sa jumelle est dans
+`~/Desktop/shale-site/CLAUDE.md`, et les deux doivent rester alignées.
 
 ## Architecture générale
 - `src/App.tsx` — routing par état `view`, monte `useFocus` + `useMarketBrain` au niveau App.
@@ -1589,3 +1623,193 @@ Credential Manager, ni la sync Windows↔macOS.
 - **Point le plus suspect à l'exécution** : l'affichage des screenshots de trade
   (`convertFileSrc` + scope `$APPDATA/screenshots/**`) face aux `\` de Windows.
   Point 4.19 de la recette.
+
+## Authentification réelle + Stripe débranché (2026-08-10)
+
+Le backend commercial est **branché pour de bon** : projet Supabase
+`pdlprlddouzacinfpkes`, URL et clé anon renseignées dans
+`src/lib/auth/config.ts` (et son jumeau `compte/site/assets/config.js` côté
+site). Le mode démo ne se déclenche donc plus. Les quatre fichiers SQL
+(`schema.sql`, `sync.sql`, `site-content.sql`, `migrations/002_admin.sql`) ont
+été exécutés sur le projet.
+
+### `STRIPE_ENABLED` — l'interrupteur, pas la suppression
+Stripe n'est pas encore branché, et **tout compte créé a accès à l'intégralité
+du produit**. C'est porté par un unique booléen, `STRIPE_ENABLED` dans
+`auth/config.ts`, dupliqué côté site dans `assets/config.js` — **les deux
+doivent rester alignés**.
+
+À `false`, il court-circuite quatre choses :
+- `hasAccess()` (`src/lib/auth/access.ts`, nouveau) répond oui sans consulter
+  `my_subscription` → pas d'écran « Abonnement requis » ;
+- `entitlementsOf()` renvoie `shale_trade` / `hasTrading: true` → aucun module
+  verrouillé, `UpgradeModal` inatteignable ;
+- le bandeau d'essai d'`AuthGate` ne s'affiche pas ;
+- Réglages → compte affiche « Accès complet » au lieu du statut brut.
+
+Rien n'est supprimé : les offres, `startCheckout()`, le webhook et la vue
+`my_subscription` restent en place. Repasser le drapeau à `true` **des deux
+côtés** les réactive tels quels.
+
+**Un piège corrigé au passage** : si la lecture de `my_subscription` échouait
+(réseau, vue absente), `resolve()` basculait en `noSub` — donc un mur de
+paiement *accidentel* alors qu'aucun droit n'était à vérifier. Sous
+`STRIPE_ENABLED = false`, cet échec laisse désormais entrer.
+
+### Le bandeau d'essai fantôme — trouvé en ouvrant l'app, pas en la testant
+`AuthGate` lisait `subscription.status` **en direct**, sans passer par
+`entitlementsOf()`. Or la base ouvre une ligne `trialing` à chaque création de
+compte : c'est son rôle, et il ne dépend pas de Stripe. Résultat, un compte tout
+neuf voyait « Essai gratuit — 7 jours restants · Choisir ma formule » — une
+échéance inventée au-dessus d'un produit sans mur de paiement, et un bouton
+d'achat qui ne mène nulle part.
+
+Ni `tsc` ni les tests ne pouvaient le voir : il fallait ouvrir l'app avec un
+vrai compte. **Leçon générale : toute lecture directe de `subscription.status`
+hors de `entitlements.ts` est suspecte.** Les trois autres occurrences ont été
+vérifiées (`SubscriptionRequired` — inatteignable ; `ConsoleView` — statistiques
+admin sur une liste ; `SettingsView` — déjà gardée).
+
+### Inscription et mot de passe dans l'app
+- `signUpWithPassword()` (`auth/supabase.ts`) renvoie `Session | null` : `null`
+  quand le projet exige une confirmation par e-mail. L'écran doit alors dire
+  « va cliquer le lien » au lieu d'attendre une entrée qui ne viendra pas.
+- `updatePassword(token, mdp)` prend un **jeton en paramètre** : macOS passe par
+  `jetonFrais()`, Windows renouvelle à la main avant l'appel (il n'a pas encore
+  `jetonFrais`). Sans ça, une app ouverte depuis plus d'une heure récolte un 401
+  au moment précis où l'utilisateur croit sécuriser son compte.
+- `LoginScreen` bascule inscription ↔ connexion sur place ; l'inscription
+  renvoyait vers le navigateur pour retaper les mêmes identifiants.
+
+### Le rôle admin est une donnée, plus un réglage
+`compte/supabase/migrations/002_admin.sql` crée `public.admins` +
+`public.is_admin()` et réécrit les politiques de `site_content` et du bucket
+`site-assets`.
+
+**Ce qu'elle répare** : ces politiques disaient `auth.role() = 'authenticated'`,
+c'est-à-dire **tout compte connecté**. Ça ne valait « administrateur » que tant
+que les inscriptions publiques étaient fermées — condition vraie nulle part dans
+le code, et qui a disparu le jour où l'inscription s'est ouverte. Sans la
+migration, le premier inscrit venu réécrivait le site public.
+
+Personne ne peut se promouvoir : la table n'a **aucune** politique d'écriture,
+donc seul le SQL Editor (`service_role`) peut y insérer. Le rattachement se fait
+**par e-mail** — rejouer la migration rattrape un compte créé entre-temps.
+
+`src/lib/auth/admin.sql.test.ts` (8 tests) exécute cette migration sous PGlite.
+Le test a été **vérifié non vacueux** : migration neutralisée, l'assertion
+« un inscrit quelconque ne peut pas écrire » échoue — la faille était réelle.
+
+### Ce qui a été vérifié sur le vrai projet
+- Parcours app complet (macOS **et** Windows) : inscription → entrée immédiate,
+  sans mur ni bandeau → changement de mot de passe → déconnexion → **ancien**
+  mot de passe refusé, **nouveau** accepté.
+- Parcours site : connexion → « Accès complet », aucune offre → changement de
+  mot de passe (ancien refusé / nouveau accepté, contrôlé côté GoTrue) →
+  déconnexion, jetons effacés.
+- Verrou admin, **les deux moitiés** : `/edit` refuse un compte non-admin avec
+  identifiants valides ; et côté serveur, ce même compte obtient 0 ligne
+  modifiée sur `site_content` (contenu vérifié intact après coup) et un 403 sur
+  une tentative d'auto-promotion.
+- `npm run sync:verifier` : **premier passage sur un vrai projet**, 14 contrôles
+  conformes — dont le rendu hexadécimal du `bytea`, le seul irrattrapable.
+
+⚠️ **Piège de méthode rencontré** : une vérification qui renvoyait une chaîne
+codée en dur (`'connecté'`) au lieu de lire l'état réel a produit un faux
+positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
+
+### Reste à faire
+- ~~**Déploiement**~~ — **fait le 2026-08-10 : <https://shale-six.vercel.app>**
+  (Vercel, dépôt `shale-site`, racine `vitrine`). L'espace compte y est servi
+  sous `/compte/`, les liens internes sont relatifs. ⚠️ `shale.app` n'est
+  **pas détenu** et répond 403 : ne plus l'écrire nulle part en dur.
+- **L'app macOS n'est ni signée ni notarisée.** `bundle.macOS` est vide dans
+  `src-tauri/tauri.conf.json`. Depuis que le site propose l'app en
+  téléchargement direct (`/telechargements/Shale_aarch64.dmg`), c'est le frein
+  n°1 côté Mac : macOS met le `.dmg` en quarantaine et l'utilisateur doit le
+  débloquer à la main. Compte Apple Developer requis (99 $/an).
+  ⚠️ **Le pendant Windows reste entier** : un `.exe` non signé déclenche
+  SmartScreen (« Windows a protégé votre ordinateur »). Aucun binaire Windows
+  n'est publié à ce jour — le site ne propose que le `.dmg` Apple Silicon.
+- **Supabase n'autorise pas encore l'adresse de production** dans ses
+  *Redirect URLs* : les e-mails de confirmation et de réinitialisation renvoient
+  vers `localhost:4330`. Réglage tableau de bord, cf.
+  `shale-site/SETUP-SUPABASE.md` § A4.
+- **La vitrine promet encore un essai de 7 jours et des prix** (15 emplacements
+  dans `vitrine/src/content.json`) alors que le produit donne tout
+  gratuitement. Décision commerciale, volontairement non tranchée ici.
+- **Les CGV décrivent un essai et un abonnement payants**
+  (`vitrine/src/lib/legal.json`) : document contractuel, à ne pas modifier sans
+  décision explicite.
+- **Le site charge le SDK Supabase depuis `esm.sh`** à chaque connexion. Panne
+  observée deux fois pendant cette session. Un bloqueur de pub ou un réseau
+  d'entreprise suffit à empêcher un visiteur de se connecter. L'embarquer dans
+  `assets/` (~120 Ko) supprimerait ce point de rupture.
+- ~~**« Mot de passe oublié » depuis l'app**~~ — la cible suit désormais
+  `WEBSITE_URL`, corrigé le 2026-08-10 sur cette branche aussi. ⚠️ Constante
+  **compilée dans le binaire** : la correction n'atteint les utilisateurs
+  qu'après une nouvelle version publiée.
+
+## L'espace compte rentre dans le site (2026-08-10, soir)
+
+`compte.shale.app` est abandonné : l'espace compte est servi sous **`/compte/`**
+du site vitrine, en un seul déploiement. Cliquer « Se connecter » ne fait plus
+sortir du site.
+
+Côté app, cela ajoute **`ACCOUNT_URL`** dans `auth/config.ts` :
+
+```ts
+// Adresse RÉELLE du site. « https://shale.app » n'est PAS détenu (403) : y
+// laisser cette valeur envoyait « Se connecter » et les liens légaux de
+// l'onboarding sur une page d'erreur. Corrigé le 2026-08-10.
+// ⚠️ Existe en DEUX exemplaires : ici (branche `windows-build`) et dans
+// ~/Desktop/Shale (branche `sync-chiffree`). Deux fichiers, deux modifications.
+export const WEBSITE_URL = "https://shale-six.vercel.app";  // vitrine seule
+export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;    // inscription, login, compte
+```
+
+Tous les `openExternal()` des écrans d'auth passent par `ACCOUNT_URL`, avec des
+**`.html` explicites**. Ce n'est pas de la verbosité : viser `/compte/reset`
+supposerait les « URLs propres » activées chez l'hébergeur, et le jour où elles
+ne le sont pas, c'est le lien de réinitialisation **envoyé par e-mail** qui tombe
+en 404 — le pire endroit pour découvrir un réglage manquant.
+
+**Défaut préexistant corrigé au passage** : `Onboarding.tsx` ouvrait
+`${WEBSITE_URL}/cgu.html` et `${WEBSITE_URL}/confidentialite.html`, des fichiers
+de l'espace compte cherchés à la racine de la vitrine. Ces deux liens étaient
+morts bien avant ce déplacement. Ils visent désormais `/legal#cgu` et
+`/legal#confidentialite`, qui existent réellement.
+
+⚠️ `WEBSITE_URL` reste le **seul** endroit où le domaine est écrit en dur des
+deux côtés (macOS et Windows). À mettre à jour au déploiement — le site, lui,
+n'utilise plus que des chemins relatifs.
+
+### Ce que la batterie de contrôles du site a révélé (2026-08-10, tard)
+
+`shale-site/vitrine` a sa propre suite (`npm run check` : check → audit →
+nojs-check → wrap-check → narrow-audit → behaviour). Lancée après coup, elle a
+sorti deux vrais défauts — dont un que ni `tsc`, ni les 224 tests, ni le build
+ne pouvaient voir :
+
+- **`/compte/` n'existait qu'au build.** La copie de l'espace compte se faisait
+  dans `astro:build:done` seulement, donc en `astro dev` tous les liens vers
+  `/compte/…` renvoyaient 404 : « Se connecter » cassé en développement,
+  fonctionnel en production. Un middleware `astro:server:setup` sert désormais
+  le même dossier, depuis la même constante que le build.
+- **L'audit du site dénonçait les prix courants.** Sa liste de valeurs périmées
+  avait gardé « 19 € » et « 12 €/mois » après que la migration du 2026-08-02 en
+  a fait les tarifs en vigueur — quatre faux positifs par exécution, depuis huit
+  jours.
+
+**La leçon vaut au-delà de ces deux points : un outil de contrôle porte ses
+propres hypothèses, et elles vieillissent.** Avant de conclure « tout est bon »,
+vérifier que ce qui vérifie est lui-même à jour.
+
+⚠️ **Consigne de commit de `config.ts` — arbitrage, pas règle.**
+`RECETTE-SYNC.md` dit « ne pas committer ce fichier renseigné ». La clé `anon`
+est pourtant *publique par conception* : elle part dans le JavaScript servi au
+visiteur, et ce qui protège la base est la RLS. Côté site, elle **est**
+committée — un déploiement depuis git n'a pas d'autre moyen de la connaître.
+Côté app, `config.ts` reste non committé, ce qui veut dire qu'un clone neuf
+compile en **mode démo**. À trancher consciemment. Ce qui n'est pas négociable :
+la clé `service_role` ne quitte jamais le tableau de bord Supabase.

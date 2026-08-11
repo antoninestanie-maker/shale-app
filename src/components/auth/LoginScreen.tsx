@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconAlert, IconEye, IconEyeOff } from "../icons";
-import { AUTH_CONFIGURED, WEBSITE_URL } from "../../lib/auth/config";
+import { ACCOUNT_URL, AUTH_CONFIGURED } from "../../lib/auth/config";
 import { sendPasswordReset } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
@@ -9,17 +9,40 @@ import ShaleMark from "./ShaleMark";
 import { t } from "../../lib/i18n";
 interface Props {
   onSignIn: (email: string, password: string, remember: boolean) => Promise<void>;
+  onSignUp: (
+    email: string,
+    password: string,
+    remember: boolean,
+  ) => Promise<{ needsConfirmation: boolean }>;
 }
 
-export default function LoginScreen({ onSignIn }: Props) {
+/**
+ * Longueur minimale exigée par GoTrue par défaut. On la vérifie ici pour
+ * répondre tout de suite plutôt que d'attendre un aller-retour réseau et un
+ * message d'erreur en anglais.
+ */
+const MIN_PASSWORD = 6;
+
+export default function LoginScreen({ onSignIn, onSignUp }: Props) {
   const texts = useAppTexts();
+  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const signingUp = mode === "signUp";
+
+  const switchMode = () => {
+    setMode(signingUp ? "signIn" : "signUp");
+    setError(null);
+    setNotice(null);
+    setConfirm("");
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +53,40 @@ export default function LoginScreen({ onSignIn }: Props) {
       setError(t("Renseigne ton e-mail et ton mot de passe."));
       return;
     }
+    if (signingUp) {
+      if (password.length < MIN_PASSWORD) {
+        setError(t("Le mot de passe doit faire au moins 6 caractères."));
+        return;
+      }
+      if (password !== confirm) {
+        setError(t("Les deux mots de passe ne correspondent pas."));
+        return;
+      }
+    }
     setBusy(true);
     try {
-      await onSignIn(email, password, remember);
+      if (signingUp) {
+        const { needsConfirmation } = await onSignUp(email, password, remember);
+        // Compte créé mais pas encore ouvert : sans ce message, l'écran ne
+        // bougerait pas et l'utilisateur croirait que rien ne s'est passé.
+        if (needsConfirmation) {
+          setMode("signIn");
+          setConfirm("");
+          setNotice(
+            t("Compte créé. Clique le lien envoyé par e-mail, puis reviens te connecter."),
+          );
+        }
+      } else {
+        await onSignIn(email, password, remember);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("Connexion impossible."));
+      setError(
+        err instanceof Error
+          ? err.message
+          : signingUp
+            ? t("Création de compte impossible.")
+            : t("Connexion impossible."),
+      );
     } finally {
       setBusy(false);
     }
@@ -44,7 +96,7 @@ export default function LoginScreen({ onSignIn }: Props) {
     setError(null);
     setNotice(null);
     if (!AUTH_CONFIGURED) {
-      openExternal(`${WEBSITE_URL}/reset`);
+      openExternal(`${ACCOUNT_URL}/reset.html`);
       return;
     }
     if (!email.trim()) {
@@ -52,7 +104,7 @@ export default function LoginScreen({ onSignIn }: Props) {
       return;
     }
     try {
-      await sendPasswordReset(email.trim(), `${WEBSITE_URL}/reset`);
+      await sendPasswordReset(email.trim(), `${ACCOUNT_URL}/reset.html`);
       setNotice(t("E-mail de réinitialisation envoyé. Vérifie ta boîte de réception."));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Envoi impossible."));
@@ -97,18 +149,20 @@ export default function LoginScreen({ onSignIn }: Props) {
 
           <div className="mt-4 mb-1.5 flex items-center justify-between">
             <label className="hud-label">{t("Mot de passe")}</label>
-            <button
-              type="button"
-              onClick={forgot}
-              className="text-xs text-blue transition-opacity hover:opacity-80"
-            >
-              {t("Mot de passe oublié ?")}
-            </button>
+            {!signingUp && (
+              <button
+                type="button"
+                onClick={forgot}
+                className="text-xs text-blue transition-opacity hover:opacity-80"
+              >
+                {t("Mot de passe oublié ?")}
+              </button>
+            )}
           </div>
           <div className="relative">
             <input
               type={showPw ? "text" : "password"}
-              autoComplete="current-password"
+              autoComplete={signingUp ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -125,6 +179,22 @@ export default function LoginScreen({ onSignIn }: Props) {
             </button>
           </div>
 
+          {signingUp && (
+            <>
+              <label className="hud-label mt-4 mb-1.5 block">
+                {t("Confirme le mot de passe")}
+              </label>
+              <input
+                type={showPw ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••••"
+                className={field}
+              />
+            </>
+          )}
+
           <label className="mt-4 flex cursor-pointer select-none items-center gap-2 text-sm text-text-dim">
             <input
               type="checkbox"
@@ -140,17 +210,26 @@ export default function LoginScreen({ onSignIn }: Props) {
             disabled={busy}
             className="pill mt-5 w-full bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? t("Connexion…") : t("Se connecter")}
+            {busy
+              ? signingUp
+                ? t("Création…")
+                : t("Connexion…")
+              : signingUp
+                ? t("Créer mon compte")
+                : t("Se connecter")}
           </button>
         </form>
 
+        {/* L'inscription se fait ici, dans l'app. Elle renvoyait vers le site :
+            un aller-retour par le navigateur pour revenir taper les mêmes
+            identifiants, alors que GoTrue expose le même endpoint aux deux. */}
         <p className="mt-5 text-center text-sm text-text-dim">
-          {t("Pas encore de compte ?")}{" "}
+          {signingUp ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <button
-            onClick={() => openExternal(`${WEBSITE_URL}/signup`)}
+            onClick={switchMode}
             className="font-medium text-blue transition-opacity hover:opacity-80"
           >
-            {t("Créer un compte")}
+            {signingUp ? t("Se connecter") : t("Créer un compte")}
           </button>
         </p>
 

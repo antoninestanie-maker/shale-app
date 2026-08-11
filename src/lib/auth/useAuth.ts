@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ADMIN_EMAILS, AUTH_CONFIGURED } from "./config";
+import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
+import { hasAccess } from "./access";
 import { t } from "../i18n";
 import {
   fetchSubscription,
-  isActive,
   refreshSession,
   signInWithPassword,
   signOutServer,
+  signUpWithPassword,
+  updatePassword,
   type Session,
   type Subscription,
 } from "./supabase";
@@ -27,6 +29,19 @@ export interface AuthState {
   isAdmin: boolean;
   error: string | null;
   signIn: (email: string, password: string, remember: boolean) => Promise<void>;
+  /**
+   * Crée un compte et, si le projet Supabase n'exige pas de confirmation par
+   * e-mail, ouvre la session dans la foulée. `needsConfirmation` dit lequel des
+   * deux s'est produit : l'écran doit afficher « va cliquer le lien » au lieu
+   * d'attendre une entrée dans l'app qui ne viendra pas.
+   */
+  signUp: (
+    email: string,
+    password: string,
+    remember: boolean,
+  ) => Promise<{ needsConfirmation: boolean }>;
+  /** Change le mot de passe du compte connecté (l'utilisateur reste connecté). */
+  changePassword: (newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
   recheck: () => Promise<void>;
 }
@@ -126,14 +141,23 @@ export function useAuth(): AuthState {
       const sub = await fetchSubscription(s);
       setSession(s);
       setSubscription(sub);
-      setStatus(isActive(sub.status) ? "ready" : "noSub");
+      setStatus(hasAccess(sub) ? "ready" : "noSub");
     } catch (e) {
-      // L'abonnement n'a pas pu être vérifié (réseau) : on refuse l'accès plutôt
-      // que d'ouvrir l'app sans droit. La session reste pour un nouvel essai.
+      // L'abonnement n'a pas pu être vérifié (réseau, ou vue absente).
+      //
+      // Quand le mur de paiement est en service, on refuse l'accès plutôt que
+      // d'ouvrir l'app sans droit ; la session reste pour un nouvel essai.
+      // Quand il ne l'est pas, cet échec ne doit enfermer personne : il n'y a
+      // aucun droit à vérifier, et bloquer l'app sur une lecture facultative
+      // serait un mur de paiement accidentel.
       setSession(s);
       setSubscription(null);
-      setError(e instanceof Error ? e.message : t("Vérification de l'abonnement impossible."));
-      setStatus("noSub");
+      if (STRIPE_ENABLED) {
+        setError(e instanceof Error ? e.message : t("Vérification de l'abonnement impossible."));
+        setStatus("noSub");
+      } else {
+        setStatus("ready");
+      }
     }
     persist(s, remember);
   }, []);
@@ -180,6 +204,44 @@ export function useAuth(): AuthState {
     [resolve],
   );
 
+  const signUp = useCallback(
+    async (email: string, password: string, remember: boolean) => {
+      setError(null);
+      rememberRef.current = remember;
+      if (!AUTH_CONFIGURED) {
+        await resolve(demoSession(email.trim()), remember);
+        return { needsConfirmation: false };
+      }
+      const s = await signUpWithPassword(email.trim(), password);
+      if (!s) return { needsConfirmation: true };
+      await resolve(s, remember);
+      return { needsConfirmation: false };
+    },
+    [resolve],
+  );
+
+  const changePassword = useCallback(
+    async (newPassword: string) => {
+      // En mode démo il n'y a pas de compte : accepter silencieusement plutôt
+      // que d'afficher une erreur sur un écran qui n'a rien fait de mal.
+      if (!AUTH_CONFIGURED) return;
+      const s = session;
+      if (!s) throw new Error(t("Aucune session ouverte."));
+      // Un jeton Supabase vit une heure. L'envoyer tel quel depuis une app
+      // laissée ouverte, c'est un 401 au moment précis où l'utilisateur croit
+      // sécuriser son compte : on le renouvelle d'abord s'il est sur la fin.
+      let token = s.access_token;
+      if (s.expires_at - 60 < Math.floor(Date.now() / 1000)) {
+        const frais = await refreshSession(s.refresh_token);
+        setSession(frais);
+        persist(frais, rememberRef.current);
+        token = frais.access_token;
+      }
+      await updatePassword(token, newPassword);
+    },
+    [session],
+  );
+
   const signOut = useCallback(async () => {
     if (session && AUTH_CONFIGURED) await signOutServer(session.access_token);
     persist(null, rememberRef.current);
@@ -198,5 +260,16 @@ export function useAuth(): AuthState {
     ? true
     : !!session && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(session.user.email.toLowerCase());
 
-  return { status, session, subscription, isAdmin, error, signIn, signOut, recheck };
+  return {
+    status,
+    session,
+    subscription,
+    isAdmin,
+    error,
+    signIn,
+    signUp,
+    changePassword,
+    signOut,
+    recheck,
+  };
 }
