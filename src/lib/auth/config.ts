@@ -19,16 +19,23 @@ export const SUPABASE_ANON_KEY =
 /**
  * Site commercial : pages de vente, blog, documents légaux.
  *
- * ⚠️ ADRESSE RÉELLE DU SITE EN PRODUCTION. `https://shale.app` n'est pas détenu
- * et répond 403 ; inoffensif tant que rien n'était en ligne, cassant depuis la
- * mise en production du 2026-08-10 — `ACCOUNT_URL` en dérive (« Se connecter »)
- * et `Onboarding.tsx` y ouvre les liens légaux.
+ * ⚠️ ADRESSE RÉELLE DU SITE EN PRODUCTION, et elle SORT DE L'APP :
+ * `ACCOUNT_URL` en dérive (« Se connecter ») et `Onboarding.tsx` y ouvre les
+ * liens légaux.
+ *
+ * `shaleapp.com` a été acheté le 2026-08-11 et branché sur Vercel. À ne pas
+ * confondre avec `shale.app`, JAMAIS acheté, qui répond 403 et que d'anciennes
+ * consignes du dépôt désignaient encore comme « le domaine à venir ».
+ *
+ * ⚠️ AVEC LE `www.` : Vercel sert le site sur `www.shaleapp.com` et redirige
+ * l'apex dessus en 308. Cette constante est COMPILÉE DANS LE BINAIRE — un
+ * changement ici n'atteint les utilisateurs qu'après une nouvelle version.
  *
  * Copie de la branche `windows-build`. La branche `sync-chiffree`
  * (`~/Desktop/Shale`) porte la sienne : les deux se modifient séparément, même
  * dépôt mais deux worktrees.
  */
-export const WEBSITE_URL = "https://shale-six.vercel.app";
+export const WEBSITE_URL = "https://www.shaleapp.com";
 
 /**
  * Espace compte : inscription, connexion, mot de passe, abonnement.
