@@ -19,22 +19,30 @@ export const SUPABASE_ANON_KEY =
 /**
  * Site commercial : pages de vente, blog, documents légaux.
  *
- * ⚠️ ADRESSE RÉELLE DU SITE EN PRODUCTION. Elle a porté `https://shale.app`
- * jusqu'au 2026-08-10 — un domaine qui n'est pas détenu et répond 403. Ce
- * n'était pas grave tant que rien n'était en ligne ; ça l'est devenu à la mise
- * en production, car cette constante sort de l'app : `ACCOUNT_URL` en dérive
- * (« Se connecter »), et `Onboarding.tsx` ouvre `/legal#cgu` et
- * `/legal#confidentialite` dessus. Trois liens vers une page d'erreur.
+ * ⚠️ ADRESSE RÉELLE DU SITE EN PRODUCTION, et elle SORT DE L'APP :
+ * `ACCOUNT_URL` en dérive (« Se connecter »), et `Onboarding.tsx` ouvre
+ * `/legal#cgu` et `/legal#confidentialite` dessus.
  *
- * À remettre sur `https://shale.app` le jour où ce domaine est acheté et branché
- * sur Vercel — en même temps que `site` dans `shale-site/vitrine/astro.config.mjs`
- * et `config.websiteUrl` dans `shale-site/vitrine/src/content.json`.
+ * Historique, parce qu'il explique la prudence de ce commentaire : elle a porté
+ * `https://shale.app` jusqu'au 2026-08-10 — un domaine JAMAIS acheté, qui
+ * répond 403. Trois liens vers une page d'erreur, inoffensifs tant que rien
+ * n'était en ligne. `shale.app` n'a rien à voir avec `shaleapp.com`, acheté le
+ * 2026-08-11 : ne pas confondre les deux en relisant d'anciennes consignes.
+ *
+ * ⚠️ AVEC LE `www.` : Vercel sert le site sur `www.shaleapp.com` et redirige
+ * l'apex dessus en 308. Sans le `www`, chaque lien ouvert depuis l'app
+ * traverserait une redirection — et surtout, l'app livrée ne se corrige pas :
+ * cette constante est COMPILÉE DANS LE BINAIRE. Un changement ici n'atteint les
+ * utilisateurs qu'après une nouvelle version publiée.
+ *
+ * À garder alignée avec `site` dans `shale-site/vitrine/astro.config.mjs` et
+ * `config.websiteUrl` dans `shale-site/vitrine/src/content.json`.
  *
  * Cette copie-ci vit sur la branche `sync-chiffree` ; `~/Desktop/Shale-Windows`
  * est un WORKTREE du même dépôt sur `windows-build` et porte sa propre copie du
  * fichier : les deux se modifient séparément.
  */
-export const WEBSITE_URL = "https://shale-six.vercel.app";
+export const WEBSITE_URL = "https://www.shaleapp.com";
 
 /**
  * Espace compte : inscription, connexion, mot de passe, abonnement.
