@@ -373,7 +373,11 @@
     z-index: 200; /* au-dessus de tout, sauf l'écran de démarrage */
     width: max-content;
     pointer-events: none; /* la bulle ne vole jamais le survol */
-    will-change: transform;
+    /* Pas de `will-change: transform` ici : le wrapper ne bouge pas une fois
+       posé, et un calque GPU permanent fait rasteriser le texte hors de la
+       grille de pixels de l'écran — c'est ce qui rendait certaines bulles
+       floues. La position, elle, est calée au pixel physique dans
+       `Tooltip.tsx`. */
   }
 
   .tip {
@@ -423,6 +427,15 @@
   .tip-wrap .tip.is-in {
     opacity: 1;
     transform: none;
+  }
+
+  /* Animation finie : on relâche le calque d'animation. Le texte est alors
+     rasterisé une dernière fois à l'échelle réelle de l'écran — net, densité
+     comprise. Sans cela, la bulle reste affichée dans son calque d'animation
+     et son texte garde un voile. */
+  .tip-wrap .tip.is-settled {
+    will-change: auto;
+    transition: opacity var(--dur-fast) var(--ease-out-quint);
   }
 
   .tip-row {

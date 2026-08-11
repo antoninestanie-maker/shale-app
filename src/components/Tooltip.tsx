@@ -40,6 +40,7 @@ const COLD_DELAY = 400; // 1ᵉʳ survol : laisse l'utilisateur agir sans être 
 const WARM_DELAY = 60; // survol enchaîné : la bulle « suit » d'un élément à l'autre
 const WARM_WINDOW = 550; // fenêtre pendant laquelle on reste « chaud » après une fermeture
 const OUT_MS = 110; // durée de la disparition (doit rester ≤ la transition CSS)
+const IN_MS = 240; // durée de l'entrée (doit rester ≥ la transition CSS)
 const GAP = 8; // distance bulle ↔ élément
 const EDGE = 8; // marge minimale avec le bord de la fenêtre
 
@@ -56,6 +57,8 @@ export default function TooltipLayer() {
   const [tip, setTip] = useState<TipData | null>(null);
   const [side, setSide] = useState<Side>("top");
   const [shown, setShown] = useState(false); // déclenche la transition d'entrée
+  /** Animation terminée : on rend la bulle au rendu normal (texte net). */
+  const [settled, setSettled] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const showTimer = useRef<number | undefined>(undefined);
   const hideTimer = useRef<number | undefined>(undefined);
@@ -70,6 +73,7 @@ export default function TooltipLayer() {
     window.clearTimeout(showTimer.current);
     anchorRef.current = null;
     if (tipRef.current) lastHideAt.current = Date.now();
+    setSettled(false); // la sortie redevient une animation
     setShown(false); // → transition de sortie (opacité + zoom)
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setTip(null), immediate ? 0 : OUT_MS);
@@ -191,19 +195,43 @@ export default function TooltipLayer() {
     x = clamp(x, EDGE, Math.max(EDGE, vw - EDGE - b.width));
     y = clamp(y, EDGE, Math.max(EDGE, vh - EDGE - b.height));
 
-    wrap.style.transform = `translate3d(${x / z}px, ${y / z}px, 0)`;
+    // NETTETÉ. Le centrage (`- b.width / 2`) et la densité tombent presque
+    // toujours sur une fraction de pixel : une bulle posée à 412,5 px est
+    // rasterisée à cheval sur deux pixels physiques et son texte paraît flou —
+    // d'où des bulles nettes et d'autres non, selon l'onglet survolé.
+    // On cale donc la position finale sur la grille de pixels PHYSIQUES (on
+    // raisonne encore en px écran ici), avant de repasser en px locaux : après
+    // multiplication par le zoom puis par la densité de l'écran, l'origine de
+    // la bulle retombe sur un pixel entier.
+    const dpr = window.devicePixelRatio || 1;
+    const snap = (v: number) => Math.round(v * dpr) / dpr;
+    // `translate` 2D et non `translate3d` : pas de calque GPU permanent, donc
+    // pas de texte rasterisé une fois pour toutes puis remis à l'échelle.
+    wrap.style.transform = `translate(${snap(x) / z}px, ${snap(y) / z}px)`;
     setSide(placed);
 
-    // Une frame plus tard : on lance l'animation d'entrée (fondu + léger zoom).
-    const raf = requestAnimationFrame(() => setShown(true));
-    return () => cancelAnimationFrame(raf);
+    // Une frame plus tard : on lance l'animation d'entrée (fondu + léger zoom),
+    // puis, une fois posée, on repasse la bulle en rendu normal (`is-settled`) :
+    // tant qu'elle est promue en calque, le texte reste légèrement adouci.
+    setSettled(false);
+    let t = 0;
+    const raf = requestAnimationFrame(() => {
+      setShown(true);
+      // le compteur part de l'animation RÉELLE : si la frame tarde (fenêtre en
+      // arrière-plan), on ne coupe pas l'entrée avant qu'elle ait commencé.
+      t = window.setTimeout(() => setSettled(true), IN_MS);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
   }, [tip]);
 
   if (!tip) return null;
 
   return (
     <div ref={wrapRef} className="tip-wrap" data-side={side} role="tooltip" aria-hidden>
-      <div className={`tip${shown ? " is-in" : ""}`}>
+      <div className={`tip${shown ? " is-in" : ""}${settled ? " is-settled" : ""}`}>
         <span className="tip-row">
           <span className="tip-label">{tip.label}</span>
           {tip.kbd && <kbd className="tip-kbd">{tip.kbd}</kbd>}
