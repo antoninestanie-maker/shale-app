@@ -16,7 +16,7 @@ versionné.
 
 ## Prérequis
 
-1. **Le schéma est joué.** `shale-site/compte/supabase/sync.sql` exécuté dans
+1. **Le schéma est joué.** `shale-site/supabase/sync.sql` exécuté dans
    Supabase Studio → SQL Editor, puis :
 
    ```bash

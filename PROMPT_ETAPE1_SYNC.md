@@ -13,7 +13,7 @@ Faire passer la couche de sync cloud E2E de « chantier testé unitairement » �
 
 ## Ce qui existe déjà (ne pas refaire)
 
-- Schéma complet `shale-site/compte/supabase/sync.sql` (tables `sync_keys`/`sync_rows`, trigger LWW, bucket privé) — écrit, testé via PGlite, **jamais joué sur le vrai projet Supabase**.
+- Schéma complet `shale-site/supabase/sync.sql` (tables `sync_keys`/`sync_rows`, trigger LWW, bucket privé) — écrit, testé via PGlite, **jamais joué sur le vrai projet Supabase**.
 - Migrations SQLite locales 015 (uid), 016 (outbox/triggers), 017 (sync_state) — déjà dans `src-tauri/migrations/`, déjà enregistrées dans `lib.rs`.
 - `src/lib/sync/` : `scope.ts`, `crypto.ts`, `kdf.ts` (+ `src-tauri/src/crypto.rs` Argon2id), `recovery.ts`, `resolution.ts`, `fk.ts`, `outbox.ts`, `engine.ts`, `keys.ts`, `keystore.ts`, `planificateur.ts`, `transport.ts`.
 - UI : `SyncProvider`, `SyncIndicator` (sidebar), `SyncSettings` (Réglages).
@@ -22,7 +22,7 @@ Faire passer la couche de sync cloud E2E de « chantier testé unitairement » �
 ## Ce qu'il reste à faire, dans cet ordre
 
 ### 1. Jouer le schéma Supabase pour de vrai
-- Appliquer `shale-site/compte/supabase/sync.sql` sur le projet Supabase réel (celui déjà utilisé pour `subscriptions`/auth).
+- Appliquer `shale-site/supabase/sync.sql` sur le projet Supabase réel (celui déjà utilisé pour `subscriptions`/auth).
 - Vérifier à la main dans le dashboard Supabase : tables créées, trigger LWW actif, RLS/policies correctes, bucket `sync-blobs` privé avec la bonne policy de chemin.
 - Tester une insertion/lecture manuelle via l'API REST (Postgrest) pour confirmer le format `bytea` hex (`\\x...`) évoqué dans `CLAUDE.md` — ne pas supposer, vérifier avec une vraie requête.
 

@@ -70,7 +70,7 @@ Rien n'est partagé entre les deux dépôts : le site recopie l'app à la main.
 | Une vue de `src/views/` ajoutée ou supprimée | tout ce qui précède **plus** le compte de modules, écrit en toutes lettres à une dizaine d'endroits (« douze modules » dans `content.json` et `lib/i18n/en.ts`, « APERÇU · 3 MODULES SUR 12 » dans `Demo.astro`) |
 | Ce que fait un module (écran, KPI, contenu) | la fiche du module dans `lib/modules.ts` : `desc`, `widget`, `specLabel`/`specValue`. Sa règle de vérité est écrite en tête du fichier — rien n'y figure qui n'existe dans l'app |
 | Un raccourci clavier | le `key: "⌘1"…` du module **et** la ligne « Raccourcis clavier » de `SPECS` (`lib/modules.ts`) |
-| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` **et** `compte/site/assets/style.css` : deux fichiers distincts, à modifier tous les deux |
+| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` — **un seul fichier** depuis la fusion du site (2026-08-11) ; `styles/compte.css` ne porte plus que les formulaires de compte, aucun token |
 | Plateformes, stockage, hors-ligne, clés d'API, sauvegarde, langue, licence, gating | `SPECS` dans `lib/modules.ts` et `content.json` (`features`, `faq`) |
 
 Le sens inverse tient aussi : **une promesse ajoutée au site doit exister dans
@@ -937,7 +937,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
 
 ## Essai gratuit 7 jours + typographie unifiée (2026-07-27)
 
-1. **Essai de 7 jours, sans Stripe.** `shale-site/compte/supabase/schema.sql` : colonne
+1. **Essai de 7 jours, sans Stripe.** `shale-site/supabase/schema.sql` : colonne
    `subscriptions.trial_ends_at`, trigger `handle_new_user` qui ouvre l'essai à la
    création du compte (`status='trialing'`, +7 j, plan mémorisé depuis
    `raw_user_meta_data`), et surtout la **vue `public.my_subscription`**
@@ -952,7 +952,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
    - `AuthGate.tsx` : bandeau `TrialBanner` pendant l'essai (jours restants,
      ambre à ≤ 2 jours, lien vers l'espace compte). Jamais affiché pour un abonné.
    - Durée en un seul endroit qui fasse foi : `public.trial_length()`. Les copies
-     d'affichage (`TRIAL_DAYS` de `shale-site/compte/site/assets/config.js`,
+     d'affichage (`TRIAL_DAYS` de `shale-site/vitrine/src/lib/compte.ts`,
      `config.trialDays` de `shale-site/vitrine/src/content.json`) doivent rester alignées.
 
 2. **Typographie : Instrument Sans partout.** Outfit + DM Sans remplacés par une
@@ -969,7 +969,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
 Le site vitrine et l'espace compte portaient déjà la marque « Strates » depuis la
 refonte ; **l'app était restée aux anciens chevrons**. Aligné :
 - `src/components/auth/ShaleMark.tsx` — réécrit avec la géométrie **identique**
-  à `shale-site/vitrine/src/components/Logo.astro` et à `shale-site/compte/site/assets/auth.js`
+  à `shale-site/vitrine/src/components/Logo.astro` (les deux marques ont fusionné le 2026-08-11)
   (`paintMarks`) : grille 24×24, plaque rx 5.3, barres `x=4`, `y=3/8/13/18`,
   largeurs `16 · 10.88 · 16 · 7.36`, épaisseur 3, rx 1.5. **Les couches courtes
   s'alignent à GAUCHE.** Utilisé par LoginScreen, AuthGate, Onboarding,
@@ -1069,7 +1069,7 @@ dans la base (`my_subscription.has_trading`), pas seulement côté client.
 
 ### Où vit quoi
 - **Le tier est en Postgres, PAS en SQLite.** `subscriptions` vit chez Supabase
-  (`shale-site/compte/supabase/schema.sql`) : colonnes `tier` et
+  (`shale-site/supabase/schema.sql`) : colonnes `tier` et
   `billing_period`, migration rejouable dans `supabase/migrations/001_tiers.sql`.
   **Aucune migration `src-tauri/migrations/` n'a été ajoutée** — la base locale
   ne stocke aucun droit. ⚠️ Arbitrage assumé : les comptes existants repartent
@@ -1329,7 +1329,7 @@ suivre. C'est un seul blob JSON : le découper est un chantier à part.
    de données serait partie dans le cloud — chiffrée avec elle-même. Toute plomberie
    rangée dans `settings` doit être exclue nommément.
 
-### Côté Supabase — `shale-site/compte/supabase/sync.sql`
+### Côté Supabase — `shale-site/supabase/sync.sql`
 Fichier autonome (comme `site-content.sql`), idempotent, **pas encore joué en production**.
 - **`sync_keys`** : une ligne par utilisateur, les deux enveloppes de la clé de données +
   les paramètres Argon2id. La colonne de récupération est **nullable** — la décision de
@@ -1646,7 +1646,7 @@ réglages n'y changerait rien, et le proposer suggérerait le contraire.
 
 Le backend commercial est **branché pour de bon** : projet Supabase
 `pdlprlddouzacinfpkes`, URL et clé anon renseignées dans
-`src/lib/auth/config.ts` (et son jumeau `compte/site/assets/config.js` côté
+`src/lib/auth/config.ts` (et son jumeau `vitrine/src/lib/compte.ts` côté
 site). Le mode démo ne se déclenche donc plus. Les quatre fichiers SQL
 (`schema.sql`, `sync.sql`, `site-content.sql`, `migrations/002_admin.sql`) ont
 été exécutés sur le projet.
@@ -1700,7 +1700,7 @@ admin sur une liste ; `SettingsView` — déjà gardée).
   renvoyait vers le navigateur pour retaper les mêmes identifiants.
 
 ### Le rôle admin est une donnée, plus un réglage
-`compte/supabase/migrations/002_admin.sql` crée `public.admins` +
+`shale-site/supabase/migrations/002_admin.sql` crée `public.admins` +
 `public.is_admin()` et réécrit les politiques de `site_content` et du bucket
 `site-assets`.
 
