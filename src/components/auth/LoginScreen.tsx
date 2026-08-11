@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconAlert, IconEye, IconEyeOff } from "../icons";
-import { ACCOUNT_URL, AUTH_CONFIGURED } from "../../lib/auth/config";
+import { ACCOUNT_PAGES, AUTH_CONFIGURED } from "../../lib/auth/config";
 import { sendPasswordReset } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
@@ -96,7 +96,7 @@ export default function LoginScreen({ onSignIn, onSignUp }: Props) {
     setError(null);
     setNotice(null);
     if (!AUTH_CONFIGURED) {
-      openExternal(`${ACCOUNT_URL}/reset.html`);
+      openExternal(ACCOUNT_PAGES.reset);
       return;
     }
     if (!email.trim()) {
@@ -104,7 +104,7 @@ export default function LoginScreen({ onSignIn, onSignUp }: Props) {
       return;
     }
     try {
-      await sendPasswordReset(email.trim(), `${ACCOUNT_URL}/reset.html`);
+      await sendPasswordReset(email.trim(), ACCOUNT_PAGES.reset);
       setNotice(t("E-mail de réinitialisation envoyé. Vérifie ta boîte de réception."));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Envoi impossible."));
@@ -116,7 +116,11 @@ export default function LoginScreen({ onSignIn, onSignUp }: Props) {
     "outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim";
 
   return (
-    <div className="flex h-screen items-center justify-center bg-bg px-6">
+    // Pas de `bg-bg` ici : le fond appartient au parent (`Mur`, dans AuthGate),
+    // qui peint aussi le décor. Un fond opaque à ce niveau le recouvrirait —
+    // et l'écran perdrait la profondeur qui distingue « l'app est là, derrière »
+    // de « l'app n'a pas démarré ».
+    <div className="flex h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-7 flex flex-col items-center text-center">
           <ShaleMark size={52} />

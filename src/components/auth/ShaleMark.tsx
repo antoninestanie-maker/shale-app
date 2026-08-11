@@ -4,7 +4,7 @@
 // troisième en accent : la coupe géologique du shale et la liste du jour dans
 // la même forme. Géométrie IDENTIQUE au site vitrine
 // (`shale-site/vitrine/src/components/Logo.astro`) et à l'espace compte
-// (`shale-site/compte/site/assets/auth.js::paintMarks`) : grille 24×24, plaque rx 5.3,
+// (les deux ont fusionné le 2026-08-11) : grille 24×24, plaque rx 5.3,
 // barres de 3 d'épaisseur, gouttière de 2, marge de 4.
 // ⚠️ Les couches courtes s'alignent à GAUCHE — ne jamais les recentrer.
 //

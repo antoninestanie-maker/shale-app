@@ -17,8 +17,8 @@
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 
-import siteContentSql from "../../../../shale-site/compte/supabase/site-content.sql?raw";
-import adminSql from "../../../../shale-site/compte/supabase/migrations/002_admin.sql?raw";
+import siteContentSql from "../../../../shale-site/supabase/site-content.sql?raw";
+import adminSql from "../../../../shale-site/supabase/migrations/002_admin.sql?raw";
 
 const ADMIN_ID = "11111111-1111-1111-1111-111111111111";
 const LAMBDA_ID = "22222222-2222-2222-2222-222222222222";

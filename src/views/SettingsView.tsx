@@ -34,7 +34,7 @@ import { IconSave } from "../components/icons";
 import { MENTAL_LOAD_CONFIG_EVENT } from "../components/MentalLoadGauge";
 import { useSession } from "../components/auth/AuthGate";
 import { useEntitlements, tierLabel } from "../lib/entitlements";
-import { ACCOUNT_URL, AUTH_CONFIGURED, STRIPE_ENABLED } from "../lib/auth/config";
+import { ACCOUNT_PAGES, AUTH_CONFIGURED, STRIPE_ENABLED } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
@@ -370,7 +370,7 @@ export default function SettingsView() {
             {!hasTrading && (
               <button
                 type="button"
-                onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
+                onClick={() => openExternal(ACCOUNT_PAGES.home)}
                 className="mt-1 text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
               >
                 {t("Passer à Shale Trade")}

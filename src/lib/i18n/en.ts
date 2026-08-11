@@ -1304,4 +1304,14 @@ export const EN: Record<string, string> = {
     "Everything entered since will be lost — except that the current state is also set aside before the swap, and can be restored in turn.",
   "Oui, restaurer":
     "Yes, restore",
+
+  // ── Mur d'authentification et mode hors ligne (2026-08-12) ────────────────
+  "Hors ligne — tes données restent sur ce Mac, la synchronisation reprendra plus tard.":
+    "Offline — your data stays on this Mac, syncing will resume later.",
+  "Réessayer":
+    "Try again",
+  "Hors ligne depuis plus de {n} jours. Reconnecte-toi une fois en ligne.":
+    "Offline for more than {n} days. Sign in again once you are back online.",
+  "La première connexion demande une connexion Internet.":
+    "The first sign-in needs an internet connection.",
 };

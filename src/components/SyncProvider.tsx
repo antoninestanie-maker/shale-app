@@ -20,8 +20,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // ⚠️ `jetonFrais` et non `session.access_token` : un jeton Supabase ne vit
   // qu'une heure, et la synchronisation tourne toutes les 90 secondes pendant
   // toute la durée de vie de l'app. Voir `AuthState.jetonFrais`.
-  const { session, jetonFrais } = useSession();
-  const api = useSync(session, jetonFrais);
+  const { session, jetonFrais, status } = useSession();
+
+  // ── Rien ne part hors de `ready` ─────────────────────────────────────────
+  // En `offlineGrace`, l'app est ouverte mais AUCUNE session n'a été validée :
+  // il n'y a pas d'`access_token`, seulement un jeton de rafraîchissement qu'on
+  // n'a pas pu échanger. Laisser la synchronisation démarrer produirait un
+  // planificateur qui se réveille toutes les 90 secondes pour échouer, un
+  // indicateur en erreur permanente, et — le pire — des tentatives de
+  // renouvellement en rafale sur un serveur injoignable.
+  //
+  // `null` plutôt qu'un montage conditionnel du provider : les hooks de
+  // `useSync` doivent être appelés à chaque rendu, sinon React proteste au
+  // retour en ligne, quand `status` repasse à `ready`.
+  const api = useSync(status === "ready" ? session : null, jetonFrais);
   return <ContexteSync.Provider value={api}>{children}</ContexteSync.Provider>;
 }
 
