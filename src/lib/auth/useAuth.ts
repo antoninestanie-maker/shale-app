@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
 import { hasAccess } from "./access";
+import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
 import {
   fetchSubscription,
+  getUser,
   refreshSession,
   signInWithPassword,
   signOutServer,
@@ -12,15 +14,42 @@ import {
   type Session,
   type Subscription,
 } from "./supabase";
+import { lireMeta, memoriser, oublier, lireRefreshToken, refreshTokenHerite } from "./stockage";
 
-const STORAGE_KEY = "shale.session";
+// ─────────────────────────────────────────────────────────────────────────────
+// État de la porte d'entrée.
+//
+//  loading      — on vérifie la session AUPRÈS DU SERVEUR. SQLite n'est pas lue,
+//                 l'app n'est pas montée.
+//  signedOut    — pas de session valide → mur de connexion.
+//  offlineGrace — le serveur est injoignable, mais une session a été validée il
+//                 y a moins de GRACE_JOURS. L'app s'ouvre, avec la mention
+//                 « hors ligne ». Voir la constante, plus bas.
+//  noSub        — connecté, aucun abonnement actif. Sans objet tant que
+//                 STRIPE_ENABLED est faux.
+//  ready        — session prouvée par le serveur → l'app est déverrouillée.
+// ─────────────────────────────────────────────────────────────────────────────
+export type AuthStatus = "loading" | "signedOut" | "noSub" | "ready" | "offlineGrace";
 
-// État de la porte d'entrée :
-//  loading   — on vérifie la session/abonnement au démarrage
-//  signedOut — pas de session valide → écran de connexion
-//  noSub     — connecté mais aucun abonnement actif → écran "abonnement requis"
-//  ready     — connecté + abonnement actif → l'app est déverrouillée
-export type AuthStatus = "loading" | "signedOut" | "noSub" | "ready";
+/**
+ * Combien de temps l'app s'ouvre sans avoir pu joindre le serveur.
+ *
+ * ⚠️ C'EST UNE PORTE DÉROBÉE, VOLONTAIRE ET BORNÉE. Quiconque coupe le réseau
+ * ouvre l'app pendant ce délai avec un jeton qui n'est plus vérifiable — un
+ * compte supprimé hier fonctionne encore aujourd'hui en mode avion.
+ *
+ * Elle est assumée parce que l'alternative est pire : Shale est *offline-first*,
+ * ses données vivent dans SQLite sur la machine de l'utilisateur, et un mur qui
+ * exige le réseau enferme quelqu'un hors de SES PROPRES données dès qu'il est
+ * dans un train. Refuser l'entrée à un client légitime pour gêner un fraudeur
+ * qui a, de toute façon, la base en clair sur son disque, ce serait se tromper
+ * de menace.
+ *
+ * Le délai court depuis la DERNIÈRE VALIDATION SERVEUR (`lastVerifiedAt`), pas
+ * depuis le dernier démarrage : rester hors ligne ne le prolonge jamais.
+ */
+export const GRACE_JOURS = 30;
+const GRACE_MS = GRACE_JOURS * 24 * 60 * 60 * 1000;
 
 export interface AuthState {
   status: AuthStatus;
@@ -28,6 +57,13 @@ export interface AuthState {
   subscription: Subscription | null;
   isAdmin: boolean;
   error: string | null;
+  /**
+   * `remember` est CONSERVÉ dans la signature mais n'a plus d'effet : la session
+   * est toujours persistée. Il ne servait qu'à ne PAS l'enregistrer — une case
+   * « se souvenir de moi » qui, sur une app de bureau rouverte tous les matins,
+   * ne faisait que forcer une ressaisie quotidienne du mot de passe. Le retirer
+   * demanderait de toucher `LoginScreen` sans rien gagner.
+   */
   signIn: (email: string, password: string, remember: boolean) => Promise<void>;
   /**
    * Crée un compte et, si le projet Supabase n'exige pas de confirmation par
@@ -44,23 +80,40 @@ export interface AuthState {
   changePassword: (newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
   recheck: () => Promise<void>;
+  /**
+   * Un jeton d'accès VALABLE, renouvelé si nécessaire.
+   *
+   * ⚠️ Ajouté pour la synchronisation, et il corrige un défaut qui la dépasse :
+   * la session n'était rafraîchie qu'au DÉMARRAGE de l'app. Or un jeton
+   * Supabase vit une heure. Tout ce qui appelle le backend en tâche de fond
+   * dans une app laissée ouverte — la synchronisation toutes les 90 s en
+   * premier — récoltait donc un 401 perpétuel après la première heure, sans
+   * que rien ne le signale. Un appel ponctuel déclenché par un clic ne le
+   * voyait pas : l'utilisateur relançait l'app avant de s'en apercevoir.
+   *
+   * `forcer` sert quand le serveur refuse un jeton que l'app croyait frais.
+   */
+  jetonFrais: (forcer?: boolean) => Promise<string>;
 }
 
-function loadStored(): Session | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
-  } catch {
-    return null;
-  }
-}
-function persist(s: Session | null, remember: boolean) {
-  try {
-    if (s && remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* stockage indisponible : session mémoire uniquement */
-  }
+/**
+ * Panne réseau, ou refus du serveur ?
+ *
+ * La distinction commande TOUT le comportement au démarrage : un refus veut
+ * dire « déconnecte », une panne veut dire « on verra plus tard ». Les
+ * confondre, c'est soit déconnecter les gens dans le train, soit laisser entrer
+ * avec un jeton révoqué.
+ *
+ * `fetch` rejette avec un TypeError quand la requête ne part pas — DNS, réseau
+ * coupé, serveur injoignable. Un 4xx, lui, est une RÉPONSE : le serveur a parlé,
+ * et il a dit non.
+ */
+function estPanneReseau(e: unknown): boolean {
+  if (e instanceof TypeError) return true;
+  const statut = (e as { status?: number })?.status;
+  // Pas de statut = la requête n'a jamais abouti. Un 5xx est une panne côté
+  // serveur, pas un refus : on ne déconnecte pas pour ça.
+  return statut === undefined || statut >= 500;
 }
 
 // ── Mode démo (auth non configurée) ────────────────────────────────────────
@@ -126,95 +179,214 @@ export function useAuth(): AuthState {
   const [session, setSession] = useState<Session | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const rememberRef = useRef(true);
 
-  // Résout l'état à partir d'une session : vérifie l'abonnement actif.
-  const resolve = useCallback(async (s: Session, remember: boolean) => {
-    if (!AUTH_CONFIGURED) {
-      setSession(s);
-      setSubscription(demoSub());
-      setStatus("ready");
-      persist(s, remember);
-      return;
+  // La session, lisible SANS passer par le rendu. `jetonFrais` doit être stable
+  // (elle est mémorisée par le transport de synchronisation, qui ne se
+  // reconstruit pas à chaque rendu) tout en voyant toujours la session à jour :
+  // une dépendance sur `session` la ferait changer d'identité à chaque
+  // renouvellement, donc redémarrerait le planificateur pour rien.
+  const sessionRef = useRef<Session | null>(null);
+  // Un seul renouvellement en vol : sans ce partage, trois appels simultanés
+  // consommeraient trois fois le même refresh token — que GoTrue fait tourner à
+  // chaque usage, donc les deux derniers échoueraient et déconnecteraient.
+  const renouvellementRef = useRef<Promise<Session> | null>(null);
+
+  /** Date de la dernière confirmation par le SERVEUR. Pilote le délai de grâce. */
+  const verifieLeRef = useRef<number>(0);
+
+  /**
+   * Range une session validée : en mémoire, et sur le disque.
+   *
+   * `remember` a disparu de la signature. Il ne servait qu'à ne PAS persister —
+   * une case « se souvenir de moi » qui, sur une app de bureau qu'on rouvre tous
+   * les matins, n'avait pour effet que de faire ressaisir le mot de passe.
+   */
+  const ranger = useCallback((s: Session | null, verifieLe = Date.now()) => {
+    sessionRef.current = s;
+    setSession(s);
+    if (s) {
+      verifieLeRef.current = verifieLe;
+      void memoriser(s, verifieLe);
+    } else {
+      verifieLeRef.current = 0;
+      void oublier();
     }
-    try {
-      const sub = await fetchSubscription(s);
-      setSession(s);
-      setSubscription(sub);
-      setStatus(hasAccess(sub) ? "ready" : "noSub");
-    } catch (e) {
-      // L'abonnement n'a pas pu être vérifié (réseau, ou vue absente).
-      //
-      // Quand le mur de paiement est en service, on refuse l'accès plutôt que
-      // d'ouvrir l'app sans droit ; la session reste pour un nouvel essai.
-      // Quand il ne l'est pas, cet échec ne doit enfermer personne : il n'y a
-      // aucun droit à vérifier, et bloquer l'app sur une lecture facultative
-      // serait un mur de paiement accidentel.
-      setSession(s);
-      setSubscription(null);
-      if (STRIPE_ENABLED) {
-        setError(e instanceof Error ? e.message : t("Vérification de l'abonnement impossible."));
-        setStatus("noSub");
-      } else {
-        setStatus("ready");
-      }
-    }
-    persist(s, remember);
   }, []);
 
-  // Au démarrage : restaure une session stockée, la rafraîchit si nécessaire.
+  /** Marge avant expiration : renouveler pile à l'heure, c'est arriver en retard. */
+  const MARGE_S = 60;
+
+  const jetonFrais = useCallback(async (forcer = false): Promise<string> => {
+    const s = sessionRef.current;
+    if (!s) throw new Error(t("Aucune session ouverte."));
+    if (!AUTH_CONFIGURED) return s.access_token;
+
+    const perime = s.expires_at - MARGE_S < Math.floor(Date.now() / 1000);
+    if (!forcer && !perime) return s.access_token;
+
+    if (!renouvellementRef.current) {
+      renouvellementRef.current = refreshSession(s.refresh_token)
+        .then((frais) => {
+          // Un renouvellement réussi EST une confirmation par le serveur : il a
+          // accepté le jeton. Le délai de grâce repart donc de maintenant.
+          ranger(frais);
+          return frais;
+        })
+        .finally(() => {
+          renouvellementRef.current = null;
+        });
+    }
+    return (await renouvellementRef.current).access_token;
+  }, [ranger]);
+
+  /**
+   * Résout l'état à partir d'une session DÉJÀ VALIDÉE par le serveur.
+   *
+   * ⚠️ Cette fonction ne valide rien elle-même — elle ne lit qu'un abonnement.
+   * C'est exactement la confusion qui a créé la faille : jusqu'au 2026-08-12,
+   * l'échec de `fetchSubscription` (un 401 sur jeton bidon) tombait dans le
+   * `catch`, et le `else` de `STRIPE_ENABLED` concluait « ready ». Autrement
+   * dit, **l'échec de la vérification valait autorisation**.
+   *
+   * Les deux questions sont désormais séparées : « ce jeton est-il authentique »
+   * se règle avant d'arriver ici, par `getUser()` ou par un renouvellement
+   * réussi ; « ce compte a-t-il un abonnement » se règle ici, et son échec ne
+   * peut plus ouvrir la porte puisque la porte est déjà franchie.
+   */
+  const resolve = useCallback(
+    async (s: Session, verifieLe = Date.now()) => {
+      if (!AUTH_CONFIGURED) {
+        ranger(s, verifieLe);
+        setSubscription(demoSub());
+        setStatus("ready");
+        return;
+      }
+      ranger(s, verifieLe);
+      try {
+        const sub = await fetchSubscription(s);
+        setSubscription(sub);
+        setStatus(hasAccess(sub) ? "ready" : "noSub");
+      } catch (e) {
+        // La LECTURE de l'abonnement a échoué — la session, elle, est prouvée.
+        // Quand le mur de paiement est en service, on refuse l'accès plutôt que
+        // d'ouvrir sans droit. Quand il ne l'est pas, cet échec ne doit
+        // enfermer personne : il n'y a aucun droit à vérifier, et bloquer sur
+        // une lecture facultative serait un mur de paiement accidentel.
+        setSubscription(null);
+        if (STRIPE_ENABLED) {
+          setError(e instanceof Error ? e.message : t("Vérification de l'abonnement impossible."));
+          setStatus("noSub");
+        } else {
+          setStatus("ready");
+        }
+      }
+    },
+    [ranger],
+  );
+
+  // ── Au démarrage ──────────────────────────────────────────────────────────
+  // Restaurer NE VAUT PAS ouvrir. On échange le jeton de rafraîchissement contre
+  // une session fraîche, puis on demande au serveur qui en est le porteur. Tant
+  // que ces deux appels n'ont pas répondu, l'état reste `loading` : l'app n'est
+  // pas montée et SQLite n'est pas lue.
   useEffect(() => {
-    let cancelled = false;
+    let annule = false;
     (async () => {
-      const stored = loadStored();
-      if (!stored) {
-        if (!cancelled) setStatus("signedOut");
+      const meta = lireMeta();
+      const jeton = (await lireRefreshToken()) ?? refreshTokenHerite();
+
+      if (!jeton) {
+        if (!annule) setStatus("signedOut");
         return;
       }
       if (!AUTH_CONFIGURED) {
-        if (!cancelled) await resolve(stored, true);
+        if (!annule) await resolve(demoSession(meta?.email ?? ""));
         return;
       }
+
       try {
-        const fresh =
-          stored.expires_at - 60 < Math.floor(Date.now() / 1000)
-            ? await refreshSession(stored.refresh_token)
-            : stored;
-        if (!cancelled) await resolve(fresh, true);
-      } catch {
-        // refresh token invalide/expiré → reconnexion
-        persist(null, true);
-        if (!cancelled) setStatus("signedOut");
+        const fraiche = await refreshSession(jeton);
+        // Le renouvellement suffirait à prouver la session. On demande quand
+        // même l'identité : c'est elle qui dit si le COMPTE existe encore, et
+        // elle met à jour l'e-mail affiché si l'utilisateur l'a changé ailleurs.
+        const u = await getUser(fraiche.access_token);
+        if (!annule) await resolve({ ...fraiche, user: u });
+      } catch (e) {
+        if (annule) return;
+
+        // ── Le serveur a-t-il refusé, ou n'a-t-il pas répondu ? ─────────────
+        if (!estPanneReseau(e)) {
+          // Refus net : jeton révoqué, expiré, compte supprimé. On oublie.
+          await oublier();
+          setStatus("signedOut");
+          return;
+        }
+
+        // Panne réseau. Une session validée récemment ouvre l'app en mode
+        // dégradé — voir GRACE_JOURS pour le raisonnement.
+        const age = meta ? Date.now() - meta.lastVerifiedAt : Infinity;
+        if (meta && age < GRACE_MS) {
+          verifieLeRef.current = meta.lastVerifiedAt;
+          setSession({
+            // Aucun `access_token` : il n'y en a pas, et il ne faut pas en
+            // inventer. Tout appel réseau authentifié échouera, ce qui est le
+            // comportement voulu — la synchronisation ne doit pas partir ici.
+            access_token: "",
+            refresh_token: jeton,
+            expires_at: 0,
+            user: { id: meta.userId, email: meta.email },
+          });
+          setSubscription(null);
+          setStatus("offlineGrace");
+          return;
+        }
+
+        // Hors délai, ou aucune session validée auparavant : la première
+        // connexion exige une connexion Internet, et on le dit.
+        setError(
+          meta
+            ? t("Hors ligne depuis plus de {n} jours. Reconnecte-toi une fois en ligne.", {
+                n: GRACE_JOURS,
+              })
+            : t("La première connexion demande une connexion Internet."),
+        );
+        setStatus("signedOut");
       }
     })();
     return () => {
-      cancelled = true;
+      annule = true;
     };
   }, [resolve]);
 
   const signIn = useCallback(
-    async (email: string, password: string, remember: boolean) => {
+    async (email: string, password: string, _remember: boolean) => {
       setError(null);
-      rememberRef.current = remember;
       const s = AUTH_CONFIGURED
         ? await signInWithPassword(email.trim(), password)
         : demoSession(email.trim());
-      await resolve(s, remember);
+      // Le serveur vient de délivrer cette session : elle est validée par
+      // construction, `resolve` n'a pas à la revérifier.
+      // ⚠️ Le mot de passe est le SEUL secret dont l'utilisateur dispose, et il
+      // n'existe qu'ici. La synchronisation chiffrée en a besoin pour créer ou
+      // rouvrir sa clé ; sans ce dépôt il faudrait le redemander dans un écran
+      // dédié. `useSync` le retire et l'efface dans la foulée — voir `sync/sas.ts`.
+      deposerMotDePasse(password);
+      await resolve(s);
     },
     [resolve],
   );
 
   const signUp = useCallback(
-    async (email: string, password: string, remember: boolean) => {
+    async (email: string, password: string, _remember: boolean) => {
       setError(null);
-      rememberRef.current = remember;
       if (!AUTH_CONFIGURED) {
-        await resolve(demoSession(email.trim()), remember);
+        await resolve(demoSession(email.trim()));
         return { needsConfirmation: false };
       }
       const s = await signUpWithPassword(email.trim(), password);
       if (!s) return { needsConfirmation: true };
-      await resolve(s, remember);
+      deposerMotDePasse(password);
+      await resolve(s);
       return { needsConfirmation: false };
     },
     [resolve],
@@ -225,35 +397,50 @@ export function useAuth(): AuthState {
       // En mode démo il n'y a pas de compte : accepter silencieusement plutôt
       // que d'afficher une erreur sur un écran qui n'a rien fait de mal.
       if (!AUTH_CONFIGURED) return;
-      const s = session;
-      if (!s) throw new Error(t("Aucune session ouverte."));
-      // Un jeton Supabase vit une heure. L'envoyer tel quel depuis une app
-      // laissée ouverte, c'est un 401 au moment précis où l'utilisateur croit
-      // sécuriser son compte : on le renouvelle d'abord s'il est sur la fin.
-      let token = s.access_token;
-      if (s.expires_at - 60 < Math.floor(Date.now() / 1000)) {
-        const frais = await refreshSession(s.refresh_token);
-        setSession(frais);
-        persist(frais, rememberRef.current);
-        token = frais.access_token;
-      }
-      await updatePassword(token, newPassword);
+      await updatePassword(await jetonFrais(), newPassword);
+      // L'enveloppe de la clé de synchronisation est scellée par l'ANCIEN mot de
+      // passe : sans re-scellement, la copie cloud deviendrait illisible depuis
+      // tout nouvel appareil. `useSync` s'en charge en voyant passer celui-ci.
+      deposerMotDePasse(newPassword);
     },
-    [session],
+    [jetonFrais],
   );
 
   const signOut = useCallback(async () => {
-    if (session && AUTH_CONFIGURED) await signOutServer(session.access_token);
-    persist(null, rememberRef.current);
-    setSession(null);
+    // Best-effort : sans réseau la révocation n'a pas lieu, mais le jeton local
+    // part quand même. Mieux vaut une session orpheline côté serveur qu'un
+    // bouton « Se déconnecter » qui ne déconnecte pas.
+    if (session?.access_token && AUTH_CONFIGURED) await signOutServer(session.access_token);
+    viderSas();
+    // ⚠️ `oublier()` purge les jetons — et RIEN D'AUTRE. `shale.db` n'est pas
+    // touchée : les données appartiennent à l'utilisateur, se déconnecter n'est
+    // pas se désinscrire. Une déconnexion qui efface le journal de bord serait
+    // une perte irréversible pour un geste qu'on fait parfois par prudence.
+    ranger(null);
     setSubscription(null);
     setError(null);
     setStatus("signedOut");
-  }, [session]);
+  }, [session, ranger]);
 
   const recheck = useCallback(async () => {
-    if (session) await resolve(session, rememberRef.current);
-  }, [session, resolve]);
+    if (!session) return;
+    if (!AUTH_CONFIGURED) return resolve(session);
+    // Depuis `offlineGrace`, c'est la tentative de retour en ligne : on repasse
+    // par le serveur, sans quoi « Réessayer » ne réessaierait rien.
+    try {
+      const fraiche = await refreshSession(session.refresh_token);
+      const u = await getUser(fraiche.access_token);
+      await resolve({ ...fraiche, user: u });
+      setError(null);
+    } catch (e) {
+      if (!estPanneReseau(e)) {
+        await oublier();
+        ranger(null);
+        setStatus("signedOut");
+      }
+      // Panne réseau : on reste où l'on est, l'utilisateur réessaiera.
+    }
+  }, [session, resolve, ranger]);
 
   // Rôle admin : allowlist d'e-mails en prod ; toujours vrai en démo.
   const isAdmin = !AUTH_CONFIGURED
@@ -271,5 +458,6 @@ export function useAuth(): AuthState {
     changePassword,
     signOut,
     recheck,
+    jetonFrais,
   };
 }

@@ -26,8 +26,12 @@ mention « pas un dépôt git » était périmée). Specs : `SPEC.md` (V1) et `S
   **<https://shale-six.vercel.app>**, espace compte sous `/compte/`), rebrancher
   Stripe (`STRIPE_ENABLED`, cf. fin de fichier), **notariser l'app** (voir plus
   bas), remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
-- Données de trading **toujours 100 % locales** (SQLite) ; le backend ne gère que
-  comptes + abonnements.
+- Données **écrites en local** (SQLite) et utilisables hors ligne. ⚠️ Elles ne
+  restent plus *seulement* là : depuis la synchronisation (2026-08-10), une copie
+  **chiffrée de bout en bout** part vers `sync_rows` dès qu'un compte est
+  connecté. Le backend ne peut pas les lire — il en stocke quand même. La phrase
+  « toujours 100 % locales » qui vivait ici est fausse depuis ce jour-là, et le
+  site la répétait à cinq endroits, politique de confidentialité comprise.
 
 ## Commandes
 - `npx tsc --noEmit` — typecheck
@@ -66,7 +70,7 @@ Rien n'est partagé entre les deux dépôts : le site recopie l'app à la main.
 | Une vue de `src/views/` ajoutée ou supprimée | tout ce qui précède **plus** le compte de modules, écrit en toutes lettres à une dizaine d'endroits (« douze modules » dans `content.json` et `lib/i18n/en.ts`, « APERÇU · 3 MODULES SUR 12 » dans `Demo.astro`) |
 | Ce que fait un module (écran, KPI, contenu) | la fiche du module dans `lib/modules.ts` : `desc`, `widget`, `specLabel`/`specValue`. Sa règle de vérité est écrite en tête du fichier — rien n'y figure qui n'existe dans l'app |
 | Un raccourci clavier | le `key: "⌘1"…` du module **et** la ligne « Raccourcis clavier » de `SPECS` (`lib/modules.ts`) |
-| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` **et** `compte/site/assets/style.css` : deux fichiers distincts, à modifier tous les deux |
+| `DESIGN.md` / `src/index.css` — couleurs, typo, rayons, physique du mouvement | `styles/global.css` — **un seul fichier** depuis la fusion du site (2026-08-11) ; `styles/compte.css` ne porte plus que les formulaires de compte, aucun token |
 | Plateformes, stockage, hors-ligne, clés d'API, sauvegarde, langue, licence, gating | `SPECS` dans `lib/modules.ts` et `content.json` (`features`, `faq`) |
 
 Le sens inverse tient aussi : **une promesse ajoutée au site doit exister dans
@@ -933,7 +937,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
 
 ## Essai gratuit 7 jours + typographie unifiée (2026-07-27)
 
-1. **Essai de 7 jours, sans Stripe.** `shale-site/compte/supabase/schema.sql` : colonne
+1. **Essai de 7 jours, sans Stripe.** `shale-site/supabase/schema.sql` : colonne
    `subscriptions.trial_ends_at`, trigger `handle_new_user` qui ouvre l'essai à la
    création du compte (`status='trialing'`, +7 j, plan mémorisé depuis
    `raw_user_meta_data`), et surtout la **vue `public.my_subscription`**
@@ -948,7 +952,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
    - `AuthGate.tsx` : bandeau `TrialBanner` pendant l'essai (jours restants,
      ambre à ≤ 2 jours, lien vers l'espace compte). Jamais affiché pour un abonné.
    - Durée en un seul endroit qui fasse foi : `public.trial_length()`. Les copies
-     d'affichage (`TRIAL_DAYS` de `shale-site/compte/site/assets/config.js`,
+     d'affichage (`TRIAL_DAYS` de `shale-site/vitrine/src/lib/compte.ts`,
      `config.trialDays` de `shale-site/vitrine/src/content.json`) doivent rester alignées.
 
 2. **Typographie : Instrument Sans partout.** Outfit + DM Sans remplacés par une
@@ -965,7 +969,7 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
 Le site vitrine et l'espace compte portaient déjà la marque « Strates » depuis la
 refonte ; **l'app était restée aux anciens chevrons**. Aligné :
 - `src/components/auth/ShaleMark.tsx` — réécrit avec la géométrie **identique**
-  à `shale-site/vitrine/src/components/Logo.astro` et à `shale-site/compte/site/assets/auth.js`
+  à `shale-site/vitrine/src/components/Logo.astro` (les deux marques ont fusionné le 2026-08-11)
   (`paintMarks`) : grille 24×24, plaque rx 5.3, barres `x=4`, `y=3/8/13/18`,
   largeurs `16 · 10.88 · 16 · 7.36`, épaisseur 3, rx 1.5. **Les couches courtes
   s'alignent à GAUCHE.** Utilisé par LoginScreen, AuthGate, Onboarding,
@@ -1065,7 +1069,7 @@ dans la base (`my_subscription.has_trading`), pas seulement côté client.
 
 ### Où vit quoi
 - **Le tier est en Postgres, PAS en SQLite.** `subscriptions` vit chez Supabase
-  (`shale-site/compte/supabase/schema.sql`) : colonnes `tier` et
+  (`shale-site/supabase/schema.sql`) : colonnes `tier` et
   `billing_period`, migration rejouable dans `supabase/migrations/001_tiers.sql`.
   **Aucune migration `src-tauri/migrations/` n'a été ajoutée** — la base locale
   ne stocke aucun droit. ⚠️ Arbitrage assumé : les comptes existants repartent
@@ -1325,7 +1329,7 @@ suivre. C'est un seul blob JSON : le découper est un chantier à part.
    de données serait partie dans le cloud — chiffrée avec elle-même. Toute plomberie
    rangée dans `settings` doit être exclue nommément.
 
-### Côté Supabase — `shale-site/compte/supabase/sync.sql`
+### Côté Supabase — `shale-site/supabase/sync.sql`
 Fichier autonome (comme `site-content.sql`), idempotent, **pas encore joué en production**.
 - **`sync_keys`** : une ligne par utilisateur, les deux enveloppes de la clé de données +
   les paramètres Argon2id. La colonne de récupération est **nullable** — la décision de
@@ -1623,12 +1627,159 @@ Credential Manager, ni la sync Windows↔macOS.
 - **Point le plus suspect à l'exécution** : l'affichage des screenshots de trade
   (`convertFileSrc` + scope `$APPDATA/screenshots/**`) face aux `\` de Windows.
   Point 4.19 de la recette.
+## Sync : passage du « testé » au « livrable » (2026-08-05)
+
+Séance consacrée à ce que les tests ne peuvent PAS atteindre. Le moteur était
+correct contre un serveur simulé ; restaient le vrai réseau, le vrai jeton, et
+un parcours d'activation qui n'existait pas. **Deux étapes de la séance n'ont
+pas pu être exécutées** (voir « Ce qui reste à faire », plus bas) : le schéma
+Supabase n'a pas été joué, et la recette à deux machines n'a pas tourné.
+
+### ⚠️ Le jeton n'était renouvelé qu'AU DÉMARRAGE de l'app
+Le défaut le plus grave trouvé, et il dépassait la synchronisation.
+`useAuth` rafraîchissait la session dans son `useEffect` de montage, et nulle
+part ailleurs. Or un jeton Supabase vit **une heure** et la sync tourne **toutes
+les 90 secondes** : une app laissée ouverte synchronisait pendant une heure,
+puis récoltait un 401 à chaque cycle jusqu'au redémarrage — **sans rien dire**.
+Invisible partout où on l'aurait cherché : les tests n'ont pas de jeton, une
+session de développement dépasse rarement l'heure, et un appel déclenché par un
+clic ne le voit pas (l'utilisateur relance l'app avant de s'en apercevoir).
+
+Correctif : `AuthState.jetonFrais(forcer?)`, et le transport reçoit un
+**fournisseur** de jeton, plus un jeton. Trois précautions qui ne sont pas
+décoratives :
+- **`sessionRef` plutôt que `session`** en dépendance — sinon `jetonFrais`
+  change d'identité à chaque renouvellement et redémarre le planificateur.
+- **Un seul renouvellement en vol** (`renouvellementRef`) : GoTrue fait TOURNER
+  le refresh token à chaque usage, donc trois appels simultanés en grilleraient
+  deux et déconnecteraient l'utilisateur.
+- **Reprise UNE fois** sur 401 dans le transport, jamais en boucle : si le jeton
+  renouvelé est refusé lui aussi, l'expiration n'était pas la cause.
+
+### ⚠️ Le pull ne tirait QU'UNE page de 200 lignes par cycle
+Un cycle toutes les 90 s : 5 000 lignes — quelques mois d'usage — descendaient
+en près de 40 minutes sur un appareil neuf, l'indicateur affichant tout du long
+un « synchronisé » sincère et faux. Le test de volume existant ne l'attrapait
+pas parce qu'il appelait `converger()` deux fois, soit quatre cycles : c'est
+exactement ce qui masquait le défaut. `synchroniser()` boucle désormais tant que
+les pages sont pleines, plafond `PAGES_MAX = 25`.
+⚠️ La boucle s'arrête aussi quand la **quarantaine retient le curseur** — sinon
+elle redemanderait la même page indéfiniment, et le cycle ne rendrait jamais la
+main. Deux tests couvrent les deux sorties.
+
+### `http.ts` — quatre échecs, quatre conduites
+Le réseau échoue de quatre façons que le serveur simulé ne connaît pas, et les
+confondre coûte cher. `ReseauInjoignable` (coupure, timeout) : état NORMAL,
+rien à dire. `SessionExpiree` (401) : réessayer avec le même jeton échouera
+toujours. `ServeurOccupe` (429/5xx) : attendre ce qu'il demande.
+`RequeteRefusee` (400/403/404) : **ne guérira jamais**.
+- ⚠️ `RequeteRefusee` est le cas « `sync.sql` jamais joué » (404 PostgREST) et
+  « politique RLS » (42501). Le noyer dans un recul silencieux produirait le
+  pire scénario possible : une app qui affiche « hors ligne » pendant des jours
+  sur un backend qui n'a jamais existé. Le planificateur part directement au
+  plafond de 5 min — sans abandonner, pour que ça reparte le jour où le schéma
+  est joué, sans relancer l'app.
+- ⚠️ **`Retry-After` a DEUX formes** : un nombre de secondes, ou une date HTTP.
+  Ne gérer que la première donne `NaN` sur la seconde, donc `setTimeout(NaN)`,
+  donc un rappel IMMÉDIAT — l'exact inverse de ce que le serveur demandait.
+- ⚠️ **Le timeout n'est pas un luxe.** Sans lui, une requête partie sur un
+  réseau qui s'évanouit (Wi-Fi d'hôtel, veille du Mac) attend indéfiniment. Le
+  verrou du planificateur étant tenu pendant ce temps, TOUTE synchronisation
+  ultérieure serait absorbée par ce cycle fantôme : l'app cesserait de
+  synchroniser sans jamais signaler d'erreur. 20 s, `AbortController` (pas
+  `AbortSignal.timeout()`, qui date d'ES2022 et la cible est ES2020).
+
+### Le parcours d'activation (`SyncOnboarding.tsx`)
+Quatre temps : ce que ça coûte → mot de passe (saisi deux fois) → code MONTRÉ →
+preuve qu'il a été noté → **puis** activation.
+- ⚠️ **`activer()` reçoit le code, elle ne le tire plus.** Ce n'est pas un
+  détail de signature : `activer()` écrit les enveloppes chez Supabase, donc
+  quand elle rend la main la synchronisation EXISTE. Si le code en sortait, on
+  ne pourrait le montrer qu'APRÈS — et la case « je l'ai noté » deviendrait une
+  formalité cochée sur un fait accompli, ce qui est l'inverse de son rôle.
+  `genererCode()` est pure : la tirer dans l'écran ne coûte et n'engage rien.
+- La preuve est une **re-saisie de deux groupes**, jamais le premier (celui-là
+  se retient sans rien noter). Tirés une seule fois par `useMemo` — les rejouer
+  à chaque frappe changerait la question sous les doigts de l'utilisateur.
+- ⚠️ **La comparaison passe par `canoniser()`, extraite de `recovery.ts`.**
+  Première version : une copie locale des quatre `replace`. Elle rendait cet
+  écran PLUS SÉVÈRE que le déverrouillage qu'il prépare — quelqu'un qui note
+  consciencieusement `O` là où l'alphabet de Crockford n'a qu'un `0` échouait
+  ici, alors que son papier ouvre parfaitement ses données. On lui aurait appris
+  à se méfier d'un code valable. Une seule copie de la règle, comme pour le LWW.
+
+### `SyncUnlock.tsx` — déverrouillage au lancement
+Le trousseau rend ce moment rare, mais **silencieux** : sans écran, l'app
+démarre normalement, `sync_outbox` se remplit, et rien ne part. L'utilisateur
+croit synchroniser et découvre le contraire sur l'autre appareil, plus tard.
+⚠️ **Esquivable, et c'est voulu** : Shale marche entièrement hors ligne, bloquer
+l'entrée sur un mot de passe pour une fonctionnalité facultative transformerait
+un confort en péage. « Plus tard » referme pour la session (variable de module,
+pas d'état React : reproposer à chaque rendu serait du harcèlement), et
+l'indicateur de la sidebar reste le chemin du retour.
+
+### L'indicateur ne peint plus tout en rouge
+Trois échecs très différents se cachaient derrière un seul « sync en échec ».
+`EtatSync.raison` les sépare : `passagere` (gris, pas d'alerte — une coupure est
+un état normal d'une app offline-first, et la peindre en rouge apprend à ignorer
+le rouge), `session` (ambre, « reconnexion requise »), `configuration` (rouge,
+ça doit se voir). Un échec passager n'est plus **cliquable** : ouvrir les
+réglages n'y changerait rien, et le proposer suggérerait le contraire.
+
+### Ce qui a été vérifié, et comment
+- `npx tsc --noEmit`, `npm run test:types`, `npm run build`,
+  `cargo check --lib --tests --bins`, `cargo test --lib` (88), `npm test`
+  (**216 tests**, +33), `npm run i18n:check` (0 clé manquante) — tous verts.
+- **`transport.ts` n'est plus le seul fichier sans tests.** Ce qu'on lui
+  reprochait n'était pas « est-ce que Supabase répond ? » mais « est-ce que ce
+  qu'on envoie a la bonne forme ? » — et ça, c'est vérifiable : `fetch` est
+  remplacé et on regarde l'octet près ce qui part. 14 tests verrouillent
+  l'hexadécimal préfixé (le piège base64), les zéros de tête, `gt.` et non
+  `gte.`, `merge-duplicates`, et la reprise sur 401.
+- **Parcours complet joué dans le navigateur**, en mode démo : les quatre étapes
+  de l'activation, la re-saisie fausse (bordure rouge) puis juste en minuscules
+  (verte), l'activation, l'écran de déverrouillage et son « Plus tard ».
+  Contrôlé que la section reste visible et le sélecteur accessible en état
+  « indisponible » — la règle documentée tient.
+- ⚠️ **La couleur d'avertissement vérifiée au `getComputedStyle`**, pas à l'œil,
+  conformément au piège déjà consigné : `rgb(240, 179, 65)` = `#f0b341` =
+  `--color-yellow`. Le token mord.
+- ⚠️ Au passage : **`--color-indigo` n'existe pas** dans `index.css`, alors que
+  la liste des tokens réels plus haut dans ce fichier le cite. Tokens réels :
+  `blue`, `green`, `red`, `yellow`, `violet`. Un `text-indigo` échouerait en
+  silence exactement comme `text-amber`.
+
+### Ce qui reste à faire — et pourquoi ça n'a pas pu l'être ici
+- ~~**Le schéma Supabase n'est TOUJOURS PAS joué.**~~ **PÉRIMÉ depuis le
+  2026-08-10** : le projet existe, les quatre fichiers SQL sont joués, et
+  `npm run sync:verifier` est passé dessus — 14 contrôles conformes. Voir la
+  section « Authentification réelle + Stripe débranché » en fin de fichier.
+  (Ce qui suit décrit la situation d'avant, gardé pour le raisonnement.)
+- **La recette PC ↔ PC n'a pas tourné** : une seule machine, et elle dépend du
+  point précédent.
+- À la place, `tools/verifier-sync-supabase.mjs` (`npm run sync:verifier`)
+  remplace la vérification « à l'œil dans le dashboard » par une commande. Il se
+  connecte en tant que **vrai utilisateur** — jamais avec une `service_role`,
+  qui contournerait RLS et validerait un schéma refusant tous les vrais clients
+  — et contrôle : présence des tables, **rendu hexadécimal du `bytea`** (avec
+  des octets choisis pour piéger les encodages vicieux : `0x00`, `0x0f`, `0xff`,
+  `0x5c`), LWW serveur qui mord, cloisonnement en écriture et sans session,
+  politiques du bucket, **que le bucket soit bien privé**, et que
+  `sync_purge_tombstones` soit hors de portée des clients. Aucun secret lu ni
+  écrit dans le dépôt : tout passe par l'environnement, le temps d'une commande.
+- `RECETTE-SYNC.md` : les 7 scénarios à deux machines, chacun conclu par une
+  **lecture en base sur les deux côtés** (jamais « ça a l'air bon »), avec le SQL
+  exact. ⚠️ Comparer les `uid`, jamais les `id` — ces derniers sont locaux.
+- **Si un écart apparaît entre la recette et ce que les tests laissaient
+  attendre**, c'est que le serveur simulé de `engine.testutil.ts` n'est pas
+  fidèle à PostgREST : corriger **le simulateur ET le code**, jamais le seul
+  code, sinon le prochain défaut du même genre repassera à travers les tests.
 
 ## Authentification réelle + Stripe débranché (2026-08-10)
 
 Le backend commercial est **branché pour de bon** : projet Supabase
 `pdlprlddouzacinfpkes`, URL et clé anon renseignées dans
-`src/lib/auth/config.ts` (et son jumeau `compte/site/assets/config.js` côté
+`src/lib/auth/config.ts` (et son jumeau `vitrine/src/lib/compte.ts` côté
 site). Le mode démo ne se déclenche donc plus. Les quatre fichiers SQL
 (`schema.sql`, `sync.sql`, `site-content.sql`, `migrations/002_admin.sql`) ont
 été exécutés sur le projet.
@@ -1682,7 +1833,7 @@ admin sur une liste ; `SettingsView` — déjà gardée).
   renvoyait vers le navigateur pour retaper les mêmes identifiants.
 
 ### Le rôle admin est une donnée, plus un réglage
-`compte/supabase/migrations/002_admin.sql` crée `public.admins` +
+`shale-site/supabase/migrations/002_admin.sql` crée `public.admins` +
 `public.is_admin()` et réécrit les politiques de `site_content` et du bucket
 `site-assets`.
 
@@ -1813,3 +1964,79 @@ committée — un déploiement depuis git n'a pas d'autre moyen de la connaître
 Côté app, `config.ts` reste non committé, ce qui veut dire qu'un clone neuf
 compile en **mode démo**. À trancher consciemment. Ce qui n'est pas négociable :
 la clé `service_role` ne quitte jamais le tableau de bord Supabase.
+
+## Sync : connecté = synchronisé (2026-08-10, soir)
+
+**Il n'y a plus rien à activer.** Plus d'écran d'onboarding, plus de code de
+récupération à noter, plus de case à cocher. Se connecter suffit ; la
+synchronisation démarre seule, et hors ligne les écritures s'empilent comme
+avant.
+
+### D'où vient le secret, maintenant
+Le chiffrement de bout en bout est **conservé** — ce qui change, c'est le chemin
+du secret. Il exige le mot de passe, qui n'existe que le temps de l'écran de
+connexion (« rester connecté » conserve une session, **pas** un mot de passe).
+Plutôt que de le redemander dans une cérémonie, on le saisit **au vol** :
+`useAuth` le dépose dans `src/lib/sync/sas.ts`, `useSync` le retire et l'efface.
+
+⚠️ Le sas est une variable de MODULE, pas un état React : un mot de passe dans
+un état React se retrouve dans les outils de développement, survit aux rendus et
+se recopie dans chaque closure. Le retrait est **destructif** — un second appel
+renvoie `null`. Et l'événement `sb:sync-secret` **ne transporte pas** le secret,
+il signale seulement qu'il y en a un à retirer : un mot de passe dans un
+`CustomEvent.detail` serait lisible par tout autre écouteur de la page.
+
+### Trois chemins, dans l'ordre (`ouvrirSansRienDemander`)
+1. clé déjà au trousseau → on démarre, rien à demander ;
+2. mot de passe dans le sas → on **crée** la clé (premier appareil) ou on la
+   **rouvre** (nouvel appareil), en silence ;
+3. ni l'un ni l'autre → verrouillé, l'app fonctionne, la file se remplit.
+
+### ⚠️ Re-scellement SYSTÉMATIQUE à chaque mot de passe vu
+Pas seulement au changement explicite : il couvre surtout la **réinitialisation
+par e-mail**, faite ailleurs, dont l'app n'est jamais informée. Sans lui,
+l'enveloppe resterait scellée par l'ancien mot de passe et le prochain appareil
+ne pourrait plus rien ouvrir — alors que la clé était là, intacte, sur celui-ci.
+Coût : une dérivation (~150 ms) et un POST, une fois par connexion. Vérifier
+d'abord si c'est nécessaire coûterait la même dérivation.
+
+### Ce que le choix coûte — statut `orpheline`
+Sans code de récupération, si le mot de passe est réinitialisé **et** qu'aucun
+appareil ne détient plus la clé, la copie cloud est irrécupérable. Les données
+LOCALES restent intactes. La sortie est `republier(motDePasse)` : nouvelle clé,
+effacement du cloud (`Transport.effacerTout`), remise en file de TOUTES les
+lignes locales. ⚠️ Ce qui n'existait que sur un autre appareil et n'est jamais
+arrivé ici est alors perdu — c'est dit **avant** l'action, pas après.
+
+`toutRemettreEnFile()` écrit `uid = uid` : une mise à jour sans effet qui
+déclenche les triggers existants. Un remplissage manuel de `sync_outbox` aurait
+divergé en silence le jour où son schéma change. Aucune colonne métier n'est
+touchée (test dédié : `updated_at` inchangé).
+
+### Le moteur tolère une charge illisible
+`dechiffrerLigne` levait et faisait échouer le cycle ENTIER — donc à chaque
+tentative, pour toujours. Désormais comptée dans `Resultat.illisibles` et
+enjambée, curseur compris.
+⚠️ **Le cas « autre clé » ne passe PAS par là** : le nom de table est aveuglé
+par une sous-clé de la même DEK, donc une autre clé produit d'autres empreintes
+de table et les lignes sont écartées comme « table inconnue » **avant** tout
+déchiffrement. `illisibles` ne se déclenche que sur une charge réellement
+corrompue. Les deux tests distinguent explicitement les deux chemins.
+
+### Supprimé
+`SyncOnboarding.tsx`, `SyncUnlock.tsx`, et six méthodes de `ApiSync` (`activer`,
+`deverrouiller`, `deverrouillerAvecCode`, `reSceller`, `regenererCodeRecuperation`,
+`supprimerCodeRecuperation`) : plus aucun appelant. Les fonctions de `keys.ts`
+sont **conservées et toujours testées** — c'est la couche où le code de
+récupération reviendrait si la décision produit changeait.
+
+⚠️ Le garde du mode démo est passé de `!AUTH_CONFIGURED` à `!isTauri`. Ce qui
+rend la synchronisation impossible en preview navigateur est l'absence de Tauri,
+pas celle des clés Supabase. Tant que le backend n'était pas branché les deux
+coïncidaient ; depuis qu'il l'est, l'ancien garde faisait disparaître l'état
+simulé, et avec lui toute possibilité de relire ces écrans hors de l'app native.
+
+### Non vérifié dans le navigateur
+`AUTH_CONFIGURED` étant vrai, la preview exige un vrai compte Supabase. Ces
+écrans n'ont donc PAS été relus visuellement cette fois — seulement typés,
+testés (237) et construits. À regarder au premier lancement de l'app native.

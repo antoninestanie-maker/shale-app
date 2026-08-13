@@ -2,18 +2,22 @@ import { useState } from "react";
 
 import { t } from "../lib/i18n";
 import { formatWhen } from "../lib/notifications";
-import { AUTH_CONFIGURED } from "../lib/auth/config";
+import { isTauri } from "../lib/repo";
 import { setStatutDemo, statutDemo, type Statut } from "../lib/sync/useSync";
 import { useSyncApi } from "./SyncProvider";
 
 /**
  * Réglages de la synchronisation chiffrée.
  *
- * ⚠️ LE POINT DÉLICAT DE TOUT L'ÉCRAN. Le chiffrement de bout en bout signifie
- * que personne — ni le support, ni l'administrateur de la base — ne peut
- * récupérer les données d'un compte dont les secrets sont perdus. Ce n'est pas
- * une lacune, c'est la contrepartie de la promesse. Elle doit donc être écrite
- * AVANT l'activation, en clair, pas découverte le jour où ça arrive.
+ * ─── UN ÉCRAN DE CONSTAT, PLUS DE COMMANDE ─────────────────────────────────
+ * Il n'y a plus rien à activer : se connecter suffit, la clé est créée ou
+ * rouverte à partir du mot de passe que l'utilisateur vient de taper. Cet écran
+ * DIT ce qui se passe et offre les deux seules manœuvres qui restent :
+ * synchroniser tout de suite, et retirer la clé de cet appareil.
+ *
+ * Il ne reste donc ici qu'un seul écran à conséquence : la republication, quand
+ * la copie cloud est devenue illisible. Il est le seul à demander une
+ * confirmation, parce qu'il est le seul à détruire quelque chose.
  */
 
 function Avertissement({ children }: { children: React.ReactNode }) {
@@ -28,20 +32,18 @@ function Champ({
   label,
   value,
   onChange,
-  type = "password",
   placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  type?: string;
   placeholder?: string;
 }) {
   return (
     <label className="block min-w-0 flex-1 basis-[14rem]">
       <span className="hud-label">{label}</span>
       <input
-        type={type}
+        type="password"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -51,81 +53,30 @@ function Champ({
   );
 }
 
-/** Le code, montré une seule fois — avec de quoi le mettre à l'abri. */
-function CodeAMettreALAbri({ code, onFini }: { code: string; onFini: () => void }) {
-  const [copie, setCopie] = useState(false);
-  const [confirme, setConfirme] = useState(false);
-
-  return (
-    <div className="mt-4 rounded-[12px] border border-blue/30 bg-blue/5 p-4">
-      <p className="hud-label text-blue">{t("code de récupération")}</p>
-      <p className="mt-2 select-all font-mono text-[15px] leading-relaxed tracking-wide text-text">
-        {code}
-      </p>
-
-      <Avertissement>
-        {t(
-          "Note ce code hors de cet appareil. Il est le SEUL moyen de retrouver tes données si tu oublies ton mot de passe — personne, pas même nous, ne peut les déchiffrer sans lui.",
-        )}
-      </Avertissement>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard?.writeText(code).then(() => setCopie(true));
-          }}
-          className="pill border border-border bg-surface-2 px-3 py-1.5 text-xs text-text transition-colors hover:border-blue/50"
-        >
-          {copie ? t("copié") : t("copier")}
-        </button>
-        <label className="flex items-center gap-2 text-xs text-text-dim">
-          <input
-            type="checkbox"
-            checked={confirme}
-            onChange={(e) => setConfirme(e.target.checked)}
-            className="h-4 w-4 accent-[var(--color-blue)]"
-          />
-          {t("je l'ai noté en lieu sûr")}
-        </label>
-        <button
-          type="button"
-          disabled={!confirme}
-          onClick={onFini}
-          className="pill bg-blue px-3 py-1.5 text-xs font-semibold text-white transition-opacity disabled:opacity-40"
-        >
-          {t("Terminé")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function SyncSettings() {
   const sync = useSyncApi();
 
   const [motDePasse, setMotDePasse] = useState("");
-  const [code, setCode] = useState("");
-  const [avecCode, setAvecCode] = useState(true);
-  const [parCode, setParCode] = useState(false);
-  const [codeAMontrer, setCodeAMontrer] = useState<string | null>(null);
+  const [confirmeRepublication, setConfirmeRepublication] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  // Rien à régler quand la synchronisation n'a pas lieu d'être (preview
-  // navigateur, auth non configurée). ⚠️ Sauf en démo : sinon choisir l'état
-  // « indisponible » ferait disparaître la section, donc le sélecteur qui
-  // permet d'en revenir — un cul-de-sac dans mon propre écran de réglages.
-  if (sync.statut === "indisponible" && AUTH_CONFIGURED) return null;
+  // Rien à régler quand la synchronisation n'a pas lieu d'être.
+  //
+  // ⚠️ Le garde est `isTauri`, PAS `AUTH_CONFIGURED`. Ce qui rend la
+  // synchronisation impossible en preview navigateur est l'absence de Tauri
+  // (donc de SQLite et du trousseau), pas celle des clés Supabase. Tant que le
+  // backend n'était pas branché les deux coïncidaient ; depuis qu'il l'est,
+  // fonder le garde sur la config faisait disparaître l'état simulé — et avec
+  // lui toute possibilité de relire ces écrans hors de l'app native.
+  if (sync.statut === "indisponible" && isTauri) return null;
 
-  /** Enveloppe une action : occupe l'UI, capte l'erreur, nettoie les champs. */
   const agir = async (action: () => Promise<void>) => {
     setOccupe(true);
     setErreur(null);
     try {
       await action();
       setMotDePasse("");
-      setCode("");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
     } finally {
@@ -141,122 +92,8 @@ export default function SyncSettings() {
     <section className="card p-5">
       <h2 className="hud-label">{t("synchronisation chiffrée")}</h2>
 
-      {/* ── Jamais activée ──────────────────────────────────────────────── */}
-      {sync.statut === "inactive" && !codeAMontrer && (
-        <>
-          <p className="mt-3 text-sm leading-relaxed text-text-dim">
-            {t(
-              "Retrouve tes tâches, notes et trades sur tes autres appareils. Tout est chiffré sur cet appareil avant d'être envoyé : le serveur ne voit que des données illisibles.",
-            )}
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <Champ
-              label={t("ton mot de passe Shale")}
-              value={motDePasse}
-              onChange={setMotDePasse}
-              placeholder={t("pour créer la clé de chiffrement")}
-            />
-            <button
-              type="button"
-              disabled={occupe || motDePasse.length === 0}
-              onClick={() =>
-                agir(async () => {
-                  const c = await sync.activer(motDePasse, avecCode);
-                  if (c) setCodeAMontrer(c);
-                })
-              }
-              className={bouton}
-            >
-              {occupe ? t("activation…") : t("Activer la synchronisation")}
-            </button>
-          </div>
-
-          <label className="mt-3 flex items-center gap-2 text-xs text-text-dim">
-            <input
-              type="checkbox"
-              checked={avecCode}
-              onChange={(e) => setAvecCode(e.target.checked)}
-              className="h-4 w-4 accent-[var(--color-blue)]"
-            />
-            {t("créer un code de récupération (recommandé)")}
-          </label>
-
-          <Avertissement>
-            {avecCode
-              ? t(
-                  "Ton mot de passe déchiffre tes données. Si tu le perds, seul le code de récupération pourra les rouvrir.",
-                )
-              : t(
-                  "Sans code de récupération, un mot de passe perdu rendra tes données du cloud DÉFINITIVEMENT illisibles — même pour nous. Tes données locales, elles, resteront intactes.",
-                )}
-          </Avertissement>
-        </>
-      )}
-
-      {/* ── Activée ailleurs, verrouillée ici ───────────────────────────── */}
-      {sync.statut === "verrouillee" && (
-        <>
-          <p className="mt-3 text-sm leading-relaxed text-text-dim">
-            {t(
-              "Tes données chiffrées sont dans le cloud. Ton mot de passe est nécessaire une fois, pour les rouvrir sur cet appareil.",
-            )}
-          </p>
-
-          {!parCode ? (
-            <>
-              <div className="mt-4 flex flex-wrap items-end gap-3">
-                <Champ label={t("ton mot de passe Shale")} value={motDePasse} onChange={setMotDePasse} />
-                <button
-                  type="button"
-                  disabled={occupe || motDePasse.length === 0}
-                  onClick={() => agir(() => sync.deverrouiller(motDePasse))}
-                  className={bouton}
-                >
-                  {occupe ? t("ouverture…") : t("Déverrouiller")}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setParCode(true)}
-                className="mt-3 text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
-              >
-                {t("J'ai perdu mon mot de passe")}
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="mt-4 flex flex-wrap items-end gap-3">
-                <Champ
-                  label={t("code de récupération")}
-                  value={code}
-                  onChange={setCode}
-                  type="text"
-                  placeholder="SHALE-XXXX-XXXX-…"
-                />
-                <button
-                  type="button"
-                  disabled={occupe || code.length === 0}
-                  onClick={() => agir(() => sync.deverrouillerAvecCode(code))}
-                  className={bouton}
-                >
-                  {occupe ? t("ouverture…") : t("Rouvrir avec le code")}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setParCode(false)}
-                className="mt-3 text-xs text-text-dim underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
-              >
-                {t("Revenir au mot de passe")}
-              </button>
-            </>
-          )}
-        </>
-      )}
-
-      {/* ── En service ──────────────────────────────────────────────────── */}
-      {sync.statut === "active" && !codeAMontrer && (
+      {/* ── En service : le cas normal ───────────────────────────────────── */}
+      {sync.statut === "active" && (
         <>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 basis-[15rem]">
@@ -281,35 +118,21 @@ export default function SyncSettings() {
             </button>
           </div>
 
+          <p className="mt-3 text-xs leading-relaxed text-text-dim">
+            {t(
+              "Tes données sont chiffrées sur cet appareil avant d'être envoyées : le serveur ne voit que des données illisibles. La clé se déduit de ton mot de passe — personne d'autre ne peut la reconstituer.",
+            )}
+          </p>
+
           {!sync.clePersistee && (
             <Avertissement>
               {t(
-                "Le trousseau du système n'a pas répondu : la clé n'est gardée que le temps de cette session, et ton mot de passe sera redemandé au prochain lancement.",
+                "Le trousseau du système n'a pas répondu : la clé n'est gardée que le temps de cette session, et ton mot de passe sera redemandé à la prochaine connexion.",
               )}
             </Avertissement>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
-            <button
-              type="button"
-              disabled={occupe}
-              onClick={() =>
-                agir(async () => setCodeAMontrer(await sync.regenererCodeRecuperation()))
-              }
-              className={boutonSecondaire}
-              data-tip={t("Un nouveau code annule et remplace le précédent.")}
-            >
-              {t("Voir un nouveau code de récupération")}
-            </button>
-            <button
-              type="button"
-              disabled={occupe}
-              onClick={() => agir(() => sync.supprimerCodeRecuperation())}
-              className={boutonSecondaire}
-              data-tip={t("Le code déjà noté cessera de fonctionner.")}
-            >
-              {t("Supprimer le code de récupération")}
-            </button>
+          <div className="mt-4 border-t border-border pt-4">
             <button
               type="button"
               disabled={occupe}
@@ -323,8 +146,62 @@ export default function SyncSettings() {
         </>
       )}
 
-      {codeAMontrer && (
-        <CodeAMettreALAbri code={codeAMontrer} onFini={() => setCodeAMontrer(null)} />
+      {/* ── En attente d'un mot de passe ─────────────────────────────────── */}
+      {(sync.statut === "verrouillee" || sync.statut === "inactive") && (
+        <>
+          <p className="mt-3 text-sm leading-relaxed text-text-dim">
+            {t(
+              "La synchronisation se met en route toute seule à la connexion. Déconnecte-toi puis reconnecte-toi pour la réactiver sur cet appareil — tes modifications sont conservées en attendant.",
+            )}
+          </p>
+          <p className="mt-2 text-xs text-text-dim">
+            {t("{n} modification(s) en attente", { n: String(sync.enAttente) })}
+          </p>
+        </>
+      )}
+
+      {/* ── Copie cloud illisible : le seul écran à conséquence ──────────── */}
+      {sync.statut === "orpheline" && (
+        <>
+          <p className="mt-3 text-sm leading-relaxed text-text">
+            {t(
+              "Ton mot de passe a été réinitialisé depuis un autre appareil. Les données déjà dans le cloud avaient été chiffrées avec l'ancien : plus personne ne peut les rouvrir, nous compris.",
+            )}
+          </p>
+
+          <Avertissement>
+            {t(
+              "Republier remplace le contenu du cloud par celui de CET appareil. Tes données locales ne risquent rien — mais ce qui n'existait que sur un autre appareil, et n'est jamais arrivé ici, sera perdu.",
+            )}
+          </Avertissement>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <Champ
+              label={t("ton mot de passe Shale")}
+              value={motDePasse}
+              onChange={setMotDePasse}
+              placeholder={t("le nouveau, celui que tu viens de définir")}
+            />
+            <button
+              type="button"
+              disabled={occupe || motDePasse.length === 0 || !confirmeRepublication}
+              onClick={() => agir(() => sync.republier(motDePasse))}
+              className={bouton}
+            >
+              {occupe ? t("republication…") : t("Republier depuis cet appareil")}
+            </button>
+          </div>
+
+          <label className="mt-3 flex items-center gap-2 text-xs text-text-dim">
+            <input
+              type="checkbox"
+              checked={confirmeRepublication}
+              onChange={(e) => setConfirmeRepublication(e.target.checked)}
+              className="h-4 w-4 accent-[var(--color-blue)]"
+            />
+            {t("j'ai compris que le contenu du cloud sera remplacé")}
+          </label>
+        </>
       )}
 
       {erreur && (
@@ -337,11 +214,11 @@ export default function SyncSettings() {
           écrans seraient invisibles. Ce sélecteur permet de les relire et de les
           ajuster — même parti que « offre simulée », qui rend le paywall
           vérifiable sans Supabase. Disparaît dès que l'auth est configurée. */}
-      {!AUTH_CONFIGURED && (
+      {!isTauri && (
         <div className="mt-4 border-t border-border pt-4">
           <span className="hud-label">{t("état simulé (démo)")}</span>
           <div className="mt-2 flex flex-wrap gap-2">
-            {(["inactive", "verrouillee", "active", "indisponible"] as Statut[]).map((s) => (
+            {(["inactive", "verrouillee", "orpheline", "active", "indisponible"] as Statut[]).map((s) => (
               <button
                 key={s}
                 type="button"

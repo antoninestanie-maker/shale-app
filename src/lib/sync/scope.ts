@@ -121,6 +121,10 @@ export const SETTINGS_EXCLUS: readonly string[] = [
   // elle-même. Le filtre anti-secret ci-dessous ne l'attrapait pas : « dek »
   // n'est ni `key`, ni `token`, ni `secret`.
   "sync.",
+
+  // Horodatage de la dernière sauvegarde locale : propre à cet appareil-ci.
+  // Le synchroniser ferait croire aux autres qu'ils ont déjà sauvegardé.
+  "backup.",
 ];
 
 /** Vrai si cette clé de réglage doit rester sur la machine. */

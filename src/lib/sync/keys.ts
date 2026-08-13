@@ -111,24 +111,33 @@ export interface Ouverture {
 // ─── Première activation ─────────────────────────────────────────────────────
 
 export interface Activation extends Ouverture {
-  /** À montrer UNE fois, puis à ne plus jamais pouvoir réafficher sans la clé. */
+  /** Le code effectivement scellé, ou `null` si l'utilisateur s'en est passé. */
   codeRecuperation: string | null;
 }
 
 /**
  * Active la synchronisation : tire une clé de données neuve et la scelle.
  *
- * `avecRecuperation` décide si un second chemin d'ouverture est créé. Le laisser
- * à faux est un choix défendable — il ne sert que dans un cas : mot de passe
- * oublié ET plus aucun appareil fonctionnel. Tant qu'un appareil reste
- * déverrouillé, il détient la clé et peut la re-sceller tout seul.
+ * `codeRecuperation` décide si un second chemin d'ouverture est créé. `null` est
+ * un choix défendable — il ne sert que dans un cas : mot de passe oublié ET plus
+ * aucun appareil fonctionnel. Tant qu'un appareil reste déverrouillé, il détient
+ * la clé et peut la re-sceller tout seul.
+ *
+ * ⚠️ LE CODE EST FOURNI, PAS TIRÉ ICI — et c'est le seul point de tout le
+ * chantier où l'ordre des opérations est une exigence d'INTERFACE et pas de
+ * cryptographie. Cette fonction écrit les enveloppes chez Supabase : quand elle
+ * rend la main, la synchronisation EXISTE pour le compte. Si le code naissait
+ * ici, il ne pourrait être montré qu'APRÈS — donc l'utilisateur confirmerait
+ * l'avoir noté alors qu'il n'a plus le choix de refuser. L'appelant le tire
+ * d'abord (`genererCode()`, pur), le fait confirmer, et n'active qu'ensuite.
+ * Cf. `SyncOnboarding.tsx`.
  */
 export async function activer(
   depot: DepotEnveloppes,
   deriver: Derivation,
   userId: string,
   motDePasse: string,
-  avecRecuperation = true,
+  codeRecuperation: string | null,
 ): Promise<Activation> {
   const dek = genererDek();
 
@@ -136,12 +145,10 @@ export async function activer(
   const kekMdp = await deriver(motDePasse, selMdp, PARAMS_KDF);
   const scelleMdp = await emballerDek(dek, kekMdp, userId, "password");
 
-  let codeRecuperation: string | null = null;
   let selRec: Uint8Array | null = null;
   let scelleRec: Uint8Array | null = null;
 
-  if (avecRecuperation) {
-    codeRecuperation = genererCode();
+  if (codeRecuperation !== null) {
     selRec = genererSel();
     const kekRec = await deriver(secretDeCode(codeRecuperation), selRec, PARAMS_KDF);
     scelleRec = await emballerDek(dek, kekRec, userId, "recovery");

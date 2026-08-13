@@ -13,6 +13,7 @@ import { isTradingView } from "./lib/features";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
 import { useScreenTime } from "./lib/mentalLoad";
+import { sauvegardeQuotidienne } from "./lib/sauvegardes";
 import { loadTheme } from "./lib/theme";
 import { applyZoom, useUiConfig } from "./lib/uiConfig";
 import { addDays, effectiveProgress, todayStr } from "./lib/logic";
@@ -104,6 +105,9 @@ function App() {
   useEffect(() => {
     refresh();
     loadTheme();
+    // Copie datée de la base, au plus une par jour. AU LANCEMENT et non à la
+    // fermeture : une app qu'on force à quitter ne sauvegarderait jamais.
+    void sauvegardeQuotidienne();
   }, [refresh]);
 
   // Densité (zoom global) pilotée par la page Personnaliser.

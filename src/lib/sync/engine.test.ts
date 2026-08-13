@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { synchroniser, type Contexte } from "./engine";
 import { deuxAppareils, UTILISATEUR, type Appareil, type ServeurSimule } from "./engine.testutil";
-import type { SousCles } from "./crypto";
+import { deriverSousCles, genererDek, type SousCles } from "./crypto";
+import { toutRemettreEnFile } from "./local";
+import { TABLES_SYNC } from "./scope";
 
 /**
  * Étape 5 — le moteur, de bout en bout.
@@ -369,5 +371,174 @@ describe("volume", () => {
     await converger();
     await converger();
     expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM trades")[0].n).toBe(300);
+  });
+
+  it("un appareil neuf rattrape TOUT en un seul cycle", async () => {
+    // ⚠️ Le test ci-dessus passait déjà avant que le moteur sache paginer —
+    // parce qu'il appelle `converger()` deux fois, soit quatre cycles. C'est
+    // précisément ce qui masquait le défaut : une page de 200 lignes par
+    // cycle, et un cycle toutes les 90 secondes. 300 lignes = trois minutes,
+    // 5 000 lignes = quarante minutes, l'indicateur affichant tout du long un
+    // « synchronisé » sincère et faux. Ici B ne reçoit qu'UN cycle.
+    for (let i = 0; i < 450; i++) {
+      a.ecrire(
+        "INSERT INTO trades (date, instrument, direction, result_r) VALUES (?, 'NQ', 'long', ?)",
+        `2026-0${(i % 9) + 1}-01`,
+        i % 5,
+      );
+    }
+    await sync(a);
+
+    const r = await sync(b);
+    expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM trades")[0].n).toBe(450);
+    // Plus de deux pages : la boucle a bien tourné, sans redemander la dernière.
+    expect(r.recues).toBe(450);
+    expect(r.resteATirer).toBe(false);
+  });
+
+  it("ne redemande pas éternellement une page retenue par la quarantaine", async () => {
+    // Le curseur ne dépasse jamais une orpheline. Si la boucle de pagination
+    // ignorait ce fait, elle retirerait la même page indéfiniment — un cycle
+    // qui ne rend jamais la main, sur une app qui doit rester réactive.
+    const racine = a.ecrire("INSERT INTO goals (title, scope) VALUES ('Racine', 'long')").lastInsertRowid;
+    a.ecrire("INSERT INTO goals (title, scope, parent_goal_id) VALUES ('Branche', 'short', ?)", racine);
+    for (let i = 0; i < 30; i++) {
+      a.ecrire("INSERT INTO tasks (label, priority, recurrence) VALUES (?, 'low', 'none')", `t${i}`);
+    }
+    await sync(a);
+    const r = await sync(b);
+    expect(r.resteATirer).toBe(false);
+    expect(r.recues).toBeGreaterThan(0);
+  });
+});
+
+describe("republication après réinitialisation du mot de passe", () => {
+  it("des lignes scellées par une AUTRE clé n'interrompent pas le cycle", async () => {
+    // Le scénario : le cloud contient encore des lignes chiffrées avec une clé
+    // que plus personne ne possède. Avant, le cycle entier échouait — donc à
+    // chaque tentative, pour toujours : un blocage définitif là où il n'y avait
+    // qu'un résidu à ignorer.
+    //
+    // ⚠️ Ce qui les écarte n'est PAS le déchiffrement : le nom de table est
+    // aveuglé par une sous-clé de la même DEK, donc une autre clé produit aussi
+    // d'autres empreintes de table. Elles sont écartées comme « table inconnue »
+    // AVANT toute tentative d'ouverture. Le résultat est le même — passer outre
+    // sans casser — mais par un autre chemin que celui qu'on croirait.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('ancienne', 'scellée par la clé perdue')");
+    await sync(a);
+
+    const autresCles = await deriverSousCles(genererDek());
+    const ctxB: Contexte = {
+      db: b.db,
+      transport: serveur,
+      cles: autresCles,
+      userId: UTILISATEUR,
+      deviceId: b.nom,
+    };
+
+    const r = await synchroniser(ctxB);
+
+    expect(r.ignorees).toBeGreaterThan(0);
+    expect(r.appliquees).toBe(0);
+    expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM notes")[0].n).toBe(0);
+  });
+
+  it("une charge CORROMPUE est comptée et enjambée, sans faire échouer le cycle", async () => {
+    // Ici la table est reconnue (même clé), mais les octets ne s'ouvrent pas :
+    // altération en transit, stockage abîmé. C'est le cas que la tolérance
+    // ajoutée au moteur couvre réellement.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('abîmée', 'x')");
+    a.ecrire("INSERT INTO tasks (label, priority, recurrence) VALUES ('intacte', 'medium', 'none')");
+    await sync(a);
+
+    // On abîme UNE charge sur le serveur, on laisse l'autre entière.
+    const cible = serveur.contenu.find((l) => l.payload && l.payload.length > 40)!;
+    cible.payload![cible.payload!.length - 2] ^= 0xff;
+
+    const r = await sync(b);
+
+    expect(r.illisibles).toBe(1);
+    // Et surtout : le reste est passé malgré tout.
+    expect(r.appliquees).toBeGreaterThan(0);
+    expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM tasks")[0].n).toBeGreaterThan(0);
+  });
+
+  it("le curseur DÉPASSE les lignes illisibles, il ne s'y bloque pas", async () => {
+    // Sans avancée du curseur, le moteur relirait éternellement les mêmes
+    // octets qu'il ne peut pas ouvrir, et ne verrait jamais ce qui suit.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('ancienne', 'x')");
+    await sync(a);
+
+    const autresCles = await deriverSousCles(genererDek());
+    const ctxB: Contexte = {
+      db: b.db,
+      transport: serveur,
+      cles: autresCles,
+      userId: UTILISATEUR,
+      deviceId: b.nom,
+    };
+    await synchroniser(ctxB);
+
+    const curseur = Number(b.lire<{ v: string }>("SELECT v FROM sync_meta WHERE k = 'cursor'")[0].v);
+    expect(curseur).toBeGreaterThan(0);
+
+    // Et un second passage ne retire plus rien : on est passé outre.
+    const r2 = await synchroniser(ctxB);
+    expect(r2.recues).toBe(0);
+  });
+
+  it("republier remet TOUTES les lignes locales en file", async () => {
+    // C'est ce qui permet de reconstruire le cloud à partir de cet appareil.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('n1', 'x')");
+    a.ecrire("INSERT INTO tasks (label, priority, recurrence) VALUES ('t1', 'medium', 'none')");
+    a.ecrire("INSERT INTO habits (name) VALUES ('sport')");
+    await converger();
+    expect(a.lire<{ n: number }>("SELECT COUNT(*) AS n FROM sync_outbox")[0].n).toBe(0);
+
+    await toutRemettreEnFile(a.db, TABLES_SYNC);
+
+    const enFile = new Set(
+      a.lire<{ table_name: string }>("SELECT DISTINCT table_name FROM sync_outbox").map((r) => r.table_name),
+    );
+    expect(enFile).toContain("notes");
+    expect(enFile).toContain("tasks");
+    expect(enFile).toContain("habits");
+  });
+
+  it("la remise en file ne fausse AUCUNE donnée métier", async () => {
+    // Elle écrit `uid = uid` : une mise à jour sans effet, qui ne doit ni
+    // toucher `updated_at`, ni réordonner quoi que ce soit.
+    a.ecrire(
+      "INSERT INTO knowledge_entries (title, body, text, created_at, updated_at) VALUES ('fiche', 'corps', 'corps', '2026-01-01 10:00:00', '2026-01-02 11:00:00')",
+    );
+    const avant = a.lire<{ title: string; updated_at: string; uid: string }>(
+      "SELECT title, updated_at, uid FROM knowledge_entries",
+    )[0];
+
+    await toutRemettreEnFile(a.db, TABLES_SYNC);
+
+    const apres = a.lire<{ title: string; updated_at: string; uid: string }>(
+      "SELECT title, updated_at, uid FROM knowledge_entries",
+    )[0];
+    expect(apres).toEqual(avant);
+  });
+
+  it("après republication, l'autre appareil retrouve tout", async () => {
+    // Le bout du scénario : le cloud vidé, reconstruit depuis A, et B — parti
+    // d'une base vide — récupère l'intégralité.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('gardée', 'contenu')");
+    a.ecrire("INSERT INTO tasks (label, priority, recurrence) VALUES ('gardée aussi', 'high', 'none')");
+    await sync(a);
+
+    await serveur.effacerTout();
+    expect(serveur.contenu).toHaveLength(0);
+
+    a.ecrire("DELETE FROM sync_state");
+    a.ecrire("UPDATE sync_meta SET v = '0' WHERE k = 'cursor'");
+    await toutRemettreEnFile(a.db, TABLES_SYNC);
+    await converger();
+
+    expect(b.lire<{ title: string }>("SELECT title FROM notes")[0].title).toBe("gardée");
+    expect(b.lire<{ label: string }>("SELECT label FROM tasks")[0].label).toBe("gardée aussi");
   });
 });

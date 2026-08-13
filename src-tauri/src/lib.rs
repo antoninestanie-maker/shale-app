@@ -1,6 +1,7 @@
 
 pub mod crypto;
 pub mod notifications;
+pub mod sauvegardes;
 pub mod secrets;
 
 use tauri::{
@@ -210,6 +211,10 @@ pub fn run() {
             secrets::secret_delete,
             secrets::secret_available,
             crypto::kdf_argon2id,
+            sauvegardes::sauvegarde_creer,
+            sauvegardes::sauvegarde_lister,
+            sauvegardes::sauvegarde_dossier,
+            sauvegardes::sauvegarde_programmer_restauration,
             notifications::notif_list,
             notifications::notif_mark_read,
             notifications::notif_mark_all_read,
@@ -222,6 +227,11 @@ pub fn run() {
             notifications::notif_test,
         ])
         .setup(|app| {
+            // ⚠️ EN TOUT PREMIER : une restauration demandée s'applique avant que
+            // quoi que ce soit n'ouvre la base. Écraser un fichier SQLite sous une
+            // connexion vivante corromprait le WAL.
+            sauvegardes::appliquer_restauration(app.handle());
+
             // Journal + préférences de notification (n'échoue jamais, cf. son doc).
             notifications::init(app.handle());
             notifications::scheduler::start(app.handle().clone());

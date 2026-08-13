@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 
-import schemaSync from "../../../../shale-site/compte/supabase/sync.sql?raw";
+import schemaSync from "../../../../shale-site/supabase/sync.sql?raw";
 
 /**
  * Postgres réel (compilé en WebAssembly) pour valider le schéma Supabase.

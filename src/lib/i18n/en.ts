@@ -128,6 +128,7 @@ export const EN: Record<string, string> = {
   "cette semaine": "this week",
   "cumulé": "cumulative",
   "7 jours": "7 days",
+  "série en cours": "current streak",
   "7 derniers jours": "Last 7 days",
   "Moyenne 30 jours": "30-day average",
   "Jours précis": "Specific days",
@@ -669,12 +670,12 @@ export const EN: Record<string, string> = {
   "clé Groq (console.groq.com)": "Groq key (console.groq.com)",
   "Enregistrer les clés": "Save keys",
   "Enregistré": "Saved",
-  "Choisis le thème de l'interface. « Système » suit le réglage du système.":
-    "Choose the interface theme. “System” follows your system setting.",
+  "Choisis le thème de l'interface. « Système » suit le réglage de macOS.":
+    "Choose the interface theme. “System” follows your macOS setting.",
   "langue": "language",
   "Langue de l'interface": "Interface language",
-  "« Système » suit la langue du système. Le changement s'applique immédiatement, partout dans l'app.":
-    "“System” follows your system language. The change applies immediately, everywhere in the app.",
+  "« Système » suit la langue de macOS. Le changement s'applique immédiatement, partout dans l'app.":
+    "“System” follows your macOS language. The change applies immediately, everywhere in the app.",
   "Français": "French",
   "Anglais": "English",
   "La langue des briefings du Market-Brain suit ce réglage.":
@@ -693,10 +694,6 @@ export const EN: Record<string, string> = {
   "Envoyer un test": "Send a test",
   "Emprunte exactement le même chemin qu'un vrai rappel.":
     "Takes exactly the same path as a real reminder.",
-  "Test envoyé. Aucun toast ? Autorise Shale dans Paramètres Windows → Système → Notifications — il est déjà dans la cloche, lui.":
-    "Test sent. No toast? Allow Shale in Windows Settings → System → Notifications — it\u2019s already in the in-app bell either way.",
-  "Si le test n'affiche aucun toast, autorise Shale dans Paramètres Windows → Système → Notifications. Windows ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.":
-    "If the test shows no toast, allow Shale in Windows Settings \u2192 System \u2192 Notifications. Windows never tells us it was refused \u2014 the sidebar bell receives reminders either way.",
   "Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.":
     "Test sent. No banner? Allow Shale in macOS Settings → Notifications — it’s already in the in-app bell either way.",
   "Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.":
@@ -743,7 +740,6 @@ export const EN: Record<string, string> = {
   "Enregistrement…": "Saving…",
   "Mot de passe modifié.": "Password changed.",
   "Modification impossible.": "Could not save the change.",
-  "Aucune session ouverte.": "No open session.",
   "Connecté en tant que": "Signed in as",
   "Gérer mon abonnement": "Manage my subscription",
   "mode démo": "demo mode",
@@ -856,6 +852,13 @@ export const EN: Record<string, string> = {
   // ── Notifications ─────────────────────────────────────────────────────────
   "Centre de notifications": "Notification centre",
   "Aucune notification.": "No notifications.",
+  "Les rappels apparaîtront ici, même si tu as coupé les bannières macOS.":
+    "Reminders show up here even if you’ve turned macOS banners off.",
+  // Variante neutre du portage Windows : la phrase macOS ci-dessus a été
+  // reformulée en « du système » pour ne pas mentir sur une machine Windows,
+  // mais sa traduction n'avait pas suivi — la page anglaise retombait en
+  // français sans rien signaler. Les deux clés coexistent : chaque branche
+  // n'utilise que la sienne.
   "Les rappels apparaîtront ici, même si tu as coupé les bannières du système.":
     "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
@@ -978,13 +981,13 @@ export const EN: Record<string, string> = {
   "apparence": "appearance",
   "Clair": "Light",
   "Sombre": "Dark",
-  "Suit l’apparence du système, jour et nuit.": "Follows the system appearance, day and night.",
+  "Suit l’apparence de macOS, jour et nuit.": "Follows macOS appearance, day and night.",
   "Palette claire « Alabaster », en toutes circonstances.":
     "The light “Alabaster” palette, in all circumstances.",
   "Palette sombre « Obsidian », en toutes circonstances.":
     "The dark “Obsidian” palette, in all circumstances.",
-  "Suit la langue du système ; anglais si elle n'est ni française ni anglaise.":
-    "Follows your system language; falls back to English if it’s neither French nor English.",
+  "Suit la langue de macOS ; anglais si elle n'est ni française ni anglaise.":
+    "Follows your macOS language; falls back to English if it’s neither French nor English.",
   "Le bouton": "The button",
   "Tout réinitialiser": "Reset everything",
   "Rétablit l’ordre, la visibilité, les libellés, la densité et l’identité d’origine.":
@@ -1214,4 +1217,108 @@ export const EN: Record<string, string> = {
   "Tes données locales ne sont pas touchées ; la synchronisation s'arrête ici.":
     "Your local data is untouched; sync simply stops here.",
   "état simulé (démo)": "simulated state (demo)",
+
+  // ── Indicateur : trois échecs qui ne se disent pas pareil ─────────────────
+  "Le serveur n'a pas répondu. Une nouvelle tentative suivra automatiquement.":
+    "The server did not respond. Another attempt will follow automatically.",
+  "reconnexion requise": "sign in again",
+  "Ta session a expiré. Reconnecte-toi pour que la synchronisation reprenne.":
+    "Your session has expired. Sign in again to resume syncing.",
+
+  // ── Activation, en quatre temps ───────────────────────────────────────────
+  "Personne ne peut rouvrir tes données à ta place — ni le support, ni nous. C'est la contrepartie du chiffrement de bout en bout : ton mot de passe et ton code de récupération sont les deux seules clés qui existent.":
+    "Nobody can reopen your data for you — not support, not us. That is the trade-off of end-to-end encryption: your password and your recovery code are the only two keys that exist.",
+  "Commencer": "Start",
+  "Ce mot de passe dérive la clé qui chiffre tes données. Il n'est jamais envoyé.":
+    "This password derives the key that encrypts your data. It is never sent.",
+  "confirme-le": "confirm it",
+  "Retour": "Back",
+  "Continuer": "Continue",
+  "Activer sans filet": "Turn on without a safety net",
+  "Les deux saisies diffèrent.": "The two entries do not match.",
+  "Voici ton code de récupération. Il ne sera plus jamais affiché.":
+    "Here is your recovery code. It will never be shown again.",
+  "Note-le HORS de cet appareil — sur papier, ou dans un gestionnaire de mots de passe. Le garder uniquement ici ne servirait à rien : c'est justement cet appareil qui peut tomber en panne.":
+    "Write it down OFF this device — on paper, or in a password manager. Keeping it only here would be pointless: this device is precisely the one that can fail.",
+  "Je l'ai noté": "I have written it down",
+  "Dernière vérification : recopie les groupes manquants. Une case cochée ne prouve rien — celle-ci se coche aussi quand le code est resté à l'écran.":
+    "Last check: type the missing groups. A ticked box proves nothing — it gets ticked just as easily when the code never left the screen.",
+  "groupe {n}": "group {n}",
+  "J'ai compris que si je perds à la fois mon mot de passe et ce code, mes données du cloud seront définitivement illisibles.":
+    "I understand that if I lose both my password and this code, my cloud data will be permanently unreadable.",
+  "Revoir le code": "Show the code again",
+
+  // ── Déverrouillage au lancement ───────────────────────────────────────────
+  "Déverrouiller la synchronisation": "Unlock sync",
+  "synchronisation verrouillée": "sync locked",
+  "Saisis ton code de récupération pour rouvrir tes données sur cet appareil.":
+    "Enter your recovery code to reopen your data on this device.",
+  "Shale fonctionne normalement sans cette étape : tes données restent sur cet appareil et tes modifications sont conservées. Elles partiront au déverrouillage.":
+    "Shale works normally without this step: your data stays on this device and your changes are kept. They will be sent once you unlock.",
+  // « Plus tard » est déjà traduit plus haut (notifications) : la clé est la
+  // phrase française, donc une seconde entrée serait un doublon, pas une
+  // nuance.
+
+  "Aucune session ouverte.": "No open session.",
+
+  // ── Sync : activation automatique (2026-08-10) ────────────────────────────
+  "sync en attente": "sync pending",
+  "sync à rétablir": "sync needs attention",
+  "Elle se mettra en route à ta prochaine connexion. Tes modifications sont conservées.":
+    "It will start at your next sign-in. Your changes are being kept.",
+  "Reconnecte-toi pour rouvrir tes données chiffrées sur cet appareil.":
+    "Sign in again to reopen your encrypted data on this device.",
+  "Ton mot de passe a été réinitialisé : le cloud n'est plus lisible. Tes données locales sont intactes.":
+    "Your password was reset: the cloud copy can no longer be read. Your local data is intact.",
+  "Tes données sont chiffrées sur cet appareil avant d'être envoyées : le serveur ne voit que des données illisibles. La clé se déduit de ton mot de passe — personne d'autre ne peut la reconstituer.":
+    "Your data is encrypted on this device before being sent: the server only ever sees unreadable data. The key comes from your password — nobody else can reconstruct it.",
+  "Le trousseau du système n'a pas répondu : la clé n'est gardée que le temps de cette session, et ton mot de passe sera redemandé à la prochaine connexion.":
+    "The system Keychain did not respond: the key is only kept for this session, and your password will be needed again at the next sign-in.",
+  "La synchronisation se met en route toute seule à la connexion. Déconnecte-toi puis reconnecte-toi pour la réactiver sur cet appareil — tes modifications sont conservées en attendant.":
+    "Sync starts on its own when you sign in. Sign out and back in to bring it up on this device — your changes are kept in the meantime.",
+  "Ton mot de passe a été réinitialisé depuis un autre appareil. Les données déjà dans le cloud avaient été chiffrées avec l'ancien : plus personne ne peut les rouvrir, nous compris.":
+    "Your password was reset from another device. The data already in the cloud was encrypted with the old one: nobody can open it any more, us included.",
+  "Republier remplace le contenu du cloud par celui de CET appareil. Tes données locales ne risquent rien — mais ce qui n'existait que sur un autre appareil, et n'est jamais arrivé ici, sera perdu.":
+    "Republishing replaces the cloud contents with those of THIS device. Your local data is safe — but anything that only ever existed on another device, and never reached this one, will be lost.",
+  "le nouveau, celui que tu viens de définir": "the new one, the one you just set",
+  "republication…": "republishing…",
+  "Republier depuis cet appareil": "Republish from this device",
+  "j'ai compris que le contenu du cloud sera remplacé":
+    "I understand the cloud contents will be replaced",
+
+  // ── Sauvegardes locales ───────────────────────────────────────────────────
+  "sauvegardes locales":
+    "local backups",
+  "Une copie datée de toute ta base est faite à chaque premier lancement de la journée. Elle se relit sans mot de passe et sans réseau — c'est ce qui te protège d'une suppression accidentelle, que la synchronisation, elle, recopie fidèlement partout.":
+    "A dated copy of your whole database is made at the first launch of each day. It can be read back without a password and without a network — that is what protects you from an accidental deletion, which sync itself faithfully copies everywhere.",
+  "sauvegarde…":
+    "backing up…",
+  "Sauvegarder maintenant":
+    "Back up now",
+  "Ouvrir le dossier":
+    "Open the folder",
+  "Copie ce dossier ailleurs : sur ce disque, une panne matérielle emporterait tout.":
+    "Copy this folder elsewhere: on this disk, a hardware failure would take everything with it.",
+  "Restauration prête. Elle sera appliquée au prochain démarrage de Shale — quitte et relance l'app. L'état actuel sera mis de côté au passage, rien n'est définitif.":
+    "Restore is ready. It will be applied the next time Shale starts — quit and relaunch the app. The current state is set aside on the way, nothing is final.",
+  "aucune sauvegarde pour l'instant":
+    "no backups yet",
+  "Restaurer":
+    "Restore",
+  "Remplacer toute la base par la copie du {quand} ?":
+    "Replace the whole database with the copy from {quand}?",
+  "Tout ce qui a été saisi depuis sera perdu — sauf que l'état actuel est lui aussi mis de côté avant l'échange, et pourra être restauré à son tour.":
+    "Everything entered since will be lost — except that the current state is also set aside before the swap, and can be restored in turn.",
+  "Oui, restaurer":
+    "Yes, restore",
+
+  // ── Mur d'authentification et mode hors ligne (2026-08-12) ────────────────
+  "Hors ligne — tes données restent sur ce Mac, la synchronisation reprendra plus tard.":
+    "Offline — your data stays on this Mac, syncing will resume later.",
+  "Réessayer":
+    "Try again",
+  "Hors ligne depuis plus de {n} jours. Reconnecte-toi une fois en ligne.":
+    "Offline for more than {n} days. Sign in again once you are back online.",
+  "La première connexion demande une connexion Internet.":
+    "The first sign-in needs an internet connection.",
 };

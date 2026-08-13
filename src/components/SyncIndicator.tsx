@@ -24,18 +24,29 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
   // Chaque état porte SA raison d'être dans l'info-bulle : un indicateur qui se
   // contente d'un mot laisse l'utilisateur deviner ce qu'il doit faire.
   const etats = {
+    // « inactive » et « verrouillée » se ressemblent désormais beaucoup :
+    // l'activation étant automatique à la connexion, les deux se résolvent de
+    // la même façon — se reconnecter. Ils gardent des libellés distincts parce
+    // que la cause diffère (jamais activée / clé absente de cet appareil).
     inactive: {
       classe: "border-border bg-surface-2 text-text-dim",
       pastille: "bg-text-dim/60",
-      libelle: t("sync désactivée"),
-      bulle: t("Tes données restent sur cet appareil. Active la synchronisation dans Réglages."),
+      libelle: t("sync en attente"),
+      bulle: t("Elle se mettra en route à ta prochaine connexion. Tes modifications sont conservées."),
       anime: false,
     },
     verrouillee: {
       classe: "border-yellow/30 bg-yellow/10 text-yellow",
       pastille: "bg-yellow",
       libelle: t("sync verrouillée"),
-      bulle: t("Ton mot de passe est nécessaire pour déchiffrer tes données sur cet appareil."),
+      bulle: t("Reconnecte-toi pour rouvrir tes données chiffrées sur cet appareil."),
+      anime: false,
+    },
+    orpheline: {
+      classe: "border-red/30 bg-red/10 text-red",
+      pastille: "bg-red",
+      libelle: t("sync à rétablir"),
+      bulle: t("Ton mot de passe a été réinitialisé : le cloud n'est plus lisible. Tes données locales sont intactes."),
       anime: false,
     },
     horsLigne: {
@@ -43,6 +54,25 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
       pastille: "bg-text-dim/60",
       libelle: t("hors ligne"),
       bulle: t("Tes modifications sont conservées et partiront au retour du réseau."),
+      anime: false,
+    },
+    // ⚠️ Un échec RÉSEAU n'est pas rouge. Sur une app offline-first, une
+    // coupure est un état normal : la peindre en alerte apprendrait à
+    // l'utilisateur à ignorer la couleur rouge, qui ne servirait alors plus à
+    // rien le jour où elle compte. La file d'attente est la vraie information.
+    echecPassager: {
+      classe: "border-border bg-surface-2 text-text-dim",
+      pastille: "bg-text-dim/60",
+      libelle: sync.enAttente > 0 ? t("{n} en attente", { n: String(sync.enAttente) }) : t("hors ligne"),
+      bulle: t("Le serveur n'a pas répondu. Une nouvelle tentative suivra automatiquement."),
+      anime: false,
+    },
+    // Ces deux-là, en revanche, ne guériront PAS toutes seules.
+    session: {
+      classe: "border-yellow/30 bg-yellow/10 text-yellow",
+      pastille: "bg-yellow",
+      libelle: t("reconnexion requise"),
+      bulle: t("Ta session a expiré. Reconnecte-toi pour que la synchronisation reprenne."),
       anime: false,
     },
     echec: {
@@ -80,18 +110,31 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
   function choisir(): keyof typeof etats {
     if (sync.statut === "inactive") return "inactive";
     if (sync.statut === "verrouillee") return "verrouillee";
+    if (sync.statut === "orpheline") return "orpheline";
     if (sync.activite === "horsLigne") return "horsLigne";
     if (sync.activite === "enCours") return "enCours";
-    if (sync.activite === "echec") return "echec";
+    if (sync.activite === "echec") {
+      // Trois échecs très différents se cachaient derrière un seul « en échec » :
+      // un Wi-Fi qui tombe, une session périmée, et un backend qui n'a jamais
+      // existé. Le premier ne mérite aucune alerte, les deux autres appellent
+      // une action — et se taire dessus revient à laisser croire que ça marche.
+      if (sync.raison === "session") return "session";
+      if (sync.raison === "configuration") return "echec";
+      return "echecPassager";
+    }
     // L'attente prime sur « à jour » : c'est l'information utile quand une
     // saisie n'est pas encore partie.
     return sync.enAttente > 0 ? "enAttente" : "aJour";
   }
 
-  const vue = etats[choisir()];
+  const choix = choisir();
+  const vue = etats[choix];
   // Cliquable seulement quand il y a quelque chose à faire — sinon la pastille
-  // reste un simple témoin, et le clic n'ouvre pas un écran sans objet.
-  const actionnable = sync.statut !== "active" || sync.activite === "echec";
+  // reste un simple témoin, et le clic n'ouvre pas un écran sans objet. Un
+  // échec passager n'est PAS actionnable : ouvrir les réglages n'y changerait
+  // rien, et le proposer suggérerait le contraire.
+  const actionnable =
+    sync.statut !== "active" || choix === "echec" || choix === "session";
 
   return (
     <button

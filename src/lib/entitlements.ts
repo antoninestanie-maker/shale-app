@@ -10,8 +10,9 @@
 // `has_trading` (et fait expirer l'essai côté base). On lit sa réponse quand
 // elle existe ; le calcul local n'est qu'un repli pour les bases antérieures à
 // la migration 001 et pour le mode démo. Ces droits pilotent l'AFFICHAGE et la
-// navigation — ils ne protègent aucune donnée : tout est local (SQLite), il n'y
-// a rien à exfiltrer côté serveur.
+// navigation — ils ne protègent aucune donnée : la base est locale (SQLite), et
+// ce qui part vers le serveur (synchronisation) y arrive déjà chiffré de bout en
+// bout, illisible pour lui. Il n'y a donc rien à garder derrière ce verrou.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useSession } from "../components/auth/AuthGate";
 import { STRIPE_ENABLED } from "./auth/config";

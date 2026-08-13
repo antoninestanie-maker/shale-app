@@ -1,10 +1,11 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useAuth, type AuthState } from "../../lib/auth/useAuth";
 import LoginScreen from "./LoginScreen";
+import ChassisFactice from "./ChassisFactice";
 import SubscriptionRequired from "./SubscriptionRequired";
 import ShaleMark from "./ShaleMark";
 import { openExternal } from "../../lib/auth/external";
-import { ACCOUNT_URL, STRIPE_ENABLED } from "../../lib/auth/config";
+import { ACCOUNT_PAGES, STRIPE_ENABLED } from "../../lib/auth/config";
 
 import { t } from "../../lib/i18n";
 // Contexte d'auth exposé à l'app déverrouillée (déconnexion, e-mail, abonnement).
@@ -51,7 +52,7 @@ function TrialBanner({ days }: { days: number }) {
         </span>
       </span>
       <button
-        onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
+        onClick={() => openExternal(ACCOUNT_PAGES.home)}
         className="underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
       >
         {t("Choisir ma formule")}
@@ -60,13 +61,62 @@ function TrialBanner({ days }: { days: number }) {
   );
 }
 
-/** Porte d'entrée : login → vérif abonnement → app. */
+/**
+ * Bandeau « hors ligne » du mode dégradé.
+ *
+ * Discret mais permanent : l'utilisateur doit pouvoir comprendre, sans le
+ * chercher, pourquoi sa synchronisation ne part pas. « Réessayer » repasse par
+ * le serveur — c'est le seul chemin de retour vers `ready`.
+ */
+function BandeauHorsLigne({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex items-center justify-center gap-3 border-b border-border bg-surface px-4 py-1.5 text-[12px] text-text-dim">
+      <span className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-yellow" />
+        {t("Hors ligne — tes données restent sur ce Mac, la synchronisation reprendra plus tard.")}
+      </span>
+      <button
+        onClick={onRetry}
+        className="underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+      >
+        {t("Réessayer")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Le mur de connexion, plein cadre.
+ *
+ * Le décor est une MAQUETTE (`ChassisFactice`), pas l'app : la monter pour la
+ * flouter reviendrait à lire SQLite et à rendre de vraies données avant toute
+ * authentification. Voir le fichier, qui porte le raisonnement.
+ */
+function Mur({ auth }: { auth: AuthState }) {
+  return (
+    <div className="relative h-screen overflow-hidden bg-bg">
+      <ChassisFactice />
+      <div className="relative h-full">
+        <LoginScreen onSignIn={auth.signIn} onSignUp={auth.signUp} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Porte d'entrée.
+ *
+ * ⚠️ `children` — c'est-à-dire toute l'app — n'est rendu QUE dans les états
+ * `ready` et `offlineGrace`. Ce n'est pas un détail de présentation : tant qu'on
+ * n'y est pas, `App` n'est pas monté, donc `fetchAll()` n'est jamais appelé et
+ * SQLite n'est pas lue. Un mur qui monterait l'app derrière lui ne serait pas
+ * un mur.
+ */
 export default function AuthGate({ children }: { children: ReactNode }) {
   const auth = useAuth();
 
   if (auth.status === "loading") return <Splash />;
-  if (auth.status === "signedOut")
-    return <LoginScreen onSignIn={auth.signIn} onSignUp={auth.signUp} />;
+  if (auth.status === "signedOut") return <Mur auth={auth} />;
   if (auth.status === "noSub")
     return (
       <SubscriptionRequired
@@ -95,6 +145,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={auth}>
+      {auth.status === "offlineGrace" && <BandeauHorsLigne onRetry={auth.recheck} />}
       {trialDays !== null && <TrialBanner days={trialDays} />}
       {children}
     </AuthContext.Provider>

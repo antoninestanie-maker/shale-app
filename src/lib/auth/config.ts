@@ -40,16 +40,32 @@ export const WEBSITE_URL = "https://www.shaleapp.com";
 /**
  * Espace compte : inscription, connexion, mot de passe, abonnement.
  *
- * Sous-dossier du site vitrine, et non un sous-domaine : « Se connecter » ne
- * doit pas faire sauter le visiteur d'un site à l'autre. La copie est faite au
- * build par une intégration Astro (`shale-site/vitrine/astro.config.mjs`).
- *
- * Les `.html` sont explicites, exprès : ils ne dépendent d'aucun réglage
- * d'hébergeur. Un lien vers `/compte/reset` supposerait les « URLs propres »
- * activées — et le jour où elles ne le sont pas, c'est le lien de
- * réinitialisation envoyé par e-mail qui tombe en 404.
+ * Sous-dossier du site, et non un sous-domaine : « Se connecter » ne doit pas
+ * faire sauter le visiteur d'un site à l'autre.
  */
 export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;
+
+/**
+ * Les pages de l'espace compte, nommées une fois pour toutes.
+ *
+ * Elles étaient concaténées à la main à SIX endroits (`${ACCOUNT_URL}/account.html`
+ * et compagnie), ce qui veut dire six endroits à retrouver le jour où une
+ * adresse bouge. C'est arrivé le 2026-08-11 : le site a fusionné son espace
+ * compte dans Astro et ses adresses ont perdu leur `.html`.
+ *
+ * ⚠️ Les anciennes adresses répondent toujours — le site les redirige en 301 —
+ * donc rien n'était cassé. Mais une redirection par lien ouvert depuis l'app est
+ * un aller-retour réseau gratuit, et surtout : `sendPasswordReset` passe cette
+ * URL à Supabase comme cible de retour, et une cible qui redirige doit ÊTRE
+ * DANS LA LISTE BLANCHE au même titre que la vraie. Autant viser juste.
+ */
+export const ACCOUNT_PAGES = {
+  home: `${ACCOUNT_URL}/mon-compte`,
+  login: `${ACCOUNT_URL}/connexion`,
+  signup: `${ACCOUNT_URL}/inscription`,
+  reset: `${ACCOUNT_URL}/mot-de-passe`,
+  confirm: `${ACCOUNT_URL}/confirmation`,
+};
 
 /**
  * Comptes ayant accès au mode Admin (console de gestion dans l'app).
@@ -71,6 +87,7 @@ export const AUTH_CONFIGURED = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.leng
  * court-circuités. Repasser à `true` les réactive tels quels.
  *
  * ⚠️ Une seule source de vérité. Le site a son jumeau dans
- * `shale-site/compte/site/assets/config.js` — garder les deux alignés.
+ * `shale-site/vitrine/src/lib/compte.ts` — garder les deux alignés (l'espace
+ * compte a fusionné dans la vitrine le 2026-08-11).
  */
 export const STRIPE_ENABLED = false;

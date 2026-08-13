@@ -232,6 +232,29 @@ export async function purgerOutbox(db: BaseLocale, changements: ChangementEnAtte
   }
 }
 
+/**
+ * Remet TOUTES les lignes synchronisables dans la file d'envoi.
+ *
+ * Sert à republier intégralement après une réinitialisation de mot de passe :
+ * la copie cloud, scellée par une clé perdue, est effacée et reconstruite à
+ * partir de celle-ci.
+ *
+ * ⚠️ La mise en file ne se fait PAS en insérant des entrées à la main dans
+ * `sync_outbox` : on écrit `uid = uid`, une mise à jour sans effet qui déclenche
+ * les triggers existants. Ils savent déjà quoi enregistrer, et resteront justes
+ * si le schéma de la file change un jour — un remplissage manuel, lui, aurait
+ * divergé en silence.
+ *
+ * Aucune colonne métier n'est touchée : pas d'`updated_at` faussé, et le
+ * trigger FTS des notes ne se déclenche pas (il n'écoute que `title` et `body`).
+ */
+export async function toutRemettreEnFile(db: BaseLocale, tables: readonly string[]): Promise<void> {
+  for (const table of tables) {
+    const colonne = CLE_NATURELLE[table] ?? "uid";
+    await db.execute(`UPDATE ${table} SET ${colonne} = ${colonne}`);
+  }
+}
+
 export async function lireMeta(db: BaseLocale, cle: string): Promise<string | null> {
   const lignes = await db.select<{ v: string }>("SELECT v FROM sync_meta WHERE k = $1", [cle]);
   return lignes[0]?.v ?? null;

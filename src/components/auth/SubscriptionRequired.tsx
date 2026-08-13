@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconExternal } from "../icons";
-import { ACCOUNT_URL } from "../../lib/auth/config";
+import { ACCOUNT_PAGES } from "../../lib/auth/config";
 import type { Subscription } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
@@ -77,7 +77,7 @@ export default function SubscriptionRequired({
           )}
 
           <button
-            onClick={() => openExternal(`${ACCOUNT_URL}/account.html`)}
+            onClick={() => openExternal(ACCOUNT_PAGES.home)}
             className="pill mt-5 flex w-full items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
             {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
