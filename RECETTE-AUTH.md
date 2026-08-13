@@ -186,10 +186,46 @@ curl -s "$SUPABASE_URL/auth/v1/user" -H "apikey: $ANON" \
   -H "Authorization: Bearer $TOKEN" | jq '.email_confirmed_at'
 ```
 
-> ❌ **NON EXÉCUTÉ au 2026-08-12 — c'est le seul scénario non validé, et il est
-> bloquant.** Aucun envoi vers une adresse externe réelle n'a été vérifié. Tant
-> qu'il ne passe pas, on ne sait pas si un visiteur peut confirmer son adresse —
-> et donc si quiconque peut créer un compte utilisable.
+> ✅ **PASSÉ le 2026-08-12.** Inscription depuis le site, e-mail reçu sur une
+> adresse externe réelle, lien cliqué, connexion. La chaîne complète — GoTrue →
+> SMTP Resend → boîte du visiteur — fonctionne.
+
+⚠️ **DEUX PIÈGES, découverts en le faisant échouer pendant une heure.** Ils
+n'ont rien d'exotique : ce sont les deux raisons pour lesquelles ce scénario
+paraît cassé alors qu'il ne l'est pas.
+
+**1. Un compte déjà créé ne redéclenche AUCUN envoi.** Si une première tentative
+a échoué *à l'envoi*, le compte a quand même été inséré en base — le `500`
+survient après l'insertion. Toute ré-inscription avec la même adresse renvoie
+alors une réponse de succès **sans envoyer quoi que ce soit** : c'est
+l'anti-oracle de GoTrue, le même mécanisme qui empêche de deviner quelles
+adresses ont un compte (voir `Inscription.astro`). L'écran affiche « vérifie ta
+boîte mail », et rien ne part.
+
+C'est indétectable depuis l'interface — c'est le but. La sortie est le lien
+**« Tu n'as pas reçu l'e-mail de confirmation ? »** de la page de connexion, qui
+appelle `resend` et envoie réellement. Sinon : supprimer le compte dans
+Authentication → Users et recommencer.
+
+**Pour tester ce scénario, utiliser une adresse JAMAIS employée auparavant.**
+
+**2. Resend refuse `example.com`.** Réponse SMTP `550 "Invalid \`to\` field"`,
+au niveau du protocole — donc **avant** acceptation, donc **invisible dans
+Resend → Emails**. Un diagnostic mené avec ces adresses conclut à une panne de
+configuration qui n'existe pas.
+
+**Où lire la vérité, dans l'ordre :**
+
+| Endroit | Ce qu'il prouve |
+|---|---|
+| Supabase → Logs → Auth | le message SMTP brut (`535` auth, `550` destinataire, `timeout` port) |
+| Resend → Emails | ce qui a été **accepté**. Vide = rien n'est parti, ou tout a été rejeté au protocole |
+| Resend → Domains | le domaine doit être **Verified** |
+
+Configuration qui fonctionne, pour mémoire : `smtp.resend.com`, port `465`,
+username `resend` (littéralement), mot de passe = clé d'API `re_…`, expéditeur
+`no-reply@shaleapp.com` — le domaine `shaleapp.com` étant vérifié chez Resend
+(région Ireland, `eu-west-1`).
 
 Tester aussi le **lien périmé** : attendre plus d'une heure, ou recliquer un lien
 déjà utilisé. La page doit dire « Ce lien n'est plus valable » et proposer le
@@ -425,7 +461,7 @@ curl -s -L "https://www.shaleapp.com/compte/connexion" | grep -o 'name="robots"[
 | 2 · mot de passe erroné | ⏳ à jouer |
 | 3 · compte non confirmé | ⏳ à jouer |
 | 4 · adresse inexistante | ✅ passé |
-| 5 · chaîne e-mail complète | ❌ **non fait — bloquant** |
+| 5 · chaîne e-mail complète | ✅ **passé** |
 | 6 · redémarrage | ⏳ à jouer |
 | 7 · avion, session récente | ⏳ à jouer *(deux fois)* |
 | 8 · avion, sans session | ⏳ à jouer |
@@ -437,6 +473,9 @@ curl -s -L "https://www.shaleapp.com/compte/connexion" | grep -o 'name="robots"[
 
 Les scénarios en attente demandent une **vraie installation Tauri** : le mode
 avion, le trousseau et le redémarrage n'existent pas en preview navigateur.
+
+**Plus aucun bloquant.** Le scénario 5, seul verrou produit, est levé : un
+visiteur peut créer un compte, recevoir son lien et confirmer son adresse.
 
 ---
 
