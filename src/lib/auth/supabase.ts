@@ -41,6 +41,17 @@ export interface Subscription {
   is_active?: boolean | null;
   /** Droit d'accès aux modules trading, calculé par la base. Fait foi. */
   has_trading?: boolean | null;
+  /**
+   * Le compte est-il activé ? Droit d'ouvrir l'app, accordé À LA MAIN, compte
+   * par compte (`public.activations`, migration 003).
+   *
+   * ⚠️ OPTIONNEL DANS LE TYPE, MAIS PAS DANS LE COMPORTEMENT. Une base où la
+   * migration 003 n'a pas été jouée renvoie `undefined` ici, et `access.ts` le
+   * traite comme « non activé » : personne n'entre. C'est le sens voulu — la
+   * seule alternative serait d'ouvrir l'app quand la question n'a pas de
+   * réponse, c'est-à-dire de faire de l'absence de mur un mur ouvert.
+   */
+  activated?: boolean | null;
 }
 
 const ACTIVE: SubStatus[] = ["active", "trialing"];
@@ -247,7 +258,7 @@ export async function fetchSubscription(session: Session): Promise<Subscription>
   url.searchParams.set("user_id", `eq.${session.user.id}`);
   url.searchParams.set(
     "select",
-    "status,tier,billing_period,plan,current_period_end,trial_ends_at,trial_days_left,is_active,has_trading",
+    "status,tier,billing_period,plan,current_period_end,trial_ends_at,trial_days_left,is_active,has_trading,activated",
   );
   url.searchParams.set("limit", "1");
   const res = await fetch(url.toString(), { headers: authHeaders(session.access_token) });

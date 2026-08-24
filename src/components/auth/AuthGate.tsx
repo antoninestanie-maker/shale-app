@@ -97,7 +97,11 @@ function Mur({ auth }: { auth: AuthState }) {
     <div className="relative h-screen overflow-hidden bg-bg">
       <ChassisFactice />
       <div className="relative h-full">
-        <LoginScreen onSignIn={auth.signIn} onSignUp={auth.signUp} />
+        <LoginScreen
+          onSignIn={auth.signIn}
+          onSignUp={auth.signUp}
+          erreurInitiale={auth.error}
+        />
       </div>
     </div>
   );
