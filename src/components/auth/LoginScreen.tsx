@@ -14,6 +14,16 @@ interface Props {
     password: string,
     remember: boolean,
   ) => Promise<{ needsConfirmation: boolean }>;
+  /**
+   * Motif du refus constaté AU DÉMARRAGE, avant toute saisie : compte non
+   * activé, session hors délai de grâce, vérification impossible.
+   *
+   * Il vient de `useAuth`, et sans lui il ne s'affichait nulle part : cet écran
+   * ne montrait que les erreurs de SA propre promesse, donc quelqu'un qui
+   * relançait l'app après une révocation retombait sur un formulaire vierge,
+   * sans un mot sur ce qui venait de se passer.
+   */
+  erreurInitiale?: string | null;
 }
 
 /**
@@ -23,7 +33,7 @@ interface Props {
  */
 const MIN_PASSWORD = 6;
 
-export default function LoginScreen({ onSignIn, onSignUp }: Props) {
+export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Props) {
   const texts = useAppTexts();
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
@@ -32,7 +42,7 @@ export default function LoginScreen({ onSignIn, onSignUp }: Props) {
   const [remember, setRemember] = useState(true);
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(erreurInitiale ?? null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const signingUp = mode === "signUp";

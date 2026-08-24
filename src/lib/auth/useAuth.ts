@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
-import { hasAccess } from "./access";
+import { ADMIN_EMAILS, AUTH_CONFIGURED } from "./config";
+import { estActive, hasAccess } from "./access";
 import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
 import {
@@ -14,7 +14,14 @@ import {
   type Session,
   type Subscription,
 } from "./supabase";
-import { lireMeta, memoriser, oublier, lireRefreshToken, refreshTokenHerite } from "./stockage";
+import {
+  lireMeta,
+  marquerActive,
+  memoriser,
+  oublier,
+  lireRefreshToken,
+  refreshTokenHerite,
+} from "./stockage";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // État de la porte d'entrée.
@@ -142,6 +149,10 @@ export function setDemoTier(v: "shale" | "shale_trade" | "trialing"): void {
   }
 }
 
+// `activated: true` partout ici : le mode démo n'a pas de base où lire une
+// liste d'invités, et un mur d'activation infranchissable en preview navigateur
+// rendrait l'UI indéveloppable. Le bypass est celui du mode démo tout entier —
+// il ne s'applique jamais quand `AUTH_CONFIGURED` est vrai.
 function demoSub(): Subscription {
   const v = demoTier();
   if (v === "trialing")
@@ -154,6 +165,7 @@ function demoSub(): Subscription {
       trial_days_left: 5,
       is_active: true,
       has_trading: true, // l'essai ouvre tout
+      activated: true,
     };
   return {
     status: "active",
@@ -163,6 +175,7 @@ function demoSub(): Subscription {
     current_period_end: null,
     is_active: true,
     has_trading: v === "shale_trade",
+    activated: true,
   };
 }
 function demoSession(email: string): Session {
@@ -195,6 +208,15 @@ export function useAuth(): AuthState {
   const verifieLeRef = useRef<number>(0);
 
   /**
+   * Le serveur a-t-il confirmé l'activation de ce compte ?
+   *
+   * Un ref et non un état : il n'est lu que par `ranger`, pour décider ce qui
+   * part sur le disque. Il retombe à `false` à chaque `resolve`, avant la
+   * vérification — jamais l'inverse.
+   */
+  const activeRef = useRef(false);
+
+  /**
    * Range une session validée : en mémoire, et sur le disque.
    *
    * `remember` a disparu de la signature. Il ne servait qu'à ne PAS persister —
@@ -206,9 +228,10 @@ export function useAuth(): AuthState {
     setSession(s);
     if (s) {
       verifieLeRef.current = verifieLe;
-      void memoriser(s, verifieLe);
+      void memoriser(s, verifieLe, activeRef.current);
     } else {
       verifieLeRef.current = 0;
+      activeRef.current = false;
       void oublier();
     }
   }, []);
@@ -254,32 +277,75 @@ export function useAuth(): AuthState {
    * peut plus ouvrir la porte puisque la porte est déjà franchie.
    */
   const resolve = useCallback(
-    async (s: Session, verifieLe = Date.now()) => {
+    async (s: Session, verifieLe = Date.now()): Promise<string | null> => {
       if (!AUTH_CONFIGURED) {
+        activeRef.current = true; // voir `demoSub`
         ranger(s, verifieLe);
         setSubscription(demoSub());
         setStatus("ready");
-        return;
+        return null;
       }
+
+      // ── L'ordre de ces trois gestes est le sujet ────────────────────────────
+      // 1. `activeRef` retombe à faux : rien n'est encore prouvé ;
+      // 2. on RANGE quand même la session. Non par confiance, mais parce que
+      //    GoTrue fait TOURNER le `refresh_token` à chaque usage : celui qu'on
+      //    tient est le seul valide, et ne pas l'écrire condamnerait le
+      //    prochain démarrage. La méta partie sur le disque dit `activated:
+      //    false` — donc même tuée ici, l'app ne s'ouvrira pas hors ligne ;
+      // 3. on demande au serveur, et alors seulement on décide.
+      activeRef.current = false;
       ranger(s, verifieLe);
+
+      let sub: Subscription;
       try {
-        const sub = await fetchSubscription(s);
-        setSubscription(sub);
-        setStatus(hasAccess(sub) ? "ready" : "noSub");
+        sub = await fetchSubscription(s);
       } catch (e) {
-        // La LECTURE de l'abonnement a échoué — la session, elle, est prouvée.
-        // Quand le mur de paiement est en service, on refuse l'accès plutôt que
-        // d'ouvrir sans droit. Quand il ne l'est pas, cet échec ne doit
-        // enfermer personne : il n'y a aucun droit à vérifier, et bloquer sur
-        // une lecture facultative serait un mur de paiement accidentel.
+        // La lecture a échoué — la session, elle, est prouvée. Mais c'est CETTE
+        // lecture qui porte l'activation : sans elle, il n'y a pas de « on
+        // ouvre par défaut » possible. L'ancien code s'y autorisait quand
+        // Stripe était éteint (« aucun droit à vérifier ») ; depuis le
+        // 2026-08-13 il y a un droit à vérifier, toujours, et son échec ne peut
+        // pas valoir autorisation.
+        //
+        // Le jeton n'est PAS effacé : c'est une panne, pas un refus. Réessayer
+        // ou se reconnecter suffit, et un utilisateur légitime ne perd pas son
+        // délai de grâce hors ligne pour un 500 passager.
+        const msg = e instanceof Error ? e.message : t("Vérification du compte impossible.");
         setSubscription(null);
-        if (STRIPE_ENABLED) {
-          setError(e instanceof Error ? e.message : t("Vérification de l'abonnement impossible."));
-          setStatus("noSub");
-        } else {
-          setStatus("ready");
-        }
+        setError(msg);
+        setStatus("signedOut");
+        viderSas();
+        return msg;
       }
+
+      setSubscription(sub);
+
+      // ── Compte non activé → retour au mur, pas d'écran intermédiaire ───────
+      // Le renvoyer vers `SubscriptionRequired` serait mentir : il n'y a rien à
+      // acheter, et son bouton mène à une page d'abonnement sans objet. Il n'y a
+      // rien à FAIRE dans l'app tant qu'on n'a pas été invité — donc rien à
+      // montrer d'autre que la porte, et la raison pour laquelle elle est close.
+      if (!estActive(sub)) {
+        const msg = t(
+          "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
+        );
+        setError(msg);
+        // Efface jeton + méta : rien ne doit pouvoir rouvrir hors ligne. Et le
+        // mot de passe déposé pour la synchronisation part avec — il n'y a
+        // aucune donnée à synchroniser pour qui n'entre pas.
+        ranger(null);
+        viderSas();
+        setSubscription(null);
+        setStatus("signedOut");
+        return msg;
+      }
+
+      // Activé, et le serveur vient de le dire : le disque peut le savoir.
+      activeRef.current = true;
+      marquerActive();
+      setStatus(hasAccess(sub) ? "ready" : "noSub");
+      return null;
     },
     [ranger],
   );
@@ -324,9 +390,19 @@ export function useAuth(): AuthState {
 
         // Panne réseau. Une session validée récemment ouvre l'app en mode
         // dégradé — voir GRACE_JOURS pour le raisonnement.
+        //
+        // ⚠️ `meta.activated` est aussi indispensable que le délai. Sans lui, le
+        // chemin le plus court pour entrer sans invitation serait : s'inscrire,
+        // se voir refuser, couper le réseau, relancer. Le mode dégradé ne peut
+        // assouplir que ce qu'il a déjà vérifié une fois.
         const age = meta ? Date.now() - meta.lastVerifiedAt : Infinity;
-        if (meta && age < GRACE_MS) {
+        if (meta?.activated && age < GRACE_MS) {
           verifieLeRef.current = meta.lastVerifiedAt;
+          // On reprend le fait à son compte, sinon le premier renouvellement
+          // réussi (au retour du réseau, via `jetonFrais` → `ranger`) réécrirait
+          // la méta avec `activated: false` et fermerait la porte au prochain
+          // démarrage hors ligne — à quelqu'un qui a pourtant été vérifié.
+          activeRef.current = true;
           setSession({
             // Aucun `access_token` : il n'y en a pas, et il ne faut pas en
             // inventer. Tout appel réseau authentifié échouera, ce qui est le
@@ -341,14 +417,18 @@ export function useAuth(): AuthState {
           return;
         }
 
-        // Hors délai, ou aucune session validée auparavant : la première
-        // connexion exige une connexion Internet, et on le dit.
+        // Hors délai, jamais activé, ou aucune session validée auparavant : la
+        // connexion exige le réseau, et on dit LAQUELLE des trois — se voir
+        // reprocher trente jours d'absence quand on a installé l'app ce matin
+        // envoie chercher la panne exactement là où elle n'est pas.
         setError(
-          meta
-            ? t("Hors ligne depuis plus de {n} jours. Reconnecte-toi une fois en ligne.", {
-                n: GRACE_JOURS,
-              })
-            : t("La première connexion demande une connexion Internet."),
+          !meta
+            ? t("La première connexion demande une connexion Internet.")
+            : !meta.activated
+              ? t("L'activation de ce compte n'a pas encore été vérifiée. Connecte-toi une fois en ligne.")
+              : t("Hors ligne depuis plus de {n} jours. Reconnecte-toi une fois en ligne.", {
+                  n: GRACE_JOURS,
+                }),
         );
         setStatus("signedOut");
       }
@@ -371,7 +451,15 @@ export function useAuth(): AuthState {
       // rouvrir sa clé ; sans ce dépôt il faudrait le redemander dans un écran
       // dédié. `useSync` le retire et l'efface dans la foulée — voir `sync/sas.ts`.
       deposerMotDePasse(password);
-      await resolve(s);
+      // ⚠️ `resolve` REND le motif de refus au lieu de lever : il est appelé
+      // aussi au démarrage et depuis `recheck`, où une exception n'aurait
+      // personne à qui parler. Ici, elle a quelqu'un — `LoginScreen` n'affiche
+      // que ce que sa propre promesse rejette, jamais l'état `error` du hook.
+      // Sans ce `throw`, un compte non activé verrait le bouton « Se connecter »
+      // s'arrêter de tourner et l'écran ne rien dire : le pire des deux mondes,
+      // refusé sans savoir pourquoi.
+      const refus = await resolve(s);
+      if (refus) throw new Error(refus);
     },
     [resolve],
   );
@@ -386,7 +474,12 @@ export function useAuth(): AuthState {
       const s = await signUpWithPassword(email.trim(), password);
       if (!s) return { needsConfirmation: true };
       deposerMotDePasse(password);
-      await resolve(s);
+      // Un compte tout juste créé n'est PAS activé — c'est le cas nominal, pas
+      // une anomalie. `resolve` le refuse et rend le motif, qu'on lève pour que
+      // l'écran l'affiche : « ton compte est créé, il attend son activation »
+      // est précisément ce que l'inscrit doit lire.
+      const refus = await resolve(s);
+      if (refus) throw new Error(refus);
       return { needsConfirmation: false };
     },
     [resolve],
@@ -424,7 +517,13 @@ export function useAuth(): AuthState {
 
   const recheck = useCallback(async () => {
     if (!session) return;
-    if (!AUTH_CONFIGURED) return resolve(session);
+    // Le motif de refus rendu par `resolve` n'a personne à qui parler ici :
+    // « Réessayer » ne rejette pas de promesse, il repeint l'écran. L'état
+    // (`error`, `status`) porte déjà tout, et `LoginScreen` l'affiche.
+    if (!AUTH_CONFIGURED) {
+      await resolve(session);
+      return;
+    }
     // Depuis `offlineGrace`, c'est la tentative de retour en ligne : on repasse
     // par le serveur, sans quoi « Réessayer » ne réessaierait rien.
     try {

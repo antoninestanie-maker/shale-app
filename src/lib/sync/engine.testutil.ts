@@ -72,6 +72,32 @@ export class ServeurSimule implements Transport {
 
   async pousser(lignes: LigneAEnvoyer[]): Promise<void> {
     if (this.horsLigne) throw new Error("réseau indisponible");
+
+    // ⚠️ FIDÉLITÉ À POSTGREST, ajoutée le 2026-08-13 après un incident réel.
+    //
+    // Un `insert … on conflict do update` refuse d'affecter DEUX FOIS la même
+    // ligne dans une seule commande : Postgres lève `21000`, « ON CONFLICT DO
+    // UPDATE command cannot affect row a second time », et **tout le lot est
+    // rejeté**. `Prefer: resolution=merge-duplicates` n'y change rien — il
+    // arbitre entre le lot et la table, pas à l'intérieur du lot.
+    //
+    // Ce simulateur, lui, écrivait les doublons l'un après l'autre dans sa
+    // `Map` : le dernier gagnait, tout se passait bien, et 30 tests d'engine
+    // déclaraient conforme un envoi que le vrai serveur renvoyait en 400. La
+    // synchronisation d'un vrai compte est restée bloquée sur ce défaut, sans
+    // que rien ne le signale.
+    const vus = new Set<string>();
+    for (const l of lignes) {
+      const cle = `${l.table_tag}|${l.row_tag}`;
+      if (vus.has(cle)) {
+        throw new Error(
+          "ON CONFLICT DO UPDATE command cannot affect row a second time " +
+            `(${cle} présent deux fois dans le même lot)`,
+        );
+      }
+      vus.add(cle);
+    }
+
     this.envois++;
     for (const l of lignes) {
       const cle = `${l.table_tag}|${l.row_tag}`;

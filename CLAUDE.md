@@ -1672,7 +1672,14 @@ côtés** les réactive tels quels.
 **Un piège corrigé au passage** : si la lecture de `my_subscription` échouait
 (réseau, vue absente), `resolve()` basculait en `noSub` — donc un mur de
 paiement *accidentel* alors qu'aucun droit n'était à vérifier. Sous
-`STRIPE_ENABLED = false`, cet échec laisse désormais entrer.
+`STRIPE_ENABLED = false`, cet échec laissait donc entrer.
+
+> ⚠️ **PÉRIMÉ depuis le 2026-08-13.** Le raisonnement tenait à sa prémisse —
+> « aucun droit à vérifier » — et cette prémisse est tombée : `my_subscription`
+> porte désormais l'**activation**, qui se vérifie toujours. Un échec de lecture
+> ne peut donc plus valoir autorisation, et `resolve()` renvoie au mur de
+> connexion avec le motif. Voir « L'accès se donne compte par compte », en fin
+> de fichier.
 
 ### Le bandeau d'essai fantôme — trouvé en ouvrant l'app, pas en la testant
 `AuthGate` lisait `subscription.status` **en direct**, sans passer par
@@ -1907,3 +1914,166 @@ simulé, et avec lui toute possibilité de relire ces écrans hors de l'app nati
 `AUTH_CONFIGURED` étant vrai, la preview exige un vrai compte Supabase. Ces
 écrans n'ont donc PAS été relus visuellement cette fois — seulement typés,
 testés (237) et construits. À regarder au premier lancement de l'app native.
+
+## L'accès se donne compte par compte (2026-08-13)
+
+**Avoir un compte ne suffit plus à ouvrir l'app.** Il faut en plus une ligne
+dans `public.activations` — accordée à la main, par le SQL Editor. Un compte non
+activé est renvoyé sur **l'écran de connexion**, avec la raison écrite.
+
+### Pourquoi, et ce que ça répare vraiment
+Le mur d'entrée du 2026-08-12 vérifiait consciencieusement *qui* entre. Mais
+l'inscription est ouverte à tout le monde depuis le 2026-08-11 : il prouvait
+donc une identité que le visiteur venait de se délivrer à lui-même en trente
+secondes. Il répondait « qui es-tu », jamais « as-tu le droit d'être là ».
+
+Ce n'est **pas** un mur de paiement. `STRIPE_ENABLED` reste à `false`, rien ne
+s'achète, rien n'expire. C'est une liste d'invités.
+
+### Les deux questions, et leur cumul
+`src/lib/auth/access.ts` porte les deux, et elles ne se remplacent pas :
+
+| | question | dépend de `STRIPE_ENABLED` ? |
+|---|---|---|
+| `estActive(sub)` | cette personne est-elle **invitée** ? | non — vaut toujours |
+| `isActive(sub.status)` | cette personne a-t-elle **payé** ? | oui — ignoré tant qu'il est faux |
+
+Le jour où Stripe s'allume, un invité non abonné sera refusé par la seconde, et
+un abonné non invité par la première.
+
+⚠️ **`activated === true`, jamais un test de véracité.** `undefined` veut dire
+« la question n'a pas de réponse » (migration non jouée, lecture ratée, pas de
+ligne d'abonnement) — et une question sans réponse ne peut pas valoir « oui ».
+C'est la règle qui manquait le 2026-08-12, quand l'échec d'une vérification
+ouvrait l'app en grand.
+
+### Trois trous rebouchés en même temps, tous dans le même sens
+1. **L'échec de lecture n'ouvre plus.** `resolve()` s'autorisait à conclure
+   « ready » quand `fetchSubscription` échouait et que Stripe était éteint. Il
+   n'y avait alors « aucun droit à vérifier » ; il y en a un maintenant, et
+   toujours. Le jeton n'est pas effacé pour autant — une panne n'est pas un
+   refus, et un 500 passager ne doit pas coûter son délai de grâce hors ligne à
+   quelqu'un de légitime.
+2. **Le mode hors ligne ne contourne plus l'activation.** Sans quoi le chemin
+   le plus court pour entrer sans invitation était : s'inscrire, se voir
+   refuser, couper le réseau, relancer. La méta sur disque porte désormais
+   `activated`, et le délai de grâce l'exige autant que la date.
+   ⚠️ Corollaire d'ordre : `memoriser()` est appelée **avant** la vérification
+   (le `refresh_token` que GoTrue vient de faire tourner est le seul valide, ne
+   pas l'écrire condamnerait le prochain démarrage), donc elle écrit d'abord
+   `activated: false`. `marquerActive()` repasse derrière. Tué entre les deux,
+   ce qui reste sur le disque dit « non activé » : l'erreur va dans le bon sens.
+3. **Un refus ne peut plus être silencieux.** `LoginScreen` n'affichait que les
+   erreurs de sa propre promesse, jamais l'état `error` du hook. Un compte non
+   activé aurait vu le bouton « Se connecter » s'arrêter de tourner et l'écran
+   ne rien dire. D'où deux ajouts : `resolve()` **rend** le motif du refus (et
+   `signIn`/`signUp` le lèvent), et `Mur` passe `erreurInitiale` — qui répare
+   aussi, au passage, les messages de démarrage muets depuis le 2026-08-12
+   (« hors ligne depuis plus de 30 jours » ne s'affichait nulle part).
+
+### Pas d'écran « en attente », volontairement
+Le refusé retourne au mur de connexion, pas vers `SubscriptionRequired` : cet
+écran propose d'acheter, et il n'y a rien à vendre. Il n'y a rien à *faire* dans
+l'app tant qu'on n'est pas invité — donc rien à montrer d'autre que la porte et
+la raison pour laquelle elle est close.
+
+### Côté base
+`shale-site/supabase/migrations/003_activation.sql` : table `public.activations`
+(aucune politique d'écriture — personne ne s'active soi-même), `is_activated()`,
+et la vue `my_subscription` qui expose `activated`. Le mode d'emploi — activer,
+révoquer, lister ceux qui attendent, tout ouvrir — est en §5 du fichier.
+
+⚠️ **Cette migration recrée `my_subscription`, que `schema.sql` remplace.** Tout
+rejeu de `schema.sql` doit être suivi d'un rejeu de `003_activation.sql`, sinon
+la colonne disparaît, l'app lit `undefined`, et **plus personne n'entre**.
+
+⚠️ **La révocation n'est pas instantanée** sur une app déjà ouverte : elle est
+constatée au prochain démarrage, et le mode hors ligne tolère jusqu'à
+`GRACE_JOURS` (30). Compromis assumé, hérité du mur d'entrée.
+
+### Vérifié
+- **25 tests d'auth**, dont deux fichiers neufs : `activation.sql.test.ts` joue
+  `schema.sql` + la migration sur un vrai Postgres (PGlite) — RLS comprise — et
+  `access.test.ts` verrouille la règle du `=== true`.
+  ⚠️ Le banc accorde **volontairement** `insert/update/delete` à `authenticated`
+  sur `activations` : Supabase le fait (`grant all … to authenticated`), et ne
+  donner que `select` ferait échouer les tentatives sur un « permission denied »
+  — un banc plus sévère que la production, donc des politiques jamais éprouvées.
+  C'est le premier jet de ce test, et il passait pour cette mauvaise raison.
+- 237 tests + `tsc` + build : verts.
+
+### Non vérifié
+- **Rien n'a été joué sur le vrai projet Supabase** : la migration est écrite et
+  testée sur PGlite, pas exécutée. Tant qu'elle ne l'est pas, `activated`
+  n'existe pas dans la vue, `fetchSubscription` échoue en 400, et **l'app ne
+  s'ouvre plus pour personne** — y compris le compte propriétaire.
+- L'app native n'a pas été relancée après ces changements.
+
+## La synchronisation bloquée par un doublon dans son propre lot (2026-08-13)
+
+Constaté sur un vrai compte, pas en test : la file est passée de 1400 entrées à
+32 puis n'a plus jamais bougé. `sync_state` contenait **exactement 50** lignes —
+soit `TAILLE_LOT` — et `last_push_at` était **vide** alors que 50 entités
+étaient parties. Ces deux faits ensemble ne laissent qu'une lecture : le premier
+lot est passé, le second a **levé**, et `envoyer()` n'a jamais atteint sa
+dernière ligne.
+
+### La cause
+`outbox.ts`, fonction `cle()` :
+
+```js
+return e.op === "delete" ? `${e.table_name}!${e.uid}` : `${e.table_name}#${e.row_id}`;
+```
+
+**Les suppressions sont regroupées par `uid`, les créations par `rowid`.**
+Supprimer puis recréer une ligne donne donc DEUX entités — qui portent le même
+`uid` dès lors que celui-ci est **déterministe**. Deux tables seulement sont
+dans ce cas : `habit_checks` (`hc:<habitude>:<date>`) et `metric_entries`
+(`me:<métrique>:<date>`). Partout ailleurs l'uid est un uuid tiré au sort, donc
+une recréation en produit un autre et rien ne se télescope.
+
+Cocher, décocher, recocher la même habitude le même jour suffit. Les deux
+entités s'aveuglent vers le même `row_tag`, atterrissent dans le même envoi, et
+`insert … on conflict do update` refuse d'affecter deux fois la même ligne :
+Postgres lève `21000` et **rejette le lot entier**.
+⚠️ `Prefer: resolution=merge-duplicates` n'y peut rien — il arbitre entre le lot
+et la table, pas à l'intérieur du lot.
+
+**Ce n'est pas une écriture perdue, c'est un bouchon.** L'exception traverse
+`envoyer()`, donc rien n'est purgé, rien n'est noté, et le même lot repart
+échouer à l'identique toutes les 90 s. Comme les tables filles sont envoyées en
+DERNIER (ordre parent → enfant), tout ce qui les suit reste derrière elles.
+Indéfiniment, et sans que rien ne le signale.
+
+### Pourquoi 30 tests d'engine ne l'ont pas vu
+Le serveur simulé d'`engine.testutil.ts` écrivait les lignes une par une dans
+une `Map` : deux fois la même clé, le dernier gagnait, tout allait bien. Il
+déclarait donc conforme un envoi que le vrai serveur renvoie en 400.
+
+C'est exactement le cas prévu par la consigne de ce fichier — « corriger **le
+simulateur ET le code**, jamais le seul code ». Le simulateur refuse désormais
+un lot contenant deux fois le même `(table_tag, row_tag)`, avec le message de
+Postgres. Les 30 tests existants passent toujours : aucun ne jouait ce cas.
+
+### Le correctif, et pourquoi il est dans `engine.ts` et pas dans `outbox.ts`
+Dédoublonnage par `(table_tag, row_tag)` juste avant l'envoi, le plus récent
+l'emportant (`client_ts`, puis l'ordre d'écriture local) ; le perdant est purgé
+avec le lot, il est *superseded*, pas perdu.
+
+⚠️ **Le corriger dans `regrouper()` n'était pas possible** : l'uid d'une
+création y est souvent `null` (le piège des triggers, documenté dans
+`outbox.ts`), donc l'identité logique n'y est pas toujours connue. Elle ne l'est
+qu'une fois le `row_tag` calculé — c'est-à-dire à l'endroit précis où le
+serveur, lui, tranchera.
+
+### Vérifié
+Un test rejoue le cas réel (cocher / décocher / recocher, plus une écriture
+d'une autre table derrière) et vérifie les trois choses qui comptent : la coche
+arrive, **la ligne suivante arrive aussi**, et la file est vide. Il échouait
+avec le message exact du serveur avant le correctif. 255 tests macOS,
+263 Windows.
+
+### Non résolu
+La file d'un vrai compte ne se débloquera qu'avec une app **reconstruite** : le
+binaire livré porte le défaut. Les 32 entrées en attente repartiront seules au
+premier cycle de la nouvelle version.

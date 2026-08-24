@@ -1314,4 +1314,12 @@ export const EN: Record<string, string> = {
     "Offline for more than {n} days. Sign in again once you are back online.",
   "La première connexion demande une connexion Internet.":
     "The first sign-in needs an internet connection.",
+
+  // ── Activation du compte (2026-08-13) ─────────────────────────────────────
+  "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.":
+    "This account isn’t activated yet. Access to Shale is granted one account at a time — get in touch through the website to request yours.",
+  "L'activation de ce compte n'a pas encore été vérifiée. Connecte-toi une fois en ligne.":
+    "This account’s activation hasn’t been verified yet. Sign in once you are back online.",
+  "Vérification du compte impossible.":
+    "Couldn’t verify your account.",
 };

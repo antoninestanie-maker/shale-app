@@ -286,6 +286,47 @@ describe("suppressions", () => {
     expect(a.lire<{ n: number }>("SELECT COUNT(*) AS n FROM habits")[0].n).toBe(0);
     expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM habits")[0].n).toBe(0);
   });
+
+  // ── Cocher, décocher, recocher ────────────────────────────────────────────
+  // Le cas qui a bloqué une vraie synchronisation le 2026-08-13, et qu'aucun
+  // des 30 tests précédents ne jouait.
+  //
+  // `habit_checks` et `metric_entries` sont les SEULES tables dont l'uid est
+  // déterministe (`hc:<habitude>:<date>`) au lieu d'être un uuid tiré au sort.
+  // Recocher la même habitude le même jour recrée donc une ligne portant le
+  // MÊME uid, mais un NOUVEAU `rowid`. Or la file regroupe les suppressions par
+  // uid et les créations par `rowid` : deux entités distinctes en sortent, qui
+  // s'aveuglent vers le même `row_tag` — donc deux fois la même clé primaire
+  // dans un seul envoi, ce que Postgres refuse en bloc.
+  //
+  // Conséquence, et c'est elle qui fait mal : le lot entier échoue, `envoyer()`
+  // lève avant d'avoir noté quoi que ce soit, et **toutes les écritures
+  // suivantes restent en file pour toujours**. Rien ne le signale.
+  it("une coche supprimée puis recréée le même jour part sans casser le lot", async () => {
+    const habitId = a.ecrire("INSERT INTO habits (name) VALUES ('sport')").lastInsertRowid;
+    a.ecrire("INSERT INTO habit_checks (habit_id, date) VALUES (?, '2026-08-09')", habitId);
+    await converger();
+
+    // Décoché, puis recoché : même uid, rowid neuf.
+    a.ecrire("DELETE FROM habit_checks WHERE habit_id = ? AND date = '2026-08-09'", habitId);
+    a.ecrire("INSERT INTO habit_checks (habit_id, date) VALUES (?, '2026-08-09')", habitId);
+
+    // Une écriture d'une AUTRE table, postérieure : c'est elle qui prouve que
+    // le blocage ne s'arrête pas à la coche. Rangée après les filles dans
+    // l'ordre d'envoi, elle ne partait jamais.
+    a.ecrire("INSERT INTO notes (title, body) VALUES ('après la coche', 'x')");
+
+    await converger();
+
+    expect(
+      b.lire<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM habit_checks WHERE date = '2026-08-09'",
+      )[0].n,
+    ).toBe(1);
+    expect(b.lire<{ n: number }>("SELECT COUNT(*) AS n FROM notes")[0].n).toBe(1);
+    // La file est vide : rien n'est resté coincé derrière.
+    expect(a.lire<{ n: number }>("SELECT COUNT(*) AS n FROM sync_outbox")[0].n).toBe(0);
+  });
 });
 
 describe("économie et absence de boucle", () => {

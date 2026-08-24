@@ -172,17 +172,48 @@ async function envoyer(ctx: Contexte, versTag: Map<string, string>): Promise<num
   for (let i = 0; i < aPousser.length; i += TAILLE_LOT) {
     const lot = aPousser.slice(i, i + TAILLE_LOT);
 
-    const lignes: LigneAEnvoyer[] = [];
-    const retenus: ChangementEnAttente[] = [];
+    // ── Une ligne serveur ne peut apparaître QU'UNE FOIS par envoi ──────────
+    // `insert … on conflict do update` refuse d'affecter deux fois la même
+    // ligne dans une seule commande : Postgres lève `21000` et **rejette tout
+    // le lot**. `Prefer: resolution=merge-duplicates` n'y peut rien, il arbitre
+    // entre le lot et la table, pas à l'intérieur du lot.
+    //
+    // Deux entrées de la file peuvent viser la même ligne serveur, parce que
+    // `regrouper()` (voir `outbox.ts`) clé les suppressions par `uid` et les
+    // créations par `rowid`. Supprimer puis recréer une ligne à uid
+    // DÉTERMINISTE — `habit_checks` (`hc:<habitude>:<date>`) et
+    // `metric_entries`, les deux seules — produit donc deux entités portant le
+    // même uid, donc le même `row_tag`.
+    //
+    // On ne peut PAS régler ça dans `regrouper()` : l'uid d'une création y est
+    // souvent `null` (voir le piège des triggers, `outbox.ts`), donc l'identité
+    // logique n'y est pas toujours connue. Elle ne l'est qu'ICI, une fois le
+    // `row_tag` calculé — c'est-à-dire à l'endroit exact où le serveur, lui,
+    // tranchera. C'est donc ici que le dédoublonnage a sa place.
+    //
+    // Le vainqueur est le plus récent, à la même règle que le last-write-wins
+    // du serveur : `client_ts`, puis l'ordre d'écriture local. Le perdant est
+    // purgé avec le lot — il est superseded, pas perdu.
+    const parLigneServeur = new Map<string, { ligne: LigneAEnvoyer; c: ChangementEnAttente }>();
     for (const c of lot) {
       const prete = await preparerEnvoi(ctx, versTag, c);
       // Rien à envoyer (ligne disparue, table inconnue) : l'entrée est quand
       // même purgée, sinon elle resterait bloquée en tête de file pour toujours.
-      if (prete) {
-        lignes.push(prete);
-        retenus.push(c);
+      if (!prete) continue;
+
+      const cle = `${prete.table_tag}|${prete.row_tag}`;
+      const ancien = parLigneServeur.get(cle);
+      if (
+        !ancien ||
+        prete.client_ts > ancien.ligne.client_ts ||
+        (prete.client_ts === ancien.ligne.client_ts && c.jusquA > ancien.c.jusquA)
+      ) {
+        parLigneServeur.set(cle, { ligne: prete, c });
       }
     }
+
+    const lignes = [...parLigneServeur.values()].map((v) => v.ligne);
+    const retenus = [...parLigneServeur.values()].map((v) => v.c);
 
     // ⚠️ L'ordre compte : on n'efface la file QU'APRÈS un envoi accepté. Si le
     // réseau tombe ici, tout repart au prochain passage — le serveur ignorera
