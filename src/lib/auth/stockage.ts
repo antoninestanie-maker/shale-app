@@ -66,6 +66,20 @@ export interface MetaSession {
   email: string;
   /** Dernière fois que le SERVEUR a confirmé cette session (epoch ms). */
   lastVerifiedAt: number;
+  /**
+   * Le serveur a-t-il confirmé que ce compte est ACTIVÉ ?
+   *
+   * ⚠️ C'est ce champ qui empêche le mode hors ligne de contourner
+   * l'activation. Sans lui : on s'inscrit, on se voit refuser l'entrée, on
+   * coupe le réseau, et le délai de grâce ouvre l'app pendant trente jours à
+   * un compte qui n'a jamais eu le droit d'entrer.
+   *
+   * Absent (`undefined`) sur une méta écrite avant le 2026-08-13, et lu comme
+   * « non activé » : la première ouverture après mise à jour redemandera donc
+   * une connexion en ligne à qui était hors ligne. Un aller-retour réseau
+   * contre un trou dans le mur, c'est le bon échange.
+   */
+  activated?: boolean;
 }
 
 let trousseauOk: boolean | null = null;
@@ -94,11 +108,16 @@ export async function stockageSecurise(): Promise<boolean> {
 
 // ── Écriture ────────────────────────────────────────────────────────────────
 
-export async function memoriser(session: Session, lastVerifiedAt: number): Promise<void> {
+export async function memoriser(
+  session: Session,
+  lastVerifiedAt: number,
+  activated: boolean,
+): Promise<void> {
   const meta: MetaSession = {
     userId: session.user.id,
     email: session.user.email,
     lastVerifiedAt,
+    activated,
   };
   try {
     localStorage.setItem(CLE_META, JSON.stringify(meta));
@@ -123,6 +142,28 @@ export async function memoriser(session: Session, lastVerifiedAt: number): Promi
     localStorage.setItem(CLE_REFRESH, session.refresh_token);
   } catch {
     /* rien à faire : la session ne survivra pas à la fermeture */
+  }
+}
+
+/**
+ * Note que le serveur vient de confirmer l'activation du compte.
+ *
+ * Écrit la MÉTA SEULE, sans repasser par le trousseau : c'est un fait de plus
+ * sur une session déjà rangée, pas une nouvelle session. L'ordre importe —
+ * `memoriser` est appelée AVANT la vérification (pour ne pas perdre le
+ * `refresh_token` que GoTrue vient de faire tourner), donc elle écrit toujours
+ * `activated: false` d'abord. Si l'app est tuée entre les deux, ce qui reste
+ * sur le disque dit « non activé », et le mode hors ligne refuse. Le sens de
+ * l'erreur est le bon.
+ */
+export function marquerActive(): void {
+  try {
+    const brut = localStorage.getItem(CLE_META);
+    if (!brut) return;
+    const m = JSON.parse(brut) as MetaSession;
+    localStorage.setItem(CLE_META, JSON.stringify({ ...m, activated: true }));
+  } catch {
+    /* stockage indisponible : le mode hors ligne redemandera une connexion */
   }
 }
 
