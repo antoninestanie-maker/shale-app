@@ -2077,3 +2077,24 @@ avec le message exact du serveur avant le correctif. 255 tests macOS,
 La file d'un vrai compte ne se débloquera qu'avec une app **reconstruite** : le
 binaire livré porte le défaut. Les 32 entrées en attente repartiront seules au
 premier cycle de la nouvelle version.
+
+## Règle : Antonin n'utilise jamais le Terminal
+
+**Il n'est pas développeur.** Il ne doit avoir à taper aucune commande.
+Demandé explicitement le 2026-08-24. La règle est écrite en entier dans
+`~/Desktop/Shale-projet/shale-site/CLAUDE.md` ; l'essentiel :
+
+- **Exécuter, ne pas prescrire.** Une liste de commandes à recopier n'est pas
+  un livrable — c'est un travail terminé transformé en travail bloqué.
+- Ce qui reste hors de portée se décrit en **gestes d'interface** (nom de
+  l'app, nom du bouton), jamais en commandes.
+- Ordre de préférence : je le fais → app graphique → double-clic sur un
+  `.command`, en précisant qu'il n'aura rien à taper.
+- Ne jamais lui faire ouvrir un fichier pour en copier le contenu.
+
+⚠️ Hors de portée d'une session non interactive, à dire au lieu de le laisser
+croire fait : **`git push`** (le trousseau ne se déverrouille pas sans session
+graphique — `ls-remote` passe, `push` échoue en `could not read Username`) et
+**jouer du SQL sur Supabase** (ni `service_role`, ni CLI). En revanche
+*vérifier* le résultat d'une migration se fait très bien en `curl` avec la clé
+anon : le faire, plutôt que de demander « ça a marché ? ».
