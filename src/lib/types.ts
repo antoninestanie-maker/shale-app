@@ -245,6 +245,99 @@ export interface BenchmarkResult {
   created_at: string; // YYYY-MM-DD HH:MM:SS (local)
 }
 
+// ── Finance ──────────────────────────────────────────────────────────────────
+// ⚠️ Tous les montants sont des ENTIERS SIGNÉS EN CENTIMES, et les quantités et
+// taux des entiers à l'échelle 10⁻⁸ (suffixe `_e8`). Aucun `number` de ce bloc
+// ne représente une valeur décimale : voir l'en-tête de la migration 018.
+
+export type FinanceAccountKind =
+  | "courant"
+  | "epargne"
+  | "investissement"
+  | "trading"
+  | "credit"
+  | "especes";
+
+export interface FinanceAccount {
+  id: number;
+  label: string;
+  kind: FinanceAccountKind;
+  currency: string; // ISO 4217
+  institution: string | null;
+  is_liquid: number; // SQLite: 0 | 1 — décide de ce qui entre dans le runway
+  archived: number; // SQLite: 0 | 1
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceBalance {
+  id: number;
+  account_id: number;
+  date: string; // YYYY-MM-DD
+  /** Signé : un compte de crédit porte un solde négatif. */
+  amount_cents: number;
+  created_at: string;
+}
+
+export type FinanceDirection = "entree" | "sortie";
+export type FinanceFrequency = "hebdo" | "mensuel" | "trimestriel" | "annuel";
+
+export interface FinanceCategory {
+  id: number;
+  name: string;
+  kind: FinanceDirection;
+  color: string | null;
+  position: number;
+  created_at: string;
+}
+
+export interface FinanceRecurring {
+  id: number;
+  label: string;
+  /** TOUJOURS positif : c'est `direction` qui porte le sens. */
+  amount_cents: number;
+  direction: FinanceDirection;
+  frequency: FinanceFrequency;
+  /** Jour du mois (1–31), ou jour de semaine (1 = lundi … 7 = dimanche) si hebdo. */
+  day_of_period: number | null;
+  category_id: number | null;
+  account_id: number | null;
+  active_from: string; // YYYY-MM-DD
+  active_to: string | null; // NULL = toujours actif
+  created_at: string;
+  updated_at: string;
+}
+
+export type FinanceSource = "yahoo" | "binance" | "manuel";
+
+export interface FinanceHolding {
+  id: number;
+  account_id: number;
+  symbol: string;
+  /** Quantité à l'échelle 10⁻⁸ (la crypto l'impose : 0,00000001 BTC est légitime). */
+  quantity_e8: number;
+  cost_basis_cents: number | null;
+  source: FinanceSource;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceQuote {
+  symbol: string;
+  price_e8: number;
+  currency: string;
+  source: "yahoo" | "binance";
+  fetched_at: string; // ISO UTC
+}
+
+export interface FinanceFxRate {
+  base: string;
+  quote: string;
+  rate_e8: number;
+  fetched_at: string; // ISO UTC
+}
+
 export interface AppData {
   tasks: Task[];
   completions: Completion[];

@@ -9,6 +9,18 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/**/*.test.ts", "src/**/*.testutil.ts", "src/lib/sync/env.d.ts"],
+  /* ⚠️ `src/vite-env.d.ts` est indispensable ici, et il n'y était pas.
+     Il porte la référence à `vite/client`, qui déclare `import.meta.env`. Le
+     `include` de l'app le ramasse au passage (`["src"]`) ; celui des tests,
+     nominatif, l'oubliait. Tant qu'aucun test n'atteignait `i18n/index.ts`,
+     l'oubli restait invisible — le premier test dont la chaîne d'imports y
+     mène fait échouer `npm run test:types` sur un `import.meta.env` inconnu,
+     très loin du fichier qu'on venait d'écrire. */
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.testutil.ts",
+    "src/lib/sync/env.d.ts",
+    "src/vite-env.d.ts"
+  ],
   "exclude": []
 }
