@@ -10,6 +10,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { formaterCents, parseMontantEnCents } from "../../lib/finance/montants";
 import { localeTag, t } from "../../lib/i18n";
 
+/** Centimes → texte éditable, virgule française. `null` donne un champ vide. */
+const enTexte = (cents: number | null) =>
+  cents === null ? "" : (cents / 100).toFixed(2).replace(".", ",");
+
 export const inputCls =
   "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
 export const labelCls = "mb-1.5 block text-xs font-medium text-text-dim";
@@ -37,17 +41,29 @@ export function ChampMontant({
   placeholder?: string;
   autoFocus?: boolean;
 }) {
-  const [texte, setTexte] = useState(() =>
-    valeurCents === null ? "" : (valeurCents / 100).toFixed(2).replace(".", ","),
-  );
+  const [texte, setTexte] = useState(() => enTexte(valeurCents));
 
-  // Resynchronisation quand la valeur change AILLEURS (ouverture du formulaire
-  // sur une autre ligne). Sans ce garde-fou, rouvrir le même dialogue pour un
-  // autre compte réafficherait le montant précédent.
+  /**
+   * Resynchronisation quand la valeur vient D'AILLEURS — le bouton qui propose
+   * la valeur du calculateur de position, par exemple.
+   *
+   * ⚠️ LE PIÈGE, ET IL A MORDU. La version précédente se déclenchait dès que
+   * `valeurCents` passait de `null` à un nombre : autrement dit au PREMIER
+   * chiffre tapé. Saisir « 9 » réécrivait aussitôt le champ en « 9,00 », le
+   * curseur sautait derrière la virgule, et le chiffre suivant produisait
+   * « 9,005 ». Le champ devenait inutilisable pour tout montant à plus d'un
+   * chiffre.
+   *
+   * La garde correcte ne regarde pas D'OÙ vient la valeur mais si elle
+   * CONTREDIT ce qui est affiché : tant que le texte à l'écran produit déjà la
+   * valeur reçue, c'est que l'utilisateur est en train de taper, et on ne
+   * touche à rien. `?? 0` parce qu'un champ vide et un zéro saisi désignent le
+   * même montant côté parent — sans ça, taper « 0 » effaçait le champ.
+   */
   useEffect(() => {
-    setTexte(valeurCents === null ? "" : (valeurCents / 100).toFixed(2).replace(".", ","));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valeurCents === null]);
+    if ((parseMontantEnCents(texte) ?? 0) === (valeurCents ?? 0)) return;
+    setTexte(enTexte(valeurCents));
+  }, [valeurCents, texte]);
 
   return (
     <Champ label={label}>
