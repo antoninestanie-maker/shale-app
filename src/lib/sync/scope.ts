@@ -29,7 +29,6 @@ export const TABLES_SYNC = [
   "notes",
   "journal_entries",
   "trades",
-  "benchmark_results",
   "knowledge_topics",
   "position_size_calculations",
   "finance_accounts",
@@ -70,6 +69,8 @@ export const TABLES_HORS_SYNC: Readonly<Record<string, string>> = {
   notes_fts_idx: "Stockage interne de FTS5.",
   notes_fts_docsize: "Stockage interne de FTS5.",
   notes_fts_config: "Stockage interne de FTS5.",
+  benchmark_results:
+    "Module retiré le 2026-08-25, remplacé par Finance (migration 019). La table n'existe plus : cette entrée est documentaire, et elle explique aussi pourquoi les lignes déjà envoyées vers Supabase ne peuvent pas revenir — sans son nom dans TABLES_SYNC, le moteur ne sait plus calculer son empreinte, ni pour émettre ni pour recevoir.",
   goal_progress_log:
     "Instantané quotidien de progression, ré-écrit à chaque lancement par snapshotGoals(). L'historique se reconstitue seul et n'a de sens que localement.",
   market_briefings:

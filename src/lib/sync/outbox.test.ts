@@ -92,7 +92,7 @@ describe("capture des écritures par les triggers", () => {
       ["tags", "INSERT INTO tags (name, color) VALUES ('trading', '#fff')"],
       ["quick_links", "INSERT INTO quick_links (label, url) VALUES ('l', 'https://x')"],
       ["focus_sessions", "INSERT INTO focus_sessions (started_at, planned_min) VALUES ('2026-08-02 10:00:00', 25)"],
-      ["benchmark_results", "INSERT INTO benchmark_results (test, score, created_at) VALUES ('reaction', 250, '2026-08-02 10:00:00')"],
+      ["finance_accounts", "INSERT INTO finance_accounts (label, kind) VALUES ('Courant', 'courant')"],
       ["knowledge_topics", "INSERT INTO knowledge_topics (name, created_at) VALUES ('k', '2026-08-02 10:00:00')"],
       ["custom_metrics", "INSERT INTO custom_metrics (name) VALUES ('poids')"],
       ["notes", "INSERT INTO notes (title, body) VALUES ('n', 'b')"],

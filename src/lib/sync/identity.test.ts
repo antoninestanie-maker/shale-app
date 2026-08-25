@@ -40,7 +40,8 @@ describe("uid aléatoire (tables à identité arbitraire)", () => {
     ["trades", "INSERT INTO trades (date, instrument, direction, result_r) VALUES ('2026-08-02', 'NQ', 'long', 2)"],
     ["knowledge_topics", "INSERT INTO knowledge_topics (name, created_at) VALUES ('k', '2026-08-02 10:00:00')"],
     ["knowledge_entries", "INSERT INTO knowledge_entries (title, created_at, updated_at) VALUES ('e', '2026-08-02 10:00:00', '2026-08-02 10:00:00')"],
-    ["benchmark_results", "INSERT INTO benchmark_results (test, score, created_at) VALUES ('reaction', 250, '2026-08-02 10:00:00')"],
+    ["finance_accounts", "INSERT INTO finance_accounts (label, kind) VALUES ('Courant', 'courant')"],
+    ["finance_recurring", "INSERT INTO finance_recurring (label, amount_cents, direction, frequency, active_from) VALUES ('Loyer', 95000, 'sortie', 'mensuel', '2026-01-01')"],
     ["live_positions", "INSERT INTO live_positions (opened_at, pair, direction, entry_price, stop_loss_price) VALUES ('2026-08-02 10:00:00', 'EURUSD', 'long', 1.1, 1.09)"],
     ["position_size_calculations", "INSERT INTO position_size_calculations (capital, risk_percent, pair, entry_price, stop_loss_price, include_spread, direction, sl_distance_pips, position_size_lots, risk_amount_usd) VALUES (5000, 1, 'EURUSD', 1.1, 1.09, 1, 'long', 100, 0.5, 50)"],
   ];

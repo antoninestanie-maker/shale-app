@@ -166,6 +166,12 @@ pub fn run() {
             sql: include_str!("../migrations/018_finance.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 19,
+            description: "drop_benchmark",
+            sql: include_str!("../migrations/019_drop_benchmark.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
