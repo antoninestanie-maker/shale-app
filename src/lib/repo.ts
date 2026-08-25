@@ -10,6 +10,17 @@ import type {
   BenchTest,
   Completion,
   CustomMetric,
+  FinanceAccount,
+  FinanceAccountKind,
+  FinanceBalance,
+  FinanceCategory,
+  FinanceDirection,
+  FinanceFrequency,
+  FinanceFxRate,
+  FinanceHolding,
+  FinanceQuote,
+  FinanceRecurring,
+  FinanceSource,
   FocusSession,
   Goal,
   GoalProgressPoint,
@@ -1089,4 +1100,299 @@ export async function deleteTag(tag: Tag): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET tag = NULL WHERE tag = $1", [tag.name]);
   await db.execute("DELETE FROM tags WHERE id = $1", [tag.id]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Finance
+// ─────────────────────────────────────────────────────────────────────────────
+// Le module charge ses données SEUL, à l'ouverture de sa vue, et pas via
+// `fetchAll()`. C'est le patron du Savoir, choisi pour la même raison : ces
+// tables n'ont rien à faire dans le rafraîchissement global que déclenche la
+// moindre case cochée sur le tableau de bord.
+//
+// ⚠️ LES SUPPRESSIONS SONT EXPLICITES, ENFANTS D'ABORD. Les clés étrangères sont
+// déclarées dans le schéma, mais `PRAGMA foreign_keys` n'est pas activé par
+// tauri-plugin-sql : SQLite ne cascade donc rien. Supprimer un compte sans
+// supprimer ses relevés laisserait des lignes orphelines — qui continueraient
+// d'exister, et de se synchroniser, sans plus rien désigner. Chaque `DELETE`
+// explicite déclenche en outre sa pierre tombale (migration 018), donc la
+// suppression voyage jusqu'aux autres appareils.
+
+export interface FinanceData {
+  comptes: FinanceAccount[];
+  balances: FinanceBalance[];
+  recurrents: FinanceRecurring[];
+  categories: FinanceCategory[];
+  holdings: FinanceHolding[];
+  quotes: FinanceQuote[];
+  fx: FinanceFxRate[];
+}
+
+export async function fetchFinance(): Promise<FinanceData> {
+  if (!isTauri) return demo.fetchFinance();
+  const db = await getDb();
+  const [comptes, balances, recurrents, categories, holdings, quotes, fx] = await Promise.all([
+    db.select<FinanceAccount[]>("SELECT * FROM finance_accounts ORDER BY position, id"),
+    db.select<FinanceBalance[]>("SELECT * FROM finance_balances ORDER BY date"),
+    db.select<FinanceRecurring[]>("SELECT * FROM finance_recurring ORDER BY direction, label"),
+    db.select<FinanceCategory[]>("SELECT * FROM finance_categories ORDER BY position, id"),
+    db.select<FinanceHolding[]>("SELECT * FROM finance_holdings ORDER BY symbol"),
+    db.select<FinanceQuote[]>("SELECT * FROM finance_quotes_cache"),
+    db.select<FinanceFxRate[]>("SELECT * FROM finance_fx_cache"),
+  ]);
+  return { comptes, balances, recurrents, categories, holdings, quotes, fx };
+}
+
+export interface FinanceAccountInput {
+  label: string;
+  kind: FinanceAccountKind;
+  currency: string;
+  institution: string | null;
+  is_liquid: boolean;
+}
+
+export async function createFinanceAccount(input: FinanceAccountInput): Promise<number> {
+  if (!isTauri) return demo.createFinanceAccount(input, localNow());
+  const db = await getDb();
+  const rows = await db.select<{ next: number | null }[]>(
+    "SELECT MAX(position) + 1 AS next FROM finance_accounts",
+  );
+  const res = await db.execute(
+    `INSERT INTO finance_accounts (label, kind, currency, institution, is_liquid, position, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`,
+    [
+      input.label,
+      input.kind,
+      input.currency,
+      input.institution,
+      input.is_liquid ? 1 : 0,
+      rows[0]?.next ?? 0,
+      localNow(),
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateFinanceAccount(
+  id: number,
+  input: FinanceAccountInput,
+): Promise<void> {
+  if (!isTauri) return demo.updateFinanceAccount(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE finance_accounts
+        SET label = $1, kind = $2, currency = $3, institution = $4, is_liquid = $5, updated_at = $6
+      WHERE id = $7`,
+    [
+      input.label,
+      input.kind,
+      input.currency,
+      input.institution,
+      input.is_liquid ? 1 : 0,
+      localNow(),
+      id,
+    ],
+  );
+}
+
+/** Archive plutôt que supprimer : l'historique des relevés garde sa valeur. */
+export async function archiveFinanceAccount(id: number, archive: boolean): Promise<void> {
+  if (!isTauri) return demo.archiveFinanceAccount(id, archive, localNow());
+  const db = await getDb();
+  await db.execute("UPDATE finance_accounts SET archived = $1, updated_at = $2 WHERE id = $3", [
+    archive ? 1 : 0,
+    localNow(),
+    id,
+  ]);
+}
+
+/** Suppression définitive, relevés et positions compris. */
+export async function deleteFinanceAccount(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteFinanceAccount(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM finance_balances WHERE account_id = $1", [id]);
+  await db.execute("DELETE FROM finance_holdings WHERE account_id = $1", [id]);
+  await db.execute("UPDATE finance_recurring SET account_id = NULL WHERE account_id = $1", [id]);
+  await db.execute("DELETE FROM finance_accounts WHERE id = $1", [id]);
+}
+
+/**
+ * Enregistre un relevé. C'est LE geste fréquent du module — celui qui doit
+ * tenir en deux clics — et il est idempotent : ressaisir le solde du même
+ * compte au même jour corrige la valeur au lieu d'empiler une seconde ligne.
+ */
+export async function saveFinanceBalance(
+  accountId: number,
+  date: string,
+  amountCents: number,
+): Promise<void> {
+  if (!isTauri) return demo.saveFinanceBalance(accountId, date, amountCents, localNow());
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO finance_balances (account_id, date, amount_cents, created_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT(account_id, date) DO UPDATE SET amount_cents = $3`,
+    [accountId, date, amountCents, localNow()],
+  );
+}
+
+export async function deleteFinanceBalance(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteFinanceBalance(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM finance_balances WHERE id = $1", [id]);
+}
+
+export interface FinanceRecurringInput {
+  label: string;
+  amount_cents: number;
+  direction: FinanceDirection;
+  frequency: FinanceFrequency;
+  day_of_period: number | null;
+  category_id: number | null;
+  account_id: number | null;
+  active_from: string;
+  active_to: string | null;
+}
+
+export async function createFinanceRecurring(input: FinanceRecurringInput): Promise<number> {
+  if (!isTauri) return demo.createFinanceRecurring(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO finance_recurring
+       (label, amount_cents, direction, frequency, day_of_period, category_id, account_id, active_from, active_to, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
+    [
+      input.label,
+      input.amount_cents,
+      input.direction,
+      input.frequency,
+      input.day_of_period,
+      input.category_id,
+      input.account_id,
+      input.active_from,
+      input.active_to,
+      localNow(),
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateFinanceRecurring(
+  id: number,
+  input: FinanceRecurringInput,
+): Promise<void> {
+  if (!isTauri) return demo.updateFinanceRecurring(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE finance_recurring
+        SET label = $1, amount_cents = $2, direction = $3, frequency = $4, day_of_period = $5,
+            category_id = $6, account_id = $7, active_from = $8, active_to = $9, updated_at = $10
+      WHERE id = $11`,
+    [
+      input.label,
+      input.amount_cents,
+      input.direction,
+      input.frequency,
+      input.day_of_period,
+      input.category_id,
+      input.account_id,
+      input.active_from,
+      input.active_to,
+      localNow(),
+      id,
+    ],
+  );
+}
+
+export async function deleteFinanceRecurring(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteFinanceRecurring(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM finance_recurring WHERE id = $1", [id]);
+}
+
+export async function createFinanceCategory(
+  name: string,
+  kind: FinanceDirection,
+  color: string | null,
+): Promise<number> {
+  if (!isTauri) return demo.createFinanceCategory(name, kind, color, localNow());
+  const db = await getDb();
+  const rows = await db.select<{ next: number | null }[]>(
+    "SELECT MAX(position) + 1 AS next FROM finance_categories",
+  );
+  const res = await db.execute(
+    "INSERT INTO finance_categories (name, kind, color, position, created_at) VALUES ($1, $2, $3, $4, $5)",
+    [name, kind, color, rows[0]?.next ?? 0, localNow()],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+/** Les flux qui la portaient ne sont pas perdus : ils passent « sans catégorie ». */
+export async function deleteFinanceCategory(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteFinanceCategory(id);
+  const db = await getDb();
+  await db.execute("UPDATE finance_recurring SET category_id = NULL WHERE category_id = $1", [id]);
+  await db.execute("DELETE FROM finance_categories WHERE id = $1", [id]);
+}
+
+/**
+ * Enregistre une position.
+ *
+ * ⚠️ Le SYMBOLE n'est pas modifiable : l'uid de la ligne en dérive (migration
+ * 018), et le changer laisserait une identité qui ne correspond plus à rien sur
+ * les autres appareils. Corriger un symbole se fait en supprimant la ligne et
+ * en la recréant — ce que l'interface propose explicitement.
+ */
+export async function saveFinanceHolding(
+  accountId: number,
+  symbol: string,
+  quantityE8: number,
+  costBasisCents: number | null,
+  source: FinanceSource,
+): Promise<void> {
+  if (!isTauri)
+    return demo.saveFinanceHolding(accountId, symbol, quantityE8, costBasisCents, source, localNow());
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO finance_holdings (account_id, symbol, quantity_e8, cost_basis_cents, source, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $6)
+     ON CONFLICT(account_id, symbol)
+     DO UPDATE SET quantity_e8 = $3, cost_basis_cents = $4, source = $5, updated_at = $6`,
+    [accountId, symbol, quantityE8, costBasisCents, source, localNow()],
+  );
+}
+
+export async function deleteFinanceHolding(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteFinanceHolding(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM finance_holdings WHERE id = $1", [id]);
+}
+
+/** Écrit les cotations rafraîchies. Cache pur : hors synchronisation. */
+export async function saveFinanceQuotes(quotes: FinanceQuote[]): Promise<void> {
+  if (!isTauri) return demo.saveFinanceQuotes(quotes);
+  if (quotes.length === 0) return;
+  const db = await getDb();
+  for (const q of quotes) {
+    await db.execute(
+      `INSERT INTO finance_quotes_cache (symbol, price_e8, currency, source, fetched_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT(symbol) DO UPDATE SET price_e8 = $2, currency = $3, source = $4, fetched_at = $5`,
+      [q.symbol, q.price_e8, q.currency, q.source, q.fetched_at],
+    );
+  }
+}
+
+export async function saveFinanceFx(rates: FinanceFxRate[]): Promise<void> {
+  if (!isTauri) return demo.saveFinanceFx(rates);
+  if (rates.length === 0) return;
+  const db = await getDb();
+  for (const r of rates) {
+    await db.execute(
+      `INSERT INTO finance_fx_cache (base, quote, rate_e8, fetched_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT(base, quote) DO UPDATE SET rate_e8 = $3, fetched_at = $4`,
+      [r.base, r.quote, r.rate_e8, r.fetched_at],
+    );
+  }
 }

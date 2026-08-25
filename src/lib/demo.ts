@@ -2,6 +2,7 @@
 // Même API que le repo SQL — la logique métier (logic.ts) est partagée.
 import { theoreticalRR } from "./liveTracker";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
+import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type {
   Trade,
@@ -10,6 +11,15 @@ import type {
   BenchTest,
   Completion,
   CustomMetric,
+  FinanceAccount,
+  FinanceBalance,
+  FinanceCategory,
+  FinanceDirection,
+  FinanceFxRate,
+  FinanceHolding,
+  FinanceQuote,
+  FinanceRecurring,
+  FinanceSource,
   FocusSession,
   Goal,
   GoalProgressPoint,
@@ -550,6 +560,182 @@ benchmarks.push({
   created_at: `${today} 08:30:00`,
 });
 
+
+// ── Finance ──────────────────────────────────────────────────────────────────
+// Jeu de démonstration COHÉRENT, pas décoratif : les soldes, les flux et le
+// runway se répondent. Quelqu'un qui ouvre la démo doit voir un cas crédible
+// d'indépendant à revenu irrégulier — environ 7,4 mois devant lui — et pas trois
+// chiffres ronds qui ne se déduisent pas les uns des autres.
+
+let nextFinAccountId = 1;
+let nextFinBalanceId = 1;
+let nextFinRecurringId = 1;
+let nextFinCategoryId = 1;
+let nextFinHoldingId = 1;
+
+const financeCategories: FinanceCategory[] = [
+  ["Revenus", "entree"],
+  ["Trading", "entree"],
+  ["Logement", "sortie"],
+  ["Charges", "sortie"],
+  ["Abonnements", "sortie"],
+  ["Vie courante", "sortie"],
+  ["Impôts", "sortie"],
+].map(([name, kind], i) => ({
+  id: nextFinCategoryId++,
+  name: name as string,
+  kind: kind as FinanceDirection,
+  color: null,
+  position: i + 1,
+  created_at: todayStr(),
+}));
+
+const catId = (name: string) => financeCategories.find((c) => c.name === name)?.id ?? null;
+
+const financeAccounts: FinanceAccount[] = (
+  [
+    ["Compte courant", "courant", 1, "Boursorama"],
+    ["Livret A", "epargne", 1, "Boursorama"],
+    ["Compte de trading", "trading", 1, "IBKR"],
+    ["Carte de crédit", "credit", 1, "Boursorama"],
+    ["PEA", "investissement", 0, "Bourse Direct"],
+  ] as const
+).map(([label, kind, liquide, banque], i) => ({
+  id: nextFinAccountId++,
+  label,
+  kind,
+  currency: "EUR",
+  institution: banque,
+  is_liquid: liquide,
+  archived: 0,
+  position: i + 1,
+  created_at: todayStr(),
+  updated_at: todayStr(),
+}));
+
+/**
+ * Treize relevés mensuels par compte, du plus ancien à ce mois-ci.
+ * Le compte courant descend (on brûle), le livret s'entame doucement, le PEA
+ * monte : c'est ce que la courbe du patrimoine doit raconter.
+ */
+const financeBalances: FinanceBalance[] = (() => {
+  const debut = debutDeMois(todayStr());
+  const trajectoires: Record<number, [number, number]> = {
+    // id de compte → [solde il y a 12 mois, solde ce mois-ci], en centimes
+    1: [1_020_000, 385_000],
+    2: [780_000, 450_000],
+    3: [190_000, 240_000],
+    4: [-62_000, -80_000],
+    5: [1_460_000, 1_840_000],
+  };
+  const lignes: FinanceBalance[] = [];
+  for (const compte of financeAccounts) {
+    const [depart, arrivee] = trajectoires[compte.id];
+    for (let k = 12; k >= 0; k--) {
+      const t = (12 - k) / 12;
+      // Un peu de relief, sinon la courbe est une règle : l'ondulation est
+      // déterministe (pas de Math.random) pour que deux ouvertures de la démo
+      // montrent exactement la même chose.
+      const relief = Math.round(Math.sin((12 - k) * 1.7) * (Math.abs(arrivee - depart) * 0.06));
+      lignes.push({
+        id: nextFinBalanceId++,
+        account_id: compte.id,
+        date: ajouterMois(debut, -k),
+        amount_cents: Math.round(depart + (arrivee - depart) * t) + relief,
+        created_at: todayStr(),
+      });
+    }
+  }
+  return lignes;
+})();
+
+const financeRecurring: FinanceRecurring[] = (
+  [
+    ["Loyer", 95_000, "sortie", "mensuel", 5, "Logement"],
+    ["Électricité + eau", 14_500, "sortie", "mensuel", 10, "Charges"],
+    ["Mutuelle", 6_800, "sortie", "mensuel", 8, "Charges"],
+    ["Courses", 12_000, "sortie", "hebdo", 6, "Vie courante"],
+    ["Abonnements (données, outils)", 4_500, "sortie", "mensuel", 15, "Abonnements"],
+    ["Assurance habitation", 36_000, "sortie", "annuel", 20, "Charges"],
+    ["Impôt sur le revenu", 420_000, "sortie", "annuel", 15, "Impôts"],
+    ["Prestation récurrente", 80_000, "entree", "mensuel", 30, "Revenus"],
+  ] as const
+).map(([label, montant, direction, frequence, jour, categorie]) => ({
+  id: nextFinRecurringId++,
+  label,
+  amount_cents: montant,
+  direction,
+  frequency: frequence,
+  day_of_period: jour,
+  category_id: catId(categorie),
+  account_id: 1,
+  active_from: ajouterMois(debutDeMois(todayStr()), -18),
+  active_to: null,
+  created_at: todayStr(),
+  updated_at: todayStr(),
+}));
+
+// Une mission terminée : elle ne pèse plus sur le burn, et l'interface la range
+// parmi les flux périmés plutôt que de la faire disparaître.
+financeRecurring.push({
+  id: nextFinRecurringId++,
+  label: "Mission longue (terminée)",
+  amount_cents: 350_000,
+  direction: "entree",
+  frequency: "mensuel",
+  day_of_period: 30,
+  category_id: catId("Revenus"),
+  account_id: 1,
+  active_from: ajouterMois(debutDeMois(todayStr()), -18),
+  active_to: ajouterMois(debutDeMois(todayStr()), -7),
+  created_at: todayStr(),
+  updated_at: todayStr(),
+});
+
+const financeHoldings: FinanceHolding[] = [
+  {
+    id: nextFinHoldingId++,
+    account_id: 5,
+    symbol: "CW8.PA",
+    quantity_e8: 32_000_000_000, // 320 parts
+    cost_basis_cents: 1_408_000,
+    source: "yahoo",
+    created_at: todayStr(),
+    updated_at: todayStr(),
+  },
+  {
+    id: nextFinHoldingId++,
+    account_id: 3,
+    symbol: "BTCUSDT",
+    quantity_e8: 1_200_000, // 0,012 BTC
+    cost_basis_cents: 98_000,
+    source: "binance",
+    created_at: todayStr(),
+    updated_at: todayStr(),
+  },
+];
+
+const financeQuotes: FinanceQuote[] = [
+  {
+    symbol: "CW8.PA",
+    price_e8: 5_230_000_000, // 52,30 €
+    currency: "EUR",
+    source: "yahoo",
+    fetched_at: new Date().toISOString(),
+  },
+  {
+    symbol: "BTCUSDT",
+    price_e8: 10_423_812_000_000, // 104 238,12 $
+    currency: "USD",
+    source: "binance",
+    fetched_at: new Date().toISOString(),
+  },
+];
+
+const financeFx: FinanceFxRate[] = [
+  { base: "USD", quote: "EUR", rate_e8: 92_400_000, fetched_at: new Date().toISOString() },
+];
+
 export const demo = {
   async fetchAll(): Promise<AppData> {
     return {
@@ -1028,4 +1214,205 @@ export const demo = {
     if (i >= 0) tags.splice(i, 1);
     for (const t of tasks) if (t.tag === tag.name) t.tag = null;
   },
+
+  // — Finance —
+
+  async fetchFinance() {
+    return {
+      comptes: [...financeAccounts],
+      balances: [...financeBalances],
+      recurrents: [...financeRecurring],
+      categories: [...financeCategories],
+      holdings: [...financeHoldings],
+      quotes: [...financeQuotes],
+      fx: [...financeFx],
+    };
+  },
+
+  async createFinanceAccount(
+    input: {
+      label: string;
+      kind: FinanceAccount["kind"];
+      currency: string;
+      institution: string | null;
+      is_liquid: boolean;
+    },
+    now: string,
+  ): Promise<number> {
+    const id = nextFinAccountId++;
+    financeAccounts.push({
+      id,
+      label: input.label,
+      kind: input.kind,
+      currency: input.currency,
+      institution: input.institution,
+      is_liquid: input.is_liquid ? 1 : 0,
+      archived: 0,
+      position: financeAccounts.length + 1,
+      created_at: now,
+      updated_at: now,
+    });
+    return id;
+  },
+
+  async updateFinanceAccount(
+    id: number,
+    input: {
+      label: string;
+      kind: FinanceAccount["kind"];
+      currency: string;
+      institution: string | null;
+      is_liquid: boolean;
+    },
+    now: string,
+  ): Promise<void> {
+    const c = financeAccounts.find((a) => a.id === id);
+    if (!c) return;
+    Object.assign(c, {
+      label: input.label,
+      kind: input.kind,
+      currency: input.currency,
+      institution: input.institution,
+      is_liquid: input.is_liquid ? 1 : 0,
+      updated_at: now,
+    });
+  },
+
+  async archiveFinanceAccount(id: number, archive: boolean, now: string): Promise<void> {
+    const c = financeAccounts.find((a) => a.id === id);
+    if (c) Object.assign(c, { archived: archive ? 1 : 0, updated_at: now });
+  },
+
+  async deleteFinanceAccount(id: number): Promise<void> {
+    for (let i = financeBalances.length - 1; i >= 0; i--)
+      if (financeBalances[i].account_id === id) financeBalances.splice(i, 1);
+    for (let i = financeHoldings.length - 1; i >= 0; i--)
+      if (financeHoldings[i].account_id === id) financeHoldings.splice(i, 1);
+    for (const r of financeRecurring) if (r.account_id === id) r.account_id = null;
+    const j = financeAccounts.findIndex((a) => a.id === id);
+    if (j >= 0) financeAccounts.splice(j, 1);
+  },
+
+  async saveFinanceBalance(
+    accountId: number,
+    date: string,
+    amountCents: number,
+    now: string,
+  ): Promise<void> {
+    const existant = financeBalances.find((b) => b.account_id === accountId && b.date === date);
+    if (existant) existant.amount_cents = amountCents;
+    else
+      financeBalances.push({
+        id: nextFinBalanceId++,
+        account_id: accountId,
+        date,
+        amount_cents: amountCents,
+        created_at: now,
+      });
+  },
+
+  async deleteFinanceBalance(id: number): Promise<void> {
+    const i = financeBalances.findIndex((b) => b.id === id);
+    if (i >= 0) financeBalances.splice(i, 1);
+  },
+
+  async createFinanceRecurring(
+    input: Omit<FinanceRecurring, "id" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<number> {
+    const id = nextFinRecurringId++;
+    financeRecurring.push({ id, ...input, created_at: now, updated_at: now });
+    return id;
+  },
+
+  async updateFinanceRecurring(
+    id: number,
+    input: Omit<FinanceRecurring, "id" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<void> {
+    const r = financeRecurring.find((x) => x.id === id);
+    if (r) Object.assign(r, input, { updated_at: now });
+  },
+
+  async deleteFinanceRecurring(id: number): Promise<void> {
+    const i = financeRecurring.findIndex((r) => r.id === id);
+    if (i >= 0) financeRecurring.splice(i, 1);
+  },
+
+  async createFinanceCategory(
+    name: string,
+    kind: FinanceDirection,
+    color: string | null,
+    now: string,
+  ): Promise<number> {
+    const id = nextFinCategoryId++;
+    financeCategories.push({
+      id,
+      name,
+      kind,
+      color,
+      position: financeCategories.length + 1,
+      created_at: now,
+    });
+    return id;
+  },
+
+  async deleteFinanceCategory(id: number): Promise<void> {
+    for (const r of financeRecurring) if (r.category_id === id) r.category_id = null;
+    const i = financeCategories.findIndex((c) => c.id === id);
+    if (i >= 0) financeCategories.splice(i, 1);
+  },
+
+  async saveFinanceHolding(
+    accountId: number,
+    symbol: string,
+    quantityE8: number,
+    costBasisCents: number | null,
+    source: FinanceSource,
+    now: string,
+  ): Promise<void> {
+    const existant = financeHoldings.find(
+      (h) => h.account_id === accountId && h.symbol === symbol,
+    );
+    if (existant)
+      Object.assign(existant, {
+        quantity_e8: quantityE8,
+        cost_basis_cents: costBasisCents,
+        source,
+        updated_at: now,
+      });
+    else
+      financeHoldings.push({
+        id: nextFinHoldingId++,
+        account_id: accountId,
+        symbol,
+        quantity_e8: quantityE8,
+        cost_basis_cents: costBasisCents,
+        source,
+        created_at: now,
+        updated_at: now,
+      });
+  },
+
+  async deleteFinanceHolding(id: number): Promise<void> {
+    const i = financeHoldings.findIndex((h) => h.id === id);
+    if (i >= 0) financeHoldings.splice(i, 1);
+  },
+
+  async saveFinanceQuotes(quotes: FinanceQuote[]): Promise<void> {
+    for (const q of quotes) {
+      const i = financeQuotes.findIndex((x) => x.symbol === q.symbol);
+      if (i >= 0) financeQuotes[i] = q;
+      else financeQuotes.push(q);
+    }
+  },
+
+  async saveFinanceFx(rates: FinanceFxRate[]): Promise<void> {
+    for (const r of rates) {
+      const i = financeFx.findIndex((x) => x.base === r.base && x.quote === r.quote);
+      if (i >= 0) financeFx[i] = r;
+      else financeFx.push(r);
+    }
+  },
+
 };
