@@ -5,6 +5,20 @@
 Specs : `SPEC.md` (V1) et `SPEC-V2.md` (V2 Jarvis, phases A→F faites, G "polish"
 restante).
 
+> ## ✅ `git push` FONCTIONNE d'ici — depuis le 2026-08-25
+>
+> `origin` est en **SSH** (`git@github.com:antoninestanie-maker/shale-app.git`,
+> clé `ed25519` sans phrase de passe). **Commiter et pousser font partie du
+> travail** : ne jamais demander à Antonin d'ouvrir GitHub Desktop — il n'est
+> pas développeur, voir la règle « Antonin n'utilise jamais le Terminal ».
+>
+> Toute consigne antérieure disant « push impossible depuis une session non
+> interactive » est **périmée**. En revanche, jouer du SQL sur Supabase reste
+> hors de portée (le vérifier en `curl` avec la clé anon, oui).
+>
+> ⚠️ Le jeton de GitHub Desktop dort aussi dans le trousseau, mais il lui est
+> propre : ne jamais chercher à le lire. La clé SSH est le chemin.
+
 ## Ce qu'est Shale, en un écran
 
 Une app de bureau **hors-ligne d'abord** : toutes les données vivent dans **un
