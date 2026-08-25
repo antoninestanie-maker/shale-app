@@ -20,13 +20,13 @@
 // - aucun emoji, icônes maison, toute action non triviale porte une bulle.
 import { useState } from "react";
 
-import ComptesPanel from "../components/finance/ComptesPanel";
+import ComptesPanel, { FormulaireCompte } from "../components/finance/ComptesPanel";
 import CourbePatrimoine from "../components/finance/CourbePatrimoine";
 import DemarrageFinance, {
   demarrageTermine,
 } from "../components/finance/DemarrageFinance";
 import EnTeteFinance from "../components/finance/EnTeteFinance";
-import FluxPanel from "../components/finance/FluxPanel";
+import FluxPanel, { FormulaireFlux } from "../components/finance/FluxPanel";
 import PositionsPanel from "../components/finance/PositionsPanel";
 import PontTradingPanel from "../components/finance/PontTradingPanel";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
@@ -51,6 +51,8 @@ export default function FinanceView({ data }: Props) {
   const [signalCompte, setSignalCompte] = useState(0);
   const [signalRelever, setSignalRelever] = useState(0);
   const [signalFlux, setSignalFlux] = useState(0);
+  const [ouvreCompte, setOuvreCompte] = useState(false);
+  const [ouvreFlux, setOuvreFlux] = useState(false);
 
   if (!f.pret)
     return (
@@ -65,6 +67,21 @@ export default function FinanceView({ data }: Props) {
     flux: f.data.recurrents.length > 0,
   };
   const enRodage = !demarrageTermine(etapes);
+
+  /**
+   * Aucun compte : on n'affiche QUE le parcours de démarrage.
+   *
+   * Les cinq panneaux n'auraient rien à montrer — cinq cartes presque vides,
+   * chacune avec un titre et une phrase centrée. Et au survol, la réserve de
+   * `.rgrid-head` fait sauter leur bouton de 64 px vers la gauche pendant que
+   * l'ombre de la carte gonfle : sur une carte pleine ça passe inaperçu, sur
+   * une carte vide ça se lit comme un défaut d'affichage. C'est le reproche
+   * qui a été fait à cet écran, et il était fondé.
+   *
+   * Le parcours de démarrage porte déjà ses propres boutons « Ajouter un
+   * compte » et « Ajouter un flux » : rien n'est perdu, seulement le bruit.
+   */
+  const vide = f.data.comptes.length === 0 && f.data.recurrents.length === 0;
 
   return (
     <div className="mx-auto max-w-6xl p-8">
@@ -84,13 +101,36 @@ export default function FinanceView({ data }: Props) {
         <div className="mt-4">
           <DemarrageFinance
             etapes={etapes}
-            onAjouterCompte={() => setSignalCompte((n) => n + 1)}
+            onAjouterCompte={() =>
+              vide ? setOuvreCompte(true) : setSignalCompte((n) => n + 1)
+            }
             onRelever={() => setSignalRelever((n) => n + 1)}
-            onAjouterFlux={() => setSignalFlux((n) => n + 1)}
+            onAjouterFlux={() => (vide ? setOuvreFlux(true) : setSignalFlux((n) => n + 1))}
           />
         </div>
       )}
 
+      {/* Base entièrement vide : les panneaux ne sont pas montés, donc ce sont
+          les formulaires eux-mêmes que le parcours de démarrage ouvre. */}
+      {vide && ouvreCompte && (
+        <FormulaireCompte
+          compte={null}
+          onFerme={() => setOuvreCompte(false)}
+          onChange={f.recharger}
+        />
+      )}
+      {vide && ouvreFlux && (
+        <FormulaireFlux
+          flux={null}
+          categories={f.data.categories}
+          aujourdhui={f.aujourdhui}
+          estPerime={false}
+          onFerme={() => setOuvreFlux(false)}
+          onChange={f.recharger}
+        />
+      )}
+
+      {!vide && (
       <ResizableGrid gridId="finance" className="mt-4">
         {!enRodage && (
           <ResizablePanel id="finance-entete" defaultW={12}>
@@ -168,6 +208,7 @@ export default function FinanceView({ data }: Props) {
           </ResizablePanel>
         )}
       </ResizableGrid>
+      )}
     </div>
   );
 }

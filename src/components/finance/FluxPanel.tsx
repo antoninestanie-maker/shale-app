@@ -227,7 +227,8 @@ function Groupe({
   );
 }
 
-function FormulaireFlux({
+/** Exporté pour la même raison que `FormulaireCompte` — voir son commentaire. */
+export function FormulaireFlux({
   flux,
   categories,
   aujourdhui,

@@ -420,7 +420,13 @@ function ReleveGroupe({
   );
 }
 
-function FormulaireCompte({
+/**
+ * ⚠️ EXPORTÉ, et pas seulement utilisé ici. Une modale n'appartient pas au
+ * panneau qui l'ouvre : quand la vue masque les panneaux (base entièrement
+ * vide), le parcours de démarrage doit pouvoir l'ouvrir quand même. Le
+ * contraire a produit un bouton « Ajouter un compte » qui ne faisait rien.
+ */
+export function FormulaireCompte({
   compte,
   onFerme,
   onChange,
