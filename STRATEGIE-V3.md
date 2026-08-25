@@ -13,7 +13,7 @@ place, cf. `subscriptions.trial_ends_at` + vue `my_subscription`).
 
 | Offre | Prix mensuel | Prix annuel (~2 mois offerts) | Contenu |
 |---|---|---|---|
-| **Shale** (productivité) | **10 €** | ~96 € | Today, Tasks, Timer, Goals, Notes, Journal, Savoir, Benchmark + **sync multi-appareils** |
+| **Shale** (productivité) | **10 €** | ~96 € | Today, Tasks, Timer, Goals, Notes, Journal, Savoir, Finance + **sync multi-appareils** |
 | **Shale Pro** (+ trading) | **19 €** | ~180 € | Tout Shale + Market Brain, tracker live, journal de trades en R, calculateur de position, perf trading |
 
 **Logique du prix.** 10 € en entrée pour élargir la cible « dev perso » (reste
@@ -22,7 +22,8 @@ au-dessus de Todoist/Notion mais justifié par la sync et le Savoir). L'écart
 productivité-sans-trading est jugée réelle par Antonin → deux offres justifiées.
 
 **Frontière productivité / trading.** Cœur trading = Market Brain, tracker live,
-journal de trades, calculateur de position, perf/benchmark trading. Tout le reste
+journal de trades, calculateur de position, perf trading, et la section « Trading → € »
+de Finance. Tout le reste
 = productivité. Le gate d'abonnement devra masquer/verrouiller la catégorie
 « Trading » de la sidebar quand l'utilisateur est sur le tier Shale.
 

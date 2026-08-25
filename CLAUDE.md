@@ -23,7 +23,7 @@ restante).
 
 Une app de bureau **hors-ligne d'abord** : toutes les données vivent dans **un
 seul fichier SQLite** sur la machine (`~/Library/Application Support/com.atnfx.shale/shale.db`,
-17 migrations). Rien n'est indispensable au réseau sauf le briefing de marché et
+19 migrations). Rien n'est indispensable au réseau sauf le briefing de marché et
 la synchronisation. Elle ne se connecte à **aucun broker** : elle ne lit ni ne
 passe d'ordres.
 
@@ -41,7 +41,7 @@ tombe sur douze et non treize, et c'est l'erreur qu'on refait à chaque fois.
 | 3 | **Timer** | Productivité | Trois presets + durée sur mesure de 1 à 240 min, mémorisée. Une session peut être liée à une tâche ; le temps remonte dans Performance. Mode plein écran. Pas de son. |
 | 4 | **Objectifs** | Productivité | Objectifs décomposés en sous-objectifs ; l'avancement se lit sur ce qui est **fait**, pas sur ce qu'on déclare. Catégories inventées par l'utilisateur, horizons court · moyen · long terme. |
 | 5 | **Performance** | Productivité | **Ne trace PAS le P&L.** Complétion des tâches, temps de focus tenu, avancement des objectifs — jour, semaine ou mois. Elle juge le comportement, pas la chance. |
-| 6 | **Benchmark** | Productivité | Trois tests : réaction, mémoire visuelle, séquence. Compare la mesure du jour à **ta propre moyenne** ; au-delà de 20 % plus lent, bandeau rouge sur le tableau de bord avant la séance. Aucun classement entre joueurs. |
+| 6 | **Finance** | Productivité | Trésorerie personnelle pour un revenu irrégulier. Chiffre roi : le **runway** — combien de mois on tient si les revenus s'arrêtent. Modèle par **snapshots** (on relève ses soldes une fois par mois, on déclare ses flux récurrents une fois pour toutes), **aucune agrégation bancaire**, tous les montants en **centimes entiers**. La section « Trading → € » traduit les R du journal en euros, et c'est la seule partie réservée à Shale Trade. |
 | 7 | **Notes** | Productivité | Texte riche + index plein texte **local** (FTS SQLite) : on retrouve un post-mortem de huit mois dans l'avion, sans réseau. Les couleurs du texte suivent le thème. |
 | 8 | **Journal** | Productivité | Humeur, énergie, réflexion — et dessous, ce que les autres modules ont écrit tout seuls (tâches cochées, calculs, trades dénoués, sessions). Habitudes sur **12 semaines glissantes**, séries incluses. |
 | 9 | **Savoir** | Productivité | Base de connaissances par thèmes. Une fiche accepte texte, images collées/glissées, liens et **croquis vectoriels** dessinés dans l'app (donc modifiables plus tard). Images recompressées à l'import (1 Mo → ~12 ko). |
@@ -183,7 +183,7 @@ le seul garde-fou est cette table. Sa jumelle est dans
   faux depuis le rebranding — c'est la base de l'AUTRE app).
 - `src-tauri/capabilities/default.json` — **allowlist des domaines HTTP** (tauri-plugin-http). Tout nouveau domaine fetché doit y être ajouté, puis app rebuildée.
 - ~~Vocal Jarvis~~ : **inexistant dans Shale** (le fork n'a jamais embarqué `voice.rs` ni `whisper-rs` ; cette ligne, héritée de Second Brain, était fausse). Vérifié le 2026-07-26 : 0 occurrence de jarvis/whisper/voice, front comme Rust.
-- **15 vues** (`src/views/`) : Today, Tasks, Timer(Pomodoro), Goals, Performance, Benchmark,
+- **15 vues** (`src/views/`) : Today, Tasks, Timer(Pomodoro), Goals, Performance, **Finance**,
   Notes(FTS5), Journal, **Knowledge(Savoir)**, Trading(journal de trades en R),
   **MarketBrain**, Sizing(calculateur de position), Settings, **Admin(Personnaliser)**,
   **Console(mode admin)**.
@@ -2168,6 +2168,147 @@ avec le message exact du serveur avant le correctif. 255 tests macOS,
 La file d'un vrai compte ne se débloquera qu'avec une app **reconstruite** : le
 binaire livré porte le défaut. Les 32 entrées en attente repartiront seules au
 premier cycle de la nouvelle version.
+
+## Finance remplace Benchmark (2026-08-25)
+
+**Le compte reste à douze modules** : Finance prend la case de Benchmark dans la
+catégorie Productivité, à la 5ᵉ position. Rien n'est ajouté, rien n'est retiré du
+total — c'est le piège habituel de ce dépôt, et il n'a pas été déclenché.
+
+### La thèse
+
+Le journal de trading raisonne en **R**, qui est une abstraction ; la vie se paye
+en euros. Finance fait le pont, et son chiffre roi est le **runway** : combien de
+mois je tiens si mes revenus s'arrêtent demain.
+
+Ce n'est **pas** un gestionnaire de budget. Aucun ticket de caisse, aucune
+transaction, aucune catégorisation après coup. Le modèle est fait de
+**snapshots** : on relève ses soldes une fois par mois (deux minutes) et on
+déclare ses flux récurrents une fois pour toutes. Ça suffit à produire patrimoine
+net, burn, runway et projection.
+
+**Aucune agrégation bancaire** — ni Powens, ni Bridge, ni Plaid, ni DSP2. Ce
+n'est pas un arbitrage de calendrier : un agrégateur exige un backend qui voit
+les données **en clair**, ce qui est incompatible avec le modèle local-first
+chiffré de bout en bout. Saisie manuelle, point.
+
+### Le schéma (migration 018)
+
+Sept tables. Cinq de données — `finance_accounts`, `finance_balances`,
+`finance_recurring`, `finance_categories`, `finance_holdings` — et deux caches de
+marché, `finance_quotes_cache` et `finance_fx_cache`.
+
+⚠️ **Tous les montants sont des entiers signés en centimes. Aucun `REAL`**, y
+compris pour les quantités de titres et les taux de change, qui passent par une
+échelle entière en 10⁻⁸ (`_e8`). Un flottant binaire ne représente pas 0,10 €
+exactement, et un runway faux au troisième chiffre est un runway faux.
+
+⚠️ **Trois tables portent un uid DÉRIVÉ**, pas aléatoire (patron de la 015) :
+
+| Table | uid | Pourquoi |
+|---|---|---|
+| `finance_balances` | `fb:<uid du compte>:<date>` | « le compte X au 25 août » désigne le même fait partout. Un uid aléatoire créerait deux lignes serveur pour un seul fait, qui se disputeraient sans converger. |
+| `finance_holdings` | `fh:<uid du compte>:<symbole>` | idem. **Conséquence : le symbole n'est pas modifiable** — le corriger se fait en supprimant la ligne et en la recréant. |
+| `finance_categories` | `fc:<nom>` | les sept catégories par défaut sont insérées **sur chaque appareil**. Sans dérivation, le second Mac synchronisé hériterait de deux jeux complets. |
+
+Les deux caches sont **hors synchronisation** (`TABLES_HORS_SYNC`) : le cours
+d'une action n'est le secret de personne. ⚠️ La **liste des symboles suivis**,
+elle, est privée — elle vit dans `finance_holdings`, qui est synchronisé. Ne
+jamais déplacer d'information utilisateur dans les caches.
+
+### La logique (`src/lib/finance/`, fonctions pures, 113 tests)
+
+`montants.ts` (arithmétique entière, **bigint**), `calendrier.ts`, `patrimoine.ts`,
+`burn.ts`, `runway.ts`, `valorisation.ts`, `projection.ts`, `pont-trading.ts`,
+`quotes.ts`. Aucun calcul dans les composants.
+
+Trois décisions qui se relisent mal sans leur raison :
+
+1. **Bigint n'est pas un luxe.** Valoriser un bitcoin à 100 000 $ multiplie 1e8
+   par 1e13, soit 1e21 — très au-delà des 2⁵³ où un `number` cesse de compter
+   juste. Sans bigint, le chiffre est faux et **rien ne le signale**.
+2. **Le runway a quatre façons de ne pas pouvoir répondre**, et elles ne se
+   ressemblent pas : `sans-donnees` (aucun compte relevé), `sans-burn` (aucun
+   flux déclaré), `infini` (les revenus couvrent les charges), `epuise`. Ne rien
+   avoir saisi ne veut pas dire ne rien dépenser : répondre « ∞ » à quelqu'un qui
+   n'a pas fini de remplir le module serait un mensonge confortable.
+3. **On n'extrapole jamais une pente.** Entre deux relevés, ligne droite ; après
+   le dernier, horizontale. Inventer une tendance produirait un patrimoine qui
+   monte tout seul.
+
+### Le pont Trading → €
+
+⚠️ **Il n'existe aucun montant en euros fiable dans le journal.** `trades` ne
+porte que `risk_r` et `result_r`. Les euros n'apparaissent que dans
+`position_size_calculations` (des brouillons de calculateur) et
+`live_positions.risk_amount` (les seules positions passées par le tracker). La
+conversion repose donc sur **un réglage déclaré**, `finance.risk_per_r_cents`, et
+**rien n'est réécrit dans `trades`** : le journal reste en R.
+
+⚠️ **Les backtests sont exclus** (`trades.mode`, migration 007). Un backtest ne
+paye pas de loyer ; le compter gonflerait la part du burn prétendument
+couverte — le chiffre exact sur lequel quelqu'un déciderait de quitter son emploi.
+
+### Cotations : ce qui est réutilisé, et ce qui ne l'est pas
+
+✅ `src/lib/market/http.ts` — `getJson` bascule sur `tauri-plugin-http` dans
+l'app native, indispensable (le webview bloquerait Yahoo et Binance par CORS).
+
+❌ `src/lib/market/prices.ts` n'est **pas** réutilisable et n'est pas touché : il
+ne connaît que cinq instruments câblés en dur, dont il construit des blocs
+ATR/RSI pour le prompt du LLM. Un portefeuille libre a besoin d'autre chose,
+d'où `finance/quotes.ts` — bâti **au-dessus** de `http.ts`, sans recopier une
+ligne de `prices.ts`.
+
+Les prix se lisent depuis la **chaîne** quand l'API en fournit une (Binance rend
+`"104238.12000000"`) : `parseFloat` puis `× 1e8` réintroduirait l'imprécision
+binaire, et sur un prix elle se propage à chaque ligne du portefeuille.
+
+### Ce que Benchmark emporte avec lui (migration 019)
+
+Le module, ses trois tests, `tones.ts`, **et l'alcootest pré-session** — widget du
+tableau de bord, action ⌘K `trade.presession` et carte du flux trading comprises.
+Décision explicite d'Antonin : suppression totale, sans export des 7 mesures
+qu'il avait en base (une session d'essai du 11 août).
+
+⚠️ **Aucune pierre tombale n'est émise, et ce n'est pas un oubli.** Le moteur
+identifie les tables par un HMAC calculé à partir de `TABLES_SYNC`
+(`dictionnaireTables`, `sync/engine.ts`). Sitôt `benchmark_results` retirée de
+cette liste, son empreinte n'existe plus — ni pour émettre, ni pour recevoir.
+C'est précisément ce qui empêche ces lignes de ressusciter depuis un autre
+appareil. En revanche, **les lignes déjà envoyées à Supabase y restent**,
+chiffrées et illisibles ; les purger demande du SQL côté serveur.
+
+⚠️ **Ne pas « corriger » les migrations 009, 015 et 016.** Sur une installation
+neuve elles continuent de créer la table et ses triggers, avant que la 019 ne la
+supprime. Une migration jouée ne se réécrit pas.
+
+⚠️ **Les sections datées d'avant le 2026-08-25 citent encore Benchmark** —
+sidebar par catégories (2026-07-12), widgets redimensionnables (2026-07-11),
+design V4, « Benchmark : test Séquence réparé » (2026-07-23), gating (2026-08-02).
+Ce sont des **journaux**, pas des consignes : ils décrivent ce qui était vrai
+alors et n'ont pas été réécrits. Seule la référence en tête de fichier fait foi.
+
+### Deux choses que l'audit de phase 0 avait ratées
+
+Écrit ici parce qu'elles se reproduiront :
+
+1. **`TradingView` importait aussi `PreSessionCheck`.** Le grep de départ
+   cherchait « benchmark », qui n'apparaît pas dans ce fichier ; la seconde passe
+   ne balayait que la liste issue de la première. C'est `tsc` qui l'a trouvée.
+   **Chercher le nom du COMPOSANT autant que celui du module.**
+2. **`tsconfig.test.json` n'incluait pas `src/vite-env.d.ts`**, donc pas la
+   déclaration d'`import.meta.env`. Invisible tant qu'aucun test n'atteignait
+   `i18n/index.ts` par sa chaîne d'imports ; le premier qui y mène fait échouer
+   `npm run test:types` très loin du fichier qu'on vient d'écrire.
+
+### Fragilité connue, antérieure à ce chantier
+
+`src/lib/auth/admin.sql.test.ts` et `activation.sql.test.ts` (bases pglite en
+mémoire) échouent **par intermittence** sur la suite complète — environ 2 fois
+sur 5 — et passent toujours en isolation. Reproduit avant comme après Finance :
+les 10 nouveaux fichiers de test augmentent le parallélisme et le révèlent plus
+souvent, ils ne le causent pas. À traiter à part.
 
 ## Règle : Antonin n'utilise jamais le Terminal
 
