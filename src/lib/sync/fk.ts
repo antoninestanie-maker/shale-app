@@ -54,6 +54,17 @@ export const CLES_ETRANGERES: Readonly<Record<string, readonly CleEtrangere[]>> 
     { colonne: "sizing_calc_id", vers: "position_size_calculations" },
     { colonne: "trade_id", vers: "trades" },
   ],
+  // Finance. Les relevés et les positions portent en plus un uid DÉRIVÉ de leur
+  // compte (migration 018) : la traduction ci-dessous et cette dérivation disent
+  // la même chose, chacune de son côté — l'une pour rattacher la ligne au bon
+  // compte à l'arrivée, l'autre pour que les deux appareils lui donnent la même
+  // identité sans s'être parlé.
+  finance_balances: [{ colonne: "account_id", vers: "finance_accounts" }],
+  finance_holdings: [{ colonne: "account_id", vers: "finance_accounts" }],
+  finance_recurring: [
+    { colonne: "account_id", vers: "finance_accounts" },
+    { colonne: "category_id", vers: "finance_categories" },
+  ],
 };
 
 export function clesDe(table: string): readonly CleEtrangere[] {

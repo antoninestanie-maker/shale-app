@@ -32,15 +32,20 @@ export const TABLES_SYNC = [
   "benchmark_results",
   "knowledge_topics",
   "position_size_calculations",
+  "finance_accounts",
+  "finance_categories",
   // Dépendent d'une racine
   "tasks", // → goals
   "focus_sessions", // → tasks
   "knowledge_entries", // → knowledge_topics
   "live_positions", // → position_size_calculations, trades
+  "finance_recurring", // → finance_accounts, finance_categories
   // Feuilles à clé naturelle (dépendent de leur parent pour leur propre uid)
   "task_completions", // → tasks
   "habit_checks", // → habits
   "metric_entries", // → custom_metrics
+  "finance_balances", // → finance_accounts
+  "finance_holdings", // → finance_accounts
 ] as const;
 
 export type TableSync = (typeof TABLES_SYNC)[number];
@@ -69,6 +74,10 @@ export const TABLES_HORS_SYNC: Readonly<Record<string, string>> = {
     "Instantané quotidien de progression, ré-écrit à chaque lancement par snapshotGoals(). L'historique se reconstitue seul et n'a de sens que localement.",
   market_briefings:
     "Briefings régénérables, purgés à 7 jours, avec de gros payloads JSON. Les régénérer coûte moins cher que les transporter.",
+  finance_quotes_cache:
+    "Donnée publique reconstructible, pas de valeur privée : le cours d'une action n'est le secret de personne, et le redemander à Yahoo coûte moins cher que de le chiffrer et le transporter. ⚠️ La LISTE des symboles suivis, elle, est privée — elle vit dans `finance_holdings`, qui est synchronisé. Ne jamais déplacer d'information utilisateur ici.",
+  finance_fx_cache:
+    "Donnée publique reconstructible, pas de valeur privée : même raisonnement que `finance_quotes_cache`, pour les taux de change.",
   sync_outbox: "Plomberie de la synchronisation.",
   sync_state: "Plomberie de la synchronisation.",
   sync_meta: "Plomberie de la synchronisation.",

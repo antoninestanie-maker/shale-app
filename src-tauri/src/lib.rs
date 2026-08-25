@@ -160,6 +160,12 @@ pub fn run() {
             sql: include_str!("../migrations/017_sync_state_device.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 18,
+            description: "finance_module",
+            sql: include_str!("../migrations/018_finance.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
