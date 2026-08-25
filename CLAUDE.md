@@ -2264,6 +2264,15 @@ Les prix se lisent depuis la **chaîne** quand l'API en fournit une (Binance ren
 `"104238.12000000"`) : `parseFloat` puis `× 1e8` réintroduirait l'imprécision
 binaire, et sur un prix elle se propage à chaque ligne du portefeuille.
 
+⚠️ **`api.binance.com` a dû être AJOUTÉ à `src-tauri/capabilities/default.json`.**
+L'allowlist ne connaissait que `fapi.binance.com` — l'API des *futures*, celle du
+Market Brain. Le spot est sur un autre hôte, et tauri-plugin-http bloque par
+hôte exact. Sans cet ajout, les cotations crypto échouaient dans l'app installée
+**sans erreur visible** : mon propre code les rattrape et affiche « cotation
+indisponible », ce qui ressemble à une panne réseau plutôt qu'à une permission
+manquante. Toute modification de ce fichier impose un `npm run tauri build` et
+une réinstallation.
+
 ### Ce que Benchmark emporte avec lui (migration 019)
 
 Le module, ses trois tests, `tones.ts`, **et l'alcootest pré-session** — widget du

@@ -28,6 +28,7 @@
         { "url": "https://www.fxstreet.com/*" },
         { "url": "https://www.coindesk.com/*" },
         { "url": "https://fapi.binance.com/*" },
+        { "url": "https://api.binance.com/*" },
         { "url": "https://api.alternative.me/*" },
         { "url": "https://generativelanguage.googleapis.com/*" },
         { "url": "https://api.groq.com/*" }
