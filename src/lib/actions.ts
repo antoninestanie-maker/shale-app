@@ -30,9 +30,12 @@ export interface AppAction {
    * Droit requis pour que l'action apparaisse dans la palette. `"trading"` =
    * réservé à l'offre Shale Trade (cf. `lib/features.ts`).
    *
-   * ⚠️ Déclaré ACTION PAR ACTION, et non déduit de `category` : la catégorie
-   * « trading » contient `trade.presession`, qui est un test de réflexes
-   * accessible aussi depuis le module Benchmark — donc ouvert à tous.
+   * ⚠️ Déclaré ACTION PAR ACTION, et non déduit de `category`. Aujourd'hui les
+   * deux coïncident : toutes les actions de catégorie « trading » portent le
+   * droit. Ce ne fut pas toujours vrai — `trade.presession` était un test de
+   * réflexes rangé là, mais ouvert à tous parce qu'il venait du module
+   * Benchmark (retiré le 2026-08-25). Garder la déclaration explicite coûte une
+   * ligne et évite qu'un futur cas du même genre soit verrouillé par accident.
    */
   requires?: "trading";
   /** Si présent, l'action attend un argument texte (2e étape dans la palette). */
@@ -91,11 +94,11 @@ export const ACTIONS: AppAction[] = [
     run: (ctx) => ctx.navigate("performance"),
   },
   {
-    id: "nav.benchmark",
-    title: "Aller au Human Benchmark",
+    id: "nav.finance",
+    title: "Aller à Finance",
     category: "navigation",
-    keywords: ["benchmark", "reflexes", "memoire", "reaction", "attention"],
-    run: (ctx) => ctx.navigate("benchmark"),
+    keywords: ["finance", "runway", "tresorerie", "patrimoine", "burn", "argent"],
+    run: (ctx) => ctx.navigate("finance"),
   },
   {
     id: "nav.notes",
@@ -168,24 +171,6 @@ export const ACTIONS: AppAction[] = [
       );
     },
   },
-  {
-    id: "trade.presession",
-    title: "Test de réaction (pré-session)",
-    category: "trading",
-    keywords: [
-      "reaction",
-      "reflexes",
-      "alcootest",
-      "attention",
-      "avant session",
-      "benchmark",
-    ],
-    run: (ctx) => {
-      ctx.navigate("today");
-      setTimeout(() => emitUI("sb:presession"), 60);
-    },
-  },
-
   // — Tâches
   {
     id: "task.quickadd",

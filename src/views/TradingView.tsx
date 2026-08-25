@@ -10,7 +10,6 @@ import {
 } from "recharts";
 import { IconImage } from "../components/icons";
 import LiveTracker from "../components/LiveTracker";
-import PreSessionCheck from "../components/PreSessionCheck";
 import Toast, { type ToastState } from "../components/Toast";
 import TradeModal from "../components/TradeModal";
 import { addDays, todayStr } from "../lib/logic";
@@ -236,10 +235,6 @@ export default function TradingView({ data, refresh }: Props) {
           {t("+ Nouveau trade")}
         </button>
       </header>
-
-      {tab === "live" && (
-        <PreSessionCheck data={data} refresh={refresh} place={"trading"} />
-      )}
 
       <ResizableGrid gridId={"trading"} className="mt-6">
       {/* Tracker live : positions en attente de dénouement (envoyées via "Trader") */}

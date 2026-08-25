@@ -2,7 +2,6 @@ import { Suspense, lazy, useCallback, useMemo, type ReactNode } from "react";
 import DisciplineRing from "../components/DisciplineRing";
 import GoalsPreview from "../components/GoalsPreview";
 import PerfStrip from "../components/PerfStrip";
-import PreSessionCheck from "../components/PreSessionCheck";
 import PositionSizeWidget from "../components/PositionSizeWidget";
 import QuickLinks from "../components/QuickLinks";
 import TimerCard from "../components/TimerCard";
@@ -29,7 +28,6 @@ import { isTradingWidget } from "../lib/features";
 import { localeTag, t } from "../lib/i18n";
 /** Largeur par défaut (en colonnes /12) de chaque widget du dashboard. */
 const WIDGET_DEFAULT_W: Record<string, number> = {
-  presession: 12,
   perf: 12,
   discipline: 4,
   energy: 4,
@@ -44,7 +42,6 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
     Calé sur ce que chaque widget peut afficher lisiblement. Le moteur de grille
     peut la REMONTER automatiquement si la fenêtre est étroite (plancher en px). */
 const WIDGET_MIN_W: Record<string, number> = {
-  presession: 4,
   perf: 4,
   discipline: 3,
   energy: 3,
@@ -66,7 +63,6 @@ const WIDGET_MIN_H: Record<string, number> = {
 
 /** Vue complète associée à chaque widget (poignée ↗ discrète du panneau). */
 const WIDGET_TARGET: Record<string, View> = {
-  presession: "benchmark",
   perf: "performance",
   discipline: "tasks",
   energy: "settings",
@@ -134,9 +130,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
 
   // Registre des widgets : la page Personnaliser pilote ordre et visibilité.
   const widgets: Record<string, () => ReactNode> = {
-    presession: () => (
-      <PreSessionCheck key="presession" data={data} refresh={refresh} place="dashboard" />
-    ),
     perf: () => (
       <PerfStrip key="perf" data={data} week={derived.week} streak={derived.streak} />
     ),

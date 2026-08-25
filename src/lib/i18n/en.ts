@@ -16,7 +16,6 @@ export const EN: Record<string, string> = {
   "Timer": "Timer",
   "Objectifs": "Goals",
   "Performance": "Performance",
-  "Benchmark": "Benchmark",
   "Notes": "Notes",
   "Savoir": "Knowledge",
   "Journal": "Journal",
@@ -155,7 +154,6 @@ export const EN: Record<string, string> = {
   "Aller au Timer": "Go to Timer",
   "Aller aux Objectifs": "Go to Goals",
   "Aller à Performance": "Go to Performance",
-  "Aller au Human Benchmark": "Go to Human Benchmark",
   "Aller aux Notes": "Go to Notes",
   "Aller au Savoir": "Go to Knowledge",
   "Aller au Journal": "Go to Journal",
@@ -419,53 +417,6 @@ export const EN: Record<string, string> = {
   "(sans tag)": "(no tag)",
   "focus par tag — 30 jours": "focus by tag — 30 days",
   "Heures de backtesting": "Backtesting hours",
-
-  // ── Benchmark ─────────────────────────────────────────────────────────────
-  "Réaction": "Reaction",
-  "Temps de réaction": "Reaction time",
-  "Test de réaction": "Reaction test",
-  "Test de réaction (pré-session)": "Reaction test (pre-session)",
-  "Test de réaction pré-session": "Pre-session reaction test",
-  "Lancer le test pré-session": "Run the pre-session test",
-  "Séquence": "Sequence",
-  "Lancer le test": "Run test",
-  "Refaire le test": "Run it again",
-  "Clique dès que ça passe au vert": "Click as soon as it turns green",
-  "Attends que le panneau passe au vert, puis clique le plus vite possible.":
-    "Wait for the panel to turn green, then click as fast as you can.",
-  "Trop tôt !": "Too early!",
-  "On refait cette manche…": "Let’s redo that round…",
-  "Reproduis la séquence de cases allumées.": "Repeat the sequence of lit tiles.",
-  "Chaque case a sa note — utile pour mémoriser à l'oreille.":
-    "Each tile has its own note — handy for memorising by ear.",
-  "Activer le son": "Turn sound on",
-  "Couper le son": "Mute",
-  "Pas encore testé": "Not tested yet",
-  "Pas encore testé aujourd'hui": "Not tested today yet",
-  "non testé": "not tested",
-  "Lance le test pour situer ta forme du jour.":
-    "Run the test to gauge your form today.",
-  "Établis ta moyenne de référence en lançant quelques tests.":
-    "Set your baseline by running a few tests.",
-  "Fais quelques tests pour établir ta moyenne de référence.":
-    "Run a few tests to establish your baseline.",
-  "Il faut au moins 3 jours de tests pour établir ta référence.":
-    "You need at least 3 days of tests to establish your baseline.",
-  "Encore un jour de test et la tendance apparaît.":
-    "One more day of testing and the trend appears.",
-  "tendance — meilleur par jour": "trend — best per day",
-  "Repère indicatif": "Rough benchmark",
-  "Ordre de grandeur adulte courant — pour situer un score, pas pour le juger.":
-    "Typical adult range — to place a score, not to judge it.",
-  "Alcootest du trader": "Trader’s breathalyser",
-  "Vérifie tes réflexes avant d'ouvrir une position.":
-    "Check your reflexes before opening a position.",
-  "Quelques secondes de test : compare tes réflexes du jour à ta moyenne.":
-    "A few seconds of testing: compare today’s reflexes to your average.",
-  "Quelques secondes de test de réaction : compare tes réflexes du jour à ta moyenne.":
-    "A few seconds of reaction testing: compare today’s reflexes to your average.",
-  "Tes réflexes et ton attention sont bas aujourd'hui.":
-    "Your reflexes and attention are low today.",
 
   // ── Charge mentale / discipline ───────────────────────────────────────────
   "charge mentale — énergie restante": "mental load — energy left",
@@ -938,30 +889,6 @@ export const EN: Record<string, string> = {
     "Calculated size ({lots} lots) is below the minimum tradable size ({min}). Increase the risk or tighten the stop-loss.",
   "Requête bloquée par Gemini : {reason}": "Request blocked by Gemini: {reason}",
 
-  // ── Benchmark : tests de mémoire ──────────────────────────────────────────
-  "Mémoire": "Memory",
-  "Mémoire des chiffres": "Number memory",
-  "Mémoire visuelle": "Visual memory",
-  "Mémorise la suite de chiffres, puis saisis-la.":
-    "Memorise the digit sequence, then type it back.",
-  "human benchmark — réflexes &amp; mémoire": "human benchmark — reflexes &amp; memory",
-  "Le panneau est": "The panel is",
-  "mémorise": "memorise",
-  "Un nouveau test de réaction met à jour l’alerte.":
-    "A new reaction test refreshes the alert.",
-  "Aujourd'hui : {v}": "Today: {v}",
-  "Ta référence est {ref} — {dir} de {pct} %.":
-    "Your baseline is {ref} — you’re {dir} by {pct}%.",
-  "tu es au-dessus": "above it",
-  "tu es en dessous": "below it",
-  "record": "record",
-  "moy.": "avg",
-  "dernier": "last",
-  "{n} essai": "{n} attempt",
-  "{n} essais": "{n} attempts",
-  "repère": "benchmark",
-  "baseline réaction :": "reaction baseline:",
-
   // ── Timer : objectif quotidien ────────────────────────────────────────────
   "Méthode": "Method",
   "Objectif quotidien": "Daily goal",
@@ -1322,4 +1249,203 @@ export const EN: Record<string, string> = {
     "This account’s activation hasn’t been verified yet. Sign in once you are back online.",
   "Vérification du compte impossible.":
     "Couldn’t verify your account.",
+
+  // ── Finance (2026-08-25) ──────────────────────────────────────────────────
+  // ⚠️ Les libellés lus depuis un tableau (`t(n.label)`, `t(DESCRIPTIONS[id])`,
+  // titres d'actions) sont INVISIBLES pour `i18n:check` : l'outil ne repère que
+  // `t("littéral")`. Ils sont donc ajoutés ici à la main, et c'est le seul
+  // endroit du fichier où une omission ne serait signalée par rien.
+  "Finance": "Finance",
+  "Trésorerie : runway, patrimoine net, burn mensuel.":
+    "Cash position: runway, net worth, monthly burn.",
+  "Aller à Finance": "Go to Finance",
+  "Combien de mois tu tiens si tes revenus s'arrêtent. Pas de tickets de caisse, pas de connexion bancaire.":
+    "How many months you can hold out if your income stops. No receipts to enter, no bank connection.",
+
+  // Natures de compte (tableau `NATURES`)
+  "Compte courant": "Current account",
+  "Épargne": "Savings",
+  "Investissement": "Investment",
+  "Crédit": "Credit",
+  "Espèces": "Cash",
+
+  // Fréquences (tableau `FREQUENCES`) et périodes (tableau `PERIODES`)
+  "par semaine": "per week",
+  "par mois": "per month",
+  "par trimestre": "per quarter",
+  "par an": "per year",
+  "3 mois": "3 months",
+  "6 mois": "6 months",
+  "12 mois": "12 months",
+
+  // En-tête : les trois chiffres
+  "runway": "runway",
+  "patrimoine net": "net worth",
+  "burn mensuel": "monthly burn",
+  "{n} mois": "{n} months",
+  "0 mois": "0 months",
+  "—": "—",
+  "épuisement estimé le {d}": "estimated to run out on {d}",
+  "tes revenus récurrents couvrent tes charges":
+    "your recurring income covers your outgoings",
+  "tes liquidités sont à sec": "your liquid funds are gone",
+  "déclare tes charges récurrentes pour obtenir un runway":
+    "declare your recurring outgoings to get a runway",
+  "relève le solde d'au moins un compte": "record the balance of at least one account",
+  "dont {n} de liquidités": "of which {n} is liquid",
+  "{n} compte sans aucun relevé — le total est incomplet":
+    "{n} account has never been recorded — the total is incomplete",
+  "{n} comptes sans aucun relevé — le total est incomplet":
+    "{n} accounts have never been recorded — the total is incomplete",
+  "aucun flux déclaré": "no flows declared",
+  "{s} de charges − {e} de revenus": "{s} of outgoings − {e} of income",
+
+  // Comptes
+  "comptes": "accounts",
+  "Compte": "Account",
+  "Tout relever": "Record all",
+  "Saisir tous les soldes du jour — deux minutes, une fois par mois":
+    "Enter every balance for today — two minutes, once a month",
+  "Ajouter un compte": "Add an account",
+  "Aucun compte. Commence par en ajouter un — même approximatif.":
+    "No accounts yet. Start by adding one — a rough figure will do.",
+  "Certains relevés datent : le runway s'appuie sur des chiffres vieillissants.":
+    "Some balances are old: the runway rests on ageing figures.",
+  "hors runway": "outside the runway",
+  "Saisir le solde d'aujourd'hui": "Enter today’s balance",
+  "jamais relevé": "never recorded",
+  "Modifier ce compte": "Edit this account",
+  "Relevé du {d}": "Balances for {d}",
+  "Un champ laissé vide ne modifie rien — ne pas savoir n'est pas déclarer zéro.":
+    "A field left blank changes nothing — not knowing isn’t declaring zero.",
+  "total saisi": "total entered",
+  "Modifier le compte": "Edit account",
+  "Nouveau compte": "New account",
+  "Libellé": "Name",
+  "Nature": "Kind",
+  "Établissement": "Institution",
+  "facultatif": "optional",
+  "Compte dans le runway": "Counts towards the runway",
+  "Décoche pour un placement que tu ne comptes pas vendre pour payer tes charges — un PEA bloqué, par exemple.":
+    "Untick for holdings you don’t intend to sell to cover your outgoings — a locked-in share plan, for instance.",
+  "Le compte sort des totaux mais son historique est conservé":
+    "The account leaves the totals but its history is kept",
+  "Désarchiver": "Unarchive",
+  "Archiver": "Archive",
+  "Supprimer définitivement, relevés compris":
+    "Delete permanently, balances included",
+
+  // Courbe et projection
+  "patrimoine — 12 derniers mois": "net worth — last 12 months",
+  "liquide": "liquid",
+  "Relève le solde d'un compte : la courbe part de là.":
+    "Record one account balance: the curve starts from there.",
+  "La courbe se dessine à partir du deuxième relevé — reviens le mois prochain.":
+    "The curve appears from the second set of balances — come back next month.",
+  "au rythme actuel": "at the current pace",
+  "dans {n} mois": "in {n} months",
+
+  // Mise en route
+  "mise en route · {n}/3": "getting started · {n}/3",
+  "Trois gestes, et Finance sait combien de mois tu tiens.":
+    "Three steps, and Finance knows how many months you can hold out.",
+  "Pas de tickets de caisse, pas de connexion bancaire : tu relèves tes soldes une fois par mois et tu déclares ce qui revient. Le reste se calcule.":
+    "No receipts, no bank connection: you record your balances once a month and declare what recurs. The rest is worked out.",
+  "Ces données partent chiffrées de bout en bout vers tes autres appareils, et illisibles pour le serveur. Les cotations de marché, elles, ne sont pas synchronisées : ce sont des données publiques.":
+    "This data travels end-to-end encrypted to your other devices, unreadable by the server. Market quotes aren’t synced at all — they are public data.",
+  "Ajoute un compte": "Add an account",
+  "Ton compte courant suffit pour commencer. Les autres viendront.":
+    "Your current account is enough to begin. The others can wait.",
+  "Relève son solde": "Record its balance",
+  "Un chiffre approximatif vaut mieux que pas de chiffre. Tu le corrigeras.":
+    "A rough figure beats no figure. You can correct it later.",
+  "Déclare un revenu et une charge": "Declare one income and one outgoing",
+  "Ton loyer et ta principale rentrée : c'est ce qui produit le runway.":
+    "Your rent and your main income: that’s what produces the runway.",
+  "Ajouter un flux": "Add a flow",
+
+  // Flux récurrents
+  "flux récurrents": "recurring flows",
+  "Flux": "Flow",
+  "Ajouter un flux récurrent": "Add a recurring flow",
+  "Aucun flux déclaré. Sans eux, pas de burn — donc pas de runway.":
+    "No flows declared. Without them there’s no burn — and so no runway.",
+  "entrées": "income",
+  "sorties": "outgoings",
+  "burn net mensuel": "net monthly burn",
+  "{n} flux terminé depuis plus de trois mois":
+    "{n} flow ended more than three months ago",
+  "{n} flux terminés depuis plus de trois mois":
+    "{n} flows ended more than three months ago",
+  "terminé le {d}": "ended on {d}",
+  "Reprendre": "Resume",
+  "Ils ne pèsent plus sur le burn. Ils restent listés : un flux résilié garde sa valeur d'historique.":
+    "They no longer weigh on the burn. They stay listed: a cancelled flow keeps its value as history.",
+  "mois": "month",
+  "sans catégorie": "no category",
+  "soit": "i.e.",
+  " / mois": " / month",
+  "Modifier ce flux": "Edit this flow",
+  "Modifier le flux": "Edit flow",
+  "Nouveau flux récurrent": "New recurring flow",
+  "Loyer": "Rent",
+  "Sens": "Direction",
+  "Sortie": "Outgoing",
+  "Montant": "Amount",
+  "Fréquence": "Frequency",
+  "Actif depuis": "Active since",
+  "Jusqu'au (vide = toujours actif)": "Until (blank = always active)",
+  "Compté comme": "Counted as",
+  " par mois dans le burn.": " per month in the burn.",
+
+  // Trading → euros
+  "trading → euros": "trading → euros",
+  "Ton journal est en R, ta vie se paye en euros. Dis à Shale ce que vaut 1 R et il fera le pont.":
+    "Your journal is in R, your life is paid in euros. Tell Shale what 1 R is worth and it will bridge the two.",
+  "Ce que vaut 1 R, en euros": "What 1 R is worth, in euros",
+  "D'après tes réglages du calculateur de position :":
+    "From your position-calculator settings:",
+  "Aucun trade réel sur la période.": "No live trades over this period.",
+  "résultat": "result",
+  "{n} trades · {r} R": "{n} trades · {r} R",
+  "ramené au rythme mensuel": "brought back to a monthly pace",
+  "part du burn couverte": "share of the burn covered",
+  "pas de burn net à couvrir": "no net burn to cover",
+  "de tes {b} de charges nettes": "of your {b} of net outgoings",
+  "Les backtests sont exclus : un backtest ne paye pas de loyer.":
+    "Backtests are excluded: a backtest doesn’t pay rent.",
+  "1 R =": "1 R =",
+
+  // Positions
+  "positions": "holdings",
+  "compte inconnu": "unknown account",
+  "Redemander les cotations à Yahoo et Binance":
+    "Fetch quotes again from Yahoo and Binance",
+  "Mise à jour…": "Updating…",
+  "Actualiser": "Refresh",
+  "Ajouter une position": "Add a holding",
+  "Aucune position suivie. Facultatif : le runway n'en a pas besoin.":
+    "No holdings tracked. Optional: the runway doesn’t need them.",
+  "cotation indisponible": "quote unavailable",
+  "taux de change indisponible": "exchange rate unavailable",
+  "cotation datée": "quote is stale",
+  "Retirer cette position": "Remove this holding",
+  "valorisation": "market value",
+  "{n} ligne non valorisée": "{n} line not valued",
+  "{n} lignes non valorisées": "{n} lines not valued",
+  "Informatif : le patrimoine net s'appuie sur les soldes que tu relèves, pas sur cette valorisation — sinon le même argent serait compté deux fois.":
+    "For information only: net worth rests on the balances you record, not on this valuation — otherwise the same money would be counted twice.",
+  "Cotations indisponibles :": "Quotes unavailable:",
+  "Nouvelle position": "New holding",
+  "Source": "Source",
+  "Yahoo Finance": "Yahoo Finance",
+  "Binance": "Binance",
+  "Manuel (pas de cotation)": "Manual (no quote)",
+  "Symbole": "Symbol",
+  "Quantité": "Quantity",
+  "Prix de revient total (facultatif)": "Total cost basis (optional)",
+  "Le symbole ne sera plus modifiable ensuite : l'identité de la ligne en dérive pour la synchronisation. Le corriger se fait en supprimant la position et en la recréant.":
+    "The symbol can’t be changed afterwards: the row’s identity for syncing derives from it. To correct one, delete the holding and add it again.",
+
+  "Chargement…": "Loading…",
 };

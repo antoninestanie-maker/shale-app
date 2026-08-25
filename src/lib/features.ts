@@ -2,7 +2,7 @@
 // Frontière entre les deux offres — SOURCE UNIQUE.
 //
 //   shale        productivité : Aujourd'hui, Tâches, Timer, Objectifs, Notes,
-//                Journal, Savoir, Benchmark, Performance, + sync multi-appareils
+//                Journal, Savoir, Finance, Performance, + sync multi-appareils
 //   shale_trade  tout Shale + les modules trading listés ci-dessous
 //
 // ⚠️ Toute la logique de gating (sidebar, garde de navigation, palette ⌘K,
@@ -19,19 +19,20 @@ import type { View } from "../components/Sidebar";
 /** Modules (onglets de la sidebar) réservés à l'offre Shale Trade. */
 export const TRADING_VIEWS = ["trading", "market", "sizing"] as const;
 
-/**
- * Widgets du dashboard « Aujourd'hui » réservés à Shale Trade.
- * `presession` (test de réaction pré-session) reste ouvert : c'est un test de
- * réflexes, disponible aussi dans le module Benchmark, qui est productivité.
- */
+/** Widgets du dashboard « Aujourd'hui » réservés à Shale Trade. */
 export const TRADING_WIDGETS = ["position"] as const;
 
 /**
  * Panneaux redimensionnables noyés dans une vue productivité mais dont le
  * CONTENU est trading. Ils sont retirés de la grille, pas seulement masqués :
  * un panneau caché resterait dans les chips « + <titre> » sous la grille.
+ *
+ * `finance-trading` est la section « Trading → € » du module Finance : elle
+ * traduit les R du journal en euros. Finance lui-même reste productivité — la
+ * trésorerie personnelle n'est pas une fonction de trading, et verrouiller le
+ * module entier priverait de runway quelqu'un qui ne trade pas.
  */
-export const TRADING_PANELS = ["perf-trading"] as const;
+export const TRADING_PANELS = ["perf-trading", "finance-trading"] as const;
 
 /** Catégorie de la sidebar qui porte les modules trading. */
 export const TRADING_CATEGORY = "trading";

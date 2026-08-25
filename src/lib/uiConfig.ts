@@ -40,7 +40,7 @@ export const MODULE_IDS: View[] = [
   "timer",
   "goals",
   "performance",
-  "benchmark",
+  "finance",
   "notes",
   "journal",
   "knowledge",
@@ -50,7 +50,6 @@ export const MODULE_IDS: View[] = [
 ];
 
 export const WIDGET_LABELS: Record<string, string> = {
-  presession: "Test de réaction pré-session",
   perf: "Bandeau performance (streak, focus, trading)",
   discipline: "Anneau discipline",
   energy: "Énergie restante (charge mentale)",
@@ -65,7 +64,6 @@ export const WIDGET_LABELS: Record<string, string> = {
 const DEFAULTS: UiConfig = {
   modules: MODULE_IDS.map((id) => ({ id, visible: true })),
   dashTop: [
-    { id: "presession", visible: true },
     { id: "perf", visible: true },
   ],
   dashLeft: [

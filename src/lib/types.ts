@@ -234,17 +234,6 @@ export type KnowledgeEntryLite = Omit<KnowledgeEntry, "media" | "body"> & {
   body_len: number;
 };
 
-export type BenchTest = "reaction" | "memory" | "sequence";
-
-export interface BenchmarkResult {
-  id: number;
-  test: BenchTest;
-  score: number; // réaction: ms (plus bas = mieux) ; mémoire/séquence: niveau (plus haut = mieux)
-  detail: string | null; // JSON optionnel
-  pre_session: number; // SQLite: 0 | 1
-  created_at: string; // YYYY-MM-DD HH:MM:SS (local)
-}
-
 // ── Finance ──────────────────────────────────────────────────────────────────
 // ⚠️ Tous les montants sont des ENTIERS SIGNÉS EN CENTIMES, et les quantités et
 // taux des entiers à l'échelle 10⁻⁸ (suffixe `_e8`). Aucun `number` de ce bloc
@@ -353,5 +342,4 @@ export interface AppData {
   habits: Habit[];
   habitChecks: HabitCheck[];
   trades: Trade[];
-  benchmarks: BenchmarkResult[];
 }

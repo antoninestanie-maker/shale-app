@@ -15,7 +15,7 @@ export type View =
   | "timer"
   | "goals"
   | "performance"
-  | "benchmark"
+  | "finance"
   | "notes"
   | "journal"
   | "knowledge"
@@ -91,11 +91,13 @@ const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    id: "benchmark",
-    label: "Benchmark",
+    id: "finance",
+    label: "Finance",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 12h4l2 5 4-12 2 7h6" />
+        <path d="M3 9V7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V9" />
+        <rect x="3" y="9" width="18" height="10" rx="2.5" />
+        <circle cx="16" cy="14" r="1.2" />
       </svg>
     ),
   },
@@ -185,7 +187,7 @@ const DESCRIPTIONS: Record<View, string> = {
   timer: "Minuteur Pomodoro pour tes sessions de concentration.",
   goals: "Objectifs court / moyen / long terme, regroupés par catégorie.",
   performance: "Courbes de progression : régularité, focus, objectifs.",
-  benchmark: "Tests de réflexes et de mémoire — état de forme avant séance.",
+  finance: "Trésorerie : runway, patrimoine net, burn mensuel.",
   notes: "Notes riches liées entre elles, recherche plein texte.",
   journal: "Entrée quotidienne : humeur, énergie, ressenti de la journée.",
   knowledge: "Base de connaissances : notes, images, croquis et liens par thème.",
@@ -218,7 +220,7 @@ const CATEGORIES: { id: string; label: string; members: View[] }[] = [
       "timer",
       "goals",
       "performance",
-      "benchmark",
+      "finance",
       "notes",
       "journal",
       "knowledge",

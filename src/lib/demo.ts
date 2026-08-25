@@ -7,8 +7,6 @@ import { t } from "./i18n";
 import type {
   Trade,
   AppData,
-  BenchmarkResult,
-  BenchTest,
   Completion,
   CustomMetric,
   FinanceAccount,
@@ -516,51 +514,6 @@ const livePositions: LivePosition[] = [
 ];
 let nextLiveId = livePositions.length + 1;
 
-// Historique benchmark : réaction en légère hausse (fatigue simulée sur J0),
-// mémoire et séquence stables — de quoi voir les stats et déclencher l'alerte.
-const benchmarks: BenchmarkResult[] = [];
-let nextBenchId = 1;
-const REACT = [265, 258, 271, 249, 262, 255, 268, 260, 251, 274];
-for (let i = 10; i >= 1; i--) {
-  const date = addDays(today, -i);
-  benchmarks.push({
-    id: nextBenchId++,
-    test: "reaction",
-    score: REACT[i % REACT.length],
-    detail: null,
-    pre_session: 1,
-    created_at: `${date} 08:30:00`,
-  });
-  if (i % 2 === 0)
-    benchmarks.push({
-      id: nextBenchId++,
-      test: "memory",
-      score: 7 + (i % 3),
-      detail: null,
-      pre_session: 0,
-      created_at: `${date} 08:35:00`,
-    });
-  if (i % 3 === 0)
-    benchmarks.push({
-      id: nextBenchId++,
-      test: "sequence",
-      score: 6 + (i % 2),
-      detail: null,
-      pre_session: 0,
-      created_at: `${date} 08:40:00`,
-    });
-}
-// Aujourd'hui : réflexes nettement plus lents (déclenche l'alcootest)
-benchmarks.push({
-  id: nextBenchId++,
-  test: "reaction",
-  score: 331,
-  detail: null,
-  pre_session: 1,
-  created_at: `${today} 08:30:00`,
-});
-
-
 // ── Finance ──────────────────────────────────────────────────────────────────
 // Jeu de démonstration COHÉRENT, pas décoratif : les soldes, les flux et le
 // runway se répondent. Quelqu'un qui ouvre la démo doit voir un cas crédible
@@ -755,28 +708,9 @@ export const demo = {
       trades: [...trades].sort(
         (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
       ),
-      benchmarks: [...benchmarks],
     };
   },
 
-  async addBenchmarkResult(
-    input: {
-      test: BenchTest;
-      score: number;
-      detail: string | null;
-      preSession: boolean;
-    },
-    now: string,
-  ): Promise<void> {
-    benchmarks.push({
-      id: nextBenchId++,
-      test: input.test,
-      score: input.score,
-      detail: input.detail,
-      pre_session: input.preSession ? 1 : 0,
-      created_at: now,
-    });
-  },
 
   async createTrade(
     input: {

@@ -34,7 +34,7 @@ const TasksView = lazy(() => import("./views/TasksView"));
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 const PerformanceView = lazy(() => import("./views/PerformanceView"));
-const BenchmarkView = lazy(() => import("./views/BenchmarkView"));
+const FinanceView = lazy(() => import("./views/FinanceView"));
 const NotesView = lazy(() => import("./views/NotesView"));
 const JournalView = lazy(() => import("./views/JournalView"));
 const KnowledgeView = lazy(() => import("./views/KnowledgeView"));
@@ -230,8 +230,8 @@ function App() {
             <GoalsView data={data} refresh={refresh} />
           ) : view === "performance" ? (
             <PerformanceView data={data} refresh={refresh} />
-          ) : view === "benchmark" ? (
-            <BenchmarkView data={data} refresh={refresh} />
+          ) : view === "finance" ? (
+            <FinanceView data={data} />
           ) : view === "notes" ? (
             <NotesView data={data} refresh={refresh} />
           ) : view === "journal" ? (

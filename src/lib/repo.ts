@@ -6,8 +6,6 @@ import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import type {
   AppData,
-  BenchmarkResult,
-  BenchTest,
   Completion,
   CustomMetric,
   FinanceAccount,
@@ -105,10 +103,6 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
     "SELECT * FROM trades WHERE date >= $1 ORDER BY date DESC, id DESC",
     [sinceDate],
   );
-  const benchmarks = await db.select<BenchmarkResult[]>(
-    "SELECT * FROM benchmark_results WHERE created_at >= $1 ORDER BY created_at",
-    [sinceDate],
-  );
   return {
     tasks,
     completions,
@@ -124,34 +118,7 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
     habits,
     habitChecks,
     trades,
-    benchmarks,
   };
-}
-
-// — Human Benchmark —
-
-export async function addBenchmarkResult(input: {
-  test: BenchTest;
-  score: number;
-  detail?: string | null;
-  preSession?: boolean;
-}): Promise<void> {
-  if (!isTauri)
-    return demo.addBenchmarkResult(
-      { ...input, detail: input.detail ?? null, preSession: !!input.preSession },
-      localNow(),
-    );
-  const db = await getDb();
-  await db.execute(
-    "INSERT INTO benchmark_results (test, score, detail, pre_session, created_at) VALUES ($1, $2, $3, $4, $5)",
-    [
-      input.test,
-      input.score,
-      input.detail ?? null,
-      input.preSession ? 1 : 0,
-      localNow(),
-    ],
-  );
 }
 
 // — Trading —
