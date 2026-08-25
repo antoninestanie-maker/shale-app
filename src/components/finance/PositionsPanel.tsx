@@ -38,24 +38,18 @@ export default function PositionsPanel({
 
   return (
     <section className="card p-5">
-      <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+      {/* Un seul contrôle ici : au survol, `.rgrid-head` réserve ~4 rem pour les
+          poignées de la grille et fait glisser le cluster de droite. Avec deux
+          boutons, le décalage se voit. « Actualiser » descend près du total,
+          où l'on regarde de toute façon la fraîcheur des cotations. */}
+      <div className="rgrid-head flex items-center justify-between gap-2">
         <h2 className="hud-label">{t("positions")}</h2>
-        <div className="flex items-center gap-2">
-          {valorisation.lignes.length > 0 && (
-            <BoutonDiscret
-              onClick={onRafraichir}
-              tip={t("Redemander les cotations à Yahoo et Binance")}
-            >
-              {marcheEnCours ? t("Mise à jour…") : t("Actualiser")}
-            </BoutonDiscret>
-          )}
-          <BoutonDiscret onClick={() => setAjout(true)} tip={t("Ajouter une position")}>
-            <span className="flex items-center gap-1.5">
-              <IconPlus className="h-3.5 w-3.5" />
-              {t("Position")}
-            </span>
-          </BoutonDiscret>
-        </div>
+        <BoutonDiscret onClick={() => setAjout(true)} tip={t("Ajouter une position")}>
+          <span className="flex items-center gap-1.5">
+            <IconPlus className="h-3.5 w-3.5" />
+            {t("Position")}
+          </span>
+        </BoutonDiscret>
       </div>
 
       {valorisation.lignes.length === 0 ? (
@@ -118,7 +112,7 @@ export default function PositionsPanel({
             ))}
           </ul>
 
-          <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <span className="hud-label">
               {t("valorisation")}
               {valorisation.incomplets > 0 &&
@@ -129,11 +123,19 @@ export default function PositionsPanel({
                   { n: valorisation.incomplets },
                 )}`}
             </span>
-            <Montant
-              cents={valorisation.totalCents}
-              devise={devise}
-              className="text-sm font-semibold"
-            />
+            <span className="flex items-center gap-2">
+              <Montant
+                cents={valorisation.totalCents}
+                devise={devise}
+                className="text-sm font-semibold"
+              />
+              <BoutonDiscret
+                onClick={onRafraichir}
+                tip={t("Redemander les cotations à Yahoo et Binance")}
+              >
+                {marcheEnCours ? t("Mise à jour…") : t("Actualiser")}
+              </BoutonDiscret>
+            </span>
           </div>
 
           <p className="mt-2 text-[11px] text-text-dim">

@@ -1282,6 +1282,7 @@ export const EN: Record<string, string> = {
   "runway": "runway",
   "patrimoine net": "net worth",
   "burn mensuel": "monthly burn",
+  "épargne mensuelle": "monthly savings",
   "{n} mois": "{n} months",
   "0 mois": "0 months",
   "—": "—",
@@ -1407,6 +1408,7 @@ export const EN: Record<string, string> = {
     "From your position-calculator settings:",
   "Aucun trade réel sur la période.": "No live trades over this period.",
   "résultat": "result",
+  "{n} trade · {r} R": "{n} trade · {r} R",
   "{n} trades · {r} R": "{n} trades · {r} R",
   "ramené au rythme mensuel": "brought back to a monthly pace",
   "part du burn couverte": "share of the burn covered",
@@ -1447,5 +1449,12 @@ export const EN: Record<string, string> = {
   "Le symbole ne sera plus modifiable ensuite : l'identité de la ligne en dérive pour la synchronisation. Le corriger se fait en supprimant la position et en la recréant.":
     "The symbol can’t be changed afterwards: the row’s identity for syncing derives from it. To correct one, delete the holding and add it again.",
 
+  "Relever": "Record",
+  "Enregistrer ce solde": "Save this balance",
+  "Relever mes soldes": "Record my balances",
+  "Mettre à jour mes soldes": "Update my balances",
+  "Saisir un solde": "Enter a balance",
+  "{n} compte archivé": "{n} archived account",
+  "{n} comptes archivés": "{n} archived accounts",
   "Chargement…": "Loading…",
 };

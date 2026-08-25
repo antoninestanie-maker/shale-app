@@ -72,6 +72,8 @@ export default function EnTeteFinance({
   devise: string;
 }) {
   const { valeur, sous } = libelleRunway(runway);
+  /** Les revenus récurrents dépassent les charges : on met de côté. */
+  const epargne = burn.actifs > 0 && burn.netCents < 0;
 
   return (
     <section className="card p-6">
@@ -109,11 +111,25 @@ export default function EnTeteFinance({
           )}
         </div>
 
-        {/* Le dénominateur */}
+        {/* Le dénominateur.
+            ⚠️ Un burn NÉGATIF n'est pas un burn : c'est de l'épargne. Afficher
+            « BURN MENSUEL −7 692 € » oblige le lecteur à faire l'inversion de
+            signe dans sa tête, sur le chiffre même qui doit se lire d'un coup
+            d'œil. L'étiquette change, et le montant redevient positif. */}
         <div className="min-w-0 sm:border-l sm:border-border sm:pl-6">
-          <p className="hud-label">{t("burn mensuel")}</p>
-          <p className="mt-1 font-display text-2xl font-semibold text-text">
-            <Montant cents={burn.netCents} devise={devise} sansDecimales />
+          <p className="hud-label">
+            {epargne ? t("épargne mensuelle") : t("burn mensuel")}
+          </p>
+          <p
+            className={`mt-1 font-display text-2xl font-semibold ${
+              epargne ? "text-green" : "text-text"
+            }`}
+          >
+            <Montant
+              cents={epargne ? -burn.netCents : burn.netCents}
+              devise={devise}
+              sansDecimales
+            />
           </p>
           <p className="mt-2 text-xs text-text-dim">
             {burn.actifs === 0

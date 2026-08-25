@@ -49,6 +49,7 @@ export default function FinanceView({ data }: Props) {
   // possèdent leurs formulaires. Un compteur plutôt qu'un booléen : redemander
   // deux fois de suite doit rouvrir le dialogue.
   const [signalCompte, setSignalCompte] = useState(0);
+  const [signalRelever, setSignalRelever] = useState(0);
   const [signalFlux, setSignalFlux] = useState(0);
 
   if (!f.pret)
@@ -84,6 +85,7 @@ export default function FinanceView({ data }: Props) {
           <DemarrageFinance
             etapes={etapes}
             onAjouterCompte={() => setSignalCompte((n) => n + 1)}
+            onRelever={() => setSignalRelever((n) => n + 1)}
             onAjouterFlux={() => setSignalFlux((n) => n + 1)}
           />
         </div>
@@ -104,10 +106,12 @@ export default function FinanceView({ data }: Props) {
         <ResizablePanel id="finance-comptes" defaultW={6}>
           <ComptesPanel
             patrimoine={f.patrimoine}
+            comptes={f.data.comptes}
             aujourdhui={f.aujourdhui}
             devise={f.devise}
             onChange={f.recharger}
             signalNouveau={signalCompte}
+            signalRelever={signalRelever}
           />
         </ResizablePanel>
 

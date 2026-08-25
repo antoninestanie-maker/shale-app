@@ -20,10 +20,12 @@ export const demarrageTermine = (e: EtapesDemarrage) => e.compte && e.releve && 
 export default function DemarrageFinance({
   etapes,
   onAjouterCompte,
+  onRelever,
   onAjouterFlux,
 }: {
   etapes: EtapesDemarrage;
   onAjouterCompte: () => void;
+  onRelever: () => void;
   onAjouterFlux: () => void;
 }) {
   const liste: {
@@ -42,6 +44,14 @@ export default function DemarrageFinance({
       fait: etapes.releve,
       titre: t("Relève son solde"),
       quoi: t("Un chiffre approximatif vaut mieux que pas de chiffre. Tu le corrigeras."),
+      // L'étape 2 n'avait AUCUN bouton : elle disait quoi faire sans dire où.
+      // Il n'apparaît qu'une fois un compte créé — sans compte, il n'y a rien
+      // à relever, et un bouton qui ouvrirait un formulaire vide serait pire
+      // que pas de bouton.
+      action:
+        etapes.releve || !etapes.compte
+          ? undefined
+          : { label: t("Saisir un solde"), run: onRelever },
     },
     {
       fait: etapes.flux,

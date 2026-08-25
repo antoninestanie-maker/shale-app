@@ -7,7 +7,7 @@
 // validation. Le solde d'un compte isolé se corrige au clic sur le montant.
 import { useEffect, useMemo, useState } from "react";
 
-import { IconAlert, IconCheck, IconPencil, IconPlus, IconTrash, IconX } from "../icons";
+import { IconAlert, IconCheck, IconFolder, IconPencil, IconPlus, IconTrash, IconX } from "../icons";
 import { BoutonDiscret, Champ, inputCls, Montant } from "./champs";
 import { formaterCents, parseMontantEnCents } from "../../lib/finance/montants";
 import type { LignePatrimoine, Patrimoine } from "../../lib/finance/patrimoine";
@@ -48,48 +48,58 @@ const VIDE: FinanceAccountInput = {
 
 export default function ComptesPanel({
   patrimoine,
+  comptes,
   aujourdhui,
   devise,
   onChange,
   signalNouveau = 0,
+  signalRelever = 0,
 }: {
   patrimoine: Patrimoine;
+  /** TOUS les comptes, archivés compris — `patrimoine.lignes` les écarte. */
+  comptes: FinanceAccount[];
   aujourdhui: string;
   devise: string;
   onChange: () => Promise<void> | void;
   /** Incrémenté par le parcours de démarrage pour ouvrir le formulaire d'ici. */
   signalNouveau?: number;
+  /** Idem, pour ouvrir directement le relevé groupé. */
+  signalRelever?: number;
 }) {
   const [edite, setEdite] = useState<FinanceAccount | "nouveau" | null>(null);
   const [releveGroupe, setReleveGroupe] = useState(false);
+  const [voirArchives, setVoirArchives] = useState(false);
 
   useEffect(() => {
     if (signalNouveau > 0) setEdite("nouveau");
   }, [signalNouveau]);
 
+  useEffect(() => {
+    if (signalRelever > 0) setReleveGroupe(true);
+  }, [signalRelever]);
+
   const actifs = patrimoine.lignes;
   const datesAnciennes = actifs.some((l) => l.perime);
+  const archives = comptes.filter((c) => c.archived === 1);
+  /** Un compte au moins n'a jamais été relevé, ou son relevé a vieilli. */
+  const aRelever = actifs.some((l) => l.montantCents === null || l.perime);
 
   return (
     <section className="card p-5">
-      <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+      {/* ⚠️ UN SEUL contrôle dans l'en-tête, et c'est délibéré. Au survol du
+          panneau, `.rgrid-head` réserve ~4 rem à droite pour les poignées de la
+          grille : le cluster de droite glisse alors vers la gauche. Avec deux
+          boutons, ce glissement se voit et donne l'impression que la carte
+          bouge toute seule ; avec un seul, il est imperceptible. Les actions
+          secondaires vivent dans le CORPS du panneau. */}
+      <div className="rgrid-head flex items-center justify-between gap-2">
         <h2 className="hud-label">{t("comptes")}</h2>
-        <div className="flex items-center gap-2">
-          {actifs.length > 0 && (
-            <BoutonDiscret
-              onClick={() => setReleveGroupe(true)}
-              tip={t("Saisir tous les soldes du jour — deux minutes, une fois par mois")}
-            >
-              {t("Tout relever")}
-            </BoutonDiscret>
-          )}
-          <BoutonDiscret onClick={() => setEdite("nouveau")} tip={t("Ajouter un compte")}>
-            <span className="flex items-center gap-1.5">
-              <IconPlus className="h-3.5 w-3.5" />
-              {t("Compte")}
-            </span>
-          </BoutonDiscret>
-        </div>
+        <BoutonDiscret onClick={() => setEdite("nouveau")} tip={t("Ajouter un compte")}>
+          <span className="flex items-center gap-1.5">
+            <IconPlus className="h-3.5 w-3.5" />
+            {t("Compte")}
+          </span>
+        </BoutonDiscret>
       </div>
 
       {actifs.length === 0 ? (
@@ -111,11 +121,65 @@ export default function ComptesPanel({
         </ul>
       )}
 
+      {/* Le geste central du module : tout le modèle repose sur cette saisie de
+          deux minutes, une fois par mois. Elle mérite un bouton plein, dans le
+          corps du panneau — pas une commande discrète coincée dans un en-tête
+          où personne ne la cherche. */}
+      {actifs.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setReleveGroupe(true)}
+          className={`mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] px-3 py-2.5 text-sm font-medium transition-colors ${
+            aRelever
+              ? "bg-blue text-white hover:opacity-90"
+              : "border border-border text-text-dim hover:bg-overlay hover:text-text"
+          }`}
+        >
+          <IconPencil className="h-4 w-4" />
+          {aRelever ? t("Relever mes soldes") : t("Mettre à jour mes soldes")}
+        </button>
+      )}
+
       {datesAnciennes && (
         <p className="mt-3 flex items-start gap-1.5 text-xs text-yellow">
           <IconAlert className="mt-px h-3.5 w-3.5 shrink-0" />
           {t("Certains relevés datent : le runway s'appuie sur des chiffres vieillissants.")}
         </p>
+      )}
+
+      {archives.length > 0 && (
+        <div className="mt-4 border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={() => setVoirArchives((v) => !v)}
+            className="flex w-full items-center gap-1.5 text-left text-xs text-text-dim transition-colors hover:text-text"
+          >
+            <IconFolder className="h-3.5 w-3.5 shrink-0" />
+            {t(
+              archives.length === 1
+                ? "{n} compte archivé"
+                : "{n} comptes archivés",
+              { n: archives.length },
+            )}
+          </button>
+          {voirArchives && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {archives.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="min-w-0 truncate text-text-dim">{c.label}</span>
+                  <BoutonDiscret
+                    onClick={async () => {
+                      await archiveFinanceAccount(c.id, false);
+                      await onChange();
+                    }}
+                  >
+                    {t("Désarchiver")}
+                  </BoutonDiscret>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {edite && (
@@ -159,10 +223,11 @@ function LigneCompte({
   const valider = async () => {
     if (saisie === null) return;
     const cents = parseMontantEnCents(saisie);
-    if (cents !== null) {
-      await saveFinanceBalance(compte.id, aujourdhui, cents);
-      await onChange();
-    }
+    // Une saisie illisible ne ferme pas le champ et n'écrit rien : la corriger
+    // doit être possible sans avoir à rouvrir la ligne.
+    if (cents === null) return;
+    await saveFinanceBalance(compte.id, aujourdhui, cents);
+    await onChange();
     setSaisie(null);
   };
 
@@ -189,19 +254,46 @@ function LigneCompte({
 
       <div className="text-right">
         {saisie !== null ? (
-          <input
-            className={`${inputCls} w-32 text-right`}
-            inputMode="decimal"
-            autoFocus
-            value={saisie}
-            onChange={(e) => setSaisie(e.target.value)}
-            onBlur={valider}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void valider();
-              if (e.key === "Escape") setSaisie(null);
-            }}
-          />
+          // ⚠️ L'édition porte ses boutons, et ne repose PAS seulement sur
+          // Entrée. Un champ qui ne s'enregistre qu'au clavier laisse
+          // l'utilisateur cliquer ailleurs sans savoir si sa saisie a été
+          // prise — c'est le reproche exact qui a été fait à cet écran.
+          // Le `onBlur` valide toujours, mais il n'est plus le seul chemin.
+          <div className="flex items-center justify-end gap-1">
+            <input
+              className={`${inputCls} w-28 text-right`}
+              inputMode="decimal"
+              autoFocus
+              value={saisie}
+              onChange={(e) => setSaisie(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void valider();
+                if (e.key === "Escape") setSaisie(null);
+              }}
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void valider()}
+              data-tip={t("Enregistrer ce solde")}
+              className="rounded-[10px] border border-green/40 p-1.5 text-green transition-colors hover:bg-green/10"
+            >
+              <IconCheck className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSaisie(null)}
+              data-tip={t("Annuler")}
+              className="rounded-[10px] border border-border p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
+            >
+              <IconX className="h-4 w-4" />
+            </button>
+          </div>
         ) : (
+          // Le montant EST le champ de saisie : il en porte la bordure en
+          // permanence. Sans elle, rien ne disait qu'on pouvait cliquer
+          // dessus — le geste le plus fréquent du module était invisible.
           <button
             type="button"
             onClick={() =>
@@ -212,9 +304,18 @@ function LigneCompte({
               )
             }
             data-tip={t("Saisir le solde d'aujourd'hui")}
-            className="rounded-[10px] px-2 py-1 text-sm transition-colors hover:bg-overlay"
+            className={`flex items-center gap-2 rounded-[10px] border px-2.5 py-1.5 text-sm transition-colors ${
+              montantCents === null
+                ? "border-dashed border-blue/50 text-blue hover:bg-blue/10"
+                : "border-border text-text hover:border-border-strong hover:bg-overlay"
+            }`}
           >
-            <Montant cents={montantCents} devise={devise} />
+            {montantCents === null ? (
+              <span className="text-xs font-medium">{t("Relever")}</span>
+            ) : (
+              <Montant cents={montantCents} devise={devise} />
+            )}
+            <IconPencil className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           </button>
         )}
         <p className={`mt-0.5 text-[11px] ${perime ? "text-yellow" : "text-text-dim"}`}>

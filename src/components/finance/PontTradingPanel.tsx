@@ -12,7 +12,12 @@ import type { Burn } from "../../lib/finance/burn";
 import { ajouterMois } from "../../lib/finance/calendrier";
 import { pontTrading } from "../../lib/finance/pont-trading";
 import type { Trade } from "../../lib/types";
-import { t } from "../../lib/i18n";
+import { localeTag, t } from "../../lib/i18n";
+import { formaterCents } from "../../lib/finance/montants";
+
+/** Décimal dans la LOCALE : « 7,0 R » en français, pas « 7.0 R ». */
+const dec = (v: number, n = 1) =>
+  v.toLocaleString(localeTag(), { minimumFractionDigits: n, maximumFractionDigits: n });
 
 const PERIODES = [
   { mois: 3, label: "3 mois" },
@@ -127,9 +132,9 @@ export default function PontTradingPanel({
               <Montant cents={pont.contributionCents} devise={devise} colore signe sansDecimales />
             </p>
             <p className="mt-1 text-xs text-text-dim">
-              {t("{n} trades · {r} R", {
+              {t(pont.nbTrades === 1 ? "{n} trade · {r} R" : "{n} trades · {r} R", {
                 n: pont.nbTrades,
-                r: pont.sommeR.toFixed(1),
+                r: dec(pont.sommeR),
               })}
             </p>
           </div>
@@ -158,14 +163,14 @@ export default function PontTradingPanel({
                       : "text-text"
               }`}
             >
-              {pont.partDuBurnPct === null ? t("—") : `${pont.partDuBurnPct} %`}
+              {pont.partDuBurnPct === null ? t("—") : `${dec(pont.partDuBurnPct)} %`}
             </p>
             <p className="mt-1 text-xs text-text-dim">
               {pont.partDuBurnPct === null
                 ? t("pas de burn net à couvrir")
                 : t("de tes {b} de charges nettes", {
-                    b: (burn.netCents / 100).toLocaleString(undefined, {
-                      maximumFractionDigits: 0,
+                    b: formaterCents(burn.netCents, devise, localeTag(), {
+                      sansDecimales: true,
                     }),
                   })}
             </p>
