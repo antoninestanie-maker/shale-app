@@ -2169,9 +2169,11 @@ Demandé explicitement le 2026-08-24. La règle est écrite en entier dans
   `.command`, en précisant qu'il n'aura rien à taper.
 - Ne jamais lui faire ouvrir un fichier pour en copier le contenu.
 
-⚠️ Hors de portée d'une session non interactive, à dire au lieu de le laisser
-croire fait : **`git push`** (le trousseau ne se déverrouille pas sans session
-graphique — `ls-remote` passe, `push` échoue en `could not read Username`) et
-**jouer du SQL sur Supabase** (ni `service_role`, ni CLI). En revanche
-*vérifier* le résultat d'une migration se fait très bien en `curl` avec la clé
-anon : le faire, plutôt que de demander « ça a marché ? ».
+✅ **`git push` fonctionne depuis le 2026-08-25** : les dépôts sont passés en
+SSH (clé `ed25519`, sans phrase de passe). Pousser fait partie du travail, ce
+n'est plus une consigne à donner à Antonin.
+
+❌ **Jouer du SQL sur Supabase reste hors de portée** (ni `service_role`, ni
+CLI) : le SQL se colle dans Supabase Studio → SQL Editor, et se colle **dans le
+message**. En revanche *vérifier* le résultat se fait très bien en `curl` avec
+la clé anon : le faire, plutôt que de demander « ça a marché ? ».
