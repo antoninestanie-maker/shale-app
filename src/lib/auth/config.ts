@@ -20,27 +20,20 @@ export const SUPABASE_ANON_KEY =
  * Site commercial : pages de vente, blog, documents légaux.
  *
  * ⚠️ ADRESSE RÉELLE DU SITE EN PRODUCTION, et elle SORT DE L'APP :
- * `ACCOUNT_URL` en dérive (« Se connecter »), et `Onboarding.tsx` ouvre
- * `/legal#cgu` et `/legal#confidentialite` dessus.
+ * `ACCOUNT_URL` en dérive (« Se connecter ») et `Onboarding.tsx` y ouvre les
+ * liens légaux.
  *
- * Historique, parce qu'il explique la prudence de ce commentaire : elle a porté
- * `https://shale.app` jusqu'au 2026-08-10 — un domaine JAMAIS acheté, qui
- * répond 403. Trois liens vers une page d'erreur, inoffensifs tant que rien
- * n'était en ligne. `shale.app` n'a rien à voir avec `shaleapp.com`, acheté le
- * 2026-08-11 : ne pas confondre les deux en relisant d'anciennes consignes.
+ * `shaleapp.com` a été acheté le 2026-08-11 et branché sur Vercel. À ne pas
+ * confondre avec `shale.app`, JAMAIS acheté, qui répond 403 et que d'anciennes
+ * consignes du dépôt désignaient encore comme « le domaine à venir ».
  *
  * ⚠️ AVEC LE `www.` : Vercel sert le site sur `www.shaleapp.com` et redirige
- * l'apex dessus en 308. Sans le `www`, chaque lien ouvert depuis l'app
- * traverserait une redirection — et surtout, l'app livrée ne se corrige pas :
- * cette constante est COMPILÉE DANS LE BINAIRE. Un changement ici n'atteint les
- * utilisateurs qu'après une nouvelle version publiée.
+ * l'apex dessus en 308. Cette constante est COMPILÉE DANS LE BINAIRE — un
+ * changement ici n'atteint les utilisateurs qu'après une nouvelle version.
  *
- * À garder alignée avec `site` dans `shale-site/vitrine/astro.config.mjs` et
- * `config.websiteUrl` dans `shale-site/vitrine/src/content.json`.
- *
- * Cette copie-ci vit sur la branche `sync-chiffree` ; `~/Desktop/Shale-Windows`
- * est un WORKTREE du même dépôt sur `windows-build` et porte sa propre copie du
- * fichier : les deux se modifient séparément.
+ * Copie de la branche `windows-build`. La branche `sync-chiffree`
+ * (`~/Desktop/Shale`) porte la sienne : les deux se modifient séparément, même
+ * dépôt mais deux worktrees.
  */
 export const WEBSITE_URL = "https://www.shaleapp.com";
 

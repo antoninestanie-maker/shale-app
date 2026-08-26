@@ -36,10 +36,6 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 # `time` seulement : le planificateur ne veut que `sleep`, l'exécuteur est celui
 # de Tauri (`tauri::async_runtime`, lui-même bâti sur tokio).
 tokio = { version = "1", features = ["time"] }
-# Trousseau système (src/secrets.rs) : range les clés d'API LLM chiffrées au repos
-# plutôt qu'en clair dans shale.db. `apple-native` seul — pas de backend Linux/
-# Windows à compiler, l'app est macOS uniquement.
-keyring = { version = "3", features = ["apple-native"] }
 # Dérivation de clé (src/crypto.rs) : Argon2id, pour transformer un mot de passe
 # ou une phrase de récupération en clé de chiffrement. WebCrypto ne propose PAS
 # Argon2 — seulement PBKDF2, bien plus faible face à un attaquant équipé de GPU
@@ -47,6 +43,21 @@ keyring = { version = "3", features = ["apple-native"] }
 # D'où ce passage par le Rust pour la seule opération sensible, rare (une fois
 # par session) et jamais sur le chemin critique d'une écriture.
 argon2 = "0.5"
+
+# Trousseau système (src/secrets.rs) : range les clés d'API LLM chiffrées au repos
+# plutôt qu'en clair dans shale.db.
+#
+# ⚠️ Dépendance PAR PLATEFORME, et pas une seule ligne avec les deux features :
+# `apple-native` et `windows-native` tirent chacune des crates natives qui ne
+# compilent QUE sur leur système (Security.framework d'un côté, windows-sys de
+# l'autre). Les activer ensemble casserait les deux cibles à la fois.
+# Le code de `secrets.rs`, lui, est identique partout : l'API `keyring::Entry`
+# est la même, seul le coffre derrière change (Keychain / Credential Manager).
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

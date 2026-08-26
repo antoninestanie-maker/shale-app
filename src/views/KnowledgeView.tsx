@@ -45,6 +45,7 @@ import {
 } from "../lib/knowledge";
 import { firstImageSrc, plainText } from "../lib/richtext";
 import { t } from "../lib/i18n";
+import { kbd } from "../lib/platform";
 import {
   createKnowledgeEntry,
   createKnowledgeTopic,
@@ -774,7 +775,13 @@ function EmptyState({ filtered, onCreate }: { filtered: boolean; onCreate: () =>
       <p className="max-w-sm text-sm text-text-dim">
         {filtered
           ? t("Essaie un autre mot-clé, ou retire le filtre de tag.")
-          : t("Une note contient tout : du texte, des liens, des images, des croquis. Colle une capture (⌘V) ou dépose un fichier pour aller encore plus vite.")}
+          : // Seul raccourci écrit DANS une phrase traduite. On réécrit la sortie de
+            // `t()` plutôt que la clé : la clé est la phrase française elle-même,
+            // la toucher casserait la correspondance avec `en.ts`.
+            t("Une note contient tout : du texte, des liens, des images, des croquis. Colle une capture (⌘V) ou dépose un fichier pour aller encore plus vite.").replace(
+              "⌘V",
+              kbd("⌘V"),
+            )}
       </p>
       {!filtered && (
         <button

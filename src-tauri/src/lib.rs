@@ -12,7 +12,27 @@ use tauri::{
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
-/// Affiche/masque la fenêtre de quick capture (⌥Espace, tray).
+/// Raccourci global de la quick capture.
+///
+/// ⚠️ **Alt+Espace est réservé par Windows** : c'est le raccourci du menu
+/// système de la fenêtre active (Déplacer / Dimensionner / Fermer). L'y laisser
+/// donnerait au mieux un conflit, au pire un raccourci silencieusement inerte.
+/// D'où un raccourci distinct par plateforme — et la constante `CAPTURE_LABEL`
+/// juste en dessous, pour que le menu du tray n'annonce jamais autre chose que
+/// ce qui est réellement enregistré.
+#[cfg(target_os = "macos")]
+const CAPTURE_SHORTCUT: &str = "alt+space";
+#[cfg(not(target_os = "macos"))]
+const CAPTURE_SHORTCUT: &str = "ctrl+alt+space";
+
+/// Libellé affiché du raccourci ci-dessus (les glyphes ⌥⌘ n'existent pas sur
+/// Windows — un utilisateur Windows lit « Ctrl+Alt », pas « ⌥ »).
+#[cfg(target_os = "macos")]
+const CAPTURE_LABEL: &str = "Capture rapide\t⌥Espace";
+#[cfg(not(target_os = "macos"))]
+const CAPTURE_LABEL: &str = "Capture rapide\tCtrl+Alt+Espace";
+
+/// Affiche/masque la fenêtre de quick capture (raccourci global, tray).
 fn toggle_capture(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("capture") {
         if win.is_visible().unwrap_or(false) {
@@ -186,7 +206,7 @@ pub fn run() {
         )
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["alt+space"])
+                .with_shortcuts([CAPTURE_SHORTCUT])
                 .expect("raccourci global invalide")
                 .with_handler(|app, _shortcut, event| {
                     if event.state() != ShortcutState::Pressed {
@@ -229,22 +249,42 @@ pub fn run() {
             notifications::scheduler::start(app.handle().clone());
 
             let open = MenuItem::with_id(app, "open", "Ouvrir Shale", true, None::<&str>)?;
-            let capture =
-                MenuItem::with_id(app, "capture", "Capture rapide\t⌥Espace", true, None::<&str>)?;
+            let capture = MenuItem::with_id(app, "capture", CAPTURE_LABEL, true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &capture, &quit])?;
 
-            TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .show_menu_on_left_click(true)
+                // Conventions opposées, d'où le `cfg` plutôt qu'un réglage unique :
+                //   - macOS, barre de menus : un clic (gauche) déroule le menu ;
+                //   - Windows, zone de notification : le clic GAUCHE ouvre
+                //     l'application, c'est le clic DROIT qui déroule le menu.
+                // Garder `true` sur Windows donnerait une icône qui n'ouvre jamais
+                // l'app — le geste que 100 % des utilisateurs essaient en premier.
+                .show_menu_on_left_click(cfg!(target_os = "macos"))
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => show_main(app),
                     "capture" => toggle_capture(app),
                     "quit" => app.exit(0),
                     _ => {}
-                })
-                .build(app)?;
+                });
+
+            #[cfg(not(target_os = "macos"))]
+            let tray = tray.on_tray_icon_event(|tray, event| {
+                // Sur le relâchement, pas l'appui : c'est ce que fait le reste du
+                // système, et ça évite d'ouvrir la fenêtre sur un début de glisser.
+                if let tauri::tray::TrayIconEvent::Click {
+                    button: tauri::tray::MouseButton::Left,
+                    button_state: tauri::tray::MouseButtonState::Up,
+                    ..
+                } = event
+                {
+                    show_main(tray.app_handle());
+                }
+            });
+
+            tray.build(app)?;
 
             Ok(())
         })
@@ -266,10 +306,21 @@ pub fn run() {
                 // résident que si les notifications sont réellement actives
                 // (réglage « garder Shale actif en arrière-plan »), sinon la
                 // résidence ne servirait à rien.
+                //
+                // ⚠️ La condition « hors plein écran » est un CONTOURNEMENT DE BUG
+                // macOS, pas une règle d'ergonomie : elle n'a aucune raison d'être
+                // sur Windows, où cacher une fenêtre plein écran ne laisse aucun
+                // espace fantôme derrière elle. L'y recopier ferait quitter l'app
+                // à la fermeture d'une fenêtre maximisée — donc plus de rappels,
+                // alors même que l'utilisateur a demandé à les garder.
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     let app = window.app_handle();
-                    let fullscreen = window.is_fullscreen().unwrap_or(false);
-                    if !fullscreen && notifications::keep_running(app) {
+                    #[cfg(target_os = "macos")]
+                    let resident = !window.is_fullscreen().unwrap_or(false);
+                    #[cfg(not(target_os = "macos"))]
+                    let resident = true;
+
+                    if resident && notifications::keep_running(app) {
                         api.prevent_close();
                         let _ = window.hide();
                     } else {
@@ -289,11 +340,17 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        .run(|app, event| {
+        .run(|_app, _event| {
             // Fenêtre cachée + clic sur l'icône du Dock : macOS envoie `Reopen`.
             // Sans ce branchement, l'app semblerait morte alors qu'elle tourne.
-            if let tauri::RunEvent::Reopen { .. } = event {
-                show_main(app);
+            //
+            // ⚠️ `RunEvent::Reopen` est déclaré `#[cfg(target_os = "macos")]` DANS
+            // TAURI : sans ce `cfg`, la compilation Windows échoue sur un variant
+            // qui n'existe pas. Windows n'a pas de Dock ; l'équivalent est le clic
+            // gauche sur l'icône de la zone de notification, câblé au `setup`.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                show_main(_app);
             }
         });
 }

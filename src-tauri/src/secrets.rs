@@ -1,8 +1,18 @@
-//! Stockage chiffré des secrets (clés d'API LLM) dans le **trousseau macOS**.
+//! Stockage chiffré des secrets (clés d'API LLM) dans le **trousseau système** :
+//! Keychain sur macOS, **Credential Manager** sur Windows. Le code ci-dessous est
+//! le même partout — seule la feature `keyring` change, dans `Cargo.toml`.
 //!
-//! Motif : la base `shale.db` vit en clair dans `~/Library/Application Support/`.
+//! Motif : la base `shale.db` vit en clair dans le dossier de données de l'app
+//! (`~/Library/Application Support/…` sur macOS, `%APPDATA%\…` sur Windows).
 //! N'importe quel processus lancé sous le même compte peut la lire. Le trousseau,
 //! lui, est chiffré au repos et son déverrouillage est géré par le système.
+//!
+//! ⚠️ Windows : le blob d'un identifiant est **plafonné à 2560 octets** par
+//! l'API `CredWrite`, et la valeur y est stockée en UTF-16 — soit ~1280
+//! caractères utiles. Largement au-dessus d'une clé d'API LLM (~100 caractères),
+//! mais c'est une limite dure : ce module ne doit jamais servir à ranger autre
+//! chose que des secrets courts. Un dépassement remonte en `Err`, que le front
+//! traite déjà comme « trousseau indisponible » et rabat sur `settings`.
 //!
 //! ⚠️ Ce n'est PAS une protection contre un utilisateur malveillant sur sa propre
 //! machine — l'app peut lire ses propres entrées, donc un binaire qui se fait

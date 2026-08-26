@@ -15,7 +15,12 @@
      nominatif, l'oubliait. Tant qu'aucun test n'atteignait `i18n/index.ts`,
      l'oubli restait invisible — le premier test dont la chaîne d'imports y
      mène fait échouer `npm run test:types` sur un `import.meta.env` inconnu,
-     très loin du fichier qu'on venait d'écrire. */
+     très loin du fichier qu'on venait d'écrire.
+
+     Les deux branches ont buté dessus séparément, par des chemins différents :
+     côté macOS un test du Savoir, côté Windows `src/lib/platform.test.ts` qui
+     tire `src/lib/i18n`. La même cause, trouvée deux fois — c'est exactement le
+     genre de travail en double que la base unique supprime. */
   "include": [
     "src/**/*.test.ts",
     "src/**/*.testutil.ts",

@@ -59,9 +59,10 @@ Ces lignes sont le miroir de `SPECS` dans `shale-site/vitrine/src/lib/modules.ts
 Toute évolution de l'app qui les contredit doit être répercutée là-bas **le jour
 même** — c'est la règle « l'app et le site ne divergent jamais ».
 
-- **Plateformes** — macOS 14+ Apple Silicon aujourd'hui ; Intel, Windows et web
-  mobile ensuite. (Le worktree `~/Desktop/Shale-Windows`, branche
-  `windows-build`, porte le portage Windows.)
+- **Plateformes** — macOS 14+ Apple Silicon aujourd'hui ; Windows et iOS
+  ensuite. **Le portage Windows vit sur le tronc depuis le 2026-08-26**, sous
+  `cfg` côté Rust et dans `src/lib/platform.ts` côté front — il n'y a plus de
+  branche « version Windows ». Voir la section datée en fin de fichier.
 - **Stockage** — un fichier SQLite local, ouvrable, sauvegardable, exportable.
 - **Synchronisation** — chiffrée de bout en bout, la clé se déduit du mot de
   passe et ne quitte pas les appareils. Se coupe appareil par appareil.
@@ -93,9 +94,13 @@ même** — c'est la règle « l'app et le site ne divergent jamais ».
 | Traductions | `src/lib/i18n/` — la CLÉ est la phrase française |
 | Commandes natives (trousseau…) | `src-tauri/src/` — `secrets.rs` notamment |
 
-**Le dossier EST un dépôt git** — `shale-app.git`. ⚠️ La branche de travail est
-`domaine-shaleapp`, **pas `main`** (qui existe mais dort loin derrière), et
-`~/Desktop/Shale-Windows` est un **worktree du même dépôt** sur `windows-build`.
+**Le dossier EST un dépôt git** — `shale-app.git`. ⚠️ La branche de travail
+n'est **pas `main`** (qui existe mais dort loin derrière).
+
+⚠️ Le worktree `~/Desktop/Shale-Windows` (branche `windows-build`) **n'a plus de
+raison d'être** depuis la réconciliation du 2026-08-26 : son contenu est sur le
+tronc. Le laisser vivant, c'est rouvrir la porte par laquelle la divergence est
+entrée la première fois.
 
 ## Couche commerciale (fork Shale, 2026-07-25)
 - **Rebranding** : productName/identifier `com.atnfx.shale`, DB `shale.db`, lib Rust
@@ -1585,6 +1590,139 @@ pour qu'elle s'applique à la base réelle.
 Il n'y a **pas de corbeille** : une suppression crée un tombstone qui se propage à tous
 les appareils et ne se rattrape pas. Hors périmètre du chantier, arbitré le 2026-08-02.
 
+## Support Windows — portage (2026-08-05)
+
+**État : le code est prêt, le build ne l'est pas.** Tout ce qui pouvait être
+préparé et vérifié depuis un Mac l'a été ; **aucun `.msi`/`.exe` n'a été produit
+ni exécuté**, faute de machine Windows. La procédure d'acceptation est écrite et
+prête à dérouler : `RECETTE-WINDOWS.md`. Branche : `windows-build`
+(worktree `~/Desktop/Shale-Windows`).
+
+### La compilation croisée depuis macOS est impraticable — tranché, avec preuve
+Ce n'est pas un pronostic, c'est un essai. `rustup target add
+x86_64-pc-windows-msvc` puis `cargo check --target x86_64-pc-windows-msvc`
+échoue sur la **première dépendance C** de l'arbre, `ring` (tirée par rustls via
+`tauri-plugin-http`) : `fatal error: 'assert.h' file not found` — il n'y a pas
+de SDK Windows sur la machine. Contourner demanderait `cargo-xwin` **plus**
+LLVM (`clang-cl`, `lld-link`), absent et sans Homebrew sur ce Mac.
+Et même en y arrivant, ça ne donnerait qu'un `cargo check` : le **bundler**
+Tauri ne sait pas produire un `.msi` (WiX) ni un `.exe` (NSIS) depuis macOS.
+⚠️ **Conclusion à ne pas re-litiger** : le build Windows exige une machine ou
+une VM Windows, ou un runner CI. Pas de troisième voie.
+
+### Ce que l'audit a trouvé — et qui aurait cassé en silence
+- 🔴 **`RunEvent::Reopen` est `#[cfg(target_os = "macos")]` DANS Tauri.**
+  `lib.rs` le matchait sans garde : **erreur de compilation** sur Windows, pas
+  un avertissement. Trouvé en lisant `tauri-2.11.5/src/app.rs:277`, pas en
+  compilant — c'est le genre de chose qu'un `cargo check` macOS ne dira jamais.
+- 🔴 **`keyring` était figé sur `apple-native`.** La feature tire
+  `security-framework`, qui ne compile que sur Apple. Passé en dépendance **par
+  cible** (`[target.'cfg(target_os = "…")'.dependencies]`) — surtout pas les
+  deux features sur une seule ligne, elles se casseraient mutuellement.
+- 🟠 **`Alt+Espace` est réservé par Windows** (menu système de la fenêtre
+  active). Le raccourci global de capture y devient `Ctrl+Alt+Espace`.
+  ⚠️ **Choix proposé, pas arbitré** — à valider par Antonin. Il vit à DEUX
+  endroits qui doivent bouger ensemble : `CAPTURE_SHORTCUT` dans
+  `src-tauri/src/lib.rs` et dans `src/lib/platform.ts`.
+- 🟠 **Le tray suivait la convention macOS.** `show_menu_on_left_click(true)`
+  sur Windows donnerait une icône qui n'ouvre jamais l'app — le geste que tout
+  le monde essaie en premier. Windows : clic gauche = ouvrir, clic droit =
+  menu, via `on_tray_icon_event`.
+- 🟠 **Le garde-fou « plein écran » de la fermeture est un contournement de bug
+  macOS**, pas une règle d'ergonomie (cf. section du 2026-07-26). Le recopier
+  tel quel ferait quitter l'app à la fermeture d'une fenêtre **maximisée** sous
+  Windows — donc plus aucun rappel, alors que l'utilisateur a demandé le
+  contraire. Condition neutralisée par `cfg` hors macOS.
+- 🟢 **`crypto.rs` (Argon2id) est pur Rust** : portable sans une ligne de
+  changement. Idem le planificateur, qui raisonne déjà sur l'**horloge murale**
+  et non sur `Instant` — écrit pour la veille macOS, correct sur Windows par
+  construction.
+- 🟢 **Aucune API Cocoa** (`NSPanel`, `NSWindow`, `objc`) : vérifié par grep,
+  0 occurrence. La doc de `CLAUDE.md` disait vrai.
+- 🟢 **Chemins** : tout passe par `app_data_dir()` / `app_config_dir()`.
+  `shale.db` atterrit dans `%APPDATA%\com.atnfx.shale\`, comme attendu.
+  ⚠️ **Fragilité latente à connaître** : `tauri-plugin-sql` écrit la base dans
+  `app_config_dir()` alors que le moteur de notifications la lit dans
+  `app_data_dir()` (`notifications/mod.rs:68`). Ça marche parce que macOS **et**
+  Windows font pointer les deux au même endroit — mais pas Linux. Ce n'est pas
+  un bug Windows ; c'est une mine si un portage Linux arrive un jour.
+
+### Raccourcis affichés : le comportement était déjà bon, pas les libellés
+Tous les gestionnaires testaient déjà `(e.metaKey || e.ctrlKey)` — `Ctrl+K`
+fonctionnait donc sur Windows **avant** ce chantier. Ce qui était faux, c'est
+l'étiquette : les glyphes `⌘ ⌥ ⇧` étaient écrits en dur dans 11 endroits
+(palette, réglages, bulles d'édition, croquis, état vide de Savoir). Un
+utilisateur Windows lisait `⌘K` pour un raccourci qui marchait.
+Nouveau `src/lib/platform.ts` : `IS_MAC`, `CAPTURE_SHORTCUT`, et `kbd()` qui
+traduit au point d'affichage. **La forme macOS reste la source dans le code**
+(`kbd("⌘B")`) — c'est la plus compacte, et un oubli d'appel se voit tout de
+suite sur Windows au lieu de dégrader le Mac. 8 tests, dont un qui verrouille
+explicitement « macOS strictement inchangé ».
+⚠️ Détection par `navigator.userAgent`, pas par `@tauri-apps/plugin-os` : la
+réponse est nécessaire **synchronement** au premier rendu (les libellés sont
+dans le JSX), et le plugin est asynchrone.
+
+### Textes qui mentaient sur Windows
+« Réglages **macOS** → Notifications » sur un PC est une consigne fausse, donc
+pire qu'aucune consigne. Deux traitements distincts :
+- ce qui n'est qu'un **label** est passé au neutre (« la langue **du système** »,
+  « les bannières **du système** ») — correct sur les deux, y compris macOS ;
+- ce qui est une **instruction** est branché sur `IS_MAC`, avec deux clés i18n
+  et leurs traductions (« Paramètres Windows → Système → Notifications »).
+
+### ⚠️ Piège Windows des notifications, à ne pas re-diagnostiquer
+Un toast Windows est adressé à un **AppUserModelID**, que le système ne connaît
+qu'à travers un **raccourci du menu Démarrer**. Conséquence : **aucun toast ne
+s'affiche sous `tauri dev`** — le binaire de debug n'est pas installé. Ça
+réapparaît une fois l'app installée par le `.msi`/`.exe`. Un « les notifications
+ne marchent pas » constaté en dev sur Windows **ne prouve rien**. Documenté en
+tête de `notifications/emitter.rs`.
+
+### Nettoyage au passage
+`src-tauri/examples/transcribe.rs` supprimé : vestige Jarvis/whisper que la
+purge du 2026-07-26 avait manqué — son grep de vérification couvrait `src/`,
+`src-tauri/src/`, `capabilities/`, `tauri.conf.json` et `Cargo.toml`, **pas
+`src-tauri/examples/`**. Ses deux dépendances (`whisper-rs`, `hound`) ayant été
+retirées à l'époque, le fichier ne compilait plus : **`cargo test` était cassé
+pour tout le monde depuis**, sur macOS comme ailleurs.
+
+### `tauri.conf.json` — bloc `bundle.windows` ajouté
+`webviewInstallMode: downloadBootstrapper` (silencieux), NSIS en installation
+**par utilisateur** (pas d'UAC), et installateurs **bilingues** FR/EN alignés
+sur l'app (NSIS et WiX). Conformément à la règle, macOS a été revérifié après :
+`cargo check` vert, config reparsée par `tauri-build`.
+Icône Windows : `icons/icon.ico` contient bien les **6 tailles** (16/24/32/48/
+64/256, PNG 32 bpp) et porte le logo « Strates » post-rebranding — vérifié par
+extraction, pas supposé.
+
+### Vérifié / non vérifié
+Vert sur **macOS uniquement** : `cargo check --lib --tests --bins` (0 warning),
+`cargo test` (88), `npm test` (191), `tsc`, `vite build`, `npm run test:types`,
+`npm run i18n:check` (877 clés).
+⚠️ `npm run test:types` a demandé un correctif : `tsconfig.test.json` n'incluait
+pas `src/vite-env.d.ts`, donc `import.meta.env` n'existait pas dès qu'un test
+importait un module de l'app qui le lit (ici `src/lib/i18n`, tiré par le
+nouveau test de plateforme).
+**Non vérifié, et c'est l'essentiel** : rien n'a tourné sur Windows. Ni le
+build, ni les 15 vues sous WebView2, ni les toasts, ni le tray, ni le
+Credential Manager, ni la sync Windows↔macOS.
+
+### Dette
+- **Signature Authenticode : décision en attente d'Antonin.** Sans certificat,
+  SmartScreen avertit à chaque installation. Un certificat OV coûte ~200-400 €/an
+  et demande une validation d'identité ; depuis 2023 les certificats OV exigent
+  un **stockage matériel** (token ou HSM), ce qui complique aussi la signature
+  en CI. Non bloquant pour un build de test.
+- **CI : rien n'existe** — ni `.github/`, ni **aucun remote git**. Un job
+  Windows suppose d'abord d'héberger le dépôt. Question posée, pas tranchée.
+- **Barre de titre** : `titleBarStyle: "Overlay"` est ignoré sur Windows, donc
+  la fenêtre a une barre native **et** le `pt-10` de `Sidebar.tsx` qui dégageait
+  les pastilles macOS — soit ~40 px de vide. Volontairement **non corrigé** :
+  changer une marge sans pouvoir la regarder est pire que la documenter.
+  Point 4.16 de la recette.
+- **Point le plus suspect à l'exécution** : l'affichage des screenshots de trade
+  (`convertFileSrc` + scope `$APPDATA/screenshots/**`) face aux `\` de Windows.
+  Point 4.19 de la recette.
 ## Sync : passage du « testé » au « livrable » (2026-08-05)
 
 Séance consacrée à ce que les tests ne peuvent PAS atteindre. Le moteur était
@@ -1839,14 +1977,14 @@ positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
   (Vercel, dépôt `shale-site`, racine `vitrine`). L'espace compte y est servi
   sous `/compte/`, les liens internes sont relatifs. ⚠️ `shale.app` n'est
   **pas détenu** et répond 403 : ne plus l'écrire nulle part en dur.
-- **L'app n'est ni signée ni notarisée.** `bundle.macOS` est vide dans
+- **L'app macOS n'est ni signée ni notarisée.** `bundle.macOS` est vide dans
   `src-tauri/tauri.conf.json`. Depuis que le site propose l'app en
   téléchargement direct (`/telechargements/Shale_aarch64.dmg`), c'est le frein
-  n°1 : macOS met le `.dmg` en quarantaine et l'utilisateur doit le débloquer à
-  la main dans Réglages Système, juste après le clic que tout le site sert à
-  provoquer. Demande le compte Apple Developer (99 $/an) puis les secrets
-  `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`,
-  `APPLE_TEAM_ID` au moment du build.
+  n°1 côté Mac : macOS met le `.dmg` en quarantaine et l'utilisateur doit le
+  débloquer à la main. Compte Apple Developer requis (99 $/an).
+  ⚠️ **Le pendant Windows reste entier** : un `.exe` non signé déclenche
+  SmartScreen (« Windows a protégé votre ordinateur »). Aucun binaire Windows
+  n'est publié à ce jour — le site ne propose que le `.dmg` Apple Silicon.
 - **Supabase n'autorise pas encore l'adresse de production** dans ses
   *Redirect URLs* : les e-mails de confirmation et de réinitialisation renvoient
   vers `localhost:4330`. Réglage tableau de bord, cf.
@@ -1862,9 +2000,9 @@ positif. Lire ce que la page affiche, jamais ce qu'on croit qu'elle affiche.
   d'entreprise suffit à empêcher un visiteur de se connecter. L'embarquer dans
   `assets/` (~120 Ko) supprimerait ce point de rupture.
 - ~~**« Mot de passe oublié » depuis l'app**~~ — la cible suit désormais
-  `WEBSITE_URL`, corrigé le 2026-08-10. ⚠️ C'est une constante **compilée dans
-  le binaire** : la correction n'atteint les utilisateurs qu'après une nouvelle
-  version publiée. Les versions déjà distribuées pointent toujours vers le 403.
+  `WEBSITE_URL`, corrigé le 2026-08-10 sur cette branche aussi. ⚠️ Constante
+  **compilée dans le binaire** : la correction n'atteint les utilisateurs
+  qu'après une nouvelle version publiée.
 
 ## L'espace compte rentre dans le site (2026-08-10, soir)
 
@@ -1878,8 +2016,8 @@ Côté app, cela ajoute **`ACCOUNT_URL`** dans `auth/config.ts` :
 // Adresse RÉELLE du site. « https://shale.app » n'est PAS détenu (403) : y
 // laisser cette valeur envoyait « Se connecter » et les liens légaux de
 // l'onboarding sur une page d'erreur. Corrigé le 2026-08-10.
-// ⚠️ Existe en DEUX exemplaires : ici (branche `sync-chiffree`) et dans le
-// worktree ~/Desktop/Shale-Windows (branche `windows-build`).
+// ⚠️ Existe en DEUX exemplaires : ici (branche `windows-build`) et dans
+// ~/Desktop/Shale (branche `sync-chiffree`). Deux fichiers, deux modifications.
 export const WEBSITE_URL = "https://shale-six.vercel.app";  // vitrine seule
 export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;    // inscription, login, compte
 ```
@@ -2341,3 +2479,88 @@ n'est plus une consigne à donner à Antonin.
 CLI) : le SQL se colle dans Supabase Studio → SQL Editor, et se colle **dans le
 message**. En revanche *vérifier* le résultat se fait très bien en `curl` avec
 la clé anon : le faire, plutôt que de demander « ça a marché ? ».
+
+## Réconciliation Windows : la branche `windows-build` rejoint le tronc (2026-08-26)
+
+### Pourquoi
+
+`windows-build` avait **9 commits d'avance et 20 de retard** sur le tronc. Le
+diff portait sur **80 fichiers**. Concrètement, la version Windows **n'avait pas
+le module Finance du tout**, et gardait `Benchmark`, retiré du tronc en juillet.
+
+Un module entier de différence entre deux plateformes : c'est l'échec exact que
+la règle « l'app et le site ne divergent jamais » cherche à empêcher, et
+personne ne l'avait vu — parce que **rien ne surveille la ressemblance**. Le
+constat vaut d'être gardé : la relecture n'a pas suffi.
+
+Cette fusion a été faite avant d'ouvrir le portage iOS. Ajouter une troisième
+plateforme au-dessus de deux qui divergent, c'est garantir l'échec à trois.
+
+### Le sens de la fusion : `windows-build` → tronc
+
+Pas l'inverse. Le but n'était pas de rattraper une branche, c'était de la faire
+**disparaître**. Après cette fusion il n'y a plus de « version Windows » : il y a
+une base unique où les différences de plateforme vivent sous `cfg` côté Rust et
+dans `src/lib/platform.ts` côté front.
+
+⚠️ **Ne pas recréer de branche par plateforme.** C'est le mécanisme qui a produit
+la divergence. Le worktree `~/Desktop/Shale-Windows` est désormais sans objet.
+
+### Les trois conflits, et comment ils ont été tranchés
+
+| Fichier | Conflit | Résolution |
+|---|---|---|
+| `CLAUDE.md` | « 17 migrations » (Windows) vs « 19 » (tronc) ; module 6 = `Benchmark` vs `Finance` ; un avertissement « ce fichier est celui du worktree `windows-build` » | **tronc** dans les trois cas. L'avertissement devenait faux par le fait même de la fusion : supprimé. |
+| `src/lib/i18n/en.ts` | le tronc ajoutait le bloc Finance (209 lignes), Windows un commentaire sur le mur d'activation | **les deux gardés** — ils ne s'opposaient pas. `i18n:check` : 1045 entrées, 0 manquante. |
+| `tsconfig.test.json` | les deux branches avaient ajouté `src/vite-env.d.ts` au `include`, avec des commentaires différents | `include` identique des deux côtés. Commentaires **fusionnés** : les deux branches avaient buté sur la même cause par des chemins différents (un test du Savoir ici, `platform.test.ts` là). C'est précisément le travail en double que la base unique supprime. |
+
+### Ce que la fusion a arbitré seule, et correctement
+
+Vérifié sur l'arbre produit avant de committer :
+
+- `src/lib/platform.ts` (+ son test) **arrive sur le tronc** — c'est le module
+  qui traduit les libellés de raccourcis par plateforme, et c'est le point
+  d'extension pour iOS ;
+- `Benchmark` (vue, lib, panneaux, `PreSessionCheck`) et `src/lib/tones.ts`
+  **restent supprimés** : le tronc les avait retirés exprès (migration
+  `019_drop_benchmark.sql`), Windows ne les avait qu'en retard. `tones.ts` part
+  avec eux — il n'était importé que par `BenchmarkTests.tsx` ;
+- Finance, le chantier responsive et la doctrine adaptative de `DESIGN.md` sont
+  **conservés intacts** : Windows n'y avait jamais touché.
+
+### ⭐ L'échec connu de `cargo check --all-targets` est corrigé, gratuitement
+
+`src-tauri/examples/transcribe.rs` vivait encore sur le tronc et importait
+`whisper_rs` et `hound` — **deux crates absentes du `Cargo.toml`**, vestiges de
+Jarvis manqués par la purge du 2026-07-26. C'était la cause de l'échec qu'on
+avait pris l'habitude de contourner en passant `--lib --tests --bins`.
+
+`windows-build` l'avait supprimé le 2026-08-05 (`7e4e51d`), justement parce
+qu'il « cassait `cargo test` sur toutes les cibles ». La fusion propage la
+suppression. **`cargo check --all-targets` passe désormais : ne plus le
+contourner.**
+
+### Et ce qui servira directement iOS
+
+Le même commit `7e4e51d` avait déjà corrigé, sous `cfg`, deux défauts que
+l'audit iOS (`MOBILE.md` § 2.2) a retrouvés mot pour mot :
+
+- `RunEvent::Reopen` était matché sans garde, alors qu'il est
+  `#[cfg(target_os = "macos")]` dans Tauri ;
+- `keyring` était figé sur la feature `apple-native`, désormais **choisie par
+  cible**.
+
+Autrement dit : une partie du travail de portage iOS dormait sur une branche que
+personne ne regardait. C'est l'argument le plus concret en faveur de la base
+unique — la divergence ne fait pas que créer des trous, elle enterre aussi du
+travail utile.
+
+### Ligne de base après fusion
+
+| Contrôle | Résultat |
+|---|---|
+| `cargo test --lib` | **88** passés |
+| `cargo check --all-targets` | ✅ **passe** (échouait avant) |
+| `npm run test:types` | vert |
+| `npm run i18n:check` | 1045 entrées, **0 clé manquante** |
+| `npm test` | **381** passés, 28 fichiers, 0 échec |

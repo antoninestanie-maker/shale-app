@@ -806,6 +806,13 @@ export const EN: Record<string, string> = {
   "Aucune notification.": "No notifications.",
   "Les rappels apparaîtront ici, même si tu as coupé les bannières macOS.":
     "Reminders show up here even if you’ve turned macOS banners off.",
+  // Variante neutre du portage Windows : la phrase macOS ci-dessus a été
+  // reformulée en « du système » pour ne pas mentir sur une machine Windows,
+  // mais sa traduction n'avait pas suivi — la page anglaise retombait en
+  // français sans rien signaler. Les deux clés coexistent : chaque branche
+  // n'utilise que la sienne.
+  "Les rappels apparaîtront ici, même si tu as coupé les bannières du système.":
+    "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
   "Série en danger": "Streak at risk",
   "En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue.":
@@ -1244,6 +1251,8 @@ export const EN: Record<string, string> = {
     "The first sign-in needs an internet connection.",
 
   // ── Activation du compte (2026-08-13) ─────────────────────────────────────
+  // Recopiées telles quelles depuis la branche macOS : le mur d'activation est
+  // le même des deux côtés, et il n'a rien de spécifique à la plateforme.
   "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.":
     "This account isn’t activated yet. Access to Shale is granted one account at a time — get in touch through the website to request yours.",
   "L'activation de ce compte n'a pas encore été vérifiée. Connecte-toi une fois en ligne.":
