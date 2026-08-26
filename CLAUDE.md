@@ -2485,3 +2485,83 @@ c'est 700 dans le code, et ça n'a pas été changé.
 
 Vu au passage, **non corrigé car hors périmètre** : la ligne de dates du lecteur
 (« créée le … · modifiée le … ») reste en français quand l'app est en anglais.
+
+## Règle : une seule app Shale installée, et c'est `/Applications/Shale.app` (2026-08-26)
+
+**Cette règle est permanente. Elle ne se renégocie pas à chaque chantier.**
+
+### La règle
+
+Il n'existe qu'**une** application Shale installée sur le Mac d'Antonin :
+
+    /Applications/Shale.app
+
+C'est celle qu'il ouvre, celle qu'on reconstruit et qu'on remplace après chaque
+modification. **Aucune autre copie ne doit rester lançable**, nulle part.
+
+`/System/Volumes/Data/Applications/Shale.app` n'est PAS une seconde
+installation : c'est le même fichier vu à travers le firmlink de macOS (même
+numéro d'inode — vérifiable avec `ls -ldi` sur les deux chemins). Ne jamais
+« supprimer le doublon » : ce serait supprimer l'app.
+
+### Ce qui donne l'illusion de plusieurs apps, et quoi en faire
+
+Le 2026-08-26, Antonin a signalé « plusieurs applis Shale installées ». Il n'y
+en avait qu'une. Trois choses créaient l'illusion — toutes ont été traitées, et
+c'est ce traitement qu'il faut refaire si elles reviennent :
+
+1. **Une image disque restée montée** (`/Volumes/dmg.xxxxxx/Shale.app`).
+   Elle apparaît dans le Finder et dans Spotlight comme une app à part entière.
+   Elle vient d'un `npm run tauri build` dont l'étape `bundle_dmg.sh` a échoué
+   en laissant le volume attaché — et c'est justement **ce volume déjà monté
+   qui fait échouer le bundling DMG suivant**. Les deux problèmes n'en font
+   qu'un. → `hdiutil detach /Volumes/dmg.xxxxxx`. Ne jamais la supprimer avec
+   `rm` : c'est un point de montage, pas un dossier.
+
+2. **Les bundles de sortie de build**, sous
+   `src-tauri/target/**/release/bundle/macos/Shale.app`. Ce ne sont pas des
+   installations : ce sont des artefacts, régénérés à chaque construction.
+   **Le danger est réel** : Spotlight les indexe, et en lancer un ouvre une
+   version périmée. Il y en avait une du 18 août — huit jours de retard. Ouvrir
+   celle-là et conclure « ma modification n'est pas là » est le scénario exact
+   qu'on veut rendre impossible.
+   → **Après chaque installation, supprimer `src-tauri/target/*/bundle`.**
+   Ils réapparaissent au build suivant, c'est normal ; la discipline consiste à
+   les effacer une fois le bundle recopié dans `/Applications`, jamais à les
+   garder « au cas où ».
+
+3. **Les DMG temporaires** `rw.XXXXX.Shale_0.1.0_aarch64.dmg` (47 Mo pièce),
+   laissés par un bundling interrompu. Pur déchet, à supprimer.
+
+### Ce qu'il ne faut SURTOUT PAS supprimer
+
+- `shale-site/vitrine/public/telechargements/Shale_aarch64.dmg`
+- `shale-site/vitrine/dist/telechargements/Shale_aarch64.dmg`
+
+**C'est le téléchargement public proposé sur le site.** Le supprimer casse le
+bouton de téléchargement de `shaleapp.com`. Ce fichier n'a rien à voir avec
+l'app installée localement : c'est une livraison, elle se met à jour
+délibérément quand on publie une version, jamais par ménage.
+
+⚠️ **Il est daté du 2026-08-26 20:35, donc ANTÉRIEUR au bouton « Terminé »**
+(construit à 21:22). Le site propose actuellement une version du produit plus
+ancienne que celle qu'Antonin utilise. Ce n'est pas un bug de ce chantier —
+c'est le rythme normal des publications — mais à savoir avant d'annoncer une
+nouveauté sur le site.
+
+### Procédure de référence après une modification
+
+1. `npm run tauri build`
+2. Fermer proprement l'app si elle tourne (`osascript -e 'tell application
+   "Shale" to quit'`) — le débounce d'enregistrement est de 700 ms, lui laisser
+   le temps.
+3. Remplacer `/Applications/Shale.app` par
+   `src-tauri/target/release/bundle/macos/Shale.app`.
+4. **Vérifier que c'est bien la neuve** : `shasum -a 256` sur les deux binaires
+   doit donner la même empreinte. Un bundle qui n'est pas dans `/Applications`
+   n'existe pas pour Antonin.
+5. Relancer l'app.
+6. **Faire le ménage** : `rm -rf src-tauri/target/*/bundle`, et vérifier
+   qu'aucune image disque ne reste montée (`mount | grep dmg`).
+7. Contrôle final : `find / -name "Shale.app" -maxdepth 12 2>/dev/null` ne doit
+   renvoyer que les deux chemins firmlinkés de `/Applications`.
