@@ -4,11 +4,16 @@ pub mod notifications;
 pub mod sauvegardes;
 pub mod secrets;
 
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
-    Manager,
-};
+// ⚠️ Menu, tray et raccourci global sont des concepts de BUREAU. `TrayIcon` est
+// déclaré `#[cfg(all(desktop, feature = "tray-icon"))]` dans Tauri, et
+// `tauri-plugin-global-shortcut` annonce lui-même `level = "none"` sur iOS.
+// Sans ces gardes, la compilation mobile échoue sur des symboles inexistants.
+#[cfg(desktop)]
+use tauri::menu::{Menu, MenuItem};
+#[cfg(desktop)]
+use tauri::tray::TrayIconBuilder;
+use tauri::Manager;
+#[cfg(desktop)]
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -20,19 +25,28 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 /// D'où un raccourci distinct par plateforme — et la constante `CAPTURE_LABEL`
 /// juste en dessous, pour que le menu du tray n'annonce jamais autre chose que
 /// ce qui est réellement enregistré.
-#[cfg(target_os = "macos")]
+#[cfg(all(desktop, target_os = "macos"))]
 const CAPTURE_SHORTCUT: &str = "alt+space";
-#[cfg(not(target_os = "macos"))]
+// ⚠️ `all(desktop, ...)` et NON `not(target_os = "macos")` seul : iOS n'est pas
+// macOS, donc l'ancienne garde lui aurait donné le raccourci WINDOWS — pour un
+// appareil qui n'a ni clavier permanent ni raccourci global. Sur mobile, ces
+// deux constantes n'existent tout simplement pas.
+#[cfg(all(desktop, not(target_os = "macos")))]
 const CAPTURE_SHORTCUT: &str = "ctrl+alt+space";
 
 /// Libellé affiché du raccourci ci-dessus (les glyphes ⌥⌘ n'existent pas sur
 /// Windows — un utilisateur Windows lit « Ctrl+Alt », pas « ⌥ »).
-#[cfg(target_os = "macos")]
+#[cfg(all(desktop, target_os = "macos"))]
 const CAPTURE_LABEL: &str = "Capture rapide\t⌥Espace";
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(desktop, not(target_os = "macos")))]
 const CAPTURE_LABEL: &str = "Capture rapide\tCtrl+Alt+Espace";
 
 /// Affiche/masque la fenêtre de quick capture (raccourci global, tray).
+///
+/// Bureau uniquement : la fenêtre `capture` n'existe pas sur mobile, où Tauri
+/// ne gère qu'une seule webview. L'équivalent iOS est un App Shortcut (cf.
+/// `MOBILE.md` § 4.1), qui ouvre l'app sur le composeur de note.
+#[cfg(desktop)]
 fn toggle_capture(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("capture") {
         if win.is_visible().unwrap_or(false) {
@@ -44,6 +58,7 @@ fn toggle_capture(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(desktop)]
 fn show_main(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
@@ -194,7 +209,7 @@ pub fn run() {
         },
     ];
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
@@ -202,18 +217,6 @@ pub fn run() {
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:shale.db", migrations)
-                .build(),
-        )
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts([CAPTURE_SHORTCUT])
-                .expect("raccourci global invalide")
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() != ShortcutState::Pressed {
-                        return;
-                    }
-                    toggle_capture(app);
-                })
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
@@ -248,46 +251,83 @@ pub fn run() {
             notifications::init(app.handle());
             notifications::scheduler::start(app.handle().clone());
 
-            let open = MenuItem::with_id(app, "open", "Ouvrir Shale", true, None::<&str>)?;
-            let capture = MenuItem::with_id(app, "capture", CAPTURE_LABEL, true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &capture, &quit])?;
+            // Tray + menu : bureau uniquement. Sur iOS il n'y a pas de barre
+            // de menus ni de zone de notification — l'app EST son icône.
+            #[cfg(desktop)]
+            {
+                let open = MenuItem::with_id(app, "open", "Ouvrir Shale", true, None::<&str>)?;
+                let capture = MenuItem::with_id(app, "capture", CAPTURE_LABEL, true, None::<&str>)?;
+                let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&open, &capture, &quit])?;
 
-            let tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
-                // Conventions opposées, d'où le `cfg` plutôt qu'un réglage unique :
-                //   - macOS, barre de menus : un clic (gauche) déroule le menu ;
-                //   - Windows, zone de notification : le clic GAUCHE ouvre
-                //     l'application, c'est le clic DROIT qui déroule le menu.
-                // Garder `true` sur Windows donnerait une icône qui n'ouvre jamais
-                // l'app — le geste que 100 % des utilisateurs essaient en premier.
-                .show_menu_on_left_click(cfg!(target_os = "macos"))
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => show_main(app),
-                    "capture" => toggle_capture(app),
-                    "quit" => app.exit(0),
-                    _ => {}
+                let tray = TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    // Conventions opposées, d'où le `cfg` plutôt qu'un réglage unique :
+                    //   - macOS, barre de menus : un clic (gauche) déroule le menu ;
+                    //   - Windows, zone de notification : le clic GAUCHE ouvre
+                    //     l'application, c'est le clic DROIT qui déroule le menu.
+                    // Garder `true` sur Windows donnerait une icône qui n'ouvre jamais
+                    // l'app — le geste que 100 % des utilisateurs essaient en premier.
+                    .show_menu_on_left_click(cfg!(target_os = "macos"))
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "open" => show_main(app),
+                        "capture" => toggle_capture(app),
+                        "quit" => app.exit(0),
+                        _ => {}
+                    });
+
+                #[cfg(not(target_os = "macos"))]
+                let tray = tray.on_tray_icon_event(|tray, event| {
+                    // Sur le relâchement, pas l'appui : c'est ce que fait le reste du
+                    // système, et ça évite d'ouvrir la fenêtre sur un début de glisser.
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main(tray.app_handle());
+                    }
                 });
 
-            #[cfg(not(target_os = "macos"))]
-            let tray = tray.on_tray_icon_event(|tray, event| {
-                // Sur le relâchement, pas l'appui : c'est ce que fait le reste du
-                // système, et ça évite d'ouvrir la fenêtre sur un début de glisser.
-                if let tauri::tray::TrayIconEvent::Click {
-                    button: tauri::tray::MouseButton::Left,
-                    button_state: tauri::tray::MouseButtonState::Up,
-                    ..
-                } = event
-                {
-                    show_main(tray.app_handle());
-                }
-            });
-
-            tray.build(app)?;
+                tray.build(app)?;
+            }
 
             Ok(())
         })
+        ;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // BUREAU UNIQUEMENT.
+    //
+    // Ces deux morceaux n'ont pas d'équivalent sur téléphone, et ce n'est pas
+    // une limite de Tauri : un raccourci clavier global suppose un clavier
+    // toujours présent et un gestionnaire de fenêtres, et `on_window_event`
+    // suppose qu'une fenêtre puisse être FERMÉE par l'utilisateur. Sur iOS,
+    // l'app n'est jamais fermée — elle est SUSPENDUE par le système, sans
+    // prévenir et sans qu'on puisse s'y opposer.
+    //
+    // ⚠️ Conséquence à ne pas perdre de vue : tout ce que ce bloc fait pour
+    // garder le moteur de rappels vivant (résidence en arrière-plan, reprise
+    // au retour au premier plan) n'a AUCUN équivalent mobile. Sur iOS, les
+    // rappels devront être PROGRAMMÉS à l'avance auprès du système plutôt
+    // qu'évalués par une boucle. Voir `MOBILE.md` § 3.
+    // ─────────────────────────────────────────────────────────────────────
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcuts([CAPTURE_SHORTCUT])
+                .expect("raccourci global invalide")
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+                    toggle_capture(app);
+                })
+                .build(),
+        )
         .on_window_event(|window, event| {
             if window.label() != "main" {
                 return;
@@ -338,6 +378,9 @@ pub fn run() {
                 _ => {}
             }
         })
+        ;
+
+    builder
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|_app, _event| {

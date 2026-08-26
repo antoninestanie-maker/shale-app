@@ -53,7 +53,16 @@ argon2 = "0.5"
 # l'autre). Les activer ensemble casserait les deux cibles à la fois.
 # Le code de `secrets.rs`, lui, est identique partout : l'API `keyring::Entry`
 # est la même, seul le coffre derrière change (Keychain / Credential Manager).
-[target.'cfg(target_os = "macos")'.dependencies]
+# ⚠️ iOS partage `apple-native` avec macOS, et c'est vérifié dans la crate, pas
+# supposé : `keyring` 3.6.3 contient `src/ios.rs` à côté de `src/macos.rs`, et
+# déclare `security-framework` pour `cfg(target_os = "ios")` autant que pour
+# macOS. La feature est donc la MÊME ; seul le coffre derrière change.
+# Sans ce `any(...)`, la crate est absente sur iOS et `secrets.rs` ne compile pas.
+#
+# ⚠️ Contrainte propre à iOS, écrite dans l'en-tête de son `ios.rs` : ni le
+# service ni le compte ne peuvent être la chaîne vide. `Entry::new(SERVICE, key)`
+# les renseigne tous deux — rien à changer, mais rien à relâcher non plus.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

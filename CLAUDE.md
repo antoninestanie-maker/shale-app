@@ -87,7 +87,7 @@ même** — c'est la règle « l'app et le site ne divergent jamais ».
 | Vues des modules | `src/views/*View.tsx` |
 | Barre latérale (noms, ordre, catégories) | `src/components/Sidebar.tsx` |
 | Accès à SQLite | `src/lib/repo.ts` (+ `isTauri`) |
-| Migrations de la base | `src-tauri/migrations/` (17) |
+| Migrations de la base | `src-tauri/migrations/` (19) |
 | Authentification | `src/lib/auth/` — `config.ts`, `access.ts`, `useAuth.ts`, `supabase.ts`, `stockage.ts` |
 | Mur d'entrée (UI) | `src/components/auth/AuthGate.tsx`, `LoginScreen.tsx` |
 | Synchronisation chiffrée | `src/lib/sync/` — `engine.ts` (cycle), `outbox.ts` (file), `crypto.ts`/`keys.ts` (clés), `transport.ts` (réseau) |
@@ -133,10 +133,12 @@ entrée la première fois.
 - `npx tsc --noEmit` — typecheck
 - `npx vite build` — build front (`npm run build` = tsc + vite build)
 - `npm run tauri dev` / `npm run tauri build` — app native
-- `cargo check --lib --tests --bins` dans `src-tauri/` — check Rust (⚠️ PAS
-  `--all-targets` : `examples/transcribe.rs` importe `whisper_rs`/`hound`, retirés des
-  dépendances — dette connue, cf. section Notifications)
-- `cargo test --lib` dans `src-tauri/` — 79 tests (moteur de notifications)
+- `cargo check --all-targets` dans `src-tauri/` — check Rust. ✅ **Passe depuis la
+  réconciliation Windows du 2026-08-26** : `examples/transcribe.rs`, qui importait
+  `whisper_rs`/`hound` retirés des dépendances, a été supprimé. Ne plus se limiter
+  à `--lib --tests --bins`, ce contournement n'a plus lieu d'être.
+- `cargo test --lib` dans `src-tauri/` — **88 tests** (dont les 79 du moteur de
+  notifications, le reste étant `crypto.rs`)
 - `npm test` — tests TypeScript (vitest). `npm run test:watch` en continu.
 - `npm run test:types` — typecheck des TESTS (séparé de l'app, cf. section sync)
 - Preview navigateur (`npx vite`) = **mode démo** : `isTauri` (src/lib/repo.ts:28) est faux → données factices en mémoire (`src/lib/demo.ts`, `src/lib/market/demo.ts`), pas de SQLite ni de réseau natif.
