@@ -912,7 +912,12 @@ export const demo = {
       )
       // la liste ne transporte ni le corps ni le média (comme en SQL)
       .map(({ media: _media, body, ...lite }) => ({ ...lite, body_len: body.length }));
-    return { topics: [...knowledgeTopics], entries };
+    // Même tri qu'en natif (`ORDER BY position, id`) : sans lui, le
+    // réordonnancement des thèmes serait invisible en mode démo.
+    const topics = [...knowledgeTopics].sort(
+      (a, b) => a.position - b.position || a.id - b.id,
+    );
+    return { topics, entries };
   },
 
   async fetchKnowledgeEntry(id: number): Promise<KnowledgeEntry | null> {
@@ -937,6 +942,13 @@ export const demo = {
     if (t) {
       t.name = name;
       t.color = color;
+    }
+  },
+
+  async reorderKnowledgeTopics(ids: number[]): Promise<void> {
+    for (const [rang, id] of ids.entries()) {
+      const t = knowledgeTopics.find((k) => k.id === id);
+      if (t) t.position = rang;
     }
   },
 

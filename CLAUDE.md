@@ -2319,6 +2319,123 @@ sur 5 — et passent toujours en isolation. Reproduit avant comme après Finance
 les 10 nouveaux fichiers de test augmentent le parallélisme et le révèlent plus
 souvent, ils ne le causent pas. À traiter à part.
 
+## Savoir : l'accueil devient une grille de THÈMES (2026-08-26)
+
+L'onglet s'ouvrait sur une liste de notes bordée d'un rail de thèmes de 232 px.
+Il s'ouvre désormais sur les **thèmes eux-mêmes**, en grosses cases ; les notes
+vivent un cran plus bas. Chantier de **structure et d'ergonomie** : zéro token,
+zéro couleur, zéro police nouvelle.
+
+### ⚠️ Ce que l'audit a corrigé dans l'énoncé
+Le chantier était commandé comme s'il fallait tout créer. Trois faits l'ont
+réduit de moitié, et ils valent d'être écrits parce qu'ils se re-supposeront :
+- **la notion de thème existait déjà** — `knowledge_topics` (migration `013`),
+  avec `name`, `color`, `position`, `created_at`. **Aucune migration créée** ;
+- `018` et `019` sont **prises** (Finance, retrait de Benchmark). Une migration
+  neuve serait `020` — il n'en a pas fallu ;
+- **il n'y a pas de convention `deleted_at`** dans ce projet : les pierres
+  tombales vivent dans `sync_outbox` (triggers de la `016`). `knowledge_topics`
+  y est câblé et figure déjà dans `TABLES_SYNC` — **rien à ajouter à
+  `scope.ts`**, donc rien qui risquait de sortir de la sauvegarde chiffrée.
+
+### Les deux niveaux
+1. **Accueil = grille de thèmes** (`TopicGrid`). Même matériau que les cartes de
+   notes : `.card` dans `.auto-cards` (piste 232 px), donc **la même réduction
+   de colonnes** en fenêtre étroite, sans point de rupture de viewport. Chaque
+   case porte filet de couleur, nom, **aperçu des 3 dernières notes**, compteur
+   et date de dernière modification.
+2. **Un thème ouvert** = la grille de cartes d'avant, titre = nom du thème avec
+   sa pastille, **fil d'Ariane « ‹ SAVOIR »** + `Échap` pour remonter.
+
+Trois natures de cases, distinctes à l'œil : le **thème** (carte pleine),
+**« Sans thème »** (bordure tiretée, sans couleur, n'apparaît que s'il y a des
+notes non classées) et **« Nouveau thème »** (tiretée, sans matériau : c'est une
+action, pas un contenu).
+
+### ⚠️ Rien ne devient invisible — c'était la contrainte non négociable
+Un classement qui cache est pire que pas de classement. Trois sorties :
+- la case **« Sans thème »**, qui apparaît d'elle-même ;
+- deux pastilles transverses dans la barre d'outils (**toutes les notes**,
+  **épinglés**), à la même place aux deux niveaux ;
+- **la recherche de l'accueil balaie TOUS les thèmes**, chaque résultat portant
+  le nom du sien. Depuis un thème, elle reste dans ce thème mais **annonce ce
+  qu'elle cache** (« 2 notes correspondent, mais elles sont rangées ailleurs »
+  + *Chercher partout*, qui garde les mots tapés).
+
+⚠️ **Ce renvoi doit vivre DANS l'écran vide**, pas après lui : placé à la suite,
+il tombait sous la ligne de flottaison (le gabarit prend toute la hauteur) et
+n'était jamais vu. Une sortie invisible ne vaut pas mieux qu'une absence de
+sortie — trouvé en regardant l'écran, pas le code.
+
+### ⚠️ `Entrée` ne validait pas — la soumission implicite ne suffit pas
+Le formulaire de création avait un `<form onSubmit>` et un bouton `type="submit"` :
+sur le papier, `Entrée` valide. En pratique, non — la soumission implicite
+dépend de détails de l'événement clavier. `Entrée` est donc géré
+**explicitement** sur le champ (`preventDefault` + appel direct, ce qui empêche
+aussi le double envoi). Règle générale : une touche annoncée dans une bulle doit
+être tenue par du code, pas par une spécification. Même raison pour `Échap`, qui
+remonte d'un niveau — il porte trois gardes (pas quand le lecteur est ouvert,
+pas depuis un champ de saisie, pas depuis l'accueil).
+
+### Décisions prises d'après le code, pas par goût
+- **Une note appartient à UN thème ou à aucun** — `topic_id` est un entier
+  nullable, pas une table de liaison.
+- **Pas de sous-thèmes** — aucun `parent_id` nulle part.
+- **La couleur existe mais n'est pas demandée à la création** : attribuée
+  d'office en tournant dans `TOPIC_COLORS`, modifiable ensuite. Créer un thème
+  ne demande qu'un nom.
+  ⚠️ **L'ordre de `TOPIC_COLORS` a donc changé** : le rouge corail est passé EN
+  DERNIER. Rouge et vert sont sémantiques ici ; un quatrième thème peint en
+  rouge sans que personne l'ait demandé se lit comme une alerte. Choisi à la
+  main, c'est autre chose — là c'est une intention.
+
+### Gestion des thèmes
+Renommer (formulaire en place, avec la palette), réordonner (chevrons pivotés
+« déplacer avant / après », persistés par **`reorderKnowledgeTopics`** — nouvelle
+fonction de dépôt : `position` existait en base mais **n'était jamais écrite**),
+supprimer (confirmation qui **dit combien de notes** et ce qu'elles deviennent).
+⚠️ Les notes ne partent JAMAIS avec le thème : `deleteKnowledgeTopic` les repasse
+`topic_id = NULL`, et la case « Sans thème » les récupère aussitôt.
+Un **doublon est signalé, pas créé** (`sameTopicName` : casse et accents ignorés).
+
+### États : un seul gabarit
+Chargement, erreur et liste vide passent par **`Placeholder`** — même conteneur,
+même hauteur minimale, donc **aucun saut de mise en page** entre les trois.
+L'écran d'erreur a été vérifié en cassant `fetchKnowledge` pour de bon, pas en
+relisant le code.
+
+### Ce qui n'a PAS été fait, et pourquoi
+- **Flèches directionnelles dans la grille** : écartées. Un focus roulant dans
+  une grille qui se replie doit gérer le nombre réel de colonnes et se battre
+  avec le champ de recherche. `Tab` atteint déjà chaque case, `:focus-visible`
+  est global. Un demi-raccourci vaut moins que pas de raccourci.
+- **Aucun raccourci global ajouté** : aucune collision possible.
+
+### ⚠️ Trois fichiers de tests échouent, et ce n'est pas ce chantier
+`activation.sql.test.ts`, `admin.sql.test.ts` et `supabase.test.ts` tombent en
+`Hook timed out in 10000ms` sur `new PGlite()` — le démarrage WASM dépasse le
+délai de garde quand plusieurs suites bootent leur PGlite en parallèle sur une
+machine chargée. Lancés seuls au calme : **68/68 en 23 s**. Deux preuves que ce
+n'est pas une régression : le nombre d'échecs **varie d'un tour à l'autre**
+(14 → 8 → 3 → 1), et **aucun des fichiers modifiés ici n'apparaît dans leur
+graphe d'imports** (ils ne tirent que `src/lib/sync/*`, PGlite et le SQL de
+`shale-site`). Ne pas re-diagnostiquer : c'est un budget de temps, pas un bogue.
+
+### Fichiers
+`src/views/KnowledgeView.tsx` (`TopicGrid`, `TopicTile`, `UnfiledTile`,
+`TopicForm`, `ConfirmDeleteTopic`, `ThemesEmptyState`, `Placeholder` —
+`TopicRail` supprimé), `src/lib/knowledge.ts` (`sameTopicName`, ordre de
+`TOPIC_COLORS`), `src/lib/repo.ts` + `src/lib/demo.ts`
+(`reorderKnowledgeTopics`, tri des thèmes par `position` en démo),
+`src/lib/i18n/en.ts` (48 clés). **Aucun Rust, aucune migration.**
+
+### Reste à faire
+`PASSATION-savoir-site.md` (racine) porte le détail pour le site : la fiche
+`modules.ts` de Savoir décrit encore l'écran d'AVANT (son `widget` liste des
+fiches, pas des thèmes). La démo jouable de `Demo.astro`, elle, **n'a rien à
+changer** — Savoir n'est pas l'un des trois modules jouables, et le compte de
+modules ne bouge pas. Le portage vers `windows-build` est une session à part.
+
 ## Règle : Antonin n'utilise jamais le Terminal
 
 **Il n'est pas développeur.** Il ne doit avoir à taper aucune commande.
