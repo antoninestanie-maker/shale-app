@@ -2,7 +2,15 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` : sans lui, iOS réserve lui-même les marges de
+         l'encoche et de la barre d'accueil, et `env(safe-area-inset-*)` renvoie
+         toujours 0 — la barre d'onglets flotterait au-dessus d'un bandeau vide.
+         `maximum-scale=1` empêche le zoom involontaire au double-tap sur un champ.
+         Sans effet sur le bureau. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
     <title>Shale</title>
   </head>
 

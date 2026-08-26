@@ -4,6 +4,8 @@ import Onboarding, { needsOnboarding } from "./components/auth/Onboarding";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
+import { useIsPhone } from "./lib/platform";
+import MobileNav from "./components/MobileNav";
 import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
 import { SyncProvider } from "./components/SyncProvider";
 import TooltipLayer from "./components/Tooltip";
@@ -87,6 +89,7 @@ function App() {
   const focus = useFocus(refresh);
   const market = useMarketBrain();
   const ui = useUiConfig();
+  const isPhone = useIsPhone();
   useScreenTime(); // accumule le temps d'écran du jour (jauge de charge mentale)
   const windowSized = useRef(false);
 
@@ -185,16 +188,32 @@ function App() {
           l'attribut `data-tip` posé sur n'importe quel bouton/onglet). */}
       <TooltipLayer />
       <CommandPalette ctx={{ navigate, refresh, data, focus }} hasTrading={hasTrading} />
-      <Sidebar
-        view={view}
-        onNavigate={navigate}
-        demoMode={!isTauri}
-        isAdmin={isAdmin}
-        badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
-        config={ui.config}
-        hasTrading={hasTrading}
-        onLocked={setPaywallFor}
-      />
+      {/* Barre latérale sur bureau et tablette, barre d'onglets sur téléphone.
+          L'une OU l'autre, jamais les deux : `useIsPhone()` exige un écran
+          étroit ET un pointeur grossier, donc un Mac en Split View garde sa
+          barre latérale (déjà repliée en icônes par le chantier responsive). */}
+      {isPhone ? (
+        <MobileNav
+          view={view}
+          onNavigate={navigate}
+          isAdmin={isAdmin}
+          badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
+          config={ui.config}
+          hasTrading={hasTrading}
+          onLocked={setPaywallFor}
+        />
+      ) : (
+        <Sidebar
+          view={view}
+          onNavigate={navigate}
+          demoMode={!isTauri}
+          isAdmin={isAdmin}
+          badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
+          config={ui.config}
+          hasTrading={hasTrading}
+          onLocked={setPaywallFor}
+        />
+      )}
       {paywallFor && (
         <UpgradeModal
           moduleLabel={MODULE_LABELS[paywallFor]}
@@ -202,7 +221,20 @@ function App() {
         />
       )}
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <div key={view} className="animate-fade-up flex-1 overflow-y-auto">
+        <div
+          key={view}
+          className="animate-fade-up flex-1 overflow-y-auto"
+          // Sur téléphone, la barre d'onglets est en `fixed` : sans cette
+          // réserve, le bas de chaque vue passerait DESSOUS et deviendrait
+          // inatteignable — la dernière tâche d'une liste, le dernier bouton
+          // d'un formulaire. `env(safe-area-inset-bottom)` couvre en plus la
+          // barre d'accueil des iPhone sans bouton.
+          style={
+            isPhone
+              ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
+              : undefined
+          }
+        >
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">

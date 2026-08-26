@@ -1467,4 +1467,7 @@ export const EN: Record<string, string> = {
   "{n} compte archivé": "{n} archived account",
   "{n} comptes archivés": "{n} archived accounts",
   "Chargement…": "Loading…",
+
+  // ── Navigation mobile (2026-08-27) ────────────────────────────────────────
+  "Plus": "More",
 };

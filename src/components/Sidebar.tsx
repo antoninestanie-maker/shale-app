@@ -39,7 +39,10 @@ interface Props {
   onLocked?: (view: View) => void;
 }
 
-const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
+// ⚠️ EXPORTÉ : `MobileNav.tsx` consomme exactement cette liste. C'est
+// délibéré — un second tableau de modules pour le mobile serait la porte
+// par laquelle la divergence entre plateformes reviendrait.
+export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
   {
     id: "today",
     label: "Aujourd'hui",
@@ -204,14 +207,14 @@ export const MODULE_LABELS: Record<string, string> = Object.fromEntries(
   ITEMS.map((it) => [it.id, it.label]),
 );
 
-const BY_ID = new Map(ITEMS.map((it) => [it.id, it]));
+export const BY_ID = new Map(ITEMS.map((it) => [it.id, it]));
 
 /**
  * Catégories de la sidebar. « Aujourd'hui » reste hors catégorie (accueil) ;
  * Personnaliser/Réglages restent épinglés en bas (rôle « Système »).
  * L'ordre/visibilité DANS chaque catégorie suit la page Personnaliser.
  */
-const CATEGORIES: { id: string; label: string; members: View[] }[] = [
+export const CATEGORIES: { id: string; label: string; members: View[] }[] = [
   {
     id: "prod",
     label: "Productivité",
@@ -233,7 +236,7 @@ const CATEGORIES: { id: string; label: string; members: View[] }[] = [
   },
 ];
 
-const CATEGORY_OF: Partial<Record<View, string>> = Object.fromEntries(
+export const CATEGORY_OF: Partial<Record<View, string>> = Object.fromEntries(
   CATEGORIES.flatMap((c) => c.members.map((m) => [m, c.id])),
 );
 

@@ -16,6 +16,8 @@
 // plus. La webview est WKWebView sur macOS et WebView2 sur Windows ; les deux
 // annoncent leur système sans ambiguïté.
 // ─────────────────────────────────────────────────────────────────────────────
+import { useEffect, useState } from "react";
+
 import { getLang } from "./i18n";
 
 function detectMac(): boolean {
@@ -78,4 +80,44 @@ export function kbd(macShortcut: string): string {
 
   reste = reste.trim();
   return [...mods, reste].filter(Boolean).join("+");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Téléphone — la bascule de NAVIGATION (barre latérale → barre d'onglets).
+//
+// ⚠️ La condition est un ET, pas le OU des cibles tactiles de `DESIGN.md`
+// (`max-width: 900px, (pointer: coarse)`). Les deux règles ne répondent pas à
+// la même question :
+//   - « faut-il des cibles de 44 px ? » → OUI dès qu'un doigt est POSSIBLE,
+//     donc un OU, y compris sur une fenêtre de bureau réduite ;
+//   - « faut-il remplacer la barre latérale ? » → NON sur un bureau étroit,
+//     où elle se replie déjà en icônes (chantier responsive du 2026-08-26), et
+//     NON sur un iPad, assez large pour la porter.
+// Un OU ici ferait donc disparaître la barre latérale d'un Mac en Split View —
+// une régression du bureau introduite par le portage mobile.
+//
+// 600 px = le point de rupture `sm` de `DESIGN.md`. Pas une valeur inventée :
+// la doctrine impose de réutiliser les quatre points nommés. iPhone 17 = 393 pt,
+// 17 Pro Max = 440 pt ; iPad mini en portrait = 744 pt, donc garde sa barre.
+// ─────────────────────────────────────────────────────────────────────────────
+const REQUETE_TELEPHONE = "(max-width: 600px) and (pointer: coarse)";
+
+/** Vrai si l'appareil doit recevoir la navigation par onglets. */
+export function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia(REQUETE_TELEPHONE).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(REQUETE_TELEPHONE);
+    const onChange = () => setPhone(mq.matches);
+    // La rotation d'un iPhone change la largeur : la valeur doit suivre, sinon
+    // l'app garderait la mise en page de l'orientation de départ.
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  return phone;
 }
