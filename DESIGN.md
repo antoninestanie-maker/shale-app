@@ -138,6 +138,124 @@ tuiles se réorganisent selon la largeur **réelle du widget**, jamais selon
 un breakpoint de viewport. `.clamp-1/2/3` pour les textes longs,
 `.table-scroll` pour les tableaux larges.
 
+## Adaptatif — échelles fluides et points de rupture
+
+Ajouté le 2026-08-25, **côté site d'abord** (`shale-site`, phase 2 du chantier
+« Adaptatif »). L'app suit la même doctrine mais pas encore les mêmes tokens :
+voir l'avertissement en fin de section.
+
+### La règle de fond : `rem` pour le texte, `clamp()` pour les titres
+
+`1rem` vaut la taille de police de base choisie par le visiteur ou par le
+système. Une taille en `px` l'ignore ; une taille en `rem` la suit. C'est la
+seule façon de tenir le WCAG 1.4.4 — et c'est ce qui manquait : avant ce
+chantier, le site portait **290 tailles en pixels contre une seule en `rem`**,
+et agrandir la police système n'y produisait strictement aucun effet.
+
+⚠️ **Un `clamp()` dont les deux bornes sont en `px` refige ce que le `rem`
+venait de libérer.** D'où la séparation :
+
+- **texte courant et interface → `rem` pur**, sans `clamp()`. Il n'a pas à
+  changer d'échelle entre un téléphone et un 27 pouces ; il a seulement à suivre
+  le réglage du lecteur ;
+- **titres → `clamp()` dont chaque borne est en `rem`**, avec la partie fixe de
+  l'interpolation en `rem` elle aussi. `clamp(34px, 4.6vw, 58px)` est
+  insensible au zoom texte ; `clamp(2.125rem, 1.603rem + 2.609vw, 3.625rem)`
+  ne l'est pas.
+
+Les valeurs sont calées pour rendre **exactement les pixels d'avant** à 16 px de
+base. Rien ne bouge à l'œil pour qui n'a pas touché ses réglages ; tout suit
+pour qui y a touché.
+
+| Token | Valeur | Rendu à 16 px | Emploi |
+|---|---|---|---|
+| `--fs-2xs` | `0.6875rem` | 11 px | `.eyebrow`, mentions techniques — **plancher du site** |
+| `--fs-xs` | `0.75rem` | 12 px | métadonnées |
+| `--fs-sm` | `0.8125rem` | 13 px | légendes, liens fins |
+| `--fs-md` | `0.875rem` | 14 px | corps d'interface, nav, petits boutons |
+| `--fs-base` | `0.9375rem` | 15 px | listes, corps dense |
+| `--fs-lg` | `1rem` | 16 px | corps de bouton, corps de lecture |
+| `--fs-xl` | `1.09375rem` | 17,5 px | corps de lecture long |
+| `--fs-h3` | `clamp(1.25rem, 1.163rem + 0.435vw, 1.5rem)` | 20 → 24 px | h3 |
+| `--fs-h2` | `clamp(1.625rem, 1.364rem + 1.304vw, 2.375rem)` | 26 → 38 px | h2 |
+| `--fs-h1` | `clamp(2.125rem, 1.603rem + 2.609vw, 3.625rem)` | 34 → 58 px | h1 de section |
+| `--fs-hero` | `clamp(3rem, 1.783rem + 6.087vw, 6.5rem)` | 48 → 104 px | héros |
+
+⚠️ **Le plancher du site est 11 px, et c'est délibéré.** L'outil d'audit
+signale sous 11,5 px : c'est un filet, pas une norme. Monter à 11,5 n'améliore
+rien de mesurable et décale une trentaine d'étiquettes en capitales espacées,
+calibrées au pixel. En revanche, tout ce qui est SOUS 11 px remonte : 9,5 px
+(`.baseline`), 10 px, 10,5 px.
+
+### Espacements fluides
+
+Toutes les rampes vont de **320 px** (le plus petit téléphone de la matrice) à
+**1240 px** (`--page`, au-delà duquel la colonne ne grandit plus).
+
+| Token | Rampe | Remplace |
+|---|---|---|
+| `--gutter` | 18 → 40 px | la bascule 40 → 22 px à 900 px, **seul point de rupture global du site** |
+| `--section` | 64 → 130 px | les dix `padding-bottom: 130px` du rythme vertical |
+| `--card-pad` | 20 → 34 px | les paddings de carte figés |
+| `--gap-sm/md/lg` | 8→12 · 14→24 · 24→44 px | les `gap:` figés des grilles |
+| `--tap` | `44px` | le minimum de cible tactile, en dur nulle part |
+
+⚠️ **`--gutter` est déclaré en `@property … syntax: "<length>"`.** Sans cet
+enregistrement, sa valeur *calculée* reste la chaîne « clamp(…) » : le
+`parseFloat()` de `tools/dev/wrap-check.mjs` lit `NaN`, retombe sur son défaut
+de 40 px, et dénonce chaque page comme fautive.
+
+### Points de rupture
+
+Une media query ne sait pas lire une variable CSS : ces quatre valeurs sont une
+**convention**, pas des tokens. Elles doivent être respectées à la main.
+
+| Nom | Valeur | Ce qui bascule (site) |
+|---|---|---|
+| `xs` | 420 px | la marque perd son mot ; les CTA longs reviennent à la ligne |
+| `sm` | 600 px | la pastille FR/EN descend dans le menu ; les grilles à 2 colonnes s'empilent |
+| `md` | 900 px | la barre passe au burger ; les grilles à 2-3 colonnes s'empilent |
+| `lg` | 1200 px | l'explorateur de modules passe en accordéon ; la démo passe en onglets |
+
+Avant ce chantier, **sept** valeurs cohabitaient sans nomenclature : 420, 560,
+620, 700, 800, 900, 1000.
+
+### Cibles tactiles
+
+La condition est « le pointeur **peut** être un doigt », pas « l'écran est
+étroit » : `@media (max-width: 900px), (pointer: coarse)`. `pointer` interroge
+le matériel, la clause de largeur sert aux fenêtres de bureau réduites — et
+c'est la seule des deux qu'un navigateur sans tête sait vérifier.
+
+⚠️ **Ce n'est pas de la détection par user-agent** : `pointer` est une media
+feature standard qui décrit le dispositif de pointage réel. Ce qui est interdit,
+c'est l'inverse — déduire le matériel d'une chaîne d'identité.
+
+### Ce qui ne s'applique PAS au site
+
+`.panel-col`, `.panel-grow`, `.panel-scroll`, `.panel-chart`, `.panel-stretch`
+et `.auto-tiles-*` sont des classes de **widget d'app**. Le site n'a pas de
+widgets redimensionnables : les y copier ne créerait que du code mort et
+l'illusion d'un système commun.
+
+En revanche `overflow-wrap: anywhere` (sur `p/li/dd/dt`), `.table-scroll` et
+`.clamp-1/2/3` **valent pour les deux surfaces** et ont été portés à l'identique
+dans `shale-site/vitrine/src/styles/global.css`. Ils n'y existaient pas avant le
+2026-08-25 : le chantier « Adaptatif » les supposait partagés, ils ne l'étaient
+pas. Ils le sont désormais.
+
+### ⚠️ Divergence ouverte : l'app est encore en pixels
+
+L'échelle « pratiquée » décrite plus haut (§ Typographie) est en pixels, et
+l'app la rend en pixels. **Si le site passe au `rem` et que l'app n'y passe
+pas, les deux divergent** — et l'app reste, elle, insensible à la taille de
+police système.
+
+Le passage doit être décidé **pour les deux surfaces ou pour aucune**. Côté app,
+l'enjeu n'est pas le même : une app Tauri n'a pas de « réglage navigateur », mais
+elle hérite du réglage d'accessibilité du système. C'est une question pour la
+session app du chantier, pas une décision prise ici.
+
 ## Règles impératives (inchangées depuis V3)
 
 - **Jamais** de couleur codée en dur ni de voile `bg-white/x`/`bg-black/x`
