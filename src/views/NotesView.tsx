@@ -110,14 +110,19 @@ export default function NotesView({ data, refresh }: Props) {
   }, [selected, body, data.notes]);
 
   return (
-    <div className="mx-auto grid h-full max-w-6xl grid-cols-[280px_1fr] gap-4 p-8">
+    // La colonne de liste était figée à 280 px. À 900 px de fenêtre — la taille
+    // minimale — il ne restait que 86 px au champ de recherche, dont le texte
+    // d'invite se faisait couper net. `minmax()` la laisse se resserrer jusqu'à
+    // 220 px avant que la colonne d'édition ne cède, et `clamp` sur le padding
+    // rend 32 px de chaque côté aux fenêtres étroites.
+    <div className="mx-auto grid h-full max-w-6xl grid-cols-[minmax(220px,280px)_minmax(0,1fr)] gap-4 p-4 lg:p-8">
       {/* Liste + recherche */}
       <div className="card flex min-h-0 flex-col p-3">
         <div className="flex gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher…"
+            placeholder={t("Rechercher…")}
             className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
           />
           <button

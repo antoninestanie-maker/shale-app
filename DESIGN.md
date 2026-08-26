@@ -244,6 +244,49 @@ dans `shale-site/vitrine/src/styles/global.css`. Ils n'y existaient pas avant le
 2026-08-25 : le chantier « Adaptatif » les supposait partagés, ils ne l'étaient
 pas. Ils le sont désormais.
 
+### Côté app — ce qui a été fait, et ce qu'il ne faut PAS faire
+
+**La barre latérale se replie en icônes sous 1024 px** (`Sidebar.tsx`). Elle
+mesurait 232 px de 720 à 2560 px sans jamais céder un pixel : 32 % de la fenêtre
+en Split View. Repliée, elle fait 64 px et le tableau de bord gagne 168 px.
+
+Icônes plutôt que tiroir superposé : les treize items restent à UN clic, sur une
+app dont on change d'onglet en permanence. Un tiroir en coûterait deux. Il
+n'aurait de sens que sous ~600 px, largeur que `minWidth` interdit.
+
+⚠️ **Trois composants du pied de barre écrivent du TEXTE** — horloge, session,
+synchronisation. Repliés dans 64 px, l'horloge se cassait caractère par
+caractère. Horloge et session reviennent avec les libellés (`hidden lg:contents`) ;
+l'indicateur de synchronisation RESTE, réduit à sa pastille — c'est le seul
+endroit où une panne de sync se voit.
+
+**`minWidth` passe de 900 à 720 px** (`tauri.conf.json`) : c'est la largeur d'une
+demi-fenêtre en Split View sur un écran de 1440. L'audit a montré que l'interface
+s'y comporte correctement — il n'y avait aucune raison de l'interdire.
+
+#### ⚠️ La grille d'Aujourd'hui n'a PAS besoin de migration
+
+`ResizableGrid` est **déjà** container-responsive, et par construction : le
+plancher d'un panneau est exprimé en PIXELS (`MIN_PANEL_PX = 248`) puis traduit
+en colonnes d'après la largeur **mesurée** de la grille — jamais d'après un
+breakpoint de fenêtre.
+
+Vérifié en mesurant : une disposition écrite à 1440 px, la fenêtre réduite à
+720 puis ramenée à 1440 — la valeur stockée est identique au caractère près, et
+les panneaux retrouvent exactement leurs largeurs. Le clamp vit au rendu ;
+`persistSizes` n'est appelé que par une action de l'utilisateur.
+
+**Écrire une migration des dispositions réécrirait la donnée qui, aujourd'hui,
+survit intacte.** C'est le contraire de ce qu'il faut faire.
+
+#### Ce qui n'est pas un défaut : la troncature
+
+Un audit naïf compte ~390 « rognages » dans l'app. Ce sont des `.truncate` et
+des `.clamp-N`, c'est-à-dire du design appliqué : « tout libellé potentiellement
+long porte `truncate` ou `clamp-2` **et** un `title` » (§ Règles impératives), et
+`.hud-label` est décrit plus haut comme « tronqué en ellipse ». Une fois ces
+éléments exclus, il reste **quatre** constats sur 13 vues × 7 tailles × 2 thèmes.
+
 ### ⚠️ Divergence ouverte : l'app est encore en pixels
 
 L'échelle « pratiquée » décrite plus haut (§ Typographie) est en pixels, et

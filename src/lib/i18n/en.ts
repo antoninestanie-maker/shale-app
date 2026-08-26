@@ -164,6 +164,7 @@ export const EN: Record<string, string> = {
   "Nom de tâche vide": "Empty task name",
   "Précise le nom de la tâche": "Give the task a name",
   "Nouvelle note": "New note",
+  "Rechercher\u2026": "Search\u2026",
   "Contenu de la note…": "Note content…",
   "Note vide": "Empty note",
   "Note rapide": "Quick note",
