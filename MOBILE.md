@@ -868,12 +868,19 @@ connecter dans le simulateur**, puis capturer l'écran.
 
 ```
 1. xcrun simctl boot "iPhone 17"
-2. rm -rf gen/apple/build/arm64-sim/Shale.app gen/apple/build/shale_iOS.xcarchive
+2. rm -rf src-tauri/gen/apple/build/arm64-sim/Shale.app \
+         src-tauri/gen/apple/build/shale_iOS.xcarchive
 3. PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH" npm run tauri ios build -- --debug --target aarch64-sim
-4. xcrun simctl install booted <…>/build/arm64-sim/Shale.app
+4. xcrun simctl install booted src-tauri/gen/apple/build/arm64-sim/Shale.app
 5. xcrun simctl launch booted com.atnfx.shale
 6. open -a Simulator   (pour qu'Antonin voie et agisse)
 ```
+
+⚠️ **Le préfixe `src-tauri/` de l'étape 2 n'est pas cosmétique.** La première
+rédaction de cette procédure l'omettait ; le `rm -rf` ne visait alors aucun
+fichier, le nettoyage n'avait pas lieu, et le build échouait exactement de la
+façon décrite ci-dessous — **avec un code de sortie 0**. Le piège s'est donc
+retendu tout seul, sur sa propre documentation.
 
 ⚠️ **L'étape 2 n'est pas optionnelle** : `tauri ios build` échoue sur une
 sortie existante (« Directory not empty ») **en rendant un code de sortie 0**.
@@ -909,3 +916,115 @@ avant de transmettre quoi que ce soit à Antonin. `xcrun simctl` suffit.
 § 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
 note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
 Performance et Market Brain en consultation. Aucun module absent.
+
+---
+
+## 13. Le contrat de planification iOS — mesuré, et il réserve deux pièges
+
+*Mesuré le 2026-08-27 vers 2 h, avant d'écrire une seule ligne de
+planification. Ce sont les deux questions dont dépend TOUT le §3 : elles sont
+tranchées, elles ne sont plus à explorer.*
+
+### 13.1 Ce que le greffon expose vraiment sur mobile
+
+`tauri-plugin-notification` 2.3.3 n'offre pas la même API des deux côtés, et
+c'est ce qui commande le découpage `cfg` :
+
+| Méthode | `desktop.rs` | `mobile.rs` |
+|---|---|---|
+| `show()`, `builder()` | ✅ | ✅ |
+| `request_permission()`, `permission_state()` | ✅ (**des stubs** : toujours `Granted`) | ✅ **réels** |
+| `schedule(...)` sur le constructeur | accepté, **sans effet** | ✅ |
+| `pending()`, `cancel()`, `cancel_all()` | ❌ **n'existent pas** | ✅ |
+| `remove_active()`, `active()`, `remove_all_active()` | ❌ | ✅ |
+
+Autrement dit : **tout le code qui programme, liste ou annule des
+notifications ne compile que sous `#[cfg(mobile)]`.** Ce n'est pas une
+précaution de style, c'est le compilateur.
+
+### 13.2 ⚠️ Piège n°1 — `Schedule::At` n'est pas un rendez-vous, c'est un minuteur
+
+Lu dans le Swift du greffon (`ios/Sources/Notification.swift`,
+`handleScheduledNotification`) :
+
+```swift
+let dateInterval = DateInterval(start: Date(), end: dateInfo.date!)
+return UNTimeIntervalNotificationTrigger(
+  timeInterval: dateInterval.duration, repeats: repeating)
+```
+
+`At` est traduit en **`UNTimeIntervalNotificationTrigger`**, dont la durée est
+calculée `cible − maintenant`. Trois conséquences :
+
+1. une date **passée** lève `pastScheduledTime` — l'appel échoue, il ne se tait
+   pas ;
+2. `repeating: true` ne veut **pas** dire « tous les jours à la même heure » :
+   il veut dire « toutes les *durée* secondes ». Programmer 20 h à 14 h avec
+   `repeating` donne une notification toutes les six heures, pas une par jour ;
+3. seul `Schedule::Interval` produit un **`UNCalendarNotificationTrigger`**
+   (`dateMatching:, repeats: true`), c'est-à-dire le vrai rendez-vous
+   quotidien, évalué dans `Calendar.current` — donc à l'heure locale.
+
+### 13.3 ⚠️ Piège n°2 — le `Z` de `At` est un caractère, pas un fuseau
+
+Le Rust sérialise (mesuré, `serde_json::to_string`) :
+
+```
+{"at":{"date":"2026-08-17T21:00:00.000000000Z","repeating":false,…}}
+```
+
+Le Swift le relit avec un format **fixe** :
+
+```swift
+dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+```
+
+Deux choses à savoir, et je les ai mesurées plutôt que déduites — un petit
+programme Swift lancé sur ce Mac :
+
+```
+fuseau par défaut du formateur : Optional(Europe/Paris)
+2026-08-17T21:00:00.000000000Z → parsé, en UTC : 2026-08-17 19:00:00 Z
+2026-08-17T21:00:00.000Z       → parsé, en UTC : 2026-08-17 19:00:00 Z
+```
+
+- **les neuf décimales passent** : ICU consomme les chiffres de façon gloutonne,
+  alors que le format n'en déclare que trois. Ce n'était pas acquis, c'est
+  vérifié ;
+- **le `Z` est entre apostrophes : c'est un littéral.** Le formateur n'a donc
+  aucun indicateur de fuseau et retombe sur celui du système. Une instant écrit
+  en UTC est relu comme une heure **locale**.
+
+**Conséquence pour Shale, chiffrée :** passer au greffon un `OffsetDateTime` en
+UTC ferait tomber le rappel **deux heures trop tôt** en été (une heure en
+hiver). Et il n'y a pas d'échappatoire par l'autre bout : un `OffsetDateTime`
+porteur d'un décalage réel se sérialiserait `+02:00`, que le format fixe ne sait
+pas lire — l'appel échouerait franchement.
+
+**La parade, et elle est contre-intuitive :** prendre l'heure murale **locale**
+visée, et l'étiqueter UTC. Le Swift la relira comme locale, et le tour est
+juste. Ce n'est pas une élégance, c'est la seule forme que le greffon accepte.
+
+### 13.4 Ce que ces deux mesures décident
+
+| Règle | Planificateur iOS retenu | Pourquoi |
+|---|---|---|
+| `habits_pending` (20 h), `streak_at_risk` (21 h) | `Schedule::Interval { hour, minute }` | rendez-vous quotidien vrai, heure locale, **aucun des deux pièges** — et il survit sans reprogrammation |
+| Briefing Market Brain (8 h / 14 h, § 10 décision 3) | idem | idem |
+| `inactivity` (N jours, sans heure) | `Schedule::At`, ponctuel | c'est une échéance unique, reprogrammée à chaque passage en arrière-plan — **et c'est le seul cas exposé au piège du fuseau** |
+
+Le §3.2 tient donc intact : on (re)programme à chaque passage en arrière-plan,
+puisque le front est seul écrivain et que l'état ne bouge plus ensuite.
+
+### 13.5 Un défaut mineur, relevé au passage
+
+`emitter.rs`, `deliver_test()` choisit son texte ainsi :
+
+```rust
+body: if cfg!(target_os = "macos") { "…les notifications macOS…" }
+      else { "…les notifications Windows…" }
+```
+
+Sur iPhone, le bouton de test annoncera donc **« Windows »**. À corriger en même
+temps que le reste — c'est trois lignes, mais c'est précisément le bouton dont
+le §3.6 dit qu'il devient un vrai diagnostic sur iOS.
