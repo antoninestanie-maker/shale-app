@@ -360,7 +360,7 @@ export default function Sidebar({
         </span>
         {/* Les libellés sont renommables (page Personnaliser) : on tronque
             plutôt que de laisser un nom long déborder de la sidebar. */}
-        <span className="min-w-0 truncate" title={label}>
+        <span className="hidden min-w-0 truncate lg:inline" title={label}>
           {label}
         </span>
         {locked ? (
@@ -374,7 +374,19 @@ export default function Sidebar({
 
   return (
     // `glass` : matériau unique (verre teinté + saturation), theme-aware.
-    <aside className="glass relative z-10 flex w-[232px] shrink-0 flex-col border-r border-border">
+    // ── Repli en icônes sous 1024 px ────────────────────────────────────────
+    // La barre mesurait 232 px de 720 à 2560 px, sans jamais céder un pixel :
+    // 32 % de la fenêtre en Split View, 26 % à la taille minimale. Sous 1024 px
+    // elle tombe à 64 px et ne garde que les icônes.
+    //
+    // Pourquoi le repli en ICÔNES et pas un tiroir superposé : les treize items
+    // restent accessibles en UN clic. Un tiroir en coûterait deux, sur une app
+    // dont on change d'onglet en permanence. Le tiroir n'aurait de sens que
+    // sous ~600 px, largeur que la fenêtre ne peut pas atteindre (`minWidth`).
+    //
+    // Chaque libellé porte déjà `title={label}` : replié, le survol le rend.
+    // C'est ce qui rend ce repli possible sans rien ajouter.
+    <aside className="glass relative z-10 flex w-16 shrink-0 flex-col border-r border-border lg:w-[232px]">
       {/* Zone de drag fenêtre (barre de titre overlay).
           `="deep"` (et non l'attribut nu) : avec l'attribut nu, Tauri ne
           déclenche le drag que sur un clic DIRECT sur l'élément porteur
@@ -384,8 +396,14 @@ export default function Sidebar({
           la zone utile. En mode `deep` tout le sous-arbre devient poignée,
           SAUF les éléments cliquables : un `<button>` sans attribut coupe
           court à la remontée. La cloche reste donc cliquable. */}
-      <div data-tauri-drag-region="deep" className="flex items-start gap-2 px-5 pb-5 pt-10">
-        <div className="min-w-0 flex-1">
+      {/* Replié, le bloc de marque passe en colonne : le mot-symbole n'a plus la
+          place de s'écrire, seule la cloche reste utile. La zone de drag, elle,
+          doit survivre — c'est la seule poignée de la fenêtre. */}
+      <div
+        data-tauri-drag-region="deep"
+        className="flex flex-col items-center gap-2 px-2 pb-5 pt-10 lg:flex-row lg:items-start lg:gap-2 lg:px-5"
+      >
+        <div className="hidden min-w-0 flex-1 lg:block">
           <span className="font-display text-[17px] font-bold tracking-tight text-text">
             {config.brandTitle}
           </span>
@@ -394,7 +412,7 @@ export default function Sidebar({
         <NotificationBell onNavigate={onNavigate} />
       </div>
 
-      <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3">
+      <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-2 lg:px-3">
         {(() => {
           const visible = config.modules.filter((m) => m.visible && BY_ID.has(m.id));
           const uncategorized = visible.filter((m) => !CATEGORY_OF[m.id]);
@@ -428,10 +446,12 @@ export default function Sidebar({
                             : t("Déplier la catégorie")
                       }
                       data-tip-side="right"
-                      className="group flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-left hover:bg-overlay"
+                      className="group flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-left hover:bg-overlay lg:justify-start lg:px-3"
                     >
+                      {/* Replié, le nom de catégorie n'a plus la place ; il reste
+                          dans `data-tip`, donc au survol. */}
                       <span
-                        className={`hud-label flex-1 transition-colors group-hover:text-text ${
+                        className={`hud-label hidden flex-1 transition-colors group-hover:text-text lg:block ${
                           allLocked ? "opacity-55" : ""
                         }`}
                       >
@@ -498,18 +518,28 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="flex flex-col gap-3 px-5 pb-5 pt-4">
-        <Clock />
-        <SessionIndicator />
+      {/* ⚠️ Le pied de barre porte des composants qui écrivent du TEXTE — horloge,
+          session de marché, état de synchronisation. Dans une colonne de 64 px,
+          l'horloge se cassait caractère par caractère (« 16 : 5 6 : 40 M… »).
+          Ils reviennent avec les libellés, à partir de `lg`. Ce qu'on perd est
+          consultable d'un clic dans Réglages, et l'heure est celle du système —
+          elle est déjà dans la barre de menus de macOS. */}
+      <div className="flex flex-col gap-3 px-2 pb-5 pt-4 lg:px-5">
+        <div className="hidden lg:contents">
+          <Clock />
+          <SessionIndicator />
+        </div>
         <SyncIndicator onOuvrirReglages={() => onNavigate("settings")} />
         {demoMode && (
-          <span className="pill inline-block w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim">
+          <span className="pill hidden w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim lg:inline-block">
             {t("mode démo")}
           </span>
         )}
-        <div className="flex items-center gap-2">
+        {/* Replié, seule la pastille verte reste : elle dit la même chose que le
+            texte à côté, et c'est elle qu'on regarde. */}
+        <div className="flex items-center justify-center gap-2 lg:justify-start">
           <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-green" />
-          <span className="hud-label">{t("systèmes actifs")}</span>
+          <span className="hud-label hidden lg:inline">{t("systèmes actifs")}</span>
         </div>
       </div>
     </aside>

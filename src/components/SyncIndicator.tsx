@@ -140,6 +140,7 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
     <button
       type="button"
       onClick={actionnable ? onOuvrirReglages : () => void sync.synchroniserMaintenant()}
+      title={vue.libelle}
       className={`${base} ${vue.classe} w-fit text-left hover:opacity-80`}
       data-tip={vue.bulle}
       data-tip-sub={actionnable ? t("Ouvrir les réglages de synchronisation") : t("Synchroniser maintenant")}
@@ -148,7 +149,10 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
       <span
         className={`h-1.5 w-1.5 shrink-0 rounded-full ${vue.pastille} ${vue.anime ? "animate-pulse-dot" : ""}`}
       />
-      <span className="truncate">{vue.libelle}</span>
+      {/* Barre latérale repliée (< 1024 px) : la pastille suffit — c'est elle qui
+          porte l'état, le libellé ne fait que le nommer. Le `title` le rend au
+          survol, et Réglages le donne en toutes lettres. */}
+      <span className="hidden truncate lg:inline">{vue.libelle}</span>
     </button>
   );
 }
