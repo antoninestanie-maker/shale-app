@@ -825,3 +825,87 @@ de la base unique.
    `npm test`, et cette fois **`cargo check --all-targets`**, qui doit passer.
 4. Mettre à jour la table de `CLAUDE.md` § « l'app et le site ne divergent
    jamais » : elle est écrite pour deux surfaces, il en faudra trois.
+
+---
+
+## 12. ▶️ REPRENDRE ICI (état au 2026-08-27, 01 h 45)
+
+**Branche `mobile-ios`**, cinq commits, **rien n'est poussé sur GitHub**.
+Le tronc (`sync-chiffree`) porte la réconciliation Windows (`4ca4080`).
+
+### Ce qui est prouvé, exécuté, commité
+
+| | |
+|---|---|
+| Réconciliation Windows | `4ca4080` — plus de branche par plateforme |
+| Audit iOS | `c6b5867` — ce fichier |
+| Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
+| L'app tourne sur iPhone 17, `crypto.subtle` disponible | `5ebc08b` |
+| Barre d'onglets mobile | `360bd19` — **jamais vue à l'écran**, voir ci-dessous |
+
+Ligne de base, rejouée à chaque commit : `cargo check --all-targets` ✅ ·
+`cargo test --lib` 88 ✅ · `test:types` ✅ · `npm test` 381 ✅ ·
+`i18n:check` 1046 entrées, 0 manquante ✅
+
+### ⚠️ LE BLOCAGE, et il n'est pas technique
+
+**L'app est au mur de connexion sur le simulateur, et personne ne l'a
+franchi.** Claude ne saisit pas les identifiants d'Antonin — règle non
+négociable. Tout ce qui vit derrière ce mur est donc **écrit mais non
+vérifié** :
+
+1. **La barre d'onglets n'a jamais été vue.** Tiennent-elles sur 393 pt ? Les
+   libellés se tronquent-ils ? La feuille « Plus » s'ouvre-t-elle ? La zone
+   sûre du bas est-elle juste ?
+2. **`shale.db` n'existe pas** dans le conteneur de l'app — aucune vue n'a
+   interrogé la base. Les 19 migrations n'ont donc **jamais tourné sur iOS**.
+3. **La sync chiffrée n'a jamais été essayée** entre le Mac et l'iPhone.
+
+**Première action de la prochaine session : demander à Antonin de se
+connecter dans le simulateur**, puis capturer l'écran.
+
+### La procédure qui marche, à ne pas redécouvrir
+
+```
+1. xcrun simctl boot "iPhone 17"
+2. rm -rf gen/apple/build/arm64-sim/Shale.app gen/apple/build/shale_iOS.xcarchive
+3. PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH" npm run tauri ios build -- --debug --target aarch64-sim
+4. xcrun simctl install booted <…>/build/arm64-sim/Shale.app
+5. xcrun simctl launch booted com.atnfx.shale
+6. open -a Simulator   (pour qu'Antonin voie et agisse)
+```
+
+⚠️ **L'étape 2 n'est pas optionnelle** : `tauri ios build` échoue sur une
+sortie existante (« Directory not empty ») **en rendant un code de sortie 0**.
+Sans elle, on installe l'ancienne app et on lit un résultat périmé.
+
+⚠️ **Attendre ~10 s avant la première capture** : une capture prise trop tôt
+montre un écran blanc, qui ressemble à s'y méprendre à une régression. C'est
+arrivé, et j'ai annoncé à tort avoir cassé quelque chose.
+
+### Outils installés ce soir (ne pas les réinstaller)
+
+Homebrew (`/opt/homebrew`), CocoaPods 1.17, libimobiledevice, XcodeGen 2.46
+(compilé depuis la source, dans `~/.local/bin`), cibles Rust iOS, runtime
+simulateur iOS 26.5.
+
+⚠️ **Le panneau interactif du simulateur reste indisponible** tant que sa
+session n'est pas relancée : son serveur a lu `xcode-select` avant l'install
+d'Xcode. Son message réclame un `sudo` **inutile** — vérifier `xcode-select -p`
+avant de transmettre quoi que ce soit à Antonin. `xcrun simctl` suffit.
+
+### Ce qui reste de la Phase 3
+
+- **La notification locale de bout en bout** — programmée depuis l'app, reçue
+  app fermée. C'est LE jalon qui valide le point fort du produit, et il n'est
+  pas commencé. Le moteur Rust tourne déjà sur iOS (`notifications.json` écrit,
+  `last_run_at` renseigné), mais rien n'est encore PROGRAMMÉ auprès d'iOS.
+- **Un module réellement fonctionnel** (Aujourd'hui ou Tâches), une fois le
+  mur franchi.
+- **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
+
+### Décisions déjà prises — ne pas les rouvrir
+
+§ 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
+note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
+Performance et Market Brain en consultation. Aucun module absent.

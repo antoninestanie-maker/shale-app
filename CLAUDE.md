@@ -2566,3 +2566,72 @@ travail utile.
 | `npm run test:types` | vert |
 | `npm run i18n:check` | 1045 entrées, **0 clé manquante** |
 | `npm test` | **381** passés, 28 fichiers, 0 échec |
+
+## Portage iOS — le squelette tient debout (2026-08-27)
+
+**Branche `mobile-ios`, destinée à fusionner sur le tronc.** Ce n'est ni un
+dépôt, ni un worktree, ni une branche permanente : la leçon de la réconciliation
+Windows, la veille, est qu'une branche par plateforme EST le mécanisme de la
+divergence.
+
+**Lire `MOBILE.md`** — l'audit complet, les décisions arrêtées, et son § 12
+« REPRENDRE ICI » qui donne l'état exact et la procédure de build.
+
+### ⭐ Le risque n°1 du projet n'existe pas
+
+`crypto.subtle` **est disponible** dans la webview iOS. Mesuré dans l'app réelle
+sur iPhone 17 / iOS 26.5 : `isSecureContext = true`, `origin = tauri://localhost`.
+
+C'était l'inconnue qui dépassait toutes les autres : `sync/crypto.ts` bâtit
+AES-256-GCM, HKDF et HMAC dessus, et WebCrypto n'est exposé qu'en contexte
+sécurisé. **La synchronisation chiffrée de bout en bout fonctionne telle quelle
+sur iPhone.** Le repli envisagé — porter AES-GCM et HKDF côté Rust, comme Argon2
+l'est déjà — n'a pas lieu d'être.
+
+### ⚠️ Les gardes `cfg` héritées de Windows étaient fausses pour iOS
+
+Elles disaient « macOS ou pas macOS ». iOS n'étant pas macOS,
+`not(target_os = "macos")` y est VRAI : le téléphone aurait hérité du raccourci
+de capture **Windows** (`Ctrl+Alt+Espace`), sur un appareil sans clavier.
+
+Tout ce qui est bureau passe désormais sous `#[cfg(desktop)]` : tray, menu,
+greffon de raccourci global, `toggle_capture`, `show_main`, `on_window_event`.
+`keyring` couvre iOS via `cfg(any(macos, ios))` — vérifié dans la crate, qui
+embarque `src/ios.rs` et déclare `security-framework` pour les deux cibles.
+
+### Une seule source de modules, y compris sur mobile
+
+`Sidebar.tsx` exporte `ITEMS`, `BY_ID`, `CATEGORIES`, `CATEGORY_OF` ;
+`MobileNav.tsx` les **consomme**. Un second tableau de modules pour le mobile
+aurait rouvert la porte qu'on venait de refermer.
+
+Barre d'onglets : **Aujourd'hui · Tâches · Notes · Journal · Plus**, identique
+dans les deux offres — un onglet permanent ouvrant un mur de paiement est le
+pire endroit pour vendre, et l'App Store le regarde (règle 3.1.1). Les modules
+trading restent visibles et verrouillés dans « Plus ».
+
+⚠️ `useIsPhone()` exige un écran étroit **ET** un pointeur grossier — pas le OU
+des cibles tactiles de `DESIGN.md`. Un OU aurait fait disparaître la barre
+latérale d'un Mac en Split View.
+
+### ⚠️ Deux pièges d'outillage à ne pas re-diagnostiquer
+
+**`tauri ios build` échoue sur une sortie existante** (« Directory not empty »)
+**en rendant un code de sortie 0**. On croit avoir reconstruit, on installe
+l'ancienne app, on lit un résultat périmé. Supprimer
+`gen/apple/build/arm64-sim/Shale.app` et `gen/apple/build/shale_iOS.xcarchive`
+entre deux builds.
+
+**La console d'une WKWebView ne remonte pas dans le journal système d'iOS** —
+`log show` ne trouve rien, même avec le bon prédicat. Pour diagnostiquer sur
+mobile : afficher à l'écran et photographier. Ce qui se voit se prouve.
+
+### Ce qui n'est PAS vérifié
+
+L'app est au **mur de connexion** sur le simulateur, et Claude ne saisit pas les
+identifiants d'Antonin. Donc : la barre d'onglets n'a jamais été vue à l'écran,
+`shale.db` n'a jamais été créée sur iOS (les 19 migrations n'y ont jamais
+tourné), et la sync Mac ↔ iPhone n'a jamais été essayée. C'est le premier point
+à reprendre.
+
+`gen/apple/` est versionné, avec le `.gitignore` fourni par Tauri.
