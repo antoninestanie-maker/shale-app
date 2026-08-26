@@ -549,20 +549,34 @@ Ce qui a été vérifié :
   code partagé. **Aucune migration de schéma n'est nécessaire pour iOS**, et
   aucune n'est proposée ici.
 
-### ⚠️ L'inconnue à lever en premier, en Phase 3
+### ✅ L'inconnue est levée — mesurée sur le simulateur le 2026-08-27
 
-**`crypto.subtle` n'existe que dans un contexte sécurisé.** Sur iOS, la webview
-Tauri sert l'app par un gestionnaire de schéma personnalisé. **Je n'ai pas pu
-vérifier que WKWebView considère ce contexte comme sécurisé** — Xcode est absent,
-donc aucun test n'est possible.
+C'était **le risque n°1 du projet**, avant même les notifications :
+`crypto.subtle` n'existe que dans un « contexte sécurisé », et rien ne
+garantissait que le schéma personnalisé servant l'app sur iOS en soit un. S'il
+avait manqué, toute la synchronisation chiffrée tombait.
 
-Si `crypto.subtle` est indisponible, **toute la sync chiffrée tombe** : c'est le
-premier risque du projet, avant les notifications. Le repli existe (déplacer
-AES-GCM et HKDF vers le Rust, comme Argon2 l'est déjà) mais c'est un chantier.
+**Mesuré dans l'app réelle, sur iPhone 17 (iOS 26.5) :**
 
-**C'est la toute première chose à tester dès qu'Xcode est installé** — avant
-d'écrire une ligne d'interface mobile. Une ligne dans la console du simulateur
-suffit à répondre.
+```
+crypto.subtle   = object
+isSecureContext = true
+origin          = tauri://localhost
+```
+
+**WebCrypto est disponible. La synchronisation chiffrée de bout en bout
+fonctionne telle quelle sur iPhone** — AES-256-GCM, HKDF et HMAC compris.
+Aucune cryptographie à déplacer vers le Rust, aucun chantier à ouvrir. Le repli
+envisagé (porter AES-GCM et HKDF côté Rust, comme Argon2 l'est déjà) **n'a pas
+lieu d'être**.
+
+⚠️ **Comment la mesure a été faite, parce que le premier essai a échoué.**
+Le diagnostic était d'abord un `console.log`. Il n'a rien produit :
+**sur iOS, la console d'une WKWebView ne remonte PAS dans le journal système**
+— `log show` ne trouve rien, même avec le bon prédicat. Le diagnostic a donc été
+réécrit en **bannière affichée à l'écran**, puis photographié. À retenir pour
+tout futur débogage mobile : ce qui se voit se prouve, ce qui se journalise ne
+se voit pas.
 
 ---
 
@@ -646,6 +660,68 @@ la voie push (§3.3 B ou C) est retenue, auquel cas le compte devient nécessair
 dès le développement.
 
 ---
+
+## 8 bis. Ce que la Phase 3 a réellement prouvé (2026-08-27, ~1 h du matin)
+
+Tout ce qui suit a été **exécuté**, pas supposé.
+
+| Jalon | Résultat |
+|---|---|
+| Cible iOS initialisée (`tauri ios init`) | ✅ `gen/apple/shale.xcodeproj` |
+| Compilation Rust pour `aarch64-apple-ios-sim` | ✅ |
+| `Shale.app` installé et lancé sur iPhone 17 (iOS 26.5) | ✅ |
+| Écran de connexion, marque, typographie, design V6 | ✅ rendus correctement, en français |
+| `crypto.subtle` dans la webview iOS | ✅ **disponible** (§ 6) |
+| macOS après coup | ✅ `cargo check --all-targets`, `cargo test --lib`, `test:types` |
+
+### Deux prédictions de l'audit, confirmées à l'écran
+
+**1. La deuxième fenêtre `capture` déborde sur mobile.** § 2.2 l'annonçait sans
+pouvoir le prouver. La première capture d'écran l'a montré : la barre « Capture
+une tâche… ⏎ AJOUTER · ÉCHAP FERMER » flottait **par-dessus** l'écran de
+connexion. Sur iPhone il n'y a pas de seconde fenêtre : elle se superpose.
+
+**Corrigé** par `src-tauri/tauri.ios.conf.json`, qui ne déclare que la fenêtre
+principale — le mécanisme officiel de Tauri pour les réglages par plateforme.
+`tauri.conf.json` n'est pas touché, donc **macOS est inchangé d'un octet**.
+
+**2. Les gardes `cfg` héritées de Windows étaient fausses pour iOS.** Elles
+disaient « macOS ou pas macOS » ; iOS n'étant pas macOS, le téléphone aurait
+hérité du raccourci **Windows** `Ctrl+Alt+Espace`. Corrigé avant la première
+compilation (commit `042f750`).
+
+### ⚠️ Deux pièges d'outillage à ne pas re-diagnostiquer
+
+**`tauri ios build` ne remplace pas une sortie existante.** Il échoue sur
+`failed to rename app … Directory not empty`, et — c'est le piège — **le code
+de sortie reste 0**. On croit avoir reconstruit, on installe l'ancienne app, et
+on lit un résultat périmé. C'est arrivé une fois. **Supprimer
+`gen/apple/build/arm64-sim/Shale.app` et `gen/apple/build/shale_iOS.xcarchive`
+entre deux builds.**
+
+**Le panneau interactif du simulateur peut lire une configuration périmée.**
+Son serveur relève `xcode-select` à son démarrage : lancé avant l'installation
+d'Xcode, il réclame indéfiniment un `sudo xcode-select -s …` **déjà inutile**.
+Vérifier `xcode-select -p` avant de transmettre cette consigne à Antonin —
+elle demanderait son mot de passe pour rien. `xcrun simctl` fait le même travail.
+
+### L'outillage, et pourquoi il a coûté cher
+
+Trois outils manquaient, et aucun n'était prévu par le cahier des charges :
+
+| Outil | Obtention |
+|---|---|
+| **XcodeGen** | compilé depuis la source (Swift 6.3 d'Xcode) → `~/.local/bin` |
+| **CocoaPods** | ⚠️ impossible sans Homebrew : exige Ruby ≥ 3.1, or macOS ne fournit que **Ruby 2.6.10** (2019). Figer les versions à la main mène de `ffi` à `securerandom` à `zeitwerk`, chacune réclamant un Ruby plus récent. **Cul-de-sac.** |
+| **libimobiledevice** | idem — et `autoconf`/`pkg-config` manquent aussi |
+
+Résolu par **Homebrew**, installé via un fichier `.command` à double-cliquer
+posé sur le Bureau — conformément à la règle « Antonin n'utilise jamais le
+Terminal », dont l'ordre de préférence prévoit exactement ce cas. Seul son mot
+de passe Mac lui a été demandé, par macOS lui-même.
+
+⚠️ **Ne pas retenter la voie « gems figés à la main »** : elle a été explorée
+jusqu'au bout, elle ne mène nulle part sur Ruby 2.6.
 
 ## 9. La parité, mécaniquement — table à trois têtes
 
