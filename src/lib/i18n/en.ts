@@ -690,6 +690,7 @@ export const EN: Record<string, string> = {
   "Changer mon mot de passe": "Change my password",
   "Nouveau mot de passe": "New password",
   "Enregistrement…": "Saving…",
+  "Enregistrement impossible": "Could not save",
   "Mot de passe modifié.": "Password changed.",
   "Modification impossible.": "Could not save the change.",
   "Connecté en tant que": "Signed in as",

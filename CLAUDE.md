@@ -2341,3 +2341,147 @@ n'est plus une consigne à donner à Antonin.
 CLI) : le SQL se colle dans Supabase Studio → SQL Editor, et se colle **dans le
 message**. En revanche *vérifier* le résultat se fait très bien en `curl` avec
 la clé anon : le faire, plutôt que de demander « ça a marché ? ».
+
+## Une sortie explicite dans le lecteur du Savoir (2026-08-26)
+
+### Le problème
+
+Une fiche ouverte ne se refermait que par **Échap** ou par un **clic hors du
+cadre**. Aucun des deux gestes ne s'affiche à l'écran, et le second est
+précisément celui qu'on n'ose pas faire quand on vient d'écrire : rien ne dit
+si le texte est parti. Sur une fiche longue, après avoir défilé jusqu'en bas,
+la seule sortie visible — la croix de l'en-tête — se retrouve hors champ.
+
+### Ce qui a été fait
+
+Le **pied du lecteur porte désormais l'état d'enregistrement et l'action de
+sortie**, à droite du bloc tags/corbeille déjà présent :
+
+    [ #tag  #tag  + tag ] ···········  🗑  ✓ Enregistré  [ Terminé ⌘↵ ]
+
+- Bouton **« Terminé »** — primaire, `pill bg-blue text-white font-semibold`
+  (`DESIGN.md` ligne 315), aligné à droite, sans info-bulle (action libellée et
+  évidente). Le raccourci **⌘↵** est une pastille `border-current opacity-70`
+  **dans** le bouton, `aria-hidden` pour que le nom accessible reste « Terminé ».
+- **Indicateur** dérivé de l'état réel : `Enregistrement impossible` (rouge)
+  → `Enregistrement…` → `✓ Enregistré`. En **lecture immersive**, rien n'est
+  écrit : l'indicateur se tait, sauf écriture en vol (l'épingle et le thème
+  restent modifiables) ou échec. Afficher « Enregistré » en lecture aurait
+  laissé croire qu'une écriture venait d'avoir lieu.
+- **Au clic / au ⌘↵** : `await flush()` — la fonction existante, jamais une
+  copie — **puis** fermeture, **puis** focus rendu à la carte d'origine.
+- Échap, clic extérieur, croix d'en-tête, flèches ←/→ : **inchangés**. On a
+  ajouté une sortie, on n'en a retiré aucune.
+
+### Pourquoi une barre de pied, et pas un bouton en fin de texte
+
+Un bouton posé sous le dernier paragraphe disparaît dès qu'on remonte, et
+flotte au milieu du vide quand la fiche tient en une ligne. Le pied, lui, est
+toujours là. Et il porte l'état d'enregistrement à côté de l'action : c'est
+l'adjacence qui lève l'angoisse, pas le bouton seul.
+
+Le pied **n'a besoin ni de `sticky` ni de portail** — contre-intuitif, donc
+noté ici. La carte du lecteur est une colonne flex à trois zones, et le
+`overflow-y-auto` ne vit ni sur la carte ni sur le corps : il est sur la zone
+éditable de `NoteComposer` (`src/components/NoteComposer.tsx`). Le pied est
+donc déjà **hors** de la boîte qui défile, permanent par construction, et le
+texte ne passe jamais dessous — pas de `padding-bottom` compensatoire à poser.
+C'est aussi ce qui esquive le piège connu : `animate-fade-up` sur la carte y
+met un `transform`, donc tout descendant `position: fixed` s'ancrerait sur la
+carte et non sur la fenêtre.
+
+### Trois bugs préexistants trouvés en chemin, et corrigés
+
+Aucun n'a été introduit par ce chantier ; tous rendaient la nouvelle sortie
+incohérente.
+
+1. **Échap fermait deux étages d'un coup.** `SketchPad`, le menu « Insérer » et
+   le champ de lien écoutent Échap, mais le lecteur y était abonné **le
+   premier** sur `window` : les deux handlers partaient. Fermer un croquis
+   fermait la fiche avec. Corrigé par une convention uniforme — celui du dessus
+   marque la touche (`preventDefault`), le lecteur teste `e.defaultPrevented`.
+   `SketchPad` écoute en **capture** pour passer avant l'abonnement du lecteur.
+2. **La feuille de croquis ne bloquait pas le clavier.** Son voile masque le
+   lecteur à l'œil, pas à la tabulation : on atteignait la croix, la corbeille
+   et le nouveau « Terminé » à travers. `SketchPad` pose maintenant `inert` sur
+   `#root` le temps de sa vie (elle est portée sur `document.body`, donc `#root`
+   est bien un frère).
+3. **`flush()` n'avait aucun `try/catch`.** Une écriture refusée partait en
+   rejet non capturé, `dirty` restait bloqué à vrai pour toujours, et le patch
+   était perdu en silence. Il est maintenant rendu à la file
+   (`pending.current = { ...patch, ...pending.current }`) : la frappe suivante
+   le rejoue. Sans ça, le troisième état de l'indicateur n'aurait pas été
+   *dérivable* — il aurait fallu écrire une chaîne en dur, exactement le faux
+   positif à éviter.
+
+### Ce qui a été vérifié, et comment
+
+`tsc --noEmit`, `vite build`, `npm test` (373/373), `i18n:check` (0 manquante),
+`cargo check --lib --tests --bins` : tous verts.
+
+En démo navigateur, écran par écran : fiche courte (barre visible sans
+défilement) ; fiche longue et fiche à image (dernière ligne non masquée, barre
+immobile) ; frappe → `Enregistrement…` → `✓ Enregistré` ; **frappe puis
+« Terminé » dans la même seconde → le texte est là à la réouverture** ; `⌘↵`
+identique au clic ; défilement de la grille **rigoureusement identique** au
+retour (mesuré : 420 → 420) ; focus revenu sur la bonne carte (mesuré :
+`data-entry-id` attendu) ; Échap et clic extérieur intacts ; croquis par-dessus
+→ Échap ferme le croquis seul, et « Terminé » n'est ni visible ni focusable
+(`inert` vérifié) ; bulle de mise en forme déployée vers le haut, 114 px
+au-dessus du bouton ; clavier seul ; anglais (`Saved` / `Done`) ; thème clair
+et sombre ; largeurs de 1440 à 380 px — le bouton garde 113 × 29 px, ce sont
+les tags qui passent à la ligne.
+
+L'**état d'échec** a été exercé pour de vrai, par injection de panne temporaire
+dans `updateKnowledgeEntry` : « Enregistrement impossible » en rouge, bouton
+« Terminé » resté actif, puis reprise réussie une fois la panne levée, texte
+conservé. L'injection a été retirée ensuite (`git status` le confirme).
+
+### Ce qui n'a PAS été vérifié
+
+- **L'activation du bouton par Entrée / Espace au clavier.** Chromium ne
+  synthétise pas le clic d'activation à partir d'événements clavier injectés :
+  le bouton reçoit bien `keydown` et `keyup`, aucun `click` ne suit. C'est un
+  `<button>` natif, donc l'activation est le comportement du navigateur, pas du
+  code — mais **je ne l'ai pas vue se produire**. `⌘↵`, lui, est vérifié de bout
+  en bout au clavier et couvre le même besoin.
+- **L'app installée** : les 12 parcours ont été faits en démo navigateur
+  (pglite), pas dans le bundle Tauri. Le chemin d'écriture y diffère
+  (`plugin-sql` / SQLite).
+
+### Décisions de périmètre
+
+- **Le module Notes n'a pas été touché**, et c'est délibéré. `NotesView` est un
+  layout deux panneaux pleine hauteur : la note s'édite dans le panneau de
+  droite, la liste ne disparaît jamais. Il n'y a **aucune superposition à
+  fermer**, donc rien à quoi « sortir » renverrait. Y coller la même barre
+  aurait fabriqué une fausse modale. Les deux modules divergent parce que leurs
+  formes divergent, pas par oubli.
+- **Pas d'« accent jade ».** Le système s'appelle « Obsidian & Jade », mais
+  `DESIGN.md` lignes 20-21 réserve le vert aux signaux de trading et ne donne
+  qu'un seul accent interactif : le bleu. Aucun token `--color-jade` n'existe,
+  ni `--color-danger` (c'est `--color-red`). Aucun token nouveau n'a été créé.
+- **`prefers-reduced-motion` : rien à ajouter.** La règle globale
+  (`src/index.css` l. 310-318) neutralise déjà `animation-duration` et
+  `transition-duration` partout. De même pour le focus clavier : le
+  `:focus-visible` global (l. 272-276) habille le bouton sans une ligne de plus.
+- **Zéro clé i18n nouvelle pour les libellés** : « Terminé », « Enregistré »,
+  « Enregistrement… » et « Échap » existaient déjà dans `en.ts`. Seul le message
+  d'échec, « Enregistrement impossible » → « Could not save », a été ajouté.
+- **Aucune migration SQL, aucune table touchée** : `src/lib/sync/scope.ts` reste
+  inchangé, comme prévu.
+- **Le site n'a rien à répercuter, vérifié et non supposé.** La démo jouable
+  (`shale-site/vitrine/src/components/Demo.astro`) ne rend que trois écrans —
+  `today`, `position`, `journal` ; « Savoir » et « Notes » n'y sont que des
+  libellés inertes de la barre latérale. Et le widget du module Savoir dans
+  `src/lib/modules.ts` est un `kind: "cards"` — une liste de titres, pas une
+  reproduction du lecteur. Rien à mettre à jour.
+
+### Un détail à savoir pour la suite
+
+Le debounce d'enregistrement du lecteur est de **700 ms**
+(`KnowledgeView.tsx`, dans `patch()`), pas 600. Plusieurs consignes citent 600 ;
+c'est 700 dans le code, et ça n'a pas été changé.
+
+Vu au passage, **non corrigé car hors périmètre** : la ligne de dates du lecteur
+(« créée le … · modifiée le … ») reste en français quand l'app est en anglais.
