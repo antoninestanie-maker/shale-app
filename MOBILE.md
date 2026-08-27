@@ -1222,30 +1222,35 @@ prochaine session.
 
 ---
 
-## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 3 h 20)
+## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 3 h 30)
 
-**Branche `mobile-ios`**, douze commits, **rien n'est poussé sur GitHub**.
+**Branche `mobile-ios`**, treize commits, **rien n'est poussé sur GitHub**.
+Arbre propre. Ligne de base rejouée au dernier commit :
+
+`cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
+`cargo test --lib` **99** ✅ · `test:types` ✅ · `npm test` **388** ✅ ·
+`i18n:check` 1054 entrées, 0 manquante ✅
 
 ### 15.1 ✅ Le rappel local est ARMÉ dans iOS — prouvé, pas déduit
 
-C'était LE jalon du produit. Il est franchi. Lu dans le magasin d'iOS lui-même,
-pas dans notre code :
+C'était LE jalon du produit. Lu dans le magasin d'iOS lui-même :
 
 ```
-identifiants : ['737976655']            ← id_systeme, tel que nous l'avons calculé
-titres       : ["2 habitudes t'attendent"]
+identifiants : ['737976655']            ← id_systeme, tel que nous le calculons
+titre        : "2 habitudes t'attendent"
 corps        : "Il te reste 2 habitudes à cocher aujourd'hui (Rffds, Diss)."
-intervalles  : [60231.33]               ← déposé à 03:16:08 → 20:00:00 pile
+intervalle   : 59875 s                  ← déposé à 03:22:05 → 20:00:00 pile
 ```
 
-Une seule échéance, aucun doublon après plusieurs cycles de dépôt. Et le
-contournement de fuseau du § 13.3 est confirmé par l'arithmétique : un instant
-UTC aurait donné 60 231 − 7 200 secondes, soit 18 h.
+Une seule échéance après cinq cycles de dépôt : la purge par registre
+fonctionne. Et l'arithmétique confirme le contournement de fuseau du § 13.3 —
+un instant UTC aurait donné 7 200 secondes de moins.
 
-**Ce qu'il reste à voir de ses yeux : la bannière tomber à 20 h, app fermée.**
-C'est de l'attente, plus du travail.
+⚠️ **Il reste à VOIR la bannière tomber à 20 h, app fermée.** C'est de
+l'attente, pas du travail. Attention : le simulateur doit être resté allumé,
+et tout `simctl install` entre-temps redéposera l'échéance (sans doublon).
 
-### 15.2 Ce que la nuit a corrigé
+### 15.2 Ce que la nuit a produit
 
 | | |
 |---|---|
@@ -1253,35 +1258,61 @@ C'est de l'attente, plus du travail.
 | Audit iOS | `c6b5867` |
 | Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
 | L'app tourne sur iPhone, `crypto.subtle` disponible | `5ebc08b` |
-| Barre d'onglets mobile | `360bd19` — **VUE**, et utilisée par Antonin |
+| Barre d'onglets mobile | `360bd19` — **VUE**, et utilisée |
 | Contrat de planification mesuré | `069806f` — § 13 |
 | Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
 | Journal : § 12, § 14 débogage | `7254b8f` |
 | Rappels iOS : projection + dépôt | `9fd2993` |
-| Icône, formateur du futur, registre d'identifiants | ce commit |
+| Icône Tauri → icône Shale · formateur du futur · registre d'identifiants | `6bea21e` |
+| `inactivity` projetée à l'ouverture de la plage | `7f7b5ed` |
 
-Ligne de base : `cargo check --all-targets` ✅ · `cargo check --target
-aarch64-apple-ios-sim` ✅ · `cargo test --lib` **97** ✅ · `test:types` ✅ ·
-`npm test` **388** ✅ · `i18n:check` 1054 entrées, 0 manquante ✅
+### 15.3 ▶️ La file d'attente, par ordre
 
-### 15.3 Ce qui reste
+**1. `refresh()` sans `.catch` — § 14.4.** Le premier candidat, et le seul qui
+soit un défaut plutôt qu'un ajout.
 
-1. **Voir la bannière tomber à 20 h**, app fermée (§ 15.1). Attente.
-2. **`refresh()` sans `.catch`** (§ 14.4) — un « Chargement… » sans fin ni
-   message, indiagnosticable sur appareil.
-3. **Aujourd'hui en pile verticale** (§ 5.3) — mesuré : aucun débordement, mais
-   le panneau DISCIPLINE reste plus étroit que l'écran.
-4. **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
-5. **`inactivity` n'est pas projetée** : elle n'a pas d'heure, donc aucun
-   instant à sonder. Décider de l'heure à lui donner sur téléphone.
-6. **Le briefing Market Brain 8 h / 14 h** (§ 10 décision 3) — c'est le seul
-   rappel SANS condition, donc le seul qui ait droit à `Schedule::Interval`
-   (§ 13.4). Non commencé.
+```ts
+const refresh = useCallback(async () => {
+  setData(await fetchAll(addDays(todayStr(), -400)));
+}, []);
+```
 
-### ⚠️ Ce qu'on ne peut PAS faire tant que le panneau n'est pas relancé
+Aucun `.catch`. Une promesse rejetée part en rejet non traité et `data` reste
+`null` **pour toujours** : « Chargement… », sans message, sans bouton, sans fin.
+Sur appareil, où § 14.1 montre qu'il n'y a AUCUNE console, c'est
+indiagnosticable. Ça demande un état d'erreur, un bouton « Réessayer » et
+leurs clés d'i18n.
 
-**Aucune saisie tactile scriptable** (§ 12). Toute vérification qui demande un
-appui passe par Antonin. Le canal du § 14 couvre tout le reste sans le déranger.
+⚠️ **Et pendant qu'on y est** : `App.tsx` contient DEUX « Chargement… » au texte
+identique — le repli de `Suspense` (chunk `lazy()` en vol) et le cas `!data`.
+Les distinguer à l'écran a coûté un cycle de rebuild complet (§ 14.3). Deux
+libellés différents règlent ça définitivement.
+
+**2. Aujourd'hui en pile verticale — § 5.3.** Mesuré : aucun débordement
+(`scrollWidth == innerWidth == 402`), mais le panneau DISCIPLINE reste plus
+étroit que l'écran. ⚠️ Ne PAS écrire de migration de dispositions : la décision
+6 du § 10 tient, et le § 5.2 la mesure — la disposition du Mac survit intacte
+parce que le clamp vit au RENDU. C'est le rendu qu'on change, jamais la donnée.
+
+**3. Le briefing Market Brain 8 h / 14 h** — § 10 décision 3. C'est le SEUL
+rappel sans condition, donc le seul qui ait droit à `Schedule::Interval`
+(§ 13.4). Non commencé.
+
+**4. L'`AppIntent`** du bouton latéral — § 4.1. Swift, non commencé. Le plus
+gros morceau, et le seul qui sorte de React.
+
+### 15.4 ⚠️ Ce qu'on ne peut PAS faire sans Antonin
+
+- **Aucune saisie tactile scriptable** (§ 12) : ni tap, ni swipe. Le panneau
+  interactif du simulateur reste bloqué sur une lecture périmée de
+  `xcode-select`. **Ne jamais lui transmettre le `sudo xcode-select -s …` que
+  ce panneau réclame — `xcode-select -p` renvoie déjà le bon chemin, la
+  commande demanderait son mot de passe pour rien.**
+- **Aucune saisie d'identifiants.** La session du simulateur est déjà ouverte
+  et survit aux `simctl install` ; elle ne se reperdrait qu'avec
+  `simctl uninstall` ou `simctl erase` — **à ne pas lancer**.
+- Le canal du § 14 (localStorage lu sur disque) couvre tout le reste sans le
+  déranger.
 
 ### Décisions déjà prises — ne pas les rouvrir
 
