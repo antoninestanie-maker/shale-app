@@ -745,7 +745,20 @@ export function ResizablePanel({
   const colStride = gridWidth > 0 ? (gridWidth - (columns - 1) * colGap) / columns + colGap : 0;
   const minColsPx =
     colStride > 0 ? clamp(Math.ceil((MIN_PANEL_PX + colGap) / colStride), 1, columns) : 1;
-  const effMinW = clamp(Math.max(minW, minColsPx), 1, columns);
+  // — LE PLANCHER SE HISSE À LA RANGÉE ENTIÈRE —
+  // Dès que le plancher dépasse la MOITIÉ des colonnes, deux panneaux ne
+  // peuvent plus tenir côte à côte : la grille est déjà, mécaniquement, une
+  // pile verticale. Laisser le plancher à 9/12 ne produit alors qu'un bord
+  // droit en dents de scie. Mesuré sur iPhone 17 : grille de 338 px, plancher
+  // calculé à 9 colonnes, DISCIPLINE s'arrêtait 88 px avant le bord de l'écran
+  // alors qu'il était seul sur sa rangée.
+  //
+  // C'est de l'arithmétique sur la largeur MESURÉE, pas un breakpoint : la
+  // règle vaut aussi pour une fenêtre de Mac réduite, et elle ne touche AUCUNE
+  // donnée — le clamp vit au rendu, `persistSizes` n'écrit que sur action de
+  // l'utilisateur (DESIGN.md, « la grille n'a PAS besoin de migration »).
+  const minCols = minColsPx * 2 > columns ? columns : minColsPx;
+  const effMinW = clamp(Math.max(minW, minCols), 1, columns);
   const effMaxW = clamp(maxW ?? columns, effMinW, columns);
 
   const w = clamp(override?.w ?? defaultW, effMinW, effMaxW);
@@ -1153,7 +1166,14 @@ export function ResizablePanel({
         data-tip-side="left"
         onPointerDown={onResizePointerDown}
         onDoubleClick={unpinHeight}
-        className="pointer-events-none absolute z-20 flex h-7 w-7 cursor-nwse-resize items-end justify-end p-1.5 opacity-0 transition-opacity duration-150 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [touch-action:none] [user-select:none]"
+        // ⚠️ `hidden` sous pointeur grossier : redimensionner par colonnes et
+        // par pas de 24 px est un geste de curseur. Au doigt, la poignée fait
+        // 7×7 — sous la cible tactile minimale — et son `pointer-down` volerait
+        // le défilement de la vue. La condition interroge le MATÉRIEL de
+        // pointage (`pointer: coarse`), pas la largeur : un Mac en fenêtre
+        // étroite garde sa poignée, un iPad la perd. Cf. DESIGN.md, « cibles
+        // tactiles », et MOBILE.md § 5.2.
+        className="pointer-events-none absolute z-20 flex h-7 w-7 cursor-nwse-resize items-end justify-end p-1.5 opacity-0 transition-opacity duration-150 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [touch-action:none] [user-select:none] [@media(pointer:coarse)]:hidden"
         style={{ right: 0, bottom: V_SPACE }}
       >
         <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
