@@ -816,7 +816,7 @@ relecture a laissé passer un module entier** (§0.3).
 |---|---|---|
 | 1 | **Réconcilier Windows avant tout iOS** | ✅ **fait le 2026-08-26** — commit `4ca4080`, tronc avancé. Détail en §11 |
 | 2 | Notifications : **local + push (voie C)** | ✅ **arrêté.** Antonin veut « que Mac et téléphone soient liés dans tous les cas » — c'est exactement ce que le push silencieux résout, et lui seul (§3.2). Le compte développeur étant de toute façon nécessaire pour publier, l'argument « A est gratuit » perd son poids. **Ordre de construction : le local d'abord** (Phase 3, testable au simulateur sans compte), le push ensuite. |
-| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **FAIT le 2026-08-27** (§ 16), armé et lu dans le magasin d'iOS. ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
+| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **FAIT le 2026-08-27** (§ 16), armé et lu dans le magasin d'iOS. **Mobile UNIQUEMENT** : la parité bureau est écartée, pas oubliée (§ 17.3). ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
 | 4 | Raccourcis natifs : un **geste physique qui ouvre la note rapide** | ✅ **FAIT le 2026-08-27** — `AppIntent` Swift + pont par fichier, mesuré au simulateur (§ 16). Reste à Antonin : l'associer au bouton Action |
 | 5 | Navigation mobile | ✅ **tranché** — barre d'onglets à 5 + « Plus » sectionné par catégories (§5.4) |
 | 6 | Grille Aujourd'hui : **ne rien faire** | ✅ **arrêté** — conforme à la mesure du chantier responsive |
@@ -1511,14 +1511,33 @@ pointeur, à porter au tactile ». Lu dans le fichier : il utilise déjà les
 Pointer Events, avec `touch-action: none` et `setPointerCapture`. Rien à faire.
 ⚠️ Non vérifié à l'écran — il faut créer une fiche du Savoir pour l'atteindre.
 
-**5. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
-effet (§ 13.1) : le rappel de 8 h / 14 h n'existe que sur téléphone.
-⚠️ Ce n'est pas un simple miroir — sur le bureau il passerait par le moteur de
-règles, donc **par le plafond quotidien** (2 par défaut). Un briefing pourrait
-faire taire « habitudes non cochées ». Décision produit, pas correctif.
+**5. ❌ ÉCARTÉ — la parité BUREAU du briefing.** Antonin, le 2026-08-27 :
+*« les notifications sont plus importantes sur le téléphone, alors le mieux est
+de mettre la priorité sur le mobile et de minimiser les coûts »*.
 
-**6. Le push silencieux** (§ 10, décision 2, seconde moitié). Demande le compte
-développeur Apple.
+Le rappel de 8 h / 14 h reste donc **mobile uniquement**, et ce n'est pas une
+dette : c'est là qu'il sert. Sur le bureau, l'app est le plus souvent ouverte
+et la pastille de la barre latérale annonce déjà le briefing — le rappel
+système n'ajouterait qu'une redite, en consommant une des deux notifications
+quotidiennes autorisées. Il aurait pu faire taire « habitudes non cochées »
+pour dire ce qui était déjà à l'écran.
+
+⚠️ **Ne pas rouvrir sans une raison neuve.** Si elle vient, la vraie question
+n'est pas « comment » mais « avec quel plafond » : sur le bureau le briefing
+passerait par le moteur de règles, donc par le compte quotidien.
+
+**6. ⏸️ EN ATTENTE — le push silencieux** (§ 10, décision 2, seconde moitié).
+Il demande le **programme développeur Apple payant** (99 €/an) : la capacité
+push n'existe pas sur un identifiant Apple gratuit.
+
+⚠️ Ce que le compte gratuit permet quand même, et qui n'est pas rien : installer
+Shale sur l'iPhone RÉEL d'Antonin, avec un profil qui expire au bout de 7 jours
+et se renouvelle en rebranchant le téléphone. De quoi vivre avec l'app avant de
+payer quoi que ce soit.
+
+Le compte payant reste nécessaire de toute façon pour publier sur l'App Store —
+donc la question n'est pas « si » mais « quand ». Compte tenu de la consigne
+« minimiser les coûts », **pas maintenant**.
 
 **7. Réconcilier `savoir-themes`** (`a1fc76f`) — 922 insertions sur
 `KnowledgeView`. Une branche laissée vivante EST le mécanisme de la divergence
