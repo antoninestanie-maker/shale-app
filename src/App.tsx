@@ -375,7 +375,28 @@ function App() {
           onClose={() => setPaywallFor(null)}
         />
       )}
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+      {/* ⚠️ LA RÉSERVE DU HAUT EST SUR CE CONTENEUR-CI, PAS SUR LE DÉFILANT.
+          C'est la correction du 2026-08-27 à midi, et elle vient d'une capture,
+          pas d'un raisonnement.
+
+          Un `padding-top` posé À L'INTÉRIEUR d'une zone défilante DÉFILE avec
+          elle. Au repos l'en-tête tombait bien sous l'horloge — c'est ce qu'on
+          avait vérifié le matin, et c'est ce qui a fait croire l'affaire
+          réglée. Mais dès qu'on faisait défiler, le contenu remontait SOUS la
+          Dynamic Island : dans Personnaliser, le titre « MODULES DE LA BARRE »
+          disparaissait derrière l'îlot et l'heure système se superposait au
+          texte.
+
+          Sur ce conteneur, qui ne défile pas, la réserve devient le BORD HAUT
+          de la fenêtre de défilement : plus rien ne peut passer dessous.
+
+          La réserve du BAS reste en revanche sur le défilant : la barre
+          d'onglets est en `fixed` par-dessus, et c'est de l'espace qu'on veut
+          pouvoir atteindre en défilant, pas une bordure. */}
+      <div
+        className="relative z-10 flex min-w-0 flex-1 flex-col"
+        style={isPhone ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
+      >
         <div
           key={view}
           className="animate-fade-up flex-1 overflow-y-auto"
@@ -386,17 +407,7 @@ function App() {
           // barre d'accueil des iPhone sans bouton.
           style={
             isPhone
-              ? {
-                  // Haut : l'encoche / Dynamic Island. `viewport-fit=cover`
-                  // (index.html) rend l'inset RÉEL — mesuré à 62 px sur
-                  // iPhone 17 — mais ne réserve plus rien de lui-même. Sans
-                  // cette ligne, l'en-tête de chaque vue passe SOUS l'horloge
-                  // système : c'est ce qu'on a vu à l'écran le 2026-08-27.
-                  // Ici et pas dans chaque vue : la réserve vaut pour les
-                  // quatorze, comme la réserve du bas.
-                  paddingTop: "env(safe-area-inset-top)",
-                  paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
-                }
+              ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
               : undefined
           }
         >

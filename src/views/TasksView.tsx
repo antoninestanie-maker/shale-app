@@ -216,7 +216,7 @@ export default function TasksView({ data, refresh }: Props) {
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
           data-tip={t("Tâches dues à cette date")}
-          className="rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text [color-scheme:dark] focus:border-blue focus:outline-none"
+          className="rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text focus:border-blue focus:outline-none"
         />
         {dateFilter && (
           <button

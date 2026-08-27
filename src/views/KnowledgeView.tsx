@@ -45,7 +45,7 @@ import {
 } from "../lib/knowledge";
 import { firstImageSrc, plainText } from "../lib/richtext";
 import { t } from "../lib/i18n";
-import { kbd } from "../lib/platform";
+import { kbd, useIsPhone } from "../lib/platform";
 import {
   createKnowledgeEntry,
   createKnowledgeTopic,
@@ -84,7 +84,12 @@ function figuresHtml(sources: string[]): string {
 export default function KnowledgeView() {
   const [topics, setTopics] = useState<KnowledgeTopic[]>([]);
   const [entries, setEntries] = useState<KnowledgeEntryLite[]>([]);
+  const isPhone = useIsPhone();
   const [scope, setScope] = useState<Scope>("all");
+  // Téléphone : quel des deux volets est à l'écran. Faux au premier rendu — on
+  // ouvre sur le RAIL, comme Notes ouvre sur sa liste : présélectionner
+  // cacherait l'accueil du module derrière son détail.
+  const [detailOuvert, setDetailOuvert] = useState(false);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
@@ -304,17 +309,46 @@ export default function KnowledgeView() {
         }}
       />
 
-      <div className="mt-6 grid min-h-0 flex-1 grid-cols-[232px_1fr] gap-4">
-        <TopicRail
-          topics={topics}
-          scope={scope}
-          onScope={setScope}
-          countOf={countOf}
-          hasUnfiled={entries.some((e) => e.topic_id === null)}
-          reload={load}
-        />
+      {/* ⚠️ 232 px EN DUR, et sans `minmax` : sur les 402 pt d'un iPhone, la
+          colonne de droite ne se serrait pas, elle SORTAIT DE L'ÉCRAN — barre
+          de recherche coupée, cartes tronquées net (capture du 2026-08-27).
+          C'est le même défaut que la vue Notes, en pire : Notes se contentait
+          d'être à l'étroit, Savoir débordait.
 
+          Maître-détail sur téléphone, comme Notes : le rail des thèmes OU les
+          fiches. Le rail est un FILTRE et non un détail, donc le retour ne dit
+          pas « ← Savoir » mais « ← Thèmes » — on revient choisir, pas remonter
+          d'un niveau. */}
+      <div
+        className={`mt-6 grid min-h-0 flex-1 gap-4 ${
+          isPhone ? "grid-cols-1" : "grid-cols-[232px_1fr]"
+        }`}
+      >
+        {(!isPhone || !detailOuvert) && (
+          <TopicRail
+            topics={topics}
+            scope={scope}
+            onScope={(s) => {
+              setScope(s);
+              if (isPhone) setDetailOuvert(true);
+            }}
+            countOf={countOf}
+            hasUnfiled={entries.some((e) => e.topic_id === null)}
+            reload={load}
+          />
+        )}
+
+        {(!isPhone || detailOuvert) && (
         <section className="flex min-h-0 flex-col">
+          {isPhone && (
+            <button
+              type="button"
+              onClick={() => setDetailOuvert(false)}
+              className="-ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+            >
+              ← {t("Thèmes")}
+            </button>
+          )}
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <label className="relative min-w-[180px] flex-1">
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-dim" />
@@ -386,6 +420,7 @@ export default function KnowledgeView() {
             )}
           </div>
         </section>
+        )}
       </div>
 
       {dropping && (

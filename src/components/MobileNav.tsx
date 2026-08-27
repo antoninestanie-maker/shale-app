@@ -27,7 +27,7 @@ import { useEffect, useState } from "react";
 import { isTradingView } from "../lib/features";
 import { t } from "../lib/i18n";
 import type { UiConfig } from "../lib/uiConfig";
-import { BY_ID, CATEGORIES, CATEGORY_OF, type View } from "./Sidebar";
+import { BY_ID, CATEGORIES, CATEGORY_OF, ITEMS_PIED, type View } from "./Sidebar";
 
 /** Les quatre onglets fixes. Le cinquième, « Plus », ouvre la liste complète. */
 const ONGLETS: View[] = ["today", "tasks", "notes", "journal"];
@@ -98,9 +98,18 @@ export default function MobileNav({
   };
 
   /** Libellé personnalisé par l'utilisateur, sinon libellé canonique traduit. */
+  /**
+   * ⚠️ `BY_ID` ne couvre QUE les modules. Les trois entrées du pied — Admin,
+   * Personnaliser, Réglages — vivent dans `ITEMS_PIED`, et sans ce repli on
+   * retombait sur l'identifiant technique : le tiroir affichait « admin » au
+   * lieu de « Personnaliser », sans icône. Vu à l'écran le 2026-08-27.
+   */
+  const dansLeCatalogue = (id: View) =>
+    BY_ID.get(id) ?? ITEMS_PIED.find((it) => it.id === id);
+
   const libelle = (id: View) => {
     const perso = config.modules.find((m) => m.id === id)?.label;
-    return perso ? perso : t(BY_ID.get(id)?.label ?? id);
+    return perso ? perso : t(dansLeCatalogue(id)?.label ?? id);
   };
 
   const badgeDe = (id: View) =>
@@ -150,7 +159,7 @@ export default function MobileNav({
         } ${verrou ? "text-text-dim" : ""}`}
       >
         <span className="grid size-6 shrink-0 place-items-center [&>svg]:size-[22px]">
-          {BY_ID.get(id)?.icon}
+          {dansLeCatalogue(id)?.icon}
         </span>
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{libelle(id)}</span>
         {badgeDe(id) && <span className="bg-green size-2 shrink-0 rounded-full" />}
@@ -194,9 +203,16 @@ export default function MobileNav({
               );
             })}
 
+            {/* ⚠️ La MÊME table que le pied de la barre latérale, et la même
+                règle de droits. Le téléphone avait inversé les deux : il gatait
+                « Personnaliser » sur `isAdmin` — alors que c'est un réglage
+                pour tout le monde — et omettait la Console, qui est la seule
+                des trois à être réservée. Un compte non-administrateur perdait
+                donc l'écran qui règle l'ordre et la visibilité des modules. */}
             <section className="mt-4 border-t border-border pt-2">
-              {isAdmin && ligne("admin")}
-              {ligne("settings")}
+              {ITEMS_PIED.filter((it) => isAdmin || !it.adminSeul).map((it) =>
+                ligne(it.id),
+              )}
             </section>
           </div>
         </div>

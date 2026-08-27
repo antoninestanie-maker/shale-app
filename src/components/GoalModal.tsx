@@ -197,7 +197,7 @@ export default function GoalModal({
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text [color-scheme:dark] focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-blue focus:outline-none"
               />
             </div>
           </div>

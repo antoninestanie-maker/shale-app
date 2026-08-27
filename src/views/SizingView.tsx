@@ -322,7 +322,7 @@ export default function SizingView({
                     <select
                       value={symbol}
                       onChange={(e) => setSymbol(e.target.value)}
-                      className={`${inputCls} [color-scheme:dark]`}
+                      className={inputCls}
                     >
                       {pairs.map((p) => (
                         <option key={p.symbol} value={p.symbol}>

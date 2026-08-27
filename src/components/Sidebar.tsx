@@ -210,6 +210,54 @@ export const MODULE_LABELS: Record<string, string> = Object.fromEntries(
 export const BY_ID = new Map(ITEMS.map((it) => [it.id, it]));
 
 /**
+ * Le PIED de la barre — Admin, Personnaliser, Réglages.
+ *
+ * ⚠️ Cette table existe parce que son absence a produit un bogue visible :
+ * ces trois entrées portaient leur libellé et leur icône AU POINT D'APPEL de
+ * `navButton`, donc nulle part où un autre composant puisse les lire.
+ * `MobileNav`, qui interroge `BY_ID`, n'y trouvait rien et affichait
+ * l'identifiant technique BRUT — « admin » au lieu de « Personnaliser », sans
+ * icône. Vu à l'écran sur iPhone le 2026-08-27.
+ *
+ * ⚠️ Elles ne sont pas dans `ITEMS` et ne doivent pas y entrer : `ITEMS` est
+ * la liste des MODULES, celle qui fait autorité sur le nombre « douze » écrit
+ * en toutes lettres dans l'app et sur le site. Y ajouter trois entrées ferait
+ * mentir ce compte partout à la fois.
+ *
+ * `adminSeul` reproduit la règle de la barre latérale : la Console est
+ * réservée aux administrateurs, Personnaliser et Réglages sont pour tout le
+ * monde. Le téléphone en avait fait l'inverse — Personnaliser gaté sur
+ * `isAdmin`, Console absente.
+ */
+export const ITEMS_PIED: {
+  id: View;
+  label: string;
+  icon: ReactNode;
+  adminSeul?: boolean;
+}[] = [
+  {
+    id: "console",
+    label: "Admin",
+    adminSeul: true,
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
+  },
+  { id: "admin", label: "Personnaliser", icon: <IconSliders className="h-full w-full" /> },
+  { id: "settings", label: "Réglages", icon: BY_ID.get("settings")!.icon },
+];
+
+/**
  * Catégories de la sidebar. « Aujourd'hui » reste hors catégorie (accueil) ;
  * Personnaliser/Réglages restent épinglés en bas (rôle « Système »).
  * L'ordre/visibilité DANS chaque catégorie suit la page Personnaliser.
@@ -500,24 +548,9 @@ export default function Sidebar({
 
       <div className="mt-auto border-t border-border pt-3">
         <nav className="flex flex-col gap-0.5 px-3">
-          {isAdmin &&
-            navButton(
-              "console",
-              t("Admin"),
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>,
-            )}
-          {navButton("admin", t("Personnaliser"), <IconSliders className="h-full w-full" />)}
-          {navButton("settings", t("Réglages"), BY_ID.get("settings")!.icon)}
+          {ITEMS_PIED.filter((it) => isAdmin || !it.adminSeul).map((it) =>
+            navButton(it.id, t(it.label), it.icon),
+          )}
         </nav>
       </div>
 
