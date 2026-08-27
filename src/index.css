@@ -627,6 +627,15 @@
   .group\/panel:hover .rgrid-head {
     padding-right: var(--rgrid-handle-w, 4rem);
   }
+  /* ⚠️ Au doigt, les poignées sont masquées (`ResizableGrid`) : réserver leur
+     place décalerait l'en-tête pour du vide. Et iOS simulant un survol collant,
+     ce décalage se déclencherait à la première tape sur le panneau — une
+     mise en page qui bouge quand on touche, sans que rien n'apparaisse. */
+  @media (pointer: coarse) {
+    .group\/panel:hover .rgrid-head {
+      padding-right: 0;
+    }
+  }
 
   /* Éditeur de notes riche (contentEditable) */
   .note-rich {

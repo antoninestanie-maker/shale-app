@@ -1442,8 +1442,23 @@ balayage de code ne trouve que ce qu'on sait déjà chercher — Notes n'aurait 
 ⚠️ `SketchPad` (croquis) et `import_screenshot` (chemin de fichier) sont
 nommément signalés au § 5.3 comme demandant du travail tactile.
 
-**3. La barre ⠿ / ✕ / ⟲ des panneaux, au doigt** (§ 16.1). Question de design,
-pas correctif : révélée au survol sur une surface sans survol.
+**3. ✅ FAIT — la barre ⠿ / ✕ / ⟲ des panneaux, et la poignée ↗.** Toutes deux
+masquées sous `(pointer: coarse)`, comme la poignée de redimensionnement.
+« Révélé au survol » n'a aucun sens sur une surface sans survol : iOS simule un
+survol collant, mais il coûte alors la PREMIÈRE tape, et une barre qui apparaît
+sous le doigt sans qu'on l'ait demandée est un piège, pas une commande.
+
+⚠️ La décision se lit dans le code, elle n'a pas été prise au jugé : **rien
+n'est perdu**. ⠿ (ordre) et ✕ (masquer) existent déjà dans **Personnaliser**
+(`AdminView` : flèches haut/bas et œil, avec de vraies cibles tactiles) ;
+⟲ (réinitialiser la taille) n'a rien à défaire, puisque redimensionner est
+impossible au doigt et qu'une taille posée sur le Mac est de toute façon
+neutralisée AU RENDU par le clamp de largeur ; et ↗ ouvre un module qui est à
+une tape dans la barre d'onglets.
+
+Le `padding-right` réservé à la barre au survol est neutralisé sous
+`(pointer: coarse)` : sans ça, la première tape sur un panneau décalerait
+l'en-tête pour faire place à des poignées qui n'apparaissent plus.
 
 **4. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
 effet (§ 13.1) : le rappel de 8 h / 14 h n'existe que sur téléphone.

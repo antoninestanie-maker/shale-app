@@ -1057,7 +1057,20 @@ export function ResizablePanel({
           survol. `pointer-events-none` au repos : aucune zone morte invisible
           au-dessus du contenu de la carte. */}
       <div
-        className="pointer-events-none absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100"
+        // ⚠️ `hidden` sous pointeur grossier, comme la poignée de
+        // redimensionnement plus bas — et pour la même raison, poussée d'un
+        // cran : « révélé au survol » n'a aucun sens sur une surface sans
+        // survol. iOS simule bien un survol collant, mais il coûte alors la
+        // PREMIÈRE tape, et une barre qui apparaît sous le doigt sans qu'on
+        // l'ait demandée est un piège, pas une commande.
+        //
+        // Rien n'est perdu, et c'est ce qui rend la décision défendable :
+        // ⠿ (ordre) et ✕ (masquer) existent déjà dans Personnaliser
+        // (`AdminView`), avec de vraies cibles tactiles ; ⟲ (réinitialiser la
+        // taille) n'a rien à défaire ici, puisque redimensionner est justement
+        // impossible au doigt et qu'une taille posée sur le Mac est de toute
+        // façon neutralisée AU RENDU par le clamp de largeur.
+        className="pointer-events-none absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden"
         style={{
           background: "var(--glass-bg)",
           backdropFilter: "var(--glass-blur)",
@@ -1137,7 +1150,11 @@ export function ResizablePanel({
           aria-label={t("Ouvrir la vue complète")}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onOpen}
-          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text group-hover/panel:pointer-events-auto group-hover/panel:opacity-100`}
+          // Même règle, même raison : au doigt, elle serait invisible ou
+          // accidentelle. Et le module qu'elle ouvre est à une tape dans la
+          // barre d'onglets — c'est un raccourci de curseur, pas une porte
+          // unique.
+          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden`}
           style={{
             bottom: V_SPACE + 6,
             background: "var(--glass-bg)",
