@@ -1482,4 +1482,14 @@ export const EN: Record<string, string> = {
 
   // ── Navigation mobile (2026-08-27) ────────────────────────────────────────
   "Plus": "More",
+
+  // ── Chargement et échec de lecture (2026-08-27) ───────────────────────────
+  // Deux attentes distinctes, volontairement : le module (chunk `lazy()`) et
+  // les données (`fetchAll`). Elles disaient toutes deux « Chargement… », et
+  // les distinguer sur une capture d'iPhone avait coûté un cycle entier.
+  "Ouverture du module…": "Opening module…",
+  "Chargement des données…": "Loading your data…",
+  "Les données n'ont pas pu être chargées.": "Your data could not be loaded.",
+  "Les données affichées datent de la dernière lecture réussie.":
+    "What you see is from the last successful read.",
 };

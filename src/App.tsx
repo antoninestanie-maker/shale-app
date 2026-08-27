@@ -48,14 +48,91 @@ const AdminView = lazy(() => import("./views/AdminView"));
 const ConsoleView = lazy(() => import("./views/ConsoleView"));
 const SettingsView = lazy(() => import("./views/SettingsView"));
 
+/**
+ * Échec du PREMIER chargement : aucune donnée n'a jamais été lue.
+ *
+ * Il remplace « Chargement des données… », qui autrement ne s'achèverait
+ * jamais. Le message technique est AFFICHÉ, pas seulement journalisé : sur
+ * appareil, c'est le seul endroit où il pourra être lu (MOBILE.md §14.1).
+ */
+function EcranDonneesIllisibles({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+      <p className="text-sm text-text">{t("Les données n'ont pas pu être chargées.")}</p>
+      <p className="max-w-md break-words font-mono text-xs text-text-dim">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="pill border border-blue/40 bg-blue/10 px-4 py-1.5 text-xs font-semibold text-blue transition-colors hover:bg-blue/20"
+      >
+        {t("Réessayer")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Un rafraîchissement a échoué, mais des données avaient déjà été lues.
+ *
+ * L'écran reste peuplé : vider l'app entière pour une lecture ratée serait pire
+ * que le défaut qu'on corrige. L'échec doit malgré tout se VOIR — sans ce
+ * bandeau, une tâche cochée qui ne remonte pas ressemble à un clic perdu.
+ *
+ * `fixed` sous l'encoche plutôt que dans le flux : la réserve de zone sûre des
+ * quatorze vues est mesurée (MOBILE.md §12), on ne la déplace pas pour un cas
+ * d'erreur.
+ */
+function BandeauLecturePerimee({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      className="fixed inset-x-0 z-[80] flex justify-center px-4"
+      style={{ top: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+    >
+      <div className="card flex items-center gap-3 bg-surface px-4 py-2 text-[12px] text-text-dim">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-yellow" />
+        {t("Les données affichées datent de la dernière lecture réussie.")}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+        >
+          {t("Réessayer")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [view, setView] = useState<View>("today");
   const [data, setData] = useState<AppData | null>(null);
+  const [erreurDonnees, setErreurDonnees] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState(needsOnboarding);
   const snapshotDone = useRef(false);
 
+  // ⚠️ Le `catch` n'est pas décoratif — il répare un défaut mesuré.
+  // Sans lui, un rejet de `fetchAll` partait en rejet NON TRAITÉ et `data`
+  // restait `null` pour toujours : « Chargement… » sans message, sans bouton,
+  // sans fin. Sur iPhone, où il n'y a aucune console à consulter
+  // (MOBILE.md §14.1), le défaut était indiagnosticable.
+  //
+  // `refresh` est appelé depuis une douzaine d'endroits (les vues après chaque
+  // écriture, la palette ⌘K, `useFocus`, l'événement `sb:data-changed`, le
+  // snapshot d'objectifs) et plusieurs font `await refresh()` : il ne doit
+  // JAMAIS rejeter. L'échec se lit à l'écran, il ne remonte pas aux appelants.
   const refresh = useCallback(async () => {
-    setData(await fetchAll(addDays(todayStr(), -400)));
+    try {
+      setData(await fetchAll(addDays(todayStr(), -400)));
+      setErreurDonnees(null);
+    } catch (e) {
+      setErreurDonnees(e instanceof Error ? e.message : String(e));
+    }
   }, []);
 
   const { isAdmin } = useSession();
@@ -212,6 +289,7 @@ function App() {
       {/* Info-bulles : une seule instance pour toute l'app (déclenchée par
           l'attribut `data-tip` posé sur n'importe quel bouton/onglet). */}
       <TooltipLayer />
+      {data && erreurDonnees && <BandeauLecturePerimee onRetry={refresh} />}
       <CommandPalette ctx={{ navigate, refresh, data, focus }} hasTrading={hasTrading} />
       {/* Barre latérale sur bureau et tablette, barre d'onglets sur téléphone.
           L'une OU l'autre, jamais les deux : `useIsPhone()` exige un écran
@@ -270,17 +348,26 @@ function App() {
               : undefined
           }
         >
+          {/* ⚠️ Ces deux attentes portaient le MÊME texte, « Chargement… », et
+              les distinguer sur une capture d'iPhone a coûté un cycle de
+              reconstruction complet (MOBILE.md §14.3). Elles ne disent plus la
+              même chose : le repli de `Suspense` parle du MODULE (un chunk
+              `lazy()` en vol), l'autre parle des DONNÉES (`fetchAll`). */}
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-text-dim">Chargement…</p>
+                <p className="text-sm text-text-dim">{t("Ouverture du module…")}</p>
               </div>
             }
           >
           {!data ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-text-dim">Chargement…</p>
-            </div>
+            erreurDonnees ? (
+              <EcranDonneesIllisibles message={erreurDonnees} onRetry={refresh} />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-text-dim">{t("Chargement des données…")}</p>
+              </div>
+            )
           ) : view === "today" ? (
             <TodayView
               data={data}
