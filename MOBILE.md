@@ -1432,11 +1432,12 @@ promesse. À décider, pas à improviser.
 **5. Le push silencieux** (§ 10, décision 2, seconde moitié). Le local est fait.
 Le push demande le compte développeur.
 
-**6. `NSMicrophoneUsageDescription` traîne dans `gen/apple/shale_iOS/Info.plist`**
-et annonce « **Second Brain** utilise le micro pour les commandes vocales
-Jarvis ». Jarvis est purgé depuis le 2026-07-26, le micro n'est plus utilisé, et
-le texte porte le nom d'un autre produit. Une permission déclarée sans usage est
-un motif de rejet à l'App Store (§ 7).
+**6. ✅ Fait dans la foulée** — `NSMicrophoneUsageDescription` annonçait
+« **Second Brain** utilise le micro pour les commandes vocales Jarvis ». Jarvis
+est purgé depuis le 2026-07-26, aucun code n'ouvre le micro, et le texte portait
+le nom d'un autre produit. Une permission déclarée sans usage est un motif de
+rejet à l'App Store (§ 7). `src-tauri/Info.plist` ne servait qu'à ça : supprimé.
+Vérifié après reconstruction — la clé a disparu du plist source ET du bundle.
 
 ### 17.2 Décisions déjà prises — ne pas les rouvrir
 
