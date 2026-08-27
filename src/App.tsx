@@ -231,7 +231,17 @@ function App() {
           // barre d'accueil des iPhone sans bouton.
           style={
             isPhone
-              ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
+              ? {
+                  // Haut : l'encoche / Dynamic Island. `viewport-fit=cover`
+                  // (index.html) rend l'inset RÉEL — mesuré à 62 px sur
+                  // iPhone 17 — mais ne réserve plus rien de lui-même. Sans
+                  // cette ligne, l'en-tête de chaque vue passe SOUS l'horloge
+                  // système : c'est ce qu'on a vu à l'écran le 2026-08-27.
+                  // Ici et pas dans chaque vue : la réserve vaut pour les
+                  // quatorze, comme la réserve du bas.
+                  paddingTop: "env(safe-area-inset-top)",
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
+                }
               : undefined
           }
         >

@@ -97,8 +97,14 @@ export function kbd(macShortcut: string): string {
 // une régression du bureau introduite par le portage mobile.
 //
 // 600 px = le point de rupture `sm` de `DESIGN.md`. Pas une valeur inventée :
-// la doctrine impose de réutiliser les quatre points nommés. iPhone 17 = 393 pt,
-// 17 Pro Max = 440 pt ; iPad mini en portrait = 744 pt, donc garde sa barre.
+// la doctrine impose de réutiliser les quatre points nommés.
+//
+// ⚠️ Largeurs MESURÉES dans la webview, pas lues dans une fiche technique :
+// l'iPhone 17 rend `window.innerWidth = 402`, pas 393 comme l'annonçait la
+// première rédaction de ce commentaire (relevé du 2026-08-27 sur le
+// simulateur). L'écart ne change rien ici — 402 comme 393 passent sous 600 —
+// mais il change tout pour qui écrirait un point de rupture serré à 400.
+// iPad mini en portrait = 744 pt, donc garde sa barre latérale.
 // ─────────────────────────────────────────────────────────────────────────────
 const REQUETE_TELEPHONE = "(max-width: 600px) and (pointer: coarse)";
 
