@@ -982,18 +982,47 @@ pas lire — l'appel échouerait franchement.
 visée, et l'étiqueter UTC. Le Swift la relira comme locale, et le tour est
 juste. Ce n'est pas une élégance, c'est la seule forme que le greffon accepte.
 
-### 13.4 Ce que ces deux mesures décident
+### 13.4 ⚠️ Ce que ces deux mesures décident — et une erreur que j'y avais mise
 
-| Règle | Planificateur iOS retenu | Pourquoi |
+**La première rédaction de cette section était fausse**, et il faut le dire
+parce que le raisonnement faux est séduisant. Elle assignait `Schedule::Interval`
+aux règles à heure fixe (habitudes 20 h, série 21 h), au motif que c'est le seul
+vrai rendez-vous quotidien. C'est exact sur le *mécanisme*, et faux sur le
+*produit* : un `Interval` répète **inconditionnellement**. Il annoncerait « il te
+reste des habitudes » chaque soir à 20 h, y compris à quelqu'un qui les a toutes
+cochées à 19 h — c'est-à-dire exactement la notification fausse que le § 3.2
+interdit, et exactement celle qu'on désactive.
+
+**Les règles de Shale ne sont pas des horaires, ce sont des conditions.** Aucune
+d'elles ne peut donc utiliser un déclencheur répétitif.
+
+| Ce qu'on programme | Planificateur | Pourquoi |
 |---|---|---|
-| `habits_pending` (20 h), `streak_at_risk` (21 h) | `Schedule::Interval { hour, minute }` | rendez-vous quotidien vrai, heure locale, **aucun des deux pièges** — et il survit sans reprogrammation |
-| Briefing Market Brain (8 h / 14 h, § 10 décision 3) | idem | idem |
-| `inactivity` (N jours, sans heure) | `Schedule::At`, ponctuel | c'est une échéance unique, reprogrammée à chaque passage en arrière-plan — **et c'est le seul cas exposé au piège du fuseau** |
+| Toutes les règles conditionnelles (`habits_pending`, `streak_at_risk`, `inactivity`) | **`Schedule::At`, ponctuel, reprogrammé à chaque passage en arrière-plan** | c'est la seule forme qui laisse la CONDITION décider. Le § 3.2 la rend légitime : le front est seul écrivain, donc l'état ne bouge plus une fois l'app fermée |
+| Le briefing Market Brain 8 h / 14 h (§ 10 décision 3) | `Schedule::Interval { hour, minute }` | c'est le seul cas **sans condition** — « ton briefing t'attend » est vrai tous les jours. Il gagne donc le vrai rendez-vous quotidien, et évite les deux pièges |
 
-Le §3.2 tient donc intact : on (re)programme à chaque passage en arrière-plan,
-puisque le front est seul écrivain et que l'état ne bouge plus ensuite.
+**Conséquence : le piège du fuseau (§ 13.3) frappe presque tout**, pas le seul
+`inactivity` comme l'annonçait la version fausse. Toute heure passée en `At`
+doit être l'heure murale LOCALE étiquetée UTC.
 
-### 13.5 Un défaut mineur, relevé au passage
+### 13.5 Comment on évalue une condition qui n'est pas encore vraie
+
+Le point qui rendait « programmer à l'avance » difficile : `habits.rs` refuse
+d'émettre **avant** son heure (`if ctx.now.hour() < hour { return None }`). À
+14 h, la règle ne dit rien de ce qu'elle dira à 20 h.
+
+**La sortie est de ne rien réécrire.** `engine::evaluate` est pur et lit son
+« maintenant » dans `EvalContext.now`. On peut donc l'appeler avec un `now`
+**projeté** — aujourd'hui 20 h — sur l'image de la base lue à l'instant présent.
+Ce qu'il rend est, littéralement, la notification qui partirait à 20 h.
+
+Ça vaut mieux qu'un raccourci : plage horaire silencieuse, plafond quotidien,
+cooldown, idempotence et fusion des candidats s'appliquent **au même code**, à
+l'heure projetée. Aucune règle n'est réimplémentée, donc aucune ne peut diverger
+entre le bureau et le téléphone — ce qui est très exactement le point 4 du
+cahier des charges.
+
+### 13.6 Un défaut mineur, relevé au passage
 
 `emitter.rs`, `deliver_test()` choisit son texte ainsi :
 

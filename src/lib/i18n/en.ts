@@ -646,6 +646,17 @@ export const EN: Record<string, string> = {
   "Envoyer un test": "Send a test",
   "Emprunte exactement le même chemin qu'un vrai rappel.":
     "Takes exactly the same path as a real reminder.",
+  "Si le test n'affiche aucune bannière, autorise Shale dans Réglages iOS → Notifications. La cloche, elle, reçoit les rappels dans tous les cas.":
+    "If the test shows no banner, allow Shale in iOS Settings → Notifications. The bell receives reminders either way.",
+  "Rappels programmés": "Scheduled reminders",
+  "Notifications refusées au niveau du système. Rien ne peut être programmé tant que ce n'est pas changé dans les réglages du téléphone.":
+    "Notifications are denied at the system level. Nothing can be scheduled until that changes in the phone\u2019s settings.",
+  "Rien à signaler pour l'instant — c'est le cas normal quand tout est à jour.":
+    "Nothing to flag right now — that\u2019s the normal case when everything is up to date.",
+  "Déposés auprès d'iOS": "Handed to iOS",
+  "en attente côté système": "pending on the system side",
+  "Test envoyé. Aucune bannière ? Autorise Shale dans Réglages iOS → Notifications — il est déjà dans la cloche, lui.":
+    "Test sent. No banner? Allow Shale in iOS Settings → Notifications — it’s already in the in-app bell either way.",
   "Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.":
     "Test sent. No banner? Allow Shale in macOS Settings → Notifications — it’s already in the in-app bell either way.",
   "Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.":

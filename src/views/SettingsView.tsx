@@ -10,6 +10,7 @@ import {
   TRACKER_DEFAULTS,
   type TrackerSettings,
 } from "../lib/repo";
+import { IS_IOS } from "../lib/platform";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
 import { getLang, setLangPref, useLangPref, type LangPref } from "../lib/i18n";
 import {
@@ -23,6 +24,9 @@ import {
   formatWhen,
   ruleMeta,
   runNow,
+  planNotifications,
+  type PlanReport,
+  requestNotifPermission,
   savePrefs,
   sendTest,
   syncLang,
@@ -170,6 +174,17 @@ export default function SettingsView() {
   const [energySaved, setEnergySaved] = useState(false);
   // Notifications intelligentes (moteur de règles Rust)
   const [notif, setNotif] = useState<NotifPrefs | null>(null);
+  /**
+   * Ce que la projection a décidé de déposer auprès du système.
+   *
+   * Sans cet écran, sur iOS, RIEN ne dirait à l'utilisateur si ses rappels sont
+   * armés : le planificateur Rust n'y tourne pas — le système suspend l'app —
+   * donc « dernière évaluation » n'y veut plus rien dire, et un rappel qui
+   * n'arrive pas est indiscernable d'un rappel qui n'avait rien à dire.
+   * Sur le bureau, la même liste répond à « qu'est-ce qui va partir ce soir ? »,
+   * que rien ne permettait de poser.
+   */
+  const [plan, setPlan] = useState<PlanReport | null>(null);
   const [notifStatus, setNotifStatus] = useState<NotifStatus | null>(null);
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
@@ -239,6 +254,7 @@ export default function SettingsView() {
     });
     fetchPrefs().then(setNotif).catch(() => {});
     fetchStatus().then(setNotifStatus).catch(() => {});
+    planNotifications().then(setPlan).catch(() => {});
   }, []);
 
   /**
@@ -251,6 +267,18 @@ export default function SettingsView() {
     const next = { ...notif, ...patch };
     setNotif(next);
     setNotif(await savePrefs(next));
+    // Sur iOS, c'est ICI qu'on demande l'autorisation système, et nulle part
+    // ailleurs : au moment où l'utilisateur ACTIVE les rappels, donc là où la
+    // valeur est comprise. Le dialogue ne s'ouvre qu'une fois dans la vie de
+    // l'app et un refus y est définitif (`MOBILE.md` § 3.6) — le poser au
+    // premier lancement le brûlerait. Sans objet sur le bureau, où le greffon
+    // répond `Granted` sans rien demander.
+    if (patch.enabled === true && !notif.enabled) {
+      await requestNotifPermission().catch(() => "");
+    }
+    // Que l'autorisation soit accordée ou non, on reprojette : le plan sert
+    // aussi de diagnostic, et sans autorisation il dit « rien déposé ».
+    await planNotifications().catch(() => null);
   };
 
   const patchRule = async (id: string, patch: RulePrefsPatch) => {
@@ -264,10 +292,20 @@ export default function SettingsView() {
   };
 
   const sendTestNotif = async () => {
+    // Sur iOS, ce bouton est le SEUL geste explicite que l'utilisateur puisse
+    // faire quand les rappels sont déjà actifs — ils le sont par défaut, donc
+    // le chemin « il vient de les activer » (`patchNotif`) ne se présente
+    // jamais sur une installation neuve. Sans cet appel, l'autorisation ne
+    // serait jamais demandée et le test échouerait sans qu'on sache pourquoi.
+    // Le geste est explicite et son objet est précisément d'éprouver la chaîne
+    // système : c'est le bon endroit au sens du § 3.6 de `MOBILE.md`.
+    if (IS_IOS) await requestNotifPermission().catch(() => "");
     const entry = await sendTest();
     setTestMsg(
       entry
-        ? t("Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.")
+        ? IS_IOS
+          ? t("Test envoyé. Aucune bannière ? Autorise Shale dans Réglages iOS → Notifications — il est déjà dans la cloche, lui.")
+          : t("Test envoyé. Aucune bannière ? Autorise Shale dans Réglages macOS → Notifications — il est déjà dans la cloche, lui.")
         : null,
     );
     window.setTimeout(() => setTestMsg(null), 10000);
@@ -278,6 +316,7 @@ export default function SettingsView() {
     // L'évaluation est asynchrone côté Rust : on relit l'état juste après.
     window.setTimeout(() => {
       fetchStatus().then(setNotifStatus).catch(() => {});
+      planNotifications().then(setPlan).catch(() => {});
     }, 800);
   };
 
@@ -699,8 +738,46 @@ export default function SettingsView() {
               {!isTauri
                 ? t("Mode démo : le planificateur et les notifications système n'existent que dans l'app native. Les réglages ci-dessus restent manipulables, mais ne sont pas enregistrés.")
                 : (testMsg ??
-                  t("Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas."))}
+                  (IS_IOS
+                    ? t("Si le test n'affiche aucune bannière, autorise Shale dans Réglages iOS → Notifications. La cloche, elle, reçoit les rappels dans tous les cas.")
+                    : t("Si le test n'affiche aucune bannière, autorise Shale dans Réglages macOS → Notifications. macOS ne nous le signale pas : la cloche de la barre latérale, elle, reçoit les rappels dans tous les cas.")))}
             </p>
+
+            {/* ── Ce qui est ARMÉ ──────────────────────────────────────────
+                Sur iOS, c'est le seul endroit qui puisse répondre « oui, un
+                rappel partira ce soir » : le planificateur Rust n'y tourne pas.
+                Le nombre rendu par le système (`pending`) est mis à côté du
+                nôtre à dessein — un écart entre les deux est précisément ce
+                qu'on veut voir, il signifie que le dépôt a été refusé. */}
+            {plan && (
+              <div className="mt-4 rounded-[10px] border border-border p-3">
+                <p className="hud-label">{t("Rappels programmés")}</p>
+                {plan.permission === "denied" && (
+                  <p className="mt-2 text-xs text-yellow">
+                    {t("Notifications refusées au niveau du système. Rien ne peut être programmé tant que ce n'est pas changé dans les réglages du téléphone.")}
+                  </p>
+                )}
+                {plan.planned.length === 0 ? (
+                  <p className="mt-2 text-xs text-text-dim">
+                    {t("Rien à signaler pour l'instant — c'est le cas normal quand tout est à jour.")}
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-1">
+                    {plan.planned.map((p) => (
+                      <li key={`${p.at}-${p.title}`} className="text-xs text-text-dim">
+                        <span className="text-text">{formatWhen(p.at)}</span> — {p.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {IS_IOS && (
+                  <p className="mt-2 text-xs text-text-dim">
+                    {t("Déposés auprès d'iOS")} : {plan.deposited} · {t("en attente côté système")} :{" "}
+                    {plan.pending.length}
+                  </p>
+                )}
+              </div>
+            )}
           </>
         )}
       </section>

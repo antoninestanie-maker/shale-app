@@ -8,12 +8,14 @@
 //! - `store`   — `notifications.json` (seul fichier écrit par le Rust)
 //! - `data`    — lecture SEULE de `shale.db`
 //! - `engine`  — contraintes transverses + regroupement
+//! - `planner` — projection dans le futur, pour les plateformes qui suspendent
 //! - `rules`   — une règle = un fichier + une ligne au registre
 
 pub mod data;
 pub mod emitter;
 pub mod engine;
 pub mod model;
+pub mod planner;
 pub mod rules;
 pub mod scheduler;
 pub mod store;
@@ -155,6 +157,107 @@ pub fn notif_status(store: State<NotifStore>) -> Status {
 #[tauri::command]
 pub fn notif_run_now(app: AppHandle) {
     scheduler::spawn_run(&app, scheduler::Trigger::Manual);
+}
+
+/// Ce que la projection a décidé, rendu au front — pour l'écran de diagnostic
+/// et, sur iOS, pour savoir si le système a bien retenu les échéances.
+#[derive(serde::Serialize)]
+pub struct PlanReport {
+    /// `"granted"`, `"denied"`, `"prompt"` — ou `"sans-objet"` sur le bureau,
+    /// où le greffon ne connaît pas l'autorisation (cf. en-tête d'`emitter.rs`).
+    pub permission: String,
+    /// Les échéances calculées, même quand rien n'est déposé : sur le bureau
+    /// c'est un diagnostic utile, et sur iOS ça distingue « rien à dire » de
+    /// « refusé par le système ».
+    pub planned: Vec<PlannedInfo>,
+    pub deposited: usize,
+    /// Ce que le système DIT avoir en attente. Vide sur le bureau.
+    pub pending: Vec<i32>,
+}
+
+#[derive(serde::Serialize)]
+pub struct PlannedInfo {
+    pub at: chrono::DateTime<chrono::Local>,
+    pub title: String,
+    pub rules: Vec<String>,
+}
+
+/// Projette les règles dans le futur et, sur mobile, dépose les échéances
+/// auprès du système.
+///
+/// ⚠️ Ne demande JAMAIS l'autorisation. Sur iOS le dialogue système ne s'ouvre
+/// qu'une fois dans la vie de l'app et un refus y est définitif : le demander
+/// ici reviendrait à le demander au premier lancement, ce que `MOBILE.md` § 3.6
+/// interdit. Sans autorisation, on calcule le plan et on ne dépose rien.
+#[tauri::command]
+pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
+    // Copies possédées : le verrou du store ne doit pas traverser un `await`.
+    let (prefs, log) = {
+        let f = app.state::<NotifStore>().read();
+        (f.preferences.clone(), f.log.clone())
+    };
+    let now = chrono::Local::now();
+
+    let db = db_path(&app)?;
+    let snapshot = data::read_snapshot(&db, now.date_naive())
+        .await
+        .map_err(|e| format!("base illisible : {e}"))?;
+
+    let planned = planner::plan(now, &snapshot, &prefs, &log);
+    let info: Vec<PlannedInfo> = planned
+        .iter()
+        .map(|p| PlannedInfo {
+            at: p.at,
+            title: p.entry.title.clone(),
+            rules: p.entry.rules.clone(),
+        })
+        .collect();
+
+    #[cfg(mobile)]
+    {
+        let permission = planner::depot::autorisation(&app)?;
+        // `PermissionState` ne sait pas se rendre en chaîne : on passe par
+        // serde, qui est justement le format que le front attend.
+        let permission = serde_json::to_value(permission)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_else(|| "inconnue".into());
+        if permission != "granted" {
+            return Ok(PlanReport { permission, planned: info, deposited: 0, pending: vec![] });
+        }
+        let deposited = planner::depot::deposer(&app, &planned)?;
+        let pending = planner::depot::en_attente(&app).unwrap_or_default();
+        Ok(PlanReport { permission, planned: info, deposited, pending })
+    }
+    #[cfg(not(mobile))]
+    Ok(PlanReport {
+        permission: "sans-objet".into(),
+        planned: info,
+        deposited: 0,
+        pending: vec![],
+    })
+}
+
+/// Ouvre le dialogue d'autorisation système. À n'appeler QUE depuis un geste
+/// explicite de l'utilisateur — l'activation d'un rappel dans les préférences.
+///
+/// Sur le bureau, sans objet : le greffon y renvoie toujours `Granted` sans
+/// rien demander, et le centre in-app reste alimenté de toute façon.
+#[tauri::command]
+pub fn notif_request_permission(app: AppHandle) -> Result<String, String> {
+    #[cfg(mobile)]
+    {
+        let etat = planner::depot::demander(&app)?;
+        Ok(serde_json::to_value(etat)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_else(|| "inconnue".into()))
+    }
+    #[cfg(not(mobile))]
+    {
+        let _ = &app;
+        Ok("sans-objet".into())
+    }
 }
 
 /// Envoie une notification de test par le chemin complet. C'est le seul moyen

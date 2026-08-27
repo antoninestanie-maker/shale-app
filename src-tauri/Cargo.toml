@@ -44,6 +44,12 @@ tokio = { version = "1", features = ["time"] }
 # par session) et jamais sur le chemin critique d'une écriture.
 argon2 = "0.5"
 
+# `time` — UNIQUEMENT pour parler au greffon de notifications, dont
+# `Schedule::At` expose un `time::OffsetDateTime` dans sa signature publique.
+# Aucune nouvelle compilation : la crate est déjà dans l'arbre, tirée par ce
+# même greffon. Tout le reste du code date continue d'utiliser `chrono`.
+time = "0.3"
+
 # Trousseau système (src/secrets.rs) : range les clés d'API LLM chiffrées au repos
 # plutôt qu'en clair dans shale.db.
 #

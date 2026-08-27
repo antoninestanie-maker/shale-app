@@ -4,6 +4,7 @@ import Onboarding, { needsOnboarding } from "./components/auth/Onboarding";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
+import { planNotifications } from "./lib/notifications";
 import { useIsPhone } from "./lib/platform";
 import MobileNav from "./components/MobileNav";
 import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
@@ -103,6 +104,30 @@ function App() {
     sync();
     window.addEventListener("sb:live-positions", sync);
     return () => window.removeEventListener("sb:live-positions", sync);
+  }, []);
+
+  // ── Rappels : (re)programmation à chaque passage en arrière-plan ─────────
+  // Sur le bureau, `scheduler.rs` tourne et cet appel ne fait que rendre un
+  // diagnostic. Sur iOS il est ESSENTIEL : le système suspend le processus dès
+  // que l'app quitte l'écran, la boucle Rust s'arrête, et plus rien ne peut
+  // décider quoi que ce soit. Ce qui n'a pas été déposé AVANT ne partira pas.
+  //
+  // `visibilitychange` plutôt que `pagehide` : WKWebView le déclenche au
+  // passage en arrière-plan, alors que `pagehide` ne vient qu'à la destruction
+  // de la page — trop tard, et pas garanti si le système tue l'app.
+  // On garde quand même `pagehide` en second filet, il ne coûte rien.
+  useEffect(() => {
+    const replanifier = () => void planNotifications().catch(() => null);
+    replanifier(); // au démarrage : purge les échéances devenues fausses
+    const surVisibilite = () => {
+      if (document.visibilityState === "hidden") replanifier();
+    };
+    document.addEventListener("visibilitychange", surVisibilite);
+    window.addEventListener("pagehide", replanifier);
+    return () => {
+      document.removeEventListener("visibilitychange", surVisibilite);
+      window.removeEventListener("pagehide", replanifier);
+    };
   }, []);
 
   useEffect(() => {

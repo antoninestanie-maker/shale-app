@@ -67,8 +67,12 @@ pub fn deliver_test(app: &AppHandle) -> LogEntry {
         // Clé unique : un test ne doit jamais bloquer une vraie règle par idempotence.
         dedupe_keys: vec![format!("{TEST_RULE}:{}", now.timestamp_millis())],
         title: "Shale — notification de test".into(),
+        // ⚠️ Trois plateformes, pas deux. La première rédaction opposait macOS
+        // à « sinon » ; iOS n'étant pas macOS, l'iPhone annonçait « Windows ».
         body: if cfg!(target_os = "macos") {
             "Si tu vois cette bannière, les notifications macOS fonctionnent.".into()
+        } else if cfg!(target_os = "ios") {
+            "Si tu vois cette bannière, les notifications iOS fonctionnent.".into()
         } else {
             "Si tu vois ce toast, les notifications Windows fonctionnent.".into()
         },

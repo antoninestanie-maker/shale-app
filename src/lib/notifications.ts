@@ -194,6 +194,46 @@ export async function runNow(): Promise<void> {
   await invoke("notif_run_now");
 }
 
+/** Ce que la projection a décidé, tel que le Rust le rend. */
+export interface PlanReport {
+  /** `granted` | `denied` | `prompt` sur iOS ; `sans-objet` sur le bureau. */
+  permission: string;
+  planned: { at: string; title: string; rules: string[] }[];
+  deposited: number;
+  /** Ce que le système DIT avoir en attente. Vide sur le bureau. */
+  pending: number[];
+}
+
+/**
+ * Projette les règles dans le futur et, sur iOS, dépose les échéances auprès
+ * du système.
+ *
+ * ⚠️ Appelée au démarrage ET à chaque passage en arrière-plan (`App.tsx`).
+ * C'est le remplacement du planificateur Rust, que iOS suspend : une fois
+ * l'app hors de l'écran, plus rien ne tourne — seul le système peut encore
+ * afficher quelque chose, et seulement s'il l'a reçu à l'avance.
+ *
+ * Ne demande jamais l'autorisation : voir `requestNotifPermission`.
+ */
+export async function planNotifications(): Promise<PlanReport | null> {
+  if (!isTauri) return null;
+  return invoke<PlanReport>("notif_plan");
+}
+
+/**
+ * Ouvre le dialogue d'autorisation système (iOS).
+ *
+ * ⚠️ À n'appeler QUE sur un geste explicite : sur iOS il ne s'ouvre qu'une
+ * fois dans la vie de l'app, et un refus y est définitif — il faut ensuite
+ * passer par les Réglages du téléphone. D'où l'appel à l'ACTIVATION du
+ * réglage « notifications », là où la valeur est comprise, et jamais au
+ * démarrage (`MOBILE.md` § 3.6).
+ */
+export async function requestNotifPermission(): Promise<string> {
+  if (!isTauri) return "sans-objet";
+  return invoke<string>("notif_request_permission");
+}
+
 /** Notification de test — seul diagnostic fiable de l'autorisation macOS. */
 export async function sendTest(): Promise<NotifEntry | null> {
   if (!isTauri) return null;

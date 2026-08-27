@@ -29,8 +29,31 @@ function detectMac(): boolean {
   return !/Windows|Win64|Win32/i.test(ua);
 }
 
-/** Vrai sur macOS. Figé au chargement : le système ne change pas en cours de session. */
+/**
+ * Vrai sur macOS **et sur iOS**, et c'est délibéré.
+ *
+ * Cette constante ne répond qu'à une question : « quels GLYPHES de raccourci
+ * afficher ? » Un iPhone ou un iPad muni d'un clavier externe a bien une touche
+ * ⌘ — la réponse Apple est donc la bonne pour lui aussi. Pour distinguer le
+ * téléphone, c'est `IS_IOS` ou `useIsPhone()` qu'il faut, jamais `!IS_MAC`.
+ */
 export const IS_MAC = detectMac();
+
+/**
+ * Vrai sur iOS / iPadOS.
+ *
+ * Sert aux messages qui NOMMENT le système à l'utilisateur — « autorise Shale
+ * dans Réglages macOS » n'a aucun sens sur un iPhone, et envoie chercher un
+ * écran qui n'existe pas. Détecté au user-agent, pour la même raison que
+ * `detectMac` : la réponse doit être synchrone au premier rendu.
+ *
+ * ⚠️ `MacIntel` + écran tactile : depuis iPadOS 13, un iPad en mode « bureau »
+ * se présente comme un Mac. Le test des points de contact le rattrape.
+ */
+export const IS_IOS =
+  typeof navigator !== "undefined" &&
+  (/iPhone|iPod|iPad/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 /**
  * Raccourci global de la quick capture, tel qu'il est réellement enregistré

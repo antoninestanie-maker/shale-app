@@ -240,6 +240,8 @@ pub fn run() {
             notifications::notif_status,
             notifications::notif_run_now,
             notifications::notif_test,
+            notifications::notif_plan,
+            notifications::notif_request_permission,
         ])
         .setup(|app| {
             // ⚠️ EN TOUT PREMIER : une restauration demandée s'applique avant que
