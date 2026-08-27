@@ -1459,6 +1459,11 @@ avant, 10 après**, drapeau jeté.
   Raccourci → « Nouvelle note Shale ». Puis maintenir le bouton.
   ⚠️ iPhone 15 Pro et plus. Sinon : Réglages → Accessibilité → Toucher →
   Toucher au dos.
+  > **Précision du 2026-08-27 à 19 h 15 : le repli ne sert pas.** L'appareil
+  > d'Antonin est un **iPhone 16** — lu dans `xcrun devicectl list devices` :
+  > `iPhone 16 (iPhone17,3)`. TOUS les iPhone 16 ont le bouton Action, pas
+  > seulement les Pro. « Toucher au dos » reste écrit pour un futur appareil
+  > plus ancien, pas pour lui.
 - ~~**Voir tomber une bannière.** Tout est armé ; personne ne peut le regarder
   à notre place.~~ **RETIRÉ de cette liste le 2026-08-27 à 19 h 10 : ce n'était
   pas une tâche d'Antonin.** La livraison s'écrit dans
@@ -1571,6 +1576,20 @@ Le compte gratuit permet déjà d'installer Shale sur l'iPhone RÉEL, avec un
 profil de 7 jours renouvelable en rebranchant. ⚠️ Deux gestes que seul Antonin
 peut faire : « Faire confiance à cet ordinateur » sur le téléphone, puis
 Réglages → Général → VPN et gestion d'appareils.
+
+> ## ✅ FAIT le 2026-08-27 à 17 h — **§ 20**
+>
+> Shale **est installée sur l'iPhone 16 d'Antonin**, vérifié par
+> `devicectl device info apps`. Le premier geste est passé ; **le second reste
+> à faire** — Réglages → Général → VPN et gestion d'appareils → faire
+> confiance, sans quoi le lancement échoue sur « its profile has not been
+> explicitly trusted by the user ».
+>
+> ⚠️ Profil valable jusqu'au **2026-09-03 à 17 h 04**. Le § 20 porte le détail
+> et les trois pièges de provisionnement.
+>
+> Ce qui reste ci-dessous — le push silencieux et la question Stripe contre
+> achats intégrés — **n'a pas bougé** : ça, c'est le compte PAYANT.
 
 ### 17.6 ⚠️ Un échec de test jamais expliqué
 
@@ -1922,3 +1941,108 @@ surveillée. Une session Claude peut la relire après coup.
 
 Les deux vraies conditions, elles, ne sont pas dans le code : **le simulateur
 doit rester allumé et le Mac ne doit pas s'endormir.**
+
+---
+
+## 20. ⭐ L'iPhone RÉEL — le § 17.5 est franchi (2026-08-27, 19 h)
+
+*Travail d'une AUTRE session (`shale-projet-d9`), menée en parallèle dans le
+même arbre. Elle a écrit le compte rendu, je l'ai vérifié fait par fait avant
+de le consigner — c'est la règle du dépôt : ce qui n'a pas été vérifié est
+signalé comme tel.*
+
+### 20.1 Shale tourne sur le téléphone d'Antonin, pour la première fois
+
+Tout ce qui suit est **relu à la source**, pas recopié du rapport :
+
+```
+xcrun devicectl list devices
+  iPhone de Antonin · iPhone 16 (iPhone17,3) · connected
+
+xcrun devicectl device info apps --device <…>
+  Shale   com.atnfx.shale   0.1.0   0.1.0          ← installée
+
+~/Library/Developer/Xcode/UserData/Provisioning Profiles/f353aff9-….mobileprovision
+  Nom       : iOS Team Provisioning Profile: com.atnfx.shale
+  App ID    : QXU2BNU373.com.atnfx.shale
+  Équipe    : QXU2BNU373 · Antonin Estanie      ← Personal Team GRATUITE
+  Créé      : 2026-08-27 17:04:47
+  EXPIRE    : 2026-09-03 17:04:47               ← 7 jours pile
+  Appareils : ['00008140-000628801A83801C']
+```
+
+⚠️ **Le profil vit dans `~/Library/Developer/Xcode/UserData/Provisioning
+Profiles/`, PAS dans `~/Library/MobileDevice/Provisioning Profiles/`** — le
+chemin historique, que tous les vieux articles citent, n'existe plus ici.
+Chercher au mauvais endroit fait conclure « aucun profil » alors qu'il y en a
+un. (Et `security cms -D -i` écrit sur un flux non rembobinable : il faut
+`-o fichier` avant de le donner à `plistlib`, sinon `UnsupportedOperation`.)
+
+⚠️ **Le blocage trousseau anticipé n'a PAS eu lieu.** Certificat et profil ont
+été créés sans une seule demande de mot de passe. L'audit le redoutait ; il
+s'est trompé, et c'est une bonne nouvelle à ne pas re-craindre.
+
+### 20.2 ▶️ Il reste UN geste, et Antonin seul peut le faire
+
+**Réglages → Général → VPN et gestion d'appareils → faire confiance au
+développeur.** Tant que ce n'est pas fait, le lancement échoue avec, mot pour
+mot : *« its profile has not been explicitly trusted by the user »*.
+L'app est bien installée — c'est l'ouverture qui est refusée, pas la pose.
+
+⚠️ **Le profil expire le 2026-09-03 à 17 h 04.** Il se renouvelle en
+rebranchant le téléphone et en reconstruisant. Sept jours, c'est la règle du
+compte gratuit, pas un défaut de la manipulation.
+
+### 20.3 Trois pièges de provisionnement, mesurés
+
+Ils coûtent chacun une demi-heure à qui les redécouvre.
+
+**1. `xcodebuild` appelé directement sur `gen/apple/shale.xcodeproj` est un
+cul-de-sac — mais un cul-de-sac UTILE.** Le script de pré-build « Build Rust
+Code » ouvre une WebSocket vers un serveur que **seul `tauri ios build`
+démarre** : sans lui, panique « failed to build WebSocket client / Connection
+refused » (`tauri-cli/src/mobile/mod.rs:403`).
+⭐ **Mais la phase de SIGNATURE s'exécute avant celle-là.** C'est ainsi que
+l'iPhone a été enregistré : `xcodebuild` direct avec
+`-destination 'id=<UDID>' -allowProvisioningUpdates
+-allowProvisioningDeviceRegistration` → le profil est créé, puis le build meurt
+sur le script Rust, sans importance.
+
+**2. On ne peut PAS provisionner à travers Tauri.** Les arguments passés après
+`--` à `tauri ios build` sont retransmis au sous-appel `tauri ios xcode-script`,
+qui les refuse : `-allowProvisioningUpdates` produit
+`error: unexpected argument '-a' found` et fait échouer le build. D'où le détour
+du point 1 — ce n'est pas un contournement de confort, c'est le seul chemin.
+
+**3. Sans `DEVELOPMENT_TEAM`, il n'existe AUCUN build device, même non signé.**
+`xcodebuild` refuse la cible dès `GatherProvisioningInputs`, **avant toute
+compilation**, et `CODE_SIGNING_ALLOWED=NO` n'y change rien (essayé deux fois).
+Pas d'équipe, pas une ligne compilée — donc pas de validation possible sans
+compte Apple, fût-il gratuit.
+
+⚠️ **`DEVELOPMENT_TEAM: QXU2BNU373` et `CODE_SIGN_STYLE: Automatic` sont posés
+À LA MAIN dans `project.yml`, et sont à REMETTRE si `tauri ios init` régénère
+le fichier** — même consigne que l'`excludes` du § 17.3. `Automatic` est
+obligatoire : une équipe gratuite n'a aucun profil manuel à télécharger.
+
+### 20.4 Ligne de base élargie
+
+`cargo check --target aarch64-apple-ios` — la cible **DEVICE**, distincte du
+simulateur — passe. À ajouter à la ligne de base du § 17.1 :
+
+```
+cargo check --target aarch64-apple-ios-sim   # simulateur
+cargo check --target aarch64-apple-ios       # APPAREIL RÉEL  ← nouveau
+```
+
+### 20.5 Ce que deux sessions en parallèle ont appris
+
+Elles ont travaillé dans le même arbre sans se marcher dessus, et ce n'est pas
+un hasard : le partage était **explicite**. `gen/apple/` à l'une, `MOBILE.md` à
+l'autre, aucun build lancé des deux côtés à la fois, et le simulateur laissé
+intact pour ne pas fausser le guet de la bannière de 20 h.
+
+⚠️ **Le vrai risque n'était pas le conflit git, c'était le § 17.3 piège n°1** :
+deux `tauri ios build` concurrents dans la même sortie échouent **en rendant un
+code de sortie 0**. Un dépôt qui accepte deux sessions doit se répartir les
+répertoires de BUILD, pas seulement les fichiers.
