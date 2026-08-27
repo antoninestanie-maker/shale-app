@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./repo";
+import { creneauxBriefingActifs } from "./market/rappels";
 
 import { t } from "./i18n";
 /** Événement émis par le Rust à chaque notification produite. */
@@ -86,6 +87,17 @@ export interface NotifPrefs {
   keep_running_in_background: boolean;
   /** Langue des rappels ("fr" | "en") — le Rust n'a pas accès au localStorage. */
   lang: string;
+  /**
+   * Le rappel de briefing de marché (8 h / 14 h).
+   *
+   * ⚠️ Hors de `rules`, et ce n'est pas un rangement approximatif : il n'a
+   * aucune CONDITION. Il ne passe donc pas par le moteur de règles, pas par le
+   * plafond quotidien, et il est le seul à obtenir du système un vrai
+   * rendez-vous quotidien plutôt qu'une échéance reprogrammée (MOBILE.md
+   * § 13.4). L'interrupteur est ici ; les créneaux, eux, sont recalculés et
+   * poussés à chaque projection (`market/rappels.ts`).
+   */
+  market_briefing: boolean;
   rules: Record<string, RulePrefs>;
 }
 
@@ -138,6 +150,7 @@ export const DEFAULT_PREFS: NotifPrefs = {
   enabled: true,
   quiet_hours: { start: 8, end: 22 },
   lang: "fr",
+  market_briefing: true,
   daily_cap: 2,
   check_interval_min: 15,
   keep_running_in_background: true,
@@ -221,9 +234,15 @@ export interface PlanReport {
  *
  * Ne demande jamais l'autorisation : voir `requestNotifPermission`.
  */
-export async function planNotifications(): Promise<PlanReport | null> {
+export async function planNotifications(hasTrading: boolean): Promise<PlanReport | null> {
   if (!isTauri) return null;
-  return invoke<PlanReport>("notif_plan");
+  // Le briefing de marché ne se déduit pas de la base : il dépend de l'offre du
+  // compte, de la clé LLM et du fuseau de l'appareil — trois choses que seul le
+  // front connaît. On les recalcule ICI, à chaque projection, plutôt que de les
+  // stocker : une valeur stockée serait périmée dès le premier voyage ou le
+  // premier changement de langue.
+  const briefing = await creneauxBriefingActifs(hasTrading).catch(() => []);
+  return invoke<PlanReport>("notif_plan", { briefing });
 }
 
 /**

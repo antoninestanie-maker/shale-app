@@ -101,15 +101,19 @@ pub fn instants_a_sonder(now: DateTime<Local>, prefs: &Prefs) -> Vec<DateTime<Lo
         .collect()
 }
 
-/// Aujourd'hui à `heure`, ou demain si c'est déjà passé.
+/// Aujourd'hui à `heure`:`minute`, ou demain si c'est déjà passé.
 ///
 /// `None` si l'heure locale n'existe pas — le saut d'heure d'été fait
 /// disparaître 2 h à 3 h une nuit par an. Sauter le sondage vaut mieux que
 /// déposer une date que le système refusera.
-fn prochaine_occurrence(now: DateTime<Local>, heure: u32) -> Option<DateTime<Local>> {
+fn prochaine_occurrence_a(
+    now: DateTime<Local>,
+    heure: u32,
+    minute: u32,
+) -> Option<DateTime<Local>> {
     let vise = |jour: DateTime<Local>| {
         jour.with_hour(heure)
-            .and_then(|d| d.with_minute(0))
+            .and_then(|d| d.with_minute(minute))
             .and_then(|d| d.with_second(0))
             .and_then(|d| d.with_nanosecond(0))
     };
@@ -117,6 +121,11 @@ fn prochaine_occurrence(now: DateTime<Local>, heure: u32) -> Option<DateTime<Loc
         Some(t) if t > now => Some(t),
         _ => vise(now + Duration::days(1)).filter(|t| *t > now),
     }
+}
+
+/// Variante à l'heure pile — le cas des règles, dont le seuil est un entier.
+fn prochaine_occurrence(now: DateTime<Local>, heure: u32) -> Option<DateTime<Local>> {
+    prochaine_occurrence_a(now, heure, 0)
 }
 
 /// Ce qu'il faut déposer auprès du système, dans l'ordre chronologique.
@@ -180,8 +189,14 @@ pub fn date_greffon(local: DateTime<Local>) -> Option<time::OffsetDateTime> {
 /// d'idempotence, qui porte déjà « la règle, ce jour-là ».
 pub fn id_systeme(entry: &LogEntry) -> i32 {
     let cle = entry.dedupe_keys.first().map(String::as_str).unwrap_or(&entry.id);
-    // FNV-1a 32 bits, écrit ici pour ne pas dépendre de `DefaultHasher`, dont
-    // la valeur n'est stable ni entre versions de Rust ni entre exécutions.
+    id_depuis_cle(cle)
+}
+
+/// FNV-1a 32 bits, écrit ici pour ne pas dépendre de `DefaultHasher`, dont la
+/// valeur n'est stable ni entre versions de Rust ni entre exécutions — or cet
+/// identifiant DOIT survivre à une mise à jour de l'app, sans quoi une
+/// échéance déposée hier deviendrait inannulable aujourd'hui.
+fn id_depuis_cle(cle: &str) -> i32 {
     let mut h: u32 = 0x811c_9dc5;
     for b in cle.as_bytes() {
         h ^= u32::from(*b);
@@ -189,6 +204,74 @@ pub fn id_systeme(entry: &LogEntry) -> i32 {
     }
     // Positif : un identifiant négatif n'a pas de sens côté système.
     (h & 0x7fff_ffff) as i32
+}
+
+// ─── LE BRIEFING DE MARCHÉ ───────────────────────────────────────────────────
+
+/// Étiquette portée par les échéances du briefing dans le rapport de plan.
+/// Ce n'est PAS un identifiant de règle : `registry()` ne la connaît pas.
+pub const BRIEFING_RULE: &str = "market_briefing";
+
+/// Un créneau de briefing, tel que le FRONT le calcule.
+///
+/// ⚠️ Les heures viennent du front, et ce n'est pas de la paresse. Market
+/// Brain raisonne en **heure de Paris** (`TRIGGER_HOUR` : 8 h pré-Londres,
+/// 14 h pré-New York), alors que `Schedule::Interval` est un rendez-vous
+/// exprimé dans le calendrier de l'APPAREIL. Traduire l'une en l'autre demande
+/// la base de fuseaux nommés, que le front a gratuitement (`Intl`) et que le
+/// Rust n'a pas sans nouvelle dépendance. Le front y ajoute la langue et
+/// l'offre du compte, deux choses qu'il est également seul à connaître.
+///
+/// `key` est l'identité STABLE du créneau (`market_briefing:pre_london`) : elle
+/// dérive l'identifiant système, donc redéposer remplace au lieu de doubler.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BriefingSlot {
+    pub key: String,
+    pub hour: u32,
+    pub minute: u32,
+    pub title: String,
+    pub body: String,
+}
+
+impl BriefingSlot {
+    /// Créneau exploitable ? Une heure hors bornes viendrait d'un calcul de
+    /// fuseau parti de travers ; on préfère l'ignorer que déposer n'importe
+    /// quoi dans le système de l'utilisateur.
+    fn valide(&self) -> bool {
+        self.hour < 24 && self.minute < 60 && !self.key.is_empty()
+    }
+
+    /// Identifiant système, dérivé de `key` — donc STABLE d'un dépôt à l'autre.
+    ///
+    /// `allow(dead_code)` sur le bureau et nulle part ailleurs : seul le dépôt
+    /// mobile s'en sert, et le dépôt mobile est sous `cfg`. Le silence est
+    /// donc borné à la plateforme où la méthode n'a effectivement rien à faire.
+    #[cfg_attr(not(mobile), allow(dead_code))]
+    fn id(&self) -> i32 {
+        id_depuis_cle(&self.key)
+    }
+}
+
+/// Les créneaux retenus, avec la PROCHAINE occurrence de chacun.
+///
+/// L'instant rendu ne sert qu'à l'affichage (« demain à 8 h ») : le dépôt, lui,
+/// est un rendez-vous récurrent qui n'a pas de date. Les rendre ensemble évite
+/// à l'écran de recalculer une heure que ce module vient de valider.
+pub fn briefing_a_deposer(
+    now: DateTime<Local>,
+    prefs: &Prefs,
+    slots: &[BriefingSlot],
+) -> Vec<(BriefingSlot, DateTime<Local>)> {
+    if !prefs.enabled || !prefs.market_briefing {
+        return Vec::new();
+    }
+    slots
+        .iter()
+        .filter(|s| s.valide())
+        .filter_map(|s| {
+            prochaine_occurrence_a(now, s.hour, s.minute).map(|t| (s.clone(), t))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -362,6 +445,81 @@ mod tests {
             entry("2026-08-27 21:00:00", &["streak_at_risk"], &["streak_at_risk:2026-08-27"]);
         assert_ne!(a, id_systeme(&autre));
     }
+
+    // ── Le briefing de marché ────────────────────────────────────────────────
+
+    fn creneaux() -> Vec<BriefingSlot> {
+        vec![
+            BriefingSlot {
+                key: "market_briefing:pre_london".into(),
+                hour: 8,
+                minute: 0,
+                title: "Briefing pré-Londres".into(),
+                body: "b".into(),
+            },
+            BriefingSlot {
+                key: "market_briefing:pre_ny".into(),
+                hour: 14,
+                minute: 0,
+                title: "Briefing pré-New York".into(),
+                body: "b".into(),
+            },
+        ]
+    }
+
+    /// À 10 h : celui de 8 h est passé (donc demain), celui de 14 h est à venir
+    /// (donc aujourd'hui). L'instant ne sert qu'à l'affichage, mais s'il ment,
+    /// l'écran de diagnostic ment avec lui.
+    #[test]
+    fn le_briefing_vise_la_prochaine_occurrence_de_chaque_creneau() {
+        let p = prefs();
+        let v = briefing_a_deposer(at("2026-08-27 10:00:00"), &p, &creneaux());
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0].1, at("2026-08-28 08:00:00"));
+        assert_eq!(v[1].1, at("2026-08-27 14:00:00"));
+    }
+
+    /// L'interrupteur propre au briefing, et l'interrupteur général : les deux
+    /// doivent le taire. Le second est celui qu'on oublie — « coupe tout » doit
+    /// vouloir dire tout, y compris ce qui ne passe pas par le moteur.
+    #[test]
+    fn les_deux_interrupteurs_taisent_le_briefing() {
+        let now = at("2026-08-27 10:00:00");
+
+        let mut p = prefs();
+        p.market_briefing = false;
+        assert!(briefing_a_deposer(now, &p, &creneaux()).is_empty());
+
+        let mut p = prefs();
+        p.enabled = false;
+        assert!(briefing_a_deposer(now, &p, &creneaux()).is_empty());
+    }
+
+    /// Les heures viennent d'un calcul de fuseau côté front. S'il part de
+    /// travers, on préfère ignorer le créneau que déposer n'importe quoi dans
+    /// le système de l'utilisateur — un rappel à 25 h ne se supprime pas d'un
+    /// geste, il faut désinstaller l'app.
+    #[test]
+    fn un_creneau_hors_bornes_est_ignore_sans_emporter_les_autres() {
+        let mut c = creneaux();
+        c[0].hour = 25;
+        c.push(BriefingSlot { key: String::new(), hour: 9, minute: 0, title: "x".into(), body: "b".into() });
+        let v = briefing_a_deposer(at("2026-08-27 10:00:00"), &prefs(), &c);
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].0.key, "market_briefing:pre_ny");
+    }
+
+    /// L'identifiant système DOIT être stable d'un dépôt à l'autre : c'est lui
+    /// qui fait qu'un redépôt REMPLACE l'échéance au lieu d'en ajouter une
+    /// seconde. Et les deux créneaux doivent se distinguer, sans quoi celui de
+    /// 14 h écraserait celui de 8 h.
+    #[test]
+    fn les_deux_creneaux_ont_des_identifiants_stables_et_distincts() {
+        let c = creneaux();
+        assert_eq!(c[0].id(), c[0].id());
+        assert_ne!(c[0].id(), c[1].id());
+        assert!(c[0].id() > 0 && c[1].id() > 0);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -373,9 +531,11 @@ mod tests {
 #[cfg(mobile)]
 pub mod depot {
     use tauri::AppHandle;
-    use tauri_plugin_notification::{NotificationExt, PermissionState, Schedule};
+    use tauri_plugin_notification::{
+        NotificationExt, PermissionState, Schedule, ScheduleInterval,
+    };
 
-    use super::{date_greffon, id_systeme, Planned};
+    use super::{date_greffon, id_systeme, BriefingSlot, Planned};
 
     /// L'autorisation, TELLE QUE LE SYSTÈME LA CONNAÎT.
     ///
@@ -427,6 +587,56 @@ pub mod depot {
                 // autres. Le cas attendu est `pastScheduledTime`, si l'heure
                 // visée est passée entre le calcul et le dépôt.
                 Err(e) => eprintln!("notifications : dépôt refusé pour {} ({e})", p.at),
+            }
+        }
+        deposees
+    }
+
+    /// Dépose les créneaux du briefing de marché, et rend leurs identifiants.
+    ///
+    /// ⚠️ **Le seul endroit de Shale qui utilise `Schedule::Interval`**, et
+    /// c'est mesuré, pas choisi par goût (`MOBILE.md` § 13.2/13.4) :
+    ///
+    ///   - `At` est traduit par le greffon en `UNTimeIntervalNotificationTrigger`
+    ///     de durée « cible − maintenant ». Avec `repeating: true`, il ne répète
+    ///     donc PAS « tous les jours à la même heure » mais « toutes les N
+    ///     secondes ». Il ne convient qu'aux échéances ponctuelles ;
+    ///   - `Interval` est le seul traduit en `UNCalendarNotificationTrigger`
+    ///     (`dateMatching:, repeats: true`), c'est-à-dire le vrai rendez-vous
+    ///     quotidien, évalué dans `Calendar.current` — donc à l'heure locale.
+    ///
+    /// Deux conséquences heureuses : le piège de fuseau du § 13.3 ne s'applique
+    /// pas ici (aucune date n'est sérialisée, seulement des composantes), et le
+    /// rappel continue de tomber même si l'app n'est pas rouverte de la semaine
+    /// — ce qu'une échéance ponctuelle reprogrammée à chaque passage en
+    /// arrière-plan ne sait pas faire.
+    ///
+    /// ⚠️ Ce que ça NE fait pas : générer le briefing. Il est rédigé à
+    /// l'ouverture de l'app. La bannière annonce donc un briefing qui n'existe
+    /// pas encore — c'est le compromis explicitement accepté (§ 10, décision 3),
+    /// et c'est pourquoi son texte ne doit jamais dire qu'il est prêt.
+    pub fn deposer_briefing(app: &AppHandle, slots: &[BriefingSlot]) -> Vec<i32> {
+        let n = app.notification();
+        let mut deposees = Vec::new();
+        for slot in slots {
+            let id = slot.id();
+            let r = n
+                .builder()
+                .id(id)
+                .title(&slot.title)
+                .body(&slot.body)
+                .schedule(Schedule::Interval {
+                    interval: ScheduleInterval {
+                        hour: Some(slot.hour as u8),
+                        minute: Some(slot.minute as u8),
+                        ..Default::default()
+                    },
+                    allow_while_idle: false,
+                })
+                .show();
+            match r {
+                Ok(()) => deposees.push(id),
+                Err(e) => eprintln!("notifications : briefing {} refusé ({e})", slot.key),
             }
         }
         deposees

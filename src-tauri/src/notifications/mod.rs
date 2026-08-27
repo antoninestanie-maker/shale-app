@@ -196,7 +196,10 @@ pub struct PlannedInfo {
 /// ici reviendrait à le demander au premier lancement, ce que `MOBILE.md` § 3.6
 /// interdit. Sans autorisation, on calcule le plan et on ne dépose rien.
 #[tauri::command]
-pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
+pub async fn notif_plan(
+    app: AppHandle,
+    briefing: Option<Vec<planner::BriefingSlot>>,
+) -> Result<PlanReport, String> {
     // Copies possédées : le verrou du store ne doit pas traverser un `await`.
     let (prefs, log, deja_deposees) = {
         let f = app.state::<NotifStore>().read();
@@ -210,14 +213,24 @@ pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
         .map_err(|e| format!("base illisible : {e}"))?;
 
     let planned = planner::plan(now, &snapshot, &prefs, &log);
-    let info: Vec<PlannedInfo> = planned
+    // Le briefing ne passe pas par le moteur : il n'a aucune condition, donc
+    // rien à évaluer. Il rejoint le plan seulement pour l'AFFICHAGE — l'écran
+    // de diagnostic doit dire tout ce qui est armé, pas seulement les règles.
+    let creneaux = planner::briefing_a_deposer(now, &prefs, briefing.as_deref().unwrap_or(&[]));
+    let mut info: Vec<PlannedInfo> = planned
         .iter()
         .map(|p| PlannedInfo {
             at: p.at,
             title: p.entry.title.clone(),
             rules: p.entry.rules.clone(),
         })
+        .chain(creneaux.iter().map(|(slot, at)| PlannedInfo {
+            at: *at,
+            title: slot.title.clone(),
+            rules: vec![planner::BRIEFING_RULE.to_string()],
+        }))
         .collect();
+    info.sort_by_key(|p| p.at);
 
     #[cfg(mobile)]
     {
@@ -231,7 +244,12 @@ pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
         if permission != "granted" {
             return Ok(PlanReport { permission, planned: info, deposited: 0 });
         }
-        let ids = planner::depot::deposer(&app, &planned, &deja_deposees);
+        // `deposer` purge d'abord TOUT ce qui avait été déposé au tour
+        // précédent — briefing compris. Le briefing doit donc être redéposé
+        // APRÈS, jamais avant, sans quoi la purge l'emporterait aussitôt.
+        let mut ids = planner::depot::deposer(&app, &planned, &deja_deposees);
+        let creneaux: Vec<_> = creneaux.into_iter().map(|(slot, _)| slot).collect();
+        ids.extend(planner::depot::deposer_briefing(&app, &creneaux));
         let deposited = ids.len();
         // Le registre est la SEULE mémoire de ce qui est armé : le greffon ne
         // sait pas répondre à la question (`EngineState::scheduled_ids`). S'il
@@ -242,7 +260,10 @@ pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
     }
     #[cfg(not(mobile))]
     {
-        let _ = deja_deposees;
+        // Le bureau CALCULE le plan (c'est un diagnostic utile) mais ne dépose
+        // rien : `schedule()` y est accepté sans effet (`MOBILE.md` § 13.1), et
+        // c'est `scheduler.rs` qui décide, à la minute, fenêtre fermée.
+        let _ = (deja_deposees, creneaux);
         Ok(PlanReport { permission: "sans-objet".into(), planned: info, deposited: 0 })
     }
 }

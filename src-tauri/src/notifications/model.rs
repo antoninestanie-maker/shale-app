@@ -119,6 +119,23 @@ pub struct Prefs {
     /// connaître : il tourne fenêtre fermée, sans accès au localStorage.
     #[serde(default = "default_lang")]
     pub lang: String,
+    /// Le rappel de briefing de marché — 8 h pré-Londres, 14 h pré-New York.
+    ///
+    /// ⚠️ **Ce n'est PAS une règle**, et c'est délibéré : il n'a aucune
+    /// condition. « Ton briefing t'attend » est vrai tous les jours, ce qui en
+    /// fait le seul rappel de Shale qui ait droit au vrai rendez-vous quotidien
+    /// du système (`Schedule::Interval`) plutôt qu'à une échéance ponctuelle
+    /// reprogrammée. Il ne passe donc ni par `registry()`, ni par
+    /// `engine::evaluate`, ni par le plafond quotidien. Voir `MOBILE.md`
+    /// § 13.4, qui contient le raisonnement inverse — séduisant et faux — et
+    /// dit pourquoi il l'est.
+    ///
+    /// L'interrupteur vit ici, avec les autres réglages de notification. Les
+    /// CRÉNEAUX, eux, sont poussés par le front à chaque projection : lui seul
+    /// sait traduire « 8 h à Paris » en heure murale de l'appareil, connaît la
+    /// langue courante, et sait si le compte a l'offre Trade.
+    #[serde(default = "yes")]
+    pub market_briefing: bool,
     /// Réglages par règle, indexés par `NotificationRule::id`.
     pub rules: BTreeMap<String, RulePrefs>,
 }
@@ -132,6 +149,7 @@ impl Default for Prefs {
             check_interval_min: 15,
             keep_running_in_background: true,
             lang: default_lang(),
+            market_briefing: true,
             rules: BTreeMap::new(),
         }
     }

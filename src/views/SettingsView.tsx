@@ -255,7 +255,7 @@ export default function SettingsView() {
     });
     fetchPrefs().then(setNotif).catch(() => {});
     fetchStatus().then(setNotifStatus).catch(() => {});
-    planNotifications().then(setPlan).catch(() => {});
+    planNotifications(hasTrading).then(setPlan).catch(() => {});
   }, []);
 
   /**
@@ -279,7 +279,7 @@ export default function SettingsView() {
     }
     // Que l'autorisation soit accordée ou non, on reprojette : le plan sert
     // aussi de diagnostic, et sans autorisation il dit « rien déposé ».
-    setPlan(await planNotifications().catch(() => null));
+    setPlan(await planNotifications(hasTrading).catch(() => null));
   };
 
   const patchRule = async (id: string, patch: RulePrefsPatch) => {
@@ -307,7 +307,7 @@ export default function SettingsView() {
       // il annonce donc « 0 déposé », ce qui était vrai à ce moment-là et ne
       // l'est plus. Sans ce rappel, l'utilisateur autorise et voit toujours
       // zéro — le diagnostic accuserait le dépôt d'un échec qui n'a pas eu lieu.
-      setPlan(await planNotifications().catch(() => null));
+      setPlan(await planNotifications(hasTrading).catch(() => null));
     }
     const entry = await sendTest();
     setTestMsg(
@@ -325,7 +325,7 @@ export default function SettingsView() {
     // L'évaluation est asynchrone côté Rust : on relit l'état juste après.
     window.setTimeout(() => {
       fetchStatus().then(setNotifStatus).catch(() => {});
-      planNotifications().then(setPlan).catch(() => {});
+      planNotifications(hasTrading).then(setPlan).catch(() => {});
     }, 800);
   };
 
@@ -711,6 +711,25 @@ export default function SettingsView() {
                 );
               })}
             </div>
+
+            {/* ── Le briefing de marché ────────────────────────────────────
+                Hors de la liste « règles », et c'est le point : il n'a aucune
+                condition à évaluer. Réservé à Shale Trade parce que Market
+                Brain l'est — annoncer un briefing qui ouvrirait un paywall
+                serait une publicité déguisée en rappel. */}
+            {hasTrading && (
+              <>
+                <h3 className="hud-label mt-6">{t("briefing de marché")}</h3>
+                <div className="mt-2 rounded-[10px] border border-border p-1">
+                  <ToggleRow
+                    title={t("Rappeler les briefings de 8 h et 14 h")}
+                    desc={t("Une bannière avant Londres et avant New York. Le briefing n'est pas encore écrit quand elle tombe : Market Brain le rédige à l'ouverture de l'app. Sans clé IA configurée, rien n'est programmé.")}
+                    value={notif.market_briefing}
+                    onChange={(v) => patchNotif({ market_briefing: v })}
+                  />
+                </div>
+              </>
+            )}
 
             {/* macOS ne dit PAS si les bannières ont été refusées : le plugin
                 renvoie toujours « autorisé » et l'envoi réel est asynchrone,

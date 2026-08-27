@@ -1492,4 +1492,16 @@ export const EN: Record<string, string> = {
   "Les données n'ont pas pu être chargées.": "Your data could not be loaded.",
   "Les données affichées datent de la dernière lecture réussie.":
     "What you see is from the last successful read.",
+
+  // ── Rappel du briefing de marché (2026-08-27) ─────────────────────────────
+  // Le texte ne doit JAMAIS dire que le briefing est prêt : il est rédigé à
+  // l'ouverture de l'app, pas au moment où la bannière tombe (§ 10, décision 3).
+  "Briefing pré-Londres": "Pre-London briefing",
+  "Briefing pré-New York": "Pre-New York briefing",
+  "Ouvre Shale : Market Brain le rédige à l'ouverture.":
+    "Open Shale — Market Brain writes it on launch.",
+  "briefing de marché": "market briefing",
+  "Rappeler les briefings de 8 h et 14 h": "Remind me of the 8am and 2pm briefings",
+  "Une bannière avant Londres et avant New York. Le briefing n'est pas encore écrit quand elle tombe : Market Brain le rédige à l'ouverture de l'app. Sans clé IA configurée, rien n'est programmé.":
+    "A banner before London and before New York. The briefing isn’t written yet when it lands: Market Brain writes it when you open the app. With no AI key set up, nothing is scheduled.",
 };
