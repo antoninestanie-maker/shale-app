@@ -637,6 +637,36 @@
     }
   }
 
+  /* En-tête de vue : le titre à gauche, les actions à droite — et qui SE REPLIE.
+     ================================================================
+     Cinq vues écrivaient `flex items-center justify-between` sans repli. Un
+     conteneur flex sans `flex-wrap` ne laisse qu'une issue à ses enfants quand
+     la place manque : rétrécir. Un bouton rétréci ne rétrécit pas vraiment —
+     c'est son LIBELLÉ qui se replie à l'intérieur, et le bouton gonfle en
+     hauteur. Mesuré sur iPhone 17 (402 pt) le 2026-08-27 : « + Nouveau trade »
+     devenait une pastille presque ronde sur trois lignes, et le bouton
+     « Générer la revue de la semaine » du Journal venait toucher son titre.
+
+     Avec `flex-wrap`, le groupe d'actions passe SOUS le titre au lieu de se
+     tasser à côté — ce qui est la seule mise en page honnête quand la largeur
+     manque. `justify-content: space-between` reste juste : sur une ligne qui ne
+     porte qu'un élément, il le place au début.
+
+     ⚠️ Le repli ne se déclenche QUE s'il manque réellement de la place : sur un
+     Mac en plein écran, les éléments tiennent sur une ligne et le rendu est
+     strictement inchangé. Ce n'est pas un point de rupture, c'est du flux.
+
+     `KnowledgeView` faisait déjà ça (`flex-wrap` dans son en-tête) : c'est le
+     précédent, jamais généralisé. */
+  .view-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    column-gap: 1rem;
+    row-gap: 0.75rem;
+  }
+
   /* Éditeur de notes riche (contentEditable) */
   .note-rich {
     line-height: 1.65;

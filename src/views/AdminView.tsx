@@ -178,7 +178,7 @@ export default function AdminView({ config, save }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <header className="flex items-start justify-between gap-3">
+      <header className="view-head items-start">
         <div>
           <p className="hud-label">{t("l'app, à ta main")}</p>
           <h1 className="mt-2 text-[32px] text-text">{t("Personnaliser")}</h1>

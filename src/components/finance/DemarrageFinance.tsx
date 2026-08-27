@@ -79,7 +79,15 @@ export default function DemarrageFinance({
         {liste.map((e, i) => (
           <li
             key={e.titre}
-            className={`flex items-start gap-3 rounded-[var(--radius-field)] border p-3 transition-colors ${
+            /* ⚠️ `flex-wrap` ET un plancher sur le texte, les deux ensemble.
+               `flex-wrap` seul ne suffit pas : la colonne de texte est en
+               `flex-1 min-w-0`, donc sa largeur de BASE vaut zéro — elle se
+               tasse au lieu de forcer le repli. Mesuré sur iPhone 17 : la
+               description de l'étape 1 tombait dans 126 px, six lignes de deux
+               mots, pendant que « Ajouter un compte » gardait les siens.
+               Avec un plancher de 12 rem, la somme dépasse la largeur et c'est
+               le BOUTON qui passe à la ligne — ce qu'on veut. */
+            className={`flex flex-wrap items-start gap-3 rounded-[var(--radius-field)] border p-3 transition-colors ${
               e.fait ? "border-border bg-overlay/40" : "border-border-strong"
             }`}
           >
@@ -90,7 +98,7 @@ export default function DemarrageFinance({
             >
               {e.fait ? <IconCheckCircle className="h-5 w-5" /> : i + 1}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[12rem] flex-1">
               <p className={`text-sm ${e.fait ? "text-text-dim line-through" : "text-text"}`}>
                 {e.titre}
               </p>

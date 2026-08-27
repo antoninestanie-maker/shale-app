@@ -259,7 +259,7 @@ export default function SizingView({
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      <header className="flex items-center justify-between">
+      <header className="view-head">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl text-text">{t("Position")}</h1>
           <div className="flex gap-1">

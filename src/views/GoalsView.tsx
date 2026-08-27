@@ -224,7 +224,7 @@ export default function GoalsView({ data, refresh }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      <header className="flex items-center justify-between">
+      <header className="view-head">
         <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
         <button
           type="button"
