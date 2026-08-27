@@ -1508,6 +1508,7 @@ export const EN: Record<string, string> = {
   // Libellé du filtre de date de Tâches : sans lui, un `<input type="date">`
   // vide est un rectangle muet sur iOS.
   "échéance": "due",
+  "Le screenshot n'a pas pu être joint.": "The screenshot couldn’t be attached.",
   "Une bannière avant Londres et avant New York. Le briefing n'est pas encore écrit quand elle tombe : Market Brain le rédige à l'ouverture de l'app. Sans clé IA configurée, rien n'est programmé.":
     "A banner before London and before New York. The briefing isn’t written yet when it lands: Market Brain writes it when you open the app. With no AI key set up, nothing is scheduled.",
 };

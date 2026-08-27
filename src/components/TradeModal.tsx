@@ -38,6 +38,8 @@ export default function TradeModal({
     trade?.screenshot_path ?? null,
   );
   const [saving, setSaving] = useState(false);
+  /** Message d'échec de l'import de screenshot — affiché, jamais avalé. */
+  const [erreurPiece, setErreurPiece] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -57,16 +59,34 @@ export default function TradeModal({
   const canSave =
     instrument.trim().length > 0 && !Number.isNaN(parsedR) && !saving;
 
+  /**
+   * ⚠️ Le `catch` répare un échec SILENCIEUX, mesuré sur iPhone 17.
+   *
+   * Sur mobile, le sélecteur ouvre la photothèque et rend un
+   * `file:///private/var/…`. C'est bien une chaîne — le garde `typeof` passe —
+   * mais `import_screenshot` échouait dessus, la promesse partait en rejet non
+   * traité, et l'écran ne bougeait pas d'un pixel. On choisissait une photo,
+   * il ne se passait rien, et rien ne disait pourquoi.
+   *
+   * Le Rust sait maintenant lire ces URL ; le `catch` reste, parce qu'un import
+   * peut encore échouer (photo supprimée entre-temps, disque plein) et qu'un
+   * bouton qui ne réagit pas est le pire des retours.
+   */
   const pickScreenshot = async () => {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const file = await open({
-      multiple: false,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
-    });
-    if (typeof file !== "string") return;
-    const { invoke } = await import("@tauri-apps/api/core");
-    const dest = await invoke<string>("import_screenshot", { src: file });
-    setScreenshot(dest);
+    setErreurPiece(null);
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const file = await open({
+        multiple: false,
+        filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      });
+      if (typeof file !== "string") return; // annulé
+      const { invoke } = await import("@tauri-apps/api/core");
+      const dest = await invoke<string>("import_screenshot", { src: file });
+      setScreenshot(dest);
+    } catch (e) {
+      setErreurPiece(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const save = async () => {
@@ -226,6 +246,11 @@ export default function TradeModal({
               <span className="text-xs text-text-dim">
                 Screenshot : app native uniquement
               </span>
+            )}
+            {erreurPiece && (
+              <p className="basis-full break-words text-xs text-red">
+                {t("Le screenshot n'a pas pu être joint.")} {erreurPiece}
+              </p>
             )}
             {screenshot && (
               <button

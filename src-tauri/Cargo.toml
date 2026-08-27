@@ -26,6 +26,10 @@ tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 tauri-plugin-global-shortcut = "2.3.2"
 tauri-plugin-notification = "2.3.3"
 tauri-plugin-dialog = "2.7.1"
+# `url` : décoder le `file:///…` que le sélecteur de photos d'iOS rend à la
+# place d'un chemin (voir `import_screenshot`). Déjà dans l'arbre via
+# `tauri-plugin-fs` et `tauri` lui-même — aucune dépendance compilée en plus.
+url = "2"
 tauri-plugin-http = "2"
 # Notifications intelligentes (src/notifications/) : `chrono` pour l'heure locale,
 # `sqlx` pour lire shale.db EN LECTURE SEULE depuis le Rust (le front reste seul

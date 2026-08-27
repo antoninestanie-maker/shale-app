@@ -67,6 +67,37 @@ fn show_main(app: &tauri::AppHandle) {
     }
 }
 
+/// Le chemin RÉEL derrière ce que le sélecteur de fichiers a rendu.
+///
+/// ⚠️ Sur iPhone, `tauri-plugin-dialog` n'ouvre pas un navigateur de fichiers
+/// mais le **sélecteur de photos** du système, et il rend un
+/// `file:///private/var/mobile/…` — pas un chemin. Comme son type `FilePath`
+/// est sérialisé `untagged`, ça arrive côté front comme une CHAÎNE : le
+/// `typeof file === "string"` passe, personne ne voit rien, et c'est
+/// `fs::copy` qui échoue tout au fond sur « No such file or directory ».
+/// Mesuré sur iPhone 17 le 2026-08-27, en allant jusqu'à choisir une photo.
+///
+/// Le décodage passe par `url` plutôt que par un `strip_prefix("file://")` :
+/// l'URL est percent-encodée, et un nom de fichier avec un espace ou un
+/// accent produirait sinon un chemin qui n'existe pas.
+fn chemin_reel(src: &str) -> std::path::PathBuf {
+    if src.starts_with("file://") {
+        if let Ok(url) = url::Url::parse(src) {
+            // ⚠️ `file_name().is_some()` et non `to_file_path().is_ok()` :
+            // « file:// » se parse très bien et rend « / », qui n'est pas une
+            // erreur mais n'est pas un fichier non plus. On ne convertit que
+            // si le résultat peut désigner quelque chose à copier — sinon on
+            // rend la chaîne d'origine, qui fera au moins une erreur lisible.
+            if let Ok(p) = url.to_file_path() {
+                if p.file_name().is_some() {
+                    return p;
+                }
+            }
+        }
+    }
+    std::path::PathBuf::from(src)
+}
+
 /// Copie un screenshot de trade dans le dossier de l'app, renvoie le chemin final.
 #[tauri::command]
 fn import_screenshot(app: tauri::AppHandle, src: String) -> Result<String, String> {
@@ -76,7 +107,7 @@ fn import_screenshot(app: tauri::AppHandle, src: String) -> Result<String, Strin
         .map_err(|e| e.to_string())?
         .join("screenshots");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let src_path = std::path::Path::new(&src);
+    let src_path = chemin_reel(&src);
     let fname = src_path
         .file_name()
         .ok_or("fichier invalide")?
@@ -87,8 +118,57 @@ fn import_screenshot(app: tauri::AppHandle, src: String) -> Result<String, Strin
         .map_err(|e| e.to_string())?
         .as_secs();
     let dest = dir.join(format!("{ts}_{fname}"));
-    std::fs::copy(src_path, &dest).map_err(|e| format!("copie : {e}"))?;
+    std::fs::copy(&src_path, &dest)
+        .map_err(|e| format!("copie de {} : {e}", src_path.display()))?;
     Ok(dest.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chemin_reel;
+
+    /// Le cas iPhone : le sélecteur de photos rend une URL, pas un chemin.
+    #[test]
+    fn une_url_file_devient_un_chemin() {
+        assert_eq!(
+            chemin_reel("file:///private/var/mobile/IMG_0042.jpeg"),
+            std::path::PathBuf::from("/private/var/mobile/IMG_0042.jpeg")
+        );
+    }
+
+    /// ⚠️ Ce qui justifie `url` plutôt qu'un `strip_prefix` : l'URL est
+    /// percent-encodée. Un `strip_prefix("file://")` rendrait un chemin
+    /// contenant littéralement « %20 » et « %C3%A9 », qui n'existe pas.
+    #[test]
+    fn le_percent_encodage_est_decode() {
+        assert_eq!(
+            chemin_reel("file:///var/mobile/capture%20d%C3%A9cran.png"),
+            std::path::PathBuf::from("/var/mobile/capture décran.png")
+        );
+    }
+
+    /// Le cas bureau, qui ne doit surtout pas changer : macOS et Windows
+    /// rendent un chemin nu, et il traverse intact.
+    #[test]
+    fn un_chemin_nu_traverse_intact() {
+        assert_eq!(
+            chemin_reel("/Users/antonin/Desktop/trade.png"),
+            std::path::PathBuf::from("/Users/antonin/Desktop/trade.png")
+        );
+    }
+
+    /// ⚠️ Ce test a échoué à sa première écriture, et c'est ce qui a corrigé la
+    /// fonction. « file:// » se parse en URL PARFAITEMENT VALIDE, dont
+    /// `to_file_path()` rend « / » — pas une erreur, donc le repli n'était
+    /// jamais atteint et la fonction rendait la racine. Une racine passée à
+    /// `fs::copy` échoue avec un message qui ne dit rien de la vraie cause.
+    /// D'où la condition sur `file_name()` : on ne convertit que si le résultat
+    /// peut désigner un fichier.
+    #[test]
+    fn une_url_sans_fichier_retombe_sur_la_chaine() {
+        assert_eq!(chemin_reel("file://"), std::path::PathBuf::from("file://"));
+        assert_eq!(chemin_reel("file:///"), std::path::PathBuf::from("file:///"));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
