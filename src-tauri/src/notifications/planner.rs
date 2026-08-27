@@ -66,13 +66,32 @@ pub struct Planned {
 /// demain. Déposer une échéance passée n'est pas neutre — le greffon iOS lève
 /// `pastScheduledTime` et l'appel échoue (`MOBILE.md` § 13.2).
 pub fn instants_a_sonder(now: DateTime<Local>, prefs: &Prefs) -> Vec<DateTime<Local>> {
-    let mut heures: Vec<u32> = registry()
-        .iter()
-        .filter_map(|r| prefs.rules.get(r.id()))
-        .filter(|p| p.enabled)
+    let actives = || {
+        registry()
+            .iter()
+            .filter_map(|r| prefs.rules.get(r.id()))
+            .filter(|p| p.enabled)
+    };
+
+    let mut heures: Vec<u32> = actives()
         .filter(|p| p.params.contains_key(CLE_HEURE))
         .map(|p| p.param_hour(CLE_HEURE, 20))
         .collect();
+
+    // ⚠️ Les règles SANS heure — `inactivity` — seraient invisibles au
+    // téléphone si on s'arrêtait là : aucun instant à sonder, donc jamais
+    // déposées, donc muettes app fermée. On les projette à la PREMIÈRE heure
+    // que la plage silencieuse autorise.
+    //
+    // Ce n'est pas un choix arbitraire, c'est la modélisation fidèle du
+    // bureau : là-bas, `scheduler.rs` scrute toutes les minutes et le moteur
+    // refuse d'émettre hors plage, donc une règle sans heure part de fait au
+    // premier tick suivant `quiet_hours.start`. On demande exactement la même
+    // chose. Aucune règle n'est modifiée, et le bureau n'est pas touché.
+    if actives().any(|p| !p.params.contains_key(CLE_HEURE)) {
+        heures.push(prefs.quiet_hours.start);
+    }
+
     heures.sort_unstable();
     heures.dedup();
 
@@ -303,6 +322,32 @@ mod tests {
             r#"{"at":{"date":"2026-08-17T21:00:00.000000000Z","repeating":false,"allowWhileIdle":false}}"#,
             "le greffon relira ces composantes comme une heure LOCALE"
         );
+    }
+
+    /// Une règle sans heure — `inactivity` — doit quand même être projetée,
+    /// sinon elle serait purement absente du téléphone.
+    #[test]
+    fn une_regle_sans_heure_est_sondee_a_l_ouverture_de_la_plage() {
+        let mut p = prefs();
+        p.quiet_hours = QuietHours { start: 8, end: 22 };
+        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &p);
+        assert!(
+            instants.contains(&at("2026-08-27 08:00:00")),
+            "8 h — première heure autorisée — attendue, eu : {instants:?}"
+        );
+    }
+
+    /// Et si plus aucune règle sans heure n'est active, on ne sonde pas cette
+    /// heure-là pour rien.
+    #[test]
+    fn sans_regle_sans_heure_l_ouverture_de_plage_n_est_pas_sondee() {
+        let mut p = prefs();
+        p.quiet_hours = QuietHours { start: 8, end: 22 };
+        if let Some(r) = p.rules.get_mut("inactivity") {
+            r.enabled = false;
+        }
+        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &p);
+        assert!(!instants.contains(&at("2026-08-27 08:00:00")), "eu : {instants:?}");
     }
 
     /// L'identifiant doit être stable : sans ça, reprogrammer laisserait des
