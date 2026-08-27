@@ -2213,3 +2213,77 @@ sept jours.
 C'est la règle du compte Apple **gratuit**, pas un défaut de la manipulation.
 Le programme payant (§ 17.5) supprime cette échéance ; il reste en attente
 d'une décision d'Antonin, avec la question Stripe contre achats intégrés.
+
+---
+
+## 21. ⭐⭐ 20:00:00 — LA BANNIÈRE EST TOMBÉE
+
+*Le jalon que le § 15 attendait depuis 3 h du matin. Ce n'était pas du travail,
+c'était de l'attente ; elle est finie.*
+
+### 21.1 Ce qui a été mesuré
+
+Guetteur armé à 18 h 53, relisant `DeliveredNotifications.plist` toutes les
+15 s. Rendu à **20:00:00**, sans une seconde de retard :
+
+```
+BANNIERE DELIVREE a 20:00:00 — "2 habitudes t'attendent"
+```
+
+Les deux magasins, relus dans la foulée :
+
+```
+DeliveredNotifications.plist  20:00:00
+    737976655
+    "2 habitudes t'attendent"
+    "Il te reste 2 habitudes à cocher aujourd'hui (Rffds, Diss)."
+
+PendingNotifications.plist    20:00:00
+    (aucune entrée Shale)      ← l'échéance est CONSOMMÉE, pas dupliquée
+```
+
+Et à l'écran, dans le centre de notifications : icône Shale, **pastille 2**,
+titre, corps, « maintenant ». Capture conservée
+(`scratchpad/banniere-20h.png`).
+
+**La chaîne entière est prouvée de bout en bout** : règle Rust `habits_pending`
+→ évaluation par le moteur → contournement de fuseau du § 13.3 → dépôt via
+`Schedule::Interval` → magasin d'iOS → bannière à l'heure dite. Aucun maillon
+n'est resté supposé.
+
+⚠️ Le corps n'est pas générique : il **nomme les deux habitudes** (Rffds, Diss)
+et les compte. Le moteur a donc bien lu `shale.db` sur l'appareil, pas rendu un
+texte figé.
+
+### 21.2 ⚠️ Ce que je n'ai PAS vu, et qu'il ne faut pas me faire dire
+
+**Je n'ai pas vu la bannière s'afficher PAR-DESSUS l'app au premier plan.** La
+capture prise à 20:00:11 montrait l'app sans bannière — onze secondes après, une
+bannière est normalement déjà retirée. Ce que j'ai vu, c'est la notification
+**dans le centre de notifications**, ce qui n'est pas la même chose.
+
+La correction du § 15 (« la bannière tombe app ouverte aussi ») reste fondée sur
+la **lecture du code** — `willPresent` renvoie `[.badge, .sound, .alert]` sans
+condition — et sur le fait que la livraison a bien eu lieu app ouverte. C'est
+solide, mais ça reste une déduction sur ce point précis, pas une observation.
+
+▶️ **Pour la trancher un jour** : app en arrière-plan avant l'échéance, ou
+capture répétée dans les 5 s qui suivent. Ce n'est pas fait.
+
+### 21.3 Le même rappel était armé sur le TÉLÉPHONE
+
+Sous le même identifiant `737976655` (§ 20.6). Le simulateur et l'iPhone réel
+devaient sonner de concert.
+
+⚠️ **Côté téléphone, la constatation revient à Antonin** — c'est le seul des
+deux qui sonne dans une poche, et c'était tout l'intérêt de la journée. Aucune
+session n'a mesuré ce côté-là ; ne pas l'écrire comme si elle l'avait fait.
+
+### 21.4 Il ne reste rien qui ne demande de l'argent
+
+La file du § 18.3 est vide. Le § 17.5 est franchi. Le § 2.3 est clos. Le seul
+point ouvert du portage est le **push silencieux**, qui demande le programme
+développeur Apple payant — et avant lui, la question de produit (achats
+intégrés Apple contre Stripe) qui appartient à Antonin seul.
+
+⏳ Et l'échéance de l'encadré de tête : **2026-09-03 à 17 h 04**.
