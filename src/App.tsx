@@ -4,8 +4,8 @@ import Onboarding, { needsOnboarding } from "./components/auth/Onboarding";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
-import { planNotifications } from "./lib/notifications";
-import { useIsPhone } from "./lib/platform";
+import { noteRapideDemandee, planNotifications } from "./lib/notifications";
+import { IS_IOS, useIsPhone } from "./lib/platform";
 import MobileNav from "./components/MobileNav";
 import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
 import { SyncProvider } from "./components/SyncProvider";
@@ -47,6 +47,15 @@ const SizingView = lazy(() => import("./views/SizingView"));
 const AdminView = lazy(() => import("./views/AdminView"));
 const ConsoleView = lazy(() => import("./views/ConsoleView"));
 const SettingsView = lazy(() => import("./views/SettingsView"));
+
+/**
+ * Délai du second relevé de la demande de note rapide, en millisecondes.
+ *
+ * L'`AppIntent` et le premier rendu de la webview courent en parallèle et rien
+ * ne garantit lequel arrive d'abord. 1,5 s laisse largement le temps au second
+ * sans faire attendre qui que ce soit : le relevé est une lecture de fichier.
+ */
+const RELEVE_DIFFERE = 1500;
 
 /**
  * Échec du PREMIER chargement : aucune donnée n'a jamais été lue.
@@ -234,24 +243,63 @@ function App() {
     );
   }, [ui.ready, ui.config.window]);
 
+  // Le geste « nouvelle note », partagé par ⌘⇧N (bureau) et par l'`AppIntent`
+  // du bouton Action (iPhone) : deux déclencheurs, un seul comportement, sinon
+  // les deux surfaces divergeraient à la première retouche.
+  const ouvrirNoteRapide = useCallback(async () => {
+    const id = await createNote(t("Nouvelle note"), "");
+    setView("notes");
+    await refresh();
+    // laisse NotesView se monter avant de demander l'ouverture
+    setTimeout(
+      () => window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
+      60,
+    );
+  }, [refresh]);
+
   // Raccourci note : ⌘⇧N (Ctrl+⇧N) → crée une note et l'ouvre dans Notes
   useEffect(() => {
-    const onKey = async (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        const id = await createNote(t("Nouvelle note"), "");
-        setView("notes");
-        await refresh();
-        // laisse NotesView se monter avant de demander l'ouverture
-        setTimeout(
-          () => window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
-          60,
-        );
+        void ouvrirNoteRapide();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [refresh]);
+  }, [ouvrirNoteRapide]);
+
+  // ── Le bouton Action (et Siri, et Spotlight) ────────────────────────────
+  // L'`AppIntent` Swift n'a aucun moyen d'appeler la webview : il pose un
+  // fichier dans le conteneur de l'app, qu'on relève ici.
+  //
+  // Trois relevés, et chacun couvre un cas que les autres ratent :
+  //   • au montage — le cas normal, app lancée PAR le geste ;
+  //   • à `RELEVE_DIFFERE` — l'intent peut poser sa demande APRÈS le premier
+  //     rendu de la webview, l'ordre entre les deux n'étant garanti nulle part ;
+  //   • au retour au premier plan — geste fait alors que Shale dormait.
+  //
+  // Aucune scrutation : le Rust jette toute demande de plus de deux minutes,
+  // donc une demande faite app déjà à l'écran est PERDUE plutôt que rejouée des
+  // heures plus tard. C'est le bon sens du compromis — une note qui s'ouvre
+  // toute seule serait pire qu'un geste à refaire.
+  useEffect(() => {
+    if (!isTauri || !IS_IOS) return;
+    const relever = async () => {
+      if (await noteRapideDemandee()) await ouvrirNoteRapide();
+    };
+    const tenter = () => void relever().catch(() => null);
+    tenter();
+    const differe = window.setTimeout(tenter, RELEVE_DIFFERE);
+    const surVisibilite = () => {
+      if (document.visibilityState === "visible") tenter();
+    };
+    document.addEventListener("visibilitychange", surVisibilite);
+    return () => {
+      window.clearTimeout(differe);
+      document.removeEventListener("visibilitychange", surVisibilite);
+    };
+  }, [ouvrirNoteRapide]);
 
   // La quick capture (fenêtre séparée) signale ses ajouts via un événement Tauri
   useEffect(() => {

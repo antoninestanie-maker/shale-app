@@ -30,7 +30,15 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      # ⚠️ `excludes` obligatoire, et ce n'est pas cosmétique. `Externals`
+      # accueille `libapp.a`, produit PAR le build. Régénérer le projet après
+      # un premier build faisait donc classer cette archive statique en
+      # RESSOURCE, et XcodeGen la recopiait dans le bundle — plusieurs dizaines
+      # de mégaoctets embarqués pour rien. Le lien, lui, ne passe pas par là :
+      # il vient de `dependencies: framework: libapp.a` et des
+      # `LIBRARY_SEARCH_PATHS` ci-dessous.
       - path: Externals
+        excludes: ["**/*.a"]
       - path: shale_iOS
       - path: assets
         buildPhase: resources
@@ -61,6 +69,12 @@ targets:
         RUST_LOG: info
     settings:
       base:
+        # ⚠️ Ajouté à la main, et à REMETTRE si `tauri ios init` régénère ce
+        # fichier : la cible contient désormais du Swift
+        # (`Sources/shale/QuickNoteIntent.swift`, l'AppIntent du bouton
+        # Action). Sans version de langage déclarée, Xcode refuse de compiler
+        # une cible qui mélange Objective-C++ et Swift.
+        SWIFT_VERSION: "5.0"
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64 

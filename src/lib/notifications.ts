@@ -259,6 +259,24 @@ export async function requestNotifPermission(): Promise<string> {
   return invoke<string>("notif_request_permission");
 }
 
+/**
+ * Une demande de note rapide attendait-elle ?
+ *
+ * Le pendant front de l'`AppIntent` du bouton Action (`note_rapide.rs` côté
+ * Rust, `QuickNoteIntent.swift` côté Swift). Le Swift ne peut pas appeler la
+ * webview : il pose un fichier, qu'on relève ici. La demande est CONSOMMÉE à
+ * la lecture — une pression, une note — et le Rust jette celles de plus de deux
+ * minutes, pour qu'un geste fait app déjà ouverte ne rouvre pas une note des
+ * heures plus tard.
+ *
+ * Rangé ici et non dans un module à part : c'est la même famille que les
+ * rappels — du système d'exploitation qui parle à l'app, pas l'inverse.
+ */
+export async function noteRapideDemandee(): Promise<boolean> {
+  if (!isTauri) return false;
+  return invoke<boolean>("note_rapide_demandee");
+}
+
 /** Notification de test — seul diagnostic fiable de l'autorisation macOS. */
 export async function sendTest(): Promise<NotifEntry | null> {
   if (!isTauri) return null;

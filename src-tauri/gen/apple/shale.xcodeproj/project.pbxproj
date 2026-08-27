@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		08D1EBF0032F787D795F3FFE /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 31553DEBA93969A529B7DFFC /* LaunchScreen.storyboard */; };
 		3742360B9991838BA0563856 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F736DCDEA6D5BD8AE790E9A2 /* WebKit.framework */; };
+		3F555908E3F58EE84F6FCEB7 /* QuickNoteIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F821349AEDA6F83515F4E97F /* QuickNoteIntent.swift */; };
 		668BB74AA26A855563625C25 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A8FFF35B65A5C981F56794C2 /* Security.framework */; };
 		7F7AB98EB7AB2D669FB34A20 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 285920C56DFE5554C1389349 /* UIKit.framework */; };
 		9504F433B1F202137F63EB2B /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 488F4F8347CBA6EFD682DE9D /* assets */; };
@@ -46,6 +47,7 @@
 		9B205BC92C10D58E96E5A40E /* model.rs */ = {isa = PBXFileReference; path = model.rs; sourceTree = "<group>"; };
 		A70423F3FD2BCC59EA376CA2 /* crypto.rs */ = {isa = PBXFileReference; path = crypto.rs; sourceTree = "<group>"; };
 		A8FFF35B65A5C981F56794C2 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		AA34B8CD2E2F799DCEE83A7D /* note_rapide.rs */ = {isa = PBXFileReference; path = note_rapide.rs; sourceTree = "<group>"; };
 		B8B35EA90C1EB1CFEBB546D4 /* inactivity.rs */ = {isa = PBXFileReference; path = inactivity.rs; sourceTree = "<group>"; };
 		BBA471F55DEE3A9BA402D068 /* habits.rs */ = {isa = PBXFileReference; path = habits.rs; sourceTree = "<group>"; };
 		CA7E1FD21620E1F5328A116A /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
@@ -54,6 +56,8 @@
 		DA31F91412731B75470A629C /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		F736DCDEA6D5BD8AE790E9A2 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		F752D2950FFFC076DB0E7DAF /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		F792ECB22AEFCBC633545F4A /* planner.rs */ = {isa = PBXFileReference; path = planner.rs; sourceTree = "<group>"; };
+		F821349AEDA6F83515F4E97F /* QuickNoteIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNoteIntent.swift; sourceTree = "<group>"; };
 		FAB0A1F1F5DCC85AB853AC91 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		FD63799CAB743609411A921A /* data.rs */ = {isa = PBXFileReference; path = data.rs; sourceTree = "<group>"; };
 		FD645E2205115AEA323B947F /* engine.rs */ = {isa = PBXFileReference; path = engine.rs; sourceTree = "<group>"; };
@@ -112,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				62FBCA0BC696BDD41EC7D57C /* main.mm */,
+				F821349AEDA6F83515F4E97F /* QuickNoteIntent.swift */,
 				ABEAB5B8B4419448523ABF10 /* bindings */,
 			);
 			path = shale;
@@ -166,6 +171,7 @@
 				A70423F3FD2BCC59EA376CA2 /* crypto.rs */,
 				50B359A69E54BCADD3495E3D /* lib.rs */,
 				CA7E1FD21620E1F5328A116A /* main.rs */,
+				AA34B8CD2E2F799DCEE83A7D /* note_rapide.rs */,
 				816E3D2B9B2C2DCE726B263C /* sauvegardes.rs */,
 				4DA54E6613AA95CF9CF2D630 /* secrets.rs */,
 				F5DCA57E102F17A16C38D223 /* notifications */,
@@ -182,6 +188,7 @@
 				FD645E2205115AEA323B947F /* engine.rs */,
 				7B51B0326B2E06EFE8A30FAD /* mod.rs */,
 				9B205BC92C10D58E96E5A40E /* model.rs */,
+				F792ECB22AEFCBC633545F4A /* planner.rs */,
 				589933B0509B715D88AFD60A /* README.md */,
 				90BB55149746C20167B76D5B /* scheduler.rs */,
 				4C563DE09CED61B5336C43C9 /* store.rs */,
@@ -198,6 +205,20 @@
 				403915F4A42D2F52AFFE3BF8 /* shale_iOS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		"TEMP_4AB05C50-D785-4C74-BCA8-17DFC44C5060" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+		"TEMP_BF4A7DC8-DAA5-44BE-AB2C-5BE6A2A0E880" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -295,6 +316,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F555908E3F58EE84F6FCEB7 /* QuickNoteIntent.swift in Sources */,
 				CF95D247A5065CB0A7FAF69F /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -391,6 +413,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.atnfx.shale;
 				PRODUCT_NAME = "Shale";
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
@@ -478,6 +501,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.atnfx.shale;
 				PRODUCT_NAME = "Shale";
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};

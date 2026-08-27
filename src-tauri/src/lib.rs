@@ -1,5 +1,6 @@
 
 pub mod crypto;
+pub mod note_rapide;
 pub mod notifications;
 pub mod sauvegardes;
 pub mod secrets;
@@ -242,6 +243,7 @@ pub fn run() {
             notifications::notif_test,
             notifications::notif_plan,
             notifications::notif_request_permission,
+            note_rapide::note_rapide_demandee,
         ])
         .setup(|app| {
             // ⚠️ EN TOUT PREMIER : une restauration demandée s'applique avant que
