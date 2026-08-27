@@ -204,6 +204,37 @@ trousseau (`sync.dek`), avec un repli en mémoire assumé si le trousseau ne
 répond pas. Sur iOS, ce repli signifierait *redemander le mot de passe à chaque
 lancement*. À éprouver, pas à supposer.
 
+> ## ✅ ÉPROUVÉ, et le § est CLOS — 2026-08-27, 19 h 30
+>
+> C'était le dernier point que l'audit laissait explicitement ouvert pour un
+> appareil réel. Les deux moitiés ont une réponse, et elles ne sont pas de même
+> nature — c'est dit.
+>
+> **1. L'entitlement dédié n'est PAS nécessaire. Mesuré**, lu dans le bundle
+> signé (`codesign -d --entitlements` sur `shale_iOS.xcarchive`) :
+>
+> ```
+> application-identifier               QXU2BNU373.com.atnfx.shale
+> com.apple.developer.team-identifier  QXU2BNU373
+> get-task-allow                       true
+> ```
+>
+> **Trois entitlements, et AUCUN `keychain-access-groups`.** `keyring` tombe
+> donc dans le groupe d'accès implicite d'iOS — celui dérivé de
+> l'`application-identifier` — et ça suffit. La phrase ci-dessus (« l'accès au
+> trousseau exige un entitlement lié à l'App ID ») confondait *avoir un App ID*
+> et *déclarer un groupe*. Seul le premier est requis. **`secrets.rs` n'a rien
+> à changer**, comme le § l'espérait pour la partie code.
+>
+> **2. La crainte sur la sync ne se réalise pas. RAPPORTÉ par Antonin**, pas
+> mesuré par une session : app fermée complètement puis rouverte sur son
+> iPhone, aucune redemande. `sync.dek` et le `refresh_token` survivent. Le
+> repli mémoire de `keystore.ts` ne se déclenche pas.
+>
+> ⚠️ **Réserve à garder avec la réponse** : tout ceci vaut pour un profil de
+> **développement gratuit**. Une distribution App Store compose les
+> entitlements autrement, et rien ici ne préjuge de ce qu'elle donnera.
+
 ### 2.4 SQLite : où vit la base
 
 `db.ts` charge `sqlite:shale.db` et `sauvegardes.rs` n'utilise que
