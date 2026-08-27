@@ -211,13 +211,26 @@ export default function TasksView({ data, refresh }: Props) {
 
         <span className="mx-1 h-4 w-px bg-border" />
 
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          data-tip={t("Tâches dues à cette date")}
-          className="rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text focus:border-blue focus:outline-none"
-        />
+        {/* ⚠️ Le libellé « échéance » n'est pas décoratif, il rend le contrôle
+            IDENTIFIABLE. Un `<input type="date">` VIDE n'affiche rien du tout
+            sur iOS — pas même le gabarit `jj/mm/aaaa` que rend le bureau. Vu à
+            l'écran sur iPhone 17 le 2026-08-27 : un rectangle gris muet au
+            milieu des filtres, dont rien ne disait ce qu'il était.
+
+            ⚠️ Et ce n'était PAS une affaire de `color-scheme`, contrairement à
+            ce que la première hypothèse disait : vérifié en ouvrant un
+            `<select>` voisin, iOS rend son panneau natif en clair même sous un
+            `color-scheme: dark` figé. */}
+        <label className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1 focus-within:border-blue">
+          <span className="hud-label shrink-0">{t("échéance")}</span>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            data-tip={t("Tâches dues à cette date")}
+            className="min-w-[6.5rem] bg-transparent text-xs text-text outline-none"
+          />
+        </label>
         {dateFilter && (
           <button
             type="button"

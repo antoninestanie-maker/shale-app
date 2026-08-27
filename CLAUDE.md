@@ -153,6 +153,21 @@ entrée la première fois.
   Swift (`tauri ios build` ne le fait pas).
 - Preview navigateur (`npx vite`) = **mode démo** : `isTauri` (src/lib/repo.ts:28) est faux → données factices en mémoire (`src/lib/demo.ts`, `src/lib/market/demo.ts`), pas de SQLite ni de réseau natif.
 
+**⚠️ Réinstaller REDEMANDE l'accès au trousseau, et ce n'est pas un bogue.**
+L'app est signée **ad hoc** : sa signature change à chaque reconstruction. Le
+trousseau macOS attache ses autorisations à la signature — pour lui, la
+nouvelle app est UNE AUTRE app, et il rouvre donc sa fenêtre « Shale veut
+utiliser vos informations confidentielles gardées dans "com.atnfx.shale" ».
+Il faut cliquer **« Toujours autoriser »** et saisir le mot de passe de session.
+
+⚠️ **Ne jamais le faire à la place d'Antonin** : c'est son trousseau, et c'est
+un mot de passe. Le lui dire dès le lancement, sinon il découvre une fenêtre
+inexpliquée.
+
+C'est très probablement ce qui, après une réinstallation, donne l'impression
+que la clé Gemini/Groq ou la clé de synchronisation ont été « perdues » : elles
+sont là, c'est l'ACCÈS qui est redemandé. Constaté et vérifié le 2026-08-27.
+
 **⚠️ Règle : après chaque modification majeure, réinstaller l'application.**
 Antonin utilise l'app installée (bundle .app), pas le mode dev : toute modification
 significative (code front ou Rust, et obligatoirement `capabilities/*.json`,
