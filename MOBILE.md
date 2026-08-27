@@ -1138,9 +1138,9 @@ prochaine session.
 
 ---
 
-## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 2 h 20)
+## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 2 h 45)
 
-**Branche `mobile-ios`**, neuf commits, **rien n'est poussé sur GitHub**.
+**Branche `mobile-ios`**, dix commits, **rien n'est poussé sur GitHub**.
 
 ### Ce qui est prouvé, exécuté, commité
 
@@ -1150,38 +1150,69 @@ prochaine session.
 | Audit iOS | `c6b5867` — ce fichier |
 | Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
 | L'app tourne sur iPhone 17, `crypto.subtle` disponible | `5ebc08b` |
-| Barre d'onglets mobile | `360bd19` — **désormais VUE à l'écran** |
-| Contrat de planification iOS mesuré | `069806f` — § 13 |
+| Barre d'onglets mobile | `360bd19` — **VUE à l'écran** |
+| Contrat de planification iOS, mesuré | `069806f` — § 13 |
 | Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
+| Journal : § 12 réécrit, § 14 débogage, § 15 | `7254b8f` |
+| **Rappels iOS : projection + dépôt** | `9fd2993` — § 15.1 |
 
-Ligne de base, rejouée : `cargo check --all-targets` ✅ · `cargo test --lib`
-88 ✅ · `test:types` ✅ · `npm test` 381 ✅ · `i18n:check` 1046 entrées,
-0 manquante ✅
+Ligne de base : `cargo check --all-targets` ✅ · `cargo check --target
+aarch64-apple-ios-sim` ✅ · `cargo test --lib` **97** (88 + 9) ✅ ·
+`test:types` ✅ · `npm test` 381 ✅ · `i18n:check` 1053 entrées, 0 manquante ✅
 
-### Ce qui reste de la Phase 3
+### 15.1 Le planificateur iOS — écrit, testé, **pas encore déclenché**
 
-1. **La notification locale de bout en bout** — programmée depuis l'app, reçue
-   app fermée. C'est LE jalon qui valide le point fort du produit, et il n'est
-   **pas commencé**. Le § 13 en a posé tout le contrat : `Schedule::Interval`
-   pour les heures fixes, `Schedule::At` pour `inactivity` seul, le tout sous
-   `#[cfg(mobile)]`. Corriger au passage le texte « Windows » de
-   `deliver_test()` (§ 13.5).
-2. **`refresh()` sans `.catch`** (§ 14.4) — un « Chargement… » sans fin et sans
+`src-tauri/src/notifications/planner.rs`. Le cœur est **pur et compilé
+partout**, donc couvert par `cargo test --lib` sur le Mac : neuf tests portent
+la projection, l'idempotence, le plafond, la sérialisation de la date et la
+stabilité de l'identifiant système. Seul `planner::depot` est sous
+`#[cfg(mobile)]`.
+
+Le principe, en une phrase : **`engine::evaluate` étant pur, on l'appelle avec
+un `now` projeté** — aujourd'hui 20 h — sur l'image de la base lue maintenant.
+Ce qu'il rend est la notification qui partirait à cette heure-là. Aucune règle
+n'est réimplémentée pour le téléphone.
+
+Câblage : `App.tsx` reprojette au démarrage et à chaque `visibilitychange`
+vers `hidden` ; les réglages listent ce qui est armé et affichent le compte
+rendu par le système à côté du nôtre.
+
+⚠️ **Ce qui reste à prouver, et il faut un doigt humain.** Le dépôt réel exige
+l'autorisation système. Elle n'est demandée que sur geste explicite (§ 3.6),
+donc personne ne l'a encore accordée. Tant qu'elle ne l'est pas, `notif_plan`
+calcule le plan et **ne dépose rien** — c'est le comportement voulu, pas une
+panne.
+
+**La séquence à faire faire à Antonin, cinq appuis :**
+
+1. **Plus** (en bas à droite) — vérifie au passage la barre d'onglets et la
+   feuille, jamais essayées ;
+2. **Réglages** ;
+3. faire défiler jusqu'à **Notifications** ;
+4. **Envoyer un test** → iOS ouvre son dialogue → **Autoriser** ;
+5. relire le bloc **« Rappels programmés »** : il doit annoncer une échéance à
+   20 h, et « déposés auprès d'iOS : 1 · en attente côté système : 1 ».
+
+**Un écart entre ces deux nombres est le signal à guetter** : il voudrait dire
+que `show()` a réussi sans que le système retienne l'échéance.
+
+### 15.2 Ce qui reste après ça
+
+1. **Recevoir la bannière app fermée** — la preuve finale du § 3. Le simulateur
+   ne permet pas d'avancer l'horloge sans bouger celle du Mac ; le plus simple
+   sera une règle réglée sur l'heure suivante, puis l'attente.
+2. **`refresh()` sans `.catch`** (§ 14.4) — un « Chargement… » sans fin ni
    message, indiagnosticable sur appareil.
-3. **Aujourd'hui en pile verticale** (§ 5.3). Mesuré : pas de débordement, mais
-   le panneau DISCIPLINE reste plus étroit que l'écran.
+3. **Aujourd'hui en pile verticale** (§ 5.3) — mesuré : pas de débordement,
+   mais le panneau DISCIPLINE reste plus étroit que l'écran.
 4. **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
+5. **`inactivity` n'est pas projetée** : elle n'a pas d'heure, donc aucun
+   instant à sonder. Décider de l'heure à lui donner sur téléphone.
 
 ### ⚠️ Ce qu'on ne peut PAS faire tant que le panneau n'est pas relancé
 
-**Aucune saisie tactile scriptable** : ni tap, ni swipe (§ 12). Donc la
-navigation entre onglets, l'ouverture de la feuille « Plus » et les cadenas
-trading sont **écrits et compilés, mais non essayés**. Ce sont les seuls points
-de `360bd19` qui restent non vérifiés.
-
-Deux façons d'en sortir : relancer la session qui porte le panneau (son serveur
-relira `xcode-select`, désormais correct), ou demander à Antonin de toucher
-l'écran lui-même pendant qu'on capture.
+**Aucune saisie tactile scriptable** (§ 12). C'est pour ça que la séquence
+ci-dessus demande un humain, et non parce que le code manque.
 
 ### Décisions déjà prises — ne pas les rouvrir
 
