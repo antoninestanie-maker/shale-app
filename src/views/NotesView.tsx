@@ -5,7 +5,7 @@ import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
 import type { AppData, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
-import { kbd } from "../lib/platform";
+import { kbd, useIsPhone } from "../lib/platform";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -14,10 +14,19 @@ interface Props {
 const WIKI_RE = /\[\[([^\]]+)\]\]/g;
 
 export default function NotesView({ data, refresh }: Props) {
+  // ⚠️ Sur téléphone, la vue est un MAÎTRE-DÉTAIL : la liste OU l'éditeur,
+  // jamais les deux. Les 402 pt d'un iPhone ne peuvent pas porter deux
+  // colonnes — mesuré : la liste gardait son plancher de 220 px et il restait
+  // 134 px à l'éditeur, où la barre d'outils s'empilait à la verticale et le
+  // texte tombait en colonne d'un mot par ligne.
+  const isPhone = useIsPhone();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Note[] | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(
-    data.notes[0]?.id ?? null,
+  // Sur téléphone on ouvre sur la LISTE, pas sur une note : présélectionner
+  // reviendrait à cacher l'écran d'accueil du module derrière son détail.
+  // Sur le bureau la présélection reste juste — les deux colonnes coexistent.
+  const [selectedId, setSelectedId] = useState<number | null>(() =>
+    isPhone ? null : (data.notes[0]?.id ?? null),
   );
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -116,8 +125,13 @@ export default function NotesView({ data, refresh }: Props) {
     // d'invite se faisait couper net. `minmax()` la laisse se resserrer jusqu'à
     // 220 px avant que la colonne d'édition ne cède, et `clamp` sur le padding
     // rend 32 px de chaque côté aux fenêtres étroites.
-    <div className="mx-auto grid h-full max-w-6xl grid-cols-[minmax(220px,280px)_minmax(0,1fr)] gap-4 p-4 lg:p-8">
-      {/* Liste + recherche */}
+    <div
+      className={`mx-auto grid h-full max-w-6xl gap-4 p-4 lg:p-8 ${
+        isPhone ? "grid-cols-1" : "grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
+      }`}
+    >
+      {/* Liste + recherche — masquée sur téléphone dès qu'une note est ouverte */}
+      {(!isPhone || !selected) && (
       <div className="card flex min-h-0 flex-col p-3">
         <div className="flex gap-2">
           <input
@@ -162,10 +176,24 @@ export default function NotesView({ data, refresh }: Props) {
           ))}
         </ul>
       </div>
+      )}
 
       {/* Éditeur */}
       {selected ? (
-        <div className="card flex min-h-0 flex-col p-5">
+        <div className="card flex min-h-0 flex-col p-4 lg:p-5">
+          {/* Le retour, sur sa propre ligne : entassé avec le titre, l'état
+              d'enregistrement et « supprimer », il ne resterait rien au titre
+              sur 370 px. Sur le bureau il n'a pas lieu d'être — la liste est
+              là, à gauche. */}
+          {isPhone && (
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="-ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+            >
+              ← {t("Toutes les notes")}
+            </button>
+          )}
           <div className="flex items-center gap-3">
             <input
               value={title}
@@ -241,11 +269,16 @@ export default function NotesView({ data, refresh }: Props) {
           )}
         </div>
       ) : (
-        <div className="card flex items-center justify-center">
-          <p className="text-sm text-text-dim">
-            {t("Sélectionne une note, ou crée-en une nouvelle.")}
-          </p>
-        </div>
+        // Sur téléphone la liste occupe déjà tout l'écran : une seconde carte
+        // qui répète « sélectionne une note » n'aurait rien à dire, et prendrait
+        // la moitié de la hauteur pour le dire.
+        !isPhone && (
+          <div className="card flex items-center justify-center">
+            <p className="text-sm text-text-dim">
+              {t("Sélectionne une note, ou crée-en une nouvelle.")}
+            </p>
+          </div>
+        )
       )}
     </div>
   );

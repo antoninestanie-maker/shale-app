@@ -1502,6 +1502,8 @@ export const EN: Record<string, string> = {
     "Open Shale — Market Brain writes it on launch.",
   "briefing de marché": "market briefing",
   "Rappeler les briefings de 8 h et 14 h": "Remind me of the 8am and 2pm briefings",
+  // Retour du maître-détail de Notes, téléphone uniquement.
+  "Toutes les notes": "All notes",
   "Une bannière avant Londres et avant New York. Le briefing n'est pas encore écrit quand elle tombe : Market Brain le rédige à l'ouverture de l'app. Sans clé IA configurée, rien n'est programmé.":
     "A banner before London and before New York. The briefing isn’t written yet when it lands: Market Brain writes it when you open the app. With no AI key set up, nothing is scheduled.",
 };
