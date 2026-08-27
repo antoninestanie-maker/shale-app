@@ -17,6 +17,14 @@
 > confusion s'est produite le 2026-08-27, et elle fait chercher une app qui
 > n'est pas là.
 
+> ## ⏳ ÉCHÉANCE : le 2026-09-03 à 17 h 04
+>
+> Shale tourne sur l'iPhone **réel** d'Antonin depuis le 2026-08-27 (§ 20).
+> Le profil d'un compte Apple gratuit dure **7 jours** : passé cette date,
+> l'app ne se lance plus sur le téléphone — elle n'est pas désinstallée, elle
+> refuse de s'ouvrir. Remède : rebrancher, reconstruire, réinstaller.
+> Détail au **§ 20.9**.
+
 > ## ▶️ Vous arrivez sur ce document ? Allez au **§ 17**.
 >
 > Il donne l'état exact, la file d'attente par ordre, et ce qu'une session
@@ -1198,6 +1206,14 @@ Sur iPhone, le bouton de test annoncera donc **« Windows »**. À corriger en m
 temps que le reste — c'est trois lignes, mais c'est précisément le bouton dont
 le §3.6 dit qu'il devient un vrai diagnostic sur iOS.
 
+> **✅ CORRIGÉ, et depuis plus longtemps que ce § ne le croyait.** `9fd2993`
+> (« Rappels iOS : le moteur se projette dans le futur ») a fait passer
+> `deliver_test()` à **trois** branches, avec le commentaire « Trois
+> plateformes, pas deux ». Vérifié le 2026-08-27 à 19 h 25, des deux côtés :
+> dans le code (`emitter.rs:72-78`) et dans ce qu'iOS a réellement affiché —
+> `DeliveredNotifications.plist` porte « Si tu vois cette bannière, les
+> notifications **iOS** fonctionnent. »
+
 ---
 
 ## 14. Déboguer une webview iOS — le canal qui marche
@@ -2046,3 +2062,79 @@ intact pour ne pas fausser le guet de la bannière de 20 h.
 deux `tauri ios build` concurrents dans la même sortie échouent **en rendant un
 code de sortie 0**. Un dépôt qui accepte deux sessions doit se répartir les
 répertoires de BUILD, pas seulement les fichiers.
+
+### 20.6 ⭐ L'app OUVRE sur le téléphone, et le rappel y est armé
+
+*Suite du 2026-08-27, 19 h 20. Antonin a fait confiance au profil.*
+
+Le § 20.2 est franchi. Et l'état a été **lu dans le conteneur de l'appareil**,
+pas décrit par quelqu'un qui regarde son écran :
+
+```
+state.last_run_at   : 2026-08-27T19:20:07.965478+02:00
+state.scheduled_ids : [737976655]
+preferences         : enabled=true · lang=fr · les 3 règles actives
+log                 : n_test_1787851068944 · "Shale — notification de test"
+                      handed_to_system=true · 19:17:48
+```
+
+⭐ **`737976655` est EXACTEMENT l'identifiant lu dans le simulateur au § 15.**
+`id_systeme` se recalcule à l'identique sur deux appareils distincts : il ne
+dépend pas de la machine. La règle `habits_pending` est donc armée pour 20 h
+**sur le simulateur ET sur l'iPhone réel, sous le même identifiant** — une
+confirmation gratuite que le calcul est déterministe, obtenue sans l'avoir
+cherchée.
+
+### 20.7 ⚠️ Le faux négatif qu'il ne faut PAS mal lire
+
+À 19 h 12, après connexion et synchronisation, `scheduled_ids` était **vide**.
+Ça ressemble à un défaut. C'en est l'inverse :
+
+- `mod.rs:244` refuse de déposer une échéance sans autorisation iOS ;
+- `mod.rs:194` interdit de demander cette autorisation seule ;
+- sur une installation neuve, `preferences.enabled` est **déjà `true`**, donc le
+  chemin `patchNotif` — celui qui déclencherait le dialogue — ne se présente
+  jamais.
+
+**Le seul geste qui ouvre le dialogue d'autorisation est le bouton « Envoyer un
+test ».** Le commentaire de `SettingsView.tsx:299` décrivait la situation au mot
+près, avant qu'elle ne se produise.
+
+Séquence complète : 19:12 vide → 19:17:48 « Envoyer un test », iOS demande,
+Antonin accepte → 19:20:07 reprojection, `737976655` armé.
+
+### 20.8 Le canal du § 14 marche sur APPAREIL RÉEL
+
+Le § 14 avait établi le canal de débogage pour le simulateur (lire les fichiers
+sur disque). **Il s'étend au téléphone**, et c'est ce qui a permis de constater
+l'état plutôt que de demander à Antonin de décrire son écran :
+
+```
+xcrun devicectl device info files  --device <UUID> \
+  --domain-type appDataContainer --domain-identifier com.atnfx.shale --username mobile
+xcrun devicectl device copy from   --device <UUID> \
+  --domain-type appDataContainer --domain-identifier com.atnfx.shale --user mobile \
+  --source "Library/Application Support/com.atnfx.shale/notifications.json" \
+  --destination ./notifications.json
+```
+
+Tout le conteneur est lisible : `notifications.json`, `shale.db`, le reste.
+Sans écran, sans photo.
+
+⚠️ **Le drapeau DIVERGE entre les deux sous-commandes** : `--user` pour
+`copy from`, `--username` pour `info files`. L'erreur est muette dans un pipe.
+
+⚠️ **Le UUID de `devicectl` n'est PAS l'UDID du profil.** `devicectl` veut son
+identifiant CoreDevice (`devicectl list devices`) ; le profil, lui, liste
+l'UDID matériel `00008140-…`. Les confondre donne « device not found ».
+
+### 20.9 ▶️ À NE PAS OUBLIER — le profil expire le 2026-09-03 à 17 h 04
+
+**Après cette date, l'app ne se lance plus sur le téléphone.** Elle n'est pas
+désinstallée, elle refuse de s'ouvrir. Le remède est le même que la pose :
+rebrancher l'iPhone, reconstruire, réinstaller — et le compteur repart pour
+sept jours.
+
+C'est la règle du compte Apple **gratuit**, pas un défaut de la manipulation.
+Le programme payant (§ 17.5) supprime cette échéance ; il reste en attente
+d'une décision d'Antonin, avec la question Stripe contre achats intégrés.
