@@ -287,6 +287,37 @@ long porte `truncate` ou `clamp-2` **et** un `title` » (§ Règles impératives
 `.hud-label` est décrit plus haut comme « tronqué en ellipse ». Une fois ces
 éléments exclus, il reste **quatre** constats sur 13 vues × 7 tailles × 2 thèmes.
 
+### ⚠️ Sur téléphone, une couche PLEIN ÉCRAN doit réserver la barre d'onglets
+
+**La barre d'onglets est en `fixed`, donc posée PAR-DESSUS tout le reste.** Une
+couche plein écran — modale, lecteur, feuille — qui ne réserve rien lui passe
+dessous, et ce qu'elle met en bas devient inatteignable. Le haut a le même
+problème avec la Dynamic Island.
+
+La réserve, partout la même :
+
+```
+paddingTop:    calc(env(safe-area-inset-top) + 0.5rem)
+paddingBottom: calc(env(safe-area-inset-bottom) + 4.75rem)
+```
+
+⚠️ **Elle va sur le conteneur qui NE DÉFILE PAS.** Un `padding` posé à
+l'intérieur d'une zone défilante défile avec elle : au repos tout paraît juste,
+et le contenu remonte sous l'îlot dès qu'on fait défiler. C'est exactement le
+défaut qui a traversé les quatorze vues jusqu'au 2026-08-27.
+
+⚠️ **Et une capture AU REPOS ne prouve rien d'une zone qui défile.** C'est ce
+qui a fait passer le défaut pour réglé pendant une demi-journée.
+
+Cette règle est écrite parce que l'oubli s'est produit **deux fois le même
+jour** : la réserve haute des vues (`App.tsx`), puis le pied du lecteur de
+Savoir, dont « Terminé » et la corbeille tombaient sous la barre — soit
+précisément la sortie que ce pied venait d'ajouter.
+
+Le cas particulier du BAS : quand la couche défile elle-même sur toute la
+hauteur (une vue), la réserve du bas reste sur le défilant — c'est de l'espace
+qu'on veut pouvoir atteindre en défilant, pas une bordure.
+
 ### ⚠️ Divergence ouverte : l'app est encore en pixels
 
 L'échelle « pratiquée » décrite plus haut (§ Typographie) est en pixels, et

@@ -1563,7 +1563,24 @@ et fait mieux : sa grille de cartes se replie toute seule en une colonne sur
 téléphone. Vérifié à l'écran — accueil en cases de thèmes, descente dans un
 thème avec fil d'Ariane, aucun débordement.
 
-### ▶️ 8. La DERNIÈRE branche non fusionnée : `feat/bouton-sortie-note`
+### ✅ 8. `feat/bouton-sortie-note` — FUSIONNÉE (`61f9586`)
+
+**`git branch --no-merged` rend désormais ZÉRO.** Toutes les branches ont
+rejoint le tronc ; il n'y a plus de porte par laquelle la divergence puisse
+entrer. C'était la leçon du § 11, appliquée jusqu'au bout.
+
+Ce que la fusion a appris, et qui valait la prescription « lire d'abord » :
+**la moitié de la branche était caduque.** La refonte de Savoir avait déjà
+ajouté une sortie explicite et un état d'enregistrement. Ce qui restait, en
+revanche, était plus profond que le bouton — Échap fermait DEUX étages d'un
+coup (lecteur + croquis), et la tabulation traversait le voile.
+
+⭐ Et le portage a CRÉÉ un défaut, trouvé au premier essai : le pied du lecteur
+passait sous la barre d'onglets. C'est la deuxième fois de la journée qu'une
+couche plein écran l'oublie — d'où une règle désormais écrite dans `DESIGN.md`
+plutôt qu'un troisième correctif.
+
+*Section d'archive ci-dessous — ce que la branche contenait :*
 
 Recensé au `git branch --no-merged` : c'est la seule qui reste. Elle apporte
 deux choses, vérifiées comme ABSENTES du tronc (`grep` sur « Terminé » et
