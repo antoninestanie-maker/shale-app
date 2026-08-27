@@ -1502,13 +1502,73 @@ export const EN: Record<string, string> = {
     "Open Shale — Market Brain writes it on launch.",
   "briefing de marché": "market briefing",
   "Rappeler les briefings de 8 h et 14 h": "Remind me of the 8am and 2pm briefings",
-  // Retours des maîtres-détails, téléphone uniquement.
+  // Retour du maître-détail de Notes, téléphone uniquement. ⚠️ « Thèmes » vivait
+  // ici aussi, pour le maître-détail que j'avais bricolé sur Savoir le matin
+  // du 2026-08-27 ; la refonte « grille de thèmes » l'a remplacé par son propre
+  // « Revenir aux thèmes ». La clé est retirée avec le code qui l'utilisait.
   "Toutes les notes": "All notes",
-  "Thèmes": "Topics",
   // Libellé du filtre de date de Tâches : sans lui, un `<input type="date">`
   // vide est un rectangle muet sur iOS.
   "échéance": "due",
   "Le screenshot n'a pas pu être joint.": "The screenshot couldn’t be attached.",
   "Une bannière avant Londres et avant New York. Le briefing n'est pas encore écrit quand elle tombe : Market Brain le rédige à l'ouverture de l'app. Sans clé IA configurée, rien n'est programmé.":
     "A banner before London and before New York. The briefing isn’t written yet when it lands: Market Brain writes it when you open the app. With no AI key set up, nothing is scheduled.",
+  // ── Savoir : grille de thèmes (refonte 2026-08-26) ────────────────────────
+  "Lectures": "Reading",
+  "Sans thème": "No topic",
+  "Revenir aux thèmes": "Back to topics",
+  "Elle sera classée dans « {nom} ».": "It will be filed under “{nom}”.",
+  "Rechercher dans tous les thèmes…": "Search every topic…",
+  "Rechercher dans « {nom} »…": "Search “{nom}”…",
+  "Tous thèmes confondus, sans quitter Savoir.":
+    "Every topic at once, without leaving Knowledge.",
+  "Le savoir n’a pas pu être ouvert": "Knowledge couldn’t be opened",
+  "La base locale n’a pas répondu. Rien n’est perdu : réessaie.":
+    "The local database didn’t answer. Nothing is lost — try again.",
+  "Ce thème est encore vide": "This topic is still empty",
+  "Chercher partout": "Search everywhere",
+  "Quitte ce périmètre et garde les mots cherchés.":
+    "Leaves this topic and keeps what you typed.",
+  "Un tiroir de plus pour ranger tes notes.": "One more drawer to file your notes in.",
+  "Ouvrir le thème « {nom} »": "Open the “{nom}” topic",
+  "thème": "topic",
+  "Aucune note pour l’instant.": "No notes yet.",
+  "Déplacer avant": "Move earlier",
+  "Déplacer après": "Move later",
+  "Change aussi sa teinte.": "Its colour too.",
+  "Les notes ne sont pas supprimées : elles passent « sans thème ».":
+    "Notes aren’t deleted: they move to “no topic”.",
+  "Ouvrir les notes sans thème": "Open the notes with no topic",
+  "hors classement": "unfiled",
+  "Ces notes existent et restent trouvables : elles n’ont simplement pas encore de thème.":
+    "These notes are still here and still findable — they just don’t have a topic yet.",
+  "modifier le thème": "edit topic",
+  "nouveau thème": "new topic",
+  "Ce thème existe déjà.": "That topic already exists.",
+  "Supprimer « {nom} » ?": "Delete “{nom}”?",
+  "Ce thème ne contient aucune note.": "This topic holds no notes.",
+  "Un thème, c’est un tiroir pour tes notes": "A topic is a drawer for your notes",
+  "Range par sujet, et retrouve tout d’un clic au lieu de chercher.":
+    "File by subject, and get everything back in one click instead of searching.",
+  "Créer mon premier thème": "Create my first topic",
+  "ou commence par": "or start with",
+  "Créer le thème « {nom} »": "Create the “{nom}” topic",
+  "Créé immédiatement, renommable ensuite.": "Created right away, renamable later.",
+  "Les voir": "See them",
+  "Une note correspond, mais elle est rangée ailleurs.":
+    "One note matches, but it’s filed elsewhere.",
+  "{n} notes correspondent, mais elles sont rangées ailleurs.":
+    "{n} notes match, but they’re filed elsewhere.",
+  "{n} thème": "{n} topic",
+  "{n} thèmes": "{n} topics",
+  "{n} note": "{n} note",
+  "{n} notes": "{n} notes",
+  "{n} résultat ailleurs — chercher partout": "{n} match elsewhere — search everywhere",
+  "{n} résultats ailleurs — chercher partout": "{n} matches elsewhere — search everywhere",
+  "Sa note n’est pas supprimée : elle passe « sans thème » et reste accessible depuis l’accueil.":
+    "Its note isn’t deleted: it moves to “no topic” and stays reachable from the home grid.",
+  "Ses {n} notes ne sont pas supprimées : elles passent « sans thème » et restent accessibles depuis l’accueil.":
+    "Its {n} notes aren’t deleted: they move to “no topic” and stay reachable from the home grid.",
+  "{n} note attend un thème.": "{n} note is waiting for a topic.",
+  "{n} notes attendent un thème.": "{n} notes are waiting for a topic.",
 };

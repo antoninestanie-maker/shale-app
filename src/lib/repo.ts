@@ -695,6 +695,25 @@ export async function updateKnowledgeTopic(
   );
 }
 
+/**
+ * Réordonne les thèmes : la position de chaque identifiant devient son rang
+ * dans le tableau reçu. Une seule écriture par thème DÉPLACÉ — les thèmes déjà
+ * à leur rang ne sont pas réécrits, sinon un simple « monter d'un cran »
+ * enverrait toute la liste dans la file de synchronisation.
+ */
+export async function reorderKnowledgeTopics(ids: number[]): Promise<void> {
+  if (!isTauri) return demo.reorderKnowledgeTopics(ids);
+  const db = await getDb();
+  const rows = await db.select<{ id: number; position: number }[]>(
+    "SELECT id, position FROM knowledge_topics",
+  );
+  const actuelle = new Map(rows.map((r) => [r.id, r.position]));
+  for (const [rang, id] of ids.entries()) {
+    if (actuelle.get(id) === rang) continue;
+    await db.execute("UPDATE knowledge_topics SET position = $1 WHERE id = $2", [rang, id]);
+  }
+}
+
 /** Supprime le thème ; ses fiches ne sont PAS perdues (elles passent « non classées »). */
 export async function deleteKnowledgeTopic(id: number): Promise<void> {
   if (!isTauri) return demo.deleteKnowledgeTopic(id);

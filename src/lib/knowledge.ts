@@ -8,16 +8,25 @@ import { plainText } from "./richtext";
 import type { KnowledgeEntry, KnowledgeEntryLite } from "./types";
 
 import { localeTag } from "./i18n";
-/** Palette proposée aux nouveaux thèmes — accordée aux tokens du design system. */
+/**
+ * Palette proposée aux nouveaux thèmes — accordée aux tokens du design system.
+ *
+ * ⚠️ L'ORDRE COMPTE : la teinte d'un thème créé est attribuée d'office, en
+ * tournant dans cette liste (cf. `TopicGrid`). Le rouge corail est donc placé
+ * EN DERNIER — dans ce design system, rouge et vert sont sémantiques, et un
+ * quatrième thème peint en rouge sans que personne l'ait demandé se lirait
+ * comme une alerte. Il reste choisissable à la main, ce qui est tout autre
+ * chose : là, c'est une intention.
+ */
 export const TOPIC_COLORS = [
   "#4d8dff", // bleu
   "#14c8a0", // vert jade
   "#f0b341", // ambre
-  "#ff5666", // rouge corail
   "#8e8bff", // indigo
   "#41c9e2", // cyan
   "#f08ac0", // rose
   "#8b94a6", // ardoise
+  "#ff5666", // rouge corail
 ];
 
 // — Tags —
@@ -94,6 +103,15 @@ export function matchesQuery(entry: KnowledgeEntryLite, query: string): boolean 
   const haystack = norm(`${entry.title} ${entry.tags} ${entry.text}`);
   // tous les mots doivent être présents (recherche « ET », comme une palette)
   return q.split(/\s+/).every((word) => haystack.includes(word));
+}
+
+/**
+ * Deux noms de thèmes désignent-ils la même chose ? Casse et accents ignorés,
+ * espaces de bordure retirés : « Lectures », « lectures » et « LECTURES » sont
+ * un seul et même thème. Sert à refuser un doublon au lieu de le créer.
+ */
+export function sameTopicName(a: string, b: string): boolean {
+  return norm(a.trim()) === norm(b.trim());
 }
 
 // — Dates —
