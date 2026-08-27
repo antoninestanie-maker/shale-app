@@ -1390,36 +1390,57 @@ avant, 10 après**, drapeau jeté.
 
 ## 17. ▶️ REPRENDRE ICI (état au 2026-08-27, 11 h)
 
-**Branche `mobile-ios`**, dix-huit commits, **rien n'est poussé sur GitHub**.
+**Branche `mobile-ios`**, poussée sur GitHub le 2026-08-27
+(`origin/mobile-ios`, suivie). Elle est destinée à rejoindre le tronc, pas à
+vivre — la leçon du § 11 vaut pour elle aussi.
 Ligne de base rejouée au dernier commit :
 
 `cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
-`cargo test --lib` **108** ✅ · `tsc` ✅ · `test:types` ✅ · `npm test` **392** ✅ ·
-`i18n:check` 1064 entrées, 0 manquante ✅
+`cargo test --lib` **108** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
+`npm test` **392** ✅ · `i18n:check` 1065 entrées, 0 manquante ✅
 
 ### 17.1 ▶️ La file d'attente, par ordre
 
-**1. ⭐ La vue Notes est INUTILISABLE sur téléphone.** Trouvé en vérifiant
-l'`AppIntent`, capture à l'appui : `NotesView` garde sa mise en page bureau à
-deux colonnes. Sur 402 pt, l'éditeur est réduit à une bande d'environ 150 px où
-la barre d'outils s'empile à la verticale (B / I / U / S / H1 / H2 les uns sous
-les autres) et le texte tombe **en colonne d'un mot par ligne**. C'est la même
-famille de défaut que le « texte en colonne d'une lettre » du chantier
-demi-écran (`CLAUDE.md`, 2026-07-26).
+**1. ✅ FAIT — la vue Notes** (`b58b17a`). Elle gardait sa grille bureau à deux
+colonnes : sur 402 pt il restait **134 px** à l'éditeur, barre d'outils empilée
+à la verticale et texte en colonne d'un mot par ligne. Maître-détail
+maintenant : la liste OU l'éditeur, un « ← Toutes les notes » entre les deux.
+Vérifié à l'écran en atterrissant par le geste de note rapide.
 
-C'est **le premier de la file** pour une raison précise : le geste du bouton
-Action mène DIRECTEMENT là. On vient de livrer une porte d'entrée vers un écran
-qui ne se tient pas.
+**2. ⚠️ Les autres vues — le balayage STATIQUE est fait, l'examen à l'œil ne
+l'est pas.** Distinguer les deux, parce que c'est la seule chose honnête à dire.
 
-⚠️ Ce que ce n'est pas : une régression. C'est l'état de la vue depuis
-toujours ; le geste la rend simplement visible.
+*Ce qui a été cherché :* le défaut exact de Notes — une colonne figée en pixels
+qui ne laisse rien au reste — plus les grilles multi-colonnes sans garde et les
+largeurs minimales en dur.
 
-**2. Les autres vues au même examen.** Notes a été vue parce qu'on y a atterri.
-Rien ne dit que Journal, Savoir, Trading ou Finance tiennent mieux : elles n'ont
-JAMAIS été regardées sur 402 pt. Le § 5.3 les annonce toutes « plein usage » —
-c'était une intention, pas une mesure. ⚠️ `SketchPad` (croquis) et
-`import_screenshot` (chemin de fichier) sont nommément signalés au § 5.3 comme
-demandant du travail tactile.
+| Trouvé | Verdict |
+|---|---|
+| `KnowledgeView.tsx:307` — `grid-cols-[232px_1fr]` | ⭐ **le même défaut, en pire** : 232 px EN DUR, sans `minmax`. Il resterait ~120 px au contenu |
+| `TradingView` `min-w-[760px]`, `PositionSizeHistory` `min-w-[820px]`, `ConsoleView` `min-w-[640px]` | ✅ **faux positifs** : les trois sont dans un `overflow-x-auto` / `.table-scroll`. Un tableau qui défile dans son cadre est le comportement voulu |
+| `CourbePatrimoine.tsx:151` — `grid-cols-3` sans garde | ⚠️ densité, pas structure : trois cellules d'environ 100 px. Le texte se replie, rien ne casse |
+| les sept autres `grid-cols-2/3` de Finance | ✅ déjà en `sm:grid-cols-*`, donc repliées sous 640 px |
+
+⚠️ **`KnowledgeView` n'est PAS corrigé ici, et c'est délibéré.** La branche
+`savoir-themes` (`a1fc76f`, non fusionnée) réécrit ce fichier presque
+entièrement — **922 insertions, 336 suppressions**, mesuré au `git diff` — et
+remplace justement l'accueil à rail par une grille de thèmes. Y toucher
+maintenant, c'est fabriquer un conflit sur du code condamné.
+
+▶️ **La vraie action est donc : réconcilier `savoir-themes` sur le tronc
+d'abord**, comme `windows-build` l'a été le 2026-08-26. Une branche laissée
+vivante EST le mécanisme de la divergence — c'est la leçon du § 11, et elle se
+répète ici mot pour mot.
+
+*Ce qui n'a PAS été fait :* regarder les vues. Aucune de Tâches, Timer,
+Objectifs, Performance, Finance, Journal, Savoir, Trading, Market Brain,
+Position, Réglages, Personnaliser n'a **jamais** été vue sur 402 pt. Le § 5.3
+les annonce toutes « plein usage » : c'était une intention, pas une mesure. Un
+balayage de code ne trouve que ce qu'on sait déjà chercher — Notes n'aurait pas
+été trouvée ainsi, puisque son `minmax(220px,280px)` a l'air raisonnable.
+
+⚠️ `SketchPad` (croquis) et `import_screenshot` (chemin de fichier) sont
+nommément signalés au § 5.3 comme demandant du travail tactile.
 
 **3. La barre ⠿ / ✕ / ⟲ des panneaux, au doigt** (§ 16.1). Question de design,
 pas correctif : révélée au survol sur une surface sans survol.
@@ -1438,6 +1459,29 @@ est purgé depuis le 2026-07-26, aucun code n'ouvre le micro, et le texte portai
 le nom d'un autre produit. Une permission déclarée sans usage est un motif de
 rejet à l'App Store (§ 7). `src-tauri/Info.plist` ne servait qu'à ça : supprimé.
 Vérifié après reconstruction — la clé a disparu du plist source ET du bundle.
+
+### 17.1 bis ⚠️ Pourquoi on ne peut pas regarder ces vues, et ce qui débloquerait
+
+Seules **deux** vues sont atteignables sans un doigt : Aujourd'hui (celle du
+lancement) et Notes (en posant le drapeau de note rapide, § 16.1). Toutes les
+autres demandent une tape sur la barre d'onglets.
+
+Deux voies ont été essayées le 2026-08-27, et écartées :
+
+- **le panneau interactif du simulateur** : son serveur tient toujours une
+  lecture périmée de `xcode-select` et réclame un `sudo xcode-select -s …`
+  **inutile** — `xcode-select -p` renvoie déjà le bon chemin. ⚠️ Ne pas
+  transmettre cette commande : elle coûterait son mot de passe pour rien ;
+- **les frappes clavier via `osascript`** : elles n'atteignent pas l'appareil,
+  le clavier matériel du Simulateur n'étant pas connecté. ⚠️ **Et il ne faut
+  PAS le connecter pour cet usage** : la base du simulateur est synchronisée
+  avec le Mac d'Antonin. Une frappe qui tombe dans un champ de saisie n'écrit
+  pas dans un bac à sable, elle écrit dans ses vraies notes, et la
+  synchronisation l'emporte chez lui. Le risque n'en vaut pas la commodité.
+
+▶️ **Ce qui débloquerait vraiment**, et qui coûte dix secondes à Antonin :
+ouvrir chaque onglet dans le Simulateur pendant qu'une session tourne. Les
+captures, elles, sont scriptables (`xcrun simctl io booted screenshot`).
 
 ### 17.2 Décisions déjà prises — ne pas les rouvrir
 
