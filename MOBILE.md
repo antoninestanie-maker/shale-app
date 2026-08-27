@@ -2063,6 +2063,36 @@ deux `tauri ios build` concurrents dans la même sortie échouent **en rendant u
 code de sortie 0**. Un dépôt qui accepte deux sessions doit se répartir les
 répertoires de BUILD, pas seulement les fichiers.
 
+#### ⚠️ Correction du 2026-08-27, 19 h 25 — j'avais le mauvais modèle en tête
+
+J'ai passé la soirée à prévenir l'autre session qu'elle était « à trois commits
+derrière » et qu'elle devrait « tirer en rebase avant de pousser ». **C'était
+faux, et elle a eu raison de me reprendre.** Vérifié :
+
+```
+git worktree list   →  UN seul worktree
+git rev-parse --git-dir  →  .git          ← le même pour les deux sessions
+HEAD == origin/mobile-ios
+```
+
+**Nous n'étions pas dans deux clones : c'est le même worktree, donc le même
+`.git`.** Un commit écrit par l'une EST le HEAD de l'autre à la seconde où il
+est écrit. Aucun push ne peut être rejeté, aucun rebase n'est nécessaire —
+la divergence git est **structurellement impossible** ici.
+
+▶️ **Mais le danger réel est l'exact inverse de celui que je craignais, et il
+est plus sournois : l'index est PARTAGÉ.** Un `git add -a` ou `git add .` par
+l'une embarque le travail en cours de l'autre — ici, deux fichiers de
+signature à demi-écrits, commités sous un message qui parle d'autre chose.
+
+**Règle : dans un arbre partagé, on commite CHEMIN PAR CHEMIN.**
+`git add MOBILE.md`, jamais `-a`, jamais `.`. C'est ce qui a été fait, mais
+par prudence plutôt que par principe — le principe manquait.
+
+Ce que ça renforce, plutôt que ça ne l'affaiblit : ce qui doit se répartir
+entre deux sessions n'est pas le dépôt, ce sont les **répertoires de build** et
+les **chemins commités**.
+
 ### 20.6 ⭐ L'app OUVRE sur le téléphone, et le rappel y est armé
 
 *Suite du 2026-08-27, 19 h 20. Antonin a fait confiance au profil.*
