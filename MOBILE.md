@@ -828,41 +828,35 @@ de la base unique.
 
 ---
 
-## 12. ▶️ REPRENDRE ICI (état au 2026-08-27, 01 h 45)
+## 12. Le mur de connexion — franchi le 2026-08-27 à 2 h
 
-**Branche `mobile-ios`**, cinq commits, **rien n'est poussé sur GitHub**.
-Le tronc (`sync-chiffree`) porte la réconciliation Windows (`4ca4080`).
+*Cette section était le « REPRENDRE ICI » de la session précédente. Elle est
+conservée parce qu'elle documente ce qui a débloqué, et comment.*
 
-### Ce qui est prouvé, exécuté, commité
+### Ce qui bloquait
 
-| | |
+L'app restait au mur de connexion sur le simulateur : Claude ne saisit pas les
+identifiants d'Antonin, règle non négociable. Tout ce qui vivait derrière ce mur
+était donc **écrit mais non vérifié** — barre d'onglets, base, synchronisation.
+
+**La levée a coûté un geste humain de dix secondes**, et rien d'autre :
+Antonin s'est connecté dans la fenêtre du Simulateur.
+
+⚠️ **C'est une fois pour toutes.** `xcrun simctl install` par-dessus le même
+identifiant de paquet **préserve le conteneur de données** : `shale.auth.meta`
+survit dans le `localStorage`, le `refresh_token` dans le trousseau du
+simulateur. Les rebuilds suivants entrent directement. Seuls `simctl uninstall`
+et `simctl erase` reperdraient la session.
+
+### Ce que le franchissement a immédiatement prouvé
+
+| Jalon | Résultat |
 |---|---|
-| Réconciliation Windows | `4ca4080` — plus de branche par plateforme |
-| Audit iOS | `c6b5867` — ce fichier |
-| Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
-| L'app tourne sur iPhone 17, `crypto.subtle` disponible | `5ebc08b` |
-| Barre d'onglets mobile | `360bd19` — **jamais vue à l'écran**, voir ci-dessous |
-
-Ligne de base, rejouée à chaque commit : `cargo check --all-targets` ✅ ·
-`cargo test --lib` 88 ✅ · `test:types` ✅ · `npm test` 381 ✅ ·
-`i18n:check` 1046 entrées, 0 manquante ✅
-
-### ⚠️ LE BLOCAGE, et il n'est pas technique
-
-**L'app est au mur de connexion sur le simulateur, et personne ne l'a
-franchi.** Claude ne saisit pas les identifiants d'Antonin — règle non
-négociable. Tout ce qui vit derrière ce mur est donc **écrit mais non
-vérifié** :
-
-1. **La barre d'onglets n'a jamais été vue.** Tiennent-elles sur 393 pt ? Les
-   libellés se tronquent-ils ? La feuille « Plus » s'ouvre-t-elle ? La zone
-   sûre du bas est-elle juste ?
-2. **`shale.db` n'existe pas** dans le conteneur de l'app — aucune vue n'a
-   interrogé la base. Les 19 migrations n'ont donc **jamais tourné sur iOS**.
-3. **La sync chiffrée n'a jamais été essayée** entre le Mac et l'iPhone.
-
-**Première action de la prochaine session : demander à Antonin de se
-connecter dans le simulateur**, puis capturer l'écran.
+| `shale.db` dans le bac à sable | ✅ `Library/Application Support/com.atnfx.shale/shale.db` |
+| Les 19 migrations | ✅ `select count(*) from _sqlx_migrations` → **19** |
+| Données synchronisées depuis le Mac | ✅ tâches, notes, journal, habitudes, tags, métriques |
+| **Barre d'onglets, VUE** | ✅ cinq libellés sur 402 pt, aucune troncature, zone sûre du bas juste |
+| Vue Aujourd'hui | ✅ rend de vraies données |
 
 ### La procédure qui marche, à ne pas redécouvrir
 
@@ -878,44 +872,27 @@ connecter dans le simulateur**, puis capturer l'écran.
 
 ⚠️ **Le préfixe `src-tauri/` de l'étape 2 n'est pas cosmétique.** La première
 rédaction de cette procédure l'omettait ; le `rm -rf` ne visait alors aucun
-fichier, le nettoyage n'avait pas lieu, et le build échouait exactement de la
-façon décrite ci-dessous — **avec un code de sortie 0**. Le piège s'est donc
+fichier, le nettoyage n'avait pas lieu, et le build échouait sur
+« Directory not empty » — **avec un code de sortie 0**. Le piège s'est donc
 retendu tout seul, sur sa propre documentation.
 
-⚠️ **L'étape 2 n'est pas optionnelle** : `tauri ios build` échoue sur une
-sortie existante (« Directory not empty ») **en rendant un code de sortie 0**.
-Sans elle, on installe l'ancienne app et on lit un résultat périmé.
-
 ⚠️ **Attendre ~10 s avant la première capture** : une capture prise trop tôt
-montre un écran blanc, qui ressemble à s'y méprendre à une régression. C'est
-arrivé, et j'ai annoncé à tort avoir cassé quelque chose.
+montre un écran blanc, qui ressemble à s'y méprendre à une régression.
 
-### Outils installés ce soir (ne pas les réinstaller)
+### Outils installés (ne pas les réinstaller)
 
 Homebrew (`/opt/homebrew`), CocoaPods 1.17, libimobiledevice, XcodeGen 2.46
 (compilé depuis la source, dans `~/.local/bin`), cibles Rust iOS, runtime
 simulateur iOS 26.5.
 
-⚠️ **Le panneau interactif du simulateur reste indisponible** tant que sa
-session n'est pas relancée : son serveur a lu `xcode-select` avant l'install
-d'Xcode. Son message réclame un `sudo` **inutile** — vérifier `xcode-select -p`
-avant de transmettre quoi que ce soit à Antonin. `xcrun simctl` suffit.
-
-### Ce qui reste de la Phase 3
-
-- **La notification locale de bout en bout** — programmée depuis l'app, reçue
-  app fermée. C'est LE jalon qui valide le point fort du produit, et il n'est
-  pas commencé. Le moteur Rust tourne déjà sur iOS (`notifications.json` écrit,
-  `last_run_at` renseigné), mais rien n'est encore PROGRAMMÉ auprès d'iOS.
-- **Un module réellement fonctionnel** (Aujourd'hui ou Tâches), une fois le
-  mur franchi.
-- **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
-
-### Décisions déjà prises — ne pas les rouvrir
-
-§ 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
-note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
-Performance et Market Brain en consultation. Aucun module absent.
+⚠️ **Le panneau interactif du simulateur reste indisponible**, et sa cause n'a
+pas bougé : son serveur a relevé `xcode-select` avant l'installation d'Xcode.
+Il réclame un `sudo xcode-select -s …` **inutile** — `xcode-select -p` renvoie
+déjà `/Applications/Xcode.app/Contents/Developer`. **Ne pas transmettre cette
+consigne à Antonin : elle demanderait son mot de passe pour rien.** Conséquence
+pratique : `xcrun simctl` couvre l'installation, le lancement et la capture,
+mais **pas la saisie tactile** — aucun tap, aucun swipe scriptable tant que ce
+panneau n'est pas relancé.
 
 ---
 
@@ -1028,3 +1005,157 @@ body: if cfg!(target_os = "macos") { "…les notifications macOS…" }
 Sur iPhone, le bouton de test annoncera donc **« Windows »**. À corriger en même
 temps que le reste — c'est trois lignes, mais c'est précisément le bouton dont
 le §3.6 dit qu'il devient un vrai diagnostic sur iOS.
+
+---
+
+## 14. Déboguer une webview iOS — le canal qui marche
+
+*§ 6 avait établi la moitié du problème : « sur iOS, la console d'une WKWebView
+ne remonte PAS dans le journal système », et en avait tiré « ce qui se voit se
+prouve » — une bannière à l'écran, photographiée. C'est vrai, mais coûteux :
+une bannière demande un rebuild par question posée, et ne rend qu'un texte
+court, jamais une pile d'appels.*
+
+### 14.1 Ce qui ne marche pas, revérifié
+
+| Voie | Résultat |
+|---|---|
+| `console.log` → `log show` / `log stream` | ❌ rien (§ 6) |
+| `xcrun simctl launch --console-pty` | ❌ **fichier vide** — la sortie native de l'app ne porte pas la console JS, et `eprintln!` du Rust n'y arrive pas non plus |
+| Panneau interactif du simulateur | ❌ indisponible (§ 12) — donc ni tap ni swipe |
+
+### 14.2 ✅ Le `localStorage` est un fichier SQLite, et il est lisible depuis le Mac
+
+C'est la découverte utile de la nuit. La WKWebView persiste `localStorage`
+dans le conteneur de l'app :
+
+```
+<conteneur>/Library/WebKit/com.atnfx.shale/WebsiteData/
+  Default/<hash>/<hash>/LocalStorage/localstorage.sqlite3
+```
+
+Donc : **le front écrit, le Mac lit, sans écran, sans bannière, sans photo.**
+
+```bash
+D=$(xcrun simctl get_app_container booted com.atnfx.shale data)
+LS=$(find "$D/Library/WebKit" -name "localstorage.sqlite3" | head -1)
+cp "$LS" /tmp/ls.sqlite3; cp "$LS-wal" /tmp/ls.sqlite3-wal
+sqlite3 /tmp/ls.sqlite3 "select hex(value) from ItemTable where key='diag';" \
+  | python3 -c "import sys,binascii; \
+      print(binascii.unhexlify(sys.stdin.read().strip()).decode('utf-16-le'))"
+```
+
+⚠️ **Deux pièges dans cette lecture, et les deux m'ont eu :**
+
+1. les valeurs sont des **blobs UTF-16**. `cast(value as text)` rend `0` ou une
+   chaîne tronquée au premier octet nul — d'où le passage par `hex()` puis
+   `utf-16-le`. Ne pas conclure « la clé est vide » ;
+2. **copier le `-wal` avec la base.** Les dernières écritures n'y sont pas
+   encore fusionnées ; sans lui on lit un état périmé.
+
+⚠️ Le conteneur change d'identifiant à chaque `install` : toujours le demander
+à `simctl get_app_container`, jamais le figer dans une note.
+
+### 14.3 Ce que le canal a servi à trancher, en un cycle
+
+L'app restait sur « Chargement… ». Deux `Chargement…` **identiques à l'écran**
+cohabitent dans `App.tsx` : le repli de `Suspense` (chunk `lazy()` en vol) et
+le cas `!data`. Impossible de les distinguer sur une capture.
+
+Un module de diagnostic jetable — `window.onerror`, `unhandledrejection`, et
+trois marqueurs — a rendu ceci, lu sur disque :
+
+```
+boot / App:render / fetchAll:start / fetchAll:ok tasks=2 notes=9
+chunk:today:start / chunk:today:ok
+```
+
+**Tout réussissait.** Le blocage ne s'est pas reproduit, et l'hypothèse « chunk
+`lazy()` qui ne charge pas sur `tauri://localhost` » est tombée sans coûter une
+seule modification de code.
+
+Le même cycle a rendu les mesures de mise en page, et elles ont **corrigé une
+erreur de lecture d'écran** de ma part :
+
+```
+viewport 402x874 dpr=3
+safe-area haut=62px bas=34px
+scrollWidth html=402 body=402
+debordent=0
+```
+
+J'avais annoncé des cartes « rognées à droite ». **Il n'y a aucun débordement** :
+`scrollWidth == innerWidth`, zéro élément dépassant. Ce que je prenais pour un
+rognage était la marge `p-8`. La leçon de § 6 se complète donc d'une seconde,
+symétrique : *ce qui se voit ne se prouve pas non plus — une capture se
+sur-interprète. Mesurer reste au-dessus de regarder.*
+
+### 14.4 ⚠️ Le vrai défaut que cet épisode a révélé, et qui reste ouvert
+
+```ts
+const refresh = useCallback(async () => {
+  setData(await fetchAll(addDays(todayStr(), -400)));
+}, []);
+```
+
+**Aucun `.catch`.** Si `fetchAll` rejette, la promesse part en rejet non traité
+et `data` reste `null` **pour toujours** : « Chargement… », sans message, sans
+bouton, sans fin. Sur le bureau c'est déjà mauvais. Sur un appareil, où § 14.1
+montre qu'il n'y a **aucune console à consulter**, c'est indiagnosticable.
+
+Non traité ici — ça demande un état d'erreur et ses clés d'i18n, et je ne
+l'invente pas sans que ce soit demandé. Mais c'est le premier candidat de la
+prochaine session.
+
+---
+
+## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 2 h 20)
+
+**Branche `mobile-ios`**, neuf commits, **rien n'est poussé sur GitHub**.
+
+### Ce qui est prouvé, exécuté, commité
+
+| | |
+|---|---|
+| Réconciliation Windows | `4ca4080` |
+| Audit iOS | `c6b5867` — ce fichier |
+| Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
+| L'app tourne sur iPhone 17, `crypto.subtle` disponible | `5ebc08b` |
+| Barre d'onglets mobile | `360bd19` — **désormais VUE à l'écran** |
+| Contrat de planification iOS mesuré | `069806f` — § 13 |
+| Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
+
+Ligne de base, rejouée : `cargo check --all-targets` ✅ · `cargo test --lib`
+88 ✅ · `test:types` ✅ · `npm test` 381 ✅ · `i18n:check` 1046 entrées,
+0 manquante ✅
+
+### Ce qui reste de la Phase 3
+
+1. **La notification locale de bout en bout** — programmée depuis l'app, reçue
+   app fermée. C'est LE jalon qui valide le point fort du produit, et il n'est
+   **pas commencé**. Le § 13 en a posé tout le contrat : `Schedule::Interval`
+   pour les heures fixes, `Schedule::At` pour `inactivity` seul, le tout sous
+   `#[cfg(mobile)]`. Corriger au passage le texte « Windows » de
+   `deliver_test()` (§ 13.5).
+2. **`refresh()` sans `.catch`** (§ 14.4) — un « Chargement… » sans fin et sans
+   message, indiagnosticable sur appareil.
+3. **Aujourd'hui en pile verticale** (§ 5.3). Mesuré : pas de débordement, mais
+   le panneau DISCIPLINE reste plus étroit que l'écran.
+4. **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
+
+### ⚠️ Ce qu'on ne peut PAS faire tant que le panneau n'est pas relancé
+
+**Aucune saisie tactile scriptable** : ni tap, ni swipe (§ 12). Donc la
+navigation entre onglets, l'ouverture de la feuille « Plus » et les cadenas
+trading sont **écrits et compilés, mais non essayés**. Ce sont les seuls points
+de `360bd19` qui restent non vérifiés.
+
+Deux façons d'en sortir : relancer la session qui porte le panneau (son serveur
+relira `xcode-select`, désormais correct), ou demander à Antonin de toucher
+l'écran lui-même pendant qu'on capture.
+
+### Décisions déjà prises — ne pas les rouvrir
+
+§ 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
+note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
+Performance et Market Brain en consultation. Aucun module absent.
