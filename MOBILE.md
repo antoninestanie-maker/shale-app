@@ -1338,6 +1338,25 @@ un instant UTC aurait donné 7 200 secondes de moins.
 l'attente, pas du travail. Attention : le simulateur doit être resté allumé,
 et tout `simctl install` entre-temps redéposera l'échéance (sans doublon).
 
+> **Correction du 2026-08-27, 19 h 10 — « app fermée » est FAUX, et « voir »
+> aussi.** Deux exigences inventées, répétées trois rédactions durant.
+>
+> **L'app n'a pas à être fermée.** `NotificationHandler.swift:32` du greffon :
+> `willPresent` renvoie `[.badge, .sound, .alert]` sans condition — sauf pour
+> une notification déclarée `silent`, ce que la nôtre n'est pas. C'est le
+> défaut d'iOS qui supprime la bannière au premier plan ; le greffon le
+> contredit explicitement. La bannière tombe donc app ouverte aussi.
+>
+> **Personne n'a besoin de regarder.** iOS écrit les notifications DÉLIVRÉES
+> dans `DeliveredNotifications.plist`, à côté de `PendingNotifications.plist`
+> dans le même dossier `UserNotifications/<uuid>/`. La notification de test de
+> 2 h 49 y figure encore, titre et corps en clair. **La livraison se lit sur
+> disque**, comme l'échéance — et par le même chemin, qui était déjà connu.
+>
+> Ce qui compte vraiment, et qui n'avait jamais été nommé : le simulateur doit
+> rester allumé, et **le Mac ne doit pas s'endormir** (`pmset -g` : ici
+> `displaysleep 0` et une assertion `powerd` tant que l'écran est allumé).
+
 ---
 
 ## 16. La matinée du 2026-08-27 — la file d'attente du § 15 est vide
@@ -1440,8 +1459,13 @@ avant, 10 après**, drapeau jeté.
   Raccourci → « Nouvelle note Shale ». Puis maintenir le bouton.
   ⚠️ iPhone 15 Pro et plus. Sinon : Réglages → Accessibilité → Toucher →
   Toucher au dos.
-- **Voir tomber une bannière.** Tout est armé ; personne ne peut le regarder
-  à notre place.
+- ~~**Voir tomber une bannière.** Tout est armé ; personne ne peut le regarder
+  à notre place.~~ **RETIRÉ de cette liste le 2026-08-27 à 19 h 10 : ce n'était
+  pas une tâche d'Antonin.** La livraison s'écrit dans
+  `DeliveredNotifications.plist` — elle se constate après coup, et une session
+  Claude sait la lire. Correction complète au § 15.
+  Ce qu'il reste à Antonin ici est seulement matériel : **laisser le simulateur
+  allumé et le Mac éveillé.**
 - ⚠️ **Ce qu'une session Claude ne peut PAS faire** : aucune saisie
   d'identifiants ; ne JAMAIS lancer `simctl uninstall` ni `simctl erase`, qui
   reperdraient la session ouverte à la main. La saisie tactile, elle, n'est
@@ -1886,5 +1910,15 @@ silencieux attend le programme développeur Apple payant**, et avant de payer,
 la question de produit du § 17.5 (achats intégrés Apple contre Stripe) attend
 Antonin. Ne pas trancher à sa place.
 
-Et toujours : **voir tomber une bannière à 20 h, app fermée.** Tout est armé
-depuis 18 h 53. Personne ne peut regarder à notre place.
+Et l'échéance de 20 h, armée depuis 18 h 53. ⚠️ **Ce n'est PAS une tâche
+d'Antonin, contrairement à ce que trois rédactions ont écrit** : ni « app
+fermée », ni « personne ne peut regarder à notre place ». Les deux sont faux,
+et la correction datée est au § 15.
+
+La bannière tombe app ouverte comme fermée (`willPresent` du greffon renvoie
+`.alert` sans condition), et la livraison s'écrit dans
+`DeliveredNotifications.plist` — donc elle se CONSTATE, elle n'a pas à être
+surveillée. Une session Claude peut la relire après coup.
+
+Les deux vraies conditions, elles, ne sont pas dans le code : **le simulateur
+doit rester allumé et le Mac ne doit pas s'endormir.**
