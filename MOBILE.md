@@ -1,5 +1,22 @@
 # Shale sur iPhone — audit, puis journal de portage
 
+> ## ⚠️ « iPhone » dans ce document = LE SIMULATEUR
+>
+> Tout ce qui est décrit ici a été mesuré sur un **iPhone 17 virtuel** tournant
+> dans une fenêtre du Mac (`xcrun simctl`, iOS 26.5). **Shale n'a jamais été
+> installé sur le téléphone physique d'Antonin** — il n'y a rien à y voir, et
+> c'est normal.
+>
+> L'installer sur l'appareil réel demande : un câble, un identifiant Apple
+> gratuit dans Xcode, et **deux gestes que lui seul peut faire** — « Faire
+> confiance à cet ordinateur » sur le téléphone, puis Réglages → Général →
+> VPN et gestion d'appareils → faire confiance au certificat. Le profil dure
+> 7 jours et se renouvelle en rebranchant.
+>
+> ⚠️ Ne jamais écrire « vu sur ton iPhone » quand c'est le simulateur : la
+> confusion s'est produite le 2026-08-27, et elle fait chercher une app qui
+> n'est pas là.
+
 > ## ▶️ Vous arrivez sur ce document ? Allez au **§ 17**.
 >
 > Il donne l'état exact, la file d'attente par ordre, et ce qu'une session
