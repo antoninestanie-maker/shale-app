@@ -1475,31 +1475,41 @@ la source unique. ⚠️ **Hors de `ITEMS`**, qui fait autorité sur le nombre
 
 ### 17.3 ▶️ CE QUI RESTE — la file d'attente
 
-**1. L'en-tête de vue ne se replie pas.** Trois vues, un seul défaut : le
-bouton d'action garde sa largeur et c'est SON LIBELLÉ qui se replie, en
-gonflant le bouton. Trading donne une pastille presque ronde sur trois lignes,
-Journal colle son bouton au titre, Finance écrase l'étape 1 de sa mise en route
-à 170 px. La règle manquante est la même partout : sous une certaine largeur,
-le bouton passe SOUS le titre au lieu de rétrécir. C'est une règle de design à
-écrire une fois dans `DESIGN.md`, pas trois correctifs.
+**1. ✅ FAIT — l'en-tête de vue se replie** (`6268d3f`). `.view-head` porte la
+règle une fois : `flex-wrap` + gouttières, et le groupe d'actions passe SOUS le
+titre au lieu de se tasser. Six en-têtes l'adoptent. Finance demandait un
+second geste (ligne de liste et non en-tête) : un plancher de 12 rem sur la
+colonne de texte, sans quoi `flex-wrap` seul ne déclenche rien — une colonne en
+`flex-1 min-w-0` a une largeur de base nulle et se tasse.
 
-**2. Le filtre de date de Tâches est un rectangle gris muet.** Un
-`<input type="date">` VIDE n'affiche RIEN sur iOS — pas même le gabarit
-`jj/mm/aaaa` qu'on voit sur le bureau. Le contrôle est là, il occupe sa place,
-et rien ne dit ce qu'il est.
+**2. ✅ FAIT — le filtre de date de Tâches** (`bce159b`). Un libellé
+« échéance » devant : un `<input type="date">` VIDE n'affiche RIEN sur iOS, pas
+même le gabarit `jj/mm/aaaa` du bureau, et le contrôle était un rectangle muet.
 
-⚠️ **Ce n'est pas le `color-scheme`**, et c'est mesuré : j'ai ouvert le
-`<select>` de Position sur le build d'avant correction, et iOS rend son panneau
-en clair MALGRÉ le `color-scheme: dark` figé. Le retrait de ce `color-scheme`
-(quatre contrôles) reste juste — il vaut pour macOS, où il pilote réellement le
-sélecteur natif — mais il ne règle pas ce cas-ci.
+⚠️ **Ce n'était pas le `color-scheme`**, et c'est mesuré : le `<select>` de
+Position ouvert sur le build d'avant correction montre qu'iOS rend son panneau
+natif EN CLAIR malgré un `color-scheme: dark` figé. Le retrait de ce
+`color-scheme` (quatre contrôles) reste juste pour macOS ; il n'a jamais rien
+réparé sur iPhone.
 
-**3. La zone de texte de Personnaliser tronque son contenu.** « Accueil —
-texte » coupe en plein milieu d'une ligne : hauteur fixe qui ne grandit pas.
+**3. ❌ N'ÉTAIT PAS UN DÉFAUT.** La zone « Accueil — texte » de Personnaliser
+semblait tronquer son contenu. C'est un `<textarea rows={2}>` : le texte DÉFILE
+dedans, rien n'est perdu ni inatteignable. Inconfortable au doigt, oui ;
+défectueux, non.
 
-**4. `SketchPad` et `import_screenshot`** — signalés au § 5.3 comme demandant
-du travail tactile, toujours pas regardés (il faut une fiche du Savoir ouverte
-et un import pour les atteindre).
+**4. ✅ FAIT — `import_screenshot`** (`3db427a`), et **l'audit se trompait sur
+les deux moitiés**. Le § 5.3 disait « à refaire via le sélecteur de photos » :
+le sélecteur de photos, on l'avait déjà — `tauri-plugin-dialog` ouvre la
+photothèque sur iOS, pas un navigateur de fichiers. Mais l'import échouait
+quand même, EN SILENCE : iOS rend un `file:///…`, `FilePath` étant `untagged`
+ça arrive comme une chaîne, le garde `typeof` passe, et `fs::copy` échoue tout
+au fond. Corrigé des deux côtés — décodage de l'URL en Rust, et un `catch`
+côté front, qui n'existait pas.
+
+**4 bis. ✅ `SketchPad` n'a rien à porter.** Le § 5.3 le signalait comme « du
+pointeur, à porter au tactile ». Lu dans le fichier : il utilise déjà les
+Pointer Events, avec `touch-action: none` et `setPointerCapture`. Rien à faire.
+⚠️ Non vérifié à l'écran — il faut créer une fiche du Savoir pour l'atteindre.
 
 **5. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
 effet (§ 13.1) : le rappel de 8 h / 14 h n'existe que sur téléphone.
@@ -1513,6 +1523,20 @@ développeur Apple.
 **7. Réconcilier `savoir-themes`** (`a1fc76f`) — 922 insertions sur
 `KnowledgeView`. Une branche laissée vivante EST le mécanisme de la divergence
 (§ 11). Le correctif du § 17.2 y entrera en conflit, sur six lignes.
+
+### 17.3 bis ⚠️ Un échec de test que je n'ai pas expliqué
+
+`npm test` a échoué **une fois** le 2026-08-27 après-midi : « 1 failed | 391
+passed ». Le détail avait défilé avant capture — **je ne sais pas quel test**.
+Il tournait en concurrence d'un `cargo check`, d'où l'hypothèse d'une
+sensibilité au temps sous charge.
+
+Huit exécutions depuis, dont une sous contention CPU délibérée (quatre `yes` +
+un `cargo check`) : 392/392 à chaque fois. Ni reproduit, ni expliqué, ni écarté.
+
+▶️ **Si ça revient : capturer le nom du test AVANT de relancer.** Ce dépôt a
+déjà connu ce genre d'intermittence — commit `749b981`, « Les tests ne mentent
+plus par intermittence ».
 
 ### 17.4 Ce qu'une session Claude peut et ne peut pas faire
 
@@ -1545,5 +1569,11 @@ Performance et Market Brain en consultation. Aucun module absent.
 le tronc, pas à vivre.
 
 `cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
-`cargo test --lib` **108** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
-`npm test` **392** ✅ · `i18n:check` 1066 entrées, 0 manquante ✅
+`cargo test --lib` **112** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
+`npm test` **392** (voir § 17.3 bis) · `i18n:check` 1068 entrées, 0 manquante ✅
+
+**App macOS reconstruite et réinstallée** le 2026-08-27 à midi
+(`/Applications/Shale.app`), lancée et vérifiée : données intactes, indicateur
+de synchronisation au vert. ⚠️ Une réinstallation REDEMANDE l'accès au
+trousseau — l'app est signée ad hoc, sa signature change à chaque
+reconstruction. Détail dans `CLAUDE.md`.
