@@ -725,11 +725,46 @@ recopie dans l'app. `excludes: ["**/*.a"]` sur le groupe `Externals` de
 `project.yml` le règle définitivement ; le lien, lui, vient de
 `dependencies: framework: libapp.a`, pas de ce groupe.
 
-**Le panneau interactif du simulateur peut lire une configuration périmée.**
-Son serveur relève `xcode-select` à son démarrage : lancé avant l'installation
-d'Xcode, il réclame indéfiniment un `sudo xcode-select -s …` **déjà inutile**.
-Vérifier `xcode-select -p` avant de transmettre cette consigne à Antonin —
-elle demanderait son mot de passe pour rien. `xcrun simctl` fait le même travail.
+**~~Le panneau interactif du simulateur peut lire une configuration périmée.~~**
+~~Son serveur relève `xcode-select` à son démarrage.~~
+
+⚠️ **CORRECTION DU 2026-08-27, 11 h 40 — ce document a dit le contraire trois
+fois, et il avait TORT.** Le panneau interactif du simulateur réclame un
+`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. Trois
+rédactions successives ont conclu « commande inutile, `xcode-select -p` renvoie
+déjà le bon chemin — ne pas la transmettre à Antonin ». **C'était une erreur de
+diagnostic, et elle a coûté une demi-journée de navigation impossible.**
+
+Ce qui a été mesuré, enfin :
+
+```
+DEVELOPER_DIR                 : (vide)
+/var/db/xcode_select_link     : n'existe pas
+xcode-select -p               : /Applications/Xcode.app/Contents/Developer
+env -i /usr/bin/xcode-select -p : /Applications/Xcode.app/Contents/Developer
+```
+
+`xcode-select -p` répond bien — **mais par REPLI**. Sans le lien
+`/var/db/xcode_select_link`, il cherche Xcode aux emplacements par défaut et le
+trouve. Rien n'est donc *sélectionné* : Xcode est seulement *trouvé*. Les
+compilations marchent (elles se contentent du repli) ; l'outil, lui, exige la
+sélection explicite, et il a raison de la distinguer.
+
+**La leçon, et elle vaut au-delà de ce cas :** `xcode-select -p` ne répond pas
+à la question « Xcode est-il sélectionné ? », il répond à « quel dossier de
+développement sera utilisé ? ». Vérifier la SÉLECTION, c'est regarder
+`/var/db/xcode_select_link`. Trois fois de suite, la mauvaise question a rendu
+la bonne réponse à une autre question.
+
+**Ce qu'il faut faire — et sans Terminal :** Xcode → menu Xcode → Settings…
+(⌘,) → onglet **Locations** → liste **Command Line Tools** → choisir
+**Xcode 26.6**. macOS demande le mot de passe administrateur dans sa propre
+fenêtre. C'est l'équivalent graphique exact du `xcode-select -s`, et il est
+plus haut dans l'ordre de préférence de la règle « Antonin n'utilise jamais le
+Terminal » qu'un fichier `.command`.
+
+En attendant la sélection explicite, `xcrun simctl` couvre l'installation, le
+lancement et la capture — mais pas la saisie tactile.
 
 ### L'outillage, et pourquoi il a coûté cher
 
@@ -911,14 +946,15 @@ Homebrew (`/opt/homebrew`), CocoaPods 1.17, libimobiledevice, XcodeGen 2.46
 (compilé depuis la source, dans `~/.local/bin`), cibles Rust iOS, runtime
 simulateur iOS 26.5.
 
-⚠️ **Le panneau interactif du simulateur reste indisponible**, et sa cause n'a
-pas bougé : son serveur a relevé `xcode-select` avant l'installation d'Xcode.
-Il réclame un `sudo xcode-select -s …` **inutile** — `xcode-select -p` renvoie
-déjà `/Applications/Xcode.app/Contents/Developer`. **Ne pas transmettre cette
-consigne à Antonin : elle demanderait son mot de passe pour rien.** Conséquence
-pratique : `xcrun simctl` couvre l'installation, le lancement et la capture,
-mais **pas la saisie tactile** — aucun tap, aucun swipe scriptable tant que ce
-panneau n'est pas relancé.
+⚠️ **Le panneau interactif du simulateur reste indisponible.** La cause écrite
+ici — « son serveur a relevé `xcode-select` avant l'installation d'Xcode » —
+**était fausse**, et le § 8 bis porte le diagnostic correct depuis le
+2026-08-27 à 11 h 40 : Xcode n'est pas *sélectionné*, il est seulement *trouvé
+par repli*. La commande que le panneau réclame est légitime, et elle se donne
+sans Terminal par Xcode → Settings → Locations → Command Line Tools.
+
+Tant que ce n'est pas fait : `xcrun simctl` couvre l'installation, le lancement
+et la capture, mais **pas la saisie tactile** — aucun tap, aucun swipe.
 
 ---
 
@@ -1377,14 +1413,13 @@ avant, 10 après**, drapeau jeté.
   Toucher au dos.
 - **Voir tomber une bannière.** Tout est armé ; personne ne peut le regarder
   à notre place.
-- ⚠️ **Ce qu'une session Claude ne peut PAS faire**, et qui n'a pas bougé :
-  aucune saisie tactile n'est scriptable (§ 12) — ni tap, ni swipe ; aucune
-  saisie d'identifiants ; ne JAMAIS lancer `simctl uninstall` ni
-  `simctl erase`, qui reperdraient la session ouverte à la main ; ne jamais
-  transmettre le `sudo xcode-select -s …` que réclame le panneau interactif —
-  `xcode-select -p` renvoie déjà le bon chemin, la commande demanderait le mot
-  de passe d'Antonin pour rien. Le canal du § 14 (`localStorage` lu sur disque)
-  et la lecture directe du magasin d'iOS couvrent tout le reste.
+- ⚠️ **Ce qu'une session Claude ne peut PAS faire** : aucune saisie
+  d'identifiants ; ne JAMAIS lancer `simctl uninstall` ni `simctl erase`, qui
+  reperdraient la session ouverte à la main. La saisie tactile, elle, n'est
+  bloquée que tant que le panneau interactif l'est — voir la correction du
+  § 8 bis, qui dit comment le débloquer sans Terminal. Le canal du § 14
+  (`localStorage` lu sur disque) et la lecture directe du magasin d'iOS
+  couvrent le reste.
 
 ---
 
@@ -1483,10 +1518,13 @@ autres demandent une tape sur la barre d'onglets.
 
 Deux voies ont été essayées le 2026-08-27, et écartées :
 
-- **le panneau interactif du simulateur** : son serveur tient toujours une
-  lecture périmée de `xcode-select` et réclame un `sudo xcode-select -s …`
-  **inutile** — `xcode-select -p` renvoie déjà le bon chemin. ⚠️ Ne pas
-  transmettre cette commande : elle coûterait son mot de passe pour rien ;
+- **le panneau interactif du simulateur** : il réclame un
+  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
+  ⚠️ Ce document a soutenu trois fois que cette commande était inutile. **Elle
+  ne l'est pas** — le § 8 bis porte le diagnostic mesuré depuis le 2026-08-27
+  à 11 h 40. Redémarrer Claude Code ne change rien : ce n'était pas une lecture
+  périmée. La sélection se donne sans Terminal par Xcode → Settings →
+  Locations → Command Line Tools → Xcode 26.6 ;
 - **les frappes clavier via `osascript`** : elles n'atteignent pas l'appareil,
   le clavier matériel du Simulateur n'étant pas connecté. ⚠️ **Et il ne faut
   PAS le connecter pour cet usage** : la base du simulateur est synchronisée

@@ -2703,6 +2703,15 @@ dont dépendent le moteur de rappels et la synchronisation.
 Swift : `xcodegen generate` dans `gen/apple`. Sans ça, l'app se construit sans
 le fichier, en silence et avec un code de sortie 0.
 
+⚠️ **`xcode-select -p` ne dit PAS si Xcode est sélectionné.** Il dit quel
+dossier de développement sera utilisé — et il répond même sans sélection, par
+repli, en trouvant Xcode aux emplacements par défaut. La vraie question se pose
+à `/var/db/xcode_select_link` : s'il n'existe pas, rien n'est sélectionné. Les
+compilations s'en contentent ; les outils qui pilotent le Simulateur, non.
+Trois rédactions de `MOBILE.md` ont conclu le contraire et fait perdre une
+demi-journée de navigation. La sélection se donne **sans Terminal** : Xcode →
+Settings (⌘,) → Locations → Command Line Tools → Xcode.
+
 ⚠️ **Régénérer après un build embarque `libapp.a` dans le bundle** — d'où
 l'`excludes: ["**/*.a"]` sur le groupe `Externals` de `project.yml`.
 
