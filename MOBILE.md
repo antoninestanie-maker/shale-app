@@ -1423,121 +1423,127 @@ avant, 10 après**, drapeau jeté.
 
 ---
 
-## 17. ▶️ REPRENDRE ICI (état au 2026-08-27, 11 h)
+## 17. Le tour des quatorze écrans — 2026-08-27, midi
 
-**Branche `mobile-ios`**, poussée sur GitHub le 2026-08-27
-(`origin/mobile-ios`, suivie). Elle est destinée à rejoindre le tronc, pas à
-vivre — la leçon du § 11 vaut pour elle aussi.
-Ligne de base rejouée au dernier commit :
+*La saisie tactile a été débloquée (§ 8 bis, correction du 11 h 40). Les douze
+vues que personne n'avait jamais regardées sur 402 pt l'ont enfin été.*
 
-`cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
-`cargo test --lib` **108** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
-`npm test` **392** ✅ · `i18n:check` 1065 entrées, 0 manquante ✅
+### 17.1 Ce que le tour a trouvé
 
-### 17.1 ▶️ La file d'attente, par ordre
-
-**1. ✅ FAIT — la vue Notes** (`b58b17a`). Elle gardait sa grille bureau à deux
-colonnes : sur 402 pt il restait **134 px** à l'éditeur, barre d'outils empilée
-à la verticale et texte en colonne d'un mot par ligne. Maître-détail
-maintenant : la liste OU l'éditeur, un « ← Toutes les notes » entre les deux.
-Vérifié à l'écran en atterrissant par le geste de note rapide.
-
-**2. ⚠️ Les autres vues — le balayage STATIQUE est fait, l'examen à l'œil ne
-l'est pas.** Distinguer les deux, parce que c'est la seule chose honnête à dire.
-
-*Ce qui a été cherché :* le défaut exact de Notes — une colonne figée en pixels
-qui ne laisse rien au reste — plus les grilles multi-colonnes sans garde et les
-largeurs minimales en dur.
-
-| Trouvé | Verdict |
+| Vue | Verdict |
 |---|---|
-| `KnowledgeView.tsx:307` — `grid-cols-[232px_1fr]` | ⭐ **le même défaut, en pire** : 232 px EN DUR, sans `minmax`. Il resterait ~120 px au contenu |
-| `TradingView` `min-w-[760px]`, `PositionSizeHistory` `min-w-[820px]`, `ConsoleView` `min-w-[640px]` | ✅ **faux positifs** : les trois sont dans un `overflow-x-auto` / `.table-scroll`. Un tableau qui défile dans son cadre est le comportement voulu |
-| `CourbePatrimoine.tsx:151` — `grid-cols-3` sans garde | ⚠️ densité, pas structure : trois cellules d'environ 100 px. Le texte se replie, rien ne casse |
-| les sept autres `grid-cols-2/3` de Finance | ✅ déjà en `sm:grid-cols-*`, donc repliées sous 640 px |
+| **Aujourd'hui** | ✅ pile pleine largeur (corrigée le matin) |
+| **Tâches** | ✅ filtres, tags, liste — sauf le filtre de DATE, voir § 17.3 |
+| **Timer** | ✅ **impeccable** : presets en 3+1, stepper, bascule, gros bouton |
+| **Objectifs** | ✅ en-tête et carte tiennent |
+| **Performance** | ✅ **très bien** : tuiles 2×2, graphique et axes lisibles |
+| **Finance** | ⚠️ étape 1 de la mise en route écrasée par son bouton (§ 17.3) |
+| **Notes** | ✅ maître-détail (corrigé le matin), vérifié dans les deux sens |
+| **Journal** | ⚠️ titre et bouton « Générer la revue » collés (§ 17.3) |
+| **Savoir** | ⭐ **débordait hors de l'écran** — corrigé |
+| **Trading** | ⚠️ « + Nouveau trade » gonflé en pastille ronde (§ 17.3) |
+| **Market-Brain** | ✅ en-tête empilé proprement |
+| **Position** | ✅ **très bien** : formulaire à deux colonnes, tout tient |
+| **Réglages / Personnaliser** | ✅ après correction du libellé (§ 17.2) |
+| **Tiroir « Plus »** | ✅ feuille du bas, poignée, intertitres par catégorie |
 
-⚠️ **`KnowledgeView` n'est PAS corrigé ici, et c'est délibéré.** La branche
-`savoir-themes` (`a1fc76f`, non fusionnée) réécrit ce fichier presque
-entièrement — **922 insertions, 336 suppressions**, mesuré au `git diff` — et
-remplace justement l'accueil à rail par une grille de thèmes. Y toucher
-maintenant, c'est fabriquer un conflit sur du code condamné.
+### 17.2 Les trois défauts structurels, corrigés (`1f5e673`)
 
-▶️ **La vraie action est donc : réconcilier `savoir-themes` sur le tronc
-d'abord**, comme `windows-build` l'a été le 2026-08-26. Une branche laissée
-vivante EST le mécanisme de la divergence — c'est la leçon du § 11, et elle se
-répète ici mot pour mot.
+**1. ⭐ Le contenu passait SOUS la Dynamic Island, dans les quatorze vues.**
+`paddingTop: env(safe-area-inset-top)` était posé À L'INTÉRIEUR du défilant. Un
+padding dans un défilant défile avec lui : au repos l'en-tête tombait bien sous
+l'horloge — ce qui a fait croire l'affaire réglée par `5f0e016` — mais dès
+qu'on faisait défiler, le contenu remontait sous l'îlot.
 
-*Ce qui n'a PAS été fait :* regarder les vues. Aucune de Tâches, Timer,
-Objectifs, Performance, Finance, Journal, Savoir, Trading, Market Brain,
-Position, Réglages, Personnaliser n'a **jamais** été vue sur 402 pt. Le § 5.3
-les annonce toutes « plein usage » : c'était une intention, pas une mesure. Un
-balayage de code ne trouve que ce qu'on sait déjà chercher — Notes n'aurait pas
-été trouvée ainsi, puisque son `minmax(220px,280px)` a l'air raisonnable.
+⚠️ **La leçon.** Le matin même, j'avais envisagé ce déplacement et j'y avais
+renoncé « pour ne pas toucher à une mise en page validée ». Elle n'était
+validée **qu'au repos**. Une capture au repos ne prouve rien d'une zone qui
+défile.
 
-⚠️ `SketchPad` (croquis) et `import_screenshot` (chemin de fichier) sont
-nommément signalés au § 5.3 comme demandant du travail tactile.
+**2. ⭐ Savoir débordait hors de l'écran.** `grid-cols-[232px_1fr]` : 232 px en
+dur, sans `minmax`. Le balayage statique du matin l'avait localisé sans le
+corriger, au motif que `savoir-themes` réécrit ce fichier. La capture a changé
+la donne — ce n'était pas « à l'étroit » comme Notes, c'était inutilisable.
 
-**3. ✅ FAIT — la barre ⠿ / ✕ / ⟲ des panneaux, et la poignée ↗.** Toutes deux
-masquées sous `(pointer: coarse)`, comme la poignée de redimensionnement.
-« Révélé au survol » n'a aucun sens sur une surface sans survol : iOS simule un
-survol collant, mais il coûte alors la PREMIÈRE tape, et une barre qui apparaît
-sous le doigt sans qu'on l'ait demandée est un piège, pas une commande.
+**3. ⭐ Le tiroir affichait « admin », sans icône, au lieu de
+« Personnaliser ».** Les trois entrées du pied portaient libellé et icône au
+POINT D'APPEL de `navButton` : nulle part où `MobileNav` puisse les lire. Même
+absence de source commune, même conséquence côté droits — le téléphone gatait
+Personnaliser sur `isAdmin` et omettait la Console. `ITEMS_PIED` est désormais
+la source unique. ⚠️ **Hors de `ITEMS`**, qui fait autorité sur le nombre
+« douze ».
 
-⚠️ La décision se lit dans le code, elle n'a pas été prise au jugé : **rien
-n'est perdu**. ⠿ (ordre) et ✕ (masquer) existent déjà dans **Personnaliser**
-(`AdminView` : flèches haut/bas et œil, avec de vraies cibles tactiles) ;
-⟲ (réinitialiser la taille) n'a rien à défaire, puisque redimensionner est
-impossible au doigt et qu'une taille posée sur le Mac est de toute façon
-neutralisée AU RENDU par le clamp de largeur ; et ↗ ouvre un module qui est à
-une tape dans la barre d'onglets.
+### 17.3 ▶️ CE QUI RESTE — la file d'attente
 
-Le `padding-right` réservé à la barre au survol est neutralisé sous
-`(pointer: coarse)` : sans ça, la première tape sur un panneau décalerait
-l'en-tête pour faire place à des poignées qui n'apparaissent plus.
+**1. L'en-tête de vue ne se replie pas.** Trois vues, un seul défaut : le
+bouton d'action garde sa largeur et c'est SON LIBELLÉ qui se replie, en
+gonflant le bouton. Trading donne une pastille presque ronde sur trois lignes,
+Journal colle son bouton au titre, Finance écrase l'étape 1 de sa mise en route
+à 170 px. La règle manquante est la même partout : sous une certaine largeur,
+le bouton passe SOUS le titre au lieu de rétrécir. C'est une règle de design à
+écrire une fois dans `DESIGN.md`, pas trois correctifs.
 
-**4. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
+**2. Le filtre de date de Tâches est un rectangle gris muet.** Un
+`<input type="date">` VIDE n'affiche RIEN sur iOS — pas même le gabarit
+`jj/mm/aaaa` qu'on voit sur le bureau. Le contrôle est là, il occupe sa place,
+et rien ne dit ce qu'il est.
+
+⚠️ **Ce n'est pas le `color-scheme`**, et c'est mesuré : j'ai ouvert le
+`<select>` de Position sur le build d'avant correction, et iOS rend son panneau
+en clair MALGRÉ le `color-scheme: dark` figé. Le retrait de ce `color-scheme`
+(quatre contrôles) reste juste — il vaut pour macOS, où il pilote réellement le
+sélecteur natif — mais il ne règle pas ce cas-ci.
+
+**3. La zone de texte de Personnaliser tronque son contenu.** « Accueil —
+texte » coupe en plein milieu d'une ligne : hauteur fixe qui ne grandit pas.
+
+**4. `SketchPad` et `import_screenshot`** — signalés au § 5.3 comme demandant
+du travail tactile, toujours pas regardés (il faut une fiche du Savoir ouverte
+et un import pour les atteindre).
+
+**5. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
 effet (§ 13.1) : le rappel de 8 h / 14 h n'existe que sur téléphone.
-L'équivalent passerait par `scheduler.rs` — un autre mécanisme pour la même
-promesse. À décider, pas à improviser.
+⚠️ Ce n'est pas un simple miroir — sur le bureau il passerait par le moteur de
+règles, donc **par le plafond quotidien** (2 par défaut). Un briefing pourrait
+faire taire « habitudes non cochées ». Décision produit, pas correctif.
 
-**5. Le push silencieux** (§ 10, décision 2, seconde moitié). Le local est fait.
-Le push demande le compte développeur.
+**6. Le push silencieux** (§ 10, décision 2, seconde moitié). Demande le compte
+développeur Apple.
 
-**6. ✅ Fait dans la foulée** — `NSMicrophoneUsageDescription` annonçait
-« **Second Brain** utilise le micro pour les commandes vocales Jarvis ». Jarvis
-est purgé depuis le 2026-07-26, aucun code n'ouvre le micro, et le texte portait
-le nom d'un autre produit. Une permission déclarée sans usage est un motif de
-rejet à l'App Store (§ 7). `src-tauri/Info.plist` ne servait qu'à ça : supprimé.
-Vérifié après reconstruction — la clé a disparu du plist source ET du bundle.
+**7. Réconcilier `savoir-themes`** (`a1fc76f`) — 922 insertions sur
+`KnowledgeView`. Une branche laissée vivante EST le mécanisme de la divergence
+(§ 11). Le correctif du § 17.2 y entrera en conflit, sur six lignes.
 
-### 17.1 bis ⚠️ Pourquoi on ne peut pas regarder ces vues, et ce qui débloquerait
+### 17.4 Ce qu'une session Claude peut et ne peut pas faire
 
-Seules **deux** vues sont atteignables sans un doigt : Aujourd'hui (celle du
-lancement) et Notes (en posant le drapeau de note rapide, § 16.1). Toutes les
-autres demandent une tape sur la barre d'onglets.
+✅ **Depuis le 2026-08-27 à midi : tout piloter.** Le panneau du simulateur
+répond — tap, swipe, capture. Naviguer dans les quatorze vues ne demande plus
+personne.
 
-Deux voies ont été essayées le 2026-08-27, et écartées :
+❌ Toujours hors de portée : **saisir des identifiants**, et **`sudo`** (mot de
+passe). Pour un `sudo`, poser un `.command` sur le Bureau et le lancer avec
+`open` — Antonin n'a que son mot de passe à taper (précédent : Homebrew, et
+`xcode-select` ce matin).
 
-- **le panneau interactif du simulateur** : il réclame un
-  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
-  ⚠️ Ce document a soutenu trois fois que cette commande était inutile. **Elle
-  ne l'est pas** — le § 8 bis porte le diagnostic mesuré depuis le 2026-08-27
-  à 11 h 40. Redémarrer Claude Code ne change rien : ce n'était pas une lecture
-  périmée. La sélection se donne sans Terminal par Xcode → Settings →
-  Locations → Command Line Tools → Xcode 26.6 ;
-- **les frappes clavier via `osascript`** : elles n'atteignent pas l'appareil,
-  le clavier matériel du Simulateur n'étant pas connecté. ⚠️ **Et il ne faut
-  PAS le connecter pour cet usage** : la base du simulateur est synchronisée
-  avec le Mac d'Antonin. Une frappe qui tombe dans un champ de saisie n'écrit
-  pas dans un bac à sable, elle écrit dans ses vraies notes, et la
-  synchronisation l'emporte chez lui. Le risque n'en vaut pas la commodité.
+⚠️ **Ne JAMAIS lancer `simctl uninstall` ni `simctl erase`** : la session du
+simulateur a été ouverte à la main une seule fois, et ces deux commandes la
+reperdraient.
 
-▶️ **Ce qui débloquerait vraiment**, et qui coûte dix secondes à Antonin :
-ouvrir chaque onglet dans le Simulateur pendant qu'une session tourne. Les
-captures, elles, sont scriptables (`xcrun simctl io booted screenshot`).
+⚠️ **Ne pas connecter le clavier matériel du Simulateur** pour contourner quoi
+que ce soit : la base du simulateur est synchronisée avec le Mac d'Antonin, et
+une frappe tombée dans un champ de saisie écrirait dans ses vraies données.
 
-### 17.2 Décisions déjà prises — ne pas les rouvrir
+### 17.5 Décisions déjà prises — ne pas les rouvrir
 
 § 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
 note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
 Performance et Market Brain en consultation. Aucun module absent.
+
+### 17.6 État du dépôt
+
+**Branche `mobile-ios`**, poussée (`origin/mobile-ios`). Destinée à rejoindre
+le tronc, pas à vivre.
+
+`cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
+`cargo test --lib` **108** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
+`npm test` **392** ✅ · `i18n:check` 1066 entrées, 0 manquante ✅

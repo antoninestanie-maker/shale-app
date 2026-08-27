@@ -2715,6 +2715,33 @@ Settings (⌘,) → Locations → Command Line Tools → Xcode.
 ⚠️ **Régénérer après un build embarque `libapp.a` dans le bundle** — d'où
 l'`excludes: ["**/*.a"]` sur le groupe `Externals` de `project.yml`.
 
+### ⚠️ Une réserve de zone sûre ne se met pas DANS un défilant
+
+`paddingTop: env(safe-area-inset-top)` était posé sur la zone défilante de
+`App.tsx`. Un padding intérieur à un défilant **défile avec lui** : au repos
+l'en-tête tombait bien sous l'horloge, et une capture au repos l'a fait passer
+pour réglé. Dès qu'on faisait défiler, le contenu remontait **sous la Dynamic
+Island** — dans les quatorze vues. La réserve vit désormais sur le conteneur
+PARENT, qui ne défile pas ; elle devient le bord haut de la fenêtre de
+défilement. La réserve du bas, elle, reste sur le défilant : la barre d'onglets
+est en `fixed` par-dessus, et c'est de l'espace qu'on veut pouvoir atteindre.
+
+**La leçon, générale : une capture au repos ne prouve rien d'une zone qui
+défile.**
+
+### ⚠️ Un libellé posé au point d'appel n'existe pour personne d'autre
+
+`Sidebar` passait le libellé et l'icône d'« Admin », « Personnaliser » et
+« Réglages » directement à `navButton`. `MobileNav`, qui lit `BY_ID`, n'y
+trouvait rien et affichait l'identifiant TECHNIQUE — « admin », sans icône. La
+même absence de source commune avait inversé les droits : Personnaliser gaté
+sur `isAdmin`, Console absente du téléphone. `ITEMS_PIED` (exporté par
+`Sidebar`) est la source unique des deux barres.
+
+⚠️ **`ITEMS_PIED` est HORS de `ITEMS`, et doit le rester** : `ITEMS` fait
+autorité sur le nombre « douze », écrit en toutes lettres dans l'app et sur le
+site. Y ajouter trois entrées le ferait mentir partout à la fois.
+
 ### Le site n'a rien à mettre à jour, et c'est vérifié
 
 La règle « l'app et le site ne divergent jamais » a été appliquée : `SPECS`
