@@ -1539,9 +1539,36 @@ Le compte payant reste nécessaire de toute façon pour publier sur l'App Store 
 donc la question n'est pas « si » mais « quand ». Compte tenu de la consigne
 « minimiser les coûts », **pas maintenant**.
 
-**7. Réconcilier `savoir-themes`** (`a1fc76f`) — 922 insertions sur
-`KnowledgeView`. Une branche laissée vivante EST le mécanisme de la divergence
-(§ 11). Le correctif du § 17.2 y entrera en conflit, sur six lignes.
+**7. ✅ FAIT — `savoir-themes` a rejoint le tronc** (`1d4c161`), et le site a
+suivi le jour même (`0e6b51c` dans `shale-site`). Deux conflits seulement,
+exactement là où on les attendait. La refonte rend ma rustine du matin inutile
+et fait mieux : sa grille de cartes se replie toute seule en une colonne sur
+téléphone. Vérifié à l'écran — accueil en cases de thèmes, descente dans un
+thème avec fil d'Ariane, aucun débordement.
+
+### ▶️ 8. La DERNIÈRE branche non fusionnée : `feat/bouton-sortie-note`
+
+Recensé au `git branch --no-merged` : c'est la seule qui reste. Elle apporte
+deux choses, vérifiées comme ABSENTES du tronc (`grep` sur « Terminé » et
+« Enregistré » : zéro occurrence) :
+
+- **une sortie explicite dans le lecteur de fiche** (`373dfba`). Aujourd'hui une
+  fiche ouverte ne se referme que par Échap ou par un clic hors du cadre —
+  aucun des deux ne s'affiche à l'écran, et le second est justement celui qu'on
+  n'ose pas quand on vient d'écrire. ⚠️ **C'est un défaut de tactile pur** :
+  sur iPhone il n'y a NI Échap, ni « clic hors du cadre » évident ;
+- **la règle « une seule app Shale installée »** (`3d6289b`), 224 lignes de
+  `CLAUDE.md`.
+
+⚠️ **Le piège de cette fusion-là, et il est nouveau.** La branche modifie
+l'ANCIEN `KnowledgeView` — celle de `savoir-themes` l'a entièrement réécrit
+depuis. Ce n'est donc pas une fusion à arbitrer hunk par hunk, c'est un
+comportement à **re-porter** sur un fichier qui ne se ressemble plus. Fusion à
+blanc : 2 conflits (`CLAUDE.md`, `KnowledgeView.tsx`).
+
+▶️ Ne pas la fusionner mécaniquement. Lire d'abord ce que le lecteur de fiche
+est devenu après la refonte, puis décider si le pied « ✓ Enregistré · Terminé »
+s'y greffe tel quel ou s'écrit autrement.
 
 ### 17.3 bis ⚠️ Un échec de test que je n'ai pas expliqué
 
