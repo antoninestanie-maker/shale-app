@@ -1383,6 +1383,18 @@ comme le demandait le § 5.2.
 survol. Le survol collant d'iOS la fait probablement apparaître au premier tap,
 mais **ça n'a pas été vérifié** — aucune saisie tactile n'est scriptable.
 
+> **Correction du 2026-08-27, 18 h 54 — tranché, et depuis plus longtemps que
+> ce paragraphe ne le croyait.** `4b2c8b4` (11 h 34) avait déjà étendu le garde
+> `[@media(pointer:coarse)]:hidden` à la barre ⠿ / ✕ / ⟲ ET à la poignée de
+> repli, pas seulement à la poignée de resize. Le « non tranché » ci-dessus
+> décrit l'état de 10 h 36 et n'a jamais été relu après le correctif de 11 h 34.
+>
+> Vérifié à l'écran, doigt posé sur une carte d'Aujourd'hui : la carte prend
+> visiblement son état de survol — donc le survol collant d'iOS **a bien été
+> déclenché** — et aucune barre n'apparaît. C'est la bonne forme de la preuve :
+> une capture où rien ne s'affiche ne prouve rien tant qu'on n'a pas montré que
+> le déclencheur, lui, a bien tiré.
+
 **3. Le briefing de marché.** `Schedule::Interval`, comme le § 13.4 l'exigeait.
 Les créneaux sont calculés par le FRONT (`src/lib/market/rappels.ts`) et
 repoussés à chaque projection : Market Brain raisonne en heure de **Paris**,
@@ -1455,6 +1467,11 @@ qui précède. Le § 18 est le détail ; celui-ci se suffit.*
 | App macOS | reconstruite et réinstallée le 2026-08-27 à midi |
 | App iOS | tourne **sur le SIMULATEUR**, jamais sur un appareil réel |
 | File d'attente | **vide**, sauf ce qui demande le compte Apple (§ 17.5) |
+
+⚠️ **Avant de croire une capture d'écran, vérifier que le bundle installé n'est
+pas plus vieux que le dernier commit du front.** Le 2026-08-27 au soir, trois
+minutes d'écart ont fait passer un garde déjà écrit pour un défaut du code.
+La commande et le raisonnement complet : **§ 19.1**.
 
 Ligne de base à rejouer avant de croire quoi que ce soit :
 
@@ -1637,6 +1654,16 @@ pointeur, à porter au tactile ». Lu dans le fichier : il utilise déjà les
 Pointer Events, avec `touch-action: none` et `setPointerCapture`. Rien à faire.
 ⚠️ Non vérifié à l'écran — il faut créer une fiche du Savoir pour l'atteindre.
 
+> **Vérifié le 2026-08-27 à 18 h 48.** Chemin : Savoir → thème → note →
+> « Insérer » → Croquis. Un tracé de six points envoyé en `touch_path` sort en
+> courbe lissée, sans défilement parasite — `touch-action: none` tient — et
+> « Annuler » comme « Tout effacer » passent de grisés à actifs. La feuille
+> plein écran tient dans les 402 pt. **L'audit avait raison : rien à porter.**
+>
+> ⚠️ Fermé par la croix, jamais par « Enregistrer ». La base du simulateur est
+> synchronisée avec celle du Mac (§ 17.4) : un croquis enregistré ici
+> atterrirait dans les vraies notes d'Antonin.
+
 **5. ❌ ÉCARTÉ — la parité BUREAU du briefing.** Antonin, le 2026-08-27 :
 *« les notifications sont plus importantes sur le téléphone, alors le mieux est
 de mettre la priorité sur le mobile et de minimiser les coûts »*.
@@ -1766,3 +1793,98 @@ le tronc, pas à vivre.
 de synchronisation au vert. ⚠️ Une réinstallation REDEMANDE l'accès au
 trousseau — l'app est signée ad hoc, sa signature change à chaque
 reconstruction. Détail dans `CLAUDE.md`.
+
+---
+
+## 19. La soirée du 2026-08-27 — le simulateur mentait, et il avait l'air d'avoir raison
+
+*La file du § 18.3 ne contenait plus que ce qui attend Antonin. Cette session
+est partie fermer les deux derniers ⚠️ « non vérifié », et en a trouvé un
+troisième que personne ne cherchait.*
+
+### 19.1 ⭐ Le build installé était en retard de trois minutes sur l'arbre
+
+**Et un build en retard ne se signale pas : il se lit comme un défaut du code.**
+
+La séquence, parce que c'est elle qui vaut, pas la conclusion :
+
+1. Note ouverte dans Savoir, sur téléphone : le bouton « Terminé » portait une
+   pastille **`⌘↵`** — un raccourci clavier annoncé sur un appareil qui n'a pas
+   de touche ⌘.
+2. Lu dans le code : le garde `{!isPhone && (…)}` était **déjà là**, avec un
+   commentaire qui décrivait exactement le défaut observé. Première hypothèse
+   naturelle : `isPhone` est faux.
+3. Réfutée à l'écran. Trente lignes plus haut, le MÊME `isPhone` commande la
+   réserve du pied sous la barre d'onglets — et cette réserve, elle, **était
+   visiblement appliquée**. `isPhone` valait donc vrai.
+4. `git blame` sur les deux lignes : **le même commit, `61f9586`, à la même
+   seconde, 15:47:07.** Or le bundle installé datait de **15:44:37**.
+
+Le correctif de réserve avait été construit et vu ; le garde de la pastille est
+venu deux minutes plus tard, dans le même commit, **et personne n'a reconstruit
+avant de déclarer la file vide**.
+
+▶️ **La règle qui en sort, et qui n'existait nulle part :**
+
+```
+stat -f "%Sm" <…>/Shale.app        # date du bundle installé
+git log -1 --format=%cd -- src/    # dernier commit qui touche le FRONT
+```
+
+**Si le bundle est plus ancien, tout ce qu'on lit à l'écran est périmé.** À
+faire avant d'ouvrir une capture, pas après avoir écrit un rapport dessus.
+
+⚠️ Le piège est vicieux parce qu'il est *partiellement* faux : l'app tournait,
+les données étaient bonnes, quatorze vues sur quatorze s'affichaient. Un seul
+`&&` manquait. Rien dans l'écran ne dit « je suis vieux ».
+
+Reconstruit selon le § 17.3 : la pastille disparaît, **et le pied repasse de
+deux lignes à une seule** — `+ tag` · corbeille · « Enregistré » · « Terminé ».
+Le commentaire du code disait « elle vole la place du libellé sur 402 pt ».
+C'était mesuré juste.
+
+### 19.2 Les deux ⚠️ du § 16.1 et du § 18.3 sont fermés
+
+Corrections posées à leur date, à l'endroit de l'erreur — pas substituées.
+
+| Ce qui était ouvert | Verdict |
+|---|---|
+| Barre ⠿ / ✕ / ⟲ au survol collant (§ 16.1-2) | ✅ jamais un défaut — `4b2c8b4`, 11 h 34, l'avait déjà gardée ; le ⚠️ n'avait pas été relu |
+| `SketchPad` au doigt (§ 18.3-4 bis) | ✅ tracé à l'écran, rien à porter — l'audit avait raison |
+
+⚠️ **Sur la forme de la preuve.** Pour la barre, une capture où rien n'apparaît
+ne prouve rien : elle est identique à une capture où le survol n'a pas été
+déclenché. Ce qui la rend valide, c'est que la carte prend visiblement son état
+de survol dans la même image — **le déclencheur a tiré, et le contrôle est
+resté caché.** Même exigence que la leçon du § 18.2 sur la capture « au repos ».
+
+### 19.3 Ligne de base rejouée, et le rappel a survécu
+
+`cargo check --all-targets` ✅ · `--target aarch64-apple-ios-sim` ✅ ·
+`cargo test --lib` **112** ✅ · `tsc` ✅ · `npm test` **392/392** ✅
+*(neuvième exécution verte de suite ; le § 17.6 reste sans explication et sans
+récidive).*
+
+Magasin d'iOS relu après reconstruction :
+
+```
+identifiants : ['737976655']              ← une seule, la règle des habitudes
+titre        : "2 habitudes t'attendent"
+intervalle   : 4020 s  →  18:53:08 + 4020 = 20:00:08
+```
+
+La purge par registre a bien emporté les échéances du build précédent, et le
+briefing 8 h / 14 h est absent — attendu, la clé IA n'existe pas sur le
+simulateur (§ 16.1-3). ⚠️ Les 8 secondes sont la latence entre le calcul du
+créneau et son dépôt, pas le bogue d'arrondi du § 16.1 : celui-là portait sur
+les MINUTES et faisait tomber la bannière à 8 h 01.
+
+### 19.4 ▶️ Ce qui reste — inchangé
+
+Rien de neuf dans la file. Elle tient toujours en une ligne : **le push
+silencieux attend le programme développeur Apple payant**, et avant de payer,
+la question de produit du § 17.5 (achats intégrés Apple contre Stripe) attend
+Antonin. Ne pas trancher à sa place.
+
+Et toujours : **voir tomber une bannière à 20 h, app fermée.** Tout est armé
+depuis 18 h 53. Personne ne peut regarder à notre place.
