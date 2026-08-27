@@ -1022,7 +1022,91 @@ l'heure projetée. Aucune règle n'est réimplémentée, donc aucune ne peut div
 entre le bureau et le téléphone — ce qui est très exactement le point 4 du
 cahier des charges.
 
-### 13.6 Un défaut mineur, relevé au passage
+### 13.6 ⚠️ DEUX BUGS DU GREFFON sur iOS — mesurés à l'exécution
+
+*Ceux-là ne se lisent pas dans la doc : ils se voient quand on essaie. Les deux
+concernent la même chose — **savoir ou effacer ce qui est en attente** — et à
+eux deux ils ferment toutes les portes officielles.*
+
+**Bug n°1 — `cancel_all()` ne peut pas marcher.** Le Rust envoie `()`, donc
+`null` :
+
+```rust
+pub fn cancel_all(&self) -> crate::Result<()> {
+    self.0.run_mobile_plugin("cancel", ())   // → null
+}
+```
+
+et le Swift, lui, exige un objet **sans condition** :
+
+```swift
+@objc func cancel(_ invoke: Invoke) throws {
+  let args = try invoke.parseArgs(CancelArgs.self)   // { notifications: [Int] }
+```
+
+Résultat observé, mot pour mot :
+
+```
+annulation impossible : DecodingError.valueNotFound: Expected value of type
+Dictionary<String, Any> but found null instead
+```
+
+Il n'existe par ailleurs **aucun appel à `removeAllPendingNotificationRequests()`**
+dans le Swift du greffon. La fonction n'est pas mal appelée : elle est
+inopérante.
+
+**Bug n°2 — `pending()` ne peut pas se désérialiser.** Le `PendingNotification`
+Rust réclame quatre champs, dont un **non optionnel** :
+
+```rust
+pub struct PendingNotification { id, title, body, schedule: Schedule }
+```
+
+Le `PendingNotification` Swift n'en encode que trois :
+
+```swift
+struct PendingNotification: Encodable { let id: Int; let title: String; let body: String }
+```
+
+`schedule` manque toujours, donc la désérialisation échoue toujours.
+
+⚠️ **Ce bug-là est vicieux, parce qu'il MENT par omission.** Notre code faisait
+`en_attente(&app).unwrap_or_default()` : l'erreur devenait une liste vide, et
+l'écran de diagnostic annonçait « déposés : 1 · en attente côté système : 0 ».
+On a cru pendant trois cycles que le dépôt échouait. **Il n'échouait pas.**
+
+**Comment on a tranché : en lisant le magasin d'iOS à la main.** Le simulateur
+range ses échéances dans
+
+```
+<appareil>/data/Library/UserNotifications/<uuid>/PendingNotifications.plist
+```
+
+Décodé, il contenait exactement ce qu'il fallait :
+
+```
+identifiants : ['737976655']            ← notre id_systeme
+titres       : ["2 habitudes t'attendent"]
+intervalles  : [60231.33]               ← 16 h 43 min, déposé à 03:16:08
+```
+
+`03:16:08 + 16 h 43 min 51 s = 20:00:00`. **Le rappel était armé, à la bonne
+heure, depuis le début** — et au passage, c'est la confirmation de bout en bout
+du contournement de fuseau du § 13.3 : un instant UTC aurait donné deux heures
+de moins.
+
+**Le contournement retenu : tenir le registre nous-mêmes.** `cancel(ids)`, lui,
+marche — il porte ses arguments. On garde donc les identifiants déposés dans
+`EngineState::scheduled_ids` (`notifications.json`), et on annule exactement
+ceux-là au tour suivant. `id_systeme` étant stable, redéposer remplace de toute
+façon l'échéance de même identifiant côté iOS ; le registre ne sert qu'au cas
+où une échéance n'a plus de plan du tout.
+
+Et l'écran **n'affiche plus** de « en attente côté système » : un compte qui
+vaudra toujours zéro fait accuser le dépôt d'un échec qui n'a pas lieu. C'est
+littéralement ce qui s'est passé.
+
+### 13.7 Un défaut mineur, relevé au passage
 
 `emitter.rs`, `deliver_test()` choisit son texte ainsi :
 
@@ -1138,81 +1222,66 @@ prochaine session.
 
 ---
 
-## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 2 h 45)
+## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 3 h 20)
 
-**Branche `mobile-ios`**, dix commits, **rien n'est poussé sur GitHub**.
+**Branche `mobile-ios`**, douze commits, **rien n'est poussé sur GitHub**.
 
-### Ce qui est prouvé, exécuté, commité
+### 15.1 ✅ Le rappel local est ARMÉ dans iOS — prouvé, pas déduit
+
+C'était LE jalon du produit. Il est franchi. Lu dans le magasin d'iOS lui-même,
+pas dans notre code :
+
+```
+identifiants : ['737976655']            ← id_systeme, tel que nous l'avons calculé
+titres       : ["2 habitudes t'attendent"]
+corps        : "Il te reste 2 habitudes à cocher aujourd'hui (Rffds, Diss)."
+intervalles  : [60231.33]               ← déposé à 03:16:08 → 20:00:00 pile
+```
+
+Une seule échéance, aucun doublon après plusieurs cycles de dépôt. Et le
+contournement de fuseau du § 13.3 est confirmé par l'arithmétique : un instant
+UTC aurait donné 60 231 − 7 200 secondes, soit 18 h.
+
+**Ce qu'il reste à voir de ses yeux : la bannière tomber à 20 h, app fermée.**
+C'est de l'attente, plus du travail.
+
+### 15.2 Ce que la nuit a corrigé
 
 | | |
 |---|---|
 | Réconciliation Windows | `4ca4080` |
-| Audit iOS | `c6b5867` — ce fichier |
+| Audit iOS | `c6b5867` |
 | Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
-| L'app tourne sur iPhone 17, `crypto.subtle` disponible | `5ebc08b` |
-| Barre d'onglets mobile | `360bd19` — **VUE à l'écran** |
-| Contrat de planification iOS, mesuré | `069806f` — § 13 |
+| L'app tourne sur iPhone, `crypto.subtle` disponible | `5ebc08b` |
+| Barre d'onglets mobile | `360bd19` — **VUE**, et utilisée par Antonin |
+| Contrat de planification mesuré | `069806f` — § 13 |
 | Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
-| Journal : § 12 réécrit, § 14 débogage, § 15 | `7254b8f` |
-| **Rappels iOS : projection + dépôt** | `9fd2993` — § 15.1 |
+| Journal : § 12, § 14 débogage | `7254b8f` |
+| Rappels iOS : projection + dépôt | `9fd2993` |
+| Icône, formateur du futur, registre d'identifiants | ce commit |
 
 Ligne de base : `cargo check --all-targets` ✅ · `cargo check --target
-aarch64-apple-ios-sim` ✅ · `cargo test --lib` **97** (88 + 9) ✅ ·
-`test:types` ✅ · `npm test` 381 ✅ · `i18n:check` 1053 entrées, 0 manquante ✅
+aarch64-apple-ios-sim` ✅ · `cargo test --lib` **97** ✅ · `test:types` ✅ ·
+`npm test` **388** ✅ · `i18n:check` 1054 entrées, 0 manquante ✅
 
-### 15.1 Le planificateur iOS — écrit, testé, **pas encore déclenché**
+### 15.3 Ce qui reste
 
-`src-tauri/src/notifications/planner.rs`. Le cœur est **pur et compilé
-partout**, donc couvert par `cargo test --lib` sur le Mac : neuf tests portent
-la projection, l'idempotence, le plafond, la sérialisation de la date et la
-stabilité de l'identifiant système. Seul `planner::depot` est sous
-`#[cfg(mobile)]`.
-
-Le principe, en une phrase : **`engine::evaluate` étant pur, on l'appelle avec
-un `now` projeté** — aujourd'hui 20 h — sur l'image de la base lue maintenant.
-Ce qu'il rend est la notification qui partirait à cette heure-là. Aucune règle
-n'est réimplémentée pour le téléphone.
-
-Câblage : `App.tsx` reprojette au démarrage et à chaque `visibilitychange`
-vers `hidden` ; les réglages listent ce qui est armé et affichent le compte
-rendu par le système à côté du nôtre.
-
-⚠️ **Ce qui reste à prouver, et il faut un doigt humain.** Le dépôt réel exige
-l'autorisation système. Elle n'est demandée que sur geste explicite (§ 3.6),
-donc personne ne l'a encore accordée. Tant qu'elle ne l'est pas, `notif_plan`
-calcule le plan et **ne dépose rien** — c'est le comportement voulu, pas une
-panne.
-
-**La séquence à faire faire à Antonin, cinq appuis :**
-
-1. **Plus** (en bas à droite) — vérifie au passage la barre d'onglets et la
-   feuille, jamais essayées ;
-2. **Réglages** ;
-3. faire défiler jusqu'à **Notifications** ;
-4. **Envoyer un test** → iOS ouvre son dialogue → **Autoriser** ;
-5. relire le bloc **« Rappels programmés »** : il doit annoncer une échéance à
-   20 h, et « déposés auprès d'iOS : 1 · en attente côté système : 1 ».
-
-**Un écart entre ces deux nombres est le signal à guetter** : il voudrait dire
-que `show()` a réussi sans que le système retienne l'échéance.
-
-### 15.2 Ce qui reste après ça
-
-1. **Recevoir la bannière app fermée** — la preuve finale du § 3. Le simulateur
-   ne permet pas d'avancer l'horloge sans bouger celle du Mac ; le plus simple
-   sera une règle réglée sur l'heure suivante, puis l'attente.
+1. **Voir la bannière tomber à 20 h**, app fermée (§ 15.1). Attente.
 2. **`refresh()` sans `.catch`** (§ 14.4) — un « Chargement… » sans fin ni
    message, indiagnosticable sur appareil.
-3. **Aujourd'hui en pile verticale** (§ 5.3) — mesuré : pas de débordement,
-   mais le panneau DISCIPLINE reste plus étroit que l'écran.
+3. **Aujourd'hui en pile verticale** (§ 5.3) — mesuré : aucun débordement, mais
+   le panneau DISCIPLINE reste plus étroit que l'écran.
 4. **L'`AppIntent`** du bouton latéral (§ 4.1) — Swift, non commencé.
 5. **`inactivity` n'est pas projetée** : elle n'a pas d'heure, donc aucun
    instant à sonder. Décider de l'heure à lui donner sur téléphone.
+6. **Le briefing Market Brain 8 h / 14 h** (§ 10 décision 3) — c'est le seul
+   rappel SANS condition, donc le seul qui ait droit à `Schedule::Interval`
+   (§ 13.4). Non commencé.
 
 ### ⚠️ Ce qu'on ne peut PAS faire tant que le panneau n'est pas relancé
 
-**Aucune saisie tactile scriptable** (§ 12). C'est pour ça que la séquence
-ci-dessus demande un humain, et non parce que le code manque.
+**Aucune saisie tactile scriptable** (§ 12). Toute vérification qui demande un
+appui passe par Antonin. Le canal du § 14 couvre tout le reste sans le déranger.
 
 ### Décisions déjà prises — ne pas les rouvrir
 

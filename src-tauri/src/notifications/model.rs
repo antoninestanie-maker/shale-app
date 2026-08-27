@@ -166,6 +166,24 @@ pub struct LogEntry {
 #[serde(default)]
 pub struct EngineState {
     pub last_run_at: Option<DateTime<Local>>,
+    /// Identifiants des notifications DÉPOSÉES auprès du système (iOS).
+    ///
+    /// ⚠️ On tient ce registre nous-mêmes parce que le greffon ne sait pas
+    /// répondre à la question. Dans `tauri-plugin-notification` 2.3.3, les DEUX
+    /// chemins qui le permettraient sont cassés sur iOS, et c'est mesuré :
+    ///   - `cancel_all()` envoie `()` — donc `null` — à une commande Swift qui
+    ///     fait `parseArgs(CancelArgs.self)` sans condition. Elle exige
+    ///     `{"notifications": [...]}` et échoue sur `DecodingError`. Aucun
+    ///     `removeAllPendingNotificationRequests()` n'existe côté iOS ;
+    ///   - `pending()` échoue à la désérialisation : le `PendingNotification`
+    ///     Rust réclame un champ `schedule` NON optionnel, que le
+    ///     `PendingNotification` Swift n'encode pas.
+    ///
+    /// Sans ce registre, une échéance devenue fausse resterait armée pour
+    /// toujours — exactement la notification mensongère que tout le module
+    /// cherche à éviter. `cancel(ids)`, lui, marche : il porte ses arguments.
+    #[serde(default)]
+    pub scheduled_ids: Vec<i32>,
 }
 
 /// Contenu intégral de `notifications.json`.

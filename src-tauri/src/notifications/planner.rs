@@ -358,40 +358,55 @@ pub mod depot {
     /// vivre des rappels devenus faux — précisément ce que le § 3.2 cherche à
     /// éviter. `id_systeme` est stable, mais l'annulation globale couvre aussi
     /// les échéances qui n'ont plus de plan du tout.
-    pub fn deposer(app: &AppHandle, planned: &[Planned]) -> Result<usize, String> {
+    pub fn deposer(app: &AppHandle, planned: &[Planned], precedents: &[i32]) -> Vec<i32> {
         let n = app.notification();
-        n.cancel_all().map_err(|e| format!("annulation impossible : {e}"))?;
+        purger(app, precedents);
 
-        let mut deposees = 0;
+        let mut deposees = Vec::new();
         for p in planned {
             let Some(date) = date_greffon(p.at) else {
                 eprintln!("notifications : échéance illisible ({}), ignorée", p.at);
                 continue;
             };
+            let id = id_systeme(&p.entry);
             let r = n
                 .builder()
-                .id(id_systeme(&p.entry))
+                .id(id)
                 .title(&p.entry.title)
                 .body(&p.entry.body)
                 .schedule(Schedule::At { date, repeating: false, allow_while_idle: false })
                 .show();
             match r {
-                Ok(()) => deposees += 1,
+                Ok(()) => deposees.push(id),
                 // On continue : une échéance refusée ne doit pas emporter les
                 // autres. Le cas attendu est `pastScheduledTime`, si l'heure
                 // visée est passée entre le calcul et le dépôt.
                 Err(e) => eprintln!("notifications : dépôt refusé pour {} ({e})", p.at),
             }
         }
-        Ok(deposees)
+        deposees
     }
 
-    /// Ce que le système dit AVOIR en attente. C'est le seul contrôle honnête
-    /// du dépôt : `show()` peut réussir sans que l'échéance soit retenue.
-    pub fn en_attente(app: &AppHandle) -> Result<Vec<i32>, String> {
-        app.notification()
-            .pending()
-            .map(|v| v.into_iter().map(|n| n.id()).collect())
-            .map_err(|e| e.to_string())
+    /// Retire les échéances déposées au tour précédent.
+    ///
+    /// ⚠️ On passe les identifiants EN ARGUMENT au lieu de les demander au
+    /// système, et ce n'est pas un choix de style : dans le greffon 2.3.3, les
+    /// deux façons de les obtenir sont cassées sur iOS. Le détail est écrit une
+    /// fois pour toutes sur `EngineState::scheduled_ids` — c'est là qu'il faut
+    /// aller relire pourquoi, avant de « simplifier » ce code en rappelant
+    /// `cancel_all()`.
+    ///
+    /// ⚠️ **N'échoue jamais**, délibérément. Un dépôt vaut mieux qu'un dépôt
+    /// manqué : `id_systeme` étant stable, redéposer REMPLACE l'échéance de même
+    /// identifiant côté iOS. Ce qu'une purge ratée laisse derrière elle, c'est
+    /// une échéance qui n'a plus de plan du tout — le cas rare, contre lequel on
+    /// ne va pas sacrifier tous les autres rappels.
+    fn purger(app: &AppHandle, ids: &[i32]) {
+        if ids.is_empty() {
+            return;
+        }
+        if let Err(e) = app.notification().cancel(ids.to_vec()) {
+            eprintln!("notifications : purge impossible ({e})");
+        }
     }
 }

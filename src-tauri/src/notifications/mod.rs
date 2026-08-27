@@ -170,9 +170,15 @@ pub struct PlanReport {
     /// c'est un diagnostic utile, et sur iOS ça distingue « rien à dire » de
     /// « refusé par le système ».
     pub planned: Vec<PlannedInfo>,
+    /// Combien d'échéances le système a acceptées. Zéro sur le bureau.
+    ///
+    /// ⚠️ Il n'y a PAS de « ce que le système dit avoir en attente » ici, et
+    /// c'est une limite du greffon, pas un oubli : `pending()` échoue toujours
+    /// à la désérialisation sur iOS en 2.3.3. Voir `EngineState::scheduled_ids`.
+    /// Afficher un compte qui vaudra toujours zéro accuserait le dépôt d'un
+    /// échec qui n'a pas lieu — c'est exactement ce qui s'est produit le
+    /// 2026-08-27 avant qu'on lise le magasin du système à la main.
     pub deposited: usize,
-    /// Ce que le système DIT avoir en attente. Vide sur le bureau.
-    pub pending: Vec<i32>,
 }
 
 #[derive(serde::Serialize)]
@@ -192,9 +198,9 @@ pub struct PlannedInfo {
 #[tauri::command]
 pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
     // Copies possédées : le verrou du store ne doit pas traverser un `await`.
-    let (prefs, log) = {
+    let (prefs, log, deja_deposees) = {
         let f = app.state::<NotifStore>().read();
-        (f.preferences.clone(), f.log.clone())
+        (f.preferences.clone(), f.log.clone(), f.state.scheduled_ids.clone())
     };
     let now = chrono::Local::now();
 
@@ -223,19 +229,22 @@ pub async fn notif_plan(app: AppHandle) -> Result<PlanReport, String> {
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_else(|| "inconnue".into());
         if permission != "granted" {
-            return Ok(PlanReport { permission, planned: info, deposited: 0, pending: vec![] });
+            return Ok(PlanReport { permission, planned: info, deposited: 0 });
         }
-        let deposited = planner::depot::deposer(&app, &planned)?;
-        let pending = planner::depot::en_attente(&app).unwrap_or_default();
-        Ok(PlanReport { permission, planned: info, deposited, pending })
+        let ids = planner::depot::deposer(&app, &planned, &deja_deposees);
+        let deposited = ids.len();
+        // Le registre est la SEULE mémoire de ce qui est armé : le greffon ne
+        // sait pas répondre à la question (`EngineState::scheduled_ids`). S'il
+        // se perdait, une échéance devenue fausse resterait armée sans que rien
+        // ne puisse l'annuler.
+        app.state::<NotifStore>().update(|f| f.state.scheduled_ids = ids.clone());
+        Ok(PlanReport { permission, planned: info, deposited })
     }
     #[cfg(not(mobile))]
-    Ok(PlanReport {
-        permission: "sans-objet".into(),
-        planned: info,
-        deposited: 0,
-        pending: vec![],
-    })
+    {
+        let _ = deja_deposees;
+        Ok(PlanReport { permission: "sans-objet".into(), planned: info, deposited: 0 })
+    }
 }
 
 /// Ouvre le dialogue d'autorisation système. À n'appeler QUE depuis un geste

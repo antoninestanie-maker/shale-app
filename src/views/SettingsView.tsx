@@ -22,6 +22,7 @@ import {
   fetchPrefs,
   fetchStatus,
   formatWhen,
+  formatWhenAhead,
   ruleMeta,
   runNow,
   planNotifications,
@@ -278,7 +279,7 @@ export default function SettingsView() {
     }
     // Que l'autorisation soit accordée ou non, on reprojette : le plan sert
     // aussi de diagnostic, et sans autorisation il dit « rien déposé ».
-    await planNotifications().catch(() => null);
+    setPlan(await planNotifications().catch(() => null));
   };
 
   const patchRule = async (id: string, patch: RulePrefsPatch) => {
@@ -299,7 +300,15 @@ export default function SettingsView() {
     // serait jamais demandée et le test échouerait sans qu'on sache pourquoi.
     // Le geste est explicite et son objet est précisément d'éprouver la chaîne
     // système : c'est le bon endroit au sens du § 3.6 de `MOBILE.md`.
-    if (IS_IOS) await requestNotifPermission().catch(() => "");
+    if (IS_IOS) {
+      await requestNotifPermission().catch(() => "");
+      // ⚠️ Reprojeter TOUT DE SUITE. Le compte rendu affiché a été calculé au
+      // montage de l'écran, quand l'autorisation n'était pas encore accordée :
+      // il annonce donc « 0 déposé », ce qui était vrai à ce moment-là et ne
+      // l'est plus. Sans ce rappel, l'utilisateur autorise et voit toujours
+      // zéro — le diagnostic accuserait le dépôt d'un échec qui n'a pas eu lieu.
+      setPlan(await planNotifications().catch(() => null));
+    }
     const entry = await sendTest();
     setTestMsg(
       entry
@@ -765,15 +774,14 @@ export default function SettingsView() {
                   <ul className="mt-2 space-y-1">
                     {plan.planned.map((p) => (
                       <li key={`${p.at}-${p.title}`} className="text-xs text-text-dim">
-                        <span className="text-text">{formatWhen(p.at)}</span> — {p.title}
+                        <span className="text-text">{formatWhenAhead(p.at)}</span> — {p.title}
                       </li>
                     ))}
                   </ul>
                 )}
                 {IS_IOS && (
                   <p className="mt-2 text-xs text-text-dim">
-                    {t("Déposés auprès d'iOS")} : {plan.deposited} · {t("en attente côté système")} :{" "}
-                    {plan.pending.length}
+                    {t("Déposés auprès d'iOS")} : {plan.deposited}
                   </p>
                 )}
               </div>

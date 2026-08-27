@@ -199,9 +199,15 @@ export interface PlanReport {
   /** `granted` | `denied` | `prompt` sur iOS ; `sans-objet` sur le bureau. */
   permission: string;
   planned: { at: string; title: string; rules: string[] }[];
+  /**
+   * Combien d'échéances iOS a acceptées. Zéro sur le bureau.
+   *
+   * ⚠️ Il n'y a volontairement PAS de « en attente côté système » : le
+   * greffon ne sait pas répondre à cette question sur iOS en 2.3.3 — voir
+   * `EngineState::scheduled_ids` côté Rust. Un compte qui vaudrait toujours
+   * zéro ferait accuser le dépôt d'un échec qui n'a pas lieu.
+   */
   deposited: number;
-  /** Ce que le système DIT avoir en attente. Vide sur le bureau. */
-  pending: number[];
 }
 
 /**
@@ -287,6 +293,27 @@ export async function clearNotifications(): Promise<NotifEntry[]> {
  * Horodatage relatif court, à la façon de macOS. On reste sur des repères
  * lisibles d'un coup d'œil plutôt que sur une date complète.
  */
+/**
+ * Une échéance À VENIR — « aujourd'hui à 20:00 ».
+ *
+ * ⚠️ NE PAS réutiliser `formatWhen` pour ça, et c'est une erreur que j'ai
+ * faite : il est écrit pour le PASSÉ (`now - date`, puis « il y a N min »).
+ * Sur une date future l'écart est négatif, donc `< 1`, et il répond
+ * « à l'instant ». L'écran des rappels programmés annonçait ainsi un rappel
+ * de 20 h comme s'il venait de partir.
+ */
+export function formatWhenAhead(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const hhmm = d.toTimeString().slice(0, 5);
+  const day = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const demain = new Date(now);
+  demain.setDate(demain.getDate() + 1);
+  if (day(d) === day(now)) return t("aujourd'hui à {time}", { time: hhmm });
+  if (day(d) === day(demain)) return t("demain à {time}", { time: hhmm });
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} à ${hhmm}`;
+}
+
 export function formatWhen(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
