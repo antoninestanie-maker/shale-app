@@ -2093,6 +2093,20 @@ Ce que ça renforce, plutôt que ça ne l'affaiblit : ce qui doit se répartir
 entre deux sessions n'est pas le dépôt, ce sont les **répertoires de build** et
 les **chemins commités**.
 
+⭐ **Et la démonstration est tombée dix secondes plus tard.** Les deux commits
+qui suivent cette correction sont séparés de **dix secondes** :
+
+```
+e007b35  19:25:37  Sans DEVELOPMENT_TEAM, pas une ligne n'est compilée   ← l'autre session
+459d4cf  19:25:47  Deux sessions, un seul worktree                        ← celle-ci
+```
+
+Écrits par deux sessions différentes, dans le même index, à dix secondes
+d'intervalle. `git show --stat` sur le second ne rend qu'un fichier :
+`MOBILE.md`. La discipline a tenu — mais elle n'a tenu que parce que le
+`git add` nommait un chemin. Un `-a` à cet instant précis aurait emporté la
+signature de l'autre sous un message parlant d'index partagé.
+
 ### 20.6 ⭐ L'app OUVRE sur le téléphone, et le rappel y est armé
 
 *Suite du 2026-08-27, 19 h 20. Antonin a fait confiance au profil.*
