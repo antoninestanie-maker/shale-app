@@ -69,6 +69,15 @@ targets:
         RUST_LOG: info
     settings:
       base:
+        # ⚠️ Ajouté à la main le 2026-08-27, et à REMETTRE si `tauri ios init`
+        # régénère ce fichier : sans équipe déclarée, xcodebuild refuse la cible
+        # device dès `GatherProvisioningInputs` — AVANT toute compilation, et
+        # sans que `CODE_SIGNING_ALLOWED=NO` y change quoi que ce soit.
+        # `QXU2BNU373` est la Personal Team GRATUITE d'Antonin : profil de
+        # 7 jours, renouvelable en rebranchant. `Automatic` est obligatoire —
+        # une équipe gratuite n'a pas de profil manuel à télécharger.
+        DEVELOPMENT_TEAM: QXU2BNU373
+        CODE_SIGN_STYLE: Automatic
         # ⚠️ Ajouté à la main, et à REMETTRE si `tauri ios init` régénère ce
         # fichier : la cible contient désormais du Swift
         # (`Sources/shale/QuickNoteIntent.swift`, l'AppIntent du bouton

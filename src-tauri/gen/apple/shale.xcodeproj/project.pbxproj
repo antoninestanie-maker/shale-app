@@ -207,18 +207,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_0FFECDDD-52EA-4A04-8248-1843C385EB9E" /* x86_64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = x86_64;
-			sourceTree = "<group>";
-		};
-		"TEMP_59FF254D-AADF-4AF7-8AC8-EA19C297F572" /* arm64 */ = {
+		"TEMP_4BDDCCF4-76E3-484F-BA19-7440C10644B3" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = arm64;
+			sourceTree = "<group>";
+		};
+		"TEMP_54ADA097-04D1-43B0-86EB-730CF8A9A5AB" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -253,6 +253,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					E7C1A97740DA8E14E0CDBB0B = {
+						DevelopmentTeam = QXU2BNU373;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 61881C81F4876B2C127BE818 /* Build configuration list for PBXProject "shale" */;
@@ -397,6 +401,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = shale_iOS/shale_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QXU2BNU373;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -485,6 +491,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = shale_iOS/shale_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QXU2BNU373;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
