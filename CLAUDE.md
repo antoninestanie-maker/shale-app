@@ -2717,9 +2717,11 @@ Windows, la veille, est qu'une branche par plateforme EST le mécanisme de la
 divergence.
 
 **Lire `MOBILE.md`** — l'audit complet, les décisions arrêtées, et son
-**§ 17 « REPRENDRE ICI »** qui donne l'état exact, la file d'attente et la
-procédure de build. (Les consignes antérieures renvoyant au § 12 ou au § 15
-sont périmées : ces sections sont devenues des archives datées.)
+**§ 17 « PASSATION »** — il se suffit à lui-même : état du dépôt, ligne de base
+à rejouer, procédure de build iOS avec ses quatre pièges, ce qu'il ne faut
+JAMAIS faire, et ce qui reste. (Les consignes antérieures renvoyant au § 12, au
+§ 15 ou au § 17 « REPRENDRE ICI » sont périmées : ces sections sont devenues des
+archives datées.)
 
 ### ⭐ Le risque n°1 du projet n'existe pas
 

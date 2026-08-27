@@ -833,7 +833,7 @@ relecture a laissé passer un module entier** (§0.3).
 |---|---|---|
 | 1 | **Réconcilier Windows avant tout iOS** | ✅ **fait le 2026-08-26** — commit `4ca4080`, tronc avancé. Détail en §11 |
 | 2 | Notifications : **local + push (voie C)** | ✅ **arrêté.** Antonin veut « que Mac et téléphone soient liés dans tous les cas » — c'est exactement ce que le push silencieux résout, et lui seul (§3.2). Le compte développeur étant de toute façon nécessaire pour publier, l'argument « A est gratuit » perd son poids. **Ordre de construction : le local d'abord** (Phase 3, testable au simulateur sans compte), le push ensuite. |
-| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **FAIT le 2026-08-27** (§ 16), armé et lu dans le magasin d'iOS. **Mobile UNIQUEMENT** : la parité bureau est écartée, pas oubliée (§ 17.3). ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
+| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **FAIT le 2026-08-27** (§ 16), armé et lu dans le magasin d'iOS. **Mobile UNIQUEMENT** : la parité bureau est écartée, pas oubliée (§ 18.3). ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
 | 4 | Raccourcis natifs : un **geste physique qui ouvre la note rapide** | ✅ **FAIT le 2026-08-27** — `AppIntent` Swift + pont par fichier, mesuré au simulateur (§ 16). Reste à Antonin : l'associer au bouton Action |
 | 5 | Navigation mobile | ✅ **tranché** — barre d'onglets à 5 + « Plus » sectionné par catégories (§5.4) |
 | 6 | Grille Aujourd'hui : **ne rien faire** | ✅ **arrêté** — conforme à la mesure du chantier responsive |
@@ -1440,31 +1440,140 @@ avant, 10 après**, drapeau jeté.
 
 ---
 
-## 17. Le tour des quatorze écrans — 2026-08-27, midi
+## 17. ▶️ PASSATION — tout ce qu'il faut pour reprendre
+
+*Écrit le 2026-08-27 en fin de journée, pour quelqu'un qui n'a rien vécu de ce
+qui précède. Le § 18 est le détail ; celui-ci se suffit.*
+
+### 17.1 L'état, en six lignes
+
+| | |
+|---|---|
+| Branche | `mobile-ios`, **poussée** (`origin/mobile-ios`) |
+| Arbre | propre |
+| Branches non fusionnées | **zéro** — `git branch --no-merged` ne rend rien |
+| App macOS | reconstruite et réinstallée le 2026-08-27 à midi |
+| App iOS | tourne **sur le SIMULATEUR**, jamais sur un appareil réel |
+| File d'attente | **vide**, sauf ce qui demande le compte Apple (§ 17.5) |
+
+Ligne de base à rejouer avant de croire quoi que ce soit :
+
+```
+cd src-tauri && cargo check --all-targets          # ✅
+cargo check --target aarch64-apple-ios-sim         # ✅
+cargo test --lib                                   # 112 ✅
+cd .. && npx tsc --noEmit && npx vite build        # ✅
+npm run test:types && npm test                     # 392 ✅
+npm run i18n:check                                 # 1115 entrées, 0 manquante
+```
+
+### 17.2 ⭐ Ce qui a changé pour VOUS, session suivante
+
+**Le panneau du simulateur fonctionne depuis le 2026-08-27 à midi.** Tap, swipe,
+capture : la navigation dans les quatorze vues ne demande plus personne. C'est
+la capacité qui a rendu possible tout le travail de l'après-midi.
+
+⚠️ Il a fallu créer `/var/db/xcode_select_link`, qui n'existait pas. Si l'outil
+redit un jour « Xcode is installed but not selected » : **c'est vrai**, et
+`xcode-select -p` ne répond PAS à cette question — il répond par repli. Vérifier
+le lien, pas la commande. Le § 8 bis porte le diagnostic complet.
+
+### 17.3 La procédure de build iOS, et ses quatre pièges
+
+```
+rm -rf <CHEMIN_ABSOLU>/src-tauri/gen/apple/build/arm64-sim/Shale.app \
+       <CHEMIN_ABSOLU>/src-tauri/gen/apple/build/shale_iOS.xcarchive
+PATH="/opt/homebrew/bin:$HOME/.local/bin:$PATH" \
+  npm run tauri ios build -- --debug --target aarch64-sim
+xcrun simctl install booted src-tauri/gen/apple/build/arm64-sim/Shale.app
+xcrun simctl launch booted com.atnfx.shale
+```
+
+1. ⚠️ **Nettoyer en chemin ABSOLU.** `tauri ios build` échoue sur une sortie
+   existante *en rendant un code de sortie 0* : on installe alors l'ancienne app
+   et on lit un résultat périmé. Un `cd` laissé d'une commande précédente a
+   suffi à retendre le piège.
+2. ⚠️ **`tauri ios build` ne relance PAS XcodeGen.** Après tout ajout de source
+   Swift : `xcodegen generate` dans `gen/apple`, sinon le fichier est absent de
+   la compilation, en silence.
+3. ⚠️ **Régénérer après un build embarque `libapp.a` dans le bundle** — d'où
+   l'`excludes: ["**/*.a"]` de `project.yml`. Ne pas le retirer.
+4. ⚠️ **Attendre ~15 s après `launch`** avant de taper : une tape envoyée
+   pendant le chargement se perd, et on croit que l'écran ne réagit pas.
+
+### 17.4 ⚠️ Ce qu'il ne faut JAMAIS faire
+
+- **`simctl uninstall` ou `simctl erase`.** La session du simulateur a été
+  ouverte à la main UNE fois ; ces deux commandes la reperdraient, et Claude ne
+  saisit pas d'identifiants.
+- **Connecter le clavier matériel du Simulateur.** Sa base est synchronisée avec
+  le Mac d'Antonin : une frappe tombée dans un champ de saisie écrirait dans ses
+  vraies notes, et la synchronisation les lui rapporterait.
+- **Saisir un mot de passe, où que ce soit.** Pour un `sudo`, poser un
+  `.command` sur le Bureau et le lancer avec `open` — Antonin n'a que son mot de
+  passe à taper. Précédents : Homebrew, puis `xcode-select`.
+- **Écrire « vu sur ton iPhone » quand c'est le simulateur.** Voir l'encadré en
+  tête de ce document.
+
+### 17.5 ▶️ Ce qui reste, et qui attend Antonin
+
+**Le push silencieux** (§ 10, décision 2, seconde moitié) — la seule chose
+inachevée du portage. Il demande le programme développeur Apple payant : la
+capacité push n'existe pas sur un identifiant gratuit.
+
+⚠️ Et avant de payer, une question de PRODUIT est ouverte, indépendante du
+code : sur iOS, un abonnement numérique passe normalement par les achats
+intégrés d'Apple, pas par Stripe. `STRIPE_ENABLED = false` cesse alors d'être un
+interrupteur pour devenir une décision (§ 7.2). **Ne pas trancher à sa place.**
+
+Le compte gratuit permet déjà d'installer Shale sur l'iPhone RÉEL, avec un
+profil de 7 jours renouvelable en rebranchant. ⚠️ Deux gestes que seul Antonin
+peut faire : « Faire confiance à cet ordinateur » sur le téléphone, puis
+Réglages → Général → VPN et gestion d'appareils.
+
+### 17.6 ⚠️ Un échec de test jamais expliqué
+
+`npm test` a échoué UNE fois le 2026-08-27 : « 1 failed | 391 passed ». Le
+détail avait défilé avant capture — **le nom du test est inconnu**. Huit
+exécutions depuis, dont une sous contention CPU délibérée : 392/392.
+
+▶️ **Si ça revient : capturer le nom du test AVANT de relancer.** Ce dépôt a
+déjà connu ce genre d'intermittence (`749b981`).
+
+### 17.7 Décisions arrêtées — ne pas les rouvrir
+
+§ 10 fait foi. Et deux ajouts du 2026-08-27 :
+
+- **le briefing de marché reste MOBILE**, la parité bureau est écartée (§ 18.3) ;
+- **le push attend**, priorité au mobile et aux coûts minimaux.
+
+---
+
+## 18. Le tour des quatorze écrans — archive du 2026-08-27
 
 *La saisie tactile a été débloquée (§ 8 bis, correction du 11 h 40). Les douze
 vues que personne n'avait jamais regardées sur 402 pt l'ont enfin été.*
 
-### 17.1 Ce que le tour a trouvé
+### 18.1 Ce que le tour a trouvé
 
 | Vue | Verdict |
 |---|---|
 | **Aujourd'hui** | ✅ pile pleine largeur (corrigée le matin) |
-| **Tâches** | ✅ filtres, tags, liste — sauf le filtre de DATE, voir § 17.3 |
+| **Tâches** | ✅ filtres, tags, liste — sauf le filtre de DATE, voir § 18.3 |
 | **Timer** | ✅ **impeccable** : presets en 3+1, stepper, bascule, gros bouton |
 | **Objectifs** | ✅ en-tête et carte tiennent |
 | **Performance** | ✅ **très bien** : tuiles 2×2, graphique et axes lisibles |
-| **Finance** | ⚠️ étape 1 de la mise en route écrasée par son bouton (§ 17.3) |
+| **Finance** | ⚠️ étape 1 de la mise en route écrasée par son bouton (§ 18.3) |
 | **Notes** | ✅ maître-détail (corrigé le matin), vérifié dans les deux sens |
-| **Journal** | ⚠️ titre et bouton « Générer la revue » collés (§ 17.3) |
+| **Journal** | ⚠️ titre et bouton « Générer la revue » collés (§ 18.3) |
 | **Savoir** | ⭐ **débordait hors de l'écran** — corrigé |
-| **Trading** | ⚠️ « + Nouveau trade » gonflé en pastille ronde (§ 17.3) |
+| **Trading** | ⚠️ « + Nouveau trade » gonflé en pastille ronde (§ 18.3) |
 | **Market-Brain** | ✅ en-tête empilé proprement |
 | **Position** | ✅ **très bien** : formulaire à deux colonnes, tout tient |
-| **Réglages / Personnaliser** | ✅ après correction du libellé (§ 17.2) |
+| **Réglages / Personnaliser** | ✅ après correction du libellé (§ 18.2) |
 | **Tiroir « Plus »** | ✅ feuille du bas, poignée, intertitres par catégorie |
 
-### 17.2 Les trois défauts structurels, corrigés (`1f5e673`)
+### 18.2 Les trois défauts structurels, corrigés (`1f5e673`)
 
 **1. ⭐ Le contenu passait SOUS la Dynamic Island, dans les quatorze vues.**
 `paddingTop: env(safe-area-inset-top)` était posé À L'INTÉRIEUR du défilant. Un
@@ -1490,7 +1599,7 @@ Personnaliser sur `isAdmin` et omettait la Console. `ITEMS_PIED` est désormais
 la source unique. ⚠️ **Hors de `ITEMS`**, qui fait autorité sur le nombre
 « douze ».
 
-### 17.3 ▶️ CE QUI RESTE — la file d'attente
+### 18.3 ▶️ CE QUI RESTE — la file d'attente
 
 **1. ✅ FAIT — l'en-tête de vue se replie** (`6268d3f`). `.view-head` porte la
 règle une fois : `flex-wrap` + gouttières, et le groupe d'actions passe SOUS le
@@ -1604,7 +1713,7 @@ blanc : 2 conflits (`CLAUDE.md`, `KnowledgeView.tsx`).
 est devenu après la refonte, puis décider si le pied « ✓ Enregistré · Terminé »
 s'y greffe tel quel ou s'écrit autrement.
 
-### 17.3 bis ⚠️ Un échec de test que je n'ai pas expliqué
+### 18.3 bis ⚠️ Un échec de test que je n'ai pas expliqué
 
 `npm test` a échoué **une fois** le 2026-08-27 après-midi : « 1 failed | 391
 passed ». Le détail avait défilé avant capture — **je ne sais pas quel test**.
@@ -1618,7 +1727,7 @@ un `cargo check`) : 392/392 à chaque fois. Ni reproduit, ni expliqué, ni écar
 déjà connu ce genre d'intermittence — commit `749b981`, « Les tests ne mentent
 plus par intermittence ».
 
-### 17.4 Ce qu'une session Claude peut et ne peut pas faire
+### 18.4 Ce qu'une session Claude peut et ne peut pas faire
 
 ✅ **Depuis le 2026-08-27 à midi : tout piloter.** Le panneau du simulateur
 répond — tap, swipe, capture. Naviguer dans les quatorze vues ne demande plus
@@ -1637,20 +1746,20 @@ reperdraient.
 que ce soit : la base du simulateur est synchronisée avec le Mac d'Antonin, et
 une frappe tombée dans un champ de saisie écrirait dans ses vraies données.
 
-### 17.5 Décisions déjà prises — ne pas les rouvrir
+### 18.5 Décisions déjà prises — ne pas les rouvrir
 
 § 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
 note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
 Performance et Market Brain en consultation. Aucun module absent.
 
-### 17.6 État du dépôt
+### 18.6 État du dépôt
 
 **Branche `mobile-ios`**, poussée (`origin/mobile-ios`). Destinée à rejoindre
 le tronc, pas à vivre.
 
 `cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
 `cargo test --lib` **112** ✅ · `tsc` ✅ · `vite build` ✅ · `test:types` ✅ ·
-`npm test` **392** (voir § 17.3 bis) · `i18n:check` 1068 entrées, 0 manquante ✅
+`npm test` **392** (voir § 18.3 bis) · `i18n:check` 1068 entrées, 0 manquante ✅
 
 **App macOS reconstruite et réinstallée** le 2026-08-27 à midi
 (`/Applications/Shale.app`), lancée et vérifiée : données intactes, indicateur
