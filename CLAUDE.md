@@ -137,10 +137,20 @@ entrée la première fois.
   réconciliation Windows du 2026-08-26** : `examples/transcribe.rs`, qui importait
   `whisper_rs`/`hound` retirés des dépendances, a été supprimé. Ne plus se limiter
   à `--lib --tests --bins`, ce contournement n'a plus lieu d'être.
-- `cargo test --lib` dans `src-tauri/` — **88 tests** (dont les 79 du moteur de
-  notifications, le reste étant `crypto.rs`)
-- `npm test` — tests TypeScript (vitest). `npm run test:watch` en continu.
+- `cargo test --lib` dans `src-tauri/` — **108 tests** (le moteur de
+  notifications et son planificateur, `note_rapide.rs`, `crypto.rs`)
+- `npm test` — tests TypeScript (vitest), **392**. `npm run test:watch` en continu.
+  ⚠️ Tous de LOGIQUE PURE : il n'y a aucune infrastructure de test de rendu
+  React dans ce dépôt. Un correctif d'interface se vérifie donc à l'écran, pas
+  par un test — ne pas prétendre le contraire dans un message de commit.
 - `npm run test:types` — typecheck des TESTS (séparé de l'app, cf. section sync)
+- `npm run i18n:check` — toute clé passée à `t()` existe-t-elle dans `en.ts` ?
+  **1064 entrées, 0 manquante.**
+- iOS (simulateur) — la procédure complète est dans `MOBILE.md` § 12. Deux
+  choses à ne jamais oublier : nettoyer `gen/apple/build/…` en chemin **absolu**
+  avant chaque build (sinon on installe une sortie périmée, code de sortie 0),
+  et lancer `xcodegen generate` dans `gen/apple` après tout ajout de source
+  Swift (`tauri ios build` ne le fait pas).
 - Preview navigateur (`npx vite`) = **mode démo** : `isTauri` (src/lib/repo.ts:28) est faux → données factices en mémoire (`src/lib/demo.ts`, `src/lib/market/demo.ts`), pas de SQLite ni de réseau natif.
 
 **⚠️ Règle : après chaque modification majeure, réinstaller l'application.**
@@ -2574,8 +2584,10 @@ dépôt, ni un worktree, ni une branche permanente : la leçon de la réconcilia
 Windows, la veille, est qu'une branche par plateforme EST le mécanisme de la
 divergence.
 
-**Lire `MOBILE.md`** — l'audit complet, les décisions arrêtées, et son § 12
-« REPRENDRE ICI » qui donne l'état exact et la procédure de build.
+**Lire `MOBILE.md`** — l'audit complet, les décisions arrêtées, et son
+**§ 17 « REPRENDRE ICI »** qui donne l'état exact, la file d'attente et la
+procédure de build. (Les consignes antérieures renvoyant au § 12 ou au § 15
+sont périmées : ces sections sont devenues des archives datées.)
 
 ### ⭐ Le risque n°1 du projet n'existe pas
 
@@ -2626,12 +2638,77 @@ entre deux builds.
 `log show` ne trouve rien, même avec le bon prédicat. Pour diagnostiquer sur
 mobile : afficher à l'écran et photographier. Ce qui se voit se prouve.
 
-### Ce qui n'est PAS vérifié
+### ~~Ce qui n'est PAS vérifié~~ — levé le 2026-08-27 à 2 h
 
-L'app est au **mur de connexion** sur le simulateur, et Claude ne saisit pas les
-identifiants d'Antonin. Donc : la barre d'onglets n'a jamais été vue à l'écran,
-`shale.db` n'a jamais été créée sur iOS (les 19 migrations n'y ont jamais
-tourné), et la sync Mac ↔ iPhone n'a jamais été essayée. C'est le premier point
-à reprendre.
+Le mur de connexion a été franchi par **un geste humain de dix secondes** :
+Antonin s'est connecté dans la fenêtre du Simulateur. `xcrun simctl install`
+par-dessus le même identifiant de paquet **préserve le conteneur**, donc les
+rebuilds suivants entrent directement. Depuis : `shale.db` créée, 19 migrations
+passées, données synchronisées depuis le Mac, barre d'onglets vue et utilisée.
+
+⚠️ Seuls `simctl uninstall` et `simctl erase` reperdraient cette session.
+**Ne jamais les lancer.**
 
 `gen/apple/` est versionné, avec le `.gitignore` fourni par Tauri.
+
+## iPhone : les quatre chantiers de la matinée du 2026-08-27
+
+Détail, mesures et captures dans `MOBILE.md` § 16. L'essentiel qui vaut pour
+tout le dépôt, pas seulement pour iOS :
+
+### `refresh()` ne peut plus figer l'app
+
+`App.tsx` appelait `fetchAll` sans `.catch` : un rejet partait en rejet non
+traité et `data` restait `null` **pour toujours** — « Chargement… » sans fin.
+Il y a maintenant un état d'erreur avec le message technique AFFICHÉ (sur
+appareil, il n'y a aucune console où aller le chercher) et un « Réessayer » ;
+et un bandeau discret quand des données avaient déjà été lues, l'écran restant
+peuplé.
+
+⚠️ **Le dépôt n'a AUCUNE infrastructure de test React** — 29 fichiers de test,
+tous de logique pure. Ce correctif n'en a donc pas. C'est une dette assumée :
+en introduire une ici aurait été un chantier, pas un correctif.
+
+### La grille se hisse à la rangée entière quand plus rien ne tient à côté
+
+`ResizableGrid` : dès que le plancher en pixels (`MIN_PANEL_PX = 248`) dépasse
+la MOITIÉ des colonnes, deux panneaux ne peuvent plus partager une rangée — le
+plancher devient donc la rangée entière. Arithmétique sur la largeur MESURÉE,
+pas un breakpoint : **ça vaut aussi pour une fenêtre de Mac réduite**, où les
+cartes s'arrêtaient jusqu'ici avant le bord. Aucune donnée touchée, le clamp vit
+au rendu (cf. `DESIGN.md`, « la grille n'a PAS besoin de migration »).
+
+La poignée de redimensionnement passe en `hidden` sous `(pointer: coarse)`.
+
+### Le briefing de marché — le seul rappel qui NE SOIT PAS une règle
+
+`Prefs::market_briefing` + `planner::briefing_a_deposer`. Il n'a aucune
+condition, donc il ne passe ni par `registry()`, ni par `engine::evaluate`, ni
+par le plafond quotidien, et il est le seul à obtenir de iOS un vrai
+rendez-vous quotidien (`Schedule::Interval`). Les créneaux viennent du FRONT
+(`src/lib/market/rappels.ts`) : Market Brain raisonne en heure de **Paris**,
+`Schedule::Interval` en heure de l'**appareil**.
+
+⚠️ **N'existe pas sur le bureau** : `schedule()` y est accepté sans effet. La
+parité reste à décider.
+
+### Un `AppIntent` Swift ouvre une note — le seul code non-React de l'app
+
+`src-tauri/gen/apple/Sources/shale/QuickNoteIntent.swift` +
+`src-tauri/src/note_rapide.rs`. Il OUVRE, il n'écrit pas : faire écrire le
+Swift dans `shale.db` casserait l'invariant **« le front est seul écrivain »**
+dont dépendent le moteur de rappels et la synchronisation.
+
+⚠️ **`tauri ios build` NE RELANCE PAS XcodeGen.** Après tout ajout de source
+Swift : `xcodegen generate` dans `gen/apple`. Sans ça, l'app se construit sans
+le fichier, en silence et avec un code de sortie 0.
+
+⚠️ **Régénérer après un build embarque `libapp.a` dans le bundle** — d'où
+l'`excludes: ["**/*.a"]` sur le groupe `Externals` de `project.yml`.
+
+### Le site n'a rien à mettre à jour, et c'est vérifié
+
+La règle « l'app et le site ne divergent jamais » a été appliquée : `SPECS`
+n'annonce que les raccourcis CLAVIER (`⌘K`, `⌘⇧N`), toujours exacts, et ne dit
+rien des notifications. Les plateformes restent « macOS aujourd'hui ; Windows
+et iOS ensuite » — iOS n'étant pas livré, **rien ne doit être promis là-bas**.

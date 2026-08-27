@@ -46,6 +46,50 @@ l'autre (déclenché à 20 h 05, il ne redeviendrait éligible qu'après 20 h 05
 lendemain, donc au tick suivant, et ainsi de suite). `inactivity` garde 48 h pour
 une raison inverse : sa clé journalière l'autoriserait à relancer *chaque* jour.
 
+## Le briefing de marché — le seul rappel qui NE SOIT PAS une règle
+
+`planner::briefing_a_deposer` + `planner::depot::deposer_briefing`, pilotés par
+`Prefs::market_briefing`.
+
+Il ne passe **ni** par `registry()`, **ni** par `engine::evaluate`, **ni** par
+le plafond quotidien, et ce n'est pas un raccourci : il n'a aucune CONDITION.
+« Ton briefing t'attend » est vrai tous les jours. C'est ce qui lui vaut, seul
+de tous les rappels de Shale, le vrai rendez-vous quotidien du système
+(`Schedule::Interval` → `UNCalendarNotificationTrigger`) au lieu d'une échéance
+ponctuelle reprogrammée à chaque passage en arrière-plan. Le raisonnement
+inverse — séduisant et faux — est écrit au § 13.4 de `MOBILE.md`.
+
+Les **créneaux** viennent du front (`src/lib/market/rappels.ts`) et sont
+repoussés à chaque projection : Market Brain raisonne en heure de **Paris**,
+`Schedule::Interval` en heure de l'**appareil**, et seul le front a la base de
+fuseaux nommés. Il y ajoute la langue et l'offre du compte. Rien n'est stocké —
+une valeur stockée serait périmée au premier voyage.
+
+Deux refus côté front, tous deux contre une bannière mensongère : **sans
+l'offre Trade** (le briefing ouvrirait un paywall) et **sans clé IA** (il ne
+peut pas être rédigé du tout). Et le texte ne dit jamais qu'il est prêt : il
+est rédigé à l'ouverture de l'app.
+
+⚠️ **Bureau : ce rappel n'existe pas.** `schedule()` y est accepté sans effet
+(`MOBILE.md` § 13.1). L'équivalent passerait par `scheduler.rs`, qui est un
+autre mécanisme pour la même promesse — non décidé.
+
+## Le geste physique qui ouvre une note
+
+Pas un rappel non plus, mais la même famille : le système d'exploitation qui
+parle à l'app, et non l'inverse. D'où sa façade dans `src/lib/notifications.ts`
+(`noteRapideDemandee`) plutôt que dans un module à part.
+
+`src-tauri/src/note_rapide.rs` + `gen/apple/Sources/shale/QuickNoteIntent.swift`.
+L'`AppIntent` pose un fichier dans le conteneur de l'app, le Rust le relève et
+le consomme. Le Swift **n'écrit jamais dans `shale.db`** : l'invariant « le
+front est seul écrivain », sur lequel repose tout ce module, tient aussi pour
+lui.
+
+⚠️ Après tout ajout de source Swift : `xcodegen generate` dans `gen/apple`.
+`tauri ios build` ne relance PAS XcodeGen et produit sans broncher une app où
+le Swift ne figure pas.
+
 ## Ajouter une règle
 
 1. Créer `rules/ma_regle.rs` :

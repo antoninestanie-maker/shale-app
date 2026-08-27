@@ -1,12 +1,18 @@
-# Shale sur iPhone — audit de faisabilité
+# Shale sur iPhone — audit, puis journal de portage
 
-**Date de l'audit : 2026-08-26.** Branche examinée : `responsive`, au commit
-`749b981`, qui est **le même commit que `sync-chiffree`** (vérifié dans les deux
-sens : aucun commit d'écart).
+> ## ▶️ Vous arrivez sur ce document ? Allez au **§ 17**.
+>
+> Il donne l'état exact, la file d'attente par ordre, et ce qu'une session
+> Claude ne peut pas faire seule. Le reste se lit à la demande.
 
-Ce document est le livrable d'une phase d'audit. **Aucune ligne de code
-applicatif n'a été écrite pour iOS.** Il dit ce qui a été mesuré, ce qui reste
-inconnu, et ce qui doit être décidé avant d'écrire quoi que ce soit.
+**§ 0 à 14 : l'audit**, daté du 2026-08-26, écrit avant qu'une ligne de code
+iOS n'existe. Branche examinée : `responsive`, commit `749b981` — le même que
+`sync-chiffree`, vérifié dans les deux sens.
+
+**§ 15 à 17 : le journal du portage**, depuis le 2026-08-27. L'audit n'a pas
+été réécrit après coup : là où il s'est trompé, la correction est datée à
+l'endroit de l'erreur plutôt que substituée à elle. C'est volontaire — un
+raisonnement faux qu'on efface se refait.
 
 Tout ce qui suit a été vérifié dans l'arbre — sources des greffons dans
 `~/.cargo/registry`, code du dépôt, exécution réelle des tests. Ce qui n'a pas
@@ -690,7 +696,7 @@ disaient « macOS ou pas macOS » ; iOS n'étant pas macOS, le téléphone aurai
 hérité du raccourci **Windows** `Ctrl+Alt+Espace`. Corrigé avant la première
 compilation (commit `042f750`).
 
-### ⚠️ Deux pièges d'outillage à ne pas re-diagnostiquer
+### ⚠️ Cinq pièges d'outillage à ne pas re-diagnostiquer
 
 **`tauri ios build` ne remplace pas une sortie existante.** Il échoue sur
 `failed to rename app … Directory not empty`, et — c'est le piège — **le code
@@ -698,6 +704,26 @@ de sortie reste 0**. On croit avoir reconstruit, on installe l'ancienne app, et
 on lit un résultat périmé. C'est arrivé une fois. **Supprimer
 `gen/apple/build/arm64-sim/Shale.app` et `gen/apple/build/shale_iOS.xcarchive`
 entre deux builds.**
+
+**Le piège s'est retendu une troisième fois, le 2026-08-27 au matin.** Un `cd`
+laissé d'une commande précédente a fait porter le `rm -rf` sur un chemin relatif
+qui n'existait pas depuis là. Le nettoyage n'a pas eu lieu, le build a réutilisé
+sa sortie périmée, et le code de sortie est resté 0 — l'app installée ne
+contenait pas une ligne du Swift qu'on venait d'écrire. **Nettoyer en chemin
+ABSOLU**, toujours.
+
+**`tauri ios build` NE RELANCE PAS XcodeGen.** Il consomme le `.pbxproj` tel
+qu'il est. Ajouter un fichier source sous `gen/apple/Sources/` ne suffit donc
+pas : il faut lancer `xcodegen generate` dans `gen/apple`. Sans ça le fichier
+est simplement absent de la compilation, sans le moindre avertissement. Le
+`.pbxproj` étant suivi par git, le résultat se relit —
+`grep -c "MonFichier.swift in Sources"`.
+
+**Régénérer APRÈS un premier build embarque `libapp.a` dans le bundle.**
+XcodeGen classe l'archive statique produite par le build en RESSOURCE et la
+recopie dans l'app. `excludes: ["**/*.a"]` sur le groupe `Externals` de
+`project.yml` le règle définitivement ; le lien, lui, vient de
+`dependencies: framework: libapp.a`, pas de ce groupe.
 
 **Le panneau interactif du simulateur peut lire une configuration périmée.**
 Son serveur relève `xcode-select` à son démarrage : lancé avant l'installation
@@ -755,8 +781,8 @@ relecture a laissé passer un module entier** (§0.3).
 |---|---|---|
 | 1 | **Réconcilier Windows avant tout iOS** | ✅ **fait le 2026-08-26** — commit `4ca4080`, tronc avancé. Détail en §11 |
 | 2 | Notifications : **local + push (voie C)** | ✅ **arrêté.** Antonin veut « que Mac et téléphone soient liés dans tous les cas » — c'est exactement ce que le push silencieux résout, et lui seul (§3.2). Le compte développeur étant de toute façon nécessaire pour publier, l'argument « A est gratuit » perd son poids. **Ordre de construction : le local d'abord** (Phase 3, testable au simulateur sans compte), le push ensuite. |
-| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
-| 4 | Raccourcis natifs : un **geste physique qui ouvre la note rapide** | ✅ **arrêté sur l'intention.** Mise en œuvre : un `AppIntent` (§4.1) |
+| 3 | Briefing Market Brain : **le repli gratuit** — notification locale « ton briefing t'attend » à 8 h et 14 h, génération à l'ouverture de l'app | ✅ **FAIT le 2026-08-27** (§ 16), armé et lu dans le magasin d'iOS. ✅ **arrêté**. Zéro serveur, zéro euro, zéro donnée sortie, et la clé LLM reste sur l'appareil. Le briefing n'est pas prêt quand la bannière tombe : **c'est le compromis accepté.** |
+| 4 | Raccourcis natifs : un **geste physique qui ouvre la note rapide** | ✅ **FAIT le 2026-08-27** — `AppIntent` Swift + pont par fichier, mesuré au simulateur (§ 16). Reste à Antonin : l'associer au bouton Action |
 | 5 | Navigation mobile | ✅ **tranché** — barre d'onglets à 5 + « Plus » sectionné par catégories (§5.4) |
 | 6 | Grille Aujourd'hui : **ne rien faire** | ✅ **arrêté** — conforme à la mesure du chantier responsive |
 | 7 | **Performance** et **Market Brain** en consultation seule ; aucun module absent | ✅ **arrêté** |
@@ -1222,16 +1248,25 @@ prochaine session.
 
 ---
 
-## 15. ▶️ REPRENDRE ICI (état au 2026-08-27, 3 h 30)
+## 15. La nuit du 2026-08-27 — ce qu'elle a produit
 
-**Branche `mobile-ios`**, treize commits, **rien n'est poussé sur GitHub**.
-Arbre propre. Ligne de base rejouée au dernier commit :
+*Section d'archive. Le point de reprise est le § 17.*
 
-`cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
-`cargo test --lib` **99** ✅ · `test:types` ✅ · `npm test` **388** ✅ ·
-`i18n:check` 1054 entrées, 0 manquante ✅
+| | |
+|---|---|
+| Réconciliation Windows | `4ca4080` |
+| Audit iOS | `c6b5867` |
+| Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
+| L'app tourne sur iPhone, `crypto.subtle` disponible | `5ebc08b` |
+| Barre d'onglets mobile | `360bd19` — **VUE**, et utilisée |
+| Contrat de planification mesuré | `069806f` — § 13 |
+| Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
+| Journal : § 12, § 14 débogage | `7254b8f` |
+| Rappels iOS : projection + dépôt | `9fd2993` |
+| Icône Tauri → icône Shale · formateur du futur · registre d'identifiants | `6bea21e` |
+| `inactivity` projetée à l'ouverture de la plage | `7f7b5ed` |
 
-### 15.1 ✅ Le rappel local est ARMÉ dans iOS — prouvé, pas déduit
+### ✅ Le rappel local est ARMÉ dans iOS — prouvé, pas déduit
 
 C'était LE jalon du produit. Lu dans le magasin d'iOS lui-même :
 
@@ -1250,71 +1285,160 @@ un instant UTC aurait donné 7 200 secondes de moins.
 l'attente, pas du travail. Attention : le simulateur doit être resté allumé,
 et tout `simctl install` entre-temps redéposera l'échéance (sans doublon).
 
-### 15.2 Ce que la nuit a produit
+---
 
-| | |
+## 16. La matinée du 2026-08-27 — la file d'attente du § 15 est vide
+
+**Les quatre éléments sont faits, et chacun a été mesuré sur l'appareil.**
+Quatre commits, tous sur `mobile-ios`, **rien n'est poussé sur GitHub**.
+
+| | Commit |
 |---|---|
-| Réconciliation Windows | `4ca4080` |
-| Audit iOS | `c6b5867` |
-| Rust sous `cfg(desktop)` + `keyring` iOS | `042f750` |
-| L'app tourne sur iPhone, `crypto.subtle` disponible | `5ebc08b` |
-| Barre d'onglets mobile | `360bd19` — **VUE**, et utilisée |
-| Contrat de planification mesuré | `069806f` — § 13 |
-| Mur franchi · base · 19 migrations · zone sûre haute | `5f0e016` |
-| Journal : § 12, § 14 débogage | `7254b8f` |
-| Rappels iOS : projection + dépôt | `9fd2993` |
-| Icône Tauri → icône Shale · formateur du futur · registre d'identifiants | `6bea21e` |
-| `inactivity` projetée à l'ouverture de la plage | `7f7b5ed` |
+| `refresh()` ne fige plus l'app · les deux « Chargement… » se distinguent | `55e1c8e` |
+| Aujourd'hui en vraie pile · poignée de resize masquée au doigt | `15074de` |
+| Briefing de marché 8 h / 14 h, armé dans iOS | `fa4afb3` |
+| `AppIntent` : un geste physique ouvre une note | `dddb4c9` |
 
-### 15.3 ▶️ La file d'attente, par ordre
+### 16.1 Ce qui a été corrigé, et ce que ça a coûté de le prouver
 
-**1. `refresh()` sans `.catch` — § 14.4.** Le premier candidat, et le seul qui
-soit un défaut plutôt qu'un ajout.
+**1. `refresh()` sans `.catch` (§ 14.4).** Un rejet de `fetchAll` partait en
+rejet non traité et `data` restait `null` pour toujours. Deux issues
+maintenant : écran d'échec avec le message technique AFFICHÉ (sur appareil,
+c'est le seul endroit où il se lit) et bouton « Réessayer » quand rien n'a
+jamais été lu ; bandeau discret et écran conservé quand des données existaient
+déjà — vider l'app pour une lecture ratée serait pire que le défaut.
+Les deux « Chargement… » disent enfin de quoi ils parlent : « Ouverture du
+module… » et « Chargement des données… ».
 
-```ts
-const refresh = useCallback(async () => {
-  setData(await fetchAll(addDays(todayStr(), -400)));
-}, []);
+⚠️ **Pas de test de rendu.** Le dépôt n'a AUCUNE infrastructure de test React —
+29 fichiers de test, tous de logique pure. En introduire une pour ce correctif
+aurait été un chantier, pas un correctif. C'est une dette assumée, pas un oubli.
+
+**2. Aujourd'hui en pile verticale (§ 5.3).** `MIN_PANEL_PX = 248` se
+traduisait, sur les 338 px de grille d'un iPhone 17, en un plancher de
+**9 colonnes sur 12**. Deux panneaux de 9 ne tiennent pas côte à côte : la
+grille était déjà une pile, mais chaque carte s'arrêtait 88 px avant le bord.
+La règle ajoutée est arithmétique et non un breakpoint — dès que le plancher
+dépasse la moitié des colonnes, plus rien ne peut partager la rangée, donc le
+plancher devient la rangée. **Mesuré à l'écran : 336 px sur 338, bords
+alignés.** Aucune donnée touchée, conformément à la décision 6 du § 10.
+
+La poignée de redimensionnement passe en `hidden` sous `(pointer: coarse)`,
+comme le demandait le § 5.2.
+
+⚠️ **Non tranché** : la barre ⠿ / ✕ / ⟲ du coin haut-droit reste révélée au
+survol. Le survol collant d'iOS la fait probablement apparaître au premier tap,
+mais **ça n'a pas été vérifié** — aucune saisie tactile n'est scriptable.
+
+**3. Le briefing de marché.** `Schedule::Interval`, comme le § 13.4 l'exigeait.
+Les créneaux sont calculés par le FRONT (`src/lib/market/rappels.ts`) et
+repoussés à chaque projection : Market Brain raisonne en heure de **Paris**,
+`Schedule::Interval` en heure de l'**appareil**, et seul le front a la base de
+fuseaux nommés. Deux refus contre une bannière mensongère : sans l'offre Trade,
+sans clé IA.
+
+⚠️ **UN BOGUE TROUVÉ EN MESURANT.** Le premier dépôt a atterri à **8 h 01**.
+Lu dans le magasin d'iOS : `NS.minute = 1`. Le décalage Paris → local était
+calculé contre un « maintenant » qui portait encore ses secondes ; à
+10 h 46 min 42 s l'écart valait −0,7 minute et `Math.round` le rendait à −1.
+Le test de round-trip ne le voyait pas non plus : il n'assertait que l'HEURE.
+Les deux sont corrigés.
+
+Après correctif, lu dans le magasin :
+
+```
+1. type=Calendar      repeats=True   8:00
+2. type=Calendar      repeats=True   14:00
+3. type=TimeInterval  dans 33010 s   ← habitudes, 10:49:50 + 33010 s = 20:00:00
 ```
 
-Aucun `.catch`. Une promesse rejetée part en rejet non traité et `data` reste
-`null` **pour toujours** : « Chargement… », sans message, sans bouton, sans fin.
-Sur appareil, où § 14.1 montre qu'il n'y a AUCUNE console, c'est
-indiagnosticable. Ça demande un état d'erreur, un bouton « Réessayer » et
-leurs clés d'i18n.
+puis, la clé IA n'existant pas sur le simulateur, le build final n'a laissé
+qu'**une** échéance : la règle des habitudes. Le refus fonctionne, et la purge
+a emporté les créneaux du build précédent.
 
-⚠️ **Et pendant qu'on y est** : `App.tsx` contient DEUX « Chargement… » au texte
-identique — le repli de `Suspense` (chunk `lazy()` en vol) et le cas `!data`.
-Les distinguer à l'écran a coûté un cycle de rebuild complet (§ 14.3). Deux
-libellés différents règlent ça définitivement.
+**4. L'`AppIntent` (§ 4.1).** Le seul morceau non-React. Il OUVRE, il n'écrit
+pas : faire écrire le Swift dans `shale.db` casserait l'invariant « le front
+est seul écrivain ». Le pont est un fichier posé dans le conteneur, relevé par
+`note_rapide.rs`.
 
-**2. Aujourd'hui en pile verticale — § 5.3.** Mesuré : aucun débordement
-(`scrollWidth == innerWidth == 402`), mais le panneau DISCIPLINE reste plus
-étroit que l'écran. ⚠️ Ne PAS écrire de migration de dispositions : la décision
-6 du § 10 tient, et le § 5.2 la mesure — la disposition du Mac survit intacte
-parce que le clamp vit au RENDU. C'est le rendu qu'on change, jamais la donnée.
+⚠️ **La fraîcheur (2 min) n'est pas une précaution.** Une demande faite app
+DÉJÀ à l'écran ne provoque aucun retour au premier plan : sans borne, elle
+serait consommée des heures plus tard et une note s'ouvrirait toute seule.
 
-**3. Le briefing Market Brain 8 h / 14 h** — § 10 décision 3. C'est le SEUL
-rappel sans condition, donc le seul qui ait droit à `Schedule::Interval`
-(§ 13.4). Non commencé.
+Mesuré : demande fraîche → l'app s'ouvre sur Notes, une note du jour est créée
+et ouverte, drapeau consommé. Demande vieille de dix minutes → **10 notes
+avant, 10 après**, drapeau jeté.
 
-**4. L'`AppIntent`** du bouton latéral — § 4.1. Swift, non commencé. Le plus
-gros morceau, et le seul qui sorte de React.
+### 16.2 ▶️ Ce qui reste à Antonin, et à lui seul
 
-### 15.4 ⚠️ Ce qu'on ne peut PAS faire sans Antonin
+- **Associer l'intent au bouton Action** : Réglages → Bouton Action →
+  Raccourci → « Nouvelle note Shale ». Puis maintenir le bouton.
+  ⚠️ iPhone 15 Pro et plus. Sinon : Réglages → Accessibilité → Toucher →
+  Toucher au dos.
+- **Voir tomber une bannière.** Tout est armé ; personne ne peut le regarder
+  à notre place.
+- ⚠️ **Ce qu'une session Claude ne peut PAS faire**, et qui n'a pas bougé :
+  aucune saisie tactile n'est scriptable (§ 12) — ni tap, ni swipe ; aucune
+  saisie d'identifiants ; ne JAMAIS lancer `simctl uninstall` ni
+  `simctl erase`, qui reperdraient la session ouverte à la main ; ne jamais
+  transmettre le `sudo xcode-select -s …` que réclame le panneau interactif —
+  `xcode-select -p` renvoie déjà le bon chemin, la commande demanderait le mot
+  de passe d'Antonin pour rien. Le canal du § 14 (`localStorage` lu sur disque)
+  et la lecture directe du magasin d'iOS couvrent tout le reste.
 
-- **Aucune saisie tactile scriptable** (§ 12) : ni tap, ni swipe. Le panneau
-  interactif du simulateur reste bloqué sur une lecture périmée de
-  `xcode-select`. **Ne jamais lui transmettre le `sudo xcode-select -s …` que
-  ce panneau réclame — `xcode-select -p` renvoie déjà le bon chemin, la
-  commande demanderait son mot de passe pour rien.**
-- **Aucune saisie d'identifiants.** La session du simulateur est déjà ouverte
-  et survit aux `simctl install` ; elle ne se reperdrait qu'avec
-  `simctl uninstall` ou `simctl erase` — **à ne pas lancer**.
-- Le canal du § 14 (localStorage lu sur disque) couvre tout le reste sans le
-  déranger.
+---
 
-### Décisions déjà prises — ne pas les rouvrir
+## 17. ▶️ REPRENDRE ICI (état au 2026-08-27, 11 h)
+
+**Branche `mobile-ios`**, dix-huit commits, **rien n'est poussé sur GitHub**.
+Ligne de base rejouée au dernier commit :
+
+`cargo check --all-targets` ✅ · `cargo check --target aarch64-apple-ios-sim` ✅ ·
+`cargo test --lib` **108** ✅ · `tsc` ✅ · `test:types` ✅ · `npm test` **392** ✅ ·
+`i18n:check` 1064 entrées, 0 manquante ✅
+
+### 17.1 ▶️ La file d'attente, par ordre
+
+**1. ⭐ La vue Notes est INUTILISABLE sur téléphone.** Trouvé en vérifiant
+l'`AppIntent`, capture à l'appui : `NotesView` garde sa mise en page bureau à
+deux colonnes. Sur 402 pt, l'éditeur est réduit à une bande d'environ 150 px où
+la barre d'outils s'empile à la verticale (B / I / U / S / H1 / H2 les uns sous
+les autres) et le texte tombe **en colonne d'un mot par ligne**. C'est la même
+famille de défaut que le « texte en colonne d'une lettre » du chantier
+demi-écran (`CLAUDE.md`, 2026-07-26).
+
+C'est **le premier de la file** pour une raison précise : le geste du bouton
+Action mène DIRECTEMENT là. On vient de livrer une porte d'entrée vers un écran
+qui ne se tient pas.
+
+⚠️ Ce que ce n'est pas : une régression. C'est l'état de la vue depuis
+toujours ; le geste la rend simplement visible.
+
+**2. Les autres vues au même examen.** Notes a été vue parce qu'on y a atterri.
+Rien ne dit que Journal, Savoir, Trading ou Finance tiennent mieux : elles n'ont
+JAMAIS été regardées sur 402 pt. Le § 5.3 les annonce toutes « plein usage » —
+c'était une intention, pas une mesure. ⚠️ `SketchPad` (croquis) et
+`import_screenshot` (chemin de fichier) sont nommément signalés au § 5.3 comme
+demandant du travail tactile.
+
+**3. La barre ⠿ / ✕ / ⟲ des panneaux, au doigt** (§ 16.1). Question de design,
+pas correctif : révélée au survol sur une surface sans survol.
+
+**4. La parité BUREAU du briefing.** Sur macOS, `schedule()` est accepté sans
+effet (§ 13.1) : le rappel de 8 h / 14 h n'existe que sur téléphone.
+L'équivalent passerait par `scheduler.rs` — un autre mécanisme pour la même
+promesse. À décider, pas à improviser.
+
+**5. Le push silencieux** (§ 10, décision 2, seconde moitié). Le local est fait.
+Le push demande le compte développeur.
+
+**6. `NSMicrophoneUsageDescription` traîne dans `gen/apple/shale_iOS/Info.plist`**
+et annonce « **Second Brain** utilise le micro pour les commandes vocales
+Jarvis ». Jarvis est purgé depuis le 2026-07-26, le micro n'est plus utilisé, et
+le texte porte le nom d'un autre produit. Une permission déclarée sans usage est
+un motif de rejet à l'App Store (§ 7).
+
+### 17.2 Décisions déjà prises — ne pas les rouvrir
 
 § 10 fait foi : local + push, briefing en repli gratuit, `AppIntent` pour la
 note rapide, barre à 4 onglets + « Plus », grille d'Aujourd'hui inchangée,
