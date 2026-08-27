@@ -176,7 +176,30 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
     );
   };
 
+  /**
+   * La feuille est une couche MODALE : tant qu'elle est là, ce qu'il y a
+   * dessous ne doit être ni cliquable ni atteignable à la tabulation. Le voile
+   * s'occupe du visible ; `inert` s'occupe du clavier. Sans lui, tabuler
+   * depuis le croquis finissait par atteindre les boutons du lecteur de note
+   * caché derrière (sa croix, sa corbeille, sa sortie « Terminé »).
+   *
+   * La feuille est portée sur `document.body`, donc `#root` — l'application
+   * entière, lecteur compris — en est bien un frère, jamais un ancêtre.
+   */
+  useEffect(() => {
+    const app = document.getElementById("root");
+    app?.setAttribute("inert", "");
+    return () => app?.removeAttribute("inert");
+  }, []);
+
   // Raccourcis : ⌘Z annule, Échap ferme.
+  //
+  // EN CAPTURE, volontairement. La feuille s'ouvre AU-DESSUS du lecteur de
+  // note, qui écoute lui aussi Échap sur `window` — et s'y est abonné en
+  // premier. En phase de bouillonnement, les deux se déclenchaient : Échap
+  // fermait le croquis ET le lecteur d'un seul coup. La capture passe avant
+  // tout abonnement bouillonnant : `preventDefault` marque alors la touche,
+  // et le lecteur (qui teste `defaultPrevented`) laisse passer son tour.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -187,8 +210,8 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
         undo();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onCancel, undo]);
 
   const toolBtn = (active: boolean) =>

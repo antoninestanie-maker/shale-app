@@ -2880,3 +2880,226 @@ La règle « l'app et le site ne divergent jamais » a été appliquée : `SPECS
 n'annonce que les raccourcis CLAVIER (`⌘K`, `⌘⇧N`), toujours exacts, et ne dit
 rien des notifications. Les plateformes restent « macOS aujourd'hui ; Windows
 et iOS ensuite » — iOS n'étant pas livré, **rien ne doit être promis là-bas**.
+## Une sortie explicite dans le lecteur du Savoir (2026-08-26)
+
+### Le problème
+
+Une fiche ouverte ne se refermait que par **Échap** ou par un **clic hors du
+cadre**. Aucun des deux gestes ne s'affiche à l'écran, et le second est
+précisément celui qu'on n'ose pas faire quand on vient d'écrire : rien ne dit
+si le texte est parti. Sur une fiche longue, après avoir défilé jusqu'en bas,
+la seule sortie visible — la croix de l'en-tête — se retrouve hors champ.
+
+### Ce qui a été fait
+
+Le **pied du lecteur porte désormais l'état d'enregistrement et l'action de
+sortie**, à droite du bloc tags/corbeille déjà présent :
+
+    [ #tag  #tag  + tag ] ···········  🗑  ✓ Enregistré  [ Terminé ⌘↵ ]
+
+- Bouton **« Terminé »** — primaire, `pill bg-blue text-white font-semibold`
+  (`DESIGN.md` ligne 315), aligné à droite, sans info-bulle (action libellée et
+  évidente). Le raccourci **⌘↵** est une pastille `border-current opacity-70`
+  **dans** le bouton, `aria-hidden` pour que le nom accessible reste « Terminé ».
+- **Indicateur** dérivé de l'état réel : `Enregistrement impossible` (rouge)
+  → `Enregistrement…` → `✓ Enregistré`. En **lecture immersive**, rien n'est
+  écrit : l'indicateur se tait, sauf écriture en vol (l'épingle et le thème
+  restent modifiables) ou échec. Afficher « Enregistré » en lecture aurait
+  laissé croire qu'une écriture venait d'avoir lieu.
+- **Au clic / au ⌘↵** : `await flush()` — la fonction existante, jamais une
+  copie — **puis** fermeture, **puis** focus rendu à la carte d'origine.
+- Échap, clic extérieur, croix d'en-tête, flèches ←/→ : **inchangés**. On a
+  ajouté une sortie, on n'en a retiré aucune.
+
+### Pourquoi une barre de pied, et pas un bouton en fin de texte
+
+Un bouton posé sous le dernier paragraphe disparaît dès qu'on remonte, et
+flotte au milieu du vide quand la fiche tient en une ligne. Le pied, lui, est
+toujours là. Et il porte l'état d'enregistrement à côté de l'action : c'est
+l'adjacence qui lève l'angoisse, pas le bouton seul.
+
+Le pied **n'a besoin ni de `sticky` ni de portail** — contre-intuitif, donc
+noté ici. La carte du lecteur est une colonne flex à trois zones, et le
+`overflow-y-auto` ne vit ni sur la carte ni sur le corps : il est sur la zone
+éditable de `NoteComposer` (`src/components/NoteComposer.tsx`). Le pied est
+donc déjà **hors** de la boîte qui défile, permanent par construction, et le
+texte ne passe jamais dessous — pas de `padding-bottom` compensatoire à poser.
+C'est aussi ce qui esquive le piège connu : `animate-fade-up` sur la carte y
+met un `transform`, donc tout descendant `position: fixed` s'ancrerait sur la
+carte et non sur la fenêtre.
+
+### Trois bugs préexistants trouvés en chemin, et corrigés
+
+Aucun n'a été introduit par ce chantier ; tous rendaient la nouvelle sortie
+incohérente.
+
+1. **Échap fermait deux étages d'un coup.** `SketchPad`, le menu « Insérer » et
+   le champ de lien écoutent Échap, mais le lecteur y était abonné **le
+   premier** sur `window` : les deux handlers partaient. Fermer un croquis
+   fermait la fiche avec. Corrigé par une convention uniforme — celui du dessus
+   marque la touche (`preventDefault`), le lecteur teste `e.defaultPrevented`.
+   `SketchPad` écoute en **capture** pour passer avant l'abonnement du lecteur.
+2. **La feuille de croquis ne bloquait pas le clavier.** Son voile masque le
+   lecteur à l'œil, pas à la tabulation : on atteignait la croix, la corbeille
+   et le nouveau « Terminé » à travers. `SketchPad` pose maintenant `inert` sur
+   `#root` le temps de sa vie (elle est portée sur `document.body`, donc `#root`
+   est bien un frère).
+3. **`flush()` n'avait aucun `try/catch`.** Une écriture refusée partait en
+   rejet non capturé, `dirty` restait bloqué à vrai pour toujours, et le patch
+   était perdu en silence. Il est maintenant rendu à la file
+   (`pending.current = { ...patch, ...pending.current }`) : la frappe suivante
+   le rejoue. Sans ça, le troisième état de l'indicateur n'aurait pas été
+   *dérivable* — il aurait fallu écrire une chaîne en dur, exactement le faux
+   positif à éviter.
+
+### Ce qui a été vérifié, et comment
+
+`tsc --noEmit`, `vite build`, `npm test` (373/373), `i18n:check` (0 manquante),
+`cargo check --lib --tests --bins` : tous verts.
+
+En démo navigateur, écran par écran : fiche courte (barre visible sans
+défilement) ; fiche longue et fiche à image (dernière ligne non masquée, barre
+immobile) ; frappe → `Enregistrement…` → `✓ Enregistré` ; **frappe puis
+« Terminé » dans la même seconde → le texte est là à la réouverture** ; `⌘↵`
+identique au clic ; défilement de la grille **rigoureusement identique** au
+retour (mesuré : 420 → 420) ; focus revenu sur la bonne carte (mesuré :
+`data-entry-id` attendu) ; Échap et clic extérieur intacts ; croquis par-dessus
+→ Échap ferme le croquis seul, et « Terminé » n'est ni visible ni focusable
+(`inert` vérifié) ; bulle de mise en forme déployée vers le haut, 114 px
+au-dessus du bouton ; clavier seul ; anglais (`Saved` / `Done`) ; thème clair
+et sombre ; largeurs de 1440 à 380 px — le bouton garde 113 × 29 px, ce sont
+les tags qui passent à la ligne.
+
+L'**état d'échec** a été exercé pour de vrai, par injection de panne temporaire
+dans `updateKnowledgeEntry` : « Enregistrement impossible » en rouge, bouton
+« Terminé » resté actif, puis reprise réussie une fois la panne levée, texte
+conservé. L'injection a été retirée ensuite (`git status` le confirme).
+
+### Ce qui n'a PAS été vérifié
+
+- **L'activation du bouton par Entrée / Espace au clavier.** Chromium ne
+  synthétise pas le clic d'activation à partir d'événements clavier injectés :
+  le bouton reçoit bien `keydown` et `keyup`, aucun `click` ne suit. C'est un
+  `<button>` natif, donc l'activation est le comportement du navigateur, pas du
+  code — mais **je ne l'ai pas vue se produire**. `⌘↵`, lui, est vérifié de bout
+  en bout au clavier et couvre le même besoin.
+- **L'app installée** : les 12 parcours ont été faits en démo navigateur
+  (pglite), pas dans le bundle Tauri. Le chemin d'écriture y diffère
+  (`plugin-sql` / SQLite).
+
+### Décisions de périmètre
+
+- **Le module Notes n'a pas été touché**, et c'est délibéré. `NotesView` est un
+  layout deux panneaux pleine hauteur : la note s'édite dans le panneau de
+  droite, la liste ne disparaît jamais. Il n'y a **aucune superposition à
+  fermer**, donc rien à quoi « sortir » renverrait. Y coller la même barre
+  aurait fabriqué une fausse modale. Les deux modules divergent parce que leurs
+  formes divergent, pas par oubli.
+- **Pas d'« accent jade ».** Le système s'appelle « Obsidian & Jade », mais
+  `DESIGN.md` lignes 20-21 réserve le vert aux signaux de trading et ne donne
+  qu'un seul accent interactif : le bleu. Aucun token `--color-jade` n'existe,
+  ni `--color-danger` (c'est `--color-red`). Aucun token nouveau n'a été créé.
+- **`prefers-reduced-motion` : rien à ajouter.** La règle globale
+  (`src/index.css` l. 310-318) neutralise déjà `animation-duration` et
+  `transition-duration` partout. De même pour le focus clavier : le
+  `:focus-visible` global (l. 272-276) habille le bouton sans une ligne de plus.
+- **Zéro clé i18n nouvelle pour les libellés** : « Terminé », « Enregistré »,
+  « Enregistrement… » et « Échap » existaient déjà dans `en.ts`. Seul le message
+  d'échec, « Enregistrement impossible » → « Could not save », a été ajouté.
+- **Aucune migration SQL, aucune table touchée** : `src/lib/sync/scope.ts` reste
+  inchangé, comme prévu.
+- **Le site n'a rien à répercuter, vérifié et non supposé.** La démo jouable
+  (`shale-site/vitrine/src/components/Demo.astro`) ne rend que trois écrans —
+  `today`, `position`, `journal` ; « Savoir » et « Notes » n'y sont que des
+  libellés inertes de la barre latérale. Et le widget du module Savoir dans
+  `src/lib/modules.ts` est un `kind: "cards"` — une liste de titres, pas une
+  reproduction du lecteur. Rien à mettre à jour.
+
+### Un détail à savoir pour la suite
+
+Le debounce d'enregistrement du lecteur est de **700 ms**
+(`KnowledgeView.tsx`, dans `patch()`), pas 600. Plusieurs consignes citent 600 ;
+c'est 700 dans le code, et ça n'a pas été changé.
+
+Vu au passage, **non corrigé car hors périmètre** : la ligne de dates du lecteur
+(« créée le … · modifiée le … ») reste en français quand l'app est en anglais.
+
+## Règle : une seule app Shale installée, et c'est `/Applications/Shale.app` (2026-08-26)
+
+**Cette règle est permanente. Elle ne se renégocie pas à chaque chantier.**
+
+### La règle
+
+Il n'existe qu'**une** application Shale installée sur le Mac d'Antonin :
+
+    /Applications/Shale.app
+
+C'est celle qu'il ouvre, celle qu'on reconstruit et qu'on remplace après chaque
+modification. **Aucune autre copie ne doit rester lançable**, nulle part.
+
+`/System/Volumes/Data/Applications/Shale.app` n'est PAS une seconde
+installation : c'est le même fichier vu à travers le firmlink de macOS (même
+numéro d'inode — vérifiable avec `ls -ldi` sur les deux chemins). Ne jamais
+« supprimer le doublon » : ce serait supprimer l'app.
+
+### Ce qui donne l'illusion de plusieurs apps, et quoi en faire
+
+Le 2026-08-26, Antonin a signalé « plusieurs applis Shale installées ». Il n'y
+en avait qu'une. Trois choses créaient l'illusion — toutes ont été traitées, et
+c'est ce traitement qu'il faut refaire si elles reviennent :
+
+1. **Une image disque restée montée** (`/Volumes/dmg.xxxxxx/Shale.app`).
+   Elle apparaît dans le Finder et dans Spotlight comme une app à part entière.
+   Elle vient d'un `npm run tauri build` dont l'étape `bundle_dmg.sh` a échoué
+   en laissant le volume attaché — et c'est justement **ce volume déjà monté
+   qui fait échouer le bundling DMG suivant**. Les deux problèmes n'en font
+   qu'un. → `hdiutil detach /Volumes/dmg.xxxxxx`. Ne jamais la supprimer avec
+   `rm` : c'est un point de montage, pas un dossier.
+
+2. **Les bundles de sortie de build**, sous
+   `src-tauri/target/**/release/bundle/macos/Shale.app`. Ce ne sont pas des
+   installations : ce sont des artefacts, régénérés à chaque construction.
+   **Le danger est réel** : Spotlight les indexe, et en lancer un ouvre une
+   version périmée. Il y en avait une du 18 août — huit jours de retard. Ouvrir
+   celle-là et conclure « ma modification n'est pas là » est le scénario exact
+   qu'on veut rendre impossible.
+   → **Après chaque installation, supprimer `src-tauri/target/*/bundle`.**
+   Ils réapparaissent au build suivant, c'est normal ; la discipline consiste à
+   les effacer une fois le bundle recopié dans `/Applications`, jamais à les
+   garder « au cas où ».
+
+3. **Les DMG temporaires** `rw.XXXXX.Shale_0.1.0_aarch64.dmg` (47 Mo pièce),
+   laissés par un bundling interrompu. Pur déchet, à supprimer.
+
+### Ce qu'il ne faut SURTOUT PAS supprimer
+
+- `shale-site/vitrine/public/telechargements/Shale_aarch64.dmg`
+- `shale-site/vitrine/dist/telechargements/Shale_aarch64.dmg`
+
+**C'est le téléchargement public proposé sur le site.** Le supprimer casse le
+bouton de téléchargement de `shaleapp.com`. Ce fichier n'a rien à voir avec
+l'app installée localement : c'est une livraison, elle se met à jour
+délibérément quand on publie une version, jamais par ménage.
+
+⚠️ **Il est daté du 2026-08-26 20:35, donc ANTÉRIEUR au bouton « Terminé »**
+(construit à 21:22). Le site propose actuellement une version du produit plus
+ancienne que celle qu'Antonin utilise. Ce n'est pas un bug de ce chantier —
+c'est le rythme normal des publications — mais à savoir avant d'annoncer une
+nouveauté sur le site.
+
+### Procédure de référence après une modification
+
+1. `npm run tauri build`
+2. Fermer proprement l'app si elle tourne (`osascript -e 'tell application
+   "Shale" to quit'`) — le débounce d'enregistrement est de 700 ms, lui laisser
+   le temps.
+3. Remplacer `/Applications/Shale.app` par
+   `src-tauri/target/release/bundle/macos/Shale.app`.
+4. **Vérifier que c'est bien la neuve** : `shasum -a 256` sur les deux binaires
+   doit donner la même empreinte. Un bundle qui n'est pas dans `/Applications`
+   n'existe pas pour Antonin.
+5. Relancer l'app.
+6. **Faire le ménage** : `rm -rf src-tauri/target/*/bundle`, et vérifier
+   qu'aucune image disque ne reste montée (`mount | grep dmg`).
+7. Contrôle final : `find / -name "Shale.app" -maxdepth 12 2>/dev/null` ne doit
+   renvoyer que les deux chemins firmlinkés de `/Applications`.

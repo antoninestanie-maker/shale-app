@@ -218,7 +218,12 @@ export default function NoteComposer({
   useEffect(() => {
     if (!menuOpen) return;
     const close = (e: Event) => {
-      if (e.type === "keydown" && (e as KeyboardEvent).key !== "Escape") return;
+      if (e.type === "keydown") {
+        if ((e as KeyboardEvent).key !== "Escape") return;
+        // Échap referme le MENU, pas le lecteur derrière lui : on marque la
+        // touche comme traitée (le lecteur teste `defaultPrevented`).
+        e.preventDefault();
+      }
       setMenuOpen(false);
     };
     document.addEventListener("pointerdown", close);
@@ -494,7 +499,13 @@ export default function NoteComposer({
                   value={linkDraft}
                   onChange={(e) => setLinkDraft(e.target.value)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.key === "Escape" && setLinkDraft(null)}
+                  onKeyDown={(e) => {
+                    // Idem : Échap abandonne la saisie du lien, sans fermer
+                    // le lecteur par la même occasion.
+                    if (e.key !== "Escape") return;
+                    e.preventDefault();
+                    setLinkDraft(null);
+                  }}
                   placeholder="https://…"
                   className="w-52 rounded-lg border border-border bg-surface-2 px-2.5 py-1 font-mono text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
                 />

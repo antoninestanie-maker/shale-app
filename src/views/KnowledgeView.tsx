@@ -29,7 +29,9 @@ import {
   useState,
 } from "react";
 import NoteComposer from "../components/NoteComposer";
+import { useIsPhone } from "../lib/platform";
 import {
+  IconCheck,
   IconChevronUp,
   IconExpand,
   IconFolder,
@@ -350,6 +352,36 @@ export default function KnowledgeView() {
     [addNote],
   );
 
+  /**
+   * Fermeture du lecteur — porte unique, quelle qu'en soit l'origine : bouton
+   * « Terminé », croix d'en-tête, Échap, clic hors du cadre. Le focus revient
+   * sur la carte d'où l'on venait : la grille n'a jamais été démontée (le
+   * lecteur est son frère, pas son remplaçant), donc sa position de défilement
+   * et son thème sont intacts — mais le focus, lui, disparaissait avec le
+   * lecteur, et la tabulation repartait du haut de la page.
+   */
+  const closeReader = useCallback(() => {
+    const id = openId;
+    setOpenId(null);
+    if (id === null) return;
+    requestAnimationFrame(() => {
+      const card = document.querySelector<HTMLElement>(`[data-entry-id="${id}"]`);
+      if (!card) return; // note supprimée depuis le lecteur : plus rien à viser
+      // `preventScroll` : sans lui, `focus()` recadre « au plus près » et
+      // déplace la grille de quelques dizaines de pixels quand la carte était
+      // à cheval sur le bord. On revient EXACTEMENT là où l'on était.
+      card.focus({ preventScroll: true });
+      // Seule exception : la carte a quitté l'écran pendant l'édition (une
+      // écriture touche `updated_at`, donc la note remonte en tête de liste).
+      // Poser le focus hors champ ferait repartir la tabulation d'un point
+      // invisible — là, et là seulement, on va la chercher.
+      const box = card.getBoundingClientRect();
+      if (box.bottom <= 0 || box.top >= window.innerHeight) {
+        card.scrollIntoView({ block: "nearest" });
+      }
+    });
+  }, [openId]);
+
   // Collage direct (⌘V) d'une capture d'écran, quand aucune note n'est ouverte.
   useEffect(() => {
     if (openId !== null) return;
@@ -653,7 +685,7 @@ export default function KnowledgeView() {
           topics={topics}
           siblings={visible}
           onNavigate={setOpenId}
-          onClose={() => setOpenId(null)}
+          onClose={closeReader}
           onChanged={load}
         />
       )}
@@ -1250,6 +1282,7 @@ function EntryCard({
     <div
       role="button"
       tabIndex={0}
+      data-entry-id={entry.id}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -1401,10 +1434,13 @@ function Reader({
   onChanged: () => Promise<unknown>;
 }) {
   const [entry, setEntry] = useState<KnowledgeEntry | null>(null);
+  const isPhone = useIsPhone();
   const [reading, setReading] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
+  /** Dernière écriture refusée. L'indicateur du pied LIT cet état, il ne le devine pas. */
+  const [saveError, setSaveError] = useState(false);
   const pending = useRef<KnowledgeInput>({});
   const timer = useRef<number | undefined>(undefined);
   /** Source de l'image de couverture actuellement reflétée par `thumb`. */
@@ -1447,7 +1483,18 @@ function Reader({
         patch.thumb = cover ? await thumbFromDataUrl(cover) : null;
       }
     }
-    await updateKnowledgeEntry(entryId, patch);
+    try {
+      await updateKnowledgeEntry(entryId, patch);
+    } catch {
+      // L'écriture a été refusée : on REND le patch à la file (ce qui a été
+      // frappé entre-temps reste prioritaire) pour que la frappe suivante, ou
+      // le bouton « Terminé », retente. Sans ça le contenu serait perdu en
+      // silence et l'indicateur resterait bloqué sur « Enregistrement… ».
+      pending.current = { ...patch, ...pending.current };
+      setSaveError(true);
+      return;
+    }
+    setSaveError(false);
     setDirty(false);
     await onChanged();
   }, [entryId, onChanged]);
@@ -1466,12 +1513,34 @@ function Reader({
   // Enregistrement garanti : à la fermeture comme au changement de note.
   useEffect(() => () => void flush(), [flush]);
 
+  /**
+   * Sortie explicite. L'ordre compte : on PURGE d'abord l'enregistrement
+   * débouncé — par `flush`, jamais par une réimplémentation — et seulement
+   * ensuite on ferme. Cliquer « Terminé » à la seconde où l'on finit de taper
+   * doit conserver le texte, c'est la promesse même du bouton.
+   *
+   * Si l'écriture échoue, on ferme quand même : les données locales priment et
+   * enfermer quelqu'un dans un lecteur pour une erreur d'écriture serait pire
+   * que le mal. `flush` a rendu le patch à la file, il repartira.
+   */
+  const done = useCallback(async () => {
+    await flush();
+    onClose();
+  }, [flush, onClose]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Une sous-couche (croquis, menu d'insertion, champ de lien) a déjà
+      // traité la touche : elle l'a marquée. Le lecteur ne doit pas se fermer
+      // par-dessus — sinon Échap referme deux étages d'un coup.
+      if (e.defaultPrevented) return;
       const inField = inTextField(e.target);
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        void done();
       } else if (!inField && e.key === "ArrowLeft" && prevId) {
         onNavigate(prevId);
       } else if (!inField && e.key === "ArrowRight" && nextId) {
@@ -1480,7 +1549,7 @@ function Reader({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, onNavigate, prevId, nextId]);
+  }, [onClose, onNavigate, prevId, nextId, done]);
 
   if (!entry) return null;
 
@@ -1498,6 +1567,24 @@ function Reader({
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      // ⚠️ Sur téléphone, la barre d'onglets est en `fixed` PAR-DESSUS cette
+      // couche : sans réserve, le PIED du lecteur — état d'enregistrement,
+      // tags, corbeille et « Terminé » — passe dessous et devient
+      // inatteignable. Mesuré au premier essai du portage, le 2026-08-27 :
+      // seule la croix de l'en-tête restait cliquable, c'est-à-dire exactement
+      // la sortie que ce pied était censé rendre inutile.
+      //
+      // Même expression que la réserve des vues (`App.tsx`), une encoche de
+      // plus pour le haut : ici la couche est plein écran, elle ne bénéficie
+      // pas de la réserve du conteneur de vue.
+      style={
+        isPhone
+          ? {
+              paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)",
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 4.75rem)",
+            }
+          : undefined
+      }
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="card card-solid animate-fade-up flex h-full max-h-[88vh] w-full max-w-3xl flex-col p-0">
@@ -1528,9 +1615,6 @@ function Reader({
           )}
 
           <span className="ml-auto flex shrink-0 items-center gap-1">
-            <span className="mr-1 font-mono text-[10px] text-text-dim">
-              {dirty ? "…" : t("enregistré")}
-            </span>
             <button
               type="button"
               onClick={() => setReading((v) => !v)}
@@ -1594,7 +1678,16 @@ function Reader({
           </div>
         </div>
 
-        {/* Pied : tags et suppression */}
+        {/*
+          Pied : tags, suppression, état d'enregistrement, SORTIE.
+          Il n'a besoin ni de `sticky` ni de portail : la carte est une colonne
+          flex dont seul le corps défile (le `overflow-y-auto` vit sur la zone
+          éditable de `NoteComposer`). Ce pied est donc déjà hors de la boîte
+          qui défile — permanent par construction, et le texte ne passe jamais
+          dessous. C'est aussi ce qui évite le piège du `transform` :
+          `animate-fade-up` sur la carte ferait d'elle le bloc conteneur de
+          tout descendant `position: fixed`.
+        */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-5 py-3">
           {tags.map((tag) => (
             <span
@@ -1617,6 +1710,9 @@ function Reader({
             value={tagDraft}
             onChange={(e) => setTagDraft(e.target.value)}
             onKeyDown={(e) => {
+              // ⌘↵ appartient à la sortie, même depuis ce champ : on le laisse
+              // remonter au lecteur au lieu de le consommer comme un « Entrée ».
+              if (e.metaKey || e.ctrlKey) return;
               if (e.key === "Enter" || e.key === ",") {
                 e.preventDefault();
                 addTag();
@@ -1629,28 +1725,82 @@ function Reader({
             className="w-24 rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
           />
 
-          <button
-            type="button"
-            onClick={async () => {
-              if (!confirmDelete) {
-                setConfirmDelete(true);
-                window.setTimeout(() => setConfirmDelete(false), 3000);
-                return;
-              }
-              pending.current = {}; // inutile d'écrire dans une note supprimée
-              window.clearTimeout(timer.current);
-              await deleteKnowledgeEntry(entry.id);
-              onClose();
-              await onChanged();
-            }}
-            data-tip={confirmDelete ? t("Confirmer la suppression") : t("Supprimer la note")}
-            data-tip-sub={t("Un second clic la supprime définitivement.")}
-            className={`ml-auto rounded-lg p-2 transition-colors ${
-              confirmDelete ? "bg-red/20 text-red" : "text-text-dim hover:text-red"
-            }`}
-          >
-            <IconTrash className="h-4 w-4" />
-          </button>
+          {/* Bloc d'actions : solidaire, jamais coupé, toujours à droite —
+              même quand les tags passent à la ligne dans une fenêtre étroite. */}
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true);
+                  window.setTimeout(() => setConfirmDelete(false), 3000);
+                  return;
+                }
+                pending.current = {}; // inutile d'écrire dans une note supprimée
+                window.clearTimeout(timer.current);
+                await deleteKnowledgeEntry(entry.id);
+                onClose();
+                await onChanged();
+              }}
+              data-tip={confirmDelete ? t("Confirmer la suppression") : t("Supprimer la note")}
+              data-tip-sub={t("Un second clic la supprime définitivement.")}
+              className={`rounded-lg p-2 transition-colors ${
+                confirmDelete ? "bg-red/20 text-red" : "text-text-dim hover:text-red"
+              }`}
+            >
+              <IconTrash className="h-4 w-4" />
+            </button>
+
+            {/*
+              Indicateur d'enregistrement — DÉRIVÉ de l'état réel (`saveError`,
+              `dirty`), jamais une chaîne posée par habitude.
+              En lecture immersive il n'y a rien à écrire : afficher
+              « Enregistré » laisserait croire qu'une écriture vient d'avoir
+              lieu. On ne montre alors QUE ce qui est vrai — une écriture en
+              vol (l'épingle et le thème restent modifiables en lecture) ou un
+              échec. Le reste du temps : silence.
+            */}
+            {(!reading || dirty || saveError) && (
+              <span
+                aria-live="polite"
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap font-mono text-[10px]"
+              >
+                {saveError ? (
+                  <span className="text-red">{t("Enregistrement impossible")}</span>
+                ) : dirty ? (
+                  <span className="text-text-dim">{t("Enregistrement…")}</span>
+                ) : (
+                  <>
+                    <IconCheck className="h-3 w-3 text-text-dim" />
+                    <span className="text-text-dim">{t("Enregistré")}</span>
+                  </>
+                )}
+              </span>
+            )}
+
+            {/* Sortie explicite. Pas d'info-bulle : l'action est libellée et
+                évidente (cf. DESIGN.md). Le raccourci vit DANS le bouton. */}
+            <button
+              type="button"
+              onClick={() => void done()}
+              className="pill inline-flex shrink-0 items-center gap-2 whitespace-nowrap bg-blue px-4 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              {t("Terminé")}
+              {/* ⚠️ Pas de raccourci affiché sur téléphone : il n'y a pas de
+                  touche ⌘ à y presser. Une pastille qui annonce un geste
+                  impossible n'est pas un indice, c'est du bruit — et elle
+                  vole la place du libellé sur 402 pt. Même raisonnement que
+                  les poignées de panneau masquées au doigt. */}
+              {!isPhone && (
+                <span
+                  aria-hidden
+                  className="rounded-md border border-current px-1.5 py-px font-mono text-[10px] font-normal opacity-70"
+                >
+                  ⌘↵
+                </span>
+              )}
+            </button>
+          </span>
         </div>
       </div>
     </div>
