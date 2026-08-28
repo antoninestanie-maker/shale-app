@@ -36,7 +36,7 @@ npm test                                      # ✅ 392 / 392
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
-cargo test --lib                              # ✅ 112
+cargo test --lib                              # ✅ 113
 cargo check --target aarch64-apple-ios-sim    # ✅
 cargo check --target aarch64-apple-ios        # ✅
 ```
@@ -209,7 +209,7 @@ d'Antonin, soit écarté avec un motif.
 | **Grille en dents de scie à 720 px** | Écarté : moteur de grille, pur confort (199 px vides à droite de deux panneaux) | Antonin |
 | ~~**États vides d'Objectifs et Market-Brain**~~ | **Clos le 2026-08-28** — mais l'item était fondé sur un comptage faux. Les deux états vides existaient déjà ; le défaut réel, qu'ils masquaient, était **du français en dur affiché dans l'app anglaise**. Voir § 3.7 | — |
 | ~~**Audit i18n complet**~~ | **Fait le 2026-08-28**, sur décision d'Antonin. 45 fichiers, ~250 chaînes, 245 clés ; le palier « sûrement français » passe de 61 à 0. L'outil qui manquait existe : `npm run i18n:durs`. Tout est dans **`AUDIT-I18N-2026-08.md`**, limites comprises | — |
-| **i18n du RUST** | ⭐ **Ouvert et non traité.** Les trois règles de notification et le planificateur ont leur propre mécanique (`ctx.pick(fr, en)`, `Prefs.lang`). Aucun outil ne les regarde, et l'audit du front non plus | Antonin |
+| ~~**i18n du RUST**~~ | **Clos le 2026-08-28** — et plus petit qu'annoncé. Les trois règles étaient déjà bilingues (titre, corps, résumé). Deux textes ne l'étaient pas : la **notification de test** de `emitter.rs` et la **synthèse groupée** de `engine.rs`, seul texte du moteur à rester français quoi qu'il arrive. Un test verrouille la seconde, vérifié non vacueux | — |
 | **`⌥ Espace` écrit en dur dans Réglages** | Relevé pendant l'audit, non corrigé : ce n'est pas un défaut i18n mais de PLATEFORME — le glyphe devrait passer par `kbd()` (`src/lib/platform.ts`), sinon un utilisateur Windows lit un raccourci macOS | libre |
 | **États d'erreur natifs** | Non auditables en mode démo | — |
 

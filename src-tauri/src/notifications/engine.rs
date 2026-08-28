@@ -89,7 +89,14 @@ fn merge(ctx: &EvalContext, candidates: &[Candidate]) -> LogEntry {
         (head.title.clone(), head.body.clone())
     } else {
         (
-            format!("{} rappels du jour", candidates.len()),
+            // ⚠️ La synthèse groupée était le SEUL texte du moteur à ne pas
+            // suivre la langue : les trois règles la respectent depuis
+            // toujours, elle non. `ctx` la porte déjà, il suffisait de la lire.
+            if ctx.lang() == "en" {
+                format!("{} reminders today", candidates.len())
+            } else {
+                format!("{} rappels du jour", candidates.len())
+            },
             candidates
                 .iter()
                 .map(|c| c.summary.as_str())
@@ -274,6 +281,19 @@ mod tests {
         assert_eq!(e.rules, vec!["b", "a"]);
         // L'idempotence couvre CHACUNE des règles regroupées.
         assert_eq!(e.dedupe_keys, vec!["b:2026-07-27", "a:2026-07-27"]);
+    }
+
+    /// La synthèse groupée suit la langue des préférences. Elle était le SEUL
+    /// texte du moteur à rester français quoi qu'il arrive — et aucun test ne
+    /// s'en apercevait, parce qu'ils tournent tous sur le défaut français.
+    #[test]
+    fn la_synthese_groupee_suit_la_langue() {
+        let mut p = prefs_with(&["a", "b"]);
+        p.lang = "en".into();
+        let Outcome::Emit(e) = run("2026-07-27 20:00:00", &p, &[], &[&A, &B]) else {
+            panic!("émission attendue");
+        };
+        assert_eq!(e.title, "2 reminders today");
     }
 
     #[test]

@@ -29,7 +29,7 @@ use chrono::Local;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
-use super::model::{LogEntry, TEST_RULE};
+use super::model::{pick, LogEntry, TEST_RULE};
 use super::store::NotifStore;
 
 /// Événement écouté par le front pour rafraîchir cloche et panneau en direct.
@@ -60,21 +60,40 @@ pub fn deliver(app: &AppHandle, mut entry: LogEntry) {
 /// qui en fait le seul diagnostic honnête de la chaîne complète.
 pub fn deliver_test(app: &AppHandle) -> LogEntry {
     let now = Local::now();
+    // ⚠️ La langue est dans les préférences, pas dans le localStorage : le
+    // planificateur tourne fenêtre fermée (cf. piège n°5 de la section
+    // bilingue de CLAUDE.md). Elle y est poussée par `syncLang()`.
+    let lang = app.state::<NotifStore>().read().preferences.lang.clone();
     let entry = LogEntry {
         id: format!("n_test_{}", now.timestamp_millis()),
         // `TEST_RULE` exclut aussi cette entrée du plafond quotidien.
         rules: vec![TEST_RULE.into()],
         // Clé unique : un test ne doit jamais bloquer une vraie règle par idempotence.
         dedupe_keys: vec![format!("{TEST_RULE}:{}", now.timestamp_millis())],
-        title: "Shale — notification de test".into(),
+        title: pick(&lang, "Shale — notification de test", "Shale — test notification").into(),
         // ⚠️ Trois plateformes, pas deux. La première rédaction opposait macOS
         // à « sinon » ; iOS n'étant pas macOS, l'iPhone annonçait « Windows ».
         body: if cfg!(target_os = "macos") {
-            "Si tu vois cette bannière, les notifications macOS fonctionnent.".into()
+            pick(
+                &lang,
+                "Si tu vois cette bannière, les notifications macOS fonctionnent.",
+                "If you can see this banner, macOS notifications are working.",
+            )
+            .into()
         } else if cfg!(target_os = "ios") {
-            "Si tu vois cette bannière, les notifications iOS fonctionnent.".into()
+            pick(
+                &lang,
+                "Si tu vois cette bannière, les notifications iOS fonctionnent.",
+                "If you can see this banner, iOS notifications are working.",
+            )
+            .into()
         } else {
-            "Si tu vois ce toast, les notifications Windows fonctionnent.".into()
+            pick(
+                &lang,
+                "Si tu vois ce toast, les notifications Windows fonctionnent.",
+                "If you can see this toast, Windows notifications are working.",
+            )
+            .into()
         },
         target: None,
         created_at: now,
