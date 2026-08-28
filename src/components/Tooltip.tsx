@@ -44,6 +44,17 @@ const IN_MS = 240; // durée de l'entrée (doit rester ≥ la transition CSS)
 const GAP = 8; // distance bulle ↔ élément
 const EDGE = 8; // marge minimale avec le bord de la fenêtre
 
+// — Appui long : la seule façon d'atteindre une bulle au doigt —
+// Sans lui, les 158 `data-tip` de l'app sont invisibles sur iPhone (le survol
+// n'existe pas, et le repli au focus demande un clavier externe). 500 ms est le
+// seuil d'iOS pour ses propres menus contextuels : le geste est déjà dans les
+// doigts, même s'il ne s'annonce pas.
+const APPUI_LONG_MS = 500;
+/** Au-delà, le doigt DÉFILE : ce n'est plus un appui, on annule. */
+const TOLERANCE_MOUVEMENT = 10;
+/** Au doigt il n'y a pas de « sortie du survol » : la bulle doit se retirer seule. */
+const AUTO_FERMETURE_TACTILE = 4000;
+
 const SIDES: Side[] = ["top", "bottom", "right", "left"];
 
 function isSide(v: string | null | undefined): v is Side {
@@ -68,6 +79,12 @@ export default function TooltipLayer() {
    *  sans se ré-attacher à chaque ouverture. */
   const tipRef = useRef<TipData | null>(null);
   tipRef.current = tip;
+  /** Appui long en cours : l'élément visé et le point de départ du doigt. */
+  const appuiRef = useRef<{ el: HTMLElement; x: number; y: number } | null>(null);
+  const timerAppui = useRef<number | undefined>(undefined);
+  const autoFermeture = useRef<number | undefined>(undefined);
+  /** Un appui long a ouvert une bulle → le `click` qui suit doit être avalé. */
+  const clicAAvaler = useRef(false);
 
   const close = useCallback((immediate = false) => {
     window.clearTimeout(showTimer.current);
@@ -79,9 +96,11 @@ export default function TooltipLayer() {
     hideTimer.current = window.setTimeout(() => setTip(null), immediate ? 0 : OUT_MS);
   }, []);
 
-  /** Programme l'ouverture pour un élément porteur de `data-tip`. */
+  /** Programme l'ouverture pour un élément porteur de `data-tip`.
+   *  `immediat` : l'appui long A DÉJÀ duré 500 ms — y rajouter le délai de
+   *  survol ferait une bulle qui arrive après que le doigt est reparti. */
   const open = useCallback(
-    (el: HTMLElement) => {
+    (el: HTMLElement, immediat = false) => {
       const label = el.getAttribute("data-tip")?.trim();
       if (!label) return;
       window.clearTimeout(hideTimer.current);
@@ -103,7 +122,7 @@ export default function TooltipLayer() {
           setShown(false);
           setTip(next);
         },
-        warm ? WARM_DELAY : COLD_DELAY,
+        immediat ? 0 : warm ? WARM_DELAY : COLD_DELAY,
       );
     },
     [],
@@ -137,12 +156,63 @@ export default function TooltipLayer() {
     // Tout geste « sérieux » referme immédiatement (comportement macOS).
     const onDismiss = () => {
       window.clearTimeout(showTimer.current);
+      window.clearTimeout(autoFermeture.current);
       anchorRef.current = null;
       if (tipRef.current) close(true);
     };
 
+    const annulerAppui = () => {
+      window.clearTimeout(timerAppui.current);
+      appuiRef.current = null;
+    };
+
+    // ── L'appui long, seule porte vers les bulles au doigt ────────────────
+    // ⚠️ `pointerdown` servait DÉJÀ à fermer. On garde ce rôle — un appui
+    // referme la bulle en cours — et on arme l'appui long par-dessus.
+    const onDown = (e: PointerEvent) => {
+      clicAAvaler.current = false;
+      onDismiss();
+      if (e.pointerType !== "touch") return;
+      const el = (e.target as HTMLElement | null)?.closest?.(
+        "[data-tip]",
+      ) as HTMLElement | null;
+      if (!el?.getAttribute("data-tip")?.trim()) return;
+      appuiRef.current = { el, x: e.clientX, y: e.clientY };
+      window.clearTimeout(timerAppui.current);
+      timerAppui.current = window.setTimeout(() => {
+        const a = appuiRef.current;
+        if (!a || !a.el.isConnected) return;
+        clicAAvaler.current = true;
+        open(a.el, true);
+        // Pas de « sortie du survol » au doigt : la bulle se retire seule.
+        window.clearTimeout(autoFermeture.current);
+        autoFermeture.current = window.setTimeout(() => close(), AUTO_FERMETURE_TACTILE);
+      }, APPUI_LONG_MS);
+    };
+
+    // Le doigt qui glisse DÉFILE : ce n'est pas un appui long.
+    const onMove = (e: PointerEvent) => {
+      const a = appuiRef.current;
+      if (e.pointerType !== "touch" || !a) return;
+      if (Math.hypot(e.clientX - a.x, e.clientY - a.y) > TOLERANCE_MOUVEMENT) annulerAppui();
+    };
+
+    // ⚠️ SANS ceci, lire la bulle d'un bouton DÉCLENCHE ce bouton au relâchement.
+    // Long-presser « Supprimer » pour savoir ce qu'il fait le ferait supprimer.
+    // En capture, donc avant le gestionnaire de l'élément.
+    const onClickCapture = (e: MouseEvent) => {
+      if (!clicAAvaler.current) return;
+      clicAAvaler.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
     document.addEventListener("pointerover", onOver, true);
-    document.addEventListener("pointerdown", onDismiss, true);
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", annulerAppui, true);
+    document.addEventListener("pointercancel", annulerAppui, true);
+    document.addEventListener("click", onClickCapture, true);
     document.addEventListener("keydown", onDismiss, true);
     document.addEventListener("focusin", onFocus, true);
     document.addEventListener("focusout", onBlur, true);
@@ -150,7 +220,11 @@ export default function TooltipLayer() {
     window.addEventListener("blur", onDismiss);
     return () => {
       document.removeEventListener("pointerover", onOver, true);
-      document.removeEventListener("pointerdown", onDismiss, true);
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", annulerAppui, true);
+      document.removeEventListener("pointercancel", annulerAppui, true);
+      document.removeEventListener("click", onClickCapture, true);
       document.removeEventListener("keydown", onDismiss, true);
       document.removeEventListener("focusin", onFocus, true);
       document.removeEventListener("focusout", onBlur, true);
@@ -158,6 +232,8 @@ export default function TooltipLayer() {
       window.removeEventListener("blur", onDismiss);
       window.clearTimeout(showTimer.current);
       window.clearTimeout(hideTimer.current);
+      window.clearTimeout(timerAppui.current);
+      window.clearTimeout(autoFermeture.current);
     };
   }, [close, open]);
 

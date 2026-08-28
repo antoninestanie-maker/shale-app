@@ -306,6 +306,16 @@
     background: transparent;
   }
 
+  /* Appui long = info-bulle (voir Tooltip.tsx) : iOS ouvrirait sinon SON menu
+     contextuel par-dessus — « Copier / Rechercher » sur un bouton, et la bulle
+     dessous. Neutralisé uniquement sur les porteurs de bulle, et uniquement au
+     doigt : la sélection de texte reste intacte partout ailleurs. */
+  @media (pointer: coarse) {
+    [data-tip] {
+      -webkit-touch-callout: none;
+    }
+  }
+
   /* Respect des préférences système d'accessibilité */
   @media (prefers-reduced-motion: reduce) {
     *,
