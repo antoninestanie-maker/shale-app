@@ -318,7 +318,7 @@ Le cas particulier du BAS : quand la couche défile elle-même sur toute la
 hauteur (une vue), la réserve du bas reste sur le défilant — c'est de l'espace
 qu'on veut pouvoir atteindre en défilant, pas une bordure.
 
-### ⚠️ Divergence ouverte : l'app est MIXTE — corrigé le 2026-08-28
+### ⚠️ Divergence ouverte : l'app est MIXTE — corrigée, puis requalifiée le 2026-08-28
 
 ⚠️ **Cette section disait « l'app est encore en pixels ». C'est faux, et c'est
 mesuré sur le CSS PRODUIT, pas sur la source :**
@@ -340,19 +340,36 @@ Soit **79 % du texte déjà insensible au problème**, et **136 valeurs à migre
 — pas « l'app ». Dont **38 SOUS le plancher de 11 px** que cette même page se
 donne (36 × 10 px, 2 × 9 px, plus `.tip-kbd` à 10,5 px).
 
-L'écart avec le site reste réel, et l'app reste insensible à la taille de police
-système sur ces 136 valeurs. Mais le chantier n'a pas l'ampleur que cette
-section lui prêtait, et c'est ce qui change la décision.
+L'écart avec le site reste réel. Mais le chantier n'a pas l'ampleur que cette
+section lui prêtait, **et surtout il n'achète pas ce qu'on croyait**.
 
-⚠️ **À instruire avant de migrer** : `applyZoom()` pose
-`document.documentElement.style.zoom`, et le `zoom` CSS multiplie AUSSI les
-`rem`. Il faut vérifier que « Densité » et Dynamic Type se composent au lieu de
-se multiplier.
+### ⭐ Le motif d'accessibilité est TOMBÉ — mesuré le 2026-08-28 au soir
 
-Le passage doit être décidé **pour les deux surfaces ou pour aucune**. Côté app,
-l'enjeu n'est pas le même : une app Tauri n'a pas de « réglage navigateur », mais
-elle hérite du réglage d'accessibilité du système. C'est une question pour la
-session app du chantier, pas une décision prise ici.
+Cette section a longtemps supposé que passer en `rem` rendrait l'app sensible à
+la taille de police du système. **C'est faux dans une WKWebView**, et c'est
+mesuré, pas déduit : simulateur iPhone, taille système poussée à
+accessibility-XXXL, la racine reste à **16 px** — `11px` et `0.6875rem` rendent
+tous deux 14 px, comme au défaut. Seul `font: -apple-system-body` réagit
+(17 → 53 px).
+
+Et la question « à instruire avant de migrer » a sa réponse : le `zoom` multiplie
+la valeur UTILISÉE, une seule fois, **quelle que soit l'unité**. « Densité » et
+`rem` ne se composent pas en produit. Ce verrou-là n'existait pas.
+
+▶️ **Ce que fait l'app depuis le 2026-08-28** : elle lit la taille demandée par
+le système sur un élément sonde et la replie dans la densité
+(`facteurDynamicType()` dans `src/lib/uiConfig.ts`). Le facteur vaut exactement
+1 au réglage par défaut. **Aucune unité n'a été migrée.**
+
+⚠️ **Règle qui en sort, et qui vaut pour toute nouvelle règle CSS** : le `zoom`
+multiplie AUSSI les unités de viewport. Tout `vh`/`vw` doit être multiplié par
+`var(--zoom-inv)` — mesuré, `max-h-[88vh]` rendait 792 px dans un écran de 600
+à densité 150 %, donc débordait. Ça valait déjà pour la densité « Large ».
+
+**Ce qui reste ouvert**, et qui n'est plus de l'accessibilité : la cohérence
+d'unités avec le site. Le passage doit toujours être décidé **pour les deux
+surfaces ou pour aucune** — mais l'argument est désormais l'homogénéité, pas
+Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
 
 ## Règles impératives (inchangées depuis V3)
 
