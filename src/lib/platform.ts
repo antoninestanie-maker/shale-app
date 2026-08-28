@@ -119,8 +119,7 @@ export function kbd(macShortcut: string): string {
 // Un OU ici ferait donc disparaître la barre latérale d'un Mac en Split View —
 // une régression du bureau introduite par le portage mobile.
 //
-// 600 px = le point de rupture `sm` de `DESIGN.md`. Pas une valeur inventée :
-// la doctrine impose de réutiliser les quatre points nommés.
+// Le seuil lui-même est détaillé juste au-dessus de `REQUETE_TELEPHONE`.
 //
 // ⚠️ Largeurs MESURÉES dans la webview, pas lues dans une fiche technique :
 // l'iPhone 17 rend `window.innerWidth = 402`, pas 393 comme l'annonçait la
@@ -129,7 +128,23 @@ export function kbd(macShortcut: string): string {
 // mais il change tout pour qui écrirait un point de rupture serré à 400.
 // iPad mini en portrait = 744 pt, donc garde sa barre latérale.
 // ─────────────────────────────────────────────────────────────────────────────
-const REQUETE_TELEPHONE = "(max-width: 600px) and (pointer: coarse)";
+// ⚠️ Le seuil porte sur le PLUS PETIT CÔTÉ, pas sur la largeur.
+//
+// Avec `(max-width: 600px)` seul, un iPhone COUCHÉ mesure 874 pt de large : la
+// condition tombait, `useIsPhone()` passait à faux, et la barre latérale DE
+// BUREAU remplaçait la barre d'onglets sur un téléphone. Pire, toutes les
+// réserves de zone sûre d'`App.tsx` sont conditionnées à `isPhone` — elles
+// disparaissaient donc en même temps, et la Dynamic Island (qui passe sur le
+// CÔTÉ en paysage) se posait par-dessus la colonne de navigation. Les douze
+// modules devenaient inatteignables. Constaté à l'écran le 2026-08-28.
+//
+// Un téléphone reste un téléphone dans les deux sens : c'est son petit côté qui
+// le dit. 600 px = le point de rupture `sm` de `DESIGN.md`, réutilisé et non
+// réinventé. iPhone 17 : 402 pt de petit côté dans les deux orientations.
+// iPhone 17 Pro Max : 440. iPad mini : 744 en portrait, 744 en paysage aussi
+// (c'est son petit côté) — il garde donc sa barre latérale, comme voulu.
+const REQUETE_TELEPHONE =
+  "((max-width: 600px) or (max-height: 600px)) and (pointer: coarse)";
 
 /** Vrai si l'appareil doit recevoir la navigation par onglets. */
 export function useIsPhone(): boolean {

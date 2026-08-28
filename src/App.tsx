@@ -392,10 +392,25 @@ function App() {
 
           La réserve du BAS reste en revanche sur le défilant : la barre
           d'onglets est en `fixed` par-dessus, et c'est de l'espace qu'on veut
-          pouvoir atteindre en défilant, pas une bordure. */}
+          pouvoir atteindre en défilant, pas une bordure.
+
+          ⚠️ LES CÔTÉS COMPTENT AUSSI, et ils manquaient. En PAYSAGE, l'encoche
+          et la Dynamic Island ne sont plus en haut : elles sont sur un côté, et
+          `safe-area-inset-top` y vaut ~0 pendant que `-left` ou `-right` vaut
+          ~59 pt. Sans ces deux réserves, le bord de l'écran mangeait le contenu
+          — constaté à l'écran le 2026-08-28. Elles vont sur le MÊME conteneur
+          non défilant que la réserve du haut, pour la même raison. */}
       <div
         className="relative z-10 flex min-w-0 flex-1 flex-col"
-        style={isPhone ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
+        style={
+          isPhone
+            ? {
+                paddingTop: "env(safe-area-inset-top)",
+                paddingLeft: "env(safe-area-inset-left)",
+                paddingRight: "env(safe-area-inset-right)",
+              }
+            : undefined
+        }
       >
         <div
           key={view}

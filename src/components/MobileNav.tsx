@@ -181,7 +181,11 @@ export default function MobileNav({
           />
           <div
             className="card-solid animate-fade-up max-h-[78vh] overflow-y-auto rounded-t-3xl border-t border-border px-3 pt-2"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 5.5rem)",
+              paddingLeft: "env(safe-area-inset-left)",
+              paddingRight: "env(safe-area-inset-right)",
+            }}
           >
             {/* Poignée : le signe visuel qu'on peut refermer. */}
             <div className="mx-auto mb-3 mt-1 h-1 w-9 rounded-full bg-border-strong" />
@@ -223,7 +227,16 @@ export default function MobileNav({
         // Zone sûre : sur un iPhone sans bouton d'accueil, la barre système
         // mange ~34 pt en bas. Sans cette marge, le dernier onglet passe
         // dessous et devient très difficile à viser.
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.25rem)" }}
+        //
+        // ⚠️ Les CÔTÉS aussi : cette barre est en `fixed`, donc la réserve
+        // latérale posée sur le conteneur d'`App.tsx` ne l'atteint pas. En
+        // paysage, l'encoche mange un côté de l'écran — sans ces deux marges,
+        // le premier ou le dernier onglet tombe dessous.
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 0.25rem)",
+          paddingLeft: "calc(env(safe-area-inset-left) + 0.25rem)",
+          paddingRight: "calc(env(safe-area-inset-right) + 0.25rem)",
+        }}
       >
         {ONGLETS.map(onglet)}
         {onglet("plus")}
