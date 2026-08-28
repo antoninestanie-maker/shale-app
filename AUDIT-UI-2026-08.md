@@ -154,6 +154,23 @@ pas de bogue actuel. C'est une mine, pas une explosion.
 | **d7** | `d8bde66` | L'emoji `📷` → `IconImage` |
 | **d8** | `7b9baa2` | Savoir : `.card` → `.card-solid` au-dessus d'un flou |
 | **i2** | `ad071bb` | Le panneau « taille de fenêtre » disparaît de l'iPhone ; la densité reste |
+| **d5 bis** | `54224cd` | Les deux en-têtes de catégorie n'avaient pas de nom non plus — trouvé **en vérifiant** `cb4777d` |
+
+### Vérifié à l'écran après correctif (sonde rejouée à 720 px)
+
+| Vue | Avant | Après |
+|---|---|---|
+| Finance | **16** libellés rognés sans `title` | **0** |
+| Timer | 2 | **0** |
+| Performance | 1 | **0** |
+| Boutons de la barre repliée | `aria-label: null` | **`aria-label` présent**, texte visible toujours vide |
+| Bouton de catégorie | `aria-label: null` | **`aria-label: "Productivité"`** |
+
+⚠️ **Ce que ces correctifs NE font PAS.** Un `title` ne se déclenche qu'au
+SURVOL. Sur iPhone, où il n'y a pas de survol, les libellés de Finance et de
+Personnaliser restent tronqués **sans recours** : le remède est lui-même
+hover-only. Le bureau est réparé ; le téléphone attend l'arbitrage § i3
+(`AMELIORATIONS-UI.md` § 2).
 
 Ligne de base rejouée après les huit : `tsc` ✅ · `test:types` ✅ ·
 `i18n:check` 0 manquante (1116) ✅ · `npm test` **392/392** ✅ · `vite build` ✅ ·
@@ -167,6 +184,63 @@ Ligne de base rejouée après les huit : `tsc` ✅ · `test:types` ✅ ·
 graphique, affordance du filtre de date), **i8** (palette mi-tokens mi-hex),
 **d6** (grille en dents de scie), **d9** (voiles à trois valeurs),
 **d10/d11** (px→rem et cibles 44 pt).
+
+## Phase 8 — la divergence app ↔ site
+
+**Le site n'a pas été modifié.** Voici ce que ce chantier oblige — ou n'oblige
+pas — à y répercuter.
+
+### Rien des huit correctifs n'a à être répercuté
+
+Vérifié entrée par entrée contre la table de `CLAUDE.md` § « l'app et le site ne
+divergent jamais » :
+
+| Correctif | Répercussion sur le site ? |
+|---|---|
+| d1–d4, i4 — attributs `title` | **Non.** Invisible pour le site. |
+| d5 + en-têtes de catégorie — `aria-label` | **Non.** |
+| d7 — emoji → `IconImage` | **Non.** L'emoji était dans `TradeModal`, que la démo ne montre pas. |
+| d8 — `card` → `card-solid` | **Non.** Matériau interne d'une couche que le site n'a pas. |
+| i2 — panneau « taille de fenêtre » masqué sur iOS | **Non.** La démo ne montre pas Personnaliser. |
+
+**Et la fidélité de fond est intacte, vérifiée :** `Demo.astro` → `NAV` porte
+les mêmes douze modules, dans le même ordre, avec les mêmes libellés et les
+mêmes deux catégories que `Sidebar.tsx` → `ITEMS` / `CATEGORIES`.
+
+### Ce qu'il faut noter, sans que ce soit une divergence
+
+**La démo jouable montre une barre latérale ; l'iPhone montre une barre
+d'onglets.** `MOBILE.md` § 5.4 l'avait anticipé, et la règle est explicite : la
+**géométrie** d'un conteneur n'est pas une divergence — au même titre que la
+barre latérale repliée en icônes sous 1024 px n'en a jamais été une. Les
+modules, leurs noms, leurs icônes et ce qu'ils font sont identiques.
+
+⚠️ Ce qui **deviendrait** une divergence : si l'arbitrage sur le paysage (§ i1)
+retirait des modules du téléphone, ou si « Plus » cessait de montrer les modules
+trading verrouillés. Aucun des deux n'est proposé.
+
+### ⭐ Une phrase de `DESIGN.md` est fausse, et le site en dépend
+
+> « ### ⚠️ Divergence ouverte : l'app est encore en pixels »
+
+**C'est inexact, et mesuré :** l'échelle Tailwind est rendue en `rem`
+(`--text-xs: .75rem`), et elle porte **526 des 662 déclarations de taille de
+texte** — soit **79 %**. Les pixels durs sont **136 valeurs dans 40 fichiers**,
+pas « l'app ».
+
+Ça change la décision, pas seulement la formulation : le passage px→rem qui
+paraissait un chantier de refonte est un chantier de **136 remplacements**. Le
+chiffrage complet est dans `AMELIORATIONS-UI.md` § 1.
+
+▶️ **À corriger dans `DESIGN.md` quand l'arbitrage px→rem sera pris** — et à
+répercuter côté site, dont la doctrine adaptative cite cette divergence.
+
+### Aucun outil ne surveille cette ressemblance
+
+Inchangé, et rappelé ici parce que c'est le seul garde-fou : `npm run check` du
+site regarde le SEO, l'accessibilité et une liste de valeurs périmées, **pas la
+fidélité à l'app**. La table de `CLAUDE.md` et sa jumelle dans
+`shale-site/CLAUDE.md` sont tout ce qu'il y a.
 
 ## Un défaut mineur relevé au passage, non corrigé (hors périmètre du lot)
 
