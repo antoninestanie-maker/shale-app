@@ -667,7 +667,10 @@ export default function KnowledgeView() {
 
       {dropping && (
         <div className="pointer-events-none fixed inset-0 z-[65] flex items-center justify-center bg-bg/70 backdrop-blur-sm">
-          <div className="card flex flex-col items-center gap-2 px-8 py-6">
+          {/* `card-solid` : au-dessus d'un `backdrop-filter`, le dégradé de
+              `--card-bg` laisse transparaître la vue floutée (DESIGN.md,
+              § Matériaux & élévation). */}
+          <div className="card card-solid flex flex-col items-center gap-2 px-8 py-6">
             <IconNote className="h-7 w-7 text-blue" />
             <p className="font-display text-lg font-bold text-text">
               {t("Déposez pour créer une note")}
