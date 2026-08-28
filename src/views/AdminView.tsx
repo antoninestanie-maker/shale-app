@@ -11,6 +11,7 @@ import {
   IconMonitor,
   IconReset,
 } from "../components/icons";
+import { IS_IOS } from "../lib/platform";
 import { isTauri } from "../lib/repo";
 import {
   applyZoom,
@@ -273,72 +274,85 @@ export default function AdminView({ config, save }: Props) {
       <ResizablePanel id="admin-window" defaultW={12}>
       <section className="card p-5">
         <h2 className="hud-label flex items-center gap-2">
-          <IconMonitor className="h-4 w-4" /> {t("fenêtre & densité")}
+          <IconMonitor className="h-4 w-4" />{" "}
+          {IS_IOS ? t("densité") : t("fenêtre & densité")}
         </h2>
 
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="text-xs text-text-dim">Largeur</span>
-            <input
-              type="number"
-              min={900}
-              max={3840}
-              value={win.width}
-              onChange={(e) =>
-                set({ window: { ...win, width: parseInt(e.target.value || "0", 10) || win.width } })
-              }
-              className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-text-dim">Hauteur</span>
-            <input
-              type="number"
-              min={600}
-              max={2400}
-              value={win.height}
-              onChange={(e) =>
-                set({ window: { ...win, height: parseInt(e.target.value || "0", 10) || win.height } })
-              }
-              className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={applySizeNow}
-            data-tip="Appliquer maintenant"
-            data-tip-sub={t("Redimensionne la fenêtre à ces valeurs, sans attendre le prochain lancement.")}
-            className="pill bg-blue px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
-          >
-            Appliquer
-          </button>
-          <button
-            type="button"
-            onClick={useCurrentSize}
-            data-tip={t("Mémoriser la taille actuelle")}
-            data-tip-sub={t("La fenêtre s’ouvrira à cette taille aux prochains lancements.")}
-            className="pill border border-border bg-surface-2 px-4 py-2 text-xs text-text hover:bg-overlay-2"
-          >
-            {t("Mémoriser la taille actuelle")}
-          </button>
-          {config.window && (
+        {/* ⚠️ PAS sur iPhone : il n'y a pas de fenêtre à dimensionner.
+            `isTauri` est VRAI sur iOS, donc le garde « Disponible dans l'app
+            native uniquement » de `applySizeNow` ne se déclenche jamais et
+            `setSize()` part sans `catch` — le bouton ne rendait rien du tout.
+            Constaté sur le simulateur le 2026-08-28 ; attendu de MOBILE.md
+            § 5.3 : « doit disparaître de l'écran iOS, pas échouer
+            silencieusement ». La DENSITÉ, elle, reste : c'est un zoom global,
+            et il a du sens au doigt. */}
+        {!IS_IOS && (
+          <>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-xs text-text-dim">Largeur</span>
+              <input
+                type="number"
+                min={900}
+                max={3840}
+                value={win.width}
+                onChange={(e) =>
+                  set({ window: { ...win, width: parseInt(e.target.value || "0", 10) || win.width } })
+                }
+                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-text-dim">Hauteur</span>
+              <input
+                type="number"
+                min={600}
+                max={2400}
+                value={win.height}
+                onChange={(e) =>
+                  set({ window: { ...win, height: parseInt(e.target.value || "0", 10) || win.height } })
+                }
+                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
+              />
+            </label>
             <button
               type="button"
-              onClick={() => set({ window: null })}
-              data-tip={t("Ne plus gérer la taille")}
-              data-tip-sub={t("macOS reprend la main sur la taille de la fenêtre.")}
-              className="pill border border-border px-4 py-2 text-xs text-text-dim hover:text-text"
+              onClick={applySizeNow}
+              data-tip="Appliquer maintenant"
+              data-tip-sub={t("Redimensionne la fenêtre à ces valeurs, sans attendre le prochain lancement.")}
+              className="pill bg-blue px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
             >
-              {t("Ne plus gérer")}
+              Appliquer
             </button>
-          )}
-        </div>
-        <p className="mt-2 text-xs text-text-dim">
-          {config.window
-            ? t("Appliquée à chaque lancement : {w} × {h}.", { w: config.window.width, h: config.window.height })
-            : t("Aucune taille imposée au lancement (la fenêtre garde sa taille).")}
-          {sizeMsg && <span className="ml-2 text-green">{sizeMsg}</span>}
-        </p>
+            <button
+              type="button"
+              onClick={useCurrentSize}
+              data-tip={t("Mémoriser la taille actuelle")}
+              data-tip-sub={t("La fenêtre s’ouvrira à cette taille aux prochains lancements.")}
+              className="pill border border-border bg-surface-2 px-4 py-2 text-xs text-text hover:bg-overlay-2"
+            >
+              {t("Mémoriser la taille actuelle")}
+            </button>
+            {config.window && (
+              <button
+                type="button"
+                onClick={() => set({ window: null })}
+                data-tip={t("Ne plus gérer la taille")}
+                data-tip-sub={t("macOS reprend la main sur la taille de la fenêtre.")}
+                className="pill border border-border px-4 py-2 text-xs text-text-dim hover:text-text"
+              >
+                {t("Ne plus gérer")}
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-text-dim">
+            {config.window
+              ? t("Appliquée à chaque lancement : {w} × {h}.", { w: config.window.width, h: config.window.height })
+              : t("Aucune taille imposée au lancement (la fenêtre garde sa taille).")}
+            {sizeMsg && <span className="ml-2 text-green">{sizeMsg}</span>}
+          </p>
+          </>
+        )}
 
         <div className="mt-4">
           <span className="text-xs text-text-dim">{t("Densité de l'interface")}</span>

@@ -713,6 +713,7 @@ export const EN: Record<string, string> = {
   "l'app, à ta main": "the app, your way",
   "Sous-titre (vide = masqué)": "Subtitle (empty = hidden)",
   "fenêtre & densité": "window & density",
+  "densité": "density",
   "Densité de l'interface": "Interface density",
   "Agrandit ou resserre toute l’interface.": "Expands or tightens the whole interface.",
   "Mémoriser la taille actuelle": "Remember current size",
