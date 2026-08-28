@@ -10,7 +10,7 @@ import {
   TRACKER_DEFAULTS,
   type TrackerSettings,
 } from "../lib/repo";
-import { IS_IOS } from "../lib/platform";
+import { captureShortcutLabel, IS_IOS, kbd } from "../lib/platform";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
 import { getLang, setLangPref, useLangPref, type LangPref } from "../lib/i18n";
 import {
@@ -1032,15 +1032,15 @@ export default function SettingsView() {
         <ul className="mt-3 flex flex-col gap-2 text-sm text-text">
           <li className="flex justify-between">
             <span>{t("Capture rapide (global)")}</span>
-            <kbd className="font-mono text-xs text-text-dim">⌥ Espace</kbd>
+            <kbd className="font-mono text-xs text-text-dim">{captureShortcutLabel()}</kbd>
           </li>
           <li className="flex justify-between">
             <span>{t("Palette de commandes")}</span>
-            <kbd className="font-mono text-xs text-text-dim">⌘ K</kbd>
+            <kbd className="font-mono text-xs text-text-dim">{kbd("⌘ K")}</kbd>
           </li>
           <li className="flex justify-between">
             <span>{t("Nouvelle note")}</span>
-            <kbd className="font-mono text-xs text-text-dim">⌘⇧ N</kbd>
+            <kbd className="font-mono text-xs text-text-dim">{kbd("⌘⇧ N")}</kbd>
           </li>
         </ul>
       </section>

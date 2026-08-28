@@ -32,7 +32,7 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 1391 entrées, 0 manquante
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 392 / 392
+npm test                                      # ✅ 393 / 393
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -210,7 +210,7 @@ d'Antonin, soit écarté avec un motif.
 | ~~**États vides d'Objectifs et Market-Brain**~~ | **Clos le 2026-08-28** — mais l'item était fondé sur un comptage faux. Les deux états vides existaient déjà ; le défaut réel, qu'ils masquaient, était **du français en dur affiché dans l'app anglaise**. Voir § 3.7 | — |
 | ~~**Audit i18n complet**~~ | **Fait le 2026-08-28**, sur décision d'Antonin. 45 fichiers, ~250 chaînes, 245 clés ; le palier « sûrement français » passe de 61 à 0. L'outil qui manquait existe : `npm run i18n:durs`. Tout est dans **`AUDIT-I18N-2026-08.md`**, limites comprises | — |
 | ~~**i18n du RUST**~~ | **Clos le 2026-08-28** — et plus petit qu'annoncé. Les trois règles étaient déjà bilingues (titre, corps, résumé). Deux textes ne l'étaient pas : la **notification de test** de `emitter.rs` et la **synthèse groupée** de `engine.rs`, seul texte du moteur à rester français quoi qu'il arrive. Un test verrouille la seconde, vérifié non vacueux | — |
-| **`⌥ Espace` écrit en dur dans Réglages** | Relevé pendant l'audit, non corrigé : ce n'est pas un défaut i18n mais de PLATEFORME — le glyphe devrait passer par `kbd()` (`src/lib/platform.ts`), sinon un utilisateur Windows lit un raccourci macOS | libre |
+| ~~**`⌥ Espace` écrit en dur dans Réglages**~~ | **Clos le 2026-08-28.** Les TROIS raccourcis de la section étaient en dur, pas seulement celui-là. `CAPTURE_SHORTCUT` existait déjà pour ça depuis le portage Windows — et n'était utilisé nulle part. Nouveau `captureShortcutLabel()` : plateforme ET langue, en fonction (pas en constante, sinon `t()` fige la langue de démarrage). Test à trois branches | — |
 | **États d'erreur natifs** | Non auditables en mode démo | — |
 
 ⚠️ **Avant de rouvrir px→rem, lire l'avertissement d'`AMELIORATIONS-UI.md`

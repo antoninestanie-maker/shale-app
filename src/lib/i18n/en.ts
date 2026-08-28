@@ -1837,6 +1837,7 @@ export const EN: Record<string, string> = {
   "Utilisateurs": "Users",
   "Churn 30 j": "Churn 30 d",
   "jours": "days",
+  "Espace": "Space",
   "Calculateur": "Calculator",
   // En-têtes du tableau d'historique de la vue Position : ils sont mappés
   // depuis un tableau littéral, donc traduits à l'exécution — `i18n:check` ne

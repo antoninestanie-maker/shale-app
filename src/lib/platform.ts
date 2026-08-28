@@ -18,7 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 
-import { getLang } from "./i18n";
+import { getLang, t } from "./i18n";
 
 function detectMac(): boolean {
   if (typeof navigator === "undefined") return true; // rendu hors navigateur (tests) : on garde le défaut historique
@@ -64,6 +64,18 @@ export const IS_IOS =
  * Les deux constantes doivent être changées ENSEMBLE.
  */
 export const CAPTURE_SHORTCUT = IS_MAC ? "⌥ Espace" : "Ctrl+Alt+Espace";
+
+/**
+ * Le même raccourci, mais À AFFICHER : la plateforme ET la langue.
+ *
+ * ⚠️ Une FONCTION, pas une constante — `t()` évalué à l'import figerait la
+ * langue de démarrage (piège n°1 de la section i18n de `CLAUDE.md`). C'est
+ * aussi pourquoi `CAPTURE_SHORTCUT` reste au-dessus : il décrit ce que le Rust
+ * enregistre, ce qui ne dépend d'aucune langue.
+ */
+export function captureShortcutLabel(): string {
+  return IS_MAC ? `⌥ ${t("Espace")}` : `Ctrl+Alt+${t("Espace")}`;
+}
 
 /** Glyphe macOS → libellé Windows. `⌃` et `⌘` tombent tous deux sur Ctrl. */
 const NOMS_WINDOWS: Record<string, string> = {

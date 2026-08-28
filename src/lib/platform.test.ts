@@ -84,4 +84,16 @@ describe("raccourci de capture rapide", () => {
     expect((await chargerAvecUA(UA_MAC)).CAPTURE_SHORTCUT).toBe("⌥ Espace");
     expect((await chargerAvecUA(UA_WIN)).CAPTURE_SHORTCUT).toBe("Ctrl+Alt+Espace");
   });
+
+  it("son LIBELLÉ suit aussi la langue, pas seulement la plateforme", async () => {
+    // `CAPTURE_SHORTCUT` décrit ce que le Rust enregistre — invariant, sans
+    // langue. `captureShortcutLabel()` est ce qu'on AFFICHE : « Espace » y
+    // devient « Space » en anglais. Réglages écrivait le glyphe en dur, donc un
+    // utilisateur Windows y lisait un raccourci macOS qui n'existe pas chez lui.
+    expect((await chargerAvecUA(UA_MAC, "fr-FR")).captureShortcutLabel()).toBe("⌥ Espace");
+    expect((await chargerAvecUA(UA_MAC, "en-US")).captureShortcutLabel()).toBe("⌥ Space");
+    expect((await chargerAvecUA(UA_WIN, "en-US")).captureShortcutLabel()).toBe(
+      "Ctrl+Alt+Space",
+    );
+  });
 });
