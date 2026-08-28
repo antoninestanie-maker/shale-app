@@ -714,6 +714,15 @@ export const EN: Record<string, string> = {
   "Sous-titre (vide = masqué)": "Subtitle (empty = hidden)",
   "fenêtre & densité": "window & density",
   "densité": "density",
+  "modules": "modules",
+  "colonne gauche": "left column",
+  "colonne droite": "right column",
+  "groupe 1": "group 1",
+  "groupe 2": "group 2",
+  "Sur téléphone, tout s'empile en une seule colonne : les deux groupes s'y alternent.":
+    "On a phone everything stacks into a single column: the two groups alternate.",
+  "Aucune tâche due ces 7 jours — le graphique se remplira tout seul.":
+    "No tasks due in the last 7 days — the chart will fill in on its own.",
   "Densité de l'interface": "Interface density",
   "Agrandit ou resserre toute l’interface.": "Expands or tightens the whole interface.",
   "Mémoriser la taille actuelle": "Remember current size",

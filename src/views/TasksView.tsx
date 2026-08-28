@@ -8,7 +8,7 @@ import {
   setTaskDone,
 } from "../lib/repo";
 import type { AppData, Tag, Task } from "../lib/types";
-import { IconX } from "../components/icons";
+import { IconCalendar, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { t } from "../lib/i18n";
@@ -222,6 +222,10 @@ export default function TasksView({ data, refresh }: Props) {
             `<select>` voisin, iOS rend son panneau natif en clair même sous un
             `color-scheme: dark` figé. */}
         <label className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1 focus-within:border-blue">
+          {/* L'icône complète le libellé : elle dit que ça s'OUVRE. Le libellé
+              seul nommait le contrôle sans annoncer qu'on peut le toucher —
+              au doigt, un rectangle vide et muet ne se tente pas. */}
+          <IconCalendar className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           <span className="hud-label shrink-0">{t("échéance")}</span>
           <input
             type="date"

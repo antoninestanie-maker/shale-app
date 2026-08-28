@@ -283,6 +283,16 @@ export const IconSearch = (p: IconProps) => (
   </Icon>
 );
 
+/** Calendrier — filtre par échéance.
+ *  ⚠️ Rend le contrôle IDENTIFIABLE au doigt : un `<input type="date">` VIDE
+ *  n'affiche rien du tout sur iOS, pas même le gabarit `jj/mm/aaaa` du bureau. */
+export const IconCalendar = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="5" width="18" height="16" rx="2.5" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </Icon>
+);
+
 /** Dossier — thème de classement. */
 export const IconFolder = (p: IconProps) => (
   <Icon {...p}>

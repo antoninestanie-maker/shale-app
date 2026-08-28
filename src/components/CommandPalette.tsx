@@ -104,7 +104,7 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 pt-28"
+          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/60 pt-28"
           onClick={close}
         >
           <div

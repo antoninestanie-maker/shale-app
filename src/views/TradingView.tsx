@@ -627,6 +627,10 @@ export default function TradingView({ data, refresh }: Props) {
       )}
 
       {zoom && zoomSrc && (
+        // ⚠️ `/85` et non le `/60` de doctrine, DÉLIBÉRÉMENT : ce n'est pas un
+        // backdrop de modale, c'est une visionneuse d'image. Un voile clair y
+        // laisserait l'interface concurrencer le screenshot qu'on vient
+        // d'agrandir pour le regarder.
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-8"
           onClick={() => setZoom(null)}

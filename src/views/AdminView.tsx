@@ -387,7 +387,11 @@ export default function AdminView({ config, save }: Props) {
       {/* Modules */}
       <ResizablePanel id="admin-modules" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">{t("modules de la sidebar")}</h2>
+        {/* ⚠️ « sidebar » n'existe pas sur téléphone : il y a une barre
+            d'onglets et un tiroir. Le mot désignait l'endroit, pas la chose. */}
+        <h2 className="hud-label">
+          {IS_IOS ? t("modules") : t("modules de la sidebar")}
+        </h2>
         <p className="mt-2 text-xs text-text-dim">
           Ordre, visibilité et libellé de chaque module. « Aujourd'hui » reste toujours
           accessible ; Personnaliser et Réglages sont fixes en bas.
@@ -445,6 +449,12 @@ export default function AdminView({ config, save }: Props) {
         <h2 className="hud-label">dashboard — aujourd'hui</h2>
         <p className="mt-2 text-xs text-text-dim">
           {t("Choisis les blocs affichés sur l'écran d'accueil et leur ordre.")}
+          {IS_IOS && (
+            <>
+              {" "}
+              {t("Sur téléphone, tout s'empile en une seule colonne : les deux groupes s'y alternent.")}
+            </>
+          )}
         </p>
         <div className="mt-4 flex flex-col gap-5">
           <WidgetList
@@ -452,13 +462,17 @@ export default function AdminView({ config, save }: Props) {
             list={config.dashTop}
             onChange={(l) => set({ dashTop: l })}
           />
+          {/* ⚠️ Sur téléphone il n'y a PAS deux colonnes : `TodayView` fait
+              `interleave(dashLeft, dashRight)`, donc les deux groupes
+              s'alternent dans une pile unique. « colonne gauche » y désignait
+              une position qui n'existe pas. */}
           <WidgetList
-            title="colonne gauche"
+            title={IS_IOS ? t("groupe 1") : t("colonne gauche")}
             list={config.dashLeft}
             onChange={(l) => set({ dashLeft: l })}
           />
           <WidgetList
-            title="colonne droite"
+            title={IS_IOS ? t("groupe 2") : t("colonne droite")}
             list={config.dashRight}
             onChange={(l) => set({ dashRight: l })}
           />

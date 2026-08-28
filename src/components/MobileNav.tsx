@@ -176,7 +176,7 @@ export default function MobileNav({
           <button
             type="button"
             aria-label={t("Fermer")}
-            className="flex-1 bg-black/50"
+            className="flex-1 bg-black/60"
             onClick={() => setPlusOuvert(false)}
           />
           <div
