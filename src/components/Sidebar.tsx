@@ -497,6 +497,10 @@ export default function Sidebar({
                       type="button"
                       onClick={(e) => toggleCategory(cat.id, e.currentTarget)}
                       aria-expanded={isOpen}
+                      // Même trou que les onglets : le nom de catégorie est
+                      // `hidden lg:block`, donc replié le bouton ne contient
+                      // plus qu'un chevron.
+                      aria-label={t(cat.label)}
                       data-tip={t(cat.label)}
                       data-tip-sub={
                         allLocked
