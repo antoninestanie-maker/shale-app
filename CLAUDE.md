@@ -2601,6 +2601,35 @@ fiches, pas des thèmes). La démo jouable de `Demo.astro`, elle, **n'a rien à
 changer** — Savoir n'est pas l'un des trois modules jouables, et le compte de
 modules ne bouge pas. Le portage vers `windows-build` est une session à part.
 
+## Chantier UI/UX du 2026-08-28 — lire `PASSATION-UI.md`
+
+Audit des 15 vues de bureau et des 14 destinations iOS, puis 18 correctifs.
+**`PASSATION-UI.md` se suffit** : état, ligne de base, ce qui a été fait, ce
+qui reste et qui décide. Le détail est dans `AUDIT-UI-2026-08.md` (tableau et
+preuves) et `AMELIORATIONS-UI.md` (propositions chiffrées, non implémentées).
+
+Les trois pièges qui valent pour TOUT le dépôt, pas seulement pour ce chantier :
+
+1. ⭐ **`getComputedStyle` n'est pas une preuve de COULEUR ici.** Trois sondes de
+   mesure ont dû être jetées : elles butaient toutes sur la valeur périmée que
+   Chromium rend sous `backdrop-filter` — le bogue que `theme.ts` contourne
+   déjà (`repaintBackdrops`). La capture d'écran tranche. Et pour basculer le
+   thème, passer par Réglages → Apparence, jamais par l'attribut `data-theme`.
+2. ⭐ **`simctl install` sur le simulateur DÉCONNECTE la session** (données
+   préservées, accès au trousseau perdu). Faire l'audit visuel AVANT de
+   reconstruire — `MOBILE.md` § 22.
+3. **La couche `utilities` de Tailwind bat `components`** — repris alors que le
+   dépôt avait déjà documenté le piège en juillet.
+
+⚠️ **Deux règles de conception généralisées** que tout nouveau code doit suivre :
+- **`Échap` : lire `e.defaultPrevented`, puis marquer à son tour.** La
+  convention venait de `KnowledgeView` (2026-08-26) et n'avait jamais été
+  étendue : huit modales fermaient deux étages d'un coup, emportant la saisie
+  en cours.
+- **`.truncate-souris` à poser EN PLUS de `truncate`** sur tout libellé dont le
+  `title` est le seul recours : au doigt, le survol n'existe pas, donc un texte
+  coupé l'est sans recours.
+
 ## Règle : Antonin n'utilise jamais le Terminal
 
 **Il n'est pas développeur.** Il ne doit avoir à taper aucune commande.
