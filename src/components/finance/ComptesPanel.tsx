@@ -166,7 +166,9 @@ export default function ComptesPanel({
             <ul className="mt-2 flex flex-col gap-1.5">
               {archives.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="min-w-0 truncate text-text-dim">{c.label}</span>
+                  <span className="min-w-0 truncate text-text-dim" title={c.label}>
+                    {c.label}
+                  </span>
                   <BoutonDiscret
                     onClick={async () => {
                       await archiveFinanceAccount(c.id, false);
@@ -231,24 +233,30 @@ function LigneCompte({
     setSaisie(null);
   };
 
+  // La nature est omise quand elle est DÉJÀ le libellé : « Compte courant »
+  // suivi de « Compte courant · Boursorama » se lit comme un bug d'affichage,
+  // et c'est le nom que la moitié des gens donnent à leur compte.
+  //
+  // Sortie du JSX pour pouvoir servir DEUX FOIS : le texte affiché, et le
+  // `title` qui le rend au survol quand la colonne est trop étroite.
+  const sousTitre = [
+    compte.label.trim().toLowerCase() === natureLabel(compte.kind).toLowerCase()
+      ? null
+      : natureLabel(compte.kind),
+    compte.institution,
+    compte.is_liquid === 0 ? t("hors runway") : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <li className="group/ligne flex items-center gap-3 py-2.5">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text">{compte.label}</p>
-        <p className="truncate text-xs text-text-dim">
-          {/* La nature est omise quand elle est DÉJÀ le libellé : « Compte
-              courant » suivi de « Compte courant · Boursorama » se lit comme un
-              bug d'affichage, et c'est le nom que la moitié des gens donnent à
-              leur compte. */}
-          {[
-            compte.label.trim().toLowerCase() === natureLabel(compte.kind).toLowerCase()
-              ? null
-              : natureLabel(compte.kind),
-            compte.institution,
-            compte.is_liquid === 0 ? t("hors runway") : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+        <p className="truncate text-sm text-text" title={compte.label}>
+          {compte.label}
+        </p>
+        <p className="truncate text-xs text-text-dim" title={sousTitre}>
+          {sousTitre}
         </p>
       </div>
 
@@ -386,7 +394,9 @@ function ReleveGroupe({
       <div className="mt-3 flex flex-col gap-2">
         {lignes.map((l) => (
           <label key={l.compte.id} className="flex items-center gap-3">
-            <span className="min-w-0 flex-1 truncate text-sm text-text">{l.compte.label}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-text" title={l.compte.label}>
+              {l.compte.label}
+            </span>
             <input
               className={`${inputCls} w-36 text-right`}
               inputMode="decimal"

@@ -62,8 +62,16 @@ export default function PositionsPanel({
             {valorisation.lignes.map((l) => (
               <li key={l.holding.id} className="group/pos flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm text-text">{l.holding.symbol}</p>
-                  <p className="truncate text-xs text-text-dim">
+                  <p
+                    className="truncate font-mono text-sm text-text"
+                    title={l.holding.symbol}
+                  >
+                    {l.holding.symbol}
+                  </p>
+                  <p
+                    className="truncate text-xs text-text-dim"
+                    title={`${formaterQuantite(l.holding.quantity_e8, localeTag())} · ${nomCompte(l.holding.account_id)}`}
+                  >
                     {formaterQuantite(l.holding.quantity_e8, localeTag())} ·{" "}
                     {nomCompte(l.holding.account_id)}
                   </p>
