@@ -372,6 +372,12 @@ export default function Sidebar({
     label: string,
     icon: ReactNode,
   ) => {
+    // ⚠️ `aria-label` sur le BOUTON, et pas seulement `title` sur le libellé :
+    // sous 1024 px le libellé est `display: none`, donc le bouton ne contient
+    // plus qu'une icône. Mesuré le 2026-08-28 à 720 px — `innerText` vide,
+    // `aria-label` nul, et le seul `title` posé sur un élément non rendu, qui
+    // ne nomme rien et n'affiche aucune bulle. Les treize items de navigation
+    // n'avaient alors AUCUN nom accessible.
     const locked = isLocked(id);
     const active = view === id && !locked;
     const canonical = t(BY_ID.get(id)?.label ?? label);
@@ -384,6 +390,7 @@ export default function Sidebar({
         // de survol, donc perdrait l'info-bulle qui explique le cadenas.
         onClick={() => (locked ? onLocked?.(id) : onNavigate(id))}
         aria-current={active ? "page" : undefined}
+        aria-label={label}
         data-tip={canonical}
         data-tip-sub={locked ? t("Inclus dans Shale Trade") : t(DESCRIPTIONS[id])}
         data-tip-side="right"
@@ -435,8 +442,10 @@ export default function Sidebar({
     // dont on change d'onglet en permanence. Le tiroir n'aurait de sens que
     // sous ~600 px, largeur que la fenêtre ne peut pas atteindre (`minWidth`).
     //
-    // Chaque libellé porte déjà `title={label}` : replié, le survol le rend.
-    // C'est ce qui rend ce repli possible sans rien ajouter.
+    // ⚠️ Replié, le survol est rendu par `data-tip` (couche Tooltip), PAS par
+    // le `title` : celui-ci est posé sur le libellé, qui est `display: none`
+    // sous 1024 px. Un `title` sur un élément non rendu n'affiche rien et ne
+    // nomme rien — d'où l'`aria-label` porté par le bouton lui-même.
     <aside className="glass relative z-10 flex w-16 shrink-0 flex-col border-r border-border lg:w-[232px]">
       {/* Zone de drag fenêtre (barre de titre overlay).
           `="deep"` (et non l'attribut nu) : avec l'attribut nu, Tauri ne
