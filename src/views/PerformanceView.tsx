@@ -235,7 +235,10 @@ export default function PerformanceView({ data, refresh }: Props) {
             <p className="hud-label" title={tile.label}>
               {tile.label}
             </p>
-            <p className={`mt-1 truncate font-display text-3xl font-extrabold ${tile.accent}`}>
+            <p
+              className={`mt-1 truncate font-display text-3xl font-extrabold ${tile.accent}`}
+              title={tile.value}
+            >
               {tile.value}
             </p>
           </div>
