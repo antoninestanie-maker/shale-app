@@ -12,6 +12,7 @@ interface Props {
   onSaved: () => Promise<void>;
 }
 
+/** Libellés français, traduits à l'affichage — cf. `GoalsView`. */
 const SCOPES: { value: Goal["scope"]; label: string }[] = [
   { value: "short", label: "Court terme" },
   { value: "medium", label: "Moyen terme" },
@@ -119,7 +120,7 @@ export default function GoalModal({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optionnel)"
+            placeholder={t("Description (optionnel)")}
             rows={2}
             className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
           />
@@ -138,7 +139,7 @@ export default function GoalModal({
                       : "border-border text-text-dim hover:text-text"
                   }`}
                 >
-                  {s.label}
+                  {t(s.label)}
                 </button>
               ))}
             </div>
@@ -213,7 +214,7 @@ export default function GoalModal({
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-xs font-medium text-text-dim">Progression</p>
+              <p className="text-xs font-medium text-text-dim">{t("Progression")}</p>
               <button
                 type="button"
                 onClick={() => setManual(!manual)}
@@ -223,7 +224,7 @@ export default function GoalModal({
                     : "border-blue bg-blue/15 text-blue"
                 }`}
               >
-                {manual ? "manuelle" : t("auto (sous-objectifs + tâches)")}
+                {manual ? t("manuelle") : t("auto (sous-objectifs + tâches)")}
               </button>
             </div>
             {manual ? (
@@ -243,8 +244,7 @@ export default function GoalModal({
               </div>
             ) : (
               <p className="text-xs text-text-dim">
-                Calculée depuis les sous-objectifs et les tâches ponctuelles
-                liées.
+                {t("Calculée depuis les sous-objectifs et les tâches ponctuelles liées.")}
               </p>
             )}
           </div>

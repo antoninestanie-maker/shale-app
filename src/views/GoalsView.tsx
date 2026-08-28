@@ -5,12 +5,17 @@ import { deleteGoal } from "../lib/repo";
 import type { AppData, Goal } from "../lib/types";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { t } from "../lib/i18n";
+import { pick, t, tp } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
 }
 
+/**
+ * Clés FRANÇAISES : la table est construite à l'import, donc `t()` y serait
+ * figé sur la langue du démarrage. On traduit à l'AFFICHAGE — même idiome que
+ * `t(iv.bias)` dans Market-Brain.
+ */
 const SCOPE_LABEL: Record<Goal["scope"], string> = {
   short: "court terme",
   medium: "moyen terme",
@@ -33,8 +38,9 @@ function deadlineInfo(deadline: string | null): {
     (new Date(deadline).getTime() - new Date(today).getTime()) / 86_400_000,
   );
   if (days < 0) return { label: t("en retard de {n} j", { n: -days }), urgent: true };
-  if (days === 0) return { label: "aujourd'hui", urgent: true };
-  return { label: `J−${days}`, urgent: days <= 7 };
+  if (days === 0) return { label: t("aujourd'hui"), urgent: true };
+  // « J−3 » en français, « D−3 » en anglais : l'initiale suit la langue.
+  return { label: `${pick("J", "D")}−${days}`, urgent: days <= 7 };
 }
 
 export default function GoalsView({ data, refresh }: Props) {
@@ -122,7 +128,7 @@ export default function GoalsView({ data, refresh }: Props) {
                 {goal.title}
               </span>
               <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-                {SCOPE_LABEL[goal.scope]}
+                {t(SCOPE_LABEL[goal.scope])}
               </span>
               {dl && (
                 <span
@@ -135,7 +141,7 @@ export default function GoalsView({ data, refresh }: Props) {
               )}
               {linkedCount > 0 && (
                 <span className="shrink-0 text-[10px] text-text-dim">
-                  {linkedCount} tâche{linkedCount > 1 ? "s" : ""}
+                  {tp(linkedCount, "{n} tâche", "{n} tâches")}
                 </span>
               )}
             </div>
@@ -242,8 +248,9 @@ export default function GoalsView({ data, refresh }: Props) {
         <ResizablePanel id="goals-list" defaultW={12}>
         <section className="card p-3">
           <p className="py-10 text-center text-sm text-text-dim">
-            Aucun objectif. Commence par le long terme, puis découpe en
-            sous-objectifs. Range-les par catégorie (Trading, Formation…).
+            {t(
+              "Aucun objectif. Commence par le long terme, puis découpe en sous-objectifs. Range-les par catégorie (Trading, Formation…).",
+            )}
           </p>
         </section>
         </ResizablePanel>

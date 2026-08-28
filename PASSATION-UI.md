@@ -29,7 +29,7 @@ POSTÉRIEURS au dernier commit qui touche `src/`.
 ```
 npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
-npm run i18n:check                            # ✅ 1125 entrées, 0 manquante
+npm run i18n:check                            # ✅ 1152 entrées, 0 manquante
 npm test                                      # ✅ 392 / 392
 npx vite build                                # ✅
 cd src-tauri
@@ -148,6 +148,24 @@ donc **pas pilotable** avec cet outillage.
 dimensions de la capture ne disent RIEN de l'orientation.** Pour lire une
 capture en paysage : `sips -r -90`.
 
+### 3.7 ⭐ `npm run i18n:check` au vert ne veut PAS dire « traduit »
+
+L'outil (`tools/i18n-check.mjs`) vérifie **une seule chose** : que toute clé
+passée à `t("…")` existe dans `en.ts`. Une phrase française écrite directement
+dans le JSX — sans `t()` — lui est **totalement invisible**. Elle s'affiche
+telle quelle dans l'app anglaise, et la ligne « ✅ 1152 entrées, 0 manquante »
+de la ligne de base du § 1 ne la contredit jamais.
+
+C'est exactement ce qui s'était produit dans Objectifs et Market-Brain, et
+c'est aussi ce qui a fait **compter zéro état vide là où il y en avait trois**
+(cf. l'encadré du § 3 d'`AMELIORATIONS-UI.md`) : la sonde cherchait des
+messages passant par `t()`.
+
+▶️ **Quatrième sonde fausse de ce chantier**, après les trois du § 3.2. Le
+motif se répète : *ce qui n'est pas mesurable par l'outil est compté comme
+inexistant.* Pour l'i18n, la seule preuve est **l'app basculée en anglais** —
+Réglages → Langue, ou `localStorage.setItem("shale.lang","en")` en mode démo.
+
 ---
 
 ## 4. Comment auditer l'interface sans toucher aux vraies données
@@ -186,7 +204,8 @@ d'Antonin, soit écarté avec un motif.
 | **px → rem + cibles 44 pt** | Reporté par Antonin le 2026-08-28 : « chantier dédié ». **136 valeurs, 40 fichiers**, dont 38 sous le plancher de 11 px. Chiffrage complet dans `AMELIORATIONS-UI.md` § 1 | Antonin |
 | **Palette mi-tokens mi-hex** (`TAG_COLORS`, `HABIT_COLORS`) | Écarté : sa moitié « lignes déjà en base » est une **migration de données**, hors périmètre. N'en faire que la moitié laisserait un état mixte pire | Antonin |
 | **Grille en dents de scie à 720 px** | Écarté : moteur de grille, pur confort (199 px vides à droite de deux panneaux) | Antonin |
-| **États vides d'Objectifs et Market-Brain** | Petits, jamais demandés. `WeekChart` est fait | libre |
+| ~~**États vides d'Objectifs et Market-Brain**~~ | **Clos le 2026-08-28** — mais l'item était fondé sur un comptage faux. Les deux états vides existaient déjà ; le défaut réel, qu'ils masquaient, était **du français en dur affiché dans l'app anglaise**. Voir § 3.7 | — |
+| **Audit i18n complet** | ⭐ **Ouvert par la ligne ci-dessus.** Le français en dur n'est pas propre à ces deux modules (exemple constaté : la cloche annonce « Notifications, 1 non lue » en anglais). Aucune mesure ne l'attrape — cf. § 3.7 | Antonin |
 | **États d'erreur natifs** | Non auditables en mode démo | — |
 
 ⚠️ **Avant de rouvrir px→rem, lire l'avertissement d'`AMELIORATIONS-UI.md`

@@ -2,6 +2,7 @@ import { effectiveProgress } from "../lib/logic";
 import type { AppData, Goal } from "../lib/types";
 
 import { t } from "../lib/i18n";
+/** Clés françaises, traduites à l'affichage — cf. `GoalsView`. */
 const SCOPE_LABEL: Record<Goal["scope"], string> = {
   short: "court terme",
   medium: "moyen terme",
@@ -52,7 +53,7 @@ export default function GoalsPreview({ data }: { data: AppData }) {
               />
             </div>
             <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-              {SCOPE_LABEL[goal.scope]}
+              {t(SCOPE_LABEL[goal.scope])}
             </span>
           </div>
         </li>

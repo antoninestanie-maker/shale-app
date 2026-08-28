@@ -127,10 +127,27 @@ Compté sur `src/views/` et sur les widgets du dashboard :
 | Performance | ✅ 2, dont « Pas encore de streak — vise ≥80% de tes tâches un jour donné. » |
 | Tâches · Timer · Trading · Journal · Console · Réglages | ✅ 1 chacun |
 | **Aujourd'hui** | ❌ **0 dans la vue elle-même** (les widgets en portent : `TodayTasks` 1, `GoalsPreview` 2) |
-| **Objectifs** | ❌ **0** |
+| ~~**Objectifs**~~ | ⚠️ **COMPTAGE FAUX — corrigé le 2026-08-28.** La vue en a un depuis le premier import (`GoalsView.tsx:240`) : « Aucun objectif. Commence par le long terme… ». Voir l'encadré ci-dessous |
 | **Finance** | ❌ **0** — compensé par le parcours « MISE EN ROUTE · 1/3 », qui est meilleur qu'un état vide |
-| **Market-Brain** | ❌ **0** |
+| ~~**Market-Brain**~~ | ⚠️ **COMPTAGE FAUX — corrigé le 2026-08-28.** Deux états vides, distincts et rédigés (`MarketBrainView.tsx:400`) : « pas de clé LLM » et « le briefing arrivera à {h}h », ce dernier avec son bouton **Générer maintenant** |
 | **Position** | ❌ **0** — un calculateur vide est son état normal, pas un état vide |
+
+> ### ⚠️ La sonde d'états vides était fausse — quatrième du chantier
+>
+> Ce tableau a été construit en cherchant les messages **qui passent par
+> `t()`**. Objectifs et Market-Brain écrivaient les leurs **en français dans le
+> JSX**, sans `t()` : invisibles à la mesure, parfaitement visibles à l'écran.
+>
+> Le tableau ne relevait donc pas une absence d'état vide — il relevait, sans
+> le savoir, **une fuite de français dans l'app anglaise**. C'est ce défaut-là
+> qui a été corrigé, et il était plus large que les deux états vides : les
+> horizons (« court / moyen / long terme »), le compteur de tâches liées, le
+> « J−3 », toute la modale d'objectif, et sept bandeaux de Market-Brain.
+>
+> ▶️ **`npm run i18n:check` ne peut PAS voir ce défaut** : il vérifie que
+> chaque clé passée à `t()` existe en anglais, jamais qu'une chaîne affichée
+> passe par `t()`. Vert ne veut pas dire traduit. C'est la même leçon que
+> § 3.2 de `PASSATION-UI.md` : la mesure ne tranche pas, l'écran tranche.
 
 **Les vrais rectangles blancs, vérifiés à l'écran :**
 
@@ -268,8 +285,10 @@ Ce document a été écrit avant l'arbitrage. Depuis :
 - **§ 2 (info-bulles au doigt)** — fait, voie (a), appui long. `2482660`.
   Le piège du clic avalé était réel et il est traité : long-presser un bouton
   de suppression montre sa bulle **sans supprimer**, vérifié à l'écran.
-- **§ 3 (états vides)** — `WeekChart` fait (`ef0aca8`). Les autres vues citées
-  (Objectifs, Market-Brain) restent à faire.
+- **§ 3 (états vides)** — `WeekChart` fait (`ef0aca8`). Objectifs et
+  Market-Brain : **clos le 2026-08-28**, mais pas comme prévu — leurs états
+  vides existaient déjà, le comptage était faux. Ce qui a été réparé, c'est le
+  français en dur qu'il masquait. Encadré au § 3.
 - **§ 4 (paysage)** — tranché : **traiter**, pas verrouiller. Fait (`0dec33c`).
 - **§ 7 (voiles)** — fait (`1ac84f9`). Le `/85` de la visionneuse reste,
   délibérément, et c'est désormais écrit dans le code.
@@ -280,8 +299,14 @@ Ce document a été écrit avant l'arbitrage. Depuis :
   entendre le contraire, c'était inexact.
 
 **Restent ouverts** : § 1 (px→rem, reporté par décision), § 5 (grille en dents
-de scie), § 6 (palette mi-tokens mi-hex), § 8 (cibles 44 pt), et les états vides
-d'Objectifs et de Market-Brain.
+de scie), § 6 (palette mi-tokens mi-hex), § 8 (cibles 44 pt).
+
+⚠️ **Sujet neuf ouvert par la correction du § 3** : le français en dur n'est
+pas propre aux deux modules réparés — la cloche de la barre latérale annonce
+encore « Notifications, 1 non lue » en anglais (`aria-label`, relevé à l'écran
+le 2026-08-28). **Aucun audit i18n complet n'a été fait**, et il n'existe aucun
+outil capable de le faire : `i18n:check` regarde les clés, pas les chaînes
+affichées. À instruire comme un chantier à part.
 
 ## Si je devais n'en faire que trois
 

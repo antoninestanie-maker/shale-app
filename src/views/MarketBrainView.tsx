@@ -10,7 +10,7 @@ import type { MarketBrainState } from "../lib/market/useMarketBrain";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SessionIndicator from "../components/SessionIndicator";
 import { useMarketClock } from "../lib/market/clock";
-import { localeTag, t } from "../lib/i18n";
+import { localeTag, t, tp } from "../lib/i18n";
 import type {
   BriefingOutput,
   Conviction,
@@ -57,7 +57,7 @@ function ConvictionDots({ level, tone }: { level: Conviction; tone: string }) {
   return (
     <span
       className="flex items-center gap-1"
-      data-tip={`Conviction ${level}`}
+      data-tip={t("Conviction {level}", { level: t(level) })}
       data-tip-sub={t("Degré de confiance de l’analyse sur ce scénario.")}
     >
       {[0, 1, 2].map((i) => (
@@ -246,11 +246,13 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
         <div>
           <p className="hud-label flex items-center gap-2">
             <span>
-              Session {sessionLabel}
+              {t("Session {session}", { session: sessionLabel })}
               {briefing &&
-                ` · généré à ${new Date(briefing.generated_at).toLocaleTimeString(localeTag(), {
-                  hour: "2-digit",
-                  minute: "2-digit",
+                ` · ${t("généré à {time}", {
+                  time: new Date(briefing.generated_at).toLocaleTimeString(localeTag(), {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
                 })}`}
             </span>
             <SessionIndicator compact />
@@ -323,11 +325,13 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
           <div className="card flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4">
             <span className="h-2 w-2 shrink-0 rounded-full bg-text-dim/50" />
             <p className="text-sm font-medium text-text">
-              Marché fermé — {clock.reopenLabel ?? t("reprise lundi à l'ouverture")}.
+              {t("Marché fermé — {reprise}.", {
+                reprise: clock.reopenLabel ?? t("reprise lundi à l'ouverture"),
+              })}
             </p>
             <p className="text-xs text-text-dim">
-              Forex et indices en pause le week-end · le{" "}
-              <span className="font-semibold text-text">BTC reste ouvert 24/7</span>.
+              {t("Forex et indices en pause le week-end · le")}{" "}
+              <span className="font-semibold text-text">{t("BTC reste ouvert 24/7")}</span>.
             </p>
           </div>
         </div>
@@ -336,14 +340,16 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
       {/* Bandeaux d'état */}
       {isDemo && (
         <div className="mt-4 rounded-xl border border-yellow/25 bg-yellow/10 px-4 py-2.5 text-xs text-yellow">
-          Briefing de démonstration (hors app native). L'analyse réelle tourne dans l'app
-          reconstruite.
+          {t(
+            "Briefing de démonstration (hors app native). L'analyse réelle tourne dans l'app reconstruite.",
+          )}
         </div>
       )}
       {payload && payload._demo && !isDemo && (
         <div className="mt-4 rounded-xl border border-yellow/25 bg-yellow/10 px-4 py-2.5 text-xs text-yellow">
-          Données réelles indisponibles (tous les fetchers ont échoué) : affichage de
-          données de démonstration. Vérifie la connexion puis régénère.
+          {t(
+            "Données réelles indisponibles (tous les fetchers ont échoué) : affichage de données de démonstration. Vérifie la connexion puis régénère.",
+          )}
         </div>
       )}
       {error && (
@@ -354,7 +360,7 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
       {payload && payload._errors.length > 0 && (
         <details className="mt-4 rounded-xl border border-red/25 bg-red/10 px-4 py-2.5 text-xs text-red">
           <summary className="cursor-pointer font-medium">
-            {payload._errors.length} source{payload._errors.length > 1 ? "s" : ""} en échec
+            {tp(payload._errors.length, "{n} source en échec", "{n} sources en échec")}
           </summary>
           <ul className="mt-1 list-disc pl-4">
             {payload._errors.map((e, i) => (
@@ -401,15 +407,17 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
         <div className="card mt-6 p-6">
           {!hasKey && !isDemo ? (
             <p className="text-sm text-text">
-              Ajoute une clé Gemini ou Groq dans{" "}
-              <span className="text-blue">{t("Réglages → market-brain")}</span> pour générer le
-              briefing automatiquement à {triggerHour}h.
+              {t("Ajoute une clé Gemini ou Groq dans")}{" "}
+              <span className="text-blue">{t("Réglages → market-brain")}</span>{" "}
+              {t("pour générer le briefing automatiquement à {h}h.", { h: triggerHour })}
             </p>
           ) : (
             <>
               <p className="text-sm text-text">
-                Le briefing {sessionLabel} sera généré automatiquement à {triggerHour}h (ou
-                au premier lancement après cette heure).
+                {t(
+                  "Le briefing {session} sera généré automatiquement à {h}h (ou au premier lancement après cette heure).",
+                  { session: sessionLabel, h: triggerHour },
+                )}
               </p>
               <button
                 type="button"

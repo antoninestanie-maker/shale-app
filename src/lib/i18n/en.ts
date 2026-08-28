@@ -247,6 +247,24 @@ export const EN: Record<string, string> = {
   "Aucun objectif en cours.": "No goal in progress.",
   "Crée-en un dans l'onglet Objectifs.": "Create one in the Goals tab.",
   "objectif quotidien": "daily goal",
+  // Horizons : minuscules dans les pastilles (vue + widget), capitales dans le
+  // sélecteur de la modale. Les deux casses sont des clés distinctes.
+  "court terme": "short term",
+  "moyen terme": "medium term",
+  "long terme": "long term",
+  "Court terme": "Short term",
+  "Moyen terme": "Medium term",
+  "Long terme": "Long term",
+  "aujourd'hui": "today",
+  "{n} tâche": "{n} task",
+  "{n} tâches": "{n} tasks",
+  "Aucun objectif. Commence par le long terme, puis découpe en sous-objectifs. Range-les par catégorie (Trading, Formation…).":
+    "No goals yet. Start with the long term, then break it into sub-goals. Sort them by category (Trading, Learning…).",
+  "Description (optionnel)": "Description (optional)",
+  "Progression": "Progress",
+  "manuelle": "manual",
+  "Calculée depuis les sous-objectifs et les tâches ponctuelles liées.":
+    "Derived from sub-goals and linked one-off tasks.",
 
   // ── Timer / focus ─────────────────────────────────────────────────────────
   "Lancer la session": "Start session",
@@ -615,6 +633,24 @@ export const EN: Record<string, string> = {
   "forte": "high",
   "Biais {bias} · aller à la carte de l’instrument":
     "{bias} bias · jump to the instrument card",
+  "Conviction {level}": "{level} conviction",
+  "Session {session}": "{session} session",
+  "généré à {time}": "generated at {time}",
+  "Marché fermé — {reprise}.": "Market closed — {reprise}.",
+  "Forex et indices en pause le week-end · le":
+    "Forex and indices pause at the weekend ·",
+  "BTC reste ouvert 24/7": "BTC stays open 24/7",
+  "Briefing de démonstration (hors app native). L'analyse réelle tourne dans l'app reconstruite.":
+    "Demo briefing (outside the native app). The real analysis runs in the rebuilt app.",
+  "Données réelles indisponibles (tous les fetchers ont échoué) : affichage de données de démonstration. Vérifie la connexion puis régénère.":
+    "Live data unavailable (every fetcher failed): showing demo data instead. Check your connection, then regenerate.",
+  "{n} source en échec": "{n} source failed",
+  "{n} sources en échec": "{n} sources failed",
+  "Ajoute une clé Gemini ou Groq dans": "Add a Gemini or Groq key in",
+  "pour générer le briefing automatiquement à {h}h.":
+    "to generate the briefing automatically at {h}:00.",
+  "Le briefing {session} sera généré automatiquement à {h}h (ou au premier lancement après cette heure).":
+    "The {session} briefing will be generated automatically at {h}:00 (or at first launch after that time).",
 
   // ── Réglages ──────────────────────────────────────────────────────────────
   "market-brain — clés IA": "market brain — AI keys",
