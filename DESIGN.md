@@ -318,12 +318,36 @@ Le cas particulier du BAS : quand la couche défile elle-même sur toute la
 hauteur (une vue), la réserve du bas reste sur le défilant — c'est de l'espace
 qu'on veut pouvoir atteindre en défilant, pas une bordure.
 
-### ⚠️ Divergence ouverte : l'app est encore en pixels
+### ⚠️ Divergence ouverte : l'app est MIXTE — corrigé le 2026-08-28
 
-L'échelle « pratiquée » décrite plus haut (§ Typographie) est en pixels, et
-l'app la rend en pixels. **Si le site passe au `rem` et que l'app n'y passe
-pas, les deux divergent** — et l'app reste, elle, insensible à la taille de
-police système.
+⚠️ **Cette section disait « l'app est encore en pixels ». C'est faux, et c'est
+mesuré sur le CSS PRODUIT, pas sur la source :**
+
+```
+.text-xs{font-size:var(--text-xs)}   →   --text-xs: .75rem
+.text-sm{font-size:var(--text-sm)}   →   --text-sm: .875rem
+```
+
+L'échelle Tailwind est **déjà en `rem`** et porte l'essentiel du texte :
+
+| | Occurrences | Fichiers |
+|---|---|---|
+| déjà en `rem` (`text-xs`, `text-sm`, `text-3xl`…) | **526** | — |
+| en pixels durs (`text-[Npx]` arbitraires) | **131** | 39 |
+| en pixels dans `index.css` (`font-size: Npx`) | **5** | 1 |
+
+Soit **79 % du texte déjà insensible au problème**, et **136 valeurs à migrer**
+— pas « l'app ». Dont **38 SOUS le plancher de 11 px** que cette même page se
+donne (36 × 10 px, 2 × 9 px, plus `.tip-kbd` à 10,5 px).
+
+L'écart avec le site reste réel, et l'app reste insensible à la taille de police
+système sur ces 136 valeurs. Mais le chantier n'a pas l'ampleur que cette
+section lui prêtait, et c'est ce qui change la décision.
+
+⚠️ **À instruire avant de migrer** : `applyZoom()` pose
+`document.documentElement.style.zoom`, et le `zoom` CSS multiplie AUSSI les
+`rem`. Il faut vérifier que « Densité » et Dynamic Type se composent au lieu de
+se multiplier.
 
 Le passage doit être décidé **pour les deux surfaces ou pour aucune**. Côté app,
 l'enjeu n'est pas le même : une app Tauri n'a pas de « réglage navigateur », mais
