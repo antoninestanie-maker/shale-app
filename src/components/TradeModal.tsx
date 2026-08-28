@@ -3,7 +3,7 @@ import { todayStr } from "../lib/logic";
 import { isTauri, updateTrade, type TradeInput } from "../lib/repo";
 import { logTrade } from "../lib/trades";
 import type { AppData, Trade } from "../lib/types";
-import { IconX } from "./icons";
+import { IconImage, IconX } from "./icons";
 
 import { t } from "../lib/i18n";
 interface Props {
@@ -238,9 +238,10 @@ export default function TradeModal({
               <button
                 type="button"
                 onClick={pickScreenshot}
-                className="pill border border-border px-3 py-1.5 text-xs text-text-dim hover:text-text"
+                className="pill inline-flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs text-text-dim hover:text-text"
               >
-                📷 {screenshot ? t("Changer le screenshot") : t("Joindre un screenshot")}
+                <IconImage className="h-3.5 w-3.5" />
+                {screenshot ? t("Changer le screenshot") : t("Joindre un screenshot")}
               </button>
             ) : (
               <span className="text-xs text-text-dim">
