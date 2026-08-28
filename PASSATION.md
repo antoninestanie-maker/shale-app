@@ -193,21 +193,30 @@ d'Antonin ou a été écarté avec un motif. Rien n'est « en cours ».
 
 | Sujet | État | Qui tranche |
 |---|---|---|
-| **px → rem + cibles 44 pt** | ⭐ **Instruit le 2026-08-28 au soir, et la prémisse est TOMBÉE** : mesuré en WKWebView, un `rem` **ne suit pas Dynamic Type** sur iOS (racine figée à 16 px), donc migrer les 136 valeurs n'achèterait aucune accessibilité. En revanche le verrou « Densité × rem » n'existe pas. Trois voies chiffrées, dont une à ~15 lignes : `AMELIORATIONS-UI.md` **§ 1 bis** | **Antonin** |
+| ~~**px → rem**~~ | ⭐ **Le BUT est atteint autrement, le 2026-08-28 au soir** (`4a60058`). La prémisse était fausse : un `rem` **ne suit pas Dynamic Type** dans une WKWebView. Shale suit désormais la taille de texte du système en la repliant dans « Densité » — **un fichier, aucune unité migrée**. Détail et mesures : `AMELIORATIONS-UI.md` § 1 bis | — |
+| **px → rem, pour la cohérence avec le site** | Reste ouvert, mais ce n'est PLUS de l'accessibilité : l'argument se réduit à « le site est en `rem`, l'app en pixels ». **136 valeurs, 40 fichiers**, risque de régression sur `.hud-label` | **Antonin** |
+| **Cibles tactiles de 44 pt** | Reste ouvert et INTACT — il n'a jamais dépendu des unités. `grep '--tap'` → 0. Le vrai travail est le tri des 62 cibles sous 44 px, pas la règle. `AMELIORATIONS-UI.md` § 8 | **Antonin** |
 | **Palette mi-tokens mi-hex** (`TAG_COLORS`, `HABIT_COLORS`) | Écarté : sa moitié « lignes déjà en base » est une **migration de données**. N'en faire que la moitié laisserait un état mixte pire | **Antonin** |
 | **Grille en dents de scie à 720 px** | Écarté : moteur de grille, pur confort (199 px vides à droite de deux panneaux) | **Antonin** |
 | **États d'erreur natifs** | SQLite illisible, trousseau, réseau — **non auditables en mode démo**, donc jamais vus | — |
 | **Ménage du DerivedData Xcode** | Proposé, **sans réponse**. Quatre bundles iOS traînent (`~/Library/Developer/Xcode/DerivedData`, et deux dans un scratchpad). Ce ne sont pas des apps macOS, ils ne peuvent pas être lancés par erreur. Les effacer force une reconstruction iOS complète | **Antonin** |
 
-▶️ **Cette instruction est FAITE — `AMELIORATIONS-UI.md` § 1 bis.** Elle répond
+▶️ **Instruction FAITE, et arbitrage RENDU — `AMELIORATIONS-UI.md` § 1 bis.** Elle répond
 aux deux questions et en ouvre une troisième :
 1. « Densité » et `rem` **ne se composent pas** en produit — mesuré, le verrou
    est levé ;
 2. mais un `rem` **ne suit pas Dynamic Type** dans une WKWebView, donc la
    migration seule n'apporte rien à l'accessibilité ;
-3. la voie la moins chère pour suivre le réglage système est de **replier
-   Dynamic Type dans « Densité »** (~15 lignes, un fichier, zéro migration
-   d'unité). **Décision d'Antonin.**
+3. la voie la moins chère pour suivre le réglage système était de **replier
+   Dynamic Type dans « Densité »** — **choisie par Antonin, et livrée le soir
+   même** (`4a60058`). Vérifiée sur le simulateur en exécutant le vrai module :
+   17 px → ×1,0000 · 21 px → ×1,1176 · 53 px → ×1,2500 plafonné.
+
+⚠️ **Nouveau, et ça dépasse Dynamic Type** : le `zoom` CSS multiplie AUSSI les
+unités de viewport. Tout `vh`/`vw` doit être multiplié par **`--zoom-inv`**,
+sinon il déborde de l'écran dès que la densité n'est pas à 100 %. Les cinq
+usages de l'app sont corrigés ; **tout nouveau `vh`/`vw` doit suivre la
+règle.**
 
 ---
 

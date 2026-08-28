@@ -158,9 +158,42 @@ d'accessibilité d'iOS — pour **un fichier au lieu de quarante**, sans toucher
 migration `px → rem` garde alors un seul argument, **la cohérence avec le
 site**, qui est réel mais n'est plus de l'accessibilité.
 
-⚠️ **Ce qui n'est PAS prouvé ici** : (C) n'est pas implémentée, donc la courbe
-d'amortissement n'a jamais été vue à l'écran. Et rien de tout ceci n'a été
-mesuré sur l'**iPhone réel** — simulateur uniquement.
+### ▶️ Arbitrage rendu le 2026-08-28 au soir : **(C)**, et c'est fait
+
+Antonin a tranché pour la voie (C). Implémentée le soir même
+(`4a60058`) : `tailleTexteSysteme()` et `facteurDynamicType()` dans
+`src/lib/uiConfig.ts`, composées dans `applyZoom()`. **Aucun fichier de vue
+touché, aucune unité migrée.**
+
+**Vérifié sur le simulateur en exécutant le VRAI module** — `uiConfig.ts`
+empaqueté par esbuild et servi à Safari, pas une transcription qui aurait pu
+diverger :
+
+| taille de texte système | mesurée | facteur appliqué |
+|---|---|---|
+| « large » — **le défaut** | 17 px | **1,0000** |
+| xxLarge | 21 px | 1,1176 |
+| accessibility-XXXL | 53 px | **1,2500** (plafonné) |
+
+La première ligne est la plus importante : **rien ne bouge pour qui n'a pas
+touché ses réglages.**
+
+⚠️ **Un défaut latent de « Densité » a dû être réparé d'abord.** Le `zoom` CSS
+multiplie AUSSI les unités de viewport : mesuré en WKWebView, `max-h-[88vh]`
+rend **792 px dans un écran de 600** dès que le facteur atteint 1,5 — la couche
+dépasse l'écran. Ça vaut pour la densité « Large » **livrée aujourd'hui**, pas
+seulement pour Dynamic Type. Les cinq usages de `vh`/`vw` de l'app se
+multiplient désormais par `--zoom-inv` (posée par `applyZoom`, défaut 1 dans
+`index.css`) et redonnent la fraction d'écran demandée : 528 px, stables de 1,0
+à 1,5.
+
+⚠️ **Ce qui n'est TOUJOURS pas prouvé** : l'app installée n'a pas été relue à
+grande taille de texte — sur le simulateur elle est **déconnectée** (§ 3.1 de
+`PASSATION-UI.md`), et `applyZoom()` vit dans `App.tsx`, donc SOUS `AuthGate` :
+l'écran de connexion ne le montre pas. Ce qui est prouvé sur l'appareil, c'est
+**le module**, aux trois tailles ci-dessus. La composition avec la densité et
+le rendu des douze modules à 1,25 n'ont été vus qu'en **mode démo navigateur**.
+Rien, jamais, sur l'**iPhone réel**.
 
 ### 2. Les « hover hints » sur tactile — **158 bulles, zéro atteignable au doigt**
 

@@ -2663,6 +2663,62 @@ Les trois pièges qui valent pour TOUT le dépôt, pas seulement pour ce chantie
   un état local `tp` (le take-profit) — y importer la fonction de pluriel la
   masquerait.
 
+## Densité, Dynamic Type et le piège des unités de viewport (2026-08-28)
+
+`applyZoom()` (`src/lib/uiConfig.ts`) ne pose plus seulement la densité choisie
+dans Personnaliser : elle la **compose avec la taille de texte demandée par le
+système** (Dynamic Type, iOS uniquement).
+
+### ⭐ Un `rem` ne suit PAS Dynamic Type dans une WKWebView
+
+Mesuré le 2026-08-28 sur le simulateur, taille système poussée à
+accessibility-XXXL : la racine reste à **16 px**, donc `text-[11px]` et
+`text-[0.6875rem]` rendent tous deux 14 px — exactement comme au réglage par
+défaut. Seul `font: -apple-system-body` réagit (17 → 53 px).
+
+▶️ **Conséquence à ne pas re-supposer** : migrer les 136 valeurs en pixels vers
+`rem` n'apporte **rien** à l'accessibilité. Le chantier « px → rem » gardait ce
+motif dans `AMELIORATIONS-UI.md` § 1 ; il est démonté au **§ 1 bis**, avec les
+mesures.
+
+D'où le chemin retenu : on LIT la taille système sur un élément sonde
+(`tailleTexteSysteme()`), on la traduit par une courbe amortie et plafonnée
+(`facteurDynamicType()`, pure et testée), et on multiplie la densité. Le `zoom`
+agrandit **tout**, pixels durs compris. Au réglage par défaut le facteur vaut
+exactement **1** : rien ne bouge pour qui n'a pas touché ses réglages.
+
+### ⚠️ Le `zoom` CSS multiplie AUSSI les unités de viewport
+
+C'est le piège, et il existait AVANT Dynamic Type — la densité « Large »
+livrée aujourd'hui le déclenche déjà. Mesuré en WKWebView : `100vw` rendu
+**1170 px dans une fenêtre de 900** à `zoom: 1.3`, et `max-h-[88vh]` **792 px
+dans un écran de 600** à 1,5. La couche dépasse l'écran.
+
+▶️ **Règle : tout `vh`/`vw` se multiplie par `var(--zoom-inv)`.**
+
+```
+max-h-[calc(88vh*var(--zoom-inv))]        /* et non max-h-[88vh] */
+min-height: calc(100vh * var(--zoom-inv));
+```
+
+`--zoom-inv` est posée par `applyZoom()` sur `<html>`, et vaut **1** par défaut
+dans `index.css` — les règles tiennent donc avant le premier appel. Les cinq
+usages de l'app (body, `NotificationBell`, `MobileNav`, `ComptesPanel`,
+`KnowledgeView`) sont corrigés ; mesuré ensuite stable à 528 px de 1,0 à 1,5.
+
+⚠️ Les largeurs en **pourcentage**, elles, n'ont aucun problème : `width: 100%`
+rend bien la largeur réelle à tous les facteurs. C'est une particularité des
+unités de viewport, pas du zoom en général.
+
+### Ce qui n'est PAS prouvé
+
+L'app **installée** n'a pas été relue à grande taille de texte : sur le
+simulateur elle est déconnectée, et `applyZoom()` vit dans `App.tsx`, donc SOUS
+`AuthGate` — l'écran de connexion ne montre rien. Ce qui est prouvé sur
+l'appareil, c'est le **module** (bundle esbuild du vrai `uiConfig.ts` servi à
+Safari) : 17 px → ×1,0000, 21 px → ×1,1176, 53 px → ×1,2500. Le rendu des douze
+modules à 1,25 n'a été vu qu'en mode démo navigateur.
+
 ## Règle : Antonin n'utilise jamais le Terminal
 
 **Il n'est pas développeur.** Il ne doit avoir à taper aucune commande.

@@ -212,7 +212,9 @@ d'Antonin, soit écarté avec un motif.
 
 | Sujet | État | Qui tranche |
 |---|---|---|
-| **px → rem + cibles 44 pt** | ⭐ **Instruit le 2026-08-28 au soir** (`AMELIORATIONS-UI.md` **§ 1 bis**) : le verrou « Densité × rem » **n'existe pas**, mais un `rem` **ne suit pas Dynamic Type** sur iOS — la migration seule n'achèterait donc rien. Trois voies chiffrées, la moins chère à ~15 lignes | Antonin |
+| ~~**px → rem** (pour Dynamic Type)~~ | ⭐ **Clos autrement le 2026-08-28 au soir** (`4a60058`). La prémisse était fausse — un `rem` ne suit pas Dynamic Type dans une WKWebView. Shale suit la taille de texte du système en la repliant dans « Densité » : **un fichier, aucune unité migrée**. `AMELIORATIONS-UI.md` § 1 bis | — |
+| **px → rem** (cohérence avec le site) | Ouvert, mais ce n'est plus de l'accessibilité. 136 valeurs, 40 fichiers | Antonin |
+| **Cibles 44 pt** | Ouvert et intact : il n'a jamais dépendu des unités | Antonin |
 | **Palette mi-tokens mi-hex** (`TAG_COLORS`, `HABIT_COLORS`) | Écarté : sa moitié « lignes déjà en base » est une **migration de données**, hors périmètre. N'en faire que la moitié laisserait un état mixte pire | Antonin |
 | **Grille en dents de scie à 720 px** | Écarté : moteur de grille, pur confort (199 px vides à droite de deux panneaux) | Antonin |
 | ~~**États vides d'Objectifs et Market-Brain**~~ | **Clos le 2026-08-28** — mais l'item était fondé sur un comptage faux. Les deux états vides existaient déjà ; le défaut réel, qu'ils masquaient, était **du français en dur affiché dans l'app anglaise**. Voir § 3.7 | — |
@@ -221,11 +223,17 @@ d'Antonin, soit écarté avec un motif.
 | ~~**`⌥ Espace` écrit en dur dans Réglages**~~ | **Clos le 2026-08-28.** Les TROIS raccourcis de la section étaient en dur, pas seulement celui-là. `CAPTURE_SHORTCUT` existait déjà pour ça depuis le portage Windows — et n'était utilisé nulle part. Nouveau `captureShortcutLabel()` : plateforme ET langue, en fonction (pas en constante, sinon `t()` fige la langue de démarrage). Test à trois branches | — |
 | **États d'erreur natifs** | Non auditables en mode démo | — |
 
-▶️ **L'instruction réclamée par le § 1 est FAITE** — `AMELIORATIONS-UI.md`
-§ 1 bis, deux sondes en WKWebView (macOS par script Swift, iOS par le
-simulateur avec `content_size` poussé à accessibility-XXXL). Le `zoom` ne
-démultiplie pas les `rem` ; mais rien, `rem` compris, ne suit Dynamic Type tant
-que la racine reste à 16 px. **Ce qu'il reste à trancher a changé de nature.**
+▶️ **L'instruction réclamée par le § 1 est FAITE, et l'arbitrage rendu** —
+`AMELIORATIONS-UI.md` § 1 bis. Sondes en WKWebView (macOS par script Swift, iOS
+par le simulateur avec `content_size` poussé à accessibility-XXXL) : le `zoom`
+ne démultiplie pas les `rem`, mais rien — `rem` compris — ne suit Dynamic Type
+tant que la racine reste à 16 px. Antonin a choisi de **replier Dynamic Type
+dans « Densité »**, livré le soir même.
+
+⚠️ **La règle qui en sort, et qui vaut pour tout nouveau code** : le `zoom` CSS
+multiplie AUSSI les unités de viewport. Tout `vh`/`vw` se multiplie par
+**`--zoom-inv`**, sinon il déborde de l'écran dès que la densité quitte 100 %.
+Mesuré : `max-h-[88vh]` rendait 792 px dans un écran de 600 à densité 150 %.
 
 ---
 
