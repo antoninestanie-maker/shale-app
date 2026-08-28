@@ -207,7 +207,9 @@ d'Antonin, soit écarté avec un motif.
 | **Palette mi-tokens mi-hex** (`TAG_COLORS`, `HABIT_COLORS`) | Écarté : sa moitié « lignes déjà en base » est une **migration de données**, hors périmètre. N'en faire que la moitié laisserait un état mixte pire | Antonin |
 | **Grille en dents de scie à 720 px** | Écarté : moteur de grille, pur confort (199 px vides à droite de deux panneaux) | Antonin |
 | ~~**États vides d'Objectifs et Market-Brain**~~ | **Clos le 2026-08-28** — mais l'item était fondé sur un comptage faux. Les deux états vides existaient déjà ; le défaut réel, qu'ils masquaient, était **du français en dur affiché dans l'app anglaise**. Voir § 3.7 | — |
-| **Audit i18n complet** | ⭐ **Ouvert par la ligne ci-dessus.** Le français en dur n'est pas propre à ces deux modules (exemple constaté : la cloche annonce « Notifications, 1 non lue » en anglais). Aucune mesure ne l'attrape — cf. § 3.7 | Antonin |
+| ~~**Audit i18n complet**~~ | **Fait le 2026-08-28**, sur décision d'Antonin. 45 fichiers, ~250 chaînes, 245 clés ; le palier « sûrement français » passe de 61 à 0. L'outil qui manquait existe : `npm run i18n:durs`. Tout est dans **`AUDIT-I18N-2026-08.md`**, limites comprises | — |
+| **i18n du RUST** | ⭐ **Ouvert et non traité.** Les trois règles de notification et le planificateur ont leur propre mécanique (`ctx.pick(fr, en)`, `Prefs.lang`). Aucun outil ne les regarde, et l'audit du front non plus | Antonin |
+| **`⌥ Espace` écrit en dur dans Réglages** | Relevé pendant l'audit, non corrigé : ce n'est pas un défaut i18n mais de PLATEFORME — le glyphe devrait passer par `kbd()` (`src/lib/platform.ts`), sinon un utilisateur Windows lit un raccourci macOS | libre |
 | **États d'erreur natifs** | Non auditables en mode démo | — |
 
 ⚠️ **Avant de rouvrir px→rem, lire l'avertissement d'`AMELIORATIONS-UI.md`
@@ -227,11 +229,14 @@ AVANT, pas après.
   **2026-09-03 à 17 h 04**.
 - **Les contrastes WCAG** : jamais mesurés (cf. § 3.2). Vérifiés par échantillon
   visuel seulement.
-- ⭐ **L'i18n du RESTE de l'app.** Seuls Objectifs et Market-Brain ont été
-  relus en anglais (§ 3.7). Le français en dur qu'on y a trouvé n'a aucune
-  raison de s'être arrêté là — un `aria-label` de la cloche est déjà repéré.
-  Aucun outil ne sait le mesurer : ne pas lire « `i18n:check` vert » comme
-  « app traduite ».
+- ⭐ **L'i18n du RUST.** L'audit du 2026-08-28 (`AUDIT-I18N-2026-08.md`) a
+  couvert tout `src/` et rendu le palier « sûrement français » à zéro — mais il
+  s'arrête au front. Les trois règles de notification et le planificateur ont
+  leur propre mécanique, et personne ne les a regardées.
+- **Le rendu NATIF en anglais.** Tout a été vérifié en mode démo navigateur
+  (§ 4). L'app installée et l'iPhone n'ont pas été relus dans cette langue.
+- **La qualité des 245 traductions** écrites le 2026-08-28 : relues par
+  personne d'autre.
 - **Les états de chargement et d'erreur natifs.**
 
 ---

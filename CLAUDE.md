@@ -144,8 +144,13 @@ entrée la première fois.
   React dans ce dépôt. Un correctif d'interface se vérifie donc à l'écran, pas
   par un test — ne pas prétendre le contraire dans un message de commit.
 - `npm run test:types` — typecheck des TESTS (séparé de l'app, cf. section sync)
-- `npm run i18n:check` — toute clé passée à `t()` existe-t-elle dans `en.ts` ?
-  **1152 entrées, 0 manquante.**
+- `npm run i18n:check` — toute clé passée à `t()` (et `tp()`) existe-t-elle dans
+  `en.ts` ? Dénonce aussi les clés écrites DEUX FOIS. **1391 entrées.**
+- `npm run i18n:durs` — l'inverse : quel texte AFFICHÉ ne passe PAS par `t()` ?
+  Parse l'AST plutôt que de grepper. **C'est le seul outil capable de voir du
+  français en dur** ; `i18n:check` au vert ne le prouve pas. Lire
+  `AUDIT-I18N-2026-08.md` avant de s'en servir : il dit ce que l'outil NE SAIT
+  PAS faire.
 - iOS (simulateur) — la procédure complète est dans `MOBILE.md` § 12. Deux
   choses à ne jamais oublier : nettoyer `gen/apple/build/…` en chemin **absolu**
   avant chaque build (sinon on installe une sortie périmée, code de sortie 0),
@@ -2630,16 +2635,25 @@ Les trois pièges qui valent pour TOUT le dépôt, pas seulement pour ce chantie
   `title` est le seul recours : au doigt, le survol n'existe pas, donc un texte
   coupé l'est sans recours.
 - **`npm run i18n:check` au vert ne veut PAS dire « traduit ».** Il vérifie que
-  toute clé passée à `t("…")` existe dans `en.ts` — jamais qu'une chaîne
-  AFFICHÉE passe par `t()`. Une phrase française écrite en dur dans le JSX lui
-  est invisible et s'affiche telle quelle dans l'app anglaise. C'est ce qui
-  laissait « court terme », « 1 tâche », « J−3 » et sept bandeaux de
-  Market-Brain en français (corrigé le 2026-08-28), et ce qui a fait compter à
-  tort « zéro état vide » dans Objectifs et Market-Brain, qui en avaient trois.
-  **La seule preuve est l'app basculée en anglais** (Réglages → Langue, ou
-  `localStorage.setItem("shale.lang","en")` en mode démo). ⚠️ Aucun audit i18n
-  complet n'a jamais été fait, et il reste au moins un `aria-label` français
-  (la cloche de la sidebar).
+  toute clé passée à `t()` existe dans `en.ts` — jamais qu'une chaîne AFFICHÉE
+  passe par `t()`. Une phrase française écrite en dur dans le JSX lui est
+  invisible et s'affiche telle quelle dans l'app anglaise. **Pour cette
+  question-là, c'est `npm run i18n:durs`** (2026-08-28), et la preuve finale
+  reste **l'app basculée en anglais** — Réglages → Langue, ou
+  `localStorage.setItem("shale.lang","en")` en mode démo.
+  L'audit complet a été fait le 2026-08-28 : 45 fichiers, ~250 chaînes,
+  245 clés. Détail, limites de l'outil et ce qui reste écarté :
+  `AUDIT-I18N-2026-08.md`. ⚠️ **Le Rust n'a PAS été audité** (les trois règles
+  de notification ont leur propre mécanique `ctx.pick(fr, en)`).
+- **Écrire du texte affiché sans `t()` est le défaut le plus facile à commettre
+  ici**, parce que rien ne le signale au moment où on le fait. Le motif type
+  n'est pas l'oubli complet, c'est la MOITIÉ : `data-tip={paused ?
+  t("Reprendre la session") : "Mettre en pause"}`. Lancer `npm run i18n:durs`
+  après avoir touché à une vue coûte deux secondes.
+- ⚠️ **Le piège n°1 de la section i18n vaut aussi pour `tp` et `pick`** : ne
+  jamais nommer une variable locale `t`, `tp` ou `pick`. `SendToTrackerModal` a
+  un état local `tp` (le take-profit) — y importer la fonction de pluriel la
+  masquerait.
 
 ## Règle : Antonin n'utilise jamais le Terminal
 
