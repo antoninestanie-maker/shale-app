@@ -261,6 +261,28 @@ règle.**
 
 ---
 
+## ⚠️ Mise à jour du 2026-08-28 — trois de ces pistes sont FAITES
+
+Ce document a été écrit avant l'arbitrage. Depuis :
+
+- **§ 2 (info-bulles au doigt)** — fait, voie (a), appui long. `2482660`.
+  Le piège du clic avalé était réel et il est traité : long-presser un bouton
+  de suppression montre sa bulle **sans supprimer**, vérifié à l'écran.
+- **§ 3 (états vides)** — `WeekChart` fait (`ef0aca8`). Les autres vues citées
+  (Objectifs, Market-Brain) restent à faire.
+- **§ 4 (paysage)** — tranché : **traiter**, pas verrouiller. Fait (`0dec33c`).
+- **§ 7 (voiles)** — fait (`1ac84f9`). Le `/85` de la visionneuse reste,
+  délibérément, et c'est désormais écrit dans le code.
+- **§ 9 (les deux détails)** — la chaîne non traduite de `TradeModal` est faite
+  (`785d66a`) ; le vocabulaire de Personnaliser aussi (`1ac84f9`).
+  ⚠️ Le `data-tip` mort de `LoginScreen:190` **reste**, et ce n'est pas un
+  défaut d'accessibilité : ce bouton porte déjà un `aria-label`. J'avais laissé
+  entendre le contraire, c'était inexact.
+
+**Restent ouverts** : § 1 (px→rem, reporté par décision), § 5 (grille en dents
+de scie), § 6 (palette mi-tokens mi-hex), § 8 (cibles 44 pt), et les états vides
+d'Objectifs et de Market-Brain.
+
 ## Si je devais n'en faire que trois
 
 1. **Les états vides** (§ 3) — le meilleur rapport valeur/coût du document, et

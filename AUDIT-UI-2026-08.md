@@ -177,6 +177,57 @@ Ligne de base rejouée après les huit : `tsc` ✅ · `test:types` ✅ ·
 `cargo check --all-targets` ✅ · `cargo test --lib` **112** ✅ ·
 `--target aarch64-apple-ios-sim` ✅ · `--target aarch64-apple-ios` ✅
 
+## Second tour — 2026-08-28, après arbitrage
+
+Décisions prises : **traiter** le paysage (pas verrouiller), **appui long** pour
+les info-bulles, **px→rem plus tard**, et les petits laissés à mon jugement.
+
+| Défaut | Commit | Vérifié à l'écran |
+|---|---|---|
+| **i1 — paysage** (G1) | `0dec33c` | ✅ barre d'onglets revenue, contenu à droite de l'îlot |
+| **i3 — 158 bulles au doigt** | `2482660` | ✅ bulle du ✕ « Supprimer le tag » affichée, **et le tag non supprimé** |
+| **i6 — rectangle blanc** | `1ac84f9` puis `ef0aca8` | ✅ après correction de ma propre erreur |
+| **i5 — vocabulaire** | `1ac84f9` | ✅ « GROUPE 1 / GROUPE 2 » + explication |
+| **i7 — filtre de date** | `1ac84f9` | ✅ icône de calendrier |
+| **d9 — voiles** | `1ac84f9` | — (le `/85` reste, documenté) |
+| **Troncature au doigt** | `785d66a` puis `a05c99a` | ✅ après correction de ma propre erreur |
+| `DESIGN.md` « l'app est en pixels » | `2665977` | — |
+
+### ⚠️ Deux correctifs à moi n'ont PAS marché du premier coup
+
+Et dans les deux cas, c'est **la vérification à l'écran** qui l'a dit — pas la
+relecture, pas `tsc`, pas les 392 tests.
+
+1. **`WeekChart`** — j'avais traité « aucune donnée » (`pct === null`) et écrit
+   que les vrais zéros « restent un graphique ». Le cadre est resté blanc : le
+   cas réel est *des tâches dues, aucune cochée*, donc `pct = 0`. Sept barres de
+   hauteur zéro rendent le même vide que sept barres absentes.
+2. **`.truncate-souris`** — écrasée en silence par `truncate`. `truncate` est un
+   utilitaire Tailwind (couche `utilities`), ma classe vivait dans `components`,
+   et à spécificité égale la couche postérieure gagne. ⚠️ **Le dépôt s'était déjà
+   fait prendre là-dessus** (reset de marge de `.rgrid-content`, 2026-07-13) :
+   le piège était consigné, je l'ai repris quand même.
+
+### ⚠️ Ce que le `title` ne pouvait pas réparer
+
+Les correctifs `title` du premier tour ont réparé **le bureau seulement** : un
+`title` ne se rend qu'au survol. L'appui long ne rattrape pas ce cas non plus —
+il lit `data-tip`, pas `title`. D'où `.truncate-souris` : sous `(pointer: coarse)`
+le texte passe à la ligne et se lit **sans aucun geste**.
+
+### Non prouvé, et il faut le dire
+
+**Le défilement en PAYSAGE n'a pas été piloté.** L'injection tactile du
+simulateur reste dans le repère portrait (402 × 874) et aucun des deux axes
+n'atteint le défilant. Ce qui est établi : les réserves latérales sont posées
+sur le **même conteneur non défilant** que la réserve du haut, dont le maintien
+au défilement est vérifié. C'est solide par construction — ce n'est pas une
+capture.
+
+⚠️ **Une fausse piste écartée** : j'ai cru un moment que l'app restait bloquée
+en paysage au retour au portrait. C'était le menu du Simulateur qui ne répond
+pas sans `activate` préalable. **Aucun défaut de l'app.**
+
 ## En attente d'arbitrage
 
 **i1** (paysage — verrouiller ou traiter les zones sûres latérales),
