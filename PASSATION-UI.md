@@ -1,4 +1,8 @@
-# ▶️ PASSATION — chantier UI/UX du 2026-08-28
+> ▶️ **Ce document couvre le seul chantier UI/UX.** Pour reprendre le projet
+> sans contexte, commencer par **`PASSATION.md`** — il donne l'état global, les
+> deux outils i18n, et route vers ici.
+
+# PASSATION — chantier UI/UX du 2026-08-28
 
 *Écrit pour quelqu'un qui n'a rien vécu de ce qui précède. Ce document se
 suffit : état du dépôt, ligne de base, ce qui a été fait, ce qui reste, et les
@@ -17,10 +21,10 @@ implémentées).
 | Branche | `mobile-ios`, **poussée** (`origin/mobile-ios`) |
 | Arbre | **propre** |
 | Branches non fusionnées | **zéro** |
-| App macOS | reconstruite et réinstallée le 2026-08-28 à **13:59** |
-| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **14:00** |
+| App macOS | reconstruite et réinstallée le 2026-08-28 à **15:20** |
+| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **15:21** |
 | iPhone réel | **jamais** — l'appareil est `unavailable`. Rien de ce chantier n'y a été vu |
-| Session du simulateur | ⚠️ **perdue** par la réinstallation de 14:00 (§ 3.1). L'app y repart sur l'écran de connexion : seul un geste humain la rouvre |
+| Session du simulateur | ⚠️ **perdue** par la réinstallation de 15:21 (§ 3.1). L'app y repart sur l'écran de connexion : seul un geste humain la rouvre |
 
 **L'invariant du § 19.1 de `MOBILE.md` tient** : les deux bundles sont
 POSTÉRIEURS au dernier commit qui touche `src/`.
@@ -30,7 +34,7 @@ POSTÉRIEURS au dernier commit qui touche `src/`.
 ```
 npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
-npm run i18n:check                            # ✅ 1391 entrées, 0 manquante
+npm run i18n:check                            # ✅ 1392 entrées, 0 manquante
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
 npm test                                      # ✅ 393 / 393
 npx vite build                                # ✅
@@ -50,6 +54,10 @@ chantier — une douzaine d'exécutions vertes.
 ## 2. Ce qui a été corrigé — 19 commits, un par défaut
 
 De `b704e2f` à `db8228e`. Dans l'ordre de gravité, pas chronologique.
+
+▶️ **L'audit i18n qui a suivi** (9 commits, `536e051` → `55ab40c`) n'est pas
+répété ici : il a son document, `AUDIT-I18N-2026-08.md`, et son résumé au § 2
+de `PASSATION.md`.
 
 ### G1 — inutilisable
 

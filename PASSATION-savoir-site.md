@@ -1,3 +1,16 @@
+> # ⚠️ DOCUMENT PÉRIMÉ — le travail décrit ici est LIVRÉ
+>
+> Le site a été mis à jour le 2026-08-26 (`shale-site`, commit `0e6b51c`,
+> « Savoir : le site montre enfin l'écran qu'on livre, pas celui d'avant »).
+> Vérifié le 2026-08-28 : `shale-site` est propre et à jour avec son `origin`.
+>
+> Gardé pour le RAISONNEMENT (§ 4 : ce que le site ne doit pas annoncer, et
+> pourquoi — une note appartient à UN thème, pas de sous-thèmes, la couleur
+> n'est pas demandée à la création). Ne pas rejouer le § 2 comme une liste de
+> tâches.
+>
+> ▶️ Le point d'entrée courant est **`PASSATION.md`**.
+
 # Passation — refonte de « Savoir » vers le site
 
 Écrit le 2026-08-26, depuis la session app (branche `savoir-themes`, dépôt `Shale`).

@@ -2606,6 +2606,14 @@ fiches, pas des thèmes). La démo jouable de `Demo.astro`, elle, **n'a rien à
 changer** — Savoir n'est pas l'un des trois modules jouables, et le compte de
 modules ne bouge pas. Le portage vers `windows-build` est une session à part.
 
+## ▶️ REPRENDRE LE PROJET — lire `PASSATION.md` d'abord
+
+`PASSATION.md` (racine) est le **point d'entrée unique** pour une session sans
+contexte : état du dépôt, ligne de base, les deux outils i18n et lequel répond à
+quoi, les pièges d'environnement, ce qui reste et qui décide. Il route vers les
+autres documents — il y en a beaucoup à la racine, et tous ne sont pas à jour
+(`PASSATION-savoir-site.md` est **périmé** : ce chantier est livré).
+
 ## Chantier UI/UX du 2026-08-28 — lire `PASSATION-UI.md`
 
 Audit des 15 vues de bureau et des 14 destinations iOS, puis 18 correctifs.
