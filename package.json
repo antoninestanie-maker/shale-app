@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "i18n:check": "node tools/i18n-check.mjs src",
+    "i18n:durs": "node tools/i18n-durs.mjs src",
     "sync:verifier": "node tools/verifier-sync-supabase.mjs",
     "test:types": "tsc -p tsconfig.test.json --noEmit"
   },
