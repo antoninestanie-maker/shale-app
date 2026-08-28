@@ -56,7 +56,7 @@ export default function PositionSizeHistory({
               "",
             ].map((h) => (
               <th key={h} className="hud-label pb-2 text-left first:pl-1">
-                {h}
+                {h && t(h)}
               </th>
             ))}
           </tr>

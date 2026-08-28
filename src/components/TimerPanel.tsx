@@ -219,8 +219,8 @@ export default function TimerPanel({ data, focus }: Props) {
                     >
                       {p.label}
                     </span>
-                    <span className="hud-label mt-0.5 block" title={p.hint}>
-                      {p.hint}
+                    <span className="hud-label mt-0.5 block" title={t(p.hint)}>
+                      {t(p.hint)}
                     </span>
                   </button>
                 );

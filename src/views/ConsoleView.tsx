@@ -97,7 +97,7 @@ export default function ConsoleView() {
     );
 
   const kpis = [
-    { label: "Utilisateurs", value: "1 284", delta: "+86" },
+    { label: "Utilisateurs", value: "1 284", delta: "+86" }, // clés FR, t() à l'affichage
     { label: t("Abonnés actifs"), value: "1 043", delta: "+41" },
     { label: "MRR", value: "16 240 €", delta: "+12,4 %" },
     { label: "Churn 30 j", value: "2,7 %", delta: "−0,4 pt" },
@@ -120,7 +120,7 @@ export default function ConsoleView() {
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map((k) => (
           <div key={k.label} className="card p-5">
-            <p className="hud-label">{k.label}</p>
+            <p className="hud-label">{t(k.label)}</p>
             <div className="mt-2 flex items-end justify-between gap-2">
               <span className="text-2xl font-bold tabular-nums text-text">{k.value}</span>
               <span className="text-[12px] font-semibold text-green">{k.delta}</span>

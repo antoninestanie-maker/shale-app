@@ -16,7 +16,7 @@ import type { View } from "./Sidebar";
 import { formatWhen, useNotifications, type NotifEntry } from "../lib/notifications";
 import { zoomFactor } from "../lib/uiConfig";
 
-import { t } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
 /** Vues qu'une notification a le droit d'ouvrir (le `target` vient du Rust). */
 const TARGETS: View[] = ["today", "journal", "knowledge", "tasks", "goals"];
 
@@ -101,7 +101,7 @@ export default function NotificationBell({ onNavigate }: Props) {
         aria-expanded={open}
         aria-label={
           notifs.unread > 0
-            ? `Notifications, ${notifs.unread} non lue${notifs.unread > 1 ? "s" : ""}`
+            ? tp(notifs.unread, "Notifications, {n} non lue", "Notifications, {n} non lues")
             : "Notifications"
         }
         data-tip="Notifications"
@@ -143,8 +143,8 @@ export default function NotificationBell({ onNavigate }: Props) {
                 <button
                   type="button"
                   onClick={() => notifs.clear()}
-                  aria-label="Effacer l'historique"
-                  data-tip="Effacer l'historique"
+                  aria-label={t("Effacer l'historique")}
+                  data-tip={t("Effacer l'historique")}
                   data-tip-sub={t("Les rappels déjà envoyés aujourd'hui pourront repartir")}
                   className="shrink-0 rounded-[var(--radius-field)] p-1 text-text-dim transition-colors hover:bg-overlay hover:text-text"
                 >

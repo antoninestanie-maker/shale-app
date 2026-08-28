@@ -43,7 +43,7 @@ const demoLog = (): NotifEntry[] => [
     id: "demo_2",
     rules: ["habits_pending"],
     dedupe_keys: ["habits_pending:demo"],
-    title: "2 habitudes t'attendent",
+    title: t("2 habitudes t'attendent"),
     body: t("Il te reste 2 habitudes à cocher aujourd'hui (Sport, Lecture)."),
     target: "journal",
     created_at: new Date(Date.now() - 25 * 60_000).toISOString(),
@@ -131,7 +131,7 @@ export const ruleMeta = (): Record<
     desc: t("En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue."),
     params: [
       { key: "hour", label: t("heure de l'alerte"), min: 0, max: 23, suffix: "h" },
-      { key: "min_streak", label: t("à partir de"), min: 1, max: 365, suffix: "jours" },
+      { key: "min_streak", label: t("à partir de"), min: 1, max: 365, suffix: t("jours") },
     ],
   },
   habits_pending: {
@@ -142,7 +142,7 @@ export const ruleMeta = (): Record<
   inactivity: {
     label: t("Savoir délaissé"),
     desc: t("Après plusieurs jours sans ouvrir une fiche du Savoir."),
-    params: [{ key: "days", label: t("après"), min: 1, max: 60, suffix: "jours" }],
+    params: [{ key: "days", label: t("après"), min: 1, max: 60, suffix: t("jours") }],
   },
 });
 

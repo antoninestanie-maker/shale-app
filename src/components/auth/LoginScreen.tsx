@@ -151,7 +151,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
             </div>
           )}
 
-          <label className="hud-label mb-1.5 block">E-mail</label>
+          <label className="hud-label mb-1.5 block">{t("E-mail")}</label>
           <input
             type="email"
             autoComplete="username"

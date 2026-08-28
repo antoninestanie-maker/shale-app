@@ -81,10 +81,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           >
             {last ? (
               <span className="inline-flex items-center gap-2">
-                <IconCheckCircle className="h-4 w-4" /> Commencer
+                <IconCheckCircle className="h-4 w-4" /> {t("Commencer")}
               </span>
             ) : (
-              "Suivant"
+              t("Suivant")
             )}
           </button>
           {!last && (
@@ -92,21 +92,21 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
               onClick={finish}
               className="text-xs text-text-dim transition-opacity hover:opacity-80"
             >
-              Passer
+              {t("Passer")}
             </button>
           )}
         </div>
 
         {last && (
           <p className="mt-5 text-xs text-text-dim">
-            En continuant, tu acceptes nos{" "}
+            {t("En continuant, tu acceptes nos")}{" "}
             <button
               onClick={() => openExternal(`${WEBSITE_URL}/legal#cgu`)}
               className="text-blue hover:opacity-80"
             >
-              CGU
+              {t("CGU")}
             </button>{" "}
-            et notre{" "}
+            {t("et notre")}{" "}
             <button
               onClick={() => openExternal(`${WEBSITE_URL}/legal#confidentialite`)}
               className="text-blue hover:opacity-80"

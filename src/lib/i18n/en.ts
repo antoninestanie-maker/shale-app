@@ -1835,6 +1835,19 @@ export const EN: Record<string, string> = {
   "administration": "administration",
   "inscriptions · 30 j": "sign-ups · 30 d",
   "Utilisateurs": "Users",
+  "Churn 30 j": "Churn 30 d",
+  "jours": "days",
+  "Calculateur": "Calculator",
+  // En-têtes du tableau d'historique de la vue Position : ils sont mappés
+  // depuis un tableau littéral, donc traduits à l'exécution — `i18n:check` ne
+  // peut pas les réclamer, ils s'ajoutent à la main.
+  "date": "date",
+  "paire": "pair",
+  "sens": "direction",
+  "risqué": "at risk",
+  "SL": "SL",
+  "R:R": "R:R",
+  "2 habitudes t'attendent": "2 habits are waiting for you",
   "Utilisateur": "User",
   "Plan": "Plan",
   "Statut": "Status",
@@ -1879,4 +1892,23 @@ export const EN: Record<string, string> = {
     "The dashboard’s “energy left” gauge starts from your starting energy and drops with the trades taken and the screen time spent today. Adjust how much each factor weighs.",
   "Recalcule immédiatement la jauge d’énergie du tableau de bord.":
     "Recalculates the dashboard’s energy gauge straight away.",
+  // ── Auth, onboarding, cloche, grille (audit du 2026-08-28) ────────────────
+  "E-mail": "Email",
+  "Suivant": "Next",
+  "Passer": "Skip",
+  "CGU": "Terms of use",
+  "En continuant, tu acceptes nos": "By continuing, you accept our",
+  "et notre": "and our",
+  "Abonnement requis": "Subscription required",
+  "Statut actuel :": "Current status:",
+  "Essai gratuit —": "Free trial —",
+  "{n} jour restant": "{n} day left",
+  "{n} jours restants": "{n} days left",
+  "Les sept jours sont passés. L'app est en lecture seule : ton historique reste lisible et exportable, rien n'a été supprimé. Un abonnement rouvre tout, exactement là où tu t'es arrêté.":
+    "The seven days are up. The app is read-only: your history stays readable and exportable, nothing has been deleted. A subscription reopens everything, exactly where you left off.",
+  "Effacer l'historique": "Clear history",
+  "Notifications, {n} non lue": "Notifications, {n} unread",
+  "Notifications, {n} non lues": "Notifications, {n} unread",
+  "Redimensionner": "Resize",
+  "Redimensionner en glissant": "Drag to resize",
 };

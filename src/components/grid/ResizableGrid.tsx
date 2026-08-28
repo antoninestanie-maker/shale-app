@@ -1177,8 +1177,8 @@ export function ResizablePanel({
       {/* Redimensionner (coin bas-droit) — double-clic : hauteur automatique */}
       <div
         role="separator"
-        aria-label="Redimensionner en glissant"
-        data-tip="Redimensionner"
+        aria-label={t("Redimensionner en glissant")}
+        data-tip={t("Redimensionner")}
         data-tip-sub={t("Glisser pour ajuster · double-clic : revenir à la hauteur automatique.")}
         data-tip-side="left"
         onPointerDown={onResizePointerDown}

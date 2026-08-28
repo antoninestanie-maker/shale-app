@@ -265,7 +265,7 @@ export default function SizingView({
           <div className="flex gap-1">
             {(
               [
-                ["calc", "Calculateur"],
+                ["calc", t("Calculateur")],
                 ["settings", t("Réglages")],
               ] as const
             ).map(([id, label]) => (

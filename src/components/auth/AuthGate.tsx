@@ -7,7 +7,7 @@ import ShaleMark from "./ShaleMark";
 import { openExternal } from "../../lib/auth/external";
 import { ACCOUNT_PAGES, STRIPE_ENABLED } from "../../lib/auth/config";
 
-import { t } from "../../lib/i18n";
+import { t, tp } from "../../lib/i18n";
 // Contexte d'auth exposé à l'app déverrouillée (déconnexion, e-mail, abonnement).
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -24,7 +24,7 @@ function Splash() {
       <div className="animate-pulse">
         <ShaleMark size={48} />
       </div>
-      <p className="text-sm text-text-dim">Chargement…</p>
+      <p className="text-sm text-text-dim">{t("Chargement…")}</p>
     </div>
   );
 }
@@ -44,11 +44,11 @@ function TrialBanner({ days }: { days: number }) {
       }`}
     >
       <span>
-        Essai gratuit —{" "}
+        {t("Essai gratuit —")}{" "}
         <span className="font-semibold">
           {days === 0
             ? t("dernier jour")
-            : `${days} jour${days > 1 ? "s" : ""} restant${days > 1 ? "s" : ""}`}
+            : tp(days, "{n} jour restant", "{n} jours restants")}
         </span>
       </span>
       <button

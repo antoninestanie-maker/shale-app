@@ -85,6 +85,17 @@ const PROPS_LIBELLE = new Set([
   "short",
   "medium",
   "long",
+  // Trouvés à l'écran, pas par le scanner : un « jours » en dur survivait dans
+  // les réglages de notification sous la propriété `suffix`. Une liste blanche
+  // ne vaut que par ce qu'on y met — d'où cet élargissement.
+  "suffix",
+  "prefix",
+  "unit",
+  "unite",
+  "body",
+  "corps",
+  // ⚠️ PAS `value` ni `name` : trop génériques. Les ajouter ramenait du bruit
+  // jusque dans `sync/crypto.ts`, où aucune chaîne ne s'affiche jamais.
 ]);
 
 // ── Est-ce du FRANÇAIS ? ─────────────────────────────────────────────────────
@@ -211,6 +222,39 @@ for (const file of walkDir(root)) {
           : "";
       if (PROPS_LIBELLE.has(nom) && ts.isStringLiteral(node.initializer)) {
         ajouter(node.initializer, node.initializer.text, "table");
+      }
+    }
+
+    // (E) tableau de chaînes passé à .map() : ["date", "paire", "sens", …]
+    // ⚠️ Angle mort trouvé À L'ÉCRAN, pas par l'outil : les en-têtes du tableau
+    // d'historique de la vue Position vivaient dans un tableau littéral mappé
+    // en `<th>`. Aucune des quatre règles précédentes ne regarde cette forme —
+    // ce n'est ni du texte JSX, ni un attribut, ni une propriété d'objet.
+    // On vise `.map(` précisément : un tableau de chaînes rendu en boucle est
+    // presque toujours une liste de libellés, alors qu'un tableau de chaînes
+    // quelconque est le plus souvent de la configuration.
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "map"
+    ) {
+      let cible = node.expression.expression;
+      while (ts.isParenthesizedExpression(cible) || ts.isAsExpression(cible)) {
+        cible = cible.expression;
+      }
+      if (ts.isArrayLiteralExpression(cible)) {
+        for (const el of cible.elements) {
+          // Classé « table » et non « jsx » : le rappel de `.map()` peut très
+          // bien appeler `t(h)` — savoir s'il le fait demande de suivre la
+          // donnée, ce qu'un parseur ne fait pas. La bonne réponse de l'outil
+          // est donc « va vérifier le point d'affichage », pas « c'est faux ».
+          if (ts.isStringLiteral(el)) ajouter(el, el.text, "table");
+          // ["calc", "Calculateur"] — paires [id, libellé] : le libellé est en 2ᵉ
+          else if (ts.isArrayLiteralExpression(el) && el.elements.length >= 2) {
+            const dernier = el.elements[el.elements.length - 1];
+            if (ts.isStringLiteral(dernier)) ajouter(dernier, dernier.text, "table");
+          }
+        }
       }
     }
 

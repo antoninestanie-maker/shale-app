@@ -53,7 +53,7 @@ export default function SubscriptionRequired({
         <div className="mb-6 flex flex-col items-center">
           <ShaleMark size={48} />
           <h1 className="mt-4 text-xl font-bold tracking-tight text-text">
-            {expired ? t("Ton essai est terminé") : "Abonnement requis"}
+            {expired ? t("Ton essai est terminé") : t("Abonnement requis")}
           </h1>
         </div>
 
@@ -65,14 +65,14 @@ export default function SubscriptionRequired({
             {error
               ? error
               : expired
-                ? "Les sept jours sont passés. L'app est en lecture seule : ton historique reste " +
-                  "lisible et exportable, rien n'a été supprimé. Un abonnement rouvre tout, " +
-                  t("exactement là où tu t'es arrêté.")
+                ? t(
+                    "Les sept jours sont passés. L'app est en lecture seule : ton historique reste lisible et exportable, rien n'a été supprimé. Un abonnement rouvre tout, exactement là où tu t'es arrêté.",
+                  )
                 : texts.subRequiredBody}
           </p>
           {statusLabel && !error && (
             <p className="mt-2 text-xs text-text-dim">
-              Statut actuel : <span className="text-text">{statusLabel}</span>
+              {t("Statut actuel :")} <span className="text-text">{statusLabel}</span>
             </p>
           )}
 
