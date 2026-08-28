@@ -91,7 +91,7 @@ cette passe. Le clavier logiciel, les sélecteurs natifs et les couches plein
 | # | Vue | Défaut | Gravité | Preuve | Correctif proposé |
 |---|---|---|---|---|---|
 | **d1** | **Finance** | **Deux comptes différents s'affichent tous deux « Compte … »** — « Compte courant » et « Compte de trading » deviennent indistinguables, et **aucun `title`** ne permet de les départager. Idem « Carte de … », « Boursora… », « Trading · I… », « Prestatio… ». **16 libellés rognés sans `title`** dans la seule vue Finance. | **G2** | Capture 720 px + sonde. `ComptesPanel.tsx:169,237,238,389` · `FluxPanel.tsx:129,193,194` · `PositionsPanel.tsx:65,66`. Règle violée : `DESIGN.md` § Règles impératives. | Ajouter `title` sur chaque libellé tronqué. **Évident et local.** |
-| **d2** | **Timer** | Les **quatre noms de preset sont rognés sans `title`** : « POMOD… », « DEEP W… », « ULTRADI… », « SUR MES… ». Le nom du preset est irrécupérable. | **G2** | Capture 720 px + sonde (`sur mesure`). | `title` sur le libellé de preset. **Évident et local.** |
+| **d2** | **Timer** | ⚠️ **Rectifié après vérification dans le code.** Les quatre presets sont bien tous rognés à l'écran (« POMOD… », « DEEP W… », « ULTRADI… », « SUR MES… ») — mais **trois portent déjà leur `title`** (`TimerPanel.tsx:214`) et restent donc relisibles au survol. **Seul « sur mesure » n'en avait pas.** La première rédaction de cette ligne généralisait ce que la capture montrait ; la sonde, elle, n'avait signalé que « sur mesure ». | **G2** | `TimerPanel.tsx:236` vs `:214`. | `title` sur « sur mesure ». **Évident et local.** |
 | **d3** | Timer | **« OBJECTIF ATTEI… »** tronqué sans `title`, alors que la place ne manque pas à droite de la carte. | **G2** | Capture 720 px, bas de vue. | `title`, et laisser la tuile respirer. |
 | **d4** | Performance | « 25 min » rogné sans `title`. | **G2** | Sonde. | `title`. |
 | **d5** | **Toutes — barre repliée** | Sous 1024 px, **aucun bouton de navigation n'a de nom accessible**. Mesuré : `innerText: ""`, `aria-label: null`, et le seul `title` est posé sur un `<span>` en **`display: none`**. ⚠️ Le commentaire de `Sidebar.tsx` qui affirme « Chaque libellé porte déjà `title` : replié, le survol le rend » est **faux** — c'est `data-tip` qui sauve le survol, et `data-tip` n'est pas une propriété d'accessibilité. | **G3** | Relevé DOM à 720 px et à 1440 px (comparaison). `Sidebar.tsx` ~L.430. | `aria-label={label}` **sur le bouton**. Évident et local ; corrige aussi le commentaire mensonger. |
@@ -142,19 +142,35 @@ pas de bogue actuel. C'est une mine, pas une explosion.
 
 ---
 
-## Ce que je propose de faire maintenant
+## Corrigé le 2026-08-28 — un commit par défaut
 
-**Correctifs G2 évidents et locaux, pré-autorisés par le cahier des charges** —
-un commit par défaut :
+| Défaut | Commit | Ce qui était faux |
+|---|---|---|
+| **d1** | `b704e2f` | Finance : 9 libellés tronqués sans `title` — deux comptes indistinguables |
+| **d2 + d3** | `d117278` | Timer : « sur mesure » et « objectif atteint » rognés sans recours |
+| **d4** | `7833ec8` | Performance : la **valeur** de tuile rognée (le libellé, lui, avait son `title`) |
+| **i4** | `cbe77cb` | Personnaliser : nom des widgets rogné sur 402 pt |
+| **d5** | `cb4777d` | Barre repliée : aucun nom accessible sur les 13 onglets + commentaire mensonger corrigé |
+| **d7** | `d8bde66` | L'emoji `📷` → `IconImage` |
+| **d8** | `7b9baa2` | Savoir : `.card` → `.card-solid` au-dessus d'un flou |
+| **i2** | `ad071bb` | Le panneau « taille de fenêtre » disparaît de l'iPhone ; la densité reste |
 
-1. **d1** — Finance : `title` sur les 9 libellés tronqués
-2. **d2 + d3** — Timer : `title` sur les presets et sur « objectif atteint »
-3. **d4** — Performance : `title`
-4. **i4** — Personnaliser : `title` sur les libellés de widgets
-5. **d5** — Sidebar : `aria-label` sur le bouton (G3, mais le correctif est d'une ligne et le commentaire du fichier est factuellement faux)
-6. **d7** — l'emoji `📷`
-7. **d8** — `card` → `card-solid`
+Ligne de base rejouée après les huit : `tsc` ✅ · `test:types` ✅ ·
+`i18n:check` 0 manquante (1116) ✅ · `npm test` **392/392** ✅ · `vite build` ✅ ·
+`cargo check --all-targets` ✅ · `cargo test --lib` **112** ✅ ·
+`--target aarch64-apple-ios-sim` ✅ · `--target aarch64-apple-ios` ✅
 
-**En attente de ton arbitrage** : **i1** (paysage — verrouiller ou traiter),
-**i3** (info-bulles au doigt), **i8** (palette mi-tokens mi-hex), **d6** (grille
-en dents de scie), **d9** (voiles), **d10/d11** (px→rem et cibles 44 pt).
+## En attente d'arbitrage
+
+**i1** (paysage — verrouiller ou traiter les zones sûres latérales),
+**i3** (info-bulles au doigt), **i5/i6/i7** (vocabulaire de bureau, état vide du
+graphique, affordance du filtre de date), **i8** (palette mi-tokens mi-hex),
+**d6** (grille en dents de scie), **d9** (voiles à trois valeurs),
+**d10/d11** (px→rem et cibles 44 pt).
+
+## Un défaut mineur relevé au passage, non corrigé (hors périmètre du lot)
+
+`TradeModal.tsx:245` — la chaîne « Screenshot : app native uniquement » n'est
+pas passée à `t()`. `i18n:check` ne la voit pas (il n'inspecte que les appels à
+`t()`), donc la page anglaise l'affichera en français. Une ligne, mais c'est un
+défaut d'i18n et non d'UI : à traiter séparément.
