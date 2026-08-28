@@ -228,6 +228,57 @@ capture.
 en paysage au retour au portrait. C'était le menu du Simulateur qui ne répond
 pas sans `activate` préalable. **Aucun défaut de l'app.**
 
+## Troisième tour — la section « non vérifié » est fermée
+
+Ce que le rapport listait comme **non éprouvé** l'a été.
+
+| Dimension | Résultat |
+|---|---|
+| **Largeur 1024** | ✅ les 15 vues : zéro rognage sans `title`, zéro débordement, `scrollWidth == 1024` |
+| **Thème clair** | ✅ vérifié À L'ÉCRAN (Réglages, Trading, Market-Brain) — libellés, cartes, chips sémantiques, tous lisibles |
+| **Anneau de focus** | ✅ garanti globalement : `:focus-visible` → contour bleu 2 px, `outline-offset: 2px` (`index.css`) |
+| **`Échap` en couches** | ❌ **DÉFAUT TROUVÉ ET CORRIGÉ** — voir ci-dessous |
+
+### ⭐ `Échap` fermait deux étages d'un coup, dans toute la famille des modales
+
+**Reproduit** : nouvelle tâche → ⌘K par-dessus → un seul `Échap` → la palette
+**et** le formulaire disparaissent. Ce qui avait été tapé part avec. **G2.**
+
+L'asymétrie : la palette MARQUE la touche (`preventDefault` sur l'événement
+React marque bien le natif), mais les huit écouteurs `window` de la famille
+modale ne LISENT pas la marque — tous la même ligne,
+`if (e.key === "Escape") onClose();`.
+
+⚠️ **La convention existait depuis le 2026-08-26** (`KnowledgeView`, § 18.3
+« Échap fermait DEUX étages d'un coup ») et n'avait jamais été généralisée.
+Corrigé sur les huit couches, plus deux handlers de champ qui ne marquaient rien
+alors qu'ils sont les plus internes (prix du tracker, saisie de solde Finance :
+annuler une saisie fermait la modale qui la contenait). Commit `00a2e2d`.
+
+### ⚠️ DEUX sondes de plus se sont révélées menteuses
+
+Après celle du contraste, deux autres ont dû être jetées — et dans les deux cas
+c'est **la capture d'écran** qui a tranché :
+
+1. **La sonde de « figement de couleur »** (comparer les styles calculés entre
+   thèmes) annonçait les libellés de la barre latérale figés au token SOMBRE en
+   thème clair — donc illisibles. **La capture montre l'inverse : tout est
+   parfaitement lisible.** `getComputedStyle` rendait une valeur périmée sur les
+   éléments sous `backdrop-filter`. C'est précisément le bogue Chromium que
+   `theme.ts` documente et contourne déjà (`repaintBackdrops`).
+2. **Poser `data-theme` à la main** ne suffit pas à basculer le thème pour la
+   mesure : ça reproduit ce même bogue. Le seul chemin fiable est l'interface —
+   Réglages → Apparence.
+
+**Règle qui en sort** : sur cette app, une mesure de COULEUR par
+`getComputedStyle` n'est pas une preuve. La capture l'est.
+
+### Reste non vérifié, et assumé
+
+Les **états de chargement et d'erreur** natifs (SQLite illisible, trousseau,
+réseau) : ils n'existent pas en mode démo, où `isTauri` est faux. Les éprouver
+demanderait d'injecter une panne dans l'app installée.
+
 ## En attente d'arbitrage
 
 **i1** (paysage — verrouiller ou traiter les zones sûres latérales),
