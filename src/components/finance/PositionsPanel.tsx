@@ -63,7 +63,7 @@ export default function PositionsPanel({
               <li key={l.holding.id} className="group/pos flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p
-                    className="truncate font-mono text-sm text-text"
+                    className="truncate truncate-souris font-mono text-sm text-text"
                     title={l.holding.symbol}
                   >
                     {l.holding.symbol}

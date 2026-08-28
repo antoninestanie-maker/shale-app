@@ -647,6 +647,23 @@
     }
   }
 
+  /* ⚠️ TRONQUÉ À LA SOURIS, REPLIÉ AU DOIGT.
+     La doctrine dit « truncate + title ». Le `title` ne se rend qu'au SURVOL —
+     un geste qui n'existe pas sur un téléphone. Un libellé coupé y est donc
+     coupé SANS RECOURS : « Calculateur de position (w… », « Compte … » pour
+     deux comptes différents. Constaté sur iPhone le 2026-08-28, après que le
+     correctif `title` du matin a réparé le bureau et laissé le doigt de côté.
+     Sous pointeur grossier, le texte passe donc à la ligne : il se lit sans
+     aucun geste, ce qu'aucune bulle ne peut promettre.
+     ⚠️ À poser EN PLUS de `truncate`, jamais à la place. */
+  @media (pointer: coarse) {
+    .truncate-souris {
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+  }
+
   /* En-tête de vue : le titre à gauche, les actions à droite — et qui SE REPLIE.
      ================================================================
      Cinq vues écrivaient `flex items-center justify-between` sans repli. Un

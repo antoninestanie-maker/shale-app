@@ -119,7 +119,7 @@ function WidgetList({
                 libellé, ce qui poussait les flèches ↑↓ hors du panneau (donc
                 clippées et incliquables) en fenêtre étroite. */}
             <span
-              className="min-w-0 flex-1 truncate text-sm text-text"
+              className="min-w-0 flex-1 truncate truncate-souris text-sm text-text"
               title={t(WIDGET_LABELS[w.id] ?? w.id)}
             >
               {t(WIDGET_LABELS[w.id] ?? w.id)}

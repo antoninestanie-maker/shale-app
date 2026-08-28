@@ -252,10 +252,10 @@ function LigneCompte({
   return (
     <li className="group/ligne flex items-center gap-3 py-2.5">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text" title={compte.label}>
+        <p className="truncate truncate-souris text-sm text-text" title={compte.label}>
           {compte.label}
         </p>
-        <p className="truncate text-xs text-text-dim" title={sousTitre}>
+        <p className="truncate truncate-souris text-xs text-text-dim" title={sousTitre}>
           {sousTitre}
         </p>
       </div>

@@ -245,7 +245,7 @@ export default function TradeModal({
               </button>
             ) : (
               <span className="text-xs text-text-dim">
-                Screenshot : app native uniquement
+                {t("Screenshot : app native uniquement")}
               </span>
             )}
             {erreurPiece && (

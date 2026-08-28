@@ -714,6 +714,7 @@ export const EN: Record<string, string> = {
   "Sous-titre (vide = masqué)": "Subtitle (empty = hidden)",
   "fenêtre & densité": "window & density",
   "densité": "density",
+  "Screenshot : app native uniquement": "Screenshot: native app only",
   "Aucune tâche cochée ces 7 jours.": "No tasks ticked in the last 7 days.",
   "modules": "modules",
   "colonne gauche": "left column",
