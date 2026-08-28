@@ -49,7 +49,7 @@ export default function TimerCard({ data, focus }: Props) {
     <section className="card p-5">
       <div className="flex items-center justify-between">
         <h2 className="hud-label">timer</h2>
-        <span className="flex items-center gap-1" data-tip="cycles aujourd'hui">
+        <span className="flex items-center gap-1" data-tip={t("cycles aujourd'hui")}>
           {Array.from({ length: Math.min(cyclesToday, 8) }).map((_, i) => (
             <span key={i} className="h-1.5 w-1.5 rounded-full bg-green" />
           ))}
@@ -68,14 +68,14 @@ export default function TimerCard({ data, focus }: Props) {
             {fmt(remainingSec)}
           </button>
           <p className="mt-1 max-w-full truncate text-xs text-text-dim">
-            {session.kind === "break" ? "pause" : session.label}
+            {session.kind === "break" ? t("pause") : session.label}
           </p>
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={paused ? focus.resume : focus.pause}
-              aria-label={paused ? "Reprendre" : "Pause"}
-              data-tip={paused ? "Reprendre" : "Mettre en pause"}
+              aria-label={paused ? t("Reprendre") : t("Pause")}
+              data-tip={paused ? t("Reprendre") : t("Mettre en pause")}
               className={`pill inline-flex h-9 w-9 items-center justify-center border ${
                 paused
                   ? "border-green/40 bg-green/10 text-green"
@@ -87,7 +87,7 @@ export default function TimerCard({ data, focus }: Props) {
             <button
               type="button"
               onClick={focus.stop}
-              aria-label="Terminer"
+              aria-label={t("Terminer")}
               data-tip={t("Terminer la session")}
               data-tip-sub={t("Enregistre le temps concentré déjà effectué.")}
               className="pill inline-flex h-9 w-9 items-center justify-center border border-red/40 bg-red/10 text-red"
@@ -109,7 +109,7 @@ export default function TimerCard({ data, focus }: Props) {
                   type="button"
                   onClick={() => setPresetIdx(i)}
                   data-tip={`${p.label} minutes`}
-                  data-tip-sub={p.hint}
+                  data-tip-sub={t(p.hint)}
                   className={`min-w-0 overflow-hidden rounded-[10px] border px-1 py-2 text-center font-mono text-sm font-semibold transition-colors ${
                     on
                       ? "border-blue/50 bg-blue/15 text-blue"
@@ -129,7 +129,7 @@ export default function TimerCard({ data, focus }: Props) {
             data-tip-sub={t("Démarre le compte à rebours de concentration.")}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] bg-green py-2.5 font-display text-sm font-bold uppercase tracking-wide text-on-green transition-opacity hover:opacity-90"
           >
-            <IconPlay className="h-4 w-4" /> Lancer {preset.work} min
+            <IconPlay className="h-4 w-4" /> {t("Lancer {n} min", { n: preset.work })}
           </button>
         </>
       )}

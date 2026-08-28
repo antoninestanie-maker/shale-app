@@ -95,7 +95,7 @@ export default function SendToTrackerModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg text-text">Envoyer au tracker</h2>
+          <h2 className="text-lg text-text">{t("Envoyer au tracker")}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -143,7 +143,7 @@ export default function SendToTrackerModal({
 
         <div className="mt-3">
           <p className="mb-1.5 text-xs font-medium text-text-dim">
-            Take Profit initial (optionnel)
+            {t("Take Profit initial (optionnel)")}
           </p>
           <input
             value={tp}
@@ -155,8 +155,9 @@ export default function SendToTrackerModal({
           />
           {tpIncoherent && (
             <p className="mt-1.5 text-xs text-yellow">
-              TP incohérent avec un {draft.direction} — le R:R ne sera pas
-              calculé.
+              {t("TP incohérent avec un {sens} — le R:R ne sera pas calculé.", {
+                sens: draft.direction,
+              })}
             </p>
           )}
         </div>
@@ -185,7 +186,7 @@ export default function SendToTrackerModal({
             disabled={sending}
             className="pill inline-flex items-center gap-2 bg-blue px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
           >
-            <IconSend className="h-4 w-4" /> Envoyer au tracker
+            <IconSend className="h-4 w-4" /> {t("Envoyer au tracker")}
           </button>
         </div>
       </div>

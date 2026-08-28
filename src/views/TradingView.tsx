@@ -58,10 +58,10 @@ function WinrateGauge({ stats }: { stats: TradeStats }) {
 /** Compteurs W / BE / L colorés. */
 function CountPills({ stats }: { stats: TradeStats }) {
   const items = [
-    { n: stats.count, color: "var(--color-blue)", title: "trades" },
-    { n: stats.wins, color: "var(--color-green)", title: "gagnants" },
+    { n: stats.count, color: "var(--color-blue)", title: t("trades") },
+    { n: stats.wins, color: "var(--color-green)", title: t("gagnants") },
     { n: stats.be, color: "var(--color-yellow)", title: "break-even" },
-    { n: stats.losses, color: "var(--color-red)", title: "perdants" },
+    { n: stats.losses, color: "var(--color-red)", title: t("perdants") },
   ];
   return (
     <div className="flex gap-1.5">
@@ -148,7 +148,7 @@ export default function TradingView({ data, refresh }: Props) {
       { label: t("Cette semaine"), stats: tradeStats(shown.filter((t) => t.date >= addDays(today, -6))) },
       { label: t("Ce mois"), stats: tradeStats(shown.filter((t) => t.date >= monthStart)) },
       { label: t("Cette année"), stats: tradeStats(shown.filter((t) => t.date >= yearStart)) },
-      { label: "Total", stats: tradeStats(shown) },
+      { label: t("Total"), stats: tradeStats(shown) },
     ];
   }, [shown, today]);
 
@@ -241,7 +241,7 @@ export default function TradingView({ data, refresh }: Props) {
       {tab === "live" && (
         <ResizablePanel
           id="trading-tracker"
-          title="Tracker live"
+          title={t("Tracker live")}
           defaultW={12}
           minW={5}
           minH={180}
@@ -251,7 +251,7 @@ export default function TradingView({ data, refresh }: Props) {
       )}
 
       {/* Cartes de période : R, jauge winrate, compteurs, PF & drawdown */}
-      <ResizablePanel id="trading-tiles" title="Stats R" defaultW={12} minW={4} minH={130}>
+      <ResizablePanel id="trading-tiles" title={t("Stats R")} defaultW={12} minW={4} minH={130}>
       <div className="auto-tiles-lg panel-stretch gap-4">
         {periods.map(({ label, stats }) => (
           <div key={label} className="card min-w-0 p-4">
@@ -292,7 +292,7 @@ export default function TradingView({ data, refresh }: Props) {
                 >
                   {stats.profitFactor ?? "—"}
                 </span>
-                {" · "}DD max{" "}
+                {" · "}{t("DD max")}{" "}
                 <span
                   className={
                     stats.maxDrawdownR < 0 ? "font-semibold text-red" : ""
@@ -368,13 +368,13 @@ export default function TradingView({ data, refresh }: Props) {
       {monthly.length > 0 && monthly[0].total.count > 0 && (
         <ResizablePanel
           id="trading-monthly"
-          title="Stats mensuelles"
+          title={t("Stats mensuelles")}
           defaultW={12}
           minW={5}
           minH={190}
         >
         <section className="card flex flex-col p-5">
-          <h2 className="hud-label">stats mensuelles</h2>
+          <h2 className="hud-label">{t("stats mensuelles")}</h2>
           {/* `panel-scroll` autorise le moteur de grille à descendre sous la
               hauteur du contenu (le tableau défile alors dans la carte) ;
               `table-scroll` garde le défilement horizontal DANS le cadre. */}
@@ -440,8 +440,7 @@ export default function TradingView({ data, refresh }: Props) {
         <h2 className="hud-label">{t("par setup")}</h2>
         {bySetup.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">
-            Loggue ton premier trade avec « + Nouveau trade » pour voir tes
-            statistiques par setup.
+            {t("Loggue ton premier trade avec « + Nouveau trade » pour voir tes statistiques par setup.")}
           </p>
         ) : (
           // Deux lignes plutôt qu'une rangée de colonnes fixes : le nom se

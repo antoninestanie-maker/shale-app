@@ -55,7 +55,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-bg/95 backdrop-blur-md">
-      <p className="hud-label">{isBreak ? "pause" : "focus session"}</p>
+      <p className="hud-label">{isBreak ? t("pause") : t("focus session")}</p>
       <h2 className="mt-2 max-w-lg truncate px-6 text-2xl text-text">
         {session.label}
       </h2>
@@ -105,14 +105,22 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
               : "border-yellow/40 bg-yellow/10 text-yellow hover:bg-yellow/20"
           }`}
         >
-          {paused ? <><IconPlay className="h-3.5 w-3.5" /> Reprendre</> : <><IconPause className="h-3.5 w-3.5" /> Pause</>}
+          {paused ? (
+            <>
+              <IconPlay className="h-3.5 w-3.5" /> {t("Reprendre")}
+            </>
+          ) : (
+            <>
+              <IconPause className="h-3.5 w-3.5" /> {t("Pause")}
+            </>
+          )}
         </button>
         <button
           type="button"
           onClick={stop}
           className="pill inline-flex items-center gap-1.5 border border-red/40 bg-red/10 px-5 py-2 text-sm font-semibold text-red hover:bg-red/20"
         >
-          <IconStop className="h-3.5 w-3.5" /> Terminer
+          <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
         </button>
         <button
           type="button"

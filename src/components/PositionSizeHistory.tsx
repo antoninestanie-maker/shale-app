@@ -34,8 +34,7 @@ export default function PositionSizeHistory({
   if (calcs.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-text-dim">
-        Aucun calcul enregistré pour l'instant. Chaque calcul valide est
-        historisé automatiquement.
+        {t("Aucun calcul enregistré pour l'instant. Chaque calcul valide est historisé automatiquement.")}
       </p>
     );
   }
@@ -130,7 +129,7 @@ export default function PositionSizeHistory({
                       <span
                         className={`inline-block h-1.5 w-1.5 rounded-full ${c.used_for_trade ? "bg-current" : "border border-current"}`}
                       />{" "}
-                      tradé
+                      {t("tradé")}
                     </button>
                     <button
                       type="button"

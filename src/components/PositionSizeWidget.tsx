@@ -95,7 +95,7 @@ export default function PositionSizeWidget() {
           // pas de [color-scheme:dark] figé : le `color-scheme` de :root suit
           // déjà le thème (le menu natif serait blanc sur blanc en clair).
           className={inputCls}
-          aria-label="Paire"
+          aria-label={t("Paire")}
         >
           {pairs.map((p) => (
             <option key={p.symbol} value={p.symbol}>
@@ -108,8 +108,8 @@ export default function PositionSizeWidget() {
             value={risk}
             onChange={(e) => setRisk(e.target.value)}
             inputMode="decimal"
-            placeholder="risque"
-            aria-label="Risque %"
+            placeholder={t("risque")}
+            aria-label={t("Risque %")}
             className={`${inputCls} pr-6`}
           />
           <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs text-text-dim">
@@ -161,10 +161,10 @@ export default function PositionSizeWidget() {
           {result.ok ? (
             <>
               <p className="font-mono text-xs text-text-dim">
-                {fmtMoney(result.actualRiskUSD, settings.currency)} risqués
+                {t("{montant} risqués", { montant: fmtMoney(result.actualRiskUSD, settings.currency) })}
               </p>
               <p className="font-mono text-[10px] text-text-dim">
-                capital {fmtMoney(settings.capital, settings.currency)}
+                {t("capital {montant}", { montant: fmtMoney(settings.capital, settings.currency) })}
               </p>
             </>
           ) : (

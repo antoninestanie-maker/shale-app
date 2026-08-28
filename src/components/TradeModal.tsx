@@ -268,7 +268,7 @@ export default function TradeModal({
                 onClick={() => setScreenshot(null)}
                 className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-red"
               >
-                <IconX className="h-3 w-3" /> retirer
+                <IconX className="h-3 w-3" /> {t("retirer")}
               </button>
             )}
           </div>
@@ -286,7 +286,7 @@ export default function TradeModal({
               disabled={!canSave}
               className="pill bg-blue px-5 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
             >
-              {trade ? t("Enregistrer") : "Logger"}
+              {trade ? t("Enregistrer") : t("Logger")}
             </button>
           </div>
         </form>

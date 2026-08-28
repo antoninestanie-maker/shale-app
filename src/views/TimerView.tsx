@@ -90,12 +90,12 @@ export default function TimerView({ data, focus }: Props) {
 
       <ResizableGrid gridId="timer" className="mt-6">
         {/* Session en cours (grand anneau) ou lanceur */}
-        <ResizablePanel id="timer-main" title="Session" defaultW={8}>
+        <ResizablePanel id="timer-main" title={t("Session")} defaultW={8}>
           {session ? (
             <section className="card flex flex-col items-center p-8">
               <p className="hud-label">
-                {session.kind === "break" ? "pause" : "focus session"}
-                {paused ? " — en pause" : ""}
+                {session.kind === "break" ? t("pause") : t("focus session")}
+                {paused ? ` — ${t("en pause")}` : ""}
               </p>
               <h2 className="mt-1 max-w-md truncate text-xl text-text">
                 {session.label}
@@ -134,7 +134,7 @@ export default function TimerView({ data, focus }: Props) {
                   </span>
                   <span className="mt-1 font-mono text-xs text-text-dim">
                     / {session.plannedMin} min
-                    {session.breakMin ? ` · pause ${session.breakMin} min ensuite` : ""}
+                    {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
                   </span>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export default function TimerView({ data, focus }: Props) {
                 <button
                   type="button"
                   onClick={paused ? focus.resume : focus.pause}
-                  data-tip={paused ? t("Reprendre la session") : "Mettre en pause"}
+                  data-tip={paused ? t("Reprendre la session") : t("Mettre en pause")}
                   data-tip-sub={
                     paused
                       ? t("Le décompte repart où il s’était arrêté.")
@@ -154,7 +154,15 @@ export default function TimerView({ data, focus }: Props) {
                       : "border-yellow/40 bg-yellow/10 text-yellow"
                   }`}
                 >
-                  {paused ? <><IconPlay className="h-3.5 w-3.5" /> Reprendre</> : <><IconPause className="h-3.5 w-3.5" /> Pause</>}
+                  {paused ? (
+                    <>
+                      <IconPlay className="h-3.5 w-3.5" /> {t("Reprendre")}
+                    </>
+                  ) : (
+                    <>
+                      <IconPause className="h-3.5 w-3.5" /> {t("Pause")}
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -163,7 +171,7 @@ export default function TimerView({ data, focus }: Props) {
                   data-tip-sub={t("Clôt et enregistre le temps concentré effectué.")}
                   className="pill inline-flex items-center gap-1.5 border border-red/40 bg-red/10 px-5 py-2 text-sm font-semibold text-red"
                 >
-                  <IconStop className="h-3.5 w-3.5" /> Terminer
+                  <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
                 </button>
                 <button
                   type="button"
@@ -209,13 +217,13 @@ export default function TimerView({ data, focus }: Props) {
                           : "border-blue/40 text-blue"
                       }`}
                     >
-                      {s.kind === "break" ? "pause" : "focus"}
+                      {s.kind === "break" ? t("pause") : "focus"}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm text-text">
                       {taskLabel(s)}
                     </span>
                     <span className="shrink-0 font-mono text-xs font-semibold text-text">
-                      {s.ended_at ? fmtMin(sessionMinutes(s)) : "en cours"}
+                      {s.ended_at ? fmtMin(sessionMinutes(s)) : t("en cours")}
                     </span>
                   </li>
                 ))}
@@ -234,7 +242,7 @@ export default function TimerView({ data, focus }: Props) {
                   type="button"
                   onClick={() => bumpGoal(-30)}
                   className="pill h-6 w-6 border border-border text-xs text-text-dim hover:text-text"
-                  aria-label="Moins 30 minutes d'objectif"
+                  aria-label={t("Moins 30 minutes d'objectif")}
                   data-tip="−30 minutes"
                   data-tip-sub={t("Objectif de temps concentré pour la journée.")}
                 >
@@ -276,7 +284,7 @@ export default function TimerView({ data, focus }: Props) {
         </ResizablePanel>
 
         {/* Statistiques */}
-        <ResizablePanel id="timer-tiles" title="Statistiques" defaultW={4}>
+        <ResizablePanel id="timer-tiles" title={t("Statistiques")} defaultW={4}>
           <div className="auto-tiles panel-stretch gap-3">
             {[
               { label: t("cette semaine"), value: fmtMin(stats.weekMin), accent: "text-text" },
@@ -284,7 +292,7 @@ export default function TimerView({ data, focus }: Props) {
               { label: t("moyenne / jour"), value: fmtMin(stats.avg7), accent: "text-text" },
               {
                 label: t("objectif atteint"),
-                value: stats.todayMin >= goalMin ? "oui" : `${Math.round((stats.todayMin / goalMin) * 100)}%`,
+                value: stats.todayMin >= goalMin ? t("oui") : `${Math.round((stats.todayMin / goalMin) * 100)}%`,
                 accent: stats.todayMin >= goalMin ? "text-green" : "text-text-dim",
               },
             ].map((tile) => (
@@ -306,21 +314,20 @@ export default function TimerView({ data, focus }: Props) {
             <h2 className="hud-label">{t("méthode")}</h2>
             <ul className="mt-3 flex flex-col gap-2 text-xs leading-relaxed text-text-dim">
               <li>
-                <span className="font-semibold text-text">25·5 pomodoro</span> — tâches
-                courtes, démarrage difficile : la friction minimale.
+                <span className="font-semibold text-text">25·5 pomodoro</span>{" "}
+                {t("— tâches courtes, démarrage difficile : la friction minimale.")}
               </li>
               <li>
-                <span className="font-semibold text-text">50·10 deep work</span> —
-                backtesting, montage : assez long pour entrer dans le flow.
+                <span className="font-semibold text-text">50·10 {t("deep work")}</span>{" "}
+                {t("— backtesting, montage : assez long pour entrer dans le flow.")}
               </li>
               <li>
-                <span className="font-semibold text-text">90·15 ultradien</span> — aligné
-                sur les cycles d'énergie naturels, pour les gros blocs du soir.
+                <span className="font-semibold text-text">90·15 {t("ultradien")}</span>{" "}
+                {t("— aligné sur les cycles d'énergie naturels, pour les gros blocs du soir.")}
               </li>
             </ul>
             <p className="mt-3 text-[11px] text-text-dim">
-              Le mode « sur mesure » laisse fixer librement les durées travail et
-              pause (1–240 min), mémorisées pour la prochaine session.
+              {t("Le mode « sur mesure » laisse fixer librement les durées travail et pause (1–240 min), mémorisées pour la prochaine session.")}
             </p>
           </section>
         </ResizablePanel>

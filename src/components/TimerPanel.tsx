@@ -134,7 +134,7 @@ export default function TimerPanel({ data, focus }: Props) {
       {session ? (
         <div className="flex flex-col items-center py-2">
           <p className="hud-label">
-            {session.kind === "break" ? "pause en cours" : "session en cours"}
+            {session.kind === "break" ? t("pause en cours") : t("session en cours")}
           </p>
           <button
             type="button"
@@ -149,7 +149,7 @@ export default function TimerPanel({ data, focus }: Props) {
           </button>
           <p className="mt-1 max-w-full truncate text-xs text-text-dim">
             {session.label}
-            {session.breakMin ? ` · pause ${session.breakMin} min ensuite` : ""}
+            {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
           </p>
           <div className="mt-4 flex gap-2">
             <button
@@ -161,7 +161,15 @@ export default function TimerPanel({ data, focus }: Props) {
                   : "border-yellow/40 bg-yellow/10 text-yellow"
               }`}
             >
-              {paused ? <><IconPlay className="h-3 w-3" /> Reprendre</> : <><IconPause className="h-3 w-3" /> Pause</>}
+              {paused ? (
+              <>
+                <IconPlay className="h-3 w-3" /> {t("Reprendre")}
+              </>
+            ) : (
+              <>
+                <IconPause className="h-3 w-3" /> {t("Pause")}
+              </>
+            )}
             </button>
             <button
               type="button"
@@ -199,7 +207,7 @@ export default function TimerPanel({ data, focus }: Props) {
                       setCustomMode(false);
                     }}
                     data-tip={`${p.label} minutes`}
-                    data-tip-sub={p.hint}
+                    data-tip-sub={t(p.hint)}
                     className={`min-w-0 rounded-[var(--radius-field)] border px-2 py-2 text-center transition-colors ${
                       on ? "border-blue/50 bg-blue/15" : "border-border hover:border-text-dim/40"
                     }`}
@@ -243,7 +251,7 @@ export default function TimerPanel({ data, focus }: Props) {
           {customMode && (
             <div className="auto-tiles gap-3">
               <label className="block">
-                <span className="hud-label">travail (min)</span>
+                <span className="hud-label">{t("travail (min)")}</span>
                 <input
                   type="number"
                   min={1}
@@ -257,7 +265,7 @@ export default function TimerPanel({ data, focus }: Props) {
                 />
               </label>
               <label className="block">
-                <span className="hud-label">pause (min)</span>
+                <span className="hud-label">{t("pause (min)")}</span>
                 <input
                   type="number"
                   min={1}
@@ -280,7 +288,7 @@ export default function TimerPanel({ data, focus }: Props) {
                 type="button"
                 onClick={() => bump(-5)}
                 className="pill h-9 w-9 border border-border text-lg text-text-dim hover:text-text"
-                aria-label="Moins 5 minutes"
+                aria-label={t("Moins 5 minutes")}
                 data-tip="−5 minutes"
               >
                 −
@@ -330,14 +338,14 @@ export default function TimerPanel({ data, focus }: Props) {
             data-tip-sub={t("Démarre le compte à rebours de concentration.")}
             className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-green py-3 font-display text-sm font-bold uppercase tracking-wide text-on-green hover:opacity-90"
           >
-            <IconPlay className="h-4 w-4" /> Lancer {workMin} min
+            <IconPlay className="h-4 w-4" /> {t("Lancer {n} min", { n: workMin })}
           </button>
         </>
       )}
 
       <div className="border-t border-border pt-3">
         <div className="flex items-center justify-between">
-          <span className="hud-label">cycles aujourd'hui</span>
+          <span className="hud-label">{t("cycles aujourd'hui")}</span>
           <span className="flex items-center gap-1">
             {cyclesToday === 0 ? (
               <span className="font-mono text-xs text-text-dim">0</span>
@@ -352,8 +360,7 @@ export default function TimerPanel({ data, focus }: Props) {
           </span>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-text-dim">
-          Choisis un preset (ou « sur mesure »), lie une tâche, puis lance ta
-          session.
+          {t("Choisis un preset (ou « sur mesure »), lie une tâche, puis lance ta session.")}
         </p>
       </div>
     </div>

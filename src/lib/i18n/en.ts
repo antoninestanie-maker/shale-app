@@ -267,6 +267,41 @@ export const EN: Record<string, string> = {
     "Derived from sub-goals and linked one-off tasks.",
 
   // ── Timer / focus ─────────────────────────────────────────────────────────
+  "Pause": "Pause",
+  "Terminer": "End",  // « Reprendre » existe déjà plus bas
+  "Mettre en pause": "Pause",
+  "Moins 5 minutes": "5 minutes less",
+  "Moins 30 minutes d'objectif": "30 minutes less on the target",
+  "pause": "break",
+  "en pause": "paused",
+  "en cours": "running",
+  "focus session": "focus session",
+  "pause en cours": "break in progress",
+  "session en cours": "session in progress",
+  "pause {n} min ensuite": "{n} min break afterwards",
+  "cycles aujourd'hui": "cycles today",
+  "travail (min)": "work (min)",
+  "pause (min)": "break (min)",
+  "Lancer {n} min": "Start {n} min",
+  "Session": "Session",
+  "Statistiques": "Statistics",
+  "oui": "yes",
+  "Choisis un preset (ou « sur mesure »), lie une tâche, puis lance ta session.":
+    "Pick a preset (or “custom”), link a task, then start your session.",
+  // Les trois presets : « pomodoro » et « deep work » sont déjà anglais, seul
+  // « ultradien » se traduit. Ils viennent de TIMER_PRESETS, traduits à
+  // l'affichage comme toute table de libellés.
+  "pomodoro": "pomodoro",
+  "deep work": "deep work",
+  "ultradien": "ultradian",
+  "— tâches courtes, démarrage difficile : la friction minimale.":
+    "— short tasks, hard starts: the least possible friction.",
+  "— backtesting, montage : assez long pour entrer dans le flow.":
+    "— backtesting, editing: long enough to reach flow.",
+  "— aligné sur les cycles d'énergie naturels, pour les gros blocs du soir.":
+    "— aligned with natural energy cycles, for the big evening blocks.",
+  "Le mode « sur mesure » laisse fixer librement les durées travail et pause (1–240 min), mémorisées pour la prochaine session.":
+    "“Custom” lets you set work and break lengths freely (1–240 min), remembered for the next session.",
   "Lancer la session": "Start session",
   "Terminer la session": "End session",
   "Reprendre la session": "Resume session",
@@ -449,6 +484,43 @@ export const EN: Record<string, string> = {
   "Garde le cap": "Stay the course",
 
   // ── Trading / journal de trades ───────────────────────────────────────────
+  "trades": "trades",
+  "gagnants": "wins",
+  "perdants": "losses",
+  "Total": "Total",
+  "Tracker live": "Live tracker",
+  "Stats R": "R stats",
+  "DD max": "max DD",
+  "Stats mensuelles": "Monthly stats",
+  "stats mensuelles": "monthly stats",
+  "Logger": "Log",
+  "retirer": "remove",
+  "Loggue ton premier trade avec « + Nouveau trade » pour voir tes statistiques par setup.":
+    "Log your first trade with “+ New trade” to see your stats by setup.",
+  // Tracker live
+  "{pct}% engagés": "{pct}% committed",
+  "Aucune position en attente. Depuis": "No position waiting. From",
+  ", clique sur": ", click",
+  "Trader": "Trade",
+  ": la position arrive ici avec son heure d'entrée, son R:R et sa taille.":
+    ": the position lands here with its entry time, its R:R and its size.",
+  "taille": "size",
+  "{n} lot": "{n} lot",
+  "Sortie partielle": "Partial exit",
+  "partielle": "partial",
+  "Position gagnante": "Winning position",
+  "Position perdante": "Losing position",
+  "Gagnante": "Win",
+  "Perdante": "Loss",
+  "Retirer": "Remove",
+  "Fermeture partielle :": "Partial close:",
+  "Take Profit :": "Take profit:",
+  "(reste {pct}%)": "({pct}% left)",
+  "niveau TP": "TP level",
+  "Envoyer au tracker": "Send to tracker",
+  "Take Profit initial (optionnel)": "Initial take profit (optional)",
+  "TP incohérent avec un {sens} — le R:R ne sera pas calculé.":
+    "TP inconsistent with a {sens} — the R:R will not be calculated.",
   "Nouveau trade": "New trade",
   "+ Nouveau trade": "+ New trade",
   "Modifier le trade": "Edit trade",
@@ -524,6 +596,34 @@ export const EN: Record<string, string> = {
   "historique des calculs": "calculation history",
 
   // ── Sizing / position ─────────────────────────────────────────────────────
+  "Capital ({dev})": "Capital ({dev})",
+  "Risque (%)": "Risk (%)",
+  "Risque %": "Risk %",
+  "risque": "risk",
+  "Paire": "Pair",
+  "Sens": "Direction",
+  "Position longue (achat)": "Long position (buy)",
+  "Position courte (vente)": "Short position (sell)",
+  "Take Profit (optionnel)": "Take profit (optional)",
+  "Spread (pips, optionnel)": "Spread (pips, optional)",
+  "Spread inclus": "Spread included",
+  "mini lots": "mini lots",
+  "micro lots": "micro lots",
+  "unités": "units",
+  "cible {montant}": "target {montant}",
+  "distance SL": "SL distance",
+  "gain potentiel": "potential gain",
+  "{montant} risqués": "{montant} at risk",
+  "capital {montant}": "capital {montant}",
+  "Seuil d'alerte risque (%)": "Risk alert threshold (%)",
+  "aucune": "none",
+  "défaut {valeur} {dev}/lot": "default {valeur} {dev}/lot",
+  "override ({valeur})": "override ({valeur})",
+  "tradé": "traded",
+  "Aucun calcul enregistré pour l'instant. Chaque calcul valide est historisé automatiquement.":
+    "No calculation saved yet. Every valid calculation is logged automatically.",
+  "Ajuste la valeur d'un pip par lot standard pour coller à la convention exacte de ton broker / prop firm (ex. XAU/USD : 1 $ ou 10 $ selon la définition du pip). Laisse vide pour garder la valeur par défaut.":
+    "Adjust the pip value per standard lot to match your broker or prop firm’s exact convention (e.g. XAU/USD: $1 or $10 depending on how the pip is defined). Leave blank to keep the default.",
   "taille de position": "position size",
   "taille recommandée": "recommended size",
   "Prix d'entrée": "Entry price",
@@ -1114,7 +1214,6 @@ export const EN: Record<string, string> = {
   "Market Brain": "Market Brain",
   "Un briefing cross-asset généré deux fois par jour : biais, scénario, niveaux clés et zones no-trade, avant Londres et avant New York.":
     "A cross-asset briefing generated twice a day: bias, scenario, key levels and no-trade windows, before London and before New York.",
-  "Tracker live": "Live tracker",
   "Les positions ouvertes suivies en direct, avec leur R:R, leurs partielles et leur durée. Un clic pour dénouer, le journal se remplit tout seul.":
     "Open positions tracked live, with their R:R, partials and time in trade. One click to close them out, and the journal fills itself in.",
   "Journal de trades en R": "Trade journal in R",
@@ -1461,7 +1560,6 @@ export const EN: Record<string, string> = {
   "Modifier le flux": "Edit flow",
   "Nouveau flux récurrent": "New recurring flow",
   "Loyer": "Rent",
-  "Sens": "Direction",
   "Sortie": "Outgoing",
   "Montant": "Amount",
   "Fréquence": "Frequency",

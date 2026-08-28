@@ -297,7 +297,7 @@ export default function SizingView({
               <h2 className="hud-label">{t("paramètres du trade")}</h2>
               <div className="mt-4 flex flex-col gap-4">
                 <div className="auto-tiles gap-3">
-                  <Field label={`Capital (${usd})`}>
+                  <Field label={t("Capital ({dev})", { dev: usd })}>
                     <input
                       value={capital}
                       onChange={(e) => setCapital(e.target.value)}
@@ -306,7 +306,7 @@ export default function SizingView({
                       className={inputCls}
                     />
                   </Field>
-                  <Field label="Risque (%)">
+                  <Field label={t("Risque (%)")}>
                     <input
                       value={risk}
                       onChange={(e) => setRisk(e.target.value)}
@@ -318,7 +318,7 @@ export default function SizingView({
                 </div>
 
                 <div className="auto-tiles gap-3">
-                  <Field label="Paire">
+                  <Field label={t("Paire")}>
                     <select
                       value={symbol}
                       onChange={(e) => setSymbol(e.target.value)}
@@ -331,14 +331,14 @@ export default function SizingView({
                       ))}
                     </select>
                   </Field>
-                  <Field label="Sens">
+                  <Field label={t("Sens")}>
                     <div className="flex gap-1.5">
                       {(["long", "short"] as const).map((d) => (
                         <button
                           key={d}
                           type="button"
                           onClick={() => setDirection(d)}
-                          data-tip={d === "long" ? "Position longue (achat)" : "Position courte (vente)"}
+                          data-tip={d === "long" ? t("Position longue (achat)") : t("Position courte (vente)")}
                           data-tip-sub={t("Détermine de quel côté du prix d’entrée se place le stop.")}
                           className={`pill flex-1 border px-3 py-2 text-xs font-semibold uppercase transition-colors ${
                             direction === d
@@ -377,7 +377,7 @@ export default function SizingView({
                 </div>
 
                 <div className="auto-tiles gap-3">
-                  <Field label="Take Profit (optionnel)">
+                  <Field label={t("Take Profit (optionnel)")}>
                     <input
                       value={takeProfit}
                       onChange={(e) => setTakeProfit(e.target.value)}
@@ -386,7 +386,7 @@ export default function SizingView({
                       className={inputCls}
                     />
                   </Field>
-                  <Field label="Spread (pips, optionnel)">
+                  <Field label={t("Spread (pips, optionnel)")}>
                     <input
                       value={spread}
                       onChange={(e) => setSpread(e.target.value)}
@@ -408,7 +408,7 @@ export default function SizingView({
                     }`}
                     data-tip={t("Ajoute le spread à la distance du stop pour un risque conservateur")}
                   >
-                    {includeSpread ? "Spread inclus" : t("Spread ignoré")}
+                    {includeSpread ? t("Spread inclus") : t("Spread ignoré")}
                   </button>
                 </div>
               </div>
@@ -443,9 +443,9 @@ export default function SizingView({
               {result.ok ? (
                 <>
                   <p className="mt-2 font-mono text-xs text-text-dim">
-                    = {result.miniLots.toFixed(1)} mini lots ·{" "}
-                    {Math.round(result.microLots)} micro lots ·{" "}
-                    {fmtUnits(result.units)} unités
+                    = {result.miniLots.toFixed(1)} {t("mini lots")} ·{" "}
+                    {Math.round(result.microLots)} {t("micro lots")} ·{" "}
+                    {fmtUnits(result.units)} {t("unités")}
                   </p>
 
                   <div className="auto-tiles mt-4 gap-3">
@@ -455,11 +455,11 @@ export default function SizingView({
                         {fmtMoney(result.actualRiskUSD, usd)}
                       </p>
                       <p className="font-mono text-[10px] text-text-dim">
-                        cible {fmtMoney(result.riskUSD, usd)}
+                        {t("cible {montant}", { montant: fmtMoney(result.riskUSD, usd) })}
                       </p>
                     </div>
                     <div className="pill bg-surface-2 px-3 py-2.5">
-                      <p className="hud-label">distance SL</p>
+                      <p className="hud-label">{t("distance SL")}</p>
                       <p className="mt-0.5 font-mono text-sm font-semibold text-text">
                         {fmtPips(result.effectiveDistancePips)} pips
                       </p>
@@ -484,7 +484,7 @@ export default function SizingView({
                         </div>
                         {rr != null && (
                           <div className="pill bg-surface-2 px-3 py-2.5">
-                            <p className="hud-label">gain potentiel</p>
+                            <p className="hud-label">{t("gain potentiel")}</p>
                             <p className="mt-0.5 font-mono text-sm font-semibold text-green">
                               +{fmtMoney(result.actualRiskUSD * rr, usd)}
                             </p>
@@ -620,7 +620,7 @@ function SettingsPanel({
               className={`${inputCls} uppercase`}
             />
           </Field>
-          <Field label="Seuil d'alerte risque (%)">
+          <Field label={t("Seuil d'alerte risque (%)")}>
             <input
               value={String(draft.maxRisk)}
               onChange={(e) =>
@@ -639,7 +639,7 @@ function SettingsPanel({
                 set("maxLots", raw.trim() === "" || !Number.isFinite(n) ? null : n);
               }}
               inputMode="decimal"
-              placeholder="aucune"
+              placeholder={t("aucune")}
               className={inputCls}
             />
           </Field>
@@ -649,9 +649,7 @@ function SettingsPanel({
       <section className="card p-5">
         <h2 className="hud-label">{t("valeur du pip par paire")}</h2>
         <p className="mt-2 text-xs text-text-dim">
-          Ajuste la valeur d'un pip par lot standard pour coller à la convention
-          exacte de ton broker / prop firm (ex. XAU/USD : 1 $ ou 10 $ selon la
-          définition du pip). Laisse vide pour garder la valeur par défaut.
+          {t("Ajuste la valeur d'un pip par lot standard pour coller à la convention exacte de ton broker / prop firm (ex. XAU/USD : 1 $ ou 10 $ selon la définition du pip). Laisse vide pour garder la valeur par défaut.")}
         </p>
         <div className="mt-4 flex flex-col gap-3">
           {DEFAULT_PAIRS.map((p) => (
@@ -660,7 +658,7 @@ function SettingsPanel({
                 {p.symbol}
               </span>
               <span className="w-32 shrink-0 font-mono text-[11px] text-text-dim">
-                défaut {p.pipValuePerStandardLot} {draft.currency}/lot
+                {t("défaut {valeur} {dev}/lot", { valeur: p.pipValuePerStandardLot, dev: draft.currency })}
               </span>
               <input
                 value={
@@ -670,7 +668,7 @@ function SettingsPanel({
                 }
                 onChange={(e) => setPipOverride(p.symbol, e.target.value)}
                 inputMode="decimal"
-                placeholder={`override (${p.pipValuePerStandardLot})`}
+                placeholder={t("override ({valeur})", { valeur: p.pipValuePerStandardLot })}
                 className={`${inputCls} max-w-[200px]`}
               />
             </div>

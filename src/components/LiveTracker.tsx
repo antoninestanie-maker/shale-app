@@ -37,7 +37,7 @@ import type {
 import { IconPlus, IconX } from "./icons";
 import type { ToastState } from "./Toast";
 
-import { t } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -150,11 +150,11 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
         </h2>
         {positions.length > 0 && (
           <p className="shrink-0 font-mono text-[11px] text-text-dim">
-            {positions.length} position{positions.length > 1 ? "s" : ""}
+            {tp(positions.length, "{n} position", "{n} positions")}
             {engagedPct > 0 && (
               <>
                 {" "}
-                · <span className="text-yellow">{engagedPct}% engagés</span>
+                · <span className="text-yellow">{t("{pct}% engagés", { pct: engagedPct })}</span>
               </>
             )}
           </p>
@@ -163,10 +163,12 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
 
       {positions.length === 0 ? (
         <p className="py-6 text-center text-sm text-text-dim">
-          Aucune position en attente. Depuis{" "}
-          <span className="font-semibold text-text">{t("Position")}</span>, clique sur{" "}
-          <span className="font-semibold text-blue">Trader</span> : la position
-          arrive ici avec son heure d'entrée, son R:R et sa taille.
+          {t("Aucune position en attente. Depuis")}{" "}
+          <span className="font-semibold text-text">{t("Position")}</span>
+          {t(", clique sur")}{" "}
+          <span className="font-semibold text-blue">{t("Trader")}</span>
+          {" "}
+          {t(": la position arrive ici avec son heure d'entrée, son R:R et sa taille.")}
         </p>
       ) : (
         <ul className="panel-scroll mt-3 flex flex-col gap-2">
@@ -242,9 +244,9 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                       )}
                     </div>
                     <div>
-                      <p className="hud-label">taille</p>
+                      <p className="hud-label">{t("taille")}</p>
                       <p className="mt-0.5 text-text">
-                        {pos.lots != null ? `${pos.lots} lot` : "—"}
+                        {pos.lots != null ? t("{n} lot", { n: pos.lots }) : "—"}
                       </p>
                     </div>
                   </div>
@@ -275,7 +277,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                               : { id: pos.id, kind: "partial" },
                           )
                         }
-                        data-tip="Sortie partielle"
+                        data-tip={t("Sortie partielle")}
                         data-tip-sub={t("Sécuriser une part de la position (ex. 50 %) à un prix donné — le R final en tient compte.")}
                         className={`pill inline-flex items-center gap-1 border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
                           isExp?.kind === "partial"
@@ -283,7 +285,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                             : "border-border text-text-dim hover:border-blue/40 hover:text-blue"
                         }`}
                       >
-                        <IconPlus className="h-3 w-3" /> partielle
+                        <IconPlus className="h-3 w-3" /> {t("partielle")}
                       </button>
                     )}
                   </div>
@@ -293,20 +295,20 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                     <button
                       type="button"
                       onClick={() => close(pos, "win")}
-                      data-tip="Position gagnante"
+                      data-tip={t("Position gagnante")}
                       data-tip-sub={t("Clôt au TP (ou au prix de sortie demandé), logue le trade et archive la position.")}
                       className="pill bg-green px-3.5 py-1.5 text-xs font-bold uppercase text-on-green transition-opacity hover:opacity-90"
                     >
-                      Gagnante
+                      {t("Gagnante")}
                     </button>
                     <button
                       type="button"
                       onClick={() => close(pos, "loss")}
-                      data-tip="Position perdante"
+                      data-tip={t("Position perdante")}
                       data-tip-sub={t("Clôt au stop : −1R sur la part restante, trade enregistré au journal.")}
                       className="pill bg-red px-3.5 py-1.5 text-xs font-bold uppercase text-white transition-opacity hover:opacity-90"
                     >
-                      Perdante
+                      {t("Perdante")}
                     </button>
                     {allowBe && (
                       <button
@@ -331,7 +333,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                           ? "bg-red/20 text-red"
                           : "text-text-dim hover:text-red"
                       }`}
-                      aria-label="Retirer"
+                      aria-label={t("Retirer")}
                     >
                       {deletingId === pos.id ? (
                         <span className="px-0.5 text-[11px] font-semibold">
@@ -429,9 +431,9 @@ function InlineForm({
     <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
       <p className="text-xs font-medium text-text-dim">
         {kind === "partial"
-          ? "Fermeture partielle :"
+          ? t("Fermeture partielle :")
           : kind === "tp"
-            ? "Take Profit :"
+            ? t("Take Profit :")
             : t("Prix de sortie (pas de TP défini) :")}
       </p>
       {kind === "partial" && (
@@ -442,14 +444,14 @@ function InlineForm({
             inputMode="decimal"
             className={`${fieldCls} w-16`}
           />
-          % <span className="text-[10px]">(reste {maxPct}%)</span>
+          % <span className="text-[10px]">{t("(reste {pct}%)", { pct: maxPct })}</span>
         </label>
       )}
       <input
         value={price}
         onChange={(e) => setPrice(e.target.value)}
         inputMode="decimal"
-        placeholder={kind === "tp" ? "niveau TP" : t("prix de sortie")}
+        placeholder={kind === "tp" ? t("niveau TP") : t("prix de sortie")}
         autoFocus
         className={fieldCls}
         onKeyDown={(e) => {
