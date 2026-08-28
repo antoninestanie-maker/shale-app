@@ -655,12 +655,19 @@
      correctif `title` du matin a réparé le bureau et laissé le doigt de côté.
      Sous pointeur grossier, le texte passe donc à la ligne : il se lit sans
      aucun geste, ce qu'aucune bulle ne peut promettre.
-     ⚠️ À poser EN PLUS de `truncate`, jamais à la place. */
+     ⚠️ À poser EN PLUS de `truncate`, jamais à la place.
+
+     ⚠️ `!important` OBLIGATOIRE, et ce n'est pas de la paresse : `truncate` est un
+     utilitaire Tailwind (couche `utilities`), cette classe vit dans `components`,
+     et à spécificité égale c'est la couche postérieure qui gagne. Sans lui, la
+     règle est écrasée en silence et le libellé reste coupé — vérifié à l'écran
+     le 2026-08-28. Le dépôt s'était déjà fait prendre exactement là-dessus avec
+     le reset de marge de `.rgrid-content` (cf. CLAUDE.md, 2026-07-13). */
   @media (pointer: coarse) {
     .truncate-souris {
-      overflow: visible;
-      text-overflow: clip;
-      white-space: normal;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
     }
   }
 
