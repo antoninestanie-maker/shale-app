@@ -289,7 +289,9 @@ export default function TimerView({ data, focus }: Props) {
               },
             ].map((tile) => (
               <div key={tile.label} className="card p-4">
-                <p className="hud-label">{tile.label}</p>
+                <p className="hud-label" title={tile.label}>
+                  {tile.label}
+                </p>
                 <p className={`mt-1 font-display text-xl font-extrabold ${tile.accent}`}>
                   {tile.value}
                 </p>

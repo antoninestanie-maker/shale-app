@@ -233,7 +233,9 @@ export default function TimerPanel({ data, focus }: Props) {
                 >
                   {customWorkMin}·{customBreakMin}
                 </span>
-                <span className="hud-label mt-0.5 block">{t("sur mesure")}</span>
+                <span className="hud-label mt-0.5 block" title={t("sur mesure")}>
+                  {t("sur mesure")}
+                </span>
               </button>
             </div>
           </div>
