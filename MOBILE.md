@@ -2216,6 +2216,40 @@ d'une décision d'Antonin, avec la question Stripe contre achats intégrés.
 
 ---
 
+## 22. ⚠️ Réinstaller sur le SIMULATEUR déconnecte la session (2026-08-28)
+
+**Nouveau piège, découvert en le déclenchant.** Un `xcrun simctl install`
+par-dessus une app existante **préserve le conteneur de données** — `shale.db`
+et ses sauvegardes sont intacts, vérifié — mais **fait perdre l'accès au
+trousseau**, donc le `refresh_token` rangé par `stockage.ts`. L'app redémarre
+sur l'écran de connexion.
+
+C'est le même mécanisme que la réinstallation macOS documentée dans
+`CLAUDE.md` (« Réinstaller REDEMANDE l'accès au trousseau ») — la signature
+change, le trousseau considère que c'est une AUTRE app. La différence est
+décisive :
+
+| | macOS | Simulateur iOS |
+|---|---|---|
+| Ce qui se passe | fenêtre « Toujours autoriser » + mot de passe | **rien** — l'accès est simplement absent |
+| Récupérable par Claude ? | non (mot de passe) | **non** (identifiants) |
+| Conséquence | un clic d'Antonin | **il faut se reconnecter à la main** |
+
+⚠️ **Conséquence opérationnelle** : après toute reconstruction iOS, une session
+Claude **ne peut plus rien vérifier à l'écran** tant qu'Antonin n'a pas ressaisi
+ses identifiants dans le Simulateur. Le § 17.2 disait « la navigation dans les
+quatorze vues ne demande plus personne » — c'est vrai **entre** deux
+reconstructions, pas après l'une d'elles.
+
+▶️ **Donc : faire tout l'audit visuel AVANT de reconstruire**, pas après. Et
+prévenir Antonin qu'une reconnexion l'attend, plutôt que de le lui laisser
+découvrir.
+
+⚠️ Ceci ne change RIEN à l'interdiction de `simctl uninstall` / `simctl erase`
+(§ 17.4) : `install` préserve les données, les deux autres non.
+
+---
+
 ## 21. ⭐⭐ 20:00:00 — LA BANNIÈRE EST TOMBÉE
 
 *Le jalon que le § 15 attendait depuis 3 h du matin. Ce n'était pas du travail,
