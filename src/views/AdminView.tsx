@@ -117,7 +117,10 @@ function WidgetList({
             {/* min-w-0 + truncate : sans ça `flex-1` gardait la largeur du
                 libellé, ce qui poussait les flèches ↑↓ hors du panneau (donc
                 clippées et incliquables) en fenêtre étroite. */}
-            <span className="min-w-0 flex-1 truncate text-sm text-text">
+            <span
+              className="min-w-0 flex-1 truncate text-sm text-text"
+              title={t(WIDGET_LABELS[w.id] ?? w.id)}
+            >
               {t(WIDGET_LABELS[w.id] ?? w.id)}
             </span>
             <ArrowButton up onClick={() => onChange(move(list, i, -1))} disabled={i === 0} />
