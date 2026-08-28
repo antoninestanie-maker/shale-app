@@ -454,7 +454,11 @@ function InlineForm({
         className={fieldCls}
         onKeyDown={(e) => {
           if (e.key === "Enter") submit();
-          if (e.key === "Escape") onCancel();
+          // Marque la touche : sinon elle remonte et ferme aussi le panneau.
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          }
         }}
       />
       {kind !== "tp" && r != null && (

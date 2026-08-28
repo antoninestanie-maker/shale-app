@@ -83,7 +83,16 @@ export default function MobileNav({
   useEffect(() => {
     if (!plusOuvert) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPlusOuvert(false);
+      // ⚠️ Une couche AU-DESSUS a déjà traité la touche : elle l'a marquée.
+      // Sans ce garde, un seul Échap ferme DEUX étages d'un coup — et si
+      // l'étage du dessous est un formulaire, la saisie part avec.
+      // Convention posée par KnowledgeView le 2026-08-26, généralisée ici
+      // le 2026-08-28 après l'avoir reproduite : ⌘K par-dessus une tâche.
+      if (e.defaultPrevented) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setPlusOuvert(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
