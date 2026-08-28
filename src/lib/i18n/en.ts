@@ -862,6 +862,8 @@ export const EN: Record<string, string> = {
   "Aucune tâche due ces 7 jours — le graphique se remplira tout seul.":
     "No tasks due in the last 7 days — the chart will fill in on its own.",
   "Densité de l'interface": "Interface density",
+  "Agrandi de {pct} % en plus, d’après la taille de texte de ton système.":
+    "Scaled up a further {pct}% to match your system text size.",
   "Agrandit ou resserre toute l’interface.": "Expands or tightens the whole interface.",
   "Mémoriser la taille actuelle": "Remember current size",
   "La fenêtre s’ouvrira à cette taille aux prochains lancements.":

@@ -228,9 +228,27 @@ function App() {
     void sauvegardeQuotidienne();
   }, [refresh]);
 
-  // Densité (zoom global) pilotée par la page Personnaliser.
+  // Densité (zoom global) pilotée par la page Personnaliser, composée avec la
+  // taille de texte demandée par le système (Dynamic Type, iOS).
+  //
+  // ⚠️ iOS n'émet AUCUN événement quand on change la taille du texte dans ses
+  // Réglages — l'utilisateur quitte Shale, règle, et revient. Le seul signal
+  // exploitable est donc le retour au premier plan, d'où `visibilitychange` ;
+  // `resize` couvre la rotation et le redimensionnement d'une fenêtre de
+  // bureau. `applyZoom()` remesure à chaque appel et n'écrit que deux
+  // propriétés : le rappeler ne coûte rien.
   useEffect(() => {
-    applyZoom(ui.config.zoom);
+    const appliquer = () => applyZoom(ui.config.zoom);
+    appliquer();
+    const auRetour = () => {
+      if (document.visibilityState === "visible") appliquer();
+    };
+    document.addEventListener("visibilitychange", auRetour);
+    window.addEventListener("resize", appliquer);
+    return () => {
+      document.removeEventListener("visibilitychange", auRetour);
+      window.removeEventListener("resize", appliquer);
+    };
   }, [ui.config.zoom]);
 
   // Taille de fenêtre par défaut : appliquée une fois, au premier chargement de la config.

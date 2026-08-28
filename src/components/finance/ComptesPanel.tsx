@@ -614,7 +614,7 @@ export function Dialogue({
         if (e.target === e.currentTarget) onFerme();
       }}
     >
-      <div className="card card-solid max-h-[85vh] w-full max-w-lg overflow-y-auto p-5">
+      <div className="card card-solid max-h-[calc(85vh*var(--zoom-inv))] w-full max-w-lg overflow-y-auto p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-display text-lg font-semibold text-text">{titre}</h3>
           <button

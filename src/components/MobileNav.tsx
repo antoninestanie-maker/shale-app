@@ -189,7 +189,7 @@ export default function MobileNav({
             onClick={() => setPlusOuvert(false)}
           />
           <div
-            className="card-solid animate-fade-up max-h-[78vh] overflow-y-auto rounded-t-3xl border-t border-border px-3 pt-2"
+            className="card-solid animate-fade-up max-h-[calc(78vh*var(--zoom-inv))] overflow-y-auto rounded-t-3xl border-t border-border px-3 pt-2"
             style={{
               paddingBottom: "calc(env(safe-area-inset-bottom) + 5.5rem)",
               paddingLeft: "env(safe-area-inset-left)",

@@ -126,7 +126,7 @@ export default function NotificationBell({ onNavigate }: Props) {
             role="dialog"
             aria-label={t("Centre de notifications")}
             style={{ top: pos.top, left: pos.left }}
-            className="animate-fade-up card-solid fixed z-[55] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border p-0 shadow-lg"
+            className="animate-fade-up card-solid fixed z-[55] flex w-[340px] max-w-[calc((100vw-2rem)*var(--zoom-inv))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-border p-0 shadow-lg"
           >
             <div className="rgrid-head flex items-center gap-2 border-b border-border px-4 py-3">
               <h2 className="hud-label min-w-0 flex-1 truncate">notifications</h2>

@@ -16,6 +16,8 @@ import { isTauri } from "../lib/repo";
 import {
   applyZoom,
   defaultUiConfig,
+  facteurDynamicType,
+  tailleTexteSysteme,
   WIDGET_LABELS,
   type UiConfig,
   type WidgetConfig,
@@ -140,6 +142,9 @@ function WidgetList({
 export default function AdminView({ config, save }: Props) {
   const [sizeMsg, setSizeMsg] = useState<string | null>(null);
   const [texts, setTexts] = useState<AppTexts>(loadTexts);
+  // Lu au rendu, pas mémorisé : revenir sur cette page après avoir changé la
+  // taille de texte du système doit montrer la valeur du moment.
+  const facteurSysteme = facteurDynamicType(tailleTexteSysteme());
 
   const set = (patch: Partial<UiConfig>) => save({ ...config, ...patch });
   const setText = (patch: Partial<AppTexts>) => {
@@ -382,6 +387,17 @@ export default function AdminView({ config, save }: Props) {
               </button>
             ))}
           </div>
+          {/* ⚠️ Sans cette ligne, quelqu'un qui a agrandi le texte dans les
+              Réglages d'iOS voit « Normale » sélectionné sur une interface qui
+              ne l'est visiblement pas, et n'a aucun moyen de comprendre
+              pourquoi. On le dit, et seulement quand c'est vrai. */}
+          {facteurSysteme !== 1 && (
+            <p className="mt-2 text-xs text-text-dim">
+              {t("Agrandi de {pct} % en plus, d’après la taille de texte de ton système.", {
+                pct: Math.round((facteurSysteme - 1) * 100),
+              })}
+            </p>
+          )}
         </div>
       </section>
 

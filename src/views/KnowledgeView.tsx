@@ -1590,7 +1590,7 @@ function Reader({
       }
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="card card-solid animate-fade-up flex h-full max-h-[88vh] w-full max-w-3xl flex-col p-0">
+      <div className="card card-solid animate-fade-up flex h-full max-h-[calc(88vh*var(--zoom-inv))] w-full max-w-3xl flex-col p-0">
         {/* En-tête : thème, état d'enregistrement, lecture, épingle, fermeture */}
         <div className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-3">
           <select

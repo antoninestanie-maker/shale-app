@@ -66,6 +66,12 @@
   --radius-card: 18px;
   --radius-field: 12px;
   --radius-pill: 100px;
+
+  /* Inverse du facteur de zoom appliqué par `applyZoom()` (densité × Dynamic
+     Type). Tout ce qui s'exprime en `vh`/`vw` doit s'en multiplier, sans quoi
+     le zoom le fait déborder de l'écran. Défaut 1 : les règles tiennent avant
+     le premier appel, et sur toute page où `applyZoom()` n'a pas tourné. */
+  --zoom-inv: 1;
 }
 
 /* Matériaux, élévation & physique du mouvement — sombre */
@@ -232,7 +238,13 @@
 
   body {
     margin: 0;
-    min-height: 100vh;
+    /* ⚠️ `100vh` seul déborde dès que la densité n'est pas à 100 % : le `zoom`
+       CSS multiplie AUSSI les unités de viewport (mesuré en WKWebView le
+       2026-08-28 — `100vw` rendu 1170 px dans une fenêtre de 900). Sans cette
+       correction, une densité « Large » suffisait à faire apparaître une barre
+       de défilement verticale sur une page vide. `--zoom-inv` est posée par
+       `applyZoom()` et vaut 1 tant qu'il n'a pas tourné. */
+    min-height: calc(100vh * var(--zoom-inv));
     user-select: none;
     cursor: default;
   }
