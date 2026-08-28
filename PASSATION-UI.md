@@ -17,10 +17,10 @@ implémentées).
 | Branche | `mobile-ios`, **poussée** (`origin/mobile-ios`) |
 | Arbre | **propre** |
 | Branches non fusionnées | **zéro** |
-| App macOS | reconstruite et réinstallée le 2026-08-28 à **13:20** |
-| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **13:22** |
+| App macOS | reconstruite et réinstallée le 2026-08-28 à **13:59** |
+| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **14:00** |
 | iPhone réel | **jamais** — l'appareil est `unavailable`. Rien de ce chantier n'y a été vu |
-| Session du simulateur | ⚠️ **perdue** par la réinstallation de 13:22 (§ 3.1). L'app y repart sur l'écran de connexion : seul un geste humain la rouvre |
+| Session du simulateur | ⚠️ **perdue** par la réinstallation de 14:00 (§ 3.1). L'app y repart sur l'écran de connexion : seul un geste humain la rouvre |
 
 **L'invariant du § 19.1 de `MOBILE.md` tient** : les deux bundles sont
 POSTÉRIEURS au dernier commit qui touche `src/`.
@@ -30,7 +30,8 @@ POSTÉRIEURS au dernier commit qui touche `src/`.
 ```
 npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
-npm run i18n:check                            # ✅ 1152 entrées, 0 manquante
+npm run i18n:check                            # ✅ 1391 entrées, 0 manquante
+npm run i18n:durs                             # ✅ 0 chaîne sûrement française
 npm test                                      # ✅ 392 / 392
 npx vite build                                # ✅
 cd src-tauri
