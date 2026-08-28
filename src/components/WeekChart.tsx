@@ -11,17 +11,26 @@ import { t } from "../lib/i18n";
 import type { DayStat } from "../lib/types";
 
 export default function WeekChart({ stats }: { stats: DayStat[] }) {
-  // ⚠️ `pct === null` veut dire « aucune tâche due ce jour-là », pas « 0 % ».
-  // Quand les sept jours sont nuls il n'y a rien à tracer : le graphique rendait
-  // alors sept barres de hauteur zéro, c'est-à-dire un grand cadre vide avec des
-  // noms de jours dessous. Constaté sur iPhone le 2026-08-28. Une série de VRAIS
-  // zéros, elle, reste un graphique — c'est une information, pas une absence.
-  const vide = stats.length === 0 || stats.every((s) => s.pct === null);
-  if (vide) {
+  // ⚠️ SEPT BARRES DE HAUTEUR ZÉRO, C'EST UN CADRE BLANC — quelle qu'en soit la
+  // cause. La piste de fond existe (`background` ci-dessous) mais vaut
+  // `--color-overlay`, soit 4,5 % d'encre : sur une carte blanche elle ne se
+  // voit pas. Constaté sur iPhone le 2026-08-28.
+  //
+  // ⚠️ Et il y a DEUX causes, qui ne disent pas la même chose. Ma première
+  // rédaction n'a traité que la première, et le cadre est resté blanc à
+  // l'écran — c'est la seconde qui est le cas courant :
+  //   • aucune tâche due     (`pct === null` partout) → il n'y a rien à tracer ;
+  //   • des tâches dues, aucune cochée (`pct === 0`)  → c'est une INFORMATION,
+  //     et sept barres invisibles est la pire façon de la donner.
+  const aucuneDonnee = stats.length === 0 || stats.every((s) => s.pct === null);
+  const toutAZero = !aucuneDonnee && stats.every((s) => !s.pct);
+  if (aucuneDonnee || toutAZero) {
     return (
       <div className="panel-grow flex items-center justify-center px-4 text-center">
         <p className="text-sm text-text-dim">
-          {t("Aucune tâche due ces 7 jours — le graphique se remplira tout seul.")}
+          {aucuneDonnee
+            ? t("Aucune tâche due ces 7 jours — le graphique se remplira tout seul.")
+            : t("Aucune tâche cochée ces 7 jours.")}
         </p>
       </div>
     );
