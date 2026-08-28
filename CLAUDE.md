@@ -145,7 +145,7 @@ entrée la première fois.
   par un test — ne pas prétendre le contraire dans un message de commit.
 - `npm run test:types` — typecheck des TESTS (séparé de l'app, cf. section sync)
 - `npm run i18n:check` — toute clé passée à `t()` existe-t-elle dans `en.ts` ?
-  **1064 entrées, 0 manquante.**
+  **1152 entrées, 0 manquante.**
 - iOS (simulateur) — la procédure complète est dans `MOBILE.md` § 12. Deux
   choses à ne jamais oublier : nettoyer `gen/apple/build/…` en chemin **absolu**
   avant chaque build (sinon on installe une sortie périmée, code de sortie 0),
@@ -2629,6 +2629,17 @@ Les trois pièges qui valent pour TOUT le dépôt, pas seulement pour ce chantie
 - **`.truncate-souris` à poser EN PLUS de `truncate`** sur tout libellé dont le
   `title` est le seul recours : au doigt, le survol n'existe pas, donc un texte
   coupé l'est sans recours.
+- **`npm run i18n:check` au vert ne veut PAS dire « traduit ».** Il vérifie que
+  toute clé passée à `t("…")` existe dans `en.ts` — jamais qu'une chaîne
+  AFFICHÉE passe par `t()`. Une phrase française écrite en dur dans le JSX lui
+  est invisible et s'affiche telle quelle dans l'app anglaise. C'est ce qui
+  laissait « court terme », « 1 tâche », « J−3 » et sept bandeaux de
+  Market-Brain en français (corrigé le 2026-08-28), et ce qui a fait compter à
+  tort « zéro état vide » dans Objectifs et Market-Brain, qui en avaient trois.
+  **La seule preuve est l'app basculée en anglais** (Réglages → Langue, ou
+  `localStorage.setItem("shale.lang","en")` en mode démo). ⚠️ Aucun audit i18n
+  complet n'a jamais été fait, et il reste au moins un `aria-label` français
+  (la cloche de la sidebar).
 
 ## Règle : Antonin n'utilise jamais le Terminal
 
