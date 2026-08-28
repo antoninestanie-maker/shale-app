@@ -47,9 +47,12 @@ valeurs, pas sur toute l'app.
 donné (36 × 10 px, 2 × 9 px), plus `.tip-kbd` à 10,5 px. Ce sont précisément
 les micro-libellés qu'un utilisateur de Dynamic Type a besoin d'agrandir.
 
-**Ce que ça change pour toi.** Aujourd'hui, agrandir la taille de texte dans
-Réglages iOS ne produit **aucun effet** sur ces 136 valeurs. Après migration,
-elles suivent. Sur macOS l'enjeu est moindre (pas de réglage équivalent), mais
+**Ce que ça change pour toi.** ⚠️ **La phrase qui suivait ici est fausse — voir
+le § 1 bis, qui la mesure.** Elle disait « après migration, elles suivent
+Dynamic Type » : c'est faux, un `rem` ne suit pas Dynamic Type dans une
+WKWebView. Ce qui reste vrai : aujourd'hui, agrandir la taille de texte dans
+Réglages iOS ne produit **aucun effet** sur ces 136 valeurs — ni sur les 526
+autres, d'ailleurs. Sur macOS l'enjeu est moindre (pas de réglage équivalent), mais
 la cohérence app/site est rétablie — `DESIGN.md` § « Divergence ouverte » dit que
 le passage « doit être décidé pour les deux surfaces ou pour aucune », et le
 site est déjà passé.
@@ -77,6 +80,87 @@ solide. Mais ça se fait en un chantier dédié avec sa propre recette visuelle 
 pas en marge d'un audit. **Priorité : haute. Urgence : basse.**
 
 ---
+
+### ⭐ 1 bis. Instruction du 2026-08-28 au soir — **la prémisse du § 1 est fausse**
+
+Le § 1 disait : « Aujourd'hui, agrandir la taille de texte dans Réglages iOS ne
+produit **aucun effet** sur ces 136 valeurs. **Après migration, elles
+suivent.** » La seconde phrase est **fausse**, et c'est mesuré, pas déduit.
+
+#### Ce qui a été mesuré, et dans quel moteur
+
+Deux sondes, toutes deux dans **WKWebView** — le moteur de Tauri sur macOS
+*et* sur iOS, jamais dans Chromium (leçon du § 3.2 de `PASSATION-UI.md`).
+
+1. **macOS** : `WKWebView` piloté par un script Swift, `zoom` posé à 1,3.
+2. **iOS** : simulateur iPhone 17, page servie en local, ouverte dans Safari,
+   taille de texte système poussée à **accessibility-XXXL** par
+   `simctl ui booted content_size`, lue **à l'écran** — c'est la capture qui
+   tranche, conformément au § 3.2 de `PASSATION-UI.md`, pas un `getComputedStyle`
+   rapporté de mémoire.
+   ⚠️ La taille de texte du simulateur a été **remise à `large`** (son défaut)
+   après la mesure : elle est globale à l'appareil, pas à la page.
+
+#### Résultat 1 — « Densité » et `rem` ne se composent PAS en produit
+
+La question à instruire avant de décider (« `applyZoom()` pose un `zoom` CSS,
+qui multiplie **aussi** les `rem` ») :
+
+| sous `zoom: 1.3` | `font-size` calculée | hauteur rendue |
+|---|---|---|
+| `font-size: 11px` | 11 px | 13 → **16** |
+| `font-size: 0.6875rem` | 11 px | 13 → **16** |
+
+Le `zoom` multiplie la valeur **utilisée**, une fois, quelle que soit l'unité :
+la racine garde une `font-size` calculée de 16 px, donc le `rem` ne se
+démultiplie pas. **Les deux unités se comportent à l'identique.**
+▶️ **Ce verrou-là est levé. Il ne bloque plus rien.**
+
+#### Résultat 2 — ⭐ mais `rem` **ne suit pas** Dynamic Type
+
+Même page, simulateur, taille de texte système passée de « large » (le défaut)
+à **accessibility-XXXL** :
+
+| | taille système « large » | taille système AX-XXXL |
+|---|---|---|
+| racine (`html`) | 16 px | **16 px — inchangée** |
+| `font-size: 11px` | 11 px, h 14 | **11 px, h 14 — inchangée** |
+| `font-size: 0.6875rem` | 11 px, h 14 | **11 px, h 14 — inchangée** |
+| `font: -apple-system-body` | 17 px, h 22 | **53 px, h 64** |
+
+**Un `rem` dans une WKWebView ne bouge pas d'un pixel** quand l'utilisateur
+agrandit le texte dans Réglages iOS. Seul `font: -apple-system-body` réagit.
+La raison est dans `index.html` et `index.css` : `html` n'a **aucune**
+`font-size`, donc la racine vaut 16 px, fixes, et rien ne la relie au réglage
+système.
+
+▶️ **Conséquence directe : migrer les 136 valeurs en `rem`, et rien d'autre,
+ne changerait STRICTEMENT RIEN pour un utilisateur de Dynamic Type.** Le
+chantier tel qu'il est chiffré au § 1 n'achète pas ce qu'il promet.
+
+> ### ⚠️ Cinquième sonde fausse de ce chantier
+> Après les trois du § 3.2 de `PASSATION-UI.md` et celle des états vides
+> (§ 3.7), le motif se répète une cinquième fois — cette fois ce n'était pas
+> un outil de mesure, mais **une prémisse jamais mesurée**. Elle a servi à
+> chiffrer 40 fichiers.
+
+#### Ce qui, lui, marcherait — et ce que ça coûte
+
+| Voie | Ce que ça donne | Coût | Ce que ça ferme |
+|---|---|---|---|
+| **(A) Ne rien faire aux unités.** « Densité » (Réglages → Personnaliser) existe déjà, elle est **disponible sur iPhone** (`AdminView.tsx:355`, hors du garde `!IS_IOS`) et elle agrandit **tout**, `px` compris — c'est le résultat 1 | Un chemin d'agrandissement **qui fonctionne déjà aujourd'hui**, sur les deux plateformes | **zéro** | Ne suit pas le réglage **système** : il faut le geste dans Shale. Et le maximum est **+20 %** |
+| **(B) `rem` partout + racine liée à Dynamic Type** (`:root { font: -apple-system-body }`) | Le vrai Dynamic Type | Les 136 valeurs **plus** la liaison **plus** un amortissement | ⚠️ Mesuré : de 17 à **53 px**, soit **×3,1**. Une interface aussi dense que Shale ne survit pas à ×3,1 sans recette complète. Et `clamp()` à bornes en px **refige** ce que le `rem` venait de libérer — piège déjà consigné |
+| **(C) ⭐ Replier Dynamic Type dans « Densité »** — lire la taille de `-apple-system-body` sur un élément sonde au démarrage (c'est exactement ce que les mesures ci-dessus font), la faire passer par une courbe amortie, appeler `applyZoom()` | Le réglage système est **suivi**, sans geste dans Shale | **~15 lignes**, un fichier (`uiConfig.ts`), **aucune migration d'unité** | Le `zoom` agrandit la mise en page entière, pas seulement le texte : moins de contenu à l'écran. Pour un HUD dense c'est plutôt un avantage — rien ne déborde, les proportions tiennent |
+
+**Mon avis : (C).** Elle atteint le but affiché du § 1 — suivre le réglage
+d'accessibilité d'iOS — pour **un fichier au lieu de quarante**, sans toucher
+`.hud-label` ni la matrice largeurs × thèmes, et sans le risque de ×3,1. La
+migration `px → rem` garde alors un seul argument, **la cohérence avec le
+site**, qui est réel mais n'est plus de l'accessibilité.
+
+⚠️ **Ce qui n'est PAS prouvé ici** : (C) n'est pas implémentée, donc la courbe
+d'amortissement n'a jamais été vue à l'écran. Et rien de tout ceci n'a été
+mesuré sur l'**iPhone réel** — simulateur uniquement.
 
 ### 2. Les « hover hints » sur tactile — **158 bulles, zéro atteignable au doigt**
 
@@ -298,7 +382,8 @@ Ce document a été écrit avant l'arbitrage. Depuis :
   défaut d'accessibilité : ce bouton porte déjà un `aria-label`. J'avais laissé
   entendre le contraire, c'était inexact.
 
-**Restent ouverts** : § 1 (px→rem, reporté par décision), § 5 (grille en dents
+**Restent ouverts** : § 1 (px→rem, reporté par décision — mais **instruit au
+§ 1 bis, et sa prémisse d'accessibilité est tombée**), § 5 (grille en dents
 de scie), § 6 (palette mi-tokens mi-hex), § 8 (cibles 44 pt).
 
 ⚠️ **Sujet neuf ouvert par la correction du § 3** : le français en dur n'est
