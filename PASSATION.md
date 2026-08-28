@@ -25,11 +25,11 @@ en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
 | Branche | **`mobile-ios`**, poussée, à jour avec `origin/mobile-ios` |
 | Arbre | **propre** |
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site`, propre, à jour |
-| App macOS | reconstruite et réinstallée le **2026-08-28 à 15:20** |
-| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **15:21** |
+| App macOS | reconstruite et réinstallée le **2026-08-28 à 23:51** |
+| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **23:48** |
 | iPhone réel | **jamais** — l'appareil est `unavailable`. Rien n'y a été vu |
-| Session du simulateur | ⚠️ **perdue** par la réinstallation (voir § 5.1) |
-| Dernier commit touchant `src/` | `55ab40c`, 15:18:26 |
+| Session du simulateur | ⚠️ **toujours perdue** (§ 5.1) — elle l'était déjà à 15:21, la réinstallation de 23:48 n'a rien aggravé. Seul un geste humain d'Antonin la rouvre |
+| Dernier commit touchant `src/` | `4a60058`, 23:47:47 |
 | Invariant | ✅ les deux bundles sont POSTÉRIEURS à ce commit (§ 19.1 de `MOBILE.md`) |
 
 ### Ligne de base — à rejouer AVANT de croire quoi que ce soit
@@ -37,9 +37,9 @@ en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
 ```
 npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
-npm run i18n:check                            # ✅ 1392 entrées, 0 manquante, 0 doublon
+npm run i18n:check                            # ✅ 1393 entrées, 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 393 / 393
+npm test                                      # ✅ 399 / 399
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -56,7 +56,27 @@ récidivé de toute la journée.
 
 ## 2. Ce qui s'est passé le 2026-08-28
 
-Deux chantiers, dans cet ordre. Les 9 commits vont de `536e051` à `55ab40c`.
+Trois chantiers, dans cet ordre.
+
+### 2.0 Le soir — Dynamic Type, et une prémisse qui tombe (`f23f02a` → `66d721c`)
+
+Le dernier chantier prioritaire ouvert, « px → rem », était bloqué par une
+question que le document réclamait d'instruire AVANT de décider. Elle l'a été,
+en WKWebView — et elle a **renversé la prémisse** : un `rem` ne suit pas
+Dynamic Type dans cette webview, donc migrer les 136 valeurs n'aurait apporté
+aucune accessibilité. Le verrou redouté (« Densité × rem en produit »),
+lui, **n'existe pas**.
+
+Antonin a tranché pour l'autre voie : **replier Dynamic Type dans « Densité »**.
+Livré le soir même — un fichier, aucune unité migrée, et le facteur vaut
+exactement 1 au réglage par défaut.
+
+⚠️ Au passage, un défaut **latent de « Densité », déjà livré** : le `zoom` CSS
+fait déborder les unités de viewport. Voir le § 6 et `CLAUDE.md`.
+
+### 2.1 et 2.2 — les deux chantiers du jour
+
+Les 9 commits vont de `536e051` à `55ab40c`.
 
 ### 2.1 Le matin — la fin du chantier UI/UX
 
