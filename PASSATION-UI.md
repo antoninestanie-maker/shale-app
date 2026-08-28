@@ -17,9 +17,10 @@ implémentées).
 | Branche | `mobile-ios`, **poussée** (`origin/mobile-ios`) |
 | Arbre | **propre** |
 | Branches non fusionnées | **zéro** |
-| App macOS | reconstruite et réinstallée le 2026-08-28 à 12:57:59 |
-| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à 12:57:33 |
+| App macOS | reconstruite et réinstallée le 2026-08-28 à **13:20** |
+| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **13:22** |
 | iPhone réel | **jamais** — l'appareil est `unavailable`. Rien de ce chantier n'y a été vu |
+| Session du simulateur | ⚠️ **perdue** par la réinstallation de 13:22 (§ 3.1). L'app y repart sur l'écran de connexion : seul un geste humain la rouvre |
 
 **L'invariant du § 19.1 de `MOBILE.md` tient** : les deux bundles sont
 POSTÉRIEURS au dernier commit qui touche `src/`.
@@ -45,9 +46,9 @@ chantier — une douzaine d'exécutions vertes.
 
 ---
 
-## 2. Ce qui a été corrigé — 18 commits, un par défaut
+## 2. Ce qui a été corrigé — 19 commits, un par défaut
 
-De `b704e2f` à `e0231f5`. Dans l'ordre de gravité, pas chronologique.
+De `b704e2f` à `db8228e`. Dans l'ordre de gravité, pas chronologique.
 
 ### G1 — inutilisable
 
@@ -84,6 +85,7 @@ De `b704e2f` à `e0231f5`. Dans l'ordre de gravité, pas chronologique.
 | `WeekChart` : rectangle blanc → état vide rédigé | `1ac84f9` + `ef0aca8` |
 | Vocabulaire de bureau sur téléphone, affordance du filtre de date, voiles à trois valeurs | `1ac84f9` |
 | `DESIGN.md` : « l'app est encore en pixels » était **faux** | `2665977` |
+| **Objectifs et Market-Brain parlaient français dans l'app anglaise** — horizons, compteur de tâches, « J−3 », toute la modale d'objectif, sept bandeaux de Market-Brain, et les états vides eux-mêmes. `i18n:check` ne peut pas le voir (§ 3.7) | `db8228e` |
 
 ---
 
@@ -225,6 +227,11 @@ AVANT, pas après.
   **2026-09-03 à 17 h 04**.
 - **Les contrastes WCAG** : jamais mesurés (cf. § 3.2). Vérifiés par échantillon
   visuel seulement.
+- ⭐ **L'i18n du RESTE de l'app.** Seuls Objectifs et Market-Brain ont été
+  relus en anglais (§ 3.7). Le français en dur qu'on y a trouvé n'a aucune
+  raison de s'être arrêté là — un `aria-label` de la cloche est déjà repéré.
+  Aucun outil ne sait le mesurer : ne pas lire « `i18n:check` vert » comme
+  « app traduite ».
 - **Les états de chargement et d'erreur natifs.**
 
 ---
@@ -254,3 +261,10 @@ reconstruction.
 **Sur le téléphone** — tourner l'appareil en paysage : la barre d'onglets reste,
 les douze modules restent atteignables. Appuyer **longuement** sur n'importe
 quel bouton : sa bulle d'aide apparaît, et le bouton ne se déclenche pas.
+
+**Le correctif du 2026-08-28 après-midi ne se voit PAS en français** — c'est
+son objet : il retire du français d'une app qui devait être en anglais. Pour le
+constater : Réglages → Langue → English, puis Objectifs (les horizons se lisent
+« short / medium / long term », les échéances « D−125 », « 29 d overdue ») et
+Market-Brain (« PRE-LONDON SESSION · GENERATED AT … »). Repasser en Français
+ensuite : rien d'autre n'a changé.
