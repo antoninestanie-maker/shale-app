@@ -1718,4 +1718,165 @@ export const EN: Record<string, string> = {
     "Its {n} notes aren’t deleted: they move to “no topic” and stay reachable from the home grid.",
   "{n} note attend un thème.": "{n} note is waiting for a topic.",
   "{n} notes attendent un thème.": "{n} notes are waiting for a topic.",
+  // ───────────────────────────────────────────────────────────────────────────
+  // Audit i18n du 2026-08-28 — français en dur trouvé par `npm run i18n:durs`.
+  // Rangé en un bloc daté plutôt qu'éparpillé dans les sections thématiques :
+  // ces 110 clés viennent d'un seul passage et se relisent ensemble.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // ── Éditeur de texte, croquis, Savoir ─────────────────────────────────────
+  "Gras": "Bold",
+  "Italique": "Italic",
+  "Titre": "Heading",
+  "Sous-titre": "Subheading",
+  "Paragraphe": "Paragraph",
+  "Liste": "List",
+  "Citation": "Quote",
+  "Lien": "Link",
+  "Texte {name}": "{name} text",
+  "Couleur {name}": "{name} colour",
+  "Surligner {name}": "Highlight {name}",
+  "Encre {name}": "{name} ink",
+  "Trait {name}": "{name} stroke",
+  "Gomme": "Eraser",
+  "Image, croquis, lien, titre, liste, citation…":
+    "Image, sketch, link, heading, list, quote…",
+  "import…": "importing…",
+  "Image": "Image",
+  "Recherche": "Search",
+  "Lecture immersive": "Immersive reading",
+  "connaissances": "knowledge",
+  "créée le {creee} · modifiée le {modifiee}":
+    "created {creee} · edited {modifiee}",
+  "Retirer « {tag} »": "Remove “{tag}”",
+  "+ tag": "+ tag",
+  "supprimer": "delete",
+  // Noms de couleurs et d'épaisseurs (tables de libellés).
+  "Bleu": "Blue",
+  "Vert": "Green",
+  "Jaune": "Yellow",
+  "Rouge": "Red",
+  "Violet": "Purple",
+  "Encre": "Ink",
+  "Ambre": "Amber",
+  "Fin": "Thin",
+  "Moyen": "Medium",
+
+  // ── Tâches, journal, aujourd'hui ──────────────────────────────────────────
+  "Marquer faite": "Mark done",
+  "Focus 25 min": "25 min focus",
+  "effacer": "clear",
+  "Tag": "Tag",
+  "Haute": "High",
+  "Moyenne": "Medium",
+  "Basse": "Low",
+  "Quotidien": "Daily",
+  "Lun–ven": "Mon–Fri",
+  "Confirmer": "Confirm",
+  "Nom": "Name",
+  "+ lien": "+ link",
+  "Discipline": "Discipline",
+  "Humeur": "Mood",
+  "Humeur {n}/5": "Mood {n}/5",
+  "habitudes — 12 semaines": "habits — 12 weeks",
+  "{nom} aujourd'hui": "{nom} today",
+  "{done}/{n} tâche": "{done}/{n} task",
+  "{done}/{n} tâches": "{done}/{n} tasks",
+  "{n} trade": "{n} trade",
+  "{n} trades": "{n} trades",
+  "{n} position": "{n} position",
+  "{n} positions": "{n} positions",
+  "{duree} écran": "{duree} on screen",
+  "focus / {objectif}": "focus / {objectif}",
+  "trading 7 j": "trading 7 d",
+
+  // ── Performance ───────────────────────────────────────────────────────────
+  "Jour": "Day",
+  "Semaine": "Week",
+  "Mois": "Month",
+  "Streak actuel": "Current streak",
+  "Record": "Best",
+  "Focus aujourd'hui": "Focus today",
+  "discipline — 6 derniers mois": "discipline — last 6 months",
+  "moins": "less",
+  "plus": "more",
+  "{unite} aujourd'hui": "{unite} today",
+  "sur 7 jours": "over 7 days",
+  "Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.":
+    "Start your first session from the Timer or a task’s play button to see your focus by tag.",
+  "Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…":
+    "Track what matters to you: backtesting hours, trades taken, reels published…",
+
+  // ── Personnaliser ─────────────────────────────────────────────────────────
+  "Monter": "Move up",
+  "Descendre": "Move down",
+  "Change l’ordre d’affichage.": "Changes the display order.",
+  "textes": "wording",
+  "Largeur": "Width",
+  "Hauteur": "Height",
+  "Appliquer": "Apply",
+  "Appliquer maintenant": "Apply now",
+  "Accueil — titre": "Welcome — heading",
+  "Accueil — texte": "Welcome — body",
+  "Connexion — sous-titre": "Sign-in — subtitle",
+  "Abonnement requis — texte": "Subscription required — body",
+  "dashboard — aujourd'hui": "dashboard — today",
+  "bandeaux (pleine largeur)": "banners (full width)",
+  "Compacte": "Compact",
+  "Normale": "Normal",
+  "Confort": "Comfortable",
+  "Large": "Large",
+  "Modifie les textes vus par tes utilisateurs (connexion, accueil, abonnement). Appliqué en direct.":
+    "Edit the wording your users see (sign-in, welcome, subscription). Applied live.",
+  "Ordre, visibilité et libellé de chaque module. « Aujourd'hui » reste toujours accessible ; Personnaliser et Réglages sont fixes en bas.":
+    "Order, visibility and label of every module. “Today” always stays reachable; Customize and Settings are pinned at the bottom.",
+
+  // ── Console d'administration ──────────────────────────────────────────────
+  "administration": "administration",
+  "inscriptions · 30 j": "sign-ups · 30 d",
+  "Utilisateurs": "Users",
+  "Utilisateur": "User",
+  "Plan": "Plan",
+  "Statut": "Status",
+  "Action": "Action",
+  "Actif": "Active",
+  "Essai": "Trial",
+  "Suspendre": "Suspend",
+  "{n} abonnés actifs affichés.": "{n} active subscribers shown.",
+
+  // ── Réglages ──────────────────────────────────────────────────────────────
+  "compte": "account",
+  "Session locale": "Local session",
+  "notifications": "notifications",
+  "raccourcis": "shortcuts",
+  "fournisseur": "provider",
+  "maximum par jour": "maximum per day",
+  "Capture rapide (global)": "Quick capture (global)",
+  "dernière évaluation {quand}": "last evaluated {quand}",
+  "Bascule automatique": "Automatic switching",
+  "Mode fast-track": "Fast-track mode",
+  "Ouvrir le tracker après envoi": "Open the tracker after sending",
+  "Bouton break-even": "Break-even button",
+  "Exporter une sauvegarde": "Export a backup",
+  "tracker live trading — workflow « trader »": "live trading tracker — “trade” workflow",
+  "ou": "or",
+  "Shale évalue quelques règles locales (habitudes non cochées, savoir délaissé) et te relance au bon moment. Rien ne sort de la machine, et jamais plus d'une notification à la fois : plusieurs rappels le même soir sont regroupés.":
+    "Shale evaluates a few local rules (unchecked habits, neglected knowledge) and nudges you at the right moment. Nothing leaves the machine, and never more than one notification at a time: several reminders on the same evening are grouped.",
+  "Gemini d’abord, bascule sur Groq en cas de quota atteint ou d’indisponibilité.":
+    "Gemini first, falling back to Groq on quota limits or outages.",
+  "gemini-2.5-flash — analyse la plus fine.": "gemini-2.5-flash — the sharpest analysis.",
+  "llama-3.3-70b — très rapide, quotas plus serrés.":
+    "llama-3.3-70b — very fast, tighter quotas.",
+  "Stockées en local dans la base de l’app, jamais envoyées ailleurs.":
+    "Stored locally in the app’s database, never sent anywhere else.",
+  "(vue Position) envoie instantanément la position vers le tracker de la vue Trading : heure d'entrée, paire, prix, SL/TP et R:R sont capturés automatiquement. Il ne reste qu'à cliquer":
+    "(Position view) instantly sends the position to the Trading view’s tracker: entry time, pair, prices, SL/TP and R:R are captured automatically. All that’s left is to click",
+  "Envoi en arrière-plan sans interruption visuelle (un toast discret confirme). Désactivé : une mini-popup de confirmation s'ouvre avant l'envoi, TP encore éditable.":
+    "Sends in the background with no visual interruption (a discreet toast confirms). Off: a small confirmation popup opens first, with the TP still editable.",
+  "Exporte une copie propre de toute la base (tâches, objectifs, notes, trades…) — à garder sur un disque externe ou un cloud perso.":
+    "Exports a clean copy of the whole database (tasks, goals, notes, trades…) — keep it on an external drive or your own cloud.",
+  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.":
+    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the trades taken and the screen time spent today. Adjust how much each factor weighs.",
+  "Recalcule immédiatement la jauge d’énergie du tableau de bord.":
+    "Recalculates the dashboard’s energy gauge straight away.",
 };

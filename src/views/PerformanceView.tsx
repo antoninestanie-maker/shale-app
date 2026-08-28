@@ -37,6 +37,7 @@ interface Props {
 }
 
 const PERIODS: { value: Period; label: string }[] = [
+  // Clés FRANÇAISES : table de module, donc traduite à l'affichage.
   { value: "day", label: "Jour" },
   { value: "week", label: "Semaine" },
   { value: "month", label: "Mois" },
@@ -226,10 +227,10 @@ export default function PerformanceView({ data, refresh }: Props) {
       <ResizablePanel id="perf-tiles" defaultW={12}>
       <div className="auto-tiles panel-stretch gap-4">
         {[
-          { label: "Streak actuel", value: `${derived.current} j`, accent: "text-green" },
-          { label: "Record", value: `${derived.best} j`, accent: "text-blue" },
+          { label: t("Streak actuel"), value: `${derived.current} j`, accent: "text-green" },
+          { label: t("Record"), value: `${derived.best} j`, accent: "text-blue" },
           { label: t("Moyenne 30 jours"), value: `${derived.avg30}%`, accent: "text-text" },
-          { label: "Focus aujourd'hui", value: fmtMinutes(focusStats.todayMin), accent: "text-blue" },
+          { label: t("Focus aujourd'hui"), value: fmtMinutes(focusStats.todayMin), accent: "text-blue" },
         ].map((tile) => (
           <div key={tile.label} className="card min-w-0 p-5">
             <p className="hud-label" title={tile.label}>
@@ -259,7 +260,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                 key={p.value}
                 type="button"
                 onClick={() => setPeriod(p.value)}
-                data-tip={p.label}
+                data-tip={t(p.label)}
                 data-tip-sub={t("Granularité du graphique de complétion.")}
                 className={`pill border px-3 py-1 text-xs font-medium transition-colors ${
                   period === p.value
@@ -267,7 +268,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                     : "border-border text-text-dim hover:text-text"
                 }`}
               >
-                {p.label}
+                {t(p.label)}
               </button>
             ))}
           </div>
@@ -411,7 +412,7 @@ export default function PerformanceView({ data, refresh }: Props) {
       {/* Heatmap de complétion */}
       <ResizablePanel id="perf-heatmap" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">discipline — 6 derniers mois</h2>
+        <h2 className="hud-label">{t("discipline — 6 derniers mois")}</h2>
         <div className="mt-3 flex gap-[3px] overflow-x-auto pb-1">
           {heatmap.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-[3px]">
@@ -431,7 +432,7 @@ export default function PerformanceView({ data, refresh }: Props) {
             (rendus « moin… »/« plu… »). Ils ne doivent jamais être comprimés —
             ce sont les bornes de lecture de la légende. */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="hud-label mr-1 shrink-0">moins</span>
+          <span className="hud-label mr-1 shrink-0">{t("moins")}</span>
           {[null, 20, 60, 85, 100].map((p, i) => (
             <span
               key={i}
@@ -439,7 +440,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               style={{ backgroundColor: heatColor(p) }}
             />
           ))}
-          <span className="hud-label ml-1 shrink-0">plus</span>
+          <span className="hud-label ml-1 shrink-0">{t("plus")}</span>
         </div>
       </section>
       </ResizablePanel>
@@ -533,8 +534,7 @@ export default function PerformanceView({ data, refresh }: Props) {
         <h2 className="hud-label">{t("focus par tag — 30 jours")}</h2>
         {focusStats.rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">
-            Lance ta première session depuis le Timer ou le bouton lecture d'une
-            tâche pour voir ton focus par tag.
+            {t("Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.")}
           </p>
         ) : (
           <ul className="panel-scroll mt-3 flex flex-col gap-2.5">
@@ -608,8 +608,7 @@ export default function PerformanceView({ data, refresh }: Props) {
 
         {metrics.length === 0 ? (
           <div className="card mt-3 p-8 text-center text-sm text-text-dim">
-            Suis ce qui compte pour toi : heures de backtesting, trades pris,
-            reels publiés…
+            {t("Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…")}
           </div>
         ) : (
           <div className="auto-tiles-lg mt-3 gap-4">
@@ -698,12 +697,12 @@ function MetricCard({
           {todayValue}
         </span>
         {metric.unit && (
-          <span className="text-xs text-text-dim">{metric.unit} aujourd'hui</span>
+          <span className="text-xs text-text-dim">{t("{unite} aujourd'hui", { unite: metric.unit })}</span>
         )}
       </div>
       <p className="mt-0.5 text-[11px] text-text-dim">
         {Math.round(total7 * 10) / 10}
-        {metric.unit ? ` ${metric.unit}` : ""} sur 7 jours
+        {metric.unit ? ` ${metric.unit}` : ""} {t("sur 7 jours")}
       </p>
 
       <div className="mt-2 h-12">

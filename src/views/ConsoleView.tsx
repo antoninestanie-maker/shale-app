@@ -107,7 +107,7 @@ export default function ConsoleView() {
     <div className="mx-auto max-w-5xl p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="hud-label">administration</p>
+          <p className="hud-label">{t("administration")}</p>
           <h1 className="mt-1 text-3xl text-text">Console</h1>
         </div>
         <span className="pill inline-flex items-center gap-2 border border-border bg-surface-2 px-3 py-1 text-[12px] text-text-dim">
@@ -132,7 +132,7 @@ export default function ConsoleView() {
       {/* Inscriptions */}
       <div className="mt-3 card p-5">
         <div className="flex items-center justify-between">
-          <p className="hud-label">inscriptions · 30 j</p>
+          <p className="hud-label">{t("inscriptions · 30 j")}</p>
           <span className="text-sm font-semibold text-green">+619</span>
         </div>
         <div className="mt-3">
@@ -142,7 +142,7 @@ export default function ConsoleView() {
 
       {/* Utilisateurs */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-text">Utilisateurs</h2>
+        <h2 className="text-lg font-semibold text-text">{t("Utilisateurs")}</h2>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -156,11 +156,11 @@ export default function ConsoleView() {
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wide text-text-dim">
-                <th className="px-4 py-3 font-medium">Utilisateur</th>
-                <th className="px-4 py-3 font-medium">Plan</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
+                <th className="px-4 py-3 font-medium">{t("Utilisateur")}</th>
+                <th className="px-4 py-3 font-medium">{t("Plan")}</th>
+                <th className="px-4 py-3 font-medium">{t("Statut")}</th>
                 <th className="px-4 py-3 font-medium">MRR</th>
-                <th className="px-4 py-3 text-right font-medium">Action</th>
+                <th className="px-4 py-3 text-right font-medium">{t("Action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -184,7 +184,7 @@ export default function ConsoleView() {
                       onClick={() => toggleSuspend(u.email)}
                       className="pill border border-border px-3 py-1.5 text-[12px] text-text-dim transition-colors hover:border-red/50 hover:text-red"
                     >
-                      {u.status === "canceled" ? t("Réactiver") : "Suspendre"}
+                      {u.status === "canceled" ? t("Réactiver") : t("Suspendre")}
                     </button>
                   </td>
                 </tr>
@@ -205,7 +205,7 @@ export default function ConsoleView() {
         {AUTH_CONFIGURED
           ? t("Astuce : branche cette console sur la table Supabase « subscriptions » (session admin / RLS) pour des données réelles.")
           : t("Données de démonstration (mode démo). En production, elles viennent de Supabase + Stripe.")}{" "}
-        {activeCount} abonnés actifs affichés.
+        {t("{n} abonnés actifs affichés.", { n: activeCount })}
       </p>
     </div>
   );

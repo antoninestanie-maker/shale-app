@@ -52,9 +52,9 @@ function ArrowButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={up ? "Monter" : "Descendre"}
-      data-tip={up ? "Monter" : "Descendre"}
-      data-tip-sub="Change l’ordre d’affichage."
+      aria-label={up ? t("Monter") : t("Descendre")}
+      data-tip={up ? t("Monter") : t("Descendre")}
+      data-tip-sub={t("Change l’ordre d’affichage.")}
       className="shrink-0 rounded-md p-1 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-25"
     >
       {up ? <IconChevronUp className="h-3.5 w-3.5" /> : <IconChevronDown className="h-3.5 w-3.5" />}
@@ -76,8 +76,8 @@ function VisibilityToggle({
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      aria-label={visible ? "Masquer" : "Afficher"}
-      data-tip={visible ? "Masquer" : "Afficher"}
+      aria-label={visible ? t("Masquer") : t("Afficher")}
+      data-tip={visible ? t("Masquer") : t("Afficher")}
       data-tip-sub={t("Un élément masqué reste configurable ici.")}
       className={`rounded-md p-1 transition-colors disabled:opacity-25 ${
         visible ? "text-text hover:bg-overlay" : "text-text-dim/60 hover:bg-overlay"
@@ -205,7 +205,7 @@ export default function AdminView({ config, save }: Props) {
         <h2 className="hud-label">{t("identité")}</h2>
         <div className="auto-tiles-lg mt-3 gap-3">
           <label className="block">
-            <span className="text-xs text-text-dim">Titre</span>
+            <span className="text-xs text-text-dim">{t("Titre")}</span>
             <input
               value={config.brandTitle}
               onChange={(e) => set({ brandTitle: e.target.value })}
@@ -227,14 +227,13 @@ export default function AdminView({ config, save }: Props) {
       {/* Textes de l'app (commercial) */}
       <ResizablePanel id="admin-texts" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">textes</h2>
+        <h2 className="hud-label">{t("textes")}</h2>
         <p className="mt-2 text-xs text-text-dim">
-          Modifie les textes vus par tes utilisateurs (connexion, accueil, abonnement).
-          Appliqué en direct.
+          {t("Modifie les textes vus par tes utilisateurs (connexion, accueil, abonnement). Appliqué en direct.")}
         </p>
         <div className="mt-3 flex flex-col gap-3">
           <label className="block">
-            <span className="text-xs text-text-dim">Accueil — titre</span>
+            <span className="text-xs text-text-dim">{t("Accueil — titre")}</span>
             <input
               value={texts.onboardingTitle}
               onChange={(e) => setText({ onboardingTitle: e.target.value })}
@@ -242,7 +241,7 @@ export default function AdminView({ config, save }: Props) {
             />
           </label>
           <label className="block">
-            <span className="text-xs text-text-dim">Accueil — texte</span>
+            <span className="text-xs text-text-dim">{t("Accueil — texte")}</span>
             <textarea
               rows={2}
               value={texts.onboardingBody}
@@ -251,7 +250,7 @@ export default function AdminView({ config, save }: Props) {
             />
           </label>
           <label className="block">
-            <span className="text-xs text-text-dim">Connexion — sous-titre</span>
+            <span className="text-xs text-text-dim">{t("Connexion — sous-titre")}</span>
             <input
               value={texts.loginSubtitle}
               onChange={(e) => setText({ loginSubtitle: e.target.value })}
@@ -259,7 +258,7 @@ export default function AdminView({ config, save }: Props) {
             />
           </label>
           <label className="block">
-            <span className="text-xs text-text-dim">Abonnement requis — texte</span>
+            <span className="text-xs text-text-dim">{t("Abonnement requis — texte")}</span>
             <textarea
               rows={2}
               value={texts.subRequiredBody}
@@ -290,7 +289,7 @@ export default function AdminView({ config, save }: Props) {
           <>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="block">
-              <span className="text-xs text-text-dim">Largeur</span>
+              <span className="text-xs text-text-dim">{t("Largeur")}</span>
               <input
                 type="number"
                 min={900}
@@ -303,7 +302,7 @@ export default function AdminView({ config, save }: Props) {
               />
             </label>
             <label className="block">
-              <span className="text-xs text-text-dim">Hauteur</span>
+              <span className="text-xs text-text-dim">{t("Hauteur")}</span>
               <input
                 type="number"
                 min={600}
@@ -318,11 +317,11 @@ export default function AdminView({ config, save }: Props) {
             <button
               type="button"
               onClick={applySizeNow}
-              data-tip="Appliquer maintenant"
+              data-tip={t("Appliquer maintenant")}
               data-tip-sub={t("Redimensionne la fenêtre à ces valeurs, sans attendre le prochain lancement.")}
               className="pill bg-blue px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
             >
-              Appliquer
+              {t("Appliquer")}
             </button>
             <button
               type="button"
@@ -370,13 +369,16 @@ export default function AdminView({ config, save }: Props) {
                   applyZoom(it.z);
                   set({ zoom: it.z });
                 }}
-                data-tip={t("Densité {label} — {z} %", { label: it.label.toLowerCase(), z: it.z })}
+                data-tip={t("Densité {label} — {z} %", {
+                  label: t(it.label).toLowerCase(),
+                  z: it.z,
+                })}
                 data-tip-sub={t("Agrandit ou resserre toute l’interface.")}
                 className={`pill px-3.5 py-1.5 text-xs font-medium transition-colors ${
                   config.zoom === it.z ? "bg-overlay-2 text-text" : "text-text-dim hover:text-text"
                 }`}
               >
-                {it.label}
+                {t(it.label)}
               </button>
             ))}
           </div>
@@ -393,8 +395,7 @@ export default function AdminView({ config, save }: Props) {
           {IS_IOS ? t("modules") : t("modules de la sidebar")}
         </h2>
         <p className="mt-2 text-xs text-text-dim">
-          Ordre, visibilité et libellé de chaque module. « Aujourd'hui » reste toujours
-          accessible ; Personnaliser et Réglages sont fixes en bas.
+          {t("Ordre, visibilité et libellé de chaque module. « Aujourd'hui » reste toujours accessible ; Personnaliser et Réglages sont fixes en bas.")}
         </p>
         <div className="mt-3 flex flex-col gap-1">
           {config.modules.map((m, i) => (
@@ -446,7 +447,7 @@ export default function AdminView({ config, save }: Props) {
       {/* Dashboard */}
       <ResizablePanel id="admin-dashboard" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">dashboard — aujourd'hui</h2>
+        <h2 className="hud-label">{t("dashboard — aujourd'hui")}</h2>
         <p className="mt-2 text-xs text-text-dim">
           {t("Choisis les blocs affichés sur l'écran d'accueil et leur ordre.")}
           {IS_IOS && (
@@ -458,7 +459,7 @@ export default function AdminView({ config, save }: Props) {
         </p>
         <div className="mt-4 flex flex-col gap-5">
           <WidgetList
-            title="bandeaux (pleine largeur)"
+            title={t("bandeaux (pleine largeur)")}
             list={config.dashTop}
             onChange={(l) => set({ dashTop: l })}
           />

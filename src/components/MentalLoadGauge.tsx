@@ -13,7 +13,7 @@ import {
 import { IconAlert } from "./icons";
 import type { AppData } from "../lib/types";
 
-import { t } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
 /** Émis par les réglages quand les coefficients changent, pour rafraîchir la jauge. */
 export const MENTAL_LOAD_CONFIG_EVENT = "sb:mental-load-config";
 
@@ -76,11 +76,11 @@ export default function MentalLoadGauge({ data }: { data: AppData }) {
       {/* Décomposition */}
       <div className="mt-3 flex items-center justify-between text-[11px] text-text-dim">
         <span>
-          {load.trades} trade{load.trades > 1 ? "s" : ""}
+          {tp(load.trades, "{n} trade", "{n} trades")}
           <span className="ml-1 font-mono">−{Math.round(load.drainTrades)}%</span>
         </span>
         <span>
-          {fmtMin(load.screenMin)} écran
+          {t("{duree} écran", { duree: fmtMin(load.screenMin) })}
           <span className="ml-1 font-mono">−{Math.round(load.drainTime)}%</span>
         </span>
       </div>

@@ -135,7 +135,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     ),
     discipline: () => (
       <section key="discipline" className="card p-5">
-        <h2 className="mb-3 hud-label text-center">Discipline</h2>
+        <h2 className="mb-3 hud-label text-center">{t("Discipline")}</h2>
         {/* L'anneau est CENTRÉ dans l'espace disponible : agrandir la carte le
             recentre au lieu de laisser un vide sous lui. */}
         <div className="panel-grow flex items-center justify-center">
@@ -170,7 +170,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     position: () => <PositionSizeWidget key="position" />,
     quicklinks: () => (
       <section key="quicklinks" className="card p-5">
-        <h2 className="mb-3 hud-label">Liens rapides</h2>
+        <h2 className="mb-3 hud-label">{t("Liens rapides")}</h2>
         <QuickLinks links={data.quickLinks} refresh={refresh} />
       </section>
     ),
@@ -194,7 +194,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     ),
     goals: () => (
       <section key="goals" className="card p-5">
-        <h2 className="mb-3 hud-label">Objectifs en cours</h2>
+        <h2 className="mb-3 hud-label">{t("Objectifs en cours")}</h2>
         <GoalsPreview data={data} />
       </section>
     ),

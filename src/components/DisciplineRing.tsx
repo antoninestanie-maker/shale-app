@@ -1,4 +1,5 @@
 import { IconFlame } from "./icons";
+import { tp } from "../lib/i18n";
 
 interface Props {
   pct: number | null;
@@ -146,7 +147,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
           fill="var(--color-text-dim)"
           style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}
         >
-          {done}/{total} tâches
+          {tp(total, "{done}/{n} tâche", "{done}/{n} tâches", { done })}
         </text>
       </svg>
 

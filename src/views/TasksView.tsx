@@ -242,7 +242,7 @@ export default function TasksView({ data, refresh }: Props) {
             data-tip={t("Effacer le filtre de date")}
             className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-text"
           >
-            <IconX className="h-3 w-3" /> effacer
+            <IconX className="h-3 w-3" /> {t("effacer")}
           </button>
         )}
       </div>
@@ -270,8 +270,8 @@ export default function TasksView({ data, refresh }: Props) {
                     ? "border-green bg-green"
                     : "border-text-dim/40 hover:border-text-dim"
                 }`}
-                aria-label={task.done ? t("Marquer à faire") : "Marquer faite"}
-                data-tip={task.done ? t("Marquer à faire") : "Marquer faite"}
+                aria-label={task.done ? t("Marquer à faire") : t("Marquer faite")}
+                data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
                 data-tip-sub={t("Compte dans la discipline du jour.")}
               >
                 {task.done && (
@@ -422,7 +422,7 @@ export default function TasksView({ data, refresh }: Props) {
                     newTagColor === c ? "scale-110 ring-2 ring-blue" : ""
                   }`}
                   style={{ backgroundColor: c }}
-                  aria-label={`Couleur ${c}`}
+                  aria-label={t("Couleur {name}", { name: c })}
                   data-tip={t("Couleur du tag")}
                 />
               ))}

@@ -77,7 +77,7 @@ export default function QuickLinks({ links, refresh }: Props) {
                   ? t("Confirmer la suppression de {label}", { label: link.label })
                   : t("Supprimer {label}", { label: link.label })
               }
-              data-tip={deletingId === link.id ? "Confirmer" : t("Supprimer ce lien")}
+              data-tip={deletingId === link.id ? t("Confirmer") : t("Supprimer ce lien")}
             >
               <IconX className="h-3 w-3" />
             </button>
@@ -92,7 +92,7 @@ export default function QuickLinks({ links, refresh }: Props) {
             data-tip-sub={t("S’ouvre dans le navigateur par défaut, d’un seul clic depuis le tableau de bord.")}
             className="pill border border-dashed border-border px-3.5 py-1.5 text-xs text-text-dim hover:border-text-dim hover:text-text"
           >
-            + lien
+            {t("+ lien")}
           </button>
         ) : (
           <form
@@ -106,7 +106,7 @@ export default function QuickLinks({ links, refresh }: Props) {
               autoFocus
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Nom"
+              placeholder={t("Nom")}
               className="w-28 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
             />
             <input

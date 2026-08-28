@@ -391,7 +391,7 @@ export default function SettingsView() {
       <ResizableGrid gridId="settings" className="mt-6">
       <ResizablePanel id="settings-compte" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">compte</h2>
+        <h2 className="hud-label">{t("compte")}</h2>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 basis-[15rem]">
             <p className="truncate text-sm text-text">{session?.user.email}</p>
@@ -413,7 +413,7 @@ export default function SettingsView() {
                             ? t("mensuel")
                             : subscription.status,
                     ].join(" · ")
-                  : "Session locale"}
+                  : t("Session locale")}
             </p>
             {!hasTrading && (
               <button
@@ -608,15 +608,13 @@ export default function SettingsView() {
 
       <ResizablePanel id="settings-notifications" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">notifications</h2>
+        <h2 className="hud-label">{t("notifications")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          Shale évalue quelques règles locales (habitudes non cochées, savoir délaissé)
-          et te relance au bon moment. Rien ne sort de la machine, et jamais plus d'une
-          notification à la fois : plusieurs rappels le même soir sont regroupés.
+          {t("Shale évalue quelques règles locales (habitudes non cochées, savoir délaissé) et te relance au bon moment. Rien ne sort de la machine, et jamais plus d'une notification à la fois : plusieurs rappels le même soir sont regroupés.")}
         </p>
 
         {!notif ? (
-          <p className="mt-4 text-sm text-text-dim">Chargement…</p>
+          <p className="mt-4 text-sm text-text-dim">{t("Chargement…")}</p>
         ) : (
           <>
             <div className="mt-3 flex flex-col">
@@ -656,7 +654,7 @@ export default function SettingsView() {
                 }
               />
               <NumberField
-                label="maximum par jour"
+                label={t("maximum par jour")}
                 value={notif.daily_cap}
                 min={1}
                 max={20}
@@ -758,7 +756,7 @@ export default function SettingsView() {
               </button>
               {notifStatus?.last_run_at && (
                 <span className="text-xs text-text-dim">
-                  dernière évaluation {formatWhen(notifStatus.last_run_at)}
+                  {t("dernière évaluation {quand}", { quand: formatWhen(notifStatus.last_run_at) })}
                 </span>
               )}
             </div>
@@ -865,20 +863,20 @@ export default function SettingsView() {
         </div>
 
         <div className="mt-4">
-          <label className="hud-label">fournisseur</label>
+          <label className="hud-label">{t("fournisseur")}</label>
           <div className="mt-1 flex flex-wrap gap-2">
             {(["auto", "gemini", "groq"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setProvider(p)}
-                data-tip={p === "auto" ? "Bascule automatique" : p === "gemini" ? "Google Gemini" : "Groq"}
+                data-tip={p === "auto" ? t("Bascule automatique") : p === "gemini" ? "Google Gemini" : "Groq"}
                 data-tip-sub={
                   p === "auto"
-                    ? "Gemini d’abord, bascule sur Groq en cas de quota atteint ou d’indisponibilité."
+                    ? t("Gemini d’abord, bascule sur Groq en cas de quota atteint ou d’indisponibilité.")
                     : p === "gemini"
-                      ? "gemini-2.5-flash — analyse la plus fine."
-                      : "llama-3.3-70b — très rapide, quotas plus serrés."
+                      ? t("gemini-2.5-flash — analyse la plus fine.")
+                      : t("llama-3.3-70b — très rapide, quotas plus serrés.")
                 }
                 className={`pill border px-4 py-1.5 text-sm capitalize transition-colors ${
                   provider === p
@@ -897,7 +895,7 @@ export default function SettingsView() {
             type="button"
             onClick={saveMarketKeys}
             data-tip={t("Enregistrer les clés")}
-            data-tip-sub="Stockées en local dans la base de l’app, jamais envoyées ailleurs."
+            data-tip-sub={t("Stockées en local dans la base de l’app, jamais envoyées ailleurs.")}
             className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
           >
             {keySaved ? t("Enregistré") : t("Enregistrer")}
@@ -910,30 +908,28 @@ export default function SettingsView() {
       {hasTrading && (
       <ResizablePanel id="settings-tracker" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">tracker live trading — workflow « trader »</h2>
+        <h2 className="hud-label">{t("tracker live trading — workflow « trader »")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("Le bouton")} <span className="font-semibold text-blue">Trader</span> (vue
-          Position) envoie instantanément la position vers le tracker de la vue
-          Trading : heure d'entrée, paire, prix, SL/TP et R:R sont capturés
-          automatiquement. Il ne reste qu'à cliquer{" "}
-          <span className="font-semibold text-green">Gagnante</span> ou{" "}
-          <span className="font-semibold text-red">Perdante</span> {t("au dénouement.")}
+          {t("Le bouton")} <span className="font-semibold text-blue">{t("Trader")}</span>{" "}
+          {t("(vue Position) envoie instantanément la position vers le tracker de la vue Trading : heure d'entrée, paire, prix, SL/TP et R:R sont capturés automatiquement. Il ne reste qu'à cliquer")}{" "}
+          <span className="font-semibold text-green">{t("Gagnante")}</span> {t("ou")}{" "}
+          <span className="font-semibold text-red">{t("Perdante")}</span> {t("au dénouement.")}
         </p>
         <div className="mt-3 flex flex-col gap-1">
           <ToggleRow
-            title="Mode fast-track"
-            desc="Envoi en arrière-plan sans interruption visuelle (un toast discret confirme). Désactivé : une mini-popup de confirmation s'ouvre avant l'envoi, TP encore éditable."
+            title={t("Mode fast-track")}
+            desc={t("Envoi en arrière-plan sans interruption visuelle (un toast discret confirme). Désactivé : une mini-popup de confirmation s'ouvre avant l'envoi, TP encore éditable.")}
             value={tracker.fastTrack}
             onChange={(v) => setTrackerOption("fastTrack", v)}
           />
           <ToggleRow
-            title="Ouvrir le tracker après envoi"
+            title={t("Ouvrir le tracker après envoi")}
             desc={t("Bascule automatiquement sur la vue Trading dès qu'une position est envoyée.")}
             value={tracker.autoOpen}
             onChange={(v) => setTrackerOption("autoOpen", v)}
           />
           <ToggleRow
-            title="Bouton break-even"
+            title={t("Bouton break-even")}
             desc={t("Affiche « BE » dans le tracker pour clôturer à 0R le restant de la position (les sorties partielles déjà prises restent comptées).")}
             value={tracker.allowBe}
             onChange={(v) => setTrackerOption("allowBe", v)}
@@ -955,15 +951,14 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("données")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          Exporte une copie propre de toute la base (tâches, objectifs, notes,
-          trades…) — à garder sur un disque externe ou un cloud perso.
+          {t("Exporte une copie propre de toute la base (tâches, objectifs, notes, trades…) — à garder sur un disque externe ou un cloud perso.")}
         </p>
         <div className="mt-3 flex items-center gap-3">
           {isTauri ? (
             <button
               type="button"
               onClick={exportBackup}
-            data-tip="Exporter une sauvegarde"
+            data-tip={t("Exporter une sauvegarde")}
             data-tip-sub={t("Copie propre et complète de la base (tâches, notes, trades…) dans un fichier unique.")}
               className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
             >
@@ -983,9 +978,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("charge mentale — énergie restante")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          La jauge « énergie restante » du tableau de bord part de l'énergie de départ et
-          baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste
-          l'impact de chaque facteur.
+          {t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.")}
         </p>
         <div className="auto-tiles-lg mt-4 gap-3">
           <label className="block">
@@ -1024,7 +1017,7 @@ export default function SettingsView() {
             type="button"
             onClick={saveEnergyConfig}
             data-tip={t("Enregistrer")}
-            data-tip-sub="Recalcule immédiatement la jauge d’énergie du tableau de bord."
+            data-tip-sub={t("Recalcule immédiatement la jauge d’énergie du tableau de bord.")}
             className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
           >
             {energySaved ? t("Enregistré") : t("Enregistrer")}
@@ -1035,10 +1028,10 @@ export default function SettingsView() {
 
       <ResizablePanel id="settings-shortcuts" defaultW={12}>
       <section className="card p-5">
-        <h2 className="hud-label">raccourcis</h2>
+        <h2 className="hud-label">{t("raccourcis")}</h2>
         <ul className="mt-3 flex flex-col gap-2 text-sm text-text">
           <li className="flex justify-between">
-            <span>Capture rapide (global)</span>
+            <span>{t("Capture rapide (global)")}</span>
             <kbd className="font-mono text-xs text-text-dim">⌥ Espace</kbd>
           </li>
           <li className="flex justify-between">

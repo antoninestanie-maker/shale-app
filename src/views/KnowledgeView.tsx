@@ -418,7 +418,7 @@ export default function KnowledgeView() {
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           {scope === null ? (
-            <p className="hud-label">connaissances</p>
+            <p className="hud-label">{t("connaissances")}</p>
           ) : (
             <button
               type="button"
@@ -454,7 +454,7 @@ export default function KnowledgeView() {
             className="pill inline-flex items-center gap-1.5 border border-border bg-surface-2 px-3.5 py-2 text-xs font-medium text-text-dim transition-colors hover:text-text disabled:opacity-50"
           >
             <IconPlus className="h-3.5 w-3.5" />
-            {busy ? "import…" : "Image"}
+            {busy ? t("import…") : t("Image")}
           </button>
           <button
             type="button"
@@ -503,7 +503,7 @@ export default function KnowledgeView() {
                   ? t("Rechercher dans tous les thèmes…")
                   : t("Rechercher dans « {nom} »…", { nom: scopeTitle })
               }
-              data-tip="Recherche"
+              data-tip={t("Recherche")}
               data-tip-sub={t("Titre, tags et contenu — tous les mots doivent correspondre.")}
               className="w-full rounded-[var(--radius-field)] border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
             />
@@ -1621,7 +1621,7 @@ function Reader({
             <button
               type="button"
               onClick={() => setReading((v) => !v)}
-              data-tip={reading ? t("Reprendre l’édition") : "Lecture immersive"}
+              data-tip={reading ? t("Reprendre l’édition") : t("Lecture immersive")}
               data-tip-sub={
                 reading
                   ? t("Réaffiche le menu d’insertion et réactive la saisie.")
@@ -1662,11 +1662,14 @@ function Reader({
             value={entry.title}
             onChange={(e) => patch({ title: e.target.value })}
             data-tip={t("Titre de la note")}
-            placeholder="Titre"
+            placeholder={t("Titre")}
             className="w-full shrink-0 bg-transparent font-display text-2xl font-extrabold tracking-tight text-text placeholder:text-text-dim/60 focus:outline-none"
           />
           <p className="mt-1 shrink-0 font-mono text-[11px] text-text-dim">
-            créée le {fmtDay(entry.created_at)} · modifiée le {fmtDay(entry.updated_at)}
+            {t("créée le {creee} · modifiée le {modifiee}", {
+                    creee: fmtDay(entry.created_at),
+                    modifiee: fmtDay(entry.updated_at),
+                  })}
           </p>
 
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
@@ -1701,7 +1704,7 @@ function Reader({
               <button
                 type="button"
                 onClick={() => patch({ tags: serializeTags(tags.filter((x) => x !== tag)) })}
-                data-tip={`Retirer « ${tag} »`}
+                data-tip={t("Retirer « {tag} »", { tag })}
                 aria-label={t("Retirer le tag {tag}", { tag })}
                 className="opacity-60 transition-opacity hover:opacity-100"
               >
@@ -1722,7 +1725,7 @@ function Reader({
               }
             }}
             onBlur={addTag}
-            placeholder="+ tag"
+            placeholder={t("+ tag")}
             data-tip={t("Ajouter un tag")}
             data-tip-sub={t("Entrée pour valider. Les tags filtrent les notes, tous thèmes confondus.")}
             className="w-24 rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"

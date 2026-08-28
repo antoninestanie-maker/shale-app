@@ -120,7 +120,10 @@ export default function PerfStrip({ data, week, streak }: Props) {
             <span className="text-xs font-normal text-text-dim"> min</span>
           </p>
           <p className="hud-label mt-1">
-            focus / {goalMin >= 60 ? `${Math.round((goalMin / 60) * 10) / 10} h` : `${goalMin} min`}
+            {t("focus / {objectif}", {
+              objectif:
+                goalMin >= 60 ? `${Math.round((goalMin / 60) * 10) / 10} h` : `${goalMin} min`,
+            })}
           </p>
         </div>
       </div>
@@ -137,7 +140,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
           {ts.count === 0 ? "—" : fmtR(ts.totalR)}
         </p>
         <p className="hud-label mt-1">
-          trading 7 j{" "}
+          {t("trading 7 j")}{" "}
           {ts.count > 0 && (
             <span className="normal-case tracking-normal">
               · {ts.winrate === null ? "—" : `${ts.winrate}% wr`} · {ts.count} tr.

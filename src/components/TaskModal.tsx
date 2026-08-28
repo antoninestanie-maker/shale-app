@@ -31,15 +31,15 @@ function parseRecurrence(rec: string | null): { mode: RecMode; days: number[] } 
 }
 
 const priorities = (): { value: Priority; label: string; color: string }[] => [
-  { value: "high", label: "Haute", color: "var(--color-red)" },
-  { value: "medium", label: "Moyenne", color: "var(--color-yellow)" },
-  { value: "low", label: "Basse", color: "var(--color-text-dim)" },
+  { value: "high", label: t("Haute"), color: "var(--color-red)" },
+  { value: "medium", label: t("Moyenne"), color: "var(--color-yellow)" },
+  { value: "low", label: t("Basse"), color: "var(--color-text-dim)" },
 ];
 
 const recModes = (): { value: RecMode; label: string }[] => [
   { value: "none", label: t("Une fois") },
-  { value: "daily", label: "Quotidien" },
-  { value: "weekdays", label: "Lun–ven" },
+  { value: "daily", label: t("Quotidien") },
+  { value: "weekdays", label: t("Lun–ven") },
   { value: "custom", label: t("Jours précis") },
 ];
 
@@ -191,7 +191,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-text-dim">Tag</p>
+            <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Tag")}</p>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"

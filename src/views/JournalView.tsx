@@ -228,7 +228,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
 
         <div className="mt-4 flex flex-wrap items-center gap-8">
           <div>
-            <p className="mb-1.5 text-xs font-medium text-text-dim">Humeur</p>
+            <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Humeur")}</p>
             <div className="flex flex-wrap gap-1">
               {MOOD_LEVELS.map((lvl, i) => (
                 <button
@@ -239,7 +239,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     setMood(v);
                     save(v, energy, body);
                   }}
-                  data-tip={`Humeur ${i + 1}/5`}
+                  data-tip={t("Humeur {n}/5", { n: i + 1 })}
                   data-tip-sub={mood === i + 1 ? t("Cliquer à nouveau pour effacer.") : undefined}
                   className={`flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all ${
                     mood === i + 1
@@ -296,7 +296,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
       <ResizablePanel id="journal-habits" defaultW={12} minH={280}>
       <section className="card p-5">
         <div className="rgrid-head flex items-center justify-between">
-          <h2 className="hud-label">habitudes — 12 semaines</h2>
+          <h2 className="hud-label">{t("habitudes — 12 semaines")}</h2>
           <form
             className="flex min-w-0 flex-wrap items-center gap-2"
             onSubmit={(e) => {
@@ -318,7 +318,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   onClick={() => setNewColor(c)}
                   className={`h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-blue" : ""}`}
                   style={{ backgroundColor: c }}
-                  aria-label={`Couleur ${c}`}
+                  aria-label={t("Couleur {name}", { name: c })}
                   data-tip={t("Couleur de l’habitude")}
                 />
               ))}
@@ -379,7 +379,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     checks.has(today) ? "border-transparent" : "border-text-dim/40"
                   }`}
                   style={checks.has(today) ? { backgroundColor: habit.color } : {}}
-                  aria-label={`${habit.name} aujourd'hui`}
+                  aria-label={t("{nom} aujourd'hui", { nom: habit.name })}
                   data-tip={habit.name}
                   data-tip-sub={t("Cocher pour aujourd’hui.")}
                 >
@@ -415,7 +415,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                 <button
                   type="button"
                   onClick={() => handleDeleteHabit(habit.id)}
-                  data-tip={deletingHabit === habit.id ? "Confirmer" : t("Supprimer l’habitude")}
+                  data-tip={deletingHabit === habit.id ? t("Confirmer") : t("Supprimer l’habitude")}
                   data-tip-sub={t("Un second clic supprime l’habitude et son historique de coches.")}
                   className={`shrink-0 rounded-md px-1.5 text-xs transition-all ${
                     deletingHabit === habit.id

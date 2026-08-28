@@ -31,7 +31,7 @@ const INKS = [
 const widths = () => [
   { name: "Fin", value: 3 },
   { name: "Moyen", value: 6 },
-  { name: t("Épais"), value: 12 },
+  { name: "Épais", value: 12 },
 ];
 
 export interface Stroke {
@@ -254,7 +254,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
                   setErasing(false);
                 }}
                 data-tip={c.name}
-                aria-label={`Encre ${c.name}`}
+                aria-label={t("Encre {name}", { name: t(c.name) })}
                 className={`h-6 w-6 rounded-full border transition-transform ${
                   ink === c.value && !erasing
                     ? "scale-110 border-transparent ring-2 ring-blue"
@@ -272,7 +272,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
               key={w.value}
               type="button"
               onClick={() => setWidth(w.value)}
-              data-tip={`Trait ${w.name.toLowerCase()}`}
+              data-tip={t("Trait {name}", { name: t(w.name).toLowerCase() })}
               className={toolBtn(width === w.value)}
             >
               <span
@@ -288,11 +288,11 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
           <button
             type="button"
             onClick={() => setErasing((v) => !v)}
-            data-tip="Gomme"
+            data-tip={t("Gomme")}
             data-tip-sub={t("Repeint la zone en couleur du papier.")}
             className={toolBtn(erasing)}
           >
-            Gomme
+            {t("Gomme")}
           </button>
           <button
             type="button"

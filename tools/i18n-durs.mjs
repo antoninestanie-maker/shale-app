@@ -47,6 +47,18 @@ const ATTRS_VISIBLES = new Set([
   "data-tip",
   "data-tip-sub",
   "data-tip-kbd",
+  // Props de composants MAISON qui rendent du texte : `ToggleRow`, `NumberField`,
+  // `Field`, `ResizablePanel`… Sans elles, `<ToggleRow title="Mode fast-track"
+  // desc="Envoi en arrière-plan…" />` passait entièrement sous le radar.
+  "desc",
+  "description",
+  "hint",
+  "sub",
+  "subtitle",
+  "tip",
+  "legend",
+  "empty",
+  "cta",
 ]);
 
 // ── Propriétés d'objet qui sentent le libellé ────────────────────────────────
@@ -221,8 +233,23 @@ function litterauxDe(expr, out = []) {
     litterauxDe(expr.whenTrue, out);
     litterauxDe(expr.whenFalse, out);
   } else if (ts.isBinaryExpression(expr)) {
-    litterauxDe(expr.left, out);
-    litterauxDe(expr.right, out);
+    // ⚠️ L'opérateur décide de ce qui est RENDU. `{statut === "active" && …}`
+    // n'affiche jamais « active » : c'est une comparaison. Descendre des deux
+    // côtés sans regarder l'opérateur rapportait ces identifiants comme du
+    // texte à traduire — trois faux positifs dans `SyncSettings` à eux seuls.
+    const op = expr.operatorToken.kind;
+    const K = ts.SyntaxKind;
+    if (op === K.AmpersandAmpersandToken) {
+      litterauxDe(expr.right, out); // seul le côté droit s'affiche
+    } else if (
+      op === K.BarBarToken ||
+      op === K.QuestionQuestionToken ||
+      op === K.PlusToken
+    ) {
+      litterauxDe(expr.left, out);
+      litterauxDe(expr.right, out);
+    }
+    // comparaisons (===, !==, <, in, instanceof…) : rien ne s'affiche
   } else if (ts.isParenthesizedExpression(expr)) {
     litterauxDe(expr.expression, out);
   }

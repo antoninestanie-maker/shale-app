@@ -217,7 +217,7 @@ export default function NotesView({ data, refresh }: Props) {
                   : "text-text-dim hover:text-red"
               }`}
             >
-              {deleting ? t("sûr ?") : "supprimer"}
+              {deleting ? t("sûr ?") : t("supprimer")}
             </button>
           </div>
 

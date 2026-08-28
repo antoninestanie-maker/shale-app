@@ -64,7 +64,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
             <button
               type="button"
               onClick={() => onToggle(task)}
-              data-tip={task.done ? t("Marquer à faire") : "Marquer faite"}
+              data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
               data-tip-sub={t("Compte dans la discipline et le streak du jour.")}
               className="flex w-full min-w-0 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
             >
@@ -133,7 +133,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               <button
                 type="button"
                 onClick={() => onFocus(task)}
-                data-tip="Focus 25 min"
+                data-tip={t("Focus 25 min")}
                 data-tip-sub={t("Démarre un pomodoro dédié à cette tâche.")}
                 aria-label={t("Focus sur {label}", { label: task.label })}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100"

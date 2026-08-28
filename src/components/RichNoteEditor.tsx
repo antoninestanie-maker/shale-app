@@ -13,8 +13,9 @@ interface Props {
   placeholder?: string;
 }
 
+// Noms FRANÇAIS, traduits à l'affichage — comme toute table de libellés.
 const textColors = () => [
-  { name: t("Défaut"), value: "var(--color-text)" },
+  { name: "Défaut", value: "var(--color-text)" },
   { name: "Bleu", value: "var(--color-blue)" },
   { name: "Vert", value: "var(--color-green)" },
   { name: "Jaune", value: "var(--color-yellow)" },
@@ -100,8 +101,8 @@ export default function RichNoteEditor({
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
       {/* Barre d'outils */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border pb-2">
-        <Btn label={<b>B</b>} title="Gras" kbd={kbd("⌘B")} onDo={() => exec("bold")} />
-        <Btn label={<i>I</i>} title="Italique" kbd={kbd("⌘I")} onDo={() => exec("italic")} />
+        <Btn label={<b>B</b>} title={t("Gras")} kbd={kbd("⌘B")} onDo={() => exec("bold")} />
+        <Btn label={<i>I</i>} title={t("Italique")} kbd={kbd("⌘I")} onDo={() => exec("italic")} />
         <Btn
           label={<u>U</u>}
           title={t("Souligné")}
@@ -118,27 +119,27 @@ export default function RichNoteEditor({
 
         <Btn
           label="H1"
-          title="Titre"
+          title={t("Titre")}
           onDo={() => exec("formatBlock", "<h1>")}
         />
         <Btn
           label="H2"
-          title="Sous-titre"
+          title={t("Sous-titre")}
           onDo={() => exec("formatBlock", "<h2>")}
         />
         <Btn
           label="¶"
-          title="Paragraphe"
+          title={t("Paragraphe")}
           onDo={() => exec("formatBlock", "<p>")}
         />
         <Btn
-          label="• Liste"
+          label={`• ${t("Liste")}`}
           title={t("Liste à puces")}
           onDo={() => exec("insertUnorderedList")}
         />
         <Btn
           label="❝"
-          title="Citation"
+          title={t("Citation")}
           onDo={() => exec("formatBlock", "<blockquote>")}
         />
 
@@ -150,7 +151,7 @@ export default function RichNoteEditor({
             <button
               key={c.value}
               type="button"
-              data-tip={`Texte ${c.name}`}
+              data-tip={t("Texte {name}", { name: t(c.name) })}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => execColor("foreColor", c.value)}
               className="h-4 w-4 rounded-full border border-border transition-transform hover:scale-110"
@@ -168,12 +169,12 @@ export default function RichNoteEditor({
             <button
               key={c.value}
               type="button"
-              data-tip={`Surligner ${c.name}`}
+              data-tip={t("Surligner {name}", { name: t(c.name) })}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => execColor("hiliteColor", c.value)}
               className="h-4 w-4 rounded-[4px] border border-border transition-transform hover:scale-110"
               style={{ backgroundColor: c.value }}
-              aria-label={`Surligner ${c.name}`}
+              aria-label={t("Surligner {name}", { name: t(c.name) })}
             />
           ))}
         </span>

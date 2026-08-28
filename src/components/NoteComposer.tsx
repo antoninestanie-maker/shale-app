@@ -299,7 +299,7 @@ export default function NoteComposer({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => setMenuOpen((v) => !v)}
             data-tip={t("Insérer un élément")}
-            data-tip-sub="Image, croquis, lien, titre, liste, citation…"
+            data-tip-sub={t("Image, croquis, lien, titre, liste, citation…")}
             className={`pill inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors ${
               menuOpen
                 ? "border-blue/50 bg-blue/10 text-blue"
@@ -307,7 +307,7 @@ export default function NoteComposer({
             } disabled:opacity-50`}
           >
             <IconPlus className="h-3.5 w-3.5" />
-            {busy ? "import…" : t("Insérer")}
+            {busy ? t("import…") : t("Insérer")}
           </button>
           <span className="text-[11px] text-text-dim">
             {t("ou colle une image · glisse un fichier")}
@@ -460,8 +460,8 @@ export default function NoteComposer({
           <div className="glass flex items-center gap-0.5 rounded-[12px] border border-border p-1 shadow-lg">
             {linkDraft === null ? (
               <>
-                <BubbleBtn label={<b>B</b>} tip="Gras" kbd={kbd("⌘B")} onDo={() => exec("bold")} />
-                <BubbleBtn label={<i>I</i>} tip="Italique" kbd={kbd("⌘I")} onDo={() => exec("italic")} />
+                <BubbleBtn label={<b>B</b>} tip={t("Gras")} kbd={kbd("⌘B")} onDo={() => exec("bold")} />
+                <BubbleBtn label={<i>I</i>} tip={t("Italique")} kbd={kbd("⌘I")} onDo={() => exec("italic")} />
                 <BubbleBtn label={<u>U</u>} tip={t("Souligné")} kbd={kbd("⌘U")} onDo={() => exec("underline")} />
                 <BubbleBtn label={<s>S</s>} tip={t("Barré")} onDo={() => exec("strikeThrough")} />
                 <span className="mx-1 h-5 w-px bg-border" />
@@ -471,8 +471,8 @@ export default function NoteComposer({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => execColor(c.value)}
-                    data-tip={`Texte ${c.name.toLowerCase()}`}
-                    aria-label={`Couleur ${c.name}`}
+                    data-tip={t("Texte {name}", { name: t(c.name).toLowerCase() })}
+                    aria-label={t("Couleur {name}", { name: t(c.name) })}
                     className="h-4 w-4 rounded-full border border-border transition-transform hover:scale-110"
                     style={{ backgroundColor: c.value }}
                   />
@@ -480,7 +480,7 @@ export default function NoteComposer({
                 <span className="mx-1 h-5 w-px bg-border" />
                 <BubbleBtn
                   label={<IconLink className="h-3.5 w-3.5" />}
-                  tip="Lien"
+                  tip={t("Lien")}
                   kbd={kbd("⌘K")}
                   onDo={() => setLinkDraft("")}
                 />

@@ -34,23 +34,34 @@ enSrc.split("\n").forEach((ligne, i) => {
 const doublons = [...lignesDe].filter(([, l]) => l.length > 1);
 
 const missing = new Map();
+const noter = (key, file) => {
+  if (known.has(key)) return;
+  if (!missing.has(key)) missing.set(key, []);
+  missing.get(key).push(file);
+};
+
 for (const file of walk(root)) {
   if (file.includes("lib/i18n/")) continue;
   const src = readFileSync(file, "utf8");
-  // t("…") / t('…') / tp("…") — littéraux seulement (les templates sont hors portée).
+  // t("…") / t('…') — littéraux seulement (les templates sont hors portée).
   for (const m of src.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)*)"/g)) {
-    const key = JSON.parse(`"${m[1]}"`);
-    if (!known.has(key)) {
-      if (!missing.has(key)) missing.set(key, []);
-      missing.get(key).push(file);
-    }
+    noter(JSON.parse(`"${m[1]}"`), file);
   }
   for (const m of src.matchAll(/\bt\(\s*'((?:[^'\\]|\\.)*)'/g)) {
-    const key = m[1].replace(/\\'/g, "'");
-    if (!known.has(key)) {
-      if (!missing.has(key)) missing.set(key, []);
-      missing.get(key).push(file);
-    }
+    noter(m[1].replace(/\\'/g, "'"), file);
+  }
+  // ⚠️ `tp(n, "singulier", "pluriel")` porte DEUX clés, et l'en-tête de ce
+  // fichier prétendait les couvrir depuis toujours — c'était faux : `\bt\(` ne
+  // matche pas `tp(`, où `t` est suivi d'un `p`. Résultat, toutes les clés de
+  // pluriel étaient invisibles au contrôle, qui annonçait « 0 manquante » sur
+  // une app où « {n} position » n'avait pas de traduction. Trouvé le
+  // 2026-08-28, en constatant qu'une clé fraîchement écrite n'était jamais
+  // réclamée.
+  for (const m of src.matchAll(
+    /\btp\(\s*[^,]+?,\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"/g,
+  )) {
+    noter(JSON.parse(`"${m[1]}"`), file);
+    noter(JSON.parse(`"${m[2]}"`), file);
   }
 }
 
