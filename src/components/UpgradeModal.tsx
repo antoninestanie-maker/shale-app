@@ -9,6 +9,7 @@ import { ACCOUNT_PAGES } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { TRADING_PITCH } from "../lib/features";
 import { t } from "../lib/i18n";
+import { IS_IOS } from "../lib/platform";
 import { IconExternal, IconLock, IconX } from "./icons";
 
 interface Props {
@@ -90,14 +91,24 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
         </ul>
 
         <div className="mt-7 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => openExternal(ACCOUNT_PAGES.home)}
-            className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            {t("Passer à Shale Trade")}
-            <IconExternal className="h-4 w-4" />
-          </button>
+          {/* Sur iOS : aucun mécanisme d'achat ni CTA vers le paiement dans
+              l'app (règle App Store 3.1.1) — seule une mention neutre du
+              compte, non actionnable. Le bouton d'upgrade externe reste
+              inchangé sur macOS. */}
+          {IS_IOS ? (
+            <p className="flex-1 basis-[13rem] rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-center text-sm text-text-dim">
+              {t("Shale Trade se gère depuis ton compte sur shaleapp.com.")}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openExternal(ACCOUNT_PAGES.home)}
+              className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              {t("Passer à Shale Trade")}
+              <IconExternal className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -107,9 +118,11 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
           </button>
         </div>
 
-        <p className="mt-4 text-[12px] text-text-dim">
-          {t("Le changement d'offre est immédiat, et tes données restent intactes.")}
-        </p>
+        {!IS_IOS && (
+          <p className="mt-4 text-[12px] text-text-dim">
+            {t("Le changement d'offre est immédiat, et tes données restent intactes.")}
+          </p>
+        )}
       </div>
     </div>,
     document.body,

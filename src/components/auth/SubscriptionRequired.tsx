@@ -4,6 +4,7 @@ import { ACCOUNT_PAGES } from "../../lib/auth/config";
 import type { Subscription } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
+import { IS_IOS } from "../../lib/platform";
 import ShaleMark from "./ShaleMark";
 
 import { t } from "../../lib/i18n";
@@ -76,13 +77,22 @@ export default function SubscriptionRequired({
             </p>
           )}
 
-          <button
-            onClick={() => openExternal(ACCOUNT_PAGES.home)}
-            className="pill mt-5 flex w-full items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
-            <IconExternal className="h-4 w-4" />
-          </button>
+          {/* Sur iOS : aucun mécanisme d'achat ni CTA de paiement dans l'app
+              (règle App Store 3.1.1) — mention neutre du compte, non
+              actionnable. Le bouton externe reste inchangé sur macOS. */}
+          {IS_IOS ? (
+            <p className="pill mt-5 flex w-full items-center justify-center gap-2 border border-border bg-surface-2 py-2.5 text-center text-sm text-text-dim">
+              {t("Ton compte se gère sur shaleapp.com.")}
+            </p>
+          ) : (
+            <button
+              onClick={() => openExternal(ACCOUNT_PAGES.home)}
+              className="pill mt-5 flex w-full items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
+              <IconExternal className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={recheck}
             disabled={busy}

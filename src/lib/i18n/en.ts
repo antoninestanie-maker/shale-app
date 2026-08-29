@@ -843,6 +843,7 @@ export const EN: Record<string, string> = {
   "Modification impossible.": "Could not save the change.",
   "Connecté en tant que": "Signed in as",
   "Gérer mon abonnement": "Manage my subscription",
+  "Ton compte se gère sur shaleapp.com.": "Manage your account at shaleapp.com.",
   "mode démo": "demo mode",
 
   // ── Personnaliser (admin UI) ──────────────────────────────────────────────
@@ -1210,6 +1211,8 @@ export const EN: Record<string, string> = {
   "Plus tard": "Later",
   "Le changement d'offre est immédiat, et tes données restent intactes.":
     "The switch takes effect immediately, and your data stays untouched.",
+  "Shale Trade se gère depuis ton compte sur shaleapp.com.":
+    "Shale Trade is managed from your account at shaleapp.com.",
   "essai en cours": "trial running",
   "offre simulée (démo)": "simulated plan (demo)",
   // Argumentaire du paywall (lib/features.ts)

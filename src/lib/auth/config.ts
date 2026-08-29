@@ -90,4 +90,4 @@ export const AUTH_CONFIGURED = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.leng
  * `shale-site/vitrine/src/lib/compte.ts` — garder les deux alignés (l'espace
  * compte a fusionné dans la vitrine le 2026-08-11).
  */
-export const STRIPE_ENABLED = false;
+export const STRIPE_ENABLED = true;
