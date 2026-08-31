@@ -36,18 +36,24 @@ export function estActive(sub: Subscription | null | undefined): boolean {
 /**
  * Le compte a-t-il le droit d'ouvrir l'app ?
  *
- * DEUX CONDITIONS QUI SE CUMULENT, et qui ne répondent pas à la même question :
+ * UN SEUL MUR À LA FOIS, et lequel dépend de `STRIPE_ENABLED` :
  *
- *  • l'activation — « cette personne est-elle invitée ? » — vaut toujours, y
- *    compris Stripe éteint. C'est le seul mur en service aujourd'hui ;
- *  • l'abonnement — « cette personne a-t-elle payé ? » — ne vaut que si
- *    `STRIPE_ENABLED`. Tant qu'il est faux il n'y a pas d'offre à vendre, donc
- *    pas de raison de refuser l'entrée à un invité, et surtout pas d'état
- *    « en attente » devant un bouton d'achat qui ne mène nulle part.
+ *  • Stripe ÉTEINT — l'activation, « cette personne est-elle invitée ? ».
+ *    Il n'y a rien à vendre, donc rien à vérifier côté paiement, et la liste
+ *    d'invités reste le seul mur ;
+ *  • Stripe ALLUMÉ — le paiement, « cette personne a-t-elle payé ? ».
+ *    L'activation n'est PLUS consultée : un abonné jamais invité entre.
  *
- * Le jour où Stripe s'allume, un invité non abonné se verra refuser l'entrée
- * par la seconde condition — et un abonné non invité par la première. Aucune
- * des deux ne dispense de l'autre.
+ * ⚠️ Les deux conditions ne se cumulent PAS — ce commentaire a dit l'inverse
+ * jusqu'au 2026-08-30, et il décrivait alors une règle que le corps de la
+ * fonction n'applique plus. Décision d'Antonin : deux barrières, toutes deux
+ * AUTOMATIQUES — l'e-mail confirmé, puis le paiement — et plus aucune
+ * intervention manuelle. La première ne se trouve pas ici : elle est chez
+ * Supabase, qui n'ouvre aucune session tant que le lien n'est pas cliqué.
+ *
+ * ▶️ Elles se relaient, donc, au lieu de s'ajouter. Le retour en arrière reste
+ * sûr : `STRIPE_ENABLED` à faux redonne le mur à `public.activations`, qui
+ * n'est ni supprimée ni vidée.
  */
 export function hasAccess(sub: Subscription | null | undefined): boolean {
   // ── Stripe ÉTEINT ────────────────────────────────────────────────────────
