@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ADMIN_EMAILS, AUTH_CONFIGURED } from "./config";
+import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
 import { estActive, hasAccess } from "./access";
 import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
@@ -9,6 +9,7 @@ import {
   refreshSession,
   signInWithPassword,
   signOutServer,
+  isActive,
   signUpWithPassword,
   updatePassword,
   type Session,
@@ -326,10 +327,20 @@ export function useAuth(): AuthState {
       // acheter, et son bouton mène à une page d'abonnement sans objet. Il n'y a
       // rien à FAIRE dans l'app tant qu'on n'a pas été invité — donc rien à
       // montrer d'autre que la porte, et la raison pour laquelle elle est close.
+      // ⚠️ Depuis que Stripe est allumé, ces deux situations n'ont plus rien à
+      // voir, et leur dire la même chose est une faute : quelqu'un qui vient de
+      // payer 19 € et à qui on répond « écris-nous pour demander un accès »
+      // conclut qu'il s'est fait avoir. On sait pourtant les distinguer —
+      // `status` dit s'il a payé.
       if (!estActive(sub)) {
-        const msg = t(
-          "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
-        );
+        const aPaye = STRIPE_ENABLED && isActive(sub?.status);
+        const msg = aPaye
+          ? t(
+              "Ton abonnement est bien enregistré, et il n'y a rien à refaire. L'accès est ouvert à la main, compte par compte : le tien le sera très vite. Reconnecte-toi un peu plus tard.",
+            )
+          : t(
+              "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
+            );
         setError(msg);
         // Efface jeton + méta : rien ne doit pouvoir rouvrir hors ligne. Et le
         // mot de passe déposé pour la synchronisation part avec — il n'y a
