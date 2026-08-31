@@ -44,9 +44,26 @@ describe("estActive", () => {
 });
 
 describe("hasAccess", () => {
-  it("refuse un compte non activé, quel que soit son abonnement", () => {
-    expect(hasAccess(sub({ status: "active", is_active: true }))).toBe(false);
-    expect(hasAccess(sub({ status: "trialing", is_active: true }))).toBe(false);
+  it("le mur CHANGE DE NATURE selon le drapeau, il ne s'additionne plus", () => {
+    // Écrit en fonction du drapeau, comme le test voisin : il dit ce qui change
+    // au lieu d'échouer sans expliquer le jour où l'autre configuration arrive.
+    //
+    // ⚠️ Ce test portait la règle INVERSE jusqu'au 2026-08-30 (« refuse un
+    // compte non activé, quel que soit son abonnement »). L'activation manuelle
+    // a cessé d'être un mur sur décision d'Antonin : deux barrières, toutes
+    // deux automatiques — l'e-mail confirmé (chez Supabase, avant d'arriver
+    // ici) puis le paiement.
+
+    // A payé, jamais invité : entre si et seulement si Stripe est allumé.
+    const payeurNonInvite = sub({ status: "active", is_active: true });
+    expect(hasAccess(payeurNonInvite)).toBe(STRIPE_ENABLED);
+
+    // Invité, n'a pas payé : le symétrique exact.
+    const invitéNonPayeur = sub({ status: "expired", is_active: false, activated: true });
+    expect(hasAccess(invitéNonPayeur)).toBe(!STRIPE_ENABLED);
+
+    // Ni l'un ni l'autre : refusé dans les deux configurations.
+    expect(hasAccess(sub({ status: "expired", is_active: false }))).toBe(false);
     expect(hasAccess(null)).toBe(false);
   });
 

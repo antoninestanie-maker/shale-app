@@ -50,7 +50,28 @@ export function estActive(sub: Subscription | null | undefined): boolean {
  * des deux ne dispense de l'autre.
  */
 export function hasAccess(sub: Subscription | null | undefined): boolean {
-  if (!estActive(sub)) return false;
-  if (!STRIPE_ENABLED) return true;
+  // ── Stripe ÉTEINT ────────────────────────────────────────────────────────
+  // Il n'y a rien à vendre, donc rien à vérifier côté paiement. La liste
+  // d'invités reste alors le SEUL mur — sans elle, l'app s'ouvrirait à
+  // quiconque possède une adresse e-mail.
+  if (!STRIPE_ENABLED) return estActive(sub);
+
+  // ── Stripe ALLUMÉ ────────────────────────────────────────────────────────
+  // Deux barrières, toutes deux AUTOMATIQUES, et plus aucune intervention
+  // manuelle (décision d'Antonin, 2026-08-30) :
+  //   1. la confirmation de l'e-mail — elle n'est pas ici, elle est chez
+  //      Supabase, qui n'ouvre aucune session tant que le lien n'est pas
+  //      cliqué (`mailer_autoconfirm: false`, vérifié sur le projet) ;
+  //   2. le paiement, ci-dessous.
+  //
+  // ⚠️ `public.activations` existe toujours et n'est pas supprimée — elle
+  // n'est simplement plus consultée comme mur. Elle redevient le mur si
+  // `STRIPE_ENABLED` repasse à faux, ce qui rend ce retour en arrière sûr.
+  //
+  // ⚠️ ORDRE DE DÉPLOIEMENT — cette fonction est COMPILÉE dans le binaire.
+  // Publier un `.dmg` qui la contient AVANT que le paiement encaisse
+  // réellement ne laisserait qu'une barrière : un lien cliqué dans une boîte
+  // mail. Séquence obligatoire : clés Stripe LIVE → `STRIPE_ENABLED = true`
+  // des deux côtés → build → publication du `.dmg`. Jamais l'inverse.
   return isActive(sub?.status);
 }

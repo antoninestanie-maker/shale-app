@@ -9,7 +9,6 @@ import {
   refreshSession,
   signInWithPassword,
   signOutServer,
-  isActive,
   signUpWithPassword,
   updatePassword,
   type Session,
@@ -327,20 +326,21 @@ export function useAuth(): AuthState {
       // acheter, et son bouton mène à une page d'abonnement sans objet. Il n'y a
       // rien à FAIRE dans l'app tant qu'on n'a pas été invité — donc rien à
       // montrer d'autre que la porte, et la raison pour laquelle elle est close.
-      // ⚠️ Depuis que Stripe est allumé, ces deux situations n'ont plus rien à
-      // voir, et leur dire la même chose est une faute : quelqu'un qui vient de
-      // payer 19 € et à qui on répond « écris-nous pour demander un accès »
-      // conclut qu'il s'est fait avoir. On sait pourtant les distinguer —
-      // `status` dit s'il a payé.
-      if (!estActive(sub)) {
-        const aPaye = STRIPE_ENABLED && isActive(sub?.status);
-        const msg = aPaye
-          ? t(
-              "Ton abonnement est bien enregistré, et il n'y a rien à refaire. L'accès est ouvert à la main, compte par compte : le tien le sera très vite. Reconnecte-toi un peu plus tard.",
-            )
-          : t(
-              "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
-            );
+      //
+      // ⚠️ TOUT CE BLOC EST CONDITIONNÉ À `!STRIPE_ENABLED` depuis le
+      // 2026-08-30. Stripe allumé, l'accès ne se donne plus à la main : le
+      // paiement EST le mur (cf. `hasAccess`). Quelqu'un qui n'a pas payé doit
+      // donc voir `SubscriptionRequired` — un écran qui propose d'acheter, ce
+      // qui a désormais un sens — et surtout PAS ce message-ci, qui le
+      // renverrait demander une faveur pour un produit qui se vend.
+      //
+      // Le garder pour le cas éteint n'est pas de la précaution décorative :
+      // sans Stripe il n'y a rien à vendre, donc la liste d'invités redevient
+      // le seul mur, et ce message redevient exactement le bon.
+      if (!STRIPE_ENABLED && !estActive(sub)) {
+        const msg = t(
+          "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
+        );
         setError(msg);
         // Efface jeton + méta : rien ne doit pouvoir rouvrir hors ligne. Et le
         // mot de passe déposé pour la synchronisation part avec — il n'y a
@@ -352,10 +352,17 @@ export function useAuth(): AuthState {
         return msg;
       }
 
-      // Activé, et le serveur vient de le dire : le disque peut le savoir.
-      activeRef.current = true;
-      marquerActive();
-      setStatus(hasAccess(sub) ? "ready" : "noSub");
+      // ⚠️ Le disque retient « le serveur a laissé entrer », pas « le compte est
+      // invité ». La nuance compte depuis que le mur a changé de nature : le
+      // délai de grâce hors ligne doit couvrir quelqu'un qui a le DROIT
+      // d'entrer, et lui seul. Avant, un invité non abonné l'obtenait quand
+      // même — il aurait ouvert l'app hors ligne pendant 30 jours sans payer.
+      const entre = hasAccess(sub);
+      if (entre) {
+        activeRef.current = true;
+        marquerActive();
+      }
+      setStatus(entre ? "ready" : "noSub");
       return null;
     },
     [ranger],

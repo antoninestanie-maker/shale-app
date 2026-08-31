@@ -1418,8 +1418,6 @@ export const EN: Record<string, string> = {
   // ── Activation du compte (2026-08-13) ─────────────────────────────────────
   // Recopiées telles quelles depuis la branche macOS : le mur d'activation est
   // le même des deux côtés, et il n'a rien de spécifique à la plateforme.
-  "Ton abonnement est bien enregistré, et il n'y a rien à refaire. L'accès est ouvert à la main, compte par compte : le tien le sera très vite. Reconnecte-toi un peu plus tard.":
-    "Your subscription is registered — nothing to redo. Access is opened by hand, one account at a time, and yours will be shortly. Sign back in a little later.",
   "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.":
     "This account isn’t activated yet. Access to Shale is granted one account at a time — get in touch through the website to request yours.",
   "L'activation de ce compte n'a pas encore été vérifiée. Connecte-toi une fois en ligne.":
