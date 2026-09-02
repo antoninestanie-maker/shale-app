@@ -167,6 +167,13 @@ en pause"}`. Un `data-tip-sub` traduit juste au-dessus d'un `data-tip` en dur.
 Le détail est au § 3 de `PASSATION-UI.md`. Les quatre qui mordent le plus :
 
 ### 5.1 ⭐ Réinstaller sur le SIMULATEUR déconnecte la session
+
+> ⚠️ **Observation du 2026-09-02, qui ne remplace PAS la règle.** Une
+> réinstallation ce jour-là (iOS 26.5, `simctl install` par-dessus la même app)
+> a **conservé** la session : l'app s'est ouverte sur le tableau de bord, entrée
+> « Admin » comprise. Une seule observation ne fait pas une règle, et le coût
+> d'une session perdue reste élevé : **continuer à faire l'audit visuel AVANT de
+> reconstruire.**
 `simctl install` par-dessus l'app **préserve les données** (`shale.db` intact)
 mais **fait perdre l'accès au trousseau**, donc le `refresh_token`. L'app repart
 sur l'écran de connexion, et **une session Claude ne peut pas s'y reconnecter**.

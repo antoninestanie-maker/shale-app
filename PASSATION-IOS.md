@@ -76,32 +76,63 @@ uniquement** : la densité du bureau est un choix, pas un oubli.
 
 ---
 
-## 4. ⚠️ La session du simulateur
+## 4. ⚠️ La session du simulateur — une observation qui contredit la doc
 
-**Elle était ACTIVE avant ce chantier** — contrairement à ce qu'annonçait
-`PASSATION.md`, qui la donnait perdue depuis le 2026-08-28. Quelqu'un l'a
-rouverte entre-temps.
+**Elle était active avant ce chantier**, contrairement à ce qu'annonçait
+`PASSATION.md` (« toujours perdue » depuis le 2026-08-28).
 
-⚠️ **La réinstallation l'a donc fait perdre** : `simctl install` préserve
-`shale.db` mais pas le trousseau, donc pas le `refresh_token` (§ 5.1 de
-`PASSATION.md`). **Seul un geste humain d'Antonin la rouvre** — une session
-Claude ne saisit pas d'identifiants.
+⭐ **Et elle a SURVÉCU à la réinstallation.** Après `simctl install` puis
+`launch`, l'app s'est ouverte directement sur le tableau de bord, sans écran de
+connexion, et l'entrée **Admin** — réservée au compte propriétaire — était
+présente dans le tiroir. Le § 5.1 de `PASSATION.md` et le § D.4 du cahier des
+charges annonçaient l'inverse.
 
-C'était le prix inévitable du chantier : sans reconstruction, aucune des
-fonctionnalités des chantiers A, B et C n'existe sur le simulateur, et il n'y a
-rien à vérifier.
+⚠️ **Une observation n'est pas une règle.** Je n'ai vu ce comportement qu'une
+fois, sur iOS 26.5, avec un `simctl install` par-dessus une app de même
+identifiant. Ce n'est **pas** une raison de retirer l'avertissement des
+documents : le coût d'une session perdue reste élevé, et la prudence
+(« faire l'audit visuel AVANT de reconstruire ») reste la bonne conduite. La
+note est ajoutée à côté de la règle, elle ne la remplace pas.
+
+### ⭐ Ce que la réinstallation a prouvé au passage
+La base du simulateur (13 notes, 2 tâches — de vraies données synchronisées) a
+survécu, **et la migration 020 s'y est appliquée** : `calendar_events` existe et
+`object_types` contient bien ses quatre types livrés.
+
+C'est la première fois que cette migration tourne **sur une base non vide et
+réelle**, ce que la passation du chantier A donnait explicitement comme non
+prouvé. ⚠️ Cela vaut pour la base du SIMULATEUR ; la base macOS d'Antonin n'a
+toujours pas été migrée, faute de reconstruction native.
 
 ---
 
-## 5. Ce qu'Antonin peut constater lui-même
+## 5. Ce qui a été VU à l'écran, sur le simulateur
+
+Tout ce qui suit a été constaté, pas déduit :
+
+- le module **Calendrier** apparaît dans le tiroir « Plus », entre Tâches et
+  Timer, avec son icône ;
+- en l'ouvrant : **Agenda** et **Jour** seulement — mois et semaine sont bien
+  absentes, et l'agenda est sélectionné par défaut ;
+- l'état vide dit « Rien de prévu sur les 30 prochains jours » ;
+- la vue **Jour** affiche sa grille horaire, sa bande « sans heure » et le jour
+  courant en pastille bleue ;
+- **Savoir** porte ses deux onglets **Fiches** / **Objets** ;
+- l'onglet **Objets** montre les quatre types livrés — Personne, Ressource,
+  Projet, Setup de trading — chacun à zéro fiche, plus le bouton **+ Type**.
+
+⚠️ **Un défaut trouvé là, et corrigé** : l'en-tête de la vue agenda affichait le
+titre de la SEMAINE (« 31 Août – 6 Sept. ») pour une vue qui couvre trente
+jours.
+
+## 6. Ce qu'Antonin peut constater lui-même
 
 ⚠️ **Sur le simulateur uniquement.** Son application macOS installée date
-toujours du **2026-08-28** : aucun de ces quatre chantiers n'y est.
+toujours du **2026-08-28** : aucun de ces quatre chantiers n'y est, et sa base
+macOS n'a pas encore reçu la migration 020.
 
-Pour rouvrir la session du simulateur : l'app s'ouvre sur l'écran de connexion,
-il faut y saisir son adresse et son mot de passe une fois. Les reconstructions
-suivantes n'y toucheront plus tant qu'on ne réinstalle pas.
+Dans l'onglet **Plus** de la barre du bas, **Calendrier** apparaît entre Tâches
+et Timer. En l'ouvrant sur téléphone : **Agenda** et **Jour** seulement — la vue
+mois n'a pas de sens sur cette largeur.
 
-Ensuite, dans l'onglet **Plus** de la barre du bas, **Calendrier** apparaît entre
-Tâches et Timer. En l'ouvrant sur téléphone : **Agenda** et **Jour** seulement —
-la vue mois n'a pas de sens sur cette largeur.
+Dans **Savoir**, deux onglets : **Fiches** et **Objets**.

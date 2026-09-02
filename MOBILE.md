@@ -2223,6 +2223,16 @@ d'une décision d'Antonin, avec la question Stripe contre achats intégrés.
 
 ## 22. ⚠️ Réinstaller sur le SIMULATEUR déconnecte la session (2026-08-28)
 
+> ⚠️ **Contre-observation du 2026-09-02 — elle NUANCE, elle ne remplace pas.**
+> Une réinstallation ce jour-là (iOS 26.5, `simctl install` par-dessus la même
+> app) a **conservé** la session : l'app s'est ouverte directement sur le
+> tableau de bord, avec l'entrée « Admin » réservée au propriétaire. La base
+> (13 notes, 2 tâches) avait survécu, et la migration 020 s'y est appliquée.
+>
+> Une seule observation ne fait pas une règle, et le coût d'une session perdue
+> reste élevé : **continuer à faire tout l'audit visuel AVANT de reconstruire.**
+> Ce paragraphe garde donc toute sa valeur de prudence.
+
 **Nouveau piège, découvert en le déclenchant.** Un `xcrun simctl install`
 par-dessus une app existante **préserve le conteneur de données** — `shale.db`
 et ses sauvegardes sont intacts, vérifié — mais **fait perdre l'accès au
