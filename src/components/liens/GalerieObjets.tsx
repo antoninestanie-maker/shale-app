@@ -98,7 +98,7 @@ export default function GalerieObjets() {
               type="button"
               onClick={() => setTypeActif(type.id)}
               data-tip={t(type.name)}
-              className="pill border px-3 py-1.5 text-xs font-medium transition-colors"
+              className="pill cible-tactile-ligne border px-3 py-1.5 text-xs font-medium transition-colors"
               style={
                 typeActif === type.id
                   ? {
@@ -130,7 +130,7 @@ export default function GalerieObjets() {
           onClick={() => setEditionType("nouveau")}
           data-tip={t("Nouveau type d'objet")}
           data-tip-sub={t("Un type décrit les champs de ses fiches.")}
-          className="pill flex items-center gap-1 border border-dashed border-border px-3 py-1.5 text-xs text-text-dim hover:text-text"
+          className="pill cible-tactile-ligne flex items-center gap-1 border border-dashed border-border px-3 py-1.5 text-xs text-text-dim hover:text-text"
         >
           <IconPlus className="h-3.5 w-3.5" />
           {t("Type")}
@@ -149,7 +149,7 @@ export default function GalerieObjets() {
             await createObject({ type_id: type, title: t("Sans titre"), body: null, field_values: {} });
             await charger();
           }}
-          className="pill bg-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          className="pill cible-tactile-ligne bg-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
         >
           {t("+ Nouvelle fiche")}
         </button>

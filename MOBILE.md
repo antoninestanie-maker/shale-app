@@ -490,7 +490,10 @@ Ce qui reste à trancher n'est pas l'intégrité, c'est l'**ergonomie** : les
 poignées de redimensionnement n'ont aucun sens au doigt et doivent être
 masquées sous `(pointer: coarse)`.
 
-### 5.3 Les douze modules
+### 5.3 Les treize modules
+
+*Douze à l'écriture de ce document ; **treize depuis le 2026-09-02** et
+l'arrivée du Calendrier.*
 
 Règle par défaut : **présent**. Toute exception est argumentée.
 
@@ -498,6 +501,7 @@ Règle par défaut : **présent**. Toute exception est argumentée.
 |---|---|---|
 | **Aujourd'hui** | plein usage, **repensé** | grille → pile verticale ; c'est l'écran d'accueil naturel |
 | **Tâches** | plein usage | le cas d'usage mobile par excellence |
+| **Calendrier** | plein usage, **repensé** | ⚠️ vue **agenda** sur téléphone ; Mois et Semaine sont RETIRÉES du menu — sept colonnes sur six pouces ne montrent qu'un titre coupé. Le glisser-déposer demande un appui long de 400 ms, sans quoi le défilement arracherait une tâche (chantier iOS, 2026-09-02) |
 | **Timer** | plein usage | ⚠️ un timer suspendu par iOS doit se rattraper sur l'horloge murale, comme le fait déjà `scheduler.rs` |
 | **Objectifs** | plein usage | listes et progression, rien de spécifique au bureau |
 | **Performance** | **consultation** | graphiques `recharts` denses ; lisibles, pas manipulables au doigt |
@@ -516,8 +520,9 @@ coût, pas de principe.
 
 ### 5.4 La navigation — à trancher
 
-Douze modules + Réglages + Personnaliser = **14 destinations**. Aucune barre
-d'onglets iOS n'en porte plus de 5.
+Treize modules + Réglages + Personnaliser = **15 destinations** (douze et 14
+à l'écriture ; le Calendrier est arrivé le 2026-09-02). Aucune barre d'onglets
+iOS n'en porte plus de 5.
 
 #### ⚠️ Correction : il y a DEUX offres, et ma première proposition les ignorait
 

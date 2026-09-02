@@ -6,7 +6,7 @@
 //! données de l'app dont les règles ont besoin ; il est fabriqué à la main dans les
 //! tests, ce qui rend le moteur testable sans base ni application.
 
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -274,6 +274,25 @@ pub struct CalendarItem {
     pub start_at: Option<String>,
     /// `event` | `task` | `deadline` — sert au libellé, pas au filtrage.
     pub kind: &'static str,
+}
+
+impl CalendarItem {
+    /// L'instant local où l'élément commence. `None` s'il n'a pas d'heure — une
+    /// échéance d'objectif pèse sur la journée entière, pas sur une minute.
+    ///
+    /// ⚠️ `LocalResult::Single` seulement : le changement d'heure fait
+    /// DISPARAÎTRE une heure une nuit par an, et en fait exister une autre deux
+    /// fois. Dans les deux cas on préfère ne rien programmer plutôt que de
+    /// déposer une échéance que le système refusera ou dupliquera.
+    pub fn debut_local(&self) -> Option<DateTime<Local>> {
+        let heure = self.start_at.as_deref()?;
+        let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d").ok()?;
+        let t = NaiveTime::parse_from_str(heure, "%H:%M").ok()?;
+        match Local.from_local_datetime(&date.and_time(t)) {
+            chrono::LocalResult::Single(dt) => Some(dt),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

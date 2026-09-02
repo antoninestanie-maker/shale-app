@@ -31,14 +31,33 @@ export default function MentionPicker({ resultats, selection, position, onChoisi
     ref.current?.querySelector<HTMLElement>(`[data-i="${selection}"]`)?.scrollIntoView({ block: "nearest" });
   }, [selection]);
 
-  const place = position.y + HAUTEUR_MAX > window.innerHeight;
+  /**
+   * ⭐ LA HAUTEUR UTILE, PAS LA HAUTEUR DE LA FENÊTRE.
+   *
+   * ⚠️ Sur iPhone, ouvrir le clavier logiciel ne change PAS `innerHeight` : la
+   * fenêtre garde sa taille, le clavier se pose par-dessus. Un sélecteur placé
+   * d'après `innerHeight` s'affiche donc **sous le clavier**, invisible et
+   * inatteignable — exactement le défaut que le cahier des charges du chantier
+   * iOS nommait. `visualViewport` mesure ce qui reste VISIBLE, clavier déduit ;
+   * c'est la seule mesure qui dit la vérité ici.
+   *
+   * Le repli sur `innerHeight` couvre le bureau, où les deux coïncident.
+   */
+  const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
+  const hauteurUtile = vv?.height ?? window.innerHeight;
+  const largeurUtile = vv?.width ?? window.innerWidth;
+  // `offsetTop` : la partie visible peut aussi être DÉCALÉE vers le bas quand
+  // la page a été poussée par le clavier.
+  const basVisible = (vv?.offsetTop ?? 0) + hauteurUtile;
+
+  const place = position.y + HAUTEUR_MAX > basVisible;
 
   return (
     <div
       ref={ref}
       className="card card-solid fixed z-50 max-h-[16rem] w-72 overflow-y-auto p-1 shadow-lg"
       style={{
-        left: Math.min(position.x, window.innerWidth - 300),
+        left: Math.max(8, Math.min(position.x, largeurUtile - 296)),
         top: place ? undefined : position.y + 6,
         bottom: place ? window.innerHeight - position.y + 22 : undefined,
       }}
@@ -57,7 +76,7 @@ export default function MentionPicker({ resultats, selection, position, onChoisi
               e.preventDefault();
               onChoisir(r);
             }}
-            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
+            className={`cible-tactile-ligne flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
               i === selection ? "bg-overlay-2 text-text" : "text-text-dim hover:bg-overlay"
             }`}
           >

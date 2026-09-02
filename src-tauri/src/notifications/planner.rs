@@ -65,7 +65,11 @@ pub struct Planned {
 /// « Prochaine » au sens strict : si l'heure du jour est déjà passée, on vise
 /// demain. Déposer une échéance passée n'est pas neutre — le greffon iOS lève
 /// `pastScheduledTime` et l'appel échoue (`MOBILE.md` § 13.2).
-pub fn instants_a_sonder(now: DateTime<Local>, prefs: &Prefs) -> Vec<DateTime<Local>> {
+pub fn instants_a_sonder(
+    now: DateTime<Local>,
+    snapshot: &Snapshot,
+    prefs: &Prefs,
+) -> Vec<DateTime<Local>> {
     let actives = || {
         registry()
             .iter()
@@ -95,10 +99,62 @@ pub fn instants_a_sonder(now: DateTime<Local>, prefs: &Prefs) -> Vec<DateTime<Lo
     heures.sort_unstable();
     heures.dedup();
 
-    heures
+    let mut instants: Vec<DateTime<Local>> = heures
         .into_iter()
         .filter_map(|h| prochaine_occurrence(now, h))
-        .collect()
+        .collect();
+
+    instants.extend(instants_du_calendrier(now, snapshot, prefs));
+
+    // ⚠️ TRI CHRONOLOGIQUE, et il n'est pas décoratif. `plan()` s'arrête à
+    // `MAX_DEPOSEES` : sans tri, un rendez-vous de la semaine prochaine pourrait
+    // consommer une place avant le rappel d'habitudes de ce soir. Trié, le
+    // plafond garde toujours les huit échéances les plus PROCHES, qui sont
+    // aussi les seules dont l'état projeté a des chances d'être encore vrai.
+    instants.sort_unstable();
+    instants.dedup();
+    instants
+}
+
+/// ⭐ Les instants où un élément du calendrier devient IMMINENT.
+///
+/// LE PROBLÈME QUE ÇA RÉSOUT, et il était écrit noir sur blanc dans la
+/// passation du chantier B : la règle `calendar_soon` n'a pas de paramètre
+/// `hour` — un rendez-vous peut tomber à n'importe quelle heure. Elle était donc
+/// rangée parmi les règles « sans heure » et n'était sondée qu'à l'ouverture de
+/// la plage autorisée. Sur le bureau, sans conséquence : le planificateur scrute
+/// chaque minute. **Sur iOS, app fermée, seule l'échéance déposée à l'avance
+/// existe** — le rappel « dans une heure » n'était donc jamais ponctuel.
+///
+/// La parade suit exactement le § 13.5 de `MOBILE.md` : on ne réécrit aucune
+/// règle, on lui donne les bons INSTANTS à sonder. Évaluée à `début − avant`,
+/// `calendar_soon` voit le rendez-vous imminent et rend son candidat, qui est
+/// déposé pour cet instant précis.
+///
+/// ⚠️ On ne sonde QUE le futur : une date passée fait échouer le dépôt côté
+/// greffon (`pastScheduledTime`, § 13.2).
+fn instants_du_calendrier(
+    now: DateTime<Local>,
+    snapshot: &Snapshot,
+    prefs: &Prefs,
+) -> Vec<DateTime<Local>> {
+    let Some(regle) = prefs.rules.get(super::rules::calendar::ID) else {
+        return Vec::new();
+    };
+    if !regle.enabled {
+        return Vec::new();
+    }
+    let avant = regle.param_i64("avant_min", 60).clamp(5, 24 * 60);
+
+    let mut instants = Vec::new();
+    for item in &snapshot.calendar {
+        let Some(debut) = item.debut_local() else { continue };
+        let cible = debut - Duration::minutes(avant);
+        if cible > now {
+            instants.push(cible);
+        }
+    }
+    instants
 }
 
 /// Aujourd'hui à `heure`:`minute`, ou demain si c'est déjà passé.
@@ -144,7 +200,7 @@ pub fn plan(
     let mut journal: Vec<LogEntry> = log.to_vec();
     let mut sortie = Vec::new();
 
-    for t in instants_a_sonder(now, prefs) {
+    for t in instants_a_sonder(now, snapshot, prefs) {
         let ctx = EvalContext { now: t, snapshot, prefs, log: &journal };
         if let Outcome::Emit(entry) = engine::evaluate(&ctx, registry()) {
             journal.insert(0, entry.clone());
@@ -277,7 +333,7 @@ pub fn briefing_a_deposer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::notifications::model::{Habit, QuietHours, RulePrefs};
+    use crate::notifications::model::{CalendarItem, Habit, QuietHours, RulePrefs};
     use crate::notifications::test_support::{at, entry};
 
     /// Prefs minimales : les deux règles à heure fixe, actives.
@@ -415,7 +471,7 @@ mod tests {
     fn une_regle_sans_heure_est_sondee_a_l_ouverture_de_la_plage() {
         let mut p = prefs();
         p.quiet_hours = QuietHours { start: 8, end: 22 };
-        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &p);
+        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &Snapshot::default(), &p);
         assert!(
             instants.contains(&at("2026-08-27 08:00:00")),
             "8 h — première heure autorisée — attendue, eu : {instants:?}"
@@ -445,8 +501,120 @@ mod tests {
                 r.enabled = false;
             }
         }
-        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &p);
+        let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &Snapshot::default(), &p);
         assert!(!instants.contains(&at("2026-08-27 08:00:00")), "eu : {instants:?}");
+    }
+
+    // ─── Le calendrier rend le rappel PONCTUEL sur iOS ──────────────────────
+
+    fn snapshot_avec_rdv(date: &str, heure: &str) -> Snapshot {
+        Snapshot {
+            calendar: vec![CalendarItem {
+                title: "Dentiste".into(),
+                date: date.into(),
+                start_at: Some(heure.into()),
+                kind: "event",
+            }],
+            ..Default::default()
+        }
+    }
+
+    /// ⭐ LE TEST DU CHANTIER iOS.
+    ///
+    /// Sans ces instants, `calendar_soon` n'était sondée qu'à l'ouverture de la
+    /// plage autorisée : sur le bureau le scheduler rattrapait, mais **sur iOS,
+    /// app fermée, le rappel « dans une heure » n'était jamais ponctuel**.
+    #[test]
+    fn un_rendez_vous_fait_sonder_l_instant_ou_il_devient_imminent() {
+        let p = prefs();
+        let snap = snapshot_avec_rdv("2026-08-27", "14:00");
+        let instants = instants_a_sonder(at("2026-08-27 09:00:00"), &snap, &p);
+        // 60 minutes avant, par défaut.
+        assert!(
+            instants.contains(&at("2026-08-27 13:00:00")),
+            "13 h attendue, eu : {instants:?}"
+        );
+    }
+
+    #[test]
+    fn le_delai_de_prevenance_est_reglable() {
+        let mut p = prefs();
+        if let Some(r) = p.rules.get_mut(super::super::rules::calendar::ID) {
+            r.params.insert("avant_min".into(), serde_json::json!(15));
+        }
+        let snap = snapshot_avec_rdv("2026-08-27", "14:00");
+        let instants = instants_a_sonder(at("2026-08-27 09:00:00"), &snap, &p);
+        assert!(instants.contains(&at("2026-08-27 13:45:00")), "eu : {instants:?}");
+    }
+
+    #[test]
+    fn ne_sonde_jamais_un_instant_deja_passe() {
+        // Une date passée fait ÉCHOUER le dépôt côté greffon
+        // (`pastScheduledTime`, MOBILE.md § 13.2) : ce n'est pas une élégance.
+        let p = prefs();
+        let snap = snapshot_avec_rdv("2026-08-27", "14:00");
+        let instants = instants_a_sonder(at("2026-08-27 13:30:00"), &snap, &p);
+        assert!(!instants.contains(&at("2026-08-27 13:00:00")), "eu : {instants:?}");
+    }
+
+    #[test]
+    fn un_element_sans_heure_ne_fait_rien_sonder() {
+        // Une échéance d'objectif pèse sur la journée, pas sur une minute.
+        let p = prefs();
+        let snap = Snapshot {
+            calendar: vec![CalendarItem {
+                title: "Rendre le dossier".into(),
+                date: "2026-08-28".into(),
+                start_at: None,
+                kind: "deadline",
+            }],
+            ..Default::default()
+        };
+        let avec = instants_a_sonder(at("2026-08-27 09:00:00"), &snap, &p);
+        let sans = instants_a_sonder(at("2026-08-27 09:00:00"), &Snapshot::default(), &p);
+        assert_eq!(avec, sans);
+    }
+
+    #[test]
+    fn la_regle_desactivee_ne_fait_rien_sonder() {
+        let mut p = prefs();
+        if let Some(r) = p.rules.get_mut(super::super::rules::calendar::ID) {
+            r.enabled = false;
+        }
+        let snap = snapshot_avec_rdv("2026-08-27", "14:00");
+        let instants = instants_a_sonder(at("2026-08-27 09:00:00"), &snap, &p);
+        assert!(!instants.contains(&at("2026-08-27 13:00:00")), "eu : {instants:?}");
+    }
+
+    #[test]
+    fn les_instants_sont_rendus_dans_l_ordre_chronologique() {
+        // `plan()` s'arrête à MAX_DEPOSEES : sans tri, un rendez-vous lointain
+        // consommerait une place avant le rappel d'habitudes de ce soir.
+        let p = prefs();
+        let snap = Snapshot {
+            calendar: vec![
+                CalendarItem { title: "Tard".into(), date: "2026-08-28".into(), start_at: Some("18:00".into()), kind: "event" },
+                CalendarItem { title: "Tôt".into(), date: "2026-08-27".into(), start_at: Some("11:00".into()), kind: "event" },
+            ],
+            ..Default::default()
+        };
+        let instants = instants_a_sonder(at("2026-08-27 09:00:00"), &snap, &p);
+        let mut trie = instants.clone();
+        trie.sort_unstable();
+        assert_eq!(instants, trie);
+    }
+
+    #[test]
+    fn le_rappel_depose_tombe_bien_a_l_heure_voulue() {
+        // De bout en bout : le plan contient une échéance À 13 h pour un
+        // rendez-vous de 14 h. C'est ce que le système recevra.
+        let p = prefs();
+        let snap = snapshot_avec_rdv("2026-08-27", "14:00");
+        let plans = plan(at("2026-08-27 09:00:00"), &snap, &p, &[]);
+        let rdv = plans.iter().find(|x| x.entry.rules.iter().any(|r| r == "calendar_soon"));
+        let rdv = rdv.expect("un rappel de calendrier était attendu");
+        assert_eq!(rdv.at, at("2026-08-27 13:00:00"));
+        assert!(rdv.entry.body.contains("Dentiste"), "eu : {}", rdv.entry.body);
     }
 
     /// L'identifiant doit être stable : sans ça, reprogrammer laisserait des

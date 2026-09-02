@@ -26,6 +26,19 @@ const PAS_MIN = 15;
 /** Distance en pixels au-delà de laquelle un appui devient un glissement. */
 const SEUIL_GLISSEMENT = 6;
 
+/**
+ * ⭐ AU DOIGT, IL FAUT UN APPUI LONG — et ce n'est pas une préférence.
+ *
+ * À la souris, un déplacement de six pixels ne peut être qu'un glissement
+ * délibéré : la molette fait défiler, le curseur ne sert qu'à pointer. Au doigt,
+ * le MÊME geste sert à faire défiler la grille. Sans appui long, un simple
+ * défilement vertical arracherait la première tâche touchée et la déposerait
+ * quelques heures plus bas — sans erreur, sans annulation possible.
+ *
+ * 400 ms : au-delà l'attente se sent, en deçà le défilement redevient dangereux.
+ */
+const APPUI_LONG_MS = 400;
+
 export interface Props {
   jours: string[];
   parJour: ReadonlyMap<string, EntreeAgenda[]>;
@@ -104,38 +117,87 @@ export default function GrilleHoraire({
       // ⚠️ Un événement récurrent ne se déplace pas d'un jour : sa série serait
       // silencieusement rompue. Il s'ouvre, et l'utilisateur décide.
       if (entree.kind === "recurrence" || entree.kind === "deadline") return;
+      const auDoigt = e.pointerType === "touch";
       geste.current = { entree, x: e.clientX, y: e.clientY, actif: false };
       const depart = { x: e.clientX, y: e.clientY };
       setGlissement({ entree, x: e.clientX, y: e.clientY, actif: false });
 
+      /**
+       * Au doigt, le glissement ne s'arme qu'après l'appui long — et un
+       * mouvement AVANT l'échéance l'annule : c'est un défilement, pas une
+       * saisie. À la souris, l'armement est immédiat, seul le seuil compte.
+       */
+      let arme = !auDoigt;
+      /**
+       * ⚠️ « Armé » n'est pas « déplacé ». Au doigt, l'appui long met la carte
+       * en main — mais un appui long suivi d'un simple relâchement, sans le
+       * moindre mouvement, ne veut PAS dire « pose-la ici » : elle y est déjà.
+       * Sans ce second drapeau, une pression un peu longue sur une tâche sans
+       * horaire suffisait à lui en donner un, au hasard de l'endroit touché.
+       */
+      let deplace = false;
+      const minuterie = auDoigt
+        ? window.setTimeout(() => {
+            if (!geste.current) return;
+            arme = true;
+            geste.current.actif = true;
+            setGlissement({ ...geste.current, actif: true });
+            vibrer();
+          }, APPUI_LONG_MS)
+        : 0;
+
       const bouger = (ev: PointerEvent) => {
         const g = geste.current;
         if (!g) return;
-        g.actif =
-          g.actif || Math.hypot(ev.clientX - depart.x, ev.clientY - depart.y) > SEUIL_GLISSEMENT;
+        const distance = Math.hypot(ev.clientX - depart.x, ev.clientY - depart.y);
+        if (!arme) {
+          // Le doigt a bougé avant l'appui long : c'est un défilement. On rend
+          // la main au navigateur plutôt que de voler son geste à l'utilisateur.
+          if (distance > SEUIL_GLISSEMENT) {
+            window.clearTimeout(minuterie);
+            annuler();
+          }
+          return;
+        }
+        if (distance > SEUIL_GLISSEMENT) deplace = true;
+        g.actif = g.actif || deplace;
         g.x = ev.clientX;
         g.y = ev.clientY;
         setGlissement({ entree: g.entree, x: g.x, y: g.y, actif: g.actif });
         if (g.actif) setCible(creneauSous(ev.clientX, ev.clientY));
       };
 
-      const lacher = (ev: PointerEvent) => {
+      const detacher = () => {
+        window.clearTimeout(minuterie);
         window.removeEventListener("pointermove", bouger);
         window.removeEventListener("pointerup", lacher);
         window.removeEventListener("pointercancel", lacher);
+      };
+
+      function annuler() {
+        detacher();
+        geste.current = null;
+        setGlissement(null);
+        setCible(null);
+      }
+
+      function lacher(ev: PointerEvent) {
+        detacher();
         const g = geste.current;
         geste.current = null;
         setGlissement(null);
         setCible(null);
         if (!g) return;
         // Un simple clic (jamais franchi le seuil) OUVRE, il ne déplace pas.
-        if (!g.actif) {
-          onOuvrir(g.entree);
+        // Et au doigt, un appui long RELÂCHÉ SUR PLACE n'est pas un dépôt : la
+        // carte n'a pas bougé, il n'y a rien à écrire.
+        if (!g.actif || !deplace) {
+          if (!g.actif) onOuvrir(g.entree);
           return;
         }
         const creneau = creneauSous(ev.clientX, ev.clientY);
         if (creneau) onDeposer(g.entree, creneau.jour, creneau.heure);
-      };
+      }
 
       window.addEventListener("pointermove", bouger);
       window.addEventListener("pointerup", lacher);
@@ -145,7 +207,18 @@ export default function GrilleHoraire({
   );
 
   return (
-    <div className="relative select-none">
+    /**
+     * ⚠️ `data-glisse` coupe le défilement UNIQUEMENT pendant qu'un glissement
+     * est armé (`touch-action: none`, cf. `index.css`).
+     *
+     * Le poser en permanence sur la grille empêcherait tout défilement au doigt
+     * — on ne pourrait plus atteindre l'après-midi. Le poser sur les seules
+     * cartes empêcherait de faire défiler en partant d'une carte, c'est-à-dire
+     * la moitié de la surface. En le posant à l'armement, on garde les deux :
+     * on défile librement, et dès que l'appui long a pris, le doigt ne fait plus
+     * que déplacer.
+     */
+    <div className="relative select-none" data-glisse={glissement?.actif ? "1" : undefined}>
       {/* En-tête des jours */}
       <div
         className="sticky top-0 z-10 grid border-b border-border bg-surface"
@@ -161,7 +234,7 @@ export default function GrilleHoraire({
               onClick={() => onJour?.(jour)}
               data-tip={t("Ouvrir la note de ce jour")}
               data-tip-sub={t("Le journal et le calendrier partagent la même journée.")}
-              className="flex flex-col items-center py-2 transition-colors hover:bg-overlay"
+              className="cible-tactile flex flex-col items-center justify-center py-2 transition-colors hover:bg-overlay"
             >
               {/* ⚠️ Le nom du jour vient d'`Intl`, PAS de `DAY_SHORT`.
                   Vu à l'écran en basculant l'app en anglais : `DAY_SHORT` est
@@ -252,6 +325,23 @@ export default function GrilleHoraire({
       )}
     </div>
   );
+}
+
+/**
+ * Retour haptique quand le glissement s'arme.
+ *
+ * ⚠️ `navigator.vibrate` N'EXISTE PAS sur iOS Safari ni dans une WKWebView : le
+ * garde n'est pas une politesse, sans lui l'appel lève. Le geste reste correct
+ * sans vibration — c'est le contour bleu du jeton qui dit qu'il est saisi, la
+ * vibration n'est qu'un renfort là où elle existe (Android, et le jour où Apple
+ * l'ouvrira).
+ */
+function vibrer(): void {
+  try {
+    navigator.vibrate?.(12);
+  } catch {
+    /* rien : un appareil sans vibreur n'est pas une erreur */
+  }
 }
 
 /** Le créneau sous ce point de l'écran, ou `null`. */
@@ -377,7 +467,7 @@ function Chip({
     <button
       type="button"
       onPointerDown={onPointerDown}
-      className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.7rem]"
+      className="cible-tactile-ligne block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.7rem]"
       style={{
         backgroundColor: couleurDe(entree),
         borderLeft: `2px solid ${bordDe(entree)}`,

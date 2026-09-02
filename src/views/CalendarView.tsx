@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EventModal from "../components/calendrier/EventModal";
 import GrilleHoraire from "../components/calendrier/GrilleHoraire";
+import VueAgenda from "../components/calendrier/VueAgenda";
 import { IconAlert, IconCalendar, IconChevronLeft, IconChevronRight } from "../components/icons";
 import {
   entreesDeLaPlage,
   entreesDuJour,
   grilleDuMois,
+  joursEntre,
   moisDe,
   semaineDe,
   type EntreeAgenda,
@@ -31,6 +33,7 @@ import {
 import { demandeUneDecision, replanifier, reporter } from "../lib/taches";
 import type { AppData, CalendarEvent, Task } from "../lib/types";
 import { localeTag, t, tp } from "../lib/i18n";
+import { estTelephone, useIsPhone } from "../lib/platform";
 
 /**
  * Le 13ᵉ module — Calendrier.
@@ -43,7 +46,10 @@ import { localeTag, t, tp } from "../lib/i18n";
  * suggérés sont un fond en pointillé ; c'est Antonin qui dépose.
  */
 
-type Mode = "mois" | "semaine" | "jour";
+type Mode = "agenda" | "mois" | "semaine" | "jour";
+
+/** Sur combien de jours la vue agenda déroule. Un mois : au-delà, on planifie. */
+const AGENDA_JOURS = 30;
 
 /**
  * Combien d'alertes de chaque famille le bandeau montre avant de compter le
@@ -62,10 +68,35 @@ const MAX_ALERTES = 2;
  * l'affichage : un `t()` ici serait évalué à l'import, donc figé dans la langue
  * de démarrage.
  */
-const MODES: { id: Mode; label: string; aide: string }[] = [
-  { id: "mois", label: "Mois", aide: "Vue d'ensemble : ce qui est chargé, ce qui est libre." },
-  { id: "semaine", label: "Semaine", aide: "L'horizon où la planification se décide." },
-  { id: "jour", label: "Jour", aide: "La grille horaire, pour poser les créneaux." },
+const MODES: { id: Mode; label: string; aide: string; telephone: boolean }[] = [
+  {
+    id: "agenda",
+    label: "Agenda",
+    aide: "Ce qui vient, dans l'ordre où ça vient.",
+    telephone: true,
+  },
+  {
+    id: "mois",
+    label: "Mois",
+    aide: "Vue d'ensemble : ce qui est chargé, ce qui est libre.",
+    // ⚠️ Sept colonnes sur six pouces : chaque jour ferait moins de cinquante
+    // points et ne montrerait qu'un titre coupé. La vue est retirée du
+    // téléphone, pas rétrécie — une forme illisible ne s'améliore pas en
+    // devenant plus petite.
+    telephone: false,
+  },
+  {
+    id: "semaine",
+    label: "Semaine",
+    aide: "L'horizon où la planification se décide.",
+    telephone: false,
+  },
+  {
+    id: "jour",
+    label: "Jour",
+    aide: "La grille horaire, pour poser les créneaux.",
+    telephone: true,
+  },
 ];
 
 interface Props {
@@ -75,7 +106,13 @@ interface Props {
 
 export default function CalendarView({ data, refresh }: Props) {
   const aujourdhui = todayStr();
-  const [mode, setMode] = useState<Mode>("semaine"); // l'horizon où l'on planifie
+  const isPhone = useIsPhone();
+  /**
+   * ⚠️ Deux défauts, parce que ce sont deux usages. Sur le bureau, la SEMAINE :
+   * l'horizon où la planification se décide. Sur téléphone, l'AGENDA : on y
+   * consulte bien plus qu'on n'y planifie, et sept colonnes n'y tiennent pas.
+   */
+  const [mode, setMode] = useState<Mode>(() => (estTelephone() ? "agenda" : "semaine"));
   const [curseur, setCurseur] = useState(aujourdhui);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [modale, setModale] = useState<{ event: CalendarEvent | null; jour: string; heure: string | null } | null>(null);
@@ -84,6 +121,11 @@ export default function CalendarView({ data, refresh }: Props) {
   const jours = useMemo(() => {
     if (mode === "jour") return [curseur];
     if (mode === "semaine") return semaineDe(curseur);
+    if (mode === "agenda") {
+      const fin = new Date(`${curseur}T12:00:00`);
+      fin.setDate(fin.getDate() + AGENDA_JOURS - 1);
+      return joursEntre(curseur, toDateStr(fin));
+    }
     return grilleDuMois(curseur);
   }, [mode, curseur]);
 
@@ -271,7 +313,7 @@ export default function CalendarView({ data, refresh }: Props) {
             onClick={() => naviguer(-1)}
             data-tip={t("Précédent")}
             aria-label={t("Précédent")}
-            className="pill p-2 text-text-dim hover:bg-overlay hover:text-text"
+            className="pill cible-tactile flex items-center justify-center p-2 text-text-dim hover:bg-overlay hover:text-text"
           >
             <IconChevronLeft className="h-4 w-4" />
           </button>
@@ -279,7 +321,7 @@ export default function CalendarView({ data, refresh }: Props) {
             type="button"
             onClick={() => setCurseur(aujourdhui)}
             data-tip={t("Revenir à aujourd'hui")}
-            className="pill px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-overlay hover:text-text"
+            className="pill cible-tactile-ligne px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-overlay hover:text-text"
           >
             {t("Aujourd'hui")}
           </button>
@@ -288,7 +330,7 @@ export default function CalendarView({ data, refresh }: Props) {
             onClick={() => naviguer(1)}
             data-tip={t("Suivant")}
             aria-label={t("Suivant")}
-            className="pill p-2 text-text-dim hover:bg-overlay hover:text-text"
+            className="pill cible-tactile flex items-center justify-center p-2 text-text-dim hover:bg-overlay hover:text-text"
           >
             <IconChevronRight className="h-4 w-4" />
           </button>
@@ -297,14 +339,14 @@ export default function CalendarView({ data, refresh }: Props) {
         <span className="mx-1 h-4 w-px bg-border" />
 
         <div className="flex gap-1.5">
-          {MODES.map((m) => (
+          {MODES.filter((m) => !isPhone || m.telephone).map((m) => (
             <button
               key={m.id}
               type="button"
               onClick={() => setMode(m.id)}
               data-tip={t(m.label)}
               data-tip-sub={t(m.aide)}
-              className={`pill border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`pill cible-tactile-ligne border px-3 py-1.5 text-xs font-medium transition-colors ${
                 mode === m.id
                   ? "border-border-strong bg-overlay-2 text-text"
                   : "border-border text-text-dim hover:text-text"
@@ -336,8 +378,29 @@ export default function CalendarView({ data, refresh }: Props) {
         }}
       />
 
+      {/* ⚠️ Si la rotation fait passer en téléphone alors qu'on était en vue
+          semaine, on retombe sur l'agenda : rester sur une vue retirée du menu
+          laisserait l'utilisateur devant un écran qu'il ne peut plus quitter. */}
+      {isPhone && !MODES.find((m) => m.id === mode)?.telephone && (
+        <ModeRetombe onRetomber={() => setMode("agenda")} />
+      )}
+
       <section className="card mt-6 overflow-hidden">
-        {mode === "mois" ? (
+        {mode === "agenda" ? (
+          <div className="max-h-[70vh] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
+            <VueAgenda
+              depuis={curseur}
+              jours={AGENDA_JOURS}
+              parJour={parJour}
+              aujourdhui={aujourdhui}
+              onOuvrir={ouvrir}
+              onJour={(jour) => {
+                setCurseur(jour);
+                setMode("jour");
+              }}
+            />
+          </div>
+        ) : mode === "mois" ? (
           <VueMois
             jours={jours}
             mois={moisDe(curseur)}
@@ -399,6 +462,14 @@ export default function CalendarView({ data, refresh }: Props) {
       )}
     </div>
   );
+}
+
+/** Repli silencieux quand la rotation retire la vue courante du menu. */
+function ModeRetombe({ onRetomber }: { onRetomber: () => void }) {
+  useEffect(() => {
+    onRetomber();
+  }, [onRetomber]);
+  return null;
 }
 
 // ─── Le bandeau d'intelligence ───────────────────────────────────────────────
@@ -497,17 +568,17 @@ function BandeauIntelligence({
               </span>
             </span>
             <span className="ml-auto flex gap-1.5">
-              <button type="button" onClick={() => void onFait(tache)} className="pill border border-border px-2.5 py-1 text-xs hover:bg-overlay">
+              <button type="button" onClick={() => void onFait(tache)} className="pill cible-tactile-ligne border border-border px-2.5 py-1 text-xs hover:bg-overlay">
                 {t("La faire maintenant")}
               </button>
               <button
                 type="button"
                 onClick={() => void onReplanifier(tache, addDays(aujourdhui, 7))}
-                className="pill border border-border px-2.5 py-1 text-xs hover:bg-overlay"
+                className="pill cible-tactile-ligne border border-border px-2.5 py-1 text-xs hover:bg-overlay"
               >
                 {t("Replanifier dans 7 jours")}
               </button>
-              <button type="button" onClick={() => void onSupprimer(tache)} className="pill border border-border px-2.5 py-1 text-xs text-text-dim hover:text-red">
+              <button type="button" onClick={() => void onSupprimer(tache)} className="pill cible-tactile-ligne border border-border px-2.5 py-1 text-xs text-text-dim hover:text-red">
                 {t("Supprimer")}
               </button>
             </span>

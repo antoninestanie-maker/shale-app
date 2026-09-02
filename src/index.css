@@ -713,6 +713,37 @@
     row-gap: 0.75rem;
   }
 
+  /* ─── Cibles tactiles (chantier iOS, 2026-09-02) ───────────────────────────
+     Apple recommande 44 pt ; le dépôt s'y tient sans avoir de token pour le
+     dire (`grep '--tap'` rend zéro, c'est le token du SITE, pas de l'app).
+
+     ⚠️ SOUS `pointer: coarse` UNIQUEMENT, et c'est le point important. Élargir
+     partout gonflerait toutes les barres d'outils du bureau, où une cible de
+     28 px se vise parfaitement à la souris — la densité de l'app est un choix,
+     pas un oubli. Ici on ne corrige que ce qui se rate au doigt.
+
+     `pointer: coarse` plutôt qu'une largeur : une tablette au stylet et un
+     iPhone en paysage ont des largeurs très différentes et le même besoin. */
+  @media (pointer: coarse) {
+    .cible-tactile {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Les lignes de liste : la hauteur suffit, la largeur est déjà pleine. */
+    .cible-tactile-ligne {
+      min-height: 44px;
+    }
+  }
+
+  /* Glissement en cours dans la grille horaire (chantier iOS, 2026-09-02).
+     Tant qu'aucun glissement n'est armé, la grille défile normalement au
+     doigt ; dès que l'appui long a pris, le doigt ne fait plus que déplacer.
+     Sans cette bascule, il fallait choisir entre « on ne peut pas défiler » et
+     « on ne peut pas glisser ». */
+  [data-glisse="1"] {
+    touch-action: none;
+  }
+
   /* ─── Mentions `@` (chantier C, 2026-09-02) ────────────────────────────────
      Un jeton de mention est un ATOME : `contenteditable="false"` côté HTML,
      et ici de quoi le rendre reconnaissable sans le rendre criard. Il vit

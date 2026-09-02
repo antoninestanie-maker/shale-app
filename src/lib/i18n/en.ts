@@ -2121,4 +2121,11 @@ export const EN: Record<string, string> = {
   "Un type doit avoir un nom.": "A type needs a name.",
   "Un champ doit avoir un nom.": "A field needs a name.",
   "Deux champs portent le même identifiant.": "Two fields share the same identifier.",
+
+  // ─── Parité iPhone (2026-09-02) ───────────────────────────────────────────
+  // ⚠️ « Agenda » et son aide passent par la table `MODES`, donc par clé
+  // DYNAMIQUE : `i18n:check` ne les réclamera jamais (PIEGES.md § 5.2 bis).
+  "Agenda": "Agenda",
+  "Ce qui vient, dans l'ordre où ça vient.": "What's coming, in the order it comes.",
+  "Rien de prévu sur les {n} prochains jours.": "Nothing planned for the next {n} days.",
 };

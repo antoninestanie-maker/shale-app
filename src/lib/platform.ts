@@ -158,6 +158,19 @@ export function kbd(macShortcut: string): string {
 const REQUETE_TELEPHONE =
   "((max-width: 600px) or (max-height: 600px)) and (pointer: coarse)";
 
+/**
+ * La même question, HORS de React.
+ *
+ * ⚠️ Sert à choisir un état INITIAL (le mode par défaut du calendrier) : un
+ * crochet ne peut pas répondre avant le premier rendu, et corriger l'état juste
+ * après ferait clignoter la vue semaine une fraction de seconde sur téléphone.
+ * Partout ailleurs, `useIsPhone()` — c'est lui qui suit la rotation.
+ */
+export function estTelephone(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia(REQUETE_TELEPHONE).matches;
+}
+
 /** Vrai si l'appareil doit recevoir la navigation par onglets. */
 export function useIsPhone(): boolean {
   const [phone, setPhone] = useState(() => {

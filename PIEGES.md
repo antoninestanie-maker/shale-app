@@ -395,6 +395,49 @@ code le mentionnent.
 **Parade.** Un compte donné par un document se re-mesure avant d'être utilisé.
 `grep -rn "douze"` n'est pas `grep -rn "douze modules"`.
 
+## 7.4 bis ⭐ Ouvrir le clavier ne change PAS `innerHeight` sur iPhone
+
+**Symptôme.** Un menu déroulant, une info-bulle ou un sélecteur positionné juste
+sous le curseur s'affiche **sous le clavier logiciel** : invisible et
+inatteignable. Sur le bureau, tout est parfait.
+
+**Cause.** iOS ne redimensionne pas la fenêtre quand le clavier apparaît : il le
+pose PAR-DESSUS. `window.innerHeight` continue donc d'annoncer la hauteur totale,
+et tout calcul de dépassement fondé dessus se trompe de plusieurs centaines de
+points.
+
+**Parade.** `window.visualViewport` mesure ce qui reste **visible**, clavier
+déduit. Son `offsetTop` compte aussi : la page peut avoir été poussée vers le
+bas. Replier sur `innerHeight` pour le bureau, où les deux coïncident.
+
+```js
+const vv = window.visualViewport;
+const basVisible = (vv?.offsetTop ?? 0) + (vv?.height ?? window.innerHeight);
+```
+
+**Comment on l'a payée.** Chantier iOS, 2026-09-02 — raisonné et corrigé avant
+d'être vu, parce que le clavier logiciel n'est pas pilotable avec l'outillage
+actuel. ⚠️ **Le correctif n'est donc PAS mesuré**, seulement documenté.
+
+## 7.4 ter ⚠️ Au doigt, glisser et défiler sont le MÊME geste
+
+**Symptôme.** Un glisser-déposer conçu à la souris devient, sur téléphone, une
+machine à déplacer des éléments par accident : on essaie de faire défiler la vue,
+et le premier élément touché part avec le doigt.
+
+**Cause.** À la souris, la molette défile et le curseur ne fait que pointer : six
+pixels de déplacement ne peuvent être qu'un glissement délibéré. Au doigt, le
+même mouvement sert aux deux.
+
+**Parade.** Exiger un **appui long** (400 ms) avant d'armer le glissement quand
+`e.pointerType === "touch"`, et **annuler** si le doigt bouge avant l'échéance —
+c'est un défilement, on rend la main au navigateur. Poser `touch-action: none`
+**à l'armement seulement** : en permanence, plus rien ne défile ; sur les seules
+cartes, on ne peut plus défiler en partant d'une carte.
+
+⚠️ `navigator.vibrate` n'existe **pas** sur iOS Safari ni en WKWebView — l'appel
+lève sans garde, et le retour haptique n'est de toute façon pas disponible là.
+
 ## 7.5 `getComputedStyle` n'est pas une preuve de couleur
 
 Chromium rend une valeur périmée sous `backdrop-filter`. **La capture d'écran

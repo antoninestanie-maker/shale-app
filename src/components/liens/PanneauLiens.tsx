@@ -79,7 +79,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
           }}
           data-tip={t("Rattacher à la main")}
           data-tip-sub={t("Tout ne se dit pas dans un texte.")}
-          className="pill flex items-center gap-1 px-2 py-1 text-xs text-text-dim hover:bg-overlay hover:text-text"
+          className="pill cible-tactile flex items-center justify-center gap-1 px-2 py-1 text-xs text-text-dim hover:bg-overlay hover:text-text"
         >
           <IconPlus className="h-3.5 w-3.5" />
           {t("Lier")}
@@ -114,7 +114,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
                     setRequete("");
                     await charger();
                   }}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-dim hover:bg-overlay hover:text-text"
+                  className="cible-tactile-ligne flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-dim hover:bg-overlay hover:text-text"
                 >
                   <span className="shrink-0">{ICONE_DE_KIND[r.kind]}</span>
                   <span className="truncate">{r.titre}</span>
@@ -146,7 +146,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
                       type="button"
                       onClick={() => onOuvrir?.(l.from_kind, l.from_uid)}
                       disabled={!onOuvrir}
-                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-text hover:bg-overlay disabled:cursor-default"
+                      className="cible-tactile-ligne flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-text hover:bg-overlay disabled:cursor-default"
                     >
                       <span className="shrink-0 text-text-dim">{ICONE_DE_KIND[l.from_kind]}</span>
                       <span className="truncate">
@@ -171,7 +171,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
                         }}
                         data-tip={t("Retirer ce rattachement")}
                         aria-label={t("Retirer ce rattachement")}
-                        className="shrink-0 rounded p-1 text-text-dim opacity-0 transition-opacity hover:text-red group-hover:opacity-100"
+                        className="cible-tactile shrink-0 rounded p-1 text-text-dim transition-opacity hover:text-red md:opacity-0 md:group-hover:opacity-100"
                       >
                         <IconX className="h-3.5 w-3.5" />
                       </button>

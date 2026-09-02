@@ -148,7 +148,7 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
                 { id: nouvelIdDeChamp(c, idsConnus), name: "", type: "text", required: 0 },
               ])
             }
-            className="pill flex items-center gap-1 px-2 py-1 text-xs text-text-dim hover:bg-overlay hover:text-text"
+            className="pill cible-tactile-ligne flex items-center gap-1 px-2 py-1 text-xs text-text-dim hover:bg-overlay hover:text-text"
           >
             <IconPlus className="h-3.5 w-3.5" />
             {t("Ajouter un champ")}
@@ -199,7 +199,7 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
                   onClick={() => setChamps((c) => c.filter((_, k) => k !== i))}
                   data-tip={t("Retirer ce champ")}
                   aria-label={t("Retirer ce champ")}
-                  className="shrink-0 rounded p-1 text-text-dim hover:text-red"
+                  className="cible-tactile shrink-0 rounded p-1 text-text-dim hover:text-red"
                 >
                   <IconX className="h-4 w-4" />
                 </button>

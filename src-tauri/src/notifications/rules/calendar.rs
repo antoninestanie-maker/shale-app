@@ -11,18 +11,25 @@
 //! veille est la seule version utile. Une fenêtre unique aurait raté l'un des
 //! deux usages.
 //!
-//! ⚠️⚠️ CE QUE CETTE RÈGLE NE FAIT PAS SUR IPHONE, ET IL FAUT LE SAVOIR.
-//! Elle n'a pas de paramètre `hour`, donc le planificateur la range parmi les
-//! règles « sans heure » et ne la projette qu'à l'OUVERTURE de la plage
-//! autorisée (`planner.rs`, `instants_a_sonder`). Sur le bureau c'est sans
-//! conséquence : `scheduler.rs` scrute toutes les minutes, et un rendez-vous de
-//! 14 h est bien annoncé à 13 h. **Sur iOS, app fermée, seule l'échéance
-//! déposée à l'avance existe** : le rappel « dans une heure » n'y sera donc pas
-//! ponctuel. Le rappel « ce qui tombe demain », lui, fonctionne, puisqu'il est
-//! déjà lié à une heure fixe.
-//! Le rendre ponctuel sur iOS demanderait de déposer une échéance PAR
-//! événement, donc un chemin de dépôt nouveau — c'est du ressort du chantier
-//! iOS, et ce n'est pas fait. Ne pas écrire que c'est vérifié sur iPhone.
+//! ⭐ ELLE EST PONCTUELLE SUR IPHONE — depuis le chantier iOS (2026-09-02).
+//!
+//! Elle n'a pas de paramètre `hour`, et elle ne peut pas en avoir : un
+//! rendez-vous tombe à n'importe quelle heure. Le planificateur la rangeait donc
+//! parmi les règles « sans heure », sondées à la seule ouverture de la plage
+//! autorisée. Sur le bureau c'était sans conséquence — `scheduler.rs` scrute
+//! chaque minute — mais **sur iOS, app fermée, seule l'échéance déposée à
+//! l'avance existe** : le rappel « dans une heure » n'était jamais à l'heure.
+//!
+//! La parade ne réécrit AUCUNE règle, conformément au § 13.5 de `MOBILE.md` :
+//! `instants_du_calendrier` (`planner.rs`) ajoute aux instants sondés, pour
+//! chaque élément daté à venir, le moment `début − avant_min`. Évaluée là, cette
+//! règle voit le rendez-vous imminent et rend son candidat, déposé pour cet
+//! instant précis.
+//!
+//! ⚠️ Reste vraie une limite du modèle, commune à toutes les règles : la
+//! projection suppose que l'état ne bougera plus (en-tête de `planner.rs`). Un
+//! événement créé sur le Mac pendant que l'iPhone dort ne sera annoncé qu'à la
+//! prochaine ouverture de l'app.
 //!
 //! ⚠️ Les récurrences sont écartées à la lecture (`data.rs`) : projeter une
 //! récurrence en SQL demanderait de réécrire ici le moteur qui vit déjà dans

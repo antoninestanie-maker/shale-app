@@ -3589,3 +3589,96 @@ mentions. Il ne relie que des notes entre elles, par leur TITRE — donc il cass
 au renommage, là où `@` ne casse pas. Le retirer aurait changé le comportement
 de notes existantes sans qu'Antonin l'ait demandé ; c'est une décision qui lui
 revient, pas au chantier.
+
+## Parité iPhone du calendrier et des liaisons (2026-09-02)
+
+Le chantier D, après la fusion de B et de C. **Ce n'est pas un portage, c'est un
+chantier de design** : la grille redimensionnable du bureau n'a aucun sens sur
+un écran de six pouces, et la rétrécir ne l'améliore pas.
+
+### ⭐ Le rappel « événement imminent » est devenu PONCTUEL sur iPhone
+C'était le premier sujet, écrit noir sur blanc dans la passation du chantier B.
+
+`calendar_soon` n'a pas de paramètre `hour`, **et ne peut pas en avoir** : un
+rendez-vous tombe à n'importe quelle heure. Le planificateur la rangeait donc
+parmi les règles « sans heure », sondées à la seule ouverture de la plage
+autorisée. Sur le bureau, sans conséquence — `scheduler.rs` scrute chaque
+minute. **Sur iOS, app fermée, seule l'échéance déposée à l'avance existe** : le
+rappel n'était jamais à l'heure.
+
+La parade **ne réécrit aucune règle**, conformément au § 13.5 de `MOBILE.md` :
+`instants_du_calendrier()` ajoute aux instants sondés, pour chaque élément daté
+à venir, le moment `début − avant_min`. Évaluée là, la règle voit le rendez-vous
+imminent et rend son candidat, déposé pour cet instant précis. Sept tests Rust
+le prouvent, dont un de bout en bout : un rendez-vous de 14 h produit une
+échéance **à 13 h**.
+
+⚠️ **`instants_a_sonder` prend désormais le `Snapshot`** et rend ses instants
+**triés chronologiquement**. Le tri n'est pas décoratif : `plan()` s'arrête à
+`MAX_DEPOSEES` (8), et sans lui un rendez-vous de la semaine prochaine pouvait
+consommer une place avant le rappel d'habitudes du soir.
+
+⚠️ **Reste vraie la limite du modèle** : la projection suppose que l'état ne
+bougera plus. Un événement créé sur le Mac pendant que l'iPhone dort ne sera
+annoncé qu'à la prochaine ouverture de l'app. C'est le cas que seule la voie
+push résout (§ 3.2/3.3 de `MOBILE.md`).
+
+### La vue AGENDA, et pourquoi la vue mois disparaît du téléphone
+Sept colonnes sur six pouces font moins de cinquante points chacune : il ne
+reste qu'un titre coupé à trois lettres. **Mois et Semaine sont retirées du
+menu sur téléphone, pas rétrécies** — une forme qui ne convient pas ne
+s'améliore pas en devenant plus petite.
+
+À la place, une **liste chronologique déroulante** sur trente jours : les jours
+à la suite, ceux qui n'ont rien simplement absents. C'est le défaut sur
+téléphone ; la **semaine** reste le défaut sur le bureau, parce que ce sont deux
+usages — on consulte sur téléphone, on planifie sur ordinateur.
+
+⚠️ Le défaut se choisit avec `estTelephone()` (hors React) et non `useIsPhone()` :
+un crochet ne peut pas répondre avant le premier rendu, et corriger l'état juste
+après ferait clignoter la vue semaine sur téléphone. `useIsPhone()` reste utilisé
+pour tout le reste, parce que lui suit la rotation — et un composant de repli
+ramène sur l'agenda si la rotation retire la vue courante du menu, sinon
+l'utilisateur resterait devant un écran qu'il ne peut plus quitter.
+
+### ⭐ Le glisser-déposer au doigt : appui long, et rien d'autre
+À la souris, six pixels de déplacement ne peuvent être qu'un glissement
+délibéré. **Au doigt, le même geste sert à faire défiler la grille** : sans
+appui long, un simple défilement arracherait la première tâche touchée et la
+déposerait quelques heures plus bas, sans erreur ni annulation possible.
+
+400 ms — au-delà l'attente se sent, en deçà le défilement redevient dangereux.
+Un mouvement AVANT l'échéance **annule** le glissement : c'est un défilement, et
+on rend la main au navigateur plutôt que de voler son geste à l'utilisateur.
+
+⚠️ **`touch-action: none` est posé À L'ARMEMENT seulement**, par un attribut
+`data-glisse` sur la racine de la grille. Le poser en permanence empêcherait tout
+défilement au doigt ; le poser sur les seules cartes empêcherait de défiler en
+partant d'une carte, c'est-à-dire sur la moitié de la surface.
+
+⚠️ `navigator.vibrate` **n'existe pas** sur iOS Safari ni en WKWebView — le garde
+n'est pas une politesse, sans lui l'appel lève. Le geste reste correct sans
+vibration : c'est le contour du jeton qui dit qu'il est saisi.
+
+### ⭐ Le sélecteur `@` et le clavier logiciel
+⚠️ **Ouvrir le clavier ne change PAS `innerHeight` sur iPhone** : la fenêtre
+garde sa taille, le clavier se pose par-dessus. Un sélecteur placé d'après
+`innerHeight` s'affiche donc **sous le clavier**, invisible et inatteignable.
+
+`visualViewport` mesure ce qui reste visible, clavier déduit — c'est la seule
+mesure qui dise la vérité ici. Son `offsetTop` compte aussi : la page peut être
+poussée vers le bas. Repli sur `innerHeight` pour le bureau, où les deux
+coïncident.
+
+### Les cibles tactiles : un utilitaire, pas une refonte
+`.cible-tactile` et `.cible-tactile-ligne` portent le minimum de 44 pt, **sous
+`@media (pointer: coarse)` uniquement**. Élargir partout gonflerait toutes les
+barres d'outils du bureau, où une cible de 28 px se vise parfaitement à la
+souris — la densité de l'app est un choix, pas un oubli.
+
+`pointer: coarse` plutôt qu'une largeur : une tablette au stylet et un iPhone en
+paysage ont des largeurs très différentes et le même besoin.
+
+**19 cibles** ajoutées par les chantiers B et C sont passées au-dessus du seuil.
+⚠️ Cela ne règle PAS les 62 cibles anciennes recensées dans
+`AMELIORATIONS-UI.md` § 8 — elles restent entières.
