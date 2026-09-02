@@ -60,12 +60,14 @@ export default function VueAgenda({
         const d = new Date(`${jour}T12:00:00`);
         return (
           <li key={jour}>
-            {/* ⚠️ 44 pt de haut au minimum : c'est aussi le bouton qui ouvre la
-                journée, et une cible de 30 pt se rate une fois sur trois. */}
+            {/* ⚠️ 44 pt AU DOIGT : c'est aussi le bouton qui ouvre la journée,
+                et une cible de 30 pt se rate une fois sur trois. À la souris on
+                garde la densité de l'app — `cible-tactile-ligne` ne s'applique
+                que sous `pointer: coarse`. */}
             <button
               type="button"
               onClick={() => onJour(jour)}
-              className="flex min-h-[44px] w-full items-baseline gap-2 px-4 py-2 text-left"
+              className="cible-tactile-ligne flex w-full items-baseline gap-2 px-4 py-2 text-left"
             >
               <span
                 className={`text-sm font-semibold ${
@@ -90,7 +92,7 @@ export default function VueAgenda({
                   <button
                     type="button"
                     onClick={() => onOuvrir(e)}
-                    className="flex min-h-[44px] w-full items-center gap-3 px-4 text-left"
+                    className="cible-tactile-ligne flex w-full items-center gap-3 px-4 py-1.5 text-left"
                   >
                     <span
                       className="h-8 w-0.5 shrink-0 rounded-full"
