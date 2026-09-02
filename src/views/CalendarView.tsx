@@ -281,6 +281,18 @@ export default function CalendarView({ data, refresh }: Props) {
     if (mode === "jour") {
       return d.toLocaleDateString(localeTag(), { weekday: "long", day: "numeric", month: "long" });
     }
+    if (mode === "agenda") {
+      // ⚠️ Vu à l'écran sur le simulateur : sans cette branche, l'agenda
+      // héritait du titre de la SEMAINE et annonçait « 31 août – 6 sept. » pour
+      // une vue qui couvre trente jours. Un en-tête qui ment sur ce qu'on
+      // regarde est pire qu'un en-tête absent.
+      const fin = new Date(`${curseur}T12:00:00`);
+      fin.setDate(fin.getDate() + AGENDA_JOURS - 1);
+      return `${d.toLocaleDateString(localeTag(), { day: "numeric", month: "short" })} – ${fin.toLocaleDateString(
+        localeTag(),
+        { day: "numeric", month: "short" },
+      )}`;
+    }
     const s = semaineDe(curseur);
     const debut = new Date(`${s[0]}T12:00:00`).toLocaleDateString(localeTag(), { day: "numeric", month: "short" });
     const fin = new Date(`${s[6]}T12:00:00`).toLocaleDateString(localeTag(), { day: "numeric", month: "short" });
