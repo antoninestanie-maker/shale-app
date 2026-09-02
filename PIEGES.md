@@ -69,6 +69,36 @@ pendant la nuit sans lui dire cette condition. Et vérifier l'état réel du dis
 **Comment on l'a payée.** 2026-09-02 : quatre chantiers armés à 1 h du matin,
 zéro exécuté, découvert à 10 h 45.
 
+## 1.2 bis ⭐ Une boucle d'attente en `pgrep -f` se voit ELLE-MÊME
+
+**Symptôme.** On lance `until ! pgrep -f "ma-commande"; do sleep 20; done` pour
+attendre la fin d'une compilation. La compilation se termine — et la boucle
+**continue indéfiniment**. Les notifications n'arrivent jamais, on finit par
+sonder à la main, et des shells tournent en fond pendant des heures.
+
+**Cause.** `pgrep -f` cherche dans la ligne de commande COMPLÈTE de chaque
+processus. La boucle d'attente contient le motif recherché **dans sa propre
+ligne de commande** : elle se trouve elle-même, donc la condition n'est jamais
+fausse.
+
+**Parade.** Guetter un ARTEFACT plutôt qu'un processus — c'est plus sûr et plus
+lisible :
+
+```bash
+until [ -d chemin/vers/la/sortie ]; do sleep 20; done
+```
+
+Si le processus est vraiment le seul repère, exclure sa propre boucle :
+`pgrep -f "ma-commande" | grep -v "^$$\$"`, ou mieux, garder le PID rendu au
+lancement et interroger `kill -0 "$PID"`.
+
+⚠️ Corollaire du § 8.2 bis : avant de tuer ce que `pgrep` a trouvé, **lire
+`ps -p <PID> -o command=`**. Ici, les trois « compilations encore actives »
+étaient trois boucles d'attente — pas une seule compilation.
+
+**Comment on l'a payée.** Chantier iOS, 2026-09-02 : trois guetteurs armés, zéro
+notification utile, et un sondage manuel à la place.
+
 ## 1.3 `timeout` n'existe pas sur cette machine
 
 **Symptôme.** `(eval):1: command not found: timeout`.
