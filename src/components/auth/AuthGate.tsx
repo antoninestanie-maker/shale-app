@@ -133,11 +133,21 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     );
 
   // Le bandeau lit `status` en direct, sans passer par `entitlementsOf` — d'où
-  // le rappel du drapeau ici. Sans lui, la base ouvre bien une ligne
-  // `trialing` à la création du compte (c'est son rôle, indépendamment de
-  // Stripe) et l'app affichait « Essai gratuit — 7 jours restants · Choisir ma
-  // formule » à un utilisateur qui a déjà tout et n'a rien à choisir : une
-  // échéance inventée au-dessus d'un produit sans mur de paiement.
+  // le rappel du drapeau ici.
+  //
+  // ⚠️ CORRIGÉ LE 2026-09-02 : ce commentaire décrivait l'inverse de la réalité.
+  // Il disait que « la base ouvre une ligne `trialing` à la création du compte,
+  // indépendamment de Stripe ». C'était vrai jusqu'au 2026-08-31 ; depuis, le
+  // trigger d'inscription écrit `status = 'none'` et **l'essai vient de Stripe**
+  // (migration 004 du site) — il n'existe qu'après enregistrement d'une carte.
+  //
+  // Le garde `STRIPE_ENABLED` reste, et il garde son sens : si la boutique était
+  // refermée un jour, un `trialing` résiduel en base ne devrait pas faire
+  // réapparaître une échéance au-dessus d'un produit redevenu sans mur.
+  //
+  // Décision d'Antonin, 2026-09-02 : l'essai est POSSIBLE mais pas OBLIGATOIRE.
+  // Le bandeau ne s'affiche donc que pour qui en a réellement un — celui qui
+  // s'abonne directement (`sansEssai`) ne verra jamais d'échéance inventée.
   //
   // `entitlementsOf` serait le bon appel, mais `entitlements.ts` importe
   // `useSession` d'ici : le cycle d'imports rendrait ce module fragile pour un

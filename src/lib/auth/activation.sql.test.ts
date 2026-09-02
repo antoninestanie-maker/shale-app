@@ -81,7 +81,19 @@ beforeAll(async () => {
 
   // Les comptes existent AVANT la migration — c'est le cas réel : l'inscription
   // était ouverte depuis le 2026-08-11. Le trigger de `schema.sql` leur ouvre à
-  // chacun une ligne `subscriptions` avec un essai en cours.
+  // chacun une ligne `subscriptions`.
+  //
+  // ⚠️ CETTE LIGNE N'EST PLUS UN ESSAI. Jusqu'au 2026-08-31, le trigger ouvrait
+  // sept jours d'essai à l'inscription, sans carte. Depuis l'ouverture de la
+  // boutique, il écrit `status = 'none'` et `trial_ends_at = null` :
+  // **l'essai vient de Stripe**, et c'est le webhook qui écrit `trialing` une
+  // fois la carte enregistrée (migration 004 du site).
+  //
+  // Décision d'Antonin, 2026-09-02 : l'essai reste POSSIBLE, il n'est pas
+  // OBLIGATOIRE — le Checkout accepte `sansEssai` pour s'abonner directement,
+  // et `trial_period_days` n'est posé qu'à la première souscription.
+  // Les tests ci-dessous mettent donc l'essai en place EXPLICITEMENT, comme le
+  // ferait le webhook, au lieu de l'attendre de l'inscription.
   for (const [id, email] of [
     [PROPRIETAIRE_ID, PROPRIETAIRE_EMAIL],
     [INVITE_ID, "invite@exemple.com"],
@@ -140,19 +152,49 @@ describe("003_activation.sql", () => {
       expect(await lireMonAbonnement(INCONNU_ID)).toMatchObject({ activated: false });
     });
 
-    // LE point de la migration. Le trigger de `schema.sql` ouvre un essai à
-    // chaque inscription, donc `is_active` est vrai pour TOUT LE MONDE dès la
-    // création du compte. Si l'activation se contentait de le refléter, il
-    // suffirait de s'inscrire pour entrer — c'est-à-dire exactement la situation
-    // qu'on voulait quitter.
+    // ⭐ Depuis le 2026-08-31, une inscription seule ne donne RIEN : ni essai,
+    // ni accès. C'est le tunnel de paiement qui ouvre les deux.
+    it("une inscription seule ne donne ni essai ni accès", async () => {
+      expect(await lireMonAbonnement(INCONNU_ID)).toMatchObject({
+        status: "none",
+        is_active: false,
+        activated: false,
+      });
+    });
+
+    // ⭐ LE point de la migration 003, et il vaut toujours : `is_active` (payer)
+    // et `activated` (être admis) sont deux questions distinctes. Si l'activation
+    // se contentait de refléter l'abonnement, il suffirait d'un essai pour
+    // entrer — la situation qu'on voulait quitter.
+    //
+    // ⚠️ L'essai est posé ICI À LA MAIN, comme le ferait le webhook Stripe.
+    // L'attendre de l'inscription était vrai jusqu'au 2026-08-31 et ne l'est
+    // plus : ce test a échoué pendant deux jours pour cette seule raison.
     it("n'active PAS un compte au seul motif que son essai gratuit court", async () => {
-      const inconnu = await lireMonAbonnement(INCONNU_ID);
-      expect(inconnu).toMatchObject({ status: "trialing", is_active: true, activated: false });
+      await db.query(
+        "update public.subscriptions set status = 'trialing', trial_ends_at = now() + interval '7 days' where user_id = $1",
+        [INCONNU_ID],
+      );
+      expect(await lireMonAbonnement(INCONNU_ID)).toMatchObject({
+        status: "trialing",
+        is_active: true,
+        activated: false,
+      });
+      // On remet le compte dans son état d'inscription : les tests suivants ne
+      // doivent pas hériter d'un essai que personne ne leur a donné.
+      await db.query(
+        "update public.subscriptions set status = 'none', trial_ends_at = null where user_id = $1",
+        [INCONNU_ID],
+      );
     });
 
     it("garde l'essai et l'activation indépendants — un essai expiré n'éteint pas l'activation", async () => {
+      // ⚠️ `status = 'trialing'` fait partie de la mise en place, et ce n'est pas
+      // du décor : la vue ne calcule `expired` que pour un essai EN COURS
+      // (`s.status = 'trialing' and s.trial_ends_at <= now()`). Sans lui, on
+      // périme une date que personne ne regarde, et le test dort.
       await db.query(
-        "update public.subscriptions set trial_ends_at = now() - interval '1 day' where user_id = $1",
+        "update public.subscriptions set status = 'trialing', trial_ends_at = now() - interval '1 day' where user_id = $1",
         [PROPRIETAIRE_ID],
       );
       expect(await lireMonAbonnement(PROPRIETAIRE_ID)).toMatchObject({
@@ -160,10 +202,10 @@ describe("003_activation.sql", () => {
         is_active: false,
         activated: true,
       });
-      // On remet l'essai en place : les tests suivants ne doivent pas hériter de
-      // cet état.
+      // On remet le compte dans son état de départ : les tests suivants ne
+      // doivent pas hériter de cet état.
       await db.query(
-        "update public.subscriptions set trial_ends_at = now() + interval '7 days' where user_id = $1",
+        "update public.subscriptions set status = 'none', trial_ends_at = null where user_id = $1",
         [PROPRIETAIRE_ID],
       );
     });

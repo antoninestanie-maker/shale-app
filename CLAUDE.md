@@ -1075,6 +1075,18 @@ en bloc depuis Second Brain**, appliquer les changements ligne par ligne.
 
 ## Essai gratuit 7 jours + typographie unifiée (2026-07-27)
 
+> ⚠️ **PÉRIMÉ SUR UN POINT, note ajoutée le 2026-09-02.** L'essai décrit
+> ci-dessous était ouvert **à l'inscription, sans carte**. Ce n'est plus le cas
+> depuis le **2026-08-31** : le trigger écrit `status = 'none'`, et **l'essai
+> vient de Stripe** (`trial_period_days: 7` sur le Checkout, migration 004 du
+> site). Le mécanisme d'expiration côté serveur, lui, n'a pas changé et reste
+> exact.
+>
+> ⭐ **Décision d'Antonin, 2026-09-02 : l'essai reste POSSIBLE mais n'est pas
+> OBLIGATOIRE.** Le Checkout accepte `sansEssai` pour s'abonner directement, et
+> l'essai n'est accordé qu'à la première souscription — sans quoi il suffirait
+> de résilier et de revenir pour s'en offrir un autre.
+
 1. **Essai de 7 jours, sans Stripe.** `shale-site/supabase/schema.sql` : colonne
    `subscriptions.trial_ends_at`, trigger `handle_new_user` qui ouvre l'essai à la
    création du compte (`status='trialing'`, +7 j, plan mémorisé depuis
@@ -1955,9 +1967,14 @@ paiement *accidentel* alors qu'aucun droit n'était à vérifier. Sous
 > de fichier.
 
 ### Le bandeau d'essai fantôme — trouvé en ouvrant l'app, pas en la testant
+
+> ⚠️ **La CAUSE décrite ici a disparu le 2026-08-31** (note du 2026-09-02) : la
+> base n'ouvre plus de ligne `trialing` à l'inscription. Le correctif et sa
+> leçon restent bons — c'est le diagnostic qui appartient au passé.
+
 `AuthGate` lisait `subscription.status` **en direct**, sans passer par
-`entitlementsOf()`. Or la base ouvre une ligne `trialing` à chaque création de
-compte : c'est son rôle, et il ne dépend pas de Stripe. Résultat, un compte tout
+`entitlementsOf()`. Or la base ouvrait alors une ligne `trialing` à chaque
+création de compte : c'était son rôle, et il ne dépendait pas de Stripe. Résultat, un compte tout
 neuf voyait « Essai gratuit — 7 jours restants · Choisir ma formule » — une
 échéance inventée au-dessus d'un produit sans mur de paiement, et un bouton
 d'achat qui ne mène nulle part.

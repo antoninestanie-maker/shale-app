@@ -410,9 +410,19 @@ défaut de calcul qui n'existait pas.
 **Ces deux échecs préexistent à tous les chantiers en cours.**
 
 **Parade.** Avant de croire avoir cassé quelque chose, **rejouer le test sur la
-branche intacte**. Et ne jamais annoncer « ligne de base au vert » sans
-mentionner ces deux-là. Décision attendue d'Antonin :
-`~/Desktop/Shale-chantiers/DETTE-SITE-CALENDRIER.md` § A.1.
+branche intacte**.
+
+**✅ Résolu le 2026-09-02.** L'intention des deux tests était juste ; c'est leur
+MISE EN PLACE qui décrivait le monde d'avant. Ils attendaient un essai de
+l'inscription, alors qu'il vient désormais de Stripe. Ils le posent maintenant
+explicitement, comme le fait le webhook.
+
+⚠️ **La leçon vaut au-delà de ce cas.** Un test qui échoue après un changement
+de produit n'est pas forcément faux : regarder si c'est son ASSERTION qui est
+périmée (alors on la met à jour) ou seulement sa MISE EN PLACE (alors on la
+corrige et l'assertion reste). Ici, « réparer » en rouvrant l'essai sans carte
+aurait contredit les CGV publiées — le test aurait été vert et le produit
+illégal.
 
 ## 7.4 Vérifier un document dans l'arbre avant de le croire
 
