@@ -1,0 +1,76 @@
+import { useEffect, useRef } from "react";
+import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./libelles";
+import type { Trouvaille } from "../../lib/recherche";
+import { t } from "../../lib/i18n";
+
+/**
+ * Le sélecteur qui s'ouvre à la frappe d'un `@`.
+ *
+ * Purement présentationnel : la navigation au clavier est tenue par l'éditeur,
+ * qui est le seul à savoir si la frappe lui est destinée ou non.
+ *
+ * ⚠️ Positionné en `fixed` sur le rectangle du curseur, et REPLIÉ VERS LE HAUT
+ * quand il déborderait du bas de la fenêtre. Sans cela, une mention tapée en bas
+ * d'une longue note ouvrirait une liste hors de l'écran — et sur téléphone,
+ * sous le clavier.
+ */
+interface Props {
+  resultats: Trouvaille[];
+  selection: number;
+  position: { x: number; y: number };
+  onChoisir: (r: Trouvaille) => void;
+}
+
+const HAUTEUR_MAX = 260;
+
+export default function MentionPicker({ resultats, selection, position, onChoisir }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Garde la ligne sélectionnée visible quand on descend au clavier.
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>(`[data-i="${selection}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [selection]);
+
+  const place = position.y + HAUTEUR_MAX > window.innerHeight;
+
+  return (
+    <div
+      ref={ref}
+      className="card card-solid fixed z-50 max-h-[16rem] w-72 overflow-y-auto p-1 shadow-lg"
+      style={{
+        left: Math.min(position.x, window.innerWidth - 300),
+        top: place ? undefined : position.y + 6,
+        bottom: place ? window.innerHeight - position.y + 22 : undefined,
+      }}
+    >
+      {resultats.length === 0 ? (
+        <p className="px-3 py-2 text-sm text-text-dim">{t("Rien à citer sous ce nom.")}</p>
+      ) : (
+        resultats.map((r, i) => (
+          <button
+            key={`${r.kind}-${r.id}`}
+            type="button"
+            data-i={i}
+            // ⚠️ `onMouseDown` et non `onClick` : le clic ferait d'abord perdre
+            // le curseur de l'éditeur, et on ne saurait plus où insérer.
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onChoisir(r);
+            }}
+            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
+              i === selection ? "bg-overlay-2 text-text" : "text-text-dim hover:bg-overlay"
+            }`}
+          >
+            <span className="shrink-0 text-text-dim">{ICONE_DE_KIND[r.kind]}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-text">{r.titre}</span>
+              <span className="block truncate text-[0.7rem] text-text-dim">
+                {r.contexte ?? t(LIBELLE_DE_KIND[r.kind])}
+              </span>
+            </span>
+          </button>
+        ))
+      )}
+    </div>
+  );
+}

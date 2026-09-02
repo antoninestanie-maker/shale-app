@@ -5,6 +5,7 @@ import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
+import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
@@ -1667,6 +1668,65 @@ export const demo = {
   async deleteLink(id: number): Promise<void> {
     const i = links.findIndex((l) => l.id === id);
     if (i >= 0) links.splice(i, 1);
+  },
+
+  // ─── Recherche unifiée et mentions (chantier C) ───────────────────────────
+
+  /**
+   * Le corpus de démonstration.
+   *
+   * ⚠️ Ici on peut TOUT charger : les données de démo tiennent en mémoire par
+   * construction. Le natif, lui, borne ses requêtes — c'est la seule différence
+   * entre les deux côtés, et elle est sans conséquence sur ce qu'on voit.
+   */
+  async corpusRecherche(_requete: string, familles?: readonly LinkKind[]): Promise<DocumentRecherche[]> {
+    const veut = (k: LinkKind) => !familles || familles.includes(k);
+    const docs: DocumentRecherche[] = [];
+    if (veut("note")) {
+      for (const n of notes) {
+        docs.push({ kind: "note", id: n.id, uid: uidDemo("note", n.id), titre: n.title, corps: n.body ?? "" });
+      }
+    }
+    if (veut("knowledge")) {
+      for (const e of knowledgeEntries) {
+        docs.push({ kind: "knowledge", id: e.id, uid: uidDemo("knowledge", e.id), titre: e.title, corps: e.text ?? "" });
+      }
+    }
+    if (veut("object")) {
+      for (const o of objects) {
+        docs.push({
+          kind: "object", id: o.id, uid: o.uid, titre: o.title,
+          contexte: objectTypes.find((t) => t.id === o.type_id)?.name,
+        });
+      }
+    }
+    if (veut("goal")) {
+      for (const g of goals) docs.push({ kind: "goal", id: g.id, uid: uidDemo("goal", g.id), titre: g.title });
+    }
+    if (veut("task")) {
+      for (const t of tasks) docs.push({ kind: "task", id: t.id, uid: uidDemo("task", t.id), titre: t.label });
+    }
+    if (veut("event")) {
+      for (const e of calendarEvents) {
+        docs.push({ kind: "event", id: e.id, uid: uidDemo("event", e.id), titre: e.title, contexte: e.date });
+      }
+    }
+    return docs;
+  },
+
+  async titresDesMentions(
+    refs: readonly { kind: LinkKind; uid: string }[],
+  ): Promise<Map<string, string>> {
+    const corpus = await demo.corpusRecherche("");
+    const parCle = new Map(corpus.map((d) => [`${d.kind}:${d.uid}`, d.titre]));
+    const out = new Map<string, string>();
+    for (const r of refs) {
+      const titre = parCle.get(`${r.kind}:${r.uid}`);
+      // Absent = supprimé : c'est ce que `rafraichirMentions` traduit en jeton
+      // mort. Ne PAS mettre une chaîne vide, qui passerait pour un titre valide.
+      if (titre !== undefined) out.set(`${r.kind}:${r.uid}`, titre);
+    }
+    return out;
   },
 
 };

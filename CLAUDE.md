@@ -3488,3 +3488,104 @@ journée passée, ce que le Journal ne sait pas faire.
    étaient au vert** — `i18n:check` ne voit que les clés absentes, `i18n:durs`
    ne suit pas la donnée. Remplacé par `Intl`, qui connaît toutes les langues
    sans qu'on lui en ajoute.
+
+## Liaisons, backlinks et objets (2026-09-02)
+
+Le chantier C, posé sur le socle de la migration 020 et mené après le
+calendrier. Ce que fait **Capacities**, adapté à Shale : les notes, le Savoir,
+les objectifs, les tâches et les événements cessent d'être des silos.
+
+⚠️ **Notes et Savoir ne fusionnent PAS** — décision explicite d'Antonin. Ce qu'il
+voulait, c'est pouvoir LIER une note à une fiche, pas les confondre.
+
+### ⭐ Où vivent les objets personnalisés : un ONGLET du Savoir
+Décision d'Antonin, 2026-09-02. Un 14ᵉ module aurait refait tout le travail du
+compte de modules (app **et** site) pour une fonctionnalité qui est,
+littéralement, de la base de connaissances : une « Ressource » ou un « Setup de
+trading » a plus à voir avec une fiche du Savoir qu'avec un module à part. Le
+compte de modules **reste à treize**.
+
+Le module a donc deux moitiés : **Fiches** (ce qu'on SAIT, classé par thème) et
+**Objets** (ce qu'on SUIT — personnes, ressources, projets, setups).
+
+### Le jeton de mention, et pourquoi il est écrit ainsi
+```html
+<span class="mention" contenteditable="false" data-mention="note:6a26-…">@Plan de risque</span>
+```
+- `contenteditable="false"` en fait un **atome** : le curseur le franchit d'un
+  coup et la suppression l'emporte entier. Sans cela, on effacerait une lettre
+  au milieu du titre et le jeton afficherait un texte qui ne veut plus rien
+  dire, alors que son lien resterait valide.
+- **Le titre affiché est une copie**, jamais la référence : l'identité tient
+  dans `data-mention`, et `rafraichirMentions()` réécrit le texte à chaque
+  chargement. **Renommer une note n'invalide donc aucun lien.**
+- **Une cible supprimée ne fait pas disparaître le jeton** : il reste, marqué
+  mort et non cliquable. Le retirer réécrirait la phrase de l'utilisateur sans
+  le lui demander — et une phrase à laquelle on enlève un mot ne veut plus rien
+  dire.
+- Le texte du jeton entre dans `plainText()`, donc dans **FTS5** et dans la
+  colonne `text` du Savoir : chercher le nom d'une note citée retrouve la note
+  qui la cite. C'était l'effet voulu, pas un accident.
+
+⚠️ **`lib/mentions.ts` travaille par EXPRESSION RÉGULIÈRE, pas par le DOM**, et
+c'est délibéré : les tests tournent en `environment: "node"`, où un module qui
+touche à `document` n'est pas testable (c'est le cas de `richtext.ts`, sans
+aucun test). Le format du jeton est assez strict pour qu'une regex le lise sans
+risque — c'est nous qui l'écrivons. Ce qui exige vraiment le DOM (curseur,
+insertion) est isolé dans `lib/mentionsDom.ts`, court exprès.
+
+### La frappe de `@` accepte jusqu'à TROIS MOTS
+La première version s'arrêtait au premier espace. **Vu à l'écran : « @plan de
+risque » refermait le sélecteur avant d'avoir trouvé « Plan de risque »** — la
+plupart des titres font plusieurs mots, la règle rendait donc la moitié des
+objets inatteignables. Trois mots couvrent tous les titres de l'app et referment
+d'eux-mêmes le sélecteur quand on écrit une vraie phrase après un `@`.
+Le `@` doit toujours suivre un début de texte ou une espace, sinon
+« contact@exemple.fr » ouvrirait le sélecteur dans une note qui n'a rien demandé.
+
+### Un seul moteur de recherche, deux points d'entrée
+`lib/recherche.ts` sert la palette ⌘K **et** le sélecteur `@`. Deux moteurs
+auraient fini par répondre différemment à la même question.
+
+⚠️ **Unifier ne veut pas dire remplacer.** Les notes gardent **FTS5** — refondre
+en mémoire dégraderait une recherche déjà instantanée sur des milliers de notes.
+Les autres tables sont interrogées par un `LIKE` borné, parce qu'elles tiennent
+en quelques centaines de lignes. **L'unification est dans le CLASSEMENT et la
+FORME**, et c'est la seule qui se voie à l'écran.
+
+Le classement départage à score égal par famille puis par titre : sans cela, la
+sélection au clavier sauterait d'une frappe à l'autre sur des résultats
+équivalents.
+
+### ⭐ Retirer un champ d'un type ne détruit rien
+Les valeurs sont rangées **sous l'`id` du champ**, jamais sous son nom :
+renommer « Rôle » n'efface pas ce que trois cents fiches contiennent.
+`nouvelIdDeChamp()` **ne recycle jamais** un identifiant libéré — le faire
+ferait apparaître « Développeur » comme numéro de téléphone sur toutes les
+fiches. `fusionnerValeurs()` conserve les valeurs orphelines, et l'éditeur de
+type **annonce ce qui va cesser d'être affiché avant de valider** : une donnée
+qui disparaît de l'écran sans que personne ne l'ait annoncé est indiscernable
+d'une donnée perdue.
+
+⚠️ **Un type livré reste modifiable et supprimable.** `builtin` dit d'où vient
+le type ; il ne le verrouille pas.
+
+### ⚠️ Naviguer vers un module chargé en `lazy`
+`App.tsx` naviguait puis réémettait l'événement d'ouverture. **Vu à l'écran :
+cliquer une mention ouvrait la PREMIÈRE note, pas la bonne** — la vue n'est pas
+encore montée quand l'événement part, personne n'écoute. Un `setTimeout(0)` n'y
+change rien : c'est le téléchargement d'un chunk, pas un tick.
+
+La demande est donc **déposée** (`lib/naviguer.ts`) et la vue vient la chercher
+à son montage. ⚠️ Et `regarderDemande` existe à côté de `consommerDemande` :
+quand un parent et son enfant s'intéressent à la même demande (l'onglet pour
+`KnowledgeView`, la fiche pour `GalerieObjets`), le parent monte d'abord et
+consommerait ce que l'enfant attend — on arriverait au bon onglet, devant la
+mauvaise fiche.
+
+### Ce qui n'a PAS été touché
+Le système de liens **`[[wiki]]`** des Notes existe toujours, à côté des
+mentions. Il ne relie que des notes entre elles, par leur TITRE — donc il casse
+au renommage, là où `@` ne casse pas. Le retirer aurait changé le comportement
+de notes existantes sans qu'Antonin l'ait demandé ; c'est une décision qui lui
+revient, pas au chantier.

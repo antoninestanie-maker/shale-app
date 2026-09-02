@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import RichNoteEditor from "../components/RichNoteEditor";
+import PanneauLiens from "../components/liens/PanneauLiens";
+import { useLiens } from "../components/liens/useLiens";
+import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
 import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
-import type { AppData, Note } from "../lib/types";
+import type { AppData, LinkKind, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import { kbd, useIsPhone } from "../lib/platform";
@@ -37,6 +40,26 @@ export default function NotesView({ data, refresh }: Props) {
 
   const list = results ?? data.notes;
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
+  const { uid, rafraichir, enregistrerMentions } = useLiens("note", selectedId);
+  /**
+   * Le corps AVEC ses jetons rafraîchis. `null` tant que la résolution des
+   * titres n'a pas répondu : on n'affiche pas le corps brut entre-temps, sinon
+   * un titre périmé clignoterait à chaque ouverture de note.
+   */
+  const [corpsFrais, setCorpsFrais] = useState<string | null>(null);
+
+  /**
+   * Ouvrir une mention.
+   *
+   * ⚠️ TOUT passe par `ouvrirObjet`, y compris une note citée depuis une note.
+   * Le raccourci « si c'est une note, je change juste ma sélection » semblait
+   * plus direct : il obligeait à retraduire l'uid en numéro local ICI, donc à
+   * recopier une résolution qui vit déjà ailleurs. `App.tsx` renvoie de toute
+   * façon l'événement `sb:open-note`, que cette vue écoute déjà.
+   */
+  const ouvrirMention = (kind: LinkKind, mentionUid: string) => {
+    void ouvrirObjet(kind, mentionUid);
+  };
 
   // charge la note sélectionnée dans l'éditeur
   useEffect(() => {
@@ -63,8 +86,28 @@ export default function NotesView({ data, refresh }: Props) {
       if (id) setSelectedId(id);
     };
     window.addEventListener("sb:open-note", onOpen);
+    // ⚠️ Et au MONTAGE : la vue est chargée en `lazy`, elle n'existait pas
+    // encore quand l'événement est parti (voir `lib/naviguer.ts`).
+    const enAttente = consommerDemande("note");
+    if (enAttente) setSelectedId(enAttente);
     return () => window.removeEventListener("sb:open-note", onOpen);
   }, []);
+
+  // ⚠️ Au CHARGEMENT seulement : réécrire le HTML pendant la frappe
+  // déplacerait le curseur au début de la note à chaque lettre.
+  useEffect(() => {
+    let annule = false;
+    if (!selected) {
+      setCorpsFrais(null);
+      return;
+    }
+    void rafraichir(selected.body).then((html) => {
+      if (!annule) setCorpsFrais(html);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [selectedId, rafraichir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scheduleSave = (nextTitle: string, nextBody: string) => {
     setSaved(false);
@@ -72,6 +115,10 @@ export default function NotesView({ data, refresh }: Props) {
     saveTimer.current = window.setTimeout(async () => {
       if (selectedId === null) return;
       await updateNote(selectedId, nextTitle.trim() || "Sans titre", nextBody);
+      // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
+      // chaque lettre remplirait l'outbox de synchronisation de centaines
+      // d'entrées pour une seule mention tapée.
+      await enregistrerMentions(nextBody);
       setSaved(true);
       await refresh();
     }, 700);
@@ -223,13 +270,17 @@ export default function NotesView({ data, refresh }: Props) {
 
           <RichNoteEditor
             noteId={selected.id}
-            initialHtml={selected.body}
+            initialHtml={corpsFrais ?? selected.body}
+            source={uid ? { kind: "note", uid } : undefined}
+            onOuvrirMention={(k, u) => ouvrirMention(k, u)}
             onChange={(html) => {
               setBody(html);
               scheduleSave(title, html);
             }}
-            placeholder={t("Écris ta note. Mets en forme avec la barre d'outils. Lie une note avec [[son titre]].")}
+            placeholder={t("Écris ta note. Tape @ pour citer une note, une fiche, un objectif…")}
           />
+
+          {uid && <PanneauLiens kind="note" uid={uid} onOuvrir={ouvrirMention} />}
 
           {(links.out.length > 0 || links.back.length > 0) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">

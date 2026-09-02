@@ -58,6 +58,8 @@ import {
 } from "../lib/knowledge";
 import { firstImageSrc, plainText } from "../lib/richtext";
 import { t, tp } from "../lib/i18n";
+import GalerieObjets from "../components/liens/GalerieObjets";
+import { consommerDemande, regarderDemande } from "../lib/naviguer";
 import {
   createKnowledgeEntry,
   createKnowledgeTopic,
@@ -125,6 +127,39 @@ export default function KnowledgeView() {
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  /**
+   * Onglet du module. ⭐ Les objets personnalisés vivent ICI et non dans un 14ᵉ
+   * module — décision d'Antonin du 2026-09-02 : un module de plus aurait refait
+   * tout le travail du compte de modules (app ET site) pour une fonctionnalité
+   * qui est, littéralement, de la base de connaissances.
+   */
+  const [onglet, setOnglet] = useState<"savoir" | "objets">("savoir");
+
+  /**
+   * Ouverture demandée par une mention. Deux chemins, et il faut les deux :
+   * l'événement quand le module est déjà à l'écran, la demande en attente quand
+   * il vient d'être chargé en `lazy` (voir `lib/naviguer.ts`).
+   */
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (id) {
+        setOnglet("savoir");
+        setOpenId(id);
+      }
+    };
+    window.addEventListener("sb:open-knowledge", onOpen);
+    const enAttente = consommerDemande("knowledge");
+    if (enAttente) {
+      setOnglet("savoir");
+      setOpenId(enAttente);
+    }
+    // Une mention vers un OBJET arrive aussi ici : c'est le même module. On
+    // REGARDE sans consommer — c'est `GalerieObjets`, montée juste après, qui
+    // ouvrira la fiche.
+    if (regarderDemande("object")) setOnglet("objets");
+    return () => window.removeEventListener("sb:open-knowledge", onOpen);
+  }, []);
   const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -484,7 +519,38 @@ export default function KnowledgeView() {
         }}
       />
 
-      <section className="mt-6 flex min-h-0 flex-1 flex-col">
+      {/* Les deux moitiés du module. Les fiches du Savoir décrivent ce qu'on
+          SAIT ; les objets décrivent ce qu'on SUIT — des personnes, des
+          ressources, des projets, des setups. */}
+      <div className="mt-5 flex shrink-0 gap-1.5">
+        {([
+          ["savoir", "Fiches"],
+          ["objets", "Objets"],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setOnglet(id)}
+            data-tip={t(label)}
+            data-tip-sub={
+              id === "savoir"
+                ? t("Ce que tu sais, classé par thème.")
+                : t("Ce que tu suis : personnes, ressources, projets, setups.")
+            }
+            className={`pill border px-3 py-1.5 text-xs font-medium transition-colors ${
+              onglet === id
+                ? "border-border-strong bg-overlay-2 text-text"
+                : "border-border text-text-dim hover:text-text"
+            }`}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
+
+      {onglet === "objets" && <GalerieObjets />}
+
+      <section className={`mt-6 flex min-h-0 flex-1 flex-col ${onglet === "objets" ? "hidden" : ""}`}>
         {/* Barre d'outils : même position à l'accueil et dans un thème. */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <label className="relative min-w-[180px] flex-1">

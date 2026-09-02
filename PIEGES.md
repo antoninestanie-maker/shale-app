@@ -225,6 +225,14 @@ devises — **utiliser `toLocaleDateString(localeTag(), …)`** plutôt qu'une t
 maison. `Intl` connaît toutes les langues sans qu'on lui en ajoute, et la
 traduction ne peut pas se périmer.
 
+⚠️ **Le même angle mort couvre toute clé DYNAMIQUE**, pas seulement les tables
+françaises : `t(LIBELLE_DE_KIND[kind])` ne sera **jamais** réclamé par
+`i18n:check`, qui ne lit que les clés littérales. Quand on écrit une table de
+libellés traduite par clé calculée, il faut **ajouter les entrées d'`en.ts` à la
+main** et les vérifier en basculant l'app. Le chantier C en a ajouté une
+quinzaine de cette façon (familles d'objets, types de champ) — aucune n'aurait
+été signalée manquante.
+
 **Comment on l'a payée.** Chantier B, 2026-09-02 : vu à l'écran, jamais par les
 outils. C'est la démonstration de la règle du § 3 de `PASSATION.md` — **la
 preuve finale, c'est l'app basculée en anglais.**
@@ -284,6 +292,31 @@ diagnostics : le premier glissement d'essai portait sur une tâche **récurrente
 que le code refuse volontairement de déplacer. Avant de conclure qu'un geste est
 cassé, **vérifier sur quoi on tire** — `document.elementFromPoint(x, y)` le dit
 en une ligne.
+
+## 6.2 ter ⭐ Un événement envoyé à un module chargé en `lazy` tombe dans le vide
+
+**Symptôme.** Cliquer une mention change bien de module… et ouvre le PREMIER
+élément, pas celui qu'on a demandé. Aucune erreur.
+
+**Cause.** `App.tsx` naviguait puis réémettait l'événement que le module écoute
+(`sb:open-note`). Mais les vues sont chargées en `React.lazy` : au moment de
+l'émission, la vue **n'est pas encore montée**, son écouteur n'existe pas,
+l'événement se perd. ⚠️ Un `setTimeout(0)` ne corrige rien — ce n'est pas une
+question de tick, c'est le TÉLÉCHARGEMENT d'un chunk, dont on ne connaît pas la
+durée.
+
+**Parade.** Déposer la demande dans un module (`lib/naviguer.ts`,
+`deposerDemande`) et la faire **consommer par la vue à son montage**. L'événement
+reste émis en plus, pour le cas — fréquent — où le module est déjà à l'écran.
+
+**⚠️ Et un piège dans le piège** : quand un PARENT et son ENFANT s'intéressent à
+la même demande (ici `KnowledgeView` pour l'onglet, `GalerieObjets` pour la
+fiche), le parent monte d'abord et **consomme** ce que l'enfant attendait. On
+arrive alors au bon onglet, devant la mauvaise fiche. D'où deux fonctions
+distinctes : `regarderDemande` (sans consommer) et `consommerDemande`.
+
+**Comment on l'a payée.** Chantier C, 2026-09-02, vue à l'écran deux fois de
+suite — la seconde après avoir « corrigé » la première.
 
 ## 6.3 Un token de couleur inexistant échoue EN SILENCE
 

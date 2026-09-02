@@ -5,6 +5,7 @@ import { toDateStr } from "./logic";
 import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
+import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
 import type { Report } from "./taches";
 import type {
@@ -1752,4 +1753,153 @@ export async function synchroniserMentions(
   const { aCreer, aSupprimer } = diffMentions(existantes, voulues);
   for (const a of aCreer) await createLink(a);
   for (const l of aSupprimer) await deleteLink(l.id);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recherche unifiée et mentions — chantier C (2026-09-02)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * ⭐ Chercher dans TOUTE l'app, sans dégrader la recherche de notes.
+ *
+ * Trois régimes coexistaient : FTS5 pour les notes (instantané, hors ligne), une
+ * recherche en mémoire sur la colonne `text` du Savoir, et **rien du tout** pour
+ * les autres modules. Les unifier ne veut pas dire les remplacer :
+ *
+ *   • les NOTES continuent de passer par `notes_fts` — le refondre en mémoire
+ *     dégraderait une recherche déjà instantanée sur des milliers de notes ;
+ *   • les autres tables sont interrogées par un `LIKE` borné, parce qu'elles
+ *     tiennent en quelques centaines de lignes et qu'un index FTS par table
+ *     serait cinq migrations pour un gain nul ;
+ *   • **le classement, lui, est commun** (`lib/recherche.ts`) : c'est là qu'est
+ *     l'unification, et c'est la seule qui se voie à l'écran.
+ */
+export async function rechercherPartout(
+  requete: string,
+  options: { limite?: number; familles?: readonly LinkKind[]; exclure?: { kind: LinkKind; uid: string } } = {},
+): Promise<Trouvaille[]> {
+  const corpus = await corpusPour(requete, options.familles);
+  return rechercher(corpus, requete, { limite: options.limite ?? 12, ...options });
+}
+
+/** Le corpus candidat — volontairement borné, jamais « toute la base ». */
+async function corpusPour(
+  requete: string,
+  familles?: readonly LinkKind[],
+): Promise<DocumentRecherche[]> {
+  if (!isTauri) return demo.corpusRecherche(requete, familles);
+  const veut = (k: LinkKind) => !familles || familles.includes(k);
+  const db = await getDb();
+  const q = requete.trim();
+  const like = `%${q}%`;
+  const docs: DocumentRecherche[] = [];
+
+  if (veut("note")) {
+    // FTS5 quand il y a une requête, les plus récentes sinon.
+    for (const n of await searchNotes(q)) {
+      docs.push({ kind: "note", id: n.id, uid: "", titre: n.title, corps: n.body ?? "" });
+    }
+  }
+  if (veut("knowledge")) {
+    const rows = await db.select<{ id: number; uid: string; title: string; text: string }[]>(
+      q
+        ? "SELECT id, uid, title, text FROM knowledge_entries WHERE title LIKE $1 OR text LIKE $1 ORDER BY updated_at DESC LIMIT 40"
+        : "SELECT id, uid, title, text FROM knowledge_entries ORDER BY updated_at DESC LIMIT 40",
+      q ? [like] : [],
+    );
+    for (const r of rows) docs.push({ kind: "knowledge", id: r.id, uid: r.uid, titre: r.title, corps: r.text });
+  }
+  if (veut("object")) {
+    const rows = await db.select<{ id: number; uid: string; title: string; nom: string }[]>(
+      q
+        ? "SELECT o.id, o.uid, o.title, t.name AS nom FROM objects o LEFT JOIN object_types t ON t.id = o.type_id WHERE o.title LIKE $1 ORDER BY o.updated_at DESC LIMIT 40"
+        : "SELECT o.id, o.uid, o.title, t.name AS nom FROM objects o LEFT JOIN object_types t ON t.id = o.type_id ORDER BY o.updated_at DESC LIMIT 40",
+      q ? [like] : [],
+    );
+    for (const r of rows) docs.push({ kind: "object", id: r.id, uid: r.uid, titre: r.title, contexte: r.nom });
+  }
+  if (veut("goal")) {
+    const rows = await db.select<{ id: number; uid: string; title: string }[]>(
+      q ? "SELECT id, uid, title FROM goals WHERE title LIKE $1 LIMIT 40" : "SELECT id, uid, title FROM goals LIMIT 40",
+      q ? [like] : [],
+    );
+    for (const r of rows) docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title });
+  }
+  if (veut("task")) {
+    const rows = await db.select<{ id: number; uid: string; label: string }[]>(
+      q ? "SELECT id, uid, label FROM tasks WHERE label LIKE $1 LIMIT 40" : "SELECT id, uid, label FROM tasks LIMIT 40",
+      q ? [like] : [],
+    );
+    for (const r of rows) docs.push({ kind: "task", id: r.id, uid: r.uid, titre: r.label });
+  }
+  if (veut("event")) {
+    const rows = await db.select<{ id: number; uid: string; title: string; date: string }[]>(
+      q
+        ? "SELECT id, uid, title, date FROM calendar_events WHERE title LIKE $1 ORDER BY date DESC LIMIT 40"
+        : "SELECT id, uid, title, date FROM calendar_events ORDER BY date DESC LIMIT 40",
+      q ? [like] : [],
+    );
+    for (const r of rows) docs.push({ kind: "event", id: r.id, uid: r.uid, titre: r.title, contexte: r.date });
+  }
+
+  // ⚠️ Les notes n'ont pas d'`uid` dans le résultat de `searchNotes` (le SELECT
+  // du FTS ne le ramène pas toujours). On les complète ici, en une requête :
+  // sans `uid`, aucune mention ne peut pointer vers une note.
+  const sansUid = docs.filter((d) => d.kind === "note" && !d.uid);
+  if (sansUid.length) {
+    const rows = await db.select<{ id: number; uid: string }[]>(
+      `SELECT id, uid FROM notes WHERE id IN (${sansUid.map((_, i) => `$${i + 1}`).join(", ")})`,
+      sansUid.map((d) => d.id),
+    );
+    const parId = new Map(rows.map((r) => [r.id, r.uid]));
+    for (const d of sansUid) d.uid = parId.get(d.id) ?? "";
+  }
+
+  return docs.filter((d) => !!d.uid);
+}
+
+/**
+ * Les titres ACTUELS des objets cités, par `kind:uid`.
+ *
+ * Sert à rafraîchir les jetons de mention au chargement d'un texte. Ciblé sur
+ * les seuls uid présents : charger tout le corpus pour réécrire trois jetons
+ * serait absurde, et lent sur une grosse base.
+ *
+ * Une clé ABSENTE de la réponse signifie « cet objet n'existe plus » — c'est ce
+ * que `rafraichirMentions` traduit en jeton mort.
+ */
+export async function titresDesMentions(
+  refs: readonly { kind: LinkKind; uid: string }[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (refs.length === 0) return out;
+  if (!isTauri) return demo.titresDesMentions(refs);
+  const db = await getDb();
+
+  const parFamille = new Map<LinkKind, string[]>();
+  for (const r of refs) {
+    if (!parFamille.has(r.kind)) parFamille.set(r.kind, []);
+    parFamille.get(r.kind)!.push(r.uid);
+  }
+
+  const COLONNE: Record<LinkKind, { table: string; titre: string }> = {
+    note: { table: "notes", titre: "title" },
+    knowledge: { table: "knowledge_entries", titre: "title" },
+    task: { table: "tasks", titre: "label" },
+    goal: { table: "goals", titre: "title" },
+    event: { table: "calendar_events", titre: "title" },
+    trade: { table: "trades", titre: "pair" },
+    object: { table: "objects", titre: "title" },
+  };
+
+  for (const [kind, uids] of parFamille) {
+    const { table, titre } = COLONNE[kind];
+    const jokers = uids.map((_, i) => `$${i + 1}`).join(", ");
+    const rows = await db.select<{ uid: string; titre: string }[]>(
+      `SELECT uid, ${titre} AS titre FROM ${table} WHERE uid IN (${jokers})`,
+      uids,
+    );
+    for (const r of rows) out.set(`${kind}:${r.uid}`, r.titre ?? "");
+  }
+  return out;
 }

@@ -1,16 +1,31 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // Normalisation des couleurs + conversion texte → HTML : partagées avec
 // l'éditeur de blocs du Savoir (src/lib/richtext.ts).
 import { toEditorHtml } from "../lib/richtext";
 
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
+import MentionPicker from "./liens/MentionPicker";
+import { requeteEnCours } from "../lib/mentions";
+import { remplacerParMention, rectDuCurseur, texteAvantCurseur } from "../lib/mentionsDom";
+import { rechercherPartout } from "../lib/repo";
+import type { Trouvaille } from "../lib/recherche";
+import type { LinkKind } from "../lib/types";
 interface Props {
   /** Change d'identité → recharge le contenu dans l'éditeur (sinon on ne touche pas au DOM). */
   noteId: number;
   initialHtml: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /**
+   * L'objet en cours d'édition. Sert à deux choses, et il est facultatif : un
+   * éditeur qui ne le donne pas garde exactement le comportement d'avant.
+   *   • ne pas se proposer à soi-même dans le sélecteur `@` ;
+   *   • savoir quelles arêtes mettre à jour à l'enregistrement.
+   */
+  source?: { kind: LinkKind; uid: string };
+  /** Clic sur un jeton de mention. Sans elle, le jeton reste inerte. */
+  onOuvrirMention?: (kind: LinkKind, uid: string) => void;
 }
 
 // Noms FRANÇAIS, traduits à l'affichage — comme toute table de libellés.
@@ -35,6 +50,8 @@ export default function RichNoteEditor({
   initialHtml,
   onChange,
   placeholder,
+  source,
+  onOuvrirMention,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -44,8 +61,79 @@ export default function RichNoteEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
+  // ─── Mentions `@` ──────────────────────────────────────────────────────────
+  const [mention, setMention] = useState<{
+    requete: string;
+    resultats: Trouvaille[];
+    position: { x: number; y: number };
+  } | null>(null);
+  const [selection, setSelection] = useState(0);
+  /**
+   * ⚠️ Compteur de course. Deux frappes rapides lancent deux recherches ; celle
+   * qui répond en dernier n'est pas forcément la plus récente. Sans ce garde,
+   * le sélecteur afficherait par moments les résultats de l'avant-dernière
+   * lettre — un défaut rare, jamais reproductible, et très pénible à traquer.
+   */
+  const requeteId = useRef(0);
+
+  const fermerMention = useCallback(() => {
+    setMention(null);
+    setSelection(0);
+    requeteId.current++;
+  }, []);
+
   const emit = () => {
     if (ref.current) onChange(ref.current.innerHTML);
+  };
+
+  const verifierMention = useCallback(async () => {
+    if (!ref.current) return;
+    const requete = requeteEnCours(texteAvantCurseur(ref.current));
+    if (requete === null) {
+      fermerMention();
+      return;
+    }
+    const position = rectDuCurseur();
+    if (!position) return;
+    const id = ++requeteId.current;
+    const resultats = await rechercherPartout(requete, { limite: 8, exclure: source });
+    if (id !== requeteId.current) return; // une frappe plus récente a pris la main
+    setMention({ requete, resultats, position });
+    setSelection(0);
+  }, [fermerMention, source]);
+
+  const choisir = useCallback(
+    (r: Trouvaille) => {
+      if (!ref.current || !mention) return;
+      ref.current.focus();
+      remplacerParMention(ref.current, mention.requete.length, r.kind, r.uid, r.titre);
+      fermerMention();
+      emit();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mention, fermerMention],
+  );
+
+  /** Renvoie vrai quand la frappe était pour le sélecteur, pas pour le texte. */
+  const toucheMention = (e: React.KeyboardEvent): boolean => {
+    if (!mention) return false;
+    if (e.key === "Escape") {
+      fermerMention();
+      return true;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      const n = mention.resultats.length;
+      if (n === 0) return true;
+      setSelection((s) => (e.key === "ArrowDown" ? (s + 1) % n : (s - 1 + n) % n));
+      return true;
+    }
+    // ⚠️ Tab autant qu'Entrée : dans une liste de suggestions, les deux valent
+    // « celle-ci ». N'en accepter qu'une surprend une fois sur deux.
+    if ((e.key === "Enter" || e.key === "Tab") && mention.resultats[selection]) {
+      choisir(mention.resultats[selection]);
+      return true;
+    }
+    return false;
   };
 
   /** execCommand en gardant la sélection (le mousedown sur un bouton la perdrait). */
@@ -193,10 +281,35 @@ export default function RichNoteEditor({
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        onInput={emit}
+        onInput={() => {
+          emit();
+          void verifierMention();
+        }}
+        onKeyDown={(e) => {
+          if (toucheMention(e)) e.preventDefault();
+        }}
+        onBlur={fermerMention}
+        onClick={(e) => {
+          // ⚠️ Un jeton MORT ne mène nulle part : sa cible n'existe plus. Le
+          // rendre cliquable promettrait une navigation impossible.
+          const jeton = (e.target as HTMLElement).closest<HTMLElement>(".mention:not(.mention-morte)");
+          const ref = jeton?.dataset.mention?.split(":");
+          if (ref && ref.length >= 2) {
+            onOuvrirMention?.(ref[0] as LinkKind, ref.slice(1).join(":"));
+          }
+        }}
         data-placeholder={placeholder}
         className="note-rich mt-3 min-h-0 flex-1 overflow-y-auto text-text focus:outline-none"
       />
+
+      {mention && (
+        <MentionPicker
+          resultats={mention.resultats}
+          selection={selection}
+          position={mention.position}
+          onChoisir={choisir}
+        />
+      )}
     </div>
   );
 }

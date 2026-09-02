@@ -713,6 +713,40 @@
     row-gap: 0.75rem;
   }
 
+  /* ─── Mentions `@` (chantier C, 2026-09-02) ────────────────────────────────
+     Un jeton de mention est un ATOME : `contenteditable="false"` côté HTML,
+     et ici de quoi le rendre reconnaissable sans le rendre criard. Il vit
+     dans les notes, dans les fiches du Savoir et dans les objets — le style
+     n'est donc PAS accroché à `.note-rich`, sinon il ne s'appliquerait qu'à
+     un des trois. */
+  .mention {
+    display: inline;
+    border-radius: var(--radius-pill);
+    padding: 0.05em 0.4em;
+    background: color-mix(in srgb, var(--color-blue) 14%, transparent);
+    color: var(--color-blue);
+    font-weight: 500;
+    cursor: pointer;
+    /* Une mention ne se coupe jamais en deux en bout de ligne : la moitié
+       restée derrière n'aurait plus aucun sens. */
+    white-space: nowrap;
+  }
+  .mention:hover {
+    background: color-mix(in srgb, var(--color-blue) 24%, transparent);
+  }
+
+  /* Cible supprimée. Le jeton RESTE — le retirer réécrirait la phrase de
+     l'utilisateur — mais il cesse de promettre un clic utile. */
+  .mention-morte {
+    background: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
+    color: var(--color-text-dim);
+    text-decoration: line-through;
+    cursor: default;
+  }
+  .mention-morte:hover {
+    background: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
+  }
+
   /* Éditeur de notes riche (contentEditable) */
   .note-rich {
     line-height: 1.65;

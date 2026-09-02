@@ -6,6 +6,10 @@ import {
   type ActionContext,
   type AppAction,
 } from "../lib/actions";
+import { rechercherPartout } from "../lib/repo";
+import { ouvrirObjet } from "../lib/naviguer";
+import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./liens/libelles";
+import type { Trouvaille } from "../lib/recherche";
 
 interface Props {
   ctx: ActionContext;
@@ -25,6 +29,40 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = searchActions(query, hasTrading);
+
+  /**
+   * ⭐ La palette trouve désormais des CHOSES, pas seulement des actions.
+   *
+   * Elle savait « créer une note » ; elle ne savait pas « ouvrir la note dont
+   * je me rappelle le titre ». C'était l'écart le plus visible entre Shale et
+   * les outils qu'Antonin cite en référence : on tape trois lettres et on
+   * arrive, sans savoir dans quel module la chose est rangée.
+   *
+   * ⚠️ Le même moteur que le sélecteur `@` (`lib/recherche.ts`) : un seul
+   * classement, deux points d'entrée. Deux moteurs auraient fini par répondre
+   * différemment à la même question.
+   */
+  const [objets, setObjets] = useState<Trouvaille[]>([]);
+  useEffect(() => {
+    let annule = false;
+    if (!open || !query.trim()) {
+      setObjets([]);
+      return;
+    }
+    void rechercherPartout(query, { limite: 6 }).then((r) => {
+      if (!annule) setObjets(r);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [open, query]);
+
+  /**
+   * La liste NAVIGABLE, dans l'ordre où elle est affichée : les actions, puis
+   * les objets. ⚠️ Un index qui ne couvrirait que les actions ferait sauter la
+   * sélection dès qu'on descend dans la seconde section.
+   */
+  const total = results.length + objets.length;
 
   const close = useCallback(() => {
     setOpen(false);
@@ -86,7 +124,10 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
       else close();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelected((s) => Math.min(s + 1, results.length - 1));
+      // ⚠️ Borne sur la liste COMPLÈTE. Avec `results.length - 1`, la flèche
+      // s'arrêtait net à la dernière action et les objets étaient inatteignables
+      // au clavier — visibles, mais hors de portée.
+      setSelected((s) => Math.min(s + 1, total - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelected((s) => Math.max(s - 1, 0));
@@ -96,6 +137,10 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
         runAction(argAction, arg);
       } else if (results[selected]) {
         runAction(results[selected]);
+      } else if (objets[selected - results.length]) {
+        const cible = objets[selected - results.length];
+        close();
+        void ouvrirObjet(cible.kind, cible.uid);
       }
     }
   };
@@ -126,9 +171,9 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
                   <kbd className="hud-label">esc</kbd>
                 </div>
                 <ul className="max-h-80 overflow-y-auto p-2">
-                  {results.length === 0 && (
+                  {total === 0 && (
                     <li className="px-3 py-6 text-center text-sm text-text-dim">
-                      {t("Aucune action ne correspond.")}
+                      {query.trim() ? t("Rien ne correspond.") : t("Aucune action ne correspond.")}
                     </li>
                   )}
                   {results.map((action, i) => (
@@ -153,6 +198,40 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
                       </button>
                     </li>
                   ))}
+                  {objets.length > 0 && (
+                    <li className="px-3 pb-1 pt-3">
+                      <span className="hud-label">{t("aller à")}</span>
+                    </li>
+                  )}
+                  {objets.map((o, i) => {
+                    const index = results.length + i;
+                    return (
+                      <li key={`${o.kind}-${o.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            close();
+                            void ouvrirObjet(o.kind, o.uid);
+                          }}
+                          onMouseEnter={() => setSelected(index)}
+                          className={`flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-left text-sm transition-colors ${
+                            index === selected ? "bg-surface-2 text-text" : "text-text-dim"
+                          }`}
+                        >
+                          <span className="shrink-0 text-text-dim">{ICONE_DE_KIND[o.kind]}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-text">{o.titre}</span>
+                            {o.extrait && (
+                              <span className="block truncate text-[0.7rem] text-text-dim">
+                                {o.extrait}
+                              </span>
+                            )}
+                          </span>
+                          <span className="hud-label shrink-0">{t(LIBELLE_DE_KIND[o.kind])}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <div className="flex items-center gap-4 border-t border-border px-4 py-2">
                   <span className="hud-label">{t("↑↓ naviguer")}</span>

@@ -2043,4 +2043,82 @@ export const EN: Record<string, string> = {
   "{n} jalon non terminé.": "{n} milestone unfinished.",
   "{n} jour restant, {pct} % fait.": "{n} day left, {pct}% done.",
   "échéance dépassée d'{n} jour.": "deadline missed by {n} day.",
+
+  // ─── Liaisons & objets (2026-09-02) ───────────────────────────────────────
+  // ⚠️ Les libellés de FAMILLE ci-dessous sont appelés par clé DYNAMIQUE
+  // (`t(LIBELLE_DE_KIND[k])`) : `i18n:check` ne les voit pas, et ne les
+  // réclamera jamais. Ils se vérifient en basculant l'app en anglais — la seule
+  // preuve, comme le rappelle `PIEGES.md` § 5.2 bis.
+  "Tâche": "Task",
+  "Objectif": "Goal",
+  "Événement": "Event",
+  "Trade": "Trade",
+  "Objet": "Object",
+  "Fiches du Savoir": "Knowledge cards",
+  "Événements": "Events",
+  "Trades": "Trades",
+  "Objets": "Objects",
+  "Fiches": "Cards",
+
+  // Types de champ — même remarque : clés dynamiques.
+  "Texte": "Text",
+  "Nombre": "Number",
+  "Choix": "Choice",
+
+  // Mentions et backlinks
+  "Écris ta note. Tape @ pour citer une note, une fiche, un objectif…":
+    "Write your note. Type @ to cite a note, a card, a goal…",
+  "Ce que tu sais de cette fiche. Tape @ pour citer autre chose.":
+    "What you know about this card. Type @ to cite something else.",
+  "Rien à citer sous ce nom.": "Nothing to cite under that name.",
+  "Mentionné dans": "Mentioned in",
+  "Rien ne cite encore ceci.": "Nothing cites this yet.",
+  "Lier": "Link",
+  "Rattacher à la main": "Attach by hand",
+  "Tout ne se dit pas dans un texte.": "Not everything gets said in a text.",
+  "Chercher une note, une fiche, un objet…": "Search a note, a card, an object…",
+  "Retirer ce rattachement": "Remove this attachment",
+  "à la main": "by hand",
+  "aller à": "go to",
+  "Rien ne correspond.": "Nothing matches.",
+
+  // Objets et types
+  "Ce que tu sais, classé par thème.": "What you know, sorted by topic.",
+  "Ce que tu suis : personnes, ressources, projets, setups.":
+    "What you track: people, resources, projects, setups.",
+  "Tous": "All",
+  "fiches": "cards",
+  "+ Nouvelle fiche": "+ New card",
+  "Aucune fiche de ce type pour l'instant.": "No card of this type yet.",
+  "Crée d'abord un type : il décrit les champs de ses fiches.":
+    "Create a type first: it describes the fields of its cards.",
+  "Nouveau type d'objet": "New object type",
+  "Modifier ce type": "Edit this type",
+  "Modifier le type": "Edit type",
+  "Un type décrit les champs de ses fiches.": "A type describes the fields of its cards.",
+  "Type": "Type",
+  "Type livré avec l'app. Tu peux le modifier et le supprimer comme les autres.":
+    "Type shipped with the app. You can edit and delete it like any other.",
+  "Client, Recette, Lieu…": "Client, Recipe, Place…",
+  "Champs": "Fields",
+  "Ajouter un champ": "Add a field",
+  "Nom du champ": "Field name",
+  "Retirer ce champ": "Remove this field",
+  "obligatoire": "required",
+  "Options, séparées par des virgules": "Options, comma-separated",
+  "Supprimer le type ET ses {n} fiches ?": "Delete the type AND its {n} cards?",
+  "← Retour": "← Back",
+
+  // ⭐ Ce que l'app promet : retirer un champ ne détruit rien.
+  "Ces champs retirés ne seront plus affichés :": "These removed fields will no longer be shown:",
+  "{n} fiches le remplissent": "{n} cards fill it in",
+  "Rien n'est effacé : les valeurs restent en base et réapparaissent si tu remets le champ.":
+    "Nothing is deleted: the values stay in the database and come back if you restore the field.",
+  "{n} valeurs sont conservées pour des champs retirés du type. Elles reviendront si tu remets ces champs.":
+    "{n} values are kept for fields removed from the type. They will come back if you restore those fields.",
+
+  // Messages de validation (`lib/objets.ts` — clés dynamiques, elles aussi).
+  "Un type doit avoir un nom.": "A type needs a name.",
+  "Un champ doit avoir un nom.": "A field needs a name.",
+  "Deux champs portent le même identifiant.": "Two fields share the same identifier.",
 };

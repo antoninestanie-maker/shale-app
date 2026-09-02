@@ -13,6 +13,8 @@ import TooltipLayer from "./components/Tooltip";
 import UpgradeModal from "./components/UpgradeModal";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
+import { deposerDemande, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
 import { useScreenTime } from "./lib/mentalLoad";
@@ -35,6 +37,18 @@ import { t } from "./lib/i18n";
 const TodayView = lazy(() => import("./views/TodayView"));
 const TasksView = lazy(() => import("./views/TasksView"));
 const CalendarView = lazy(() => import("./views/CalendarView"));
+
+/**
+ * L'événement que chaque module écoute pour ouvrir un élément précis.
+ * Une famille absente d'ici ouvre son module sans sélectionner : c'est le cas
+ * de celles dont l'écran n'a pas (encore) de point d'entrée par identifiant —
+ * mieux vaut arriver au bon endroit qu'échouer.
+ */
+const EVT_MODULE: Partial<Record<LinkKind, string>> = {
+  note: "sb:open-note",
+  knowledge: "sb:open-knowledge",
+  object: "sb:open-object",
+};
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 const PerformanceView = lazy(() => import("./views/PerformanceView"));
@@ -166,6 +180,34 @@ function App() {
     },
     [hasTrading],
   );
+
+  /**
+   * Ouvrir l'objet qu'une mention désigne — le seul endroit qui sache router.
+   *
+   * ⚠️ DEUX TEMPS, ET L'ORDRE COMPTE. On change de module D'ABORD, puis on
+   * réémet l'événement que ce module écoute déjà (`sb:open-note`), au tick
+   * suivant. Émettre les deux ensemble ne marcherait pas : la vue cible est
+   * chargée en `lazy()`, elle n'est pas encore montée et personne n'écouterait.
+   *
+   * ⚠️ Passe par `navigate` et non `setView` : une mention vers un trade ne doit
+   * pas contourner le paywall.
+   */
+  useEffect(() => {
+    const onOuvrir = (e: Event) => {
+      const demande = (e as CustomEvent<DemandeOuverture>).detail;
+      // La demande est déposée AVANT la navigation : le module la trouvera à
+      // son montage, quel que soit le temps que met son chunk `lazy` à arriver.
+      deposerDemande(demande);
+      navigate(VUE_DE_KIND[demande.kind]);
+      // Et l'événement part quand même, pour le cas où le module est déjà là.
+      const evenement = EVT_MODULE[demande.kind];
+      if (evenement) {
+        window.dispatchEvent(new CustomEvent(evenement, { detail: demande.id }));
+      }
+    };
+    window.addEventListener(EVT_OUVRIR, onOuvrir);
+    return () => window.removeEventListener(EVT_OUVRIR, onOuvrir);
+  }, [navigate]);
 
   // Filet : l'offre peut changer PENDANT la session (fin d'essai détectée par
   // `recheck`, rétrogradation). Si la vue courante devient verrouillée, on
