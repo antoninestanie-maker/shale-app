@@ -421,6 +421,30 @@ où il est à l'écran).
 Plusieurs sessions Claude peuvent tourner en même temps : un `pkill` large tue
 les serveurs de développement des sessions voisines.
 
+## 8.2 bis ⭐ `lsof` sur un port ne dit PAS à qui appartient le processus
+
+**Symptôme.** On veut arrêter son propre serveur de développement. `lsof -ti:5183`
+rend un PID, on le tue — et **c'était le service réseau de l'application Claude
+elle-même**, qui avait simplement une connexion CLIENTE ouverte vers ce port.
+
+**Cause.** `lsof -ti:<port>` liste **tout** ce qui touche au port : le serveur
+qui écoute **et** chaque client connecté. Le navigateur intégré compte parmi les
+clients.
+
+**Parade.** Ne jamais tuer un PID sans avoir lu sa ligne de commande **avant** :
+
+```bash
+ps -p <PID> -o command=
+```
+
+Et viser le serveur par son motif exact (`pkill -f "vite --port 5183"`), jamais
+par le port. ⚠️ Voir aussi la règle générale : **jamais de `pkill` large**,
+plusieurs sessions Claude peuvent tourner en même temps.
+
+**Comment on l'a payée.** Chantier C, 2026-09-02. Sans conséquence durable — le
+service réseau de Chromium se relance seul — mais c'était un coup de chance, pas
+une garantie.
+
 ## 8.3 Une reconstruction native redemande l'accès au trousseau
 
 La signature ad hoc change à chaque reconstruction : macOS redemande
