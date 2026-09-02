@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { joursEntre, type EntreeAgenda } from "../../lib/calendrier/agenda";
+import { toDateStr } from "../../lib/logic";
 import { localeTag, t } from "../../lib/i18n";
 
 /**
@@ -34,7 +35,12 @@ export default function VueAgenda({
   const dates = useMemo(() => {
     const fin = new Date(`${depuis}T12:00:00`);
     fin.setDate(fin.getDate() + jours - 1);
-    return joursEntre(depuis, fin.toISOString().slice(0, 10));
+    // ⚠️ `toDateStr` et jamais `toISOString().slice(0, 10)` : le second convertit
+    // en UTC. Midi local à Paris redescend à 10 h UTC — même jour, tout va
+    // bien —, mais midi local à Auckland (UTC+13) devient 23 h la VEILLE, et
+    // l'agenda commencerait un jour trop tôt. Le défaut ne se verrait jamais
+    // ici, seulement chez quelqu'un d'autre.
+    return joursEntre(depuis, toDateStr(fin));
   }, [depuis, jours]);
 
   const remplis = dates.filter((d) => (parJour.get(d) ?? []).length > 0);
