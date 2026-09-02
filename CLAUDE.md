@@ -19,6 +19,16 @@ restante).
 > ⚠️ Le jeton de GitHub Desktop dort aussi dans le trousseau, mais il lui est
 > propre : ne jamais chercher à le lire. La clé SSH est le chemin.
 
+## ⭐ `PIEGES.md` — le carnet des erreurs qui se répètent
+
+Ouvert le 2026-09-02 à la demande d'Antonin. **Toute erreur qui peut se
+reproduire s'y écrit, au moment où on la trouve** — pas à la fin du chantier.
+Une erreur trouvée deux fois par deux sessions différentes est une erreur qu'on
+a payée deux fois.
+
+Ce fichier-ci porte les **décisions** et le **pourquoi** ; `PIEGES.md` porte les
+**erreurs** et leur parade. Une session qui commence lit les deux.
+
 ## Ce qu'est Shale, en un écran
 
 Une app de bureau **hors-ligne d'abord** : toutes les données vivent dans **un

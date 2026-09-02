@@ -9,6 +9,7 @@ en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
 |---|---|---|
 | 1 | **ce fichier** | toujours, en premier |
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
+| 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
 | 3 | `PASSATION-UI.md` | l'état détaillé du chantier UI/UX et ses pièges |
 | 4 | `AUDIT-I18N-2026-08.md` | si tu touches à une chaîne affichée |
 | 5 | `MOBILE.md` | si tu touches à iOS |
