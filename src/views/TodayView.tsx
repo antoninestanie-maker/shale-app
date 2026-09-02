@@ -6,6 +6,7 @@ import PositionSizeWidget from "../components/PositionSizeWidget";
 import QuickLinks from "../components/QuickLinks";
 import TimerCard from "../components/TimerCard";
 import TodayTasks from "../components/TodayTasks";
+import CalendarCard from "../components/CalendarCard";
 import MentalLoadGauge from "../components/MentalLoadGauge";
 // recharts sorti du bundle de démarrage : chargé quand le widget "7 derniers jours" s'affiche.
 const WeekChart = lazy(() => import("../components/WeekChart"));
@@ -37,6 +38,7 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
   quicklinks: 4,
   tasks: 8,
   goals: 8,
+  calendar: 8,
 };
 /** Largeur MINIMALE (colonnes /12) : sous ce seuil le contenu se chevaucherait.
     Calé sur ce que chaque widget peut afficher lisiblement. Le moteur de grille
@@ -51,11 +53,13 @@ const WIDGET_MIN_W: Record<string, number> = {
   quicklinks: 3,
   tasks: 4,
   goals: 4,
+  calendar: 4,
 };
 
 /** Hauteur MINIMALE (px) des widgets dont le contenu sait défiler : sous cette
     valeur la carte n'aurait plus rien de lisible (en-tête + une ligne). */
 const WIDGET_MIN_H: Record<string, number> = {
+  calendar: 176,
   tasks: 200,
   goals: 176,
   quicklinks: 136,
@@ -71,6 +75,7 @@ const WIDGET_TARGET: Record<string, View> = {
   position: "sizing",
   tasks: "tasks",
   goals: "goals",
+  calendar: "calendar",
 };
 
 /** Entrelace deux listes (col. gauche / droite) pour un empilage dense équilibré. */
@@ -198,6 +203,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         <GoalsPreview data={data} />
       </section>
     ),
+    calendar: () => <CalendarCard key="calendar" data={data} />,
   };
 
   // Ordre d'affichage dans la grille : bannières pleine largeur, puis les widgets des

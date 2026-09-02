@@ -73,6 +73,13 @@ export const ACTIONS: AppAction[] = [
     run: (ctx) => ctx.navigate("tasks"),
   },
   {
+    id: "nav.calendar",
+    title: "Aller au Calendrier",
+    category: "navigation",
+    keywords: ["calendrier", "agenda", "planning", "semaine", "mois", "jour"],
+    run: (ctx) => ctx.navigate("calendar"),
+  },
+  {
     id: "nav.timer",
     title: "Aller au Timer",
     category: "navigation",

@@ -1573,7 +1573,9 @@ affichent des données différentes, pour toujours.
 retombe sur l'héritage, sans erreur ni avertissement. Constaté sur l'encadré
 d'avertissement de `SyncSettings`, qui s'affichait en blanc. Vérifier une couleur au
 `getComputedStyle`, pas à l'œil. Tokens réels : `blue`, `green`, `red`, `yellow`,
-`violet`, `indigo`.
+`violet`. ⚠️ **Corrigé le 2026-09-02 : `indigo` figurait dans cette liste et
+n'existe pas** dans `src/index.css` — il échouait donc en silence, exactement
+comme le défaut que ce paragraphe décrit.
 
 ### ⚠️ Une pierre tombale PORTE une charge utile
 Minuscule (l'identifiant de ligne chiffré), mais indispensable : `row_tag` est un
@@ -3369,3 +3371,120 @@ sert — donc invérifiable, puisque c'est le seul mode où l'on peut auditer sa
 piloter la vraie base d'Antonin. Le mode démo n'a ni SQLite ni colonne `uid` :
 il fabrique des identités synthétiques stables (`demo:note:3`), cohérentes entre
 elles, sans aucun rapport avec les uid réels.
+
+## Calendrier — le 13ᵉ module (2026-09-02)
+
+Le chantier B, posé sur le socle de la migration 020. **Le compte de modules
+passe de douze à treize** ; `ITEMS` de `Sidebar.tsx` en fait autorité, et le
+Calendrier se range en Productivité, entre Tâches et Timer.
+
+⚠️ **Le document de cadrage annonçait « douze est écrit en toutes lettres à 8
+endroits dans `src/` ». C'était faux** : le `grep` rendait 8 résultats, dont
+sept parlaient de douze **mois**, douze **loyers**, douze **mots**. **Aucun
+texte affiché par l'app n'annonce ce nombre** — seuls deux commentaires le
+mentionnaient. Le compte affiché existe côté site, et il est inscrit dans
+`DETTE-SITE-CALENDRIER.md`.
+
+### Le module ne possède aucune donnée
+Il RASSEMBLE ce que quatre modules savent déjà — événements, tâches datées,
+habitudes projetées, échéances d'objectifs — et croise ce que **personne ne
+croisait** : le temps qui reste et le travail qui reste. Toute la lecture d'une
+journée vit dans `src/lib/calendrier/agenda.ts`, en logique pure.
+
+### ⭐ Un seul moteur de récurrence, pas deux
+`isDueOn` a été ouvert en `occurrenceLe(recurrence, depuis, jour)`
+(`src/lib/logic.ts`), dont il devient une spécialisation. Les événements du
+calendrier parlent **le même dialecte** que les tâches ('none' | 'daily' |
+'weekdays' | JSON de jours). Deux grammaires, ce seraient deux moteurs de
+projection à écrire, à tester et à garder d'accord — la migration 020 le disait
+déjà, ce commit s'y tient.
+
+### ⭐ La capacité d'une journée est MESURÉE, jamais supposée
+« Une journée fait huit heures » est une croyance. Ce qu'on sait, c'est combien
+de minutes de concentration ont réellement été tenues **ce jour de semaine** :
+`focus_sessions.started_at`/`ended_at` sont la seule mesure directe du dépôt.
+La capacité est la **médiane** des totaux quotidiens — pas la moyenne, qu'une
+seule journée de six heures suffirait à fausser pour tous les mardis.
+
+⚠️ **Ce qui ne pouvait PAS servir, vérifié dans le schéma** :
+`task_completions` ne stocke que `(task_id, date, done)` — **cocher une tâche ne
+dit pas QUAND**. Et `screen_min_<jour>` donne un volume, jamais une répartition.
+
+⚠️ **Sous dix sessions, le profil se déclare NON appris** et l'interface le dit
+en toutes lettres (« capacité par défaut »). Moins de dix décrit une semaine,
+pas une habitude : l'app présenterait un accident comme une règle. Le repli est
+9 h – 18 h, réglable — décision d'Antonin.
+
+### ⭐ La charge ne SUPPOSE aucune durée
+Une tâche sans créneau n'a pas de durée connue. Lui en prêter une fabriquerait
+une charge qui a l'air mesurée, et l'avertissement perdrait tout droit d'être
+cru. Elles sont donc **comptées à part** : « 4 h 30 posées, plus 6 tâches sans
+horaire ». Moins spectaculaire qu'un chiffre unique, et seule version honnête.
+
+Le seuil de surcharge est à **1,0** et non 0,8 : avertir sur une journée bien
+remplie mais tenable ferait crier l'app trop souvent, et un avertissement trop
+fréquent finit par ne plus rien vouloir dire.
+
+### Le report s'arrête, et c'est le sujet
+Seuil à **2** (décision d'Antonin). Deux glissements passent, le troisième
+demande une décision et propose les trois issues. ⚠️ **Jamais pour une tâche
+récurrente** : une occurrence manquée n'est pas en retard, elle est manquée —
+la reporter en ferait deux le lendemain, puis trois. `replanifier()` remet le
+compteur à zéro : déplacer à la main n'est pas subir un glissement.
+
+Le report est appliqué **à l'ouverture du module**, et c'est sans danger parce
+que l'opération est **idempotente** — une fois reportée à aujourd'hui, la tâche
+n'est plus en retard. Pas de drapeau « déjà fait aujourd'hui », qui mentirait le
+jour où l'app reste ouverte à cheval sur minuit.
+
+### ⚠️ Le glisser-déposer : écouteurs posés dans le `pointerdown`
+`PointerEvent` et non le `draggable` HTML5, qui ne se déclenche pas au doigt sur
+iOS — le module serait inutilisable sur téléphone et le chantier D devrait tout
+réécrire.
+
+⭐ **Les écouteurs sont posés dans le gestionnaire de `pointerdown`, pas dans un
+`useEffect`.** Un effet ne s'exécute qu'APRÈS le rendu : un geste rapide se
+terminait avant que le moindre écouteur n'existe, et il ne se passait
+strictement rien. **Constaté à l'écran, pas déduit.** Le hit-test passe par
+`elementFromPoint` sur les positions réelles du DOM, jamais sur des rectangles
+mémorisés au début du geste — la grille peut défiler pendant le glissement.
+
+Un événement **récurrent** ne se déplace pas : sa série serait silencieusement
+rompue. Il s'ouvre, et l'utilisateur décide.
+
+### ⚠️ La règle de notification, et ce qu'elle ne fait PAS sur iPhone
+`calendar_soon` (Rust, `notifications/rules/calendar.rs`) couvre deux fenêtres :
+un rendez-vous dans l'heure, et ce qui tombe demain annoncé en fin de journée.
+Une fenêtre unique aurait raté l'un des deux usages.
+
+⚠️ **Elle n'a pas de paramètre `hour`**, donc le planificateur la range parmi
+les règles « sans heure » et ne la projette qu'à l'ouverture de la plage
+autorisée. Sur le bureau c'est sans conséquence (le scheduler scrute chaque
+minute). **Sur iOS, app fermée, le rappel « dans une heure » n'est pas
+ponctuel** — le rendre ponctuel demanderait un dépôt par événement, chemin qui
+n'existe pas. **Ne jamais écrire que c'est vérifié sur iPhone.**
+
+⚠️ Les lectures de `data.rs` sont **indépendantes et tolérantes à l'échec** :
+sur une base antérieure à la migration 020, la requête échoue, la liste est
+vide, la règle reste inerte — et les autres règles continuent de tourner. Un
+`unwrap` aurait éteint TOUTES les notifications de l'app pour une table absente.
+
+### Le pont vers le Journal se fait dans l'autre sens
+`JournalView` est figé sur aujourd'hui et ne sait pas parcourir les dates. Le
+relier aurait demandé de le réécrire. La **vue Jour du calendrier** porte donc
+la note de n'importe quelle journée, via `upsertJournal(date, …)` qui accepte
+déjà n'importe quelle date. Le calendrier devient le chemin d'accès à une
+journée passée, ce que le Journal ne sait pas faire.
+
+### Trois défauts que seule la mise à l'écran a révélés
+1. **Le bandeau d'alertes chassait le calendrier hors de l'écran** (trois
+   objectifs en péril + une tâche à décider). Plafonné à deux par famille, le
+   reste compté. Un module de calendrier dont on ne voit pas le calendrier a
+   échoué, même si tout ce qu'il dit est vrai.
+2. **La bande « sans heure » n'avait pas de plafond** : cinq récurrentes par
+   jour repoussaient la première heure sous le pli.
+3. ⭐ **Les en-têtes de jours restaient en français en anglais.** `DAY_SHORT`
+   est une table française sans clé de traduction, et **les deux outils i18n
+   étaient au vert** — `i18n:check` ne voit que les clés absentes, `i18n:durs`
+   ne suit pas la donnée. Remplacé par `Intl`, qui connaît toutes les langues
+   sans qu'on lui en ajoute.

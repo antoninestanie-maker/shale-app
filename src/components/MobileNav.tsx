@@ -5,7 +5,7 @@
 // Le bureau n'est pas touché d'une ligne.
 //
 // ─── POURQUOI QUATRE ONGLETS, ET CEUX-LÀ ────────────────────────────────────
-// Douze modules + Réglages + Personnaliser = 14 destinations. Aucune barre
+// Treize modules + Réglages + Personnaliser = 15 destinations. Aucune barre
 // d'onglets iOS n'en porte plus de cinq.
 //
 // Les quatre retenus sont IDENTIQUES dans les deux offres (Shale et Shale

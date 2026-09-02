@@ -24,7 +24,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{Connection, SqliteConnection};
 
-use super::model::{Completion, Habit, HabitCheck, Snapshot, Task};
+use super::model::{CalendarItem, Completion, Habit, HabitCheck, Snapshot, Task};
 
 /// Clé de la table `settings` écrite par le front à l'ouverture d'une fiche du Savoir.
 pub const KNOWLEDGE_LAST_VIEWED: &str = "knowledge.last_viewed_at";
@@ -118,12 +118,80 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     });
 
     let knowledge_last_viewed = read_knowledge_last_viewed(&mut conn).await;
+    let calendar = read_calendar(&mut conn, &today.format("%Y-%m-%d").to_string()).await;
 
     // On referme explicitement : la connexion est éphémère, ouverte le temps
     // d'un tick du planificateur.
     let _ = conn.close().await;
 
-    Ok(Snapshot { habits, habit_checks, tasks, completions, knowledge_last_viewed })
+    Ok(Snapshot { habits, habit_checks, tasks, completions, knowledge_last_viewed, calendar })
+}
+
+/// Ce qui est daté dans les jours qui viennent : événements, tâches datées,
+/// échéances d'objectifs.
+///
+/// ⚠️ CHAQUE LECTURE EST INDÉPENDANTE ET TOLÉRANTE À L'ÉCHEC. Ces tables sont
+/// arrivées avec la migration 020 : sur une base plus ancienne — le temps qu'un
+/// second appareil se mette à jour, par exemple — la requête échoue. Elle rend
+/// alors une liste vide, la règle reste inerte, et les autres règles continuent
+/// de tourner. Un `unwrap` ici éteindrait TOUTES les notifications de l'app
+/// pour une table absente.
+async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<CalendarItem> {
+    let mut items = Vec::new();
+
+    // Les événements ponctuels des jours qui viennent. Les récurrents sont
+    // volontairement écartés : leur date est celle de la PREMIÈRE occurrence,
+    // et projeter une récurrence en SQL demanderait de réécrire ici le moteur
+    // qui vit déjà dans `lib/logic.ts`. Une habitude n'a de toute façon pas
+    // besoin d'un rappel « imminent » — c'est ce que fait déjà la règle des
+    // habitudes.
+    let events = sqlx::query_as::<_, (String, String, Option<String>)>(
+        "SELECT title, date, start_at FROM calendar_events \
+         WHERE date >= ?1 AND (recurrence IS NULL OR recurrence = 'none') AND all_day = 0",
+    )
+    .bind(today)
+    .fetch_all(&mut *conn)
+    .await
+    .unwrap_or_else(|e| {
+        eprintln!("notifications : lecture des événements ({e})");
+        Vec::new()
+    });
+    for (title, date, start_at) in events {
+        items.push(CalendarItem { title, date, start_at, kind: "event" });
+    }
+
+    let dated = sqlx::query_as::<_, (String, String, Option<String>)>(
+        "SELECT label, due_date, start_at FROM tasks \
+         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none')",
+    )
+    .bind(today)
+    .fetch_all(&mut *conn)
+    .await
+    .unwrap_or_else(|e| {
+        eprintln!("notifications : lecture des tâches datées ({e})");
+        Vec::new()
+    });
+    for (title, date, start_at) in dated {
+        items.push(CalendarItem { title, date, start_at, kind: "task" });
+    }
+
+    // Les échéances d'objectifs n'ont pas d'heure : elles pèsent sur la journée
+    // entière, et c'est la veille qu'il faut le savoir, pas quinze minutes avant.
+    let deadlines = sqlx::query_as::<_, (String, String)>(
+        "SELECT title, deadline FROM goals WHERE deadline >= ?1",
+    )
+    .bind(today)
+    .fetch_all(&mut *conn)
+    .await
+    .unwrap_or_else(|e| {
+        eprintln!("notifications : lecture des échéances ({e})");
+        Vec::new()
+    });
+    for (title, date) in deadlines {
+        items.push(CalendarItem { title, date, start_at: None, kind: "deadline" });
+    }
+
+    items
 }
 
 /// Dernière consultation du Savoir. Repli sur la fiche modifiée le plus

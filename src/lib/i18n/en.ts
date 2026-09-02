@@ -1949,4 +1949,98 @@ export const EN: Record<string, string> = {
   "Règle d'entrée": "Entry rule",
   "R visé": "Target R",
   "Balayage puis retour dans le range": "Sweep, then back inside the range",
+
+  // ─── Calendrier (2026-09-02, 13ᵉ module) ──────────────────────────────────
+  "Calendrier": "Calendar",
+  "+ Nouvel événement": "+ New event",
+  "Nouvel événement": "New event",
+  "Modifier l'événement": "Edit event",
+  "Supprimer l'événement": "Delete event",
+  "Un rendez-vous, un créneau bloqué, un anniversaire.": "An appointment, a blocked slot, a birthday.",
+  "Un événement a besoin d'un titre.": "An event needs a title.",
+  "La fin doit venir après le début.": "The end must come after the start.",
+  "Point hebdo, dentiste, anniversaire…": "Weekly check-in, dentist, birthday…",
+  "Date": "Date",
+  "Début": "Start",
+  "Note": "Note",
+  "Couleur": "Colour",
+  "Répétition": "Repeats",
+  "Toute la journée": "All day",
+  "Sans heure": "No time",
+  "jour": "day",
+  "Précédent": "Previous",
+  "Revenir à aujourd'hui": "Back to today",
+  "Ouvrir cette journée": "Open this day",
+  "Ouvrir la note de ce jour": "Open this day's note",
+  "Le journal et le calendrier partagent la même journée.": "The journal and the calendar share the same day.",
+  "+ {n} autres": "+ {n} more",
+  "Rien de prévu aujourd'hui.": "Nothing planned today.",
+
+  // L'intelligence du module — ce qu'il dit, et ce qu'il avoue ne pas savoir.
+  "Journée surchargée": "Overloaded day",
+  "Journée surchargée.": "Overloaded day.",
+  "Surchargée": "Overloaded",
+  "{posees} posées pour {capacite} de capacité.": "{posees} scheduled against {capacite} of capacity.",
+  "Et {n} tâches sans horaire, qui ne sont pas comptées.": "Plus {n} tasks with no time, which are not counted.",
+  "(capacité par défaut — pas encore assez de sessions pour l'apprendre)":
+    "(default capacity — not enough sessions yet to learn it)",
+  "La charge de cette journée": "This day's load",
+  "Capacité apprise de tes sessions de concentration.": "Capacity learned from your focus sessions.",
+  "Capacité par défaut : pas encore assez de sessions pour l'apprendre.":
+    "Default capacity: not enough sessions yet to learn it.",
+  "{n} tâches sans horaire — non comptées, faute de durée connue.":
+    "{n} tasks with no time — not counted, since their length is unknown.",
+  "{n} h": "{n} h",
+  "{n} min": "{n} min",
+
+  "échéance dépassée de {n} jours.": "deadline missed by {n} days.",
+  "{n} jours restants, {pct} % fait.": "{n} days left, {pct}% done.",
+  "{n} jalons non terminés.": "{n} milestones unfinished.",
+  "(progression déclarée à la main, pas mesurée)": "(progress entered by hand, not measured)",
+
+  "prévue le {date}, repoussée {n} fois.": "due on {date}, pushed back {n} times.",
+  "Une tâche reportée cinq fois n'est pas une tâche, c'est une décision à prendre.":
+    "A task pushed back five times isn't a task, it's a decision you're avoiding.",
+  "La faire maintenant": "Do it now",
+  "Replanifier dans 7 jours": "Reschedule in 7 days",
+
+  "La note de cette journée": "This day's note",
+  "Ce qui s'est passé ce jour-là…": "What happened that day…",
+  "Enregistré.": "Saved.",
+  "Non enregistré — sortir du champ enregistre.": "Not saved — leaving the field saves it.",
+
+  // Rappels
+  "Événement imminent": "Event coming up",
+  "Avant un rendez-vous du jour, et en fin de journée pour ce qui tombe demain.":
+    "Before an appointment today, and at the end of the day for what falls tomorrow.",
+  "prévenir": "warn me",
+  "min avant": "min before",
+  "annoncer demain à": "announce tomorrow at",
+
+  // Créneaux proposés — et ce qu'on dit quand il n'y a rien à proposer.
+  "Créneaux libres proposés": "Suggested free slots",
+  "Tes heures les plus souvent tenues, encore libres. À toi de déposer.":
+    "Your most frequently kept hours, still free. Yours to fill.",
+  "Heures ouvrées par défaut : l'app n'a pas encore assez de sessions pour apprendre les tiennes.":
+    "Default working hours: not enough sessions yet for the app to learn yours.",
+  "Rien à proposer : tes heures habituelles sont déjà prises ce jour-là.":
+    "Nothing to suggest: your usual hours are already taken that day.",
+  "Aucune heure de travail apprise pour ce jour de la semaine.":
+    "No working hours learned for that day of the week.",
+  "+ {n} autres objectifs en péril, dans le module Objectifs.":
+    "+ {n} more goals at risk, in the Goals module.",
+  "+ {n} autres tâches attendent une décision.": "+ {n} more tasks are waiting on a decision.",
+
+  // Singuliers — l'anglais n'accorde pas comme le français, d'où les deux formes
+  // complètes plutôt qu'un suffixe ajouté à la volée.
+  "+ {n} autre objectif en péril, dans le module Objectifs.":
+    "+ {n} more goal at risk, in the Goals module.",
+  "+ {n} autre tâche attend une décision.": "+ {n} more task is waiting on a decision.",
+  "Et {n} tâche sans horaire, qui n'est pas comptée.":
+    "Plus {n} task with no time, which is not counted.",
+  "{n} tâche sans horaire — non comptée, faute de durée connue.":
+    "{n} task with no time — not counted, since its length is unknown.",
+  "{n} jalon non terminé.": "{n} milestone unfinished.",
+  "{n} jour restant, {pct} % fait.": "{n} day left, {pct}% done.",
+  "échéance dépassée d'{n} jour.": "deadline missed by {n} day.",
 };

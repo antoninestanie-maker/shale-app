@@ -38,6 +38,7 @@ export interface UiConfig {
 export const MODULE_IDS: View[] = [
   "today",
   "tasks",
+  "calendar",
   "timer",
   "goals",
   "performance",
@@ -60,6 +61,7 @@ export const WIDGET_LABELS: Record<string, string> = {
   quicklinks: "Liens rapides",
   tasks: "Tâches du jour",
   goals: "Objectifs en cours",
+  calendar: "Calendrier du jour",
 };
 
 const DEFAULTS: UiConfig = {
@@ -77,6 +79,7 @@ const DEFAULTS: UiConfig = {
   ],
   dashRight: [
     { id: "tasks", visible: true },
+    { id: "calendar", visible: true },
     { id: "goals", visible: true },
   ],
   window: null,

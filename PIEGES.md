@@ -210,6 +210,25 @@ langue de démarrage. Signalé à Antonin le 2026-09-02, non corrigé : le code
 ajouté depuis suit la convention du fichier plutôt que d'en introduire une
 seconde au milieu.
 
+## 5.2 bis ⭐ Une TABLE française de la logique métier échappe aux deux outils
+
+**Symptôme.** L'app basculée en anglais affiche « LUN MAR MER JEU VEN SAM DIM »
+en en-tête du calendrier. `i18n:check` **et** `i18n:durs` sont au vert.
+
+**Cause.** `DAY_SHORT` (`src/lib/logic.ts`) est une table de chaînes françaises
+sans clé de traduction. La passer à `t()` ne suffit pas : `i18n:check` ne voit
+que les clés absentes **des appels qu'il reconnaît**, et `i18n:durs` « ne suit
+pas la donnée ». Une table de constantes est de la donnée.
+
+**Parade.** Pour tout ce qu'`Intl` sait dire — jours, mois, dates, nombres,
+devises — **utiliser `toLocaleDateString(localeTag(), …)`** plutôt qu'une table
+maison. `Intl` connaît toutes les langues sans qu'on lui en ajoute, et la
+traduction ne peut pas se périmer.
+
+**Comment on l'a payée.** Chantier B, 2026-09-02 : vu à l'écran, jamais par les
+outils. C'est la démonstration de la règle du § 3 de `PASSATION.md` — **la
+preuve finale, c'est l'app basculée en anglais.**
+
 ## 5.3 Le défaut le plus facile à commettre est la MOITIÉ
 
 `data-tip={paused ? t("Reprendre") : "Mettre en pause"}`. Un attribut traduit
@@ -243,11 +262,39 @@ Toute fonction de `repo.ts` doit exister dans `demo.ts`. Sans elle, l'écran qui
 s'en sert ne montre rien en preview navigateur — or c'est **le seul mode où l'on
 peut auditer sans piloter la vraie base d'Antonin**.
 
+## 6.2 bis ⭐ Des écouteurs de geste posés dans un `useEffect` ratent les gestes rapides
+
+**Symptôme.** Le glisser-déposer ne fait RIEN. Pas d'erreur, pas de message : on
+saisit, on relâche, l'élément n'a pas bougé. Le geste lent d'un humain marche
+parfois ; le geste rapide, jamais.
+
+**Cause.** Le `pointerdown` mettait un état React, et un `useEffect` dépendant de
+cet état posait les écouteurs `pointermove` / `pointerup`. **Un effet ne
+s'exécute qu'APRÈS le rendu.** Un geste dont l'appui, le déplacement et le
+relâchement tiennent dans la même tâche du navigateur se termine avant que le
+moindre écouteur n'existe.
+
+**Parade.** Poser les écouteurs **dans le gestionnaire de `pointerdown`
+lui-même**, et tenir l'état du geste dans un `useRef` — pas dans l'état React,
+qui arrive trop tard. C'est déjà ce que fait `ResizableGrid` (« transform
+impératif hors React »), pour la même raison.
+
+**Comment on l'a payée.** Chantier B, 2026-09-02. ⚠️ Et il a fallu **deux**
+diagnostics : le premier glissement d'essai portait sur une tâche **récurrente**,
+que le code refuse volontairement de déplacer. Avant de conclure qu'un geste est
+cassé, **vérifier sur quoi on tire** — `document.elementFromPoint(x, y)` le dit
+en une ligne.
+
 ## 6.3 Un token de couleur inexistant échoue EN SILENCE
 
 `text-amber` ne génère aucune classe (le token s'appelle `--color-yellow`) : la
-couleur retombe sur l'héritage, sans erreur. Tokens réels : `blue`, `green`,
-`red`, `yellow`, `violet`, `indigo`.
+couleur retombe sur l'héritage, sans erreur.
+
+**Les cinq tokens de couleur RÉELS**, vérifiés dans `src/index.css` le
+2026-09-02 : `blue`, `green`, `red`, `yellow`, `violet`.
+⚠️ `CLAUDE.md` en cite un sixième, **`indigo`, qui n'existe pas** — l'employer
+échouerait donc exactement de la façon décrite ci-dessus. Corrigé dans
+`CLAUDE.md` le 2026-09-02.
 
 ## 6.4 Tout `vh`/`vw` doit être multiplié par `--zoom-inv`
 
@@ -271,6 +318,25 @@ et vérifier que le test tombe. Sans cela, on ne sait pas si le test a des dents
 
 **Comment on l'a payée.** Chantier A : c'est ce geste qui a confirmé que le
 piège 2.1 était réel — 7 tests sur 8 tombent avec l'ancien tri.
+
+## 7.2 bis ⭐ Un jeu d'essai qui ne dit pas ce qu'il croit dire
+
+**Symptôme.** Deux tests passent, deux autres échouent — et le code semble juste.
+
+**Cause.** L'aide qui fabriquait les données de test s'appelait `dixMardisDe()`
+et égrenait en réalité des dates tous les **deux jours** : elle produisait des
+mardis, des jeudis et des samedis. Le profil apprenait donc le samedi, et les
+tests qui « vérifiaient » qu'il ne l'apprenait pas passaient pour de mauvaises
+raisons.
+
+**Parade.** Une aide de test qui prétend produire un jour de semaine précis doit
+**partir d'une date de ce jour-là et reculer de 7 en 7**, jamais bricoler une
+chaîne de caractères. Et quand un test échoue, **vérifier d'abord le jeu
+d'essai** : `node -e 'console.log(new Date("2026-09-01T12:00:00").getDay())'`
+coûte dix secondes.
+
+**Comment on l'a payée.** Chantier B, 2026-09-02 : quinze minutes à chercher un
+défaut de calcul qui n'existait pas.
 
 ## 7.3 Un test rouge n'est pas forcément le vôtre
 

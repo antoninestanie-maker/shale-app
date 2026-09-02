@@ -300,6 +300,7 @@ mod tests {
             tasks: vec![],
             completions: vec![],
             knowledge_last_viewed: None,
+            calendar: vec![],
         }
     }
 
@@ -354,6 +355,7 @@ mod tests {
             tasks: vec![],
             completions: vec![],
             knowledge_last_viewed: None,
+            calendar: vec![],
         };
         assert!(plan(at("2026-08-27 14:00:00"), &snap, &prefs(), &[]).is_empty());
     }
@@ -426,8 +428,22 @@ mod tests {
     fn sans_regle_sans_heure_l_ouverture_de_plage_n_est_pas_sondee() {
         let mut p = prefs();
         p.quiet_hours = QuietHours { start: 8, end: 22 };
-        if let Some(r) = p.rules.get_mut("inactivity") {
-            r.enabled = false;
+        // ⚠️ On désactive TOUTES les règles sans heure, par leurs paramètres et
+        // non par leur nom. La version d'avant ne nommait qu'`inactivity` : elle
+        // a cessé de dire la vérité le jour où une deuxième règle sans heure est
+        // arrivée (`calendar_soon`, 2026-09-02), et le test a échoué sur un
+        // comportement pourtant correct. Un test qui énumère à la main ce que le
+        // registre contient se périme au prochain ajout.
+        let sans_heure: Vec<String> = p
+            .rules
+            .iter()
+            .filter(|(_, r)| !r.params.contains_key(CLE_HEURE))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in sans_heure {
+            if let Some(r) = p.rules.get_mut(&id) {
+                r.enabled = false;
+            }
         }
         let instants = instants_a_sonder(at("2026-08-27 06:00:00"), &p);
         assert!(!instants.contains(&at("2026-08-27 08:00:00")), "eu : {instants:?}");

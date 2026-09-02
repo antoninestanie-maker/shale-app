@@ -192,6 +192,20 @@ export const IconChevronUp = (p: IconProps) => (
   </Icon>
 );
 
+/** Chevron gauche — navigation dans le calendrier. */
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 6-6 6 6 6" />
+  </Icon>
+);
+
+/** Chevron droit — navigation dans le calendrier. */
+export const IconChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Icon>
+);
+
 export const IconChevronDown = (p: IconProps) => (
   <Icon {...p}>
     <path d="m6 9.5 6 6 6-6" />

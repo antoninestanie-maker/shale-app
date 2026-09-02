@@ -34,6 +34,7 @@ import { t } from "./lib/i18n";
 // vue du bundle de démarrage. Chaque vue devient son propre chunk, chargé au 1er affichage.
 const TodayView = lazy(() => import("./views/TodayView"));
 const TasksView = lazy(() => import("./views/TasksView"));
+const CalendarView = lazy(() => import("./views/CalendarView"));
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 const PerformanceView = lazy(() => import("./views/PerformanceView"));
@@ -474,6 +475,8 @@ function App() {
             />
           ) : view === "tasks" ? (
             <TasksView data={data} refresh={refresh} />
+          ) : view === "calendar" ? (
+            <CalendarView data={data} refresh={refresh} />
           ) : view === "timer" ? (
             <TimerView data={data} focus={focus} />
           ) : view === "goals" ? (

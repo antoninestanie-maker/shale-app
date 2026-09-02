@@ -12,6 +12,7 @@ import { t } from "../lib/i18n";
 export type View =
   | "today"
   | "tasks"
+  | "calendar"
   | "timer"
   | "goals"
   | "performance"
@@ -60,6 +61,16 @@ export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="4" />
         <path d="m8.5 12 2.5 2.5 5-5" />
+      </svg>
+    ),
+  },
+  {
+    id: "calendar",
+    label: "Calendrier",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="16" rx="2.5" />
+        <path d="M3 10h18M8 3v4M16 3v4" />
       </svg>
     ),
   },
@@ -187,6 +198,8 @@ export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
 const DESCRIPTIONS: Record<View, string> = {
   today: "Tableau de bord du jour : tâches, énergie, discipline, performance.",
   tasks: "Créer, taguer et planifier les tâches récurrentes ou ponctuelles.",
+  calendar:
+    "Mois, semaine, jour : événements, tâches datées et échéances, au même endroit.",
   timer: "Minuteur Pomodoro pour tes sessions de concentration.",
   goals: "Objectifs court / moyen / long terme, regroupés par catégorie.",
   performance: "Courbes de progression : régularité, focus, objectifs.",
@@ -220,8 +233,8 @@ export const BY_ID = new Map(ITEMS.map((it) => [it.id, it]));
  * icône. Vu à l'écran sur iPhone le 2026-08-27.
  *
  * ⚠️ Elles ne sont pas dans `ITEMS` et ne doivent pas y entrer : `ITEMS` est
- * la liste des MODULES, celle qui fait autorité sur le nombre « douze » écrit
- * en toutes lettres dans l'app et sur le site. Y ajouter trois entrées ferait
+ * la liste des MODULES, celle qui fait autorité sur leur NOMBRE — treize depuis
+ * l'arrivée du Calendrier le 2026-09-02. Y ajouter trois entrées ferait
  * mentir ce compte partout à la fois.
  *
  * `adminSeul` reproduit la règle de la barre latérale : la Console est
@@ -268,6 +281,7 @@ export const CATEGORIES: { id: string; label: string; members: View[] }[] = [
     label: "Productivité",
     members: [
       "tasks",
+      "calendar",
       "timer",
       "goals",
       "performance",
@@ -376,7 +390,7 @@ export default function Sidebar({
     // sous 1024 px le libellé est `display: none`, donc le bouton ne contient
     // plus qu'une icône. Mesuré le 2026-08-28 à 720 px — `innerText` vide,
     // `aria-label` nul, et le seul `title` posé sur un élément non rendu, qui
-    // ne nomme rien et n'affiche aucune bulle. Les treize items de navigation
+    // ne nomme rien et n'affiche aucune bulle. Les quatorze items de navigation
     // n'avaient alors AUCUN nom accessible.
     const locked = isLocked(id);
     const active = view === id && !locked;
@@ -437,7 +451,7 @@ export default function Sidebar({
     // 32 % de la fenêtre en Split View, 26 % à la taille minimale. Sous 1024 px
     // elle tombe à 64 px et ne garde que les icônes.
     //
-    // Pourquoi le repli en ICÔNES et pas un tiroir superposé : les treize items
+    // Pourquoi le repli en ICÔNES et pas un tiroir superposé : les quatorze items
     // restent accessibles en UN clic. Un tiroir en coûterait deux, sur une app
     // dont on change d'onglet en permanence. Le tiroir n'aurait de sens que
     // sous ~600 px, largeur que la fenêtre ne peut pas atteindre (`minWidth`).

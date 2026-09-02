@@ -139,6 +139,14 @@ export const ruleMeta = (): Record<
     desc: t("Le soir, si des habitudes du jour attendent encore d'être cochées."),
     params: [{ key: "hour", label: t("heure du rappel"), min: 0, max: 23, suffix: "h" }],
   },
+  calendar_soon: {
+    label: t("Événement imminent"),
+    desc: t("Avant un rendez-vous du jour, et en fin de journée pour ce qui tombe demain."),
+    params: [
+      { key: "avant_min", label: t("prévenir"), min: 5, max: 240, suffix: t("min avant") },
+      { key: "deadline_hour", label: t("annoncer demain à"), min: 0, max: 23, suffix: "h" },
+    ],
+  },
   inactivity: {
     label: t("Savoir délaissé"),
     desc: t("Après plusieurs jours sans ouvrir une fiche du Savoir."),
@@ -157,6 +165,7 @@ export const DEFAULT_PREFS: NotifPrefs = {
   rules: {
     streak_at_risk: { enabled: true, cooldown_h: 20, hour: 21, min_streak: 3 },
     habits_pending: { enabled: true, cooldown_h: 20, hour: 20 },
+    calendar_soon: { enabled: true, cooldown_h: 40, avant_min: 60, deadline_hour: 18 },
     inactivity: { enabled: true, cooldown_h: 48, days: 3 },
   },
 };

@@ -58,19 +58,39 @@ function isRecurring(task: Task): boolean {
   return !!task.recurrence && task.recurrence !== "none";
 }
 
-/** Une tâche récurrente est-elle due ce jour-là ? (les one-off retournent false) */
-export function isDueOn(task: Task, dateStr: string): boolean {
-  if (task.created_at && task.created_at.slice(0, 10) > dateStr) return false;
-  if (!isRecurring(task)) return false;
-  if (task.recurrence === "daily") return true;
+/**
+ * LE moteur de récurrence de l'app — un seul, pour tout le monde.
+ *
+ * ⚠️ Les tâches ET les événements du calendrier parlent le même dialecte
+ * ('none' | 'daily' | 'weekdays' | JSON de jours `getDay()`), et c'est
+ * délibéré : deux grammaires, ce seraient deux moteurs de projection à écrire,
+ * à tester et à garder d'accord (voir le § 2 de la migration 020). Cette
+ * fonction est donc la seule à savoir lire ce dialecte ; `isDueOn` en est la
+ * spécialisation pour les tâches.
+ *
+ * `depuis` est la date de naissance de la série : rien n'a lieu avant elle.
+ */
+export function occurrenceLe(
+  recurrence: Recurrence,
+  depuis: string | null,
+  dateStr: string,
+): boolean {
+  if (depuis && depuis.slice(0, 10) > dateStr) return false;
+  if (!recurrence || recurrence === "none") return false;
+  if (recurrence === "daily") return true;
   const wd = weekdayOf(dateStr);
-  if (task.recurrence === "weekdays") return wd >= 1 && wd <= 5;
+  if (recurrence === "weekdays") return wd >= 1 && wd <= 5;
   try {
-    const days = JSON.parse(task.recurrence!);
+    const days = JSON.parse(recurrence);
     return Array.isArray(days) && days.includes(wd);
   } catch {
     return false;
   }
+}
+
+/** Une tâche récurrente est-elle due ce jour-là ? (les one-off retournent false) */
+export function isDueOn(task: Task, dateStr: string): boolean {
+  return occurrenceLe(task.recurrence, task.created_at, dateStr);
 }
 
 /**

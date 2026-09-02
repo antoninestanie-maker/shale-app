@@ -7,6 +7,7 @@
 
 use super::model::{Candidate, EvalContext, RulePrefs};
 
+pub mod calendar;
 pub mod habits;
 pub mod inactivity;
 pub mod streak;
@@ -28,13 +29,14 @@ pub trait NotificationRule: Send + Sync {
 }
 
 static INACTIVITY: inactivity::Inactivity = inactivity::Inactivity;
+static CALENDAR_SOON: calendar::CalendarSoon = calendar::CalendarSoon;
 static HABITS_PENDING: habits::HabitsPending = habits::HabitsPending;
 static STREAK_AT_RISK: streak::StreakAtRisk = streak::StreakAtRisk;
 
 /// Toutes les règles connues, dans l'ordre d'évaluation. C'est la SEULE ligne
 /// à modifier pour brancher une nouvelle règle.
 static REGISTRY: &[&dyn NotificationRule] =
-    &[&STREAK_AT_RISK, &HABITS_PENDING, &INACTIVITY];
+    &[&CALENDAR_SOON, &STREAK_AT_RISK, &HABITS_PENDING, &INACTIVITY];
 
 pub fn registry() -> &'static [&'static dyn NotificationRule] {
     REGISTRY

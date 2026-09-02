@@ -262,6 +262,20 @@ pub struct Task {
     pub created_at: Option<String>,
 }
 
+/// Ce qui a une DATE dans le calendrier : un événement, une tâche datée ou une
+/// échéance d'objectif. Les trois se notifient de la même façon, donc une seule
+/// forme — la règle n'a pas à savoir d'où vient la ligne.
+#[derive(Debug, Clone)]
+pub struct CalendarItem {
+    pub title: String,
+    /// `YYYY-MM-DD`, heure LOCALE comme partout dans l'app.
+    pub date: String,
+    /// `HH:MM`, ou `None` quand la chose occupe le jour sans heure précise.
+    pub start_at: Option<String>,
+    /// `event` | `task` | `deadline` — sert au libellé, pas au filtrage.
+    pub kind: &'static str,
+}
+
 #[derive(Debug, Clone)]
 pub struct Completion {
     pub task_id: i64,
@@ -280,6 +294,9 @@ pub struct Snapshot {
     /// Dernière ouverture d'une fiche du Savoir. `None` = jamais consulté
     /// (ou base absente) : les règles qui en dépendent restent alors inertes.
     pub knowledge_last_viewed: Option<NaiveDateTime>,
+    /// Ce qui est daté dans les jours qui viennent. Vide sur une base ancienne
+    /// (migration 020 absente) : la règle reste alors inerte, elle n'échoue pas.
+    pub calendar: Vec<CalendarItem>,
 }
 
 impl Snapshot {
