@@ -4,10 +4,15 @@ import { theoreticalRR } from "./liveTracker";
 import { toDateStr } from "./logic";
 import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
+import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
+import { serialiserChamps, serialiserValeurs } from "./objets";
+import type { Report } from "./taches";
 import type {
   AppData,
+  CalendarEvent,
   Completion,
   CustomMetric,
+  CustomObject,
   FinanceAccount,
   FinanceAccountKind,
   FinanceBalance,
@@ -28,11 +33,15 @@ import type {
   KnowledgeEntry,
   KnowledgeEntryLite,
   KnowledgeTopic,
+  LinkKind,
   LiveOutcome,
   LivePartial,
   LivePosition,
   MetricEntry,
   Note,
+  ObjectField,
+  ObjectLink,
+  ObjectType,
   PositionSizeCalc,
   Priority,
   QuickLink,
@@ -51,6 +60,16 @@ export interface TaskInput {
   priority: Priority;
   recurrence: string; // 'none' | 'daily' | 'weekdays' | JSON de jours
   goal_id: number | null;
+  /**
+   * Champs de planification, OPTIONNELS : les écrans qui existaient avant le
+   * calendrier continuent d'appeler `createTask` sans eux, et créent des tâches
+   * sans date — exactement comme avant.
+   *
+   * ⚠️ Une tâche RÉCURRENTE ne prend pas de `due_date` (voir `lib/taches.ts`).
+   */
+  due_date?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
 }
 
 /** Datetime local "YYYY-MM-DD HH:MM:SS" : toute la logique "jour" compare du local. */
@@ -970,7 +989,8 @@ export async function createTask(input: TaskInput): Promise<void> {
   if (!isTauri) return demo.createTask(input);
   const db = await getDb();
   await db.execute(
-    "INSERT INTO tasks (label, tag, priority, recurrence, goal_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+    `INSERT INTO tasks (label, tag, priority, recurrence, goal_id, created_at, due_date, start_at, end_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       input.label,
       input.tag,
@@ -978,6 +998,9 @@ export async function createTask(input: TaskInput): Promise<void> {
       input.recurrence,
       input.goal_id,
       localNow(),
+      input.due_date ?? null,
+      input.start_at ?? null,
+      input.end_at ?? null,
     ],
   );
 }
@@ -986,8 +1009,20 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
   if (!isTauri) return demo.updateTask(id, input);
   const db = await getDb();
   await db.execute(
-    "UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5 WHERE id = $6",
-    [input.label, input.tag, input.priority, input.recurrence, input.goal_id, id],
+    `UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5,
+            due_date = $6, start_at = $7, end_at = $8
+      WHERE id = $9`,
+    [
+      input.label,
+      input.tag,
+      input.priority,
+      input.recurrence,
+      input.goal_id,
+      input.due_date ?? null,
+      input.start_at ?? null,
+      input.end_at ?? null,
+      id,
+    ],
   );
 }
 
@@ -1381,4 +1416,340 @@ export async function saveFinanceFx(rates: FinanceFxRate[]): Promise<void> {
       [r.base, r.quote, r.rate_e8, r.fetched_at],
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendrier, liaisons et objets — socle du 2026-09-02 (migration 020)
+//
+// ⚠️ CHAQUE FONCTION EXISTE DES DEUX CÔTÉS : ici (natif) et dans `demo.ts`
+// (mode démo navigateur). Un accès écrit d'un seul côté rend l'interface qui
+// s'en sert INVISIBLE en preview — donc invérifiable, puisque c'est le seul
+// mode où l'on peut auditer sans piloter la vraie base d'Antonin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * L'`uid` d'une ligne, à partir de sa famille et de son numéro local.
+ *
+ * C'est le passage obligé pour créer une liaison depuis l'interface : les
+ * écrans manipulent des `id`, les arêtes ne connaissent que des `uid`
+ * (migration 020, § 5).
+ *
+ * ⚠️ En mode démo, il n'y a ni SQLite ni colonne `uid` : `demo.ts` rend un
+ * identifiant synthétique STABLE (`demo:note:3`). Les arêtes y sont donc
+ * cohérentes entre elles, ce qui suffit à vérifier une interface — mais elles
+ * n'ont évidemment aucun rapport avec les uid réels, et rien de tout cela ne se
+ * synchronise.
+ */
+export async function uidDe(kind: LinkKind, id: number): Promise<string | null> {
+  if (!isTauri) return demo.uidDe(kind, id);
+  const table = TABLE_DE_KIND[kind];
+  const db = await getDb();
+  const rows = await db.select<{ uid: string }[]>(`SELECT uid FROM ${table} WHERE id = $1`, [id]);
+  return rows[0]?.uid ?? null;
+}
+
+// ─── Événements du calendrier ────────────────────────────────────────────────
+
+export interface CalendarEventInput {
+  title: string;
+  body: string | null;
+  date: string; // YYYY-MM-DD
+  start_at: string | null; // HH:MM
+  end_at: string | null; // HH:MM
+  all_day: boolean;
+  color: string | null;
+  recurrence: string;
+}
+
+/** Les événements d'une fenêtre de dates, bornes comprises. */
+export async function fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
+  if (!isTauri) return demo.fetchCalendarEvents(from, to);
+  const db = await getDb();
+  return db.select<CalendarEvent[]>(
+    "SELECT * FROM calendar_events WHERE date >= $1 AND date <= $2 ORDER BY date, start_at",
+    [from, to],
+  );
+}
+
+/**
+ * Les événements RÉCURRENTS, qui n'ont pas de place dans une fenêtre de dates :
+ * leur `date` est celle de la première occurrence, et les suivantes se
+ * calculent. Les charger à part évite que la vue « semaine prochaine » ne les
+ * rate simplement parce qu'ils ont commencé l'an dernier.
+ */
+export async function fetchRecurringEvents(): Promise<CalendarEvent[]> {
+  if (!isTauri) return demo.fetchRecurringEvents();
+  const db = await getDb();
+  return db.select<CalendarEvent[]>(
+    "SELECT * FROM calendar_events WHERE recurrence IS NOT NULL AND recurrence <> 'none' ORDER BY date",
+  );
+}
+
+export async function createCalendarEvent(input: CalendarEventInput): Promise<void> {
+  if (!isTauri) return demo.createCalendarEvent(input, localNow());
+  const db = await getDb();
+  const now = localNow();
+  await db.execute(
+    `INSERT INTO calendar_events (title, body, date, start_at, end_at, all_day, color, recurrence, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
+    [
+      input.title,
+      input.body,
+      input.date,
+      input.start_at,
+      input.end_at,
+      input.all_day ? 1 : 0,
+      input.color,
+      input.recurrence,
+      now,
+    ],
+  );
+}
+
+export async function updateCalendarEvent(id: number, input: CalendarEventInput): Promise<void> {
+  if (!isTauri) return demo.updateCalendarEvent(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE calendar_events
+        SET title = $1, body = $2, date = $3, start_at = $4, end_at = $5,
+            all_day = $6, color = $7, recurrence = $8, updated_at = $9
+      WHERE id = $10`,
+    [
+      input.title,
+      input.body,
+      input.date,
+      input.start_at,
+      input.end_at,
+      input.all_day ? 1 : 0,
+      input.color,
+      input.recurrence,
+      localNow(),
+      id,
+    ],
+  );
+}
+
+export async function deleteCalendarEvent(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteCalendarEvent(id);
+  const db = await getDb();
+  // Les arêtes qui citent cet événement partent avec lui, par trigger
+  // (migration 020, § 8) — rien à faire ici.
+  await db.execute("DELETE FROM calendar_events WHERE id = $1", [id]);
+}
+
+// ─── Tâches datées ───────────────────────────────────────────────────────────
+
+/** Les tâches datées d'une fenêtre, bornes comprises. Les récurrentes en sont exclues. */
+export async function fetchDatedTasks(from: string, to: string): Promise<Task[]> {
+  if (!isTauri) return demo.fetchDatedTasks(from, to);
+  const db = await getDb();
+  return db.select<Task[]>(
+    "SELECT * FROM tasks WHERE due_date >= $1 AND due_date <= $2 ORDER BY due_date, start_at",
+    [from, to],
+  );
+}
+
+/**
+ * Poser ou déplacer une tâche dans le calendrier — c'est ce qu'écrit le
+ * glisser-déposer.
+ *
+ * ⚠️ Ne touche NI au compteur de reports NI à `postponed_from` : déplacer une
+ * tâche à la main n'est pas un glissement subi. La remise à zéro du compteur
+ * passe par `replanifierTache`, qui dit explicitement ce qu'elle fait.
+ */
+export async function setTaskSchedule(
+  id: number,
+  dueDate: string | null,
+  startAt: string | null,
+  endAt: string | null,
+): Promise<void> {
+  if (!isTauri) return demo.setTaskSchedule(id, dueDate, startAt, endAt);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE tasks SET due_date = $1, start_at = $2, end_at = $3 WHERE id = $4",
+    [dueDate, startAt, endAt, id],
+  );
+}
+
+/** Applique un report calculé par `lib/taches.ts` — ou une replanification. */
+export async function appliquerReport(id: number, report: Report): Promise<void> {
+  if (!isTauri) return demo.appliquerReport(id, report);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE tasks SET due_date = $1, postponed_count = $2, postponed_from = $3 WHERE id = $4",
+    [report.due_date, report.postponed_count, report.postponed_from, id],
+  );
+}
+
+// ─── Types d'objets ──────────────────────────────────────────────────────────
+
+export interface ObjectTypeInput {
+  name: string;
+  icon: string | null;
+  color: string | null;
+  fields: ObjectField[];
+}
+
+export async function fetchObjectTypes(): Promise<ObjectType[]> {
+  if (!isTauri) return demo.fetchObjectTypes();
+  const db = await getDb();
+  return db.select<ObjectType[]>("SELECT * FROM object_types ORDER BY position, id");
+}
+
+export async function createObjectType(input: ObjectTypeInput): Promise<void> {
+  if (!isTauri) return demo.createObjectType(input, localNow());
+  const db = await getDb();
+  const now = localNow();
+  const rows = await db.select<{ next: number }[]>(
+    "SELECT COALESCE(MAX(position), 0) + 1 AS next FROM object_types",
+  );
+  await db.execute(
+    `INSERT INTO object_types (name, icon, color, fields, builtin, position, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, 0, $5, $6, $6)`,
+    [input.name, input.icon, input.color, serialiserChamps(input.fields), rows[0]?.next ?? 1, now],
+  );
+}
+
+/**
+ * ⚠️ Modifier un type livré est AUTORISÉ. `builtin` dit d'où vient le type, il
+ * ne le verrouille pas — sans quoi ce serait la « liste fermée » qu'Antonin a
+ * explicitement écartée, avec l'illusion du choix en plus.
+ */
+export async function updateObjectType(id: number, input: ObjectTypeInput): Promise<void> {
+  if (!isTauri) return demo.updateObjectType(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    "UPDATE object_types SET name = $1, icon = $2, color = $3, fields = $4, updated_at = $5 WHERE id = $6",
+    [input.name, input.icon, input.color, serialiserChamps(input.fields), localNow(), id],
+  );
+}
+
+/**
+ * ⚠️ Supprime AUSSI les objets de ce type, et leurs arêtes — par triggers
+ * (migration 020, § 8). Des fiches sans type resteraient en base sans champs ni
+ * écran pour les afficher : invisibles, mais toujours là.
+ */
+export async function deleteObjectType(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteObjectType(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM object_types WHERE id = $1", [id]);
+}
+
+// ─── Objets ──────────────────────────────────────────────────────────────────
+
+export interface ObjectInput {
+  type_id: number;
+  title: string;
+  body: string | null;
+  field_values: Record<string, unknown>;
+}
+
+export async function fetchObjects(typeId?: number): Promise<CustomObject[]> {
+  if (!isTauri) return demo.fetchObjects(typeId);
+  const db = await getDb();
+  return typeId == null
+    ? db.select<CustomObject[]>("SELECT * FROM objects ORDER BY updated_at DESC")
+    : db.select<CustomObject[]>("SELECT * FROM objects WHERE type_id = $1 ORDER BY updated_at DESC", [typeId]);
+}
+
+export async function createObject(input: ObjectInput): Promise<void> {
+  if (!isTauri) return demo.createObject(input, localNow());
+  const db = await getDb();
+  const now = localNow();
+  await db.execute(
+    `INSERT INTO objects (type_id, title, body, field_values, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $5)`,
+    [input.type_id, input.title, input.body, serialiserValeurs(input.field_values), now],
+  );
+}
+
+/**
+ * ⚠️ `input.field_values` doit avoir été passé par `fusionnerValeurs()` :
+ * écrire ici le seul contenu du formulaire effacerait les valeurs dont le champ
+ * a été retiré du type, sans un mot. C'est la promesse du module (voir
+ * `lib/objets.ts`).
+ */
+export async function updateObject(id: number, input: ObjectInput): Promise<void> {
+  if (!isTauri) return demo.updateObject(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    "UPDATE objects SET type_id = $1, title = $2, body = $3, field_values = $4, updated_at = $5 WHERE id = $6",
+    [input.type_id, input.title, input.body, serialiserValeurs(input.field_values), localNow(), id],
+  );
+}
+
+export async function deleteObject(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteObject(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM objects WHERE id = $1", [id]);
+}
+
+// ─── Liaisons ────────────────────────────────────────────────────────────────
+
+/** Ce que CE texte mentionne. */
+export async function fetchLinksFrom(kind: LinkKind, uid: string): Promise<ObjectLink[]> {
+  if (!isTauri) return demo.fetchLinksFrom(kind, uid);
+  const db = await getDb();
+  return db.select<ObjectLink[]>(
+    "SELECT * FROM object_links WHERE from_kind = $1 AND from_uid = $2 ORDER BY created_at",
+    [kind, uid],
+  );
+}
+
+/**
+ * Les BACKLINKS : qui parle de cet objet.
+ *
+ * C'est la moitié qui donne sa valeur au système — une mention sans backlink
+ * n'est qu'un lien hypertexte.
+ */
+export async function fetchLinksTo(kind: LinkKind, uid: string): Promise<ObjectLink[]> {
+  if (!isTauri) return demo.fetchLinksTo(kind, uid);
+  const db = await getDb();
+  return db.select<ObjectLink[]>(
+    "SELECT * FROM object_links WHERE to_kind = $1 AND to_uid = $2 ORDER BY created_at",
+    [kind, uid],
+  );
+}
+
+/**
+ * Crée une arête, sans erreur si elle existe déjà.
+ *
+ * L'`ON CONFLICT DO NOTHING` porte sur l'index unique des quatre colonnes : une
+ * mention déjà rattachée à la main, ou tapée deux fois, ne doit pas faire
+ * échouer l'enregistrement d'une note. `origin` de la PREMIÈRE écriture est
+ * conservée — une mention rattachée ensuite à la main reste une mention.
+ */
+export async function createLink(arete: AreteVoulue): Promise<void> {
+  if (!isTauri) return demo.createLink(arete, localNow());
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO object_links (from_kind, from_uid, to_kind, to_uid, origin, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT(from_kind, from_uid, to_kind, to_uid) DO NOTHING`,
+    [arete.from_kind, arete.from_uid, arete.to_kind, arete.to_uid, arete.origin, localNow()],
+  );
+}
+
+export async function deleteLink(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteLink(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM object_links WHERE id = $1", [id]);
+}
+
+/**
+ * Met les arêtes d'un texte en accord avec ce qu'il contient MAINTENANT.
+ *
+ * À appeler après l'enregistrement d'une note, d'une fiche ou d'un objet.
+ * ⚠️ Ne retire que les arêtes d'origine `mention` : un rattachement fait à la
+ * main survit à la réécriture du texte (voir `diffMentions`).
+ */
+export async function synchroniserMentions(
+  source: LinkKind,
+  sourceUid: string,
+  voulues: readonly AreteVoulue[],
+): Promise<void> {
+  const existantes = await fetchLinksFrom(source, sourceUid);
+  const { aCreer, aSupprimer } = diffMentions(existantes, voulues);
+  for (const a of aCreer) await createLink(a);
+  for (const l of aSupprimer) await deleteLink(l.id);
 }

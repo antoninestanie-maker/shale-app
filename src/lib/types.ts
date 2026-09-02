@@ -11,6 +11,22 @@ export interface Task {
   recurrence: Recurrence;
   goal_id: number | null;
   created_at: string;
+  /**
+   * Jour où la tâche est due, 'YYYY-MM-DD' local. NULL = tâche sans date.
+   *
+   * ⚠️ Une tâche RÉCURRENTE n'a pas de `due_date` : ses occurrences se
+   * calculent. Les deux familles ne se mélangent pas — voir `estDatee()` et
+   * `estRecurrente()` dans `lib/taches.ts`.
+   */
+  due_date: string | null;
+  /** Début du créneau, 'HH:MM'. NULL = la tâche occupe le jour, pas une heure. */
+  start_at: string | null;
+  /** Fin du créneau, 'HH:MM'. */
+  end_at: string | null;
+  /** Combien de fois la tâche a glissé au jour suivant sans être faite. */
+  postponed_count: number;
+  /** Le jour où elle était prévue à l'origine, 'YYYY-MM-DD'. */
+  postponed_from: string | null;
 }
 
 export interface TodayTask extends Task {
@@ -342,4 +358,102 @@ export interface AppData {
   habits: Habit[];
   habitChecks: HabitCheck[];
   trades: Trade[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendrier, liaisons et objets — socle du 2026-09-02 (migration 020)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CalendarEvent {
+  id: number;
+  title: string;
+  body: string | null;
+  date: string; // YYYY-MM-DD, local
+  start_at: string | null; // HH:MM
+  end_at: string | null; // HH:MM
+  /** Journée entière DÉCLARÉE — distinct d'une heure simplement inconnue. */
+  all_day: number; // SQLite: 0 | 1
+  /** Nom de token (`blue`, `green`, `red`, `yellow`, `violet`, `indigo`). */
+  color: string | null;
+  /** Même vocabulaire que `Task.recurrence` — un seul dialecte dans l'app. */
+  recurrence: Recurrence;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Les sept familles d'objets qu'une liaison peut relier. */
+export type LinkKind = "note" | "knowledge" | "task" | "goal" | "event" | "trade" | "object";
+
+/** Comment l'arête est née : tapée dans un texte, ou rattachée à la main. */
+export type LinkOrigin = "mention" | "manual";
+
+/**
+ * Une arête entre deux objets de l'app.
+ *
+ * ⚠️ Les extrémités sont des `uid`, PAS des `id`. Un `id` est local et
+ * désignerait autre chose sur le second appareil — voir le § 5 de la migration
+ * 020, qui explique pourquoi la traduction de `fk.ts` ne peut pas s'appliquer
+ * ici.
+ */
+export interface ObjectLink {
+  id: number;
+  uid: string;
+  from_kind: LinkKind;
+  from_uid: string;
+  to_kind: LinkKind;
+  to_uid: string;
+  origin: LinkOrigin;
+  created_at: string;
+}
+
+/** Les cinq types de champ qu'un type d'objet peut déclarer. */
+export type FieldType = "text" | "number" | "date" | "link" | "choice";
+
+/**
+ * Un champ déclaré par un type d'objet.
+ *
+ * ⭐ `id` est STABLE et ne change jamais : c'est sous lui que les valeurs des
+ * objets sont rangées. Renommer le champ ne doit pas effacer ce que les fiches
+ * contiennent — ce que ferait un dictionnaire indexé par `name`.
+ */
+export interface ObjectField {
+  id: string;
+  name: string;
+  type: FieldType;
+  required: 0 | 1;
+  /** Uniquement pour `type: "choice"`. */
+  options?: string[];
+}
+
+export interface ObjectType {
+  id: number;
+  name: string;
+  /** Nom d'icône de `src/components/icons.tsx`. */
+  icon: string | null;
+  /** Nom de token de couleur. */
+  color: string | null;
+  /** JSON brut tel qu'il est en base — passer par `champsDuType()` pour le lire. */
+  fields: string;
+  /**
+   * 1 pour les quatre types livrés par la migration.
+   * ⚠️ Dit d'OÙ VIENT le type, ne le verrouille pas : un type livré reste
+   * modifiable et supprimable.
+   */
+  builtin: number; // SQLite: 0 | 1
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomObject {
+  id: number;
+  uid: string;
+  type_id: number;
+  title: string;
+  /** HTML riche, même format que les fiches du Savoir. */
+  body: string | null;
+  /** JSON `{ "<id de champ>": valeur }` — passer par `valeursDeLObjet()`. */
+  field_values: string;
+  created_at: string;
+  updated_at: string;
 }

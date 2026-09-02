@@ -288,6 +288,12 @@ pub fn run() {
             sql: include_str!("../migrations/019_drop_benchmark.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 20,
+            description: "calendrier_liaisons",
+            sql: include_str!("../migrations/020_calendrier_liaisons.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

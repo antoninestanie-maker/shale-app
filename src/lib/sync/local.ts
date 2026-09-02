@@ -128,8 +128,24 @@ export async function appliquerLigne(
   const connues = new Set(await colonnesDe(db, table));
   const valeurs: Ligne = {};
 
+  // Les colonnes de TRADUCTION (`goal_uid`, `account_uid`…) sont écartées ici et
+  // retraduites juste après, en `_id` locaux.
+  //
+  // ⚠️ Le tri se fait sur la LISTE DES CLÉS DÉCLARÉES, et surtout pas sur le
+  // suffixe `_uid`. La version d'avant écartait toute colonne finissant par
+  // `_uid`, ce qui revenait à parier qu'aucune table ne stockerait jamais un uid
+  // comme DONNÉE. `object_links` fait exactement cela depuis la migration 020 :
+  // ses deux extrémités sont polymorphes, donc elles portent des `uid` en clair
+  // (§ 5 de la migration). Avec l'ancien tri, une arête arrivait de l'autre
+  // appareil avec ses deux extrémités VIDÉES — sans erreur, sans alerte, juste
+  // un lien qui ne pointe plus nulle part.
+  //
+  // Le comportement des tables existantes est inchangé : les seules colonnes en
+  // `_uid` qu'émet `serialiser()` sont précisément celles des clés déclarées.
+  const traduites = new Set(clesDe(table).map((c) => colonneUid(c.colonne)));
+
   for (const [colonne, valeur] of Object.entries(charge)) {
-    if (colonne.endsWith("_uid")) continue; // traité juste après
+    if (traduites.has(colonne)) continue; // traité juste après
     if (connues.has(colonne)) valeurs[colonne] = valeur;
   }
 

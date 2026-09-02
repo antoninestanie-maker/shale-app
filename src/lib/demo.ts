@@ -4,11 +4,18 @@ import { theoreticalRR } from "./liveTracker";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
+import type { AreteVoulue } from "./liens";
+// ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
+// reçu les champs de planification (migration 020). Deux définitions du même
+// contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
+import type { CalendarEventInput, ObjectInput, ObjectTypeInput, TaskInput } from "./repo";
 import type {
   Trade,
   AppData,
+  CalendarEvent,
   Completion,
   CustomMetric,
+  CustomObject,
   FinanceAccount,
   FinanceBalance,
   FinanceCategory,
@@ -28,11 +35,14 @@ import type {
   KnowledgeEntryLite,
   KnowledgeKind,
   KnowledgeTopic,
+  LinkKind,
   LiveOutcome,
   LivePartial,
   LivePosition,
   MetricEntry,
   Note,
+  ObjectLink,
+  ObjectType,
   PositionSizeCalc,
   QuickLink,
   Tag,
@@ -90,13 +100,13 @@ interface OpenPositionInput {
 const created = addDays(todayStr(), -30);
 
 const tasks: Task[] = [
-  { id: 1, label: "Backtesting 1h", tag: t("Trading"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created },
-  { id: 2, label: t("Session trading (Londres)"), tag: t("Trading"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created },
-  { id: 3, label: t("Publier un reel ChartCore"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created },
-  { id: 4, label: t("Réviser module BTS"), tag: "BTS", priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created },
-  { id: 5, label: t("Préparer script reel Moov"), tag: t("Contenu"), priority: "low", recurrence: "none", goal_id: null, created_at: created },
-  { id: 6, label: t("Ouvrir le compte prop firm"), tag: t("Trading"), priority: "high", recurrence: "none", goal_id: 4, created_at: created },
-  { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created },
+  { id: 1, label: "Backtesting 1h", tag: t("Trading"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
+  { id: 2, label: t("Session trading (Londres)"), tag: t("Trading"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
+  { id: 3, label: t("Publier un reel ChartCore"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
+  { id: 4, label: t("Réviser module BTS"), tag: "BTS", priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
+  { id: 5, label: t("Préparer script reel Moov"), tag: t("Contenu"), priority: "low", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null },
+  { id: 6, label: t("Ouvrir le compte prop firm"), tag: t("Trading"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
+  { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3) },
 ];
 
 const goals: Goal[] = [
@@ -171,14 +181,6 @@ for (let i = 30; i >= 0; i -= 3) {
 let nextTaskId = tasks.length + 1;
 let nextTagId = tags.length + 1;
 let nextGoalId = goals.length + 1;
-
-interface TaskInput {
-  label: string;
-  tag: string | null;
-  priority: Task["priority"];
-  recurrence: string;
-  goal_id: number | null;
-}
 
 interface GoalInput {
   title: string;
@@ -689,6 +691,118 @@ const financeFx: FinanceFxRate[] = [
   { base: "USD", quote: "EUR", rate_e8: 92_400_000, fetched_at: new Date().toISOString() },
 ];
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendrier, liaisons et objets — socle du 2026-09-02 (migration 020)
+//
+// ⚠️ En mode démo il n'y a ni SQLite ni colonne `uid`. Les arêtes ont pourtant
+// besoin d'identités : on en fabrique de SYNTHÉTIQUES et STABLES
+// (`demo:note:3`). Elles sont cohérentes entre elles — assez pour vérifier une
+// interface —, elles n'ont aucun rapport avec les uid réels, et rien de tout
+// cela ne se synchronise. C'est exactement le contrat du mode démo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const uidDemo = (kind: LinkKind, id: number) => `demo:${kind}:${id}`;
+
+/** Ce que fait la cascade de triggers du natif (migration 020, § 8). */
+function retirerLiens(kind: LinkKind, uid: string): void {
+  for (let i = links.length - 1; i >= 0; i--) {
+    const l = links[i];
+    if ((l.from_kind === kind && l.from_uid === uid) || (l.to_kind === kind && l.to_uid === uid)) {
+      links.splice(i, 1);
+    }
+  }
+}
+
+let calendarEventId = 100;
+const calendarEvents: CalendarEvent[] = [
+  {
+    id: 1, title: t("Point hebdo prop firm"), body: null, date: todayStr(),
+    start_at: "09:30", end_at: "10:00", all_day: 0, color: "blue",
+    recurrence: "none", created_at: created, updated_at: created,
+  },
+  {
+    id: 2, title: t("Clôture mensuelle du journal"), body: null,
+    date: addDays(todayStr(), 3), start_at: null, end_at: null, all_day: 1,
+    color: "violet", recurrence: "none", created_at: created, updated_at: created,
+  },
+  {
+    id: 3, title: t("Revue de la semaine"), body: null, date: addDays(todayStr(), 1),
+    start_at: "18:00", end_at: "19:00", all_day: 0, color: "green",
+    recurrence: "weekdays", created_at: created, updated_at: created,
+  },
+];
+
+// Les quatre types livrés par la migration, à l'identique — un écran de galerie
+// vide ne prouverait rien.
+let objectTypeId = 100;
+const objectTypes: ObjectType[] = [
+  {
+    id: 1, name: t("Personne"), icon: "user", color: "blue", builtin: 1, position: 1,
+    fields: JSON.stringify([
+      { id: "f1", name: t("Rôle"), type: "text", required: 0 },
+      { id: "f2", name: t("Rencontré le"), type: "date", required: 0 },
+      { id: "f3", name: t("Contact"), type: "text", required: 0 },
+    ]),
+    created_at: created, updated_at: created,
+  },
+  {
+    id: 2, name: t("Ressource"), icon: "book", color: "violet", builtin: 1, position: 2,
+    fields: JSON.stringify([
+      { id: "f1", name: t("Support"), type: "choice", required: 1, options: [t("Livre"), t("Vidéo"), t("Article"), t("Podcast")] },
+      { id: "f2", name: t("Auteur"), type: "text", required: 0 },
+      { id: "f3", name: t("Lien"), type: "link", required: 0 },
+      { id: "f4", name: t("Terminé le"), type: "date", required: 0 },
+    ]),
+    created_at: created, updated_at: created,
+  },
+  {
+    id: 3, name: t("Projet"), icon: "target", color: "green", builtin: 1, position: 3,
+    fields: JSON.stringify([
+      { id: "f1", name: t("Statut"), type: "choice", required: 1, options: [t("En cours"), t("En pause"), t("Terminé"), t("Abandonné")] },
+      { id: "f2", name: t("Échéance"), type: "date", required: 0 },
+      { id: "f3", name: t("Prochaine action"), type: "text", required: 0 },
+    ]),
+    created_at: created, updated_at: created,
+  },
+  {
+    id: 4, name: t("Setup de trading"), icon: "chart", color: "yellow", builtin: 1, position: 4,
+    fields: JSON.stringify([
+      { id: "f1", name: t("Paire"), type: "text", required: 0 },
+      { id: "f2", name: t("Biais"), type: "choice", required: 1, options: ["Long", "Short", t("Neutre")] },
+      { id: "f3", name: t("Règle d'entrée"), type: "text", required: 0 },
+      { id: "f4", name: t("R visé"), type: "number", required: 0 },
+    ]),
+    created_at: created, updated_at: created,
+  },
+];
+
+let objectId = 100;
+const objects: CustomObject[] = [
+  {
+    id: 1, uid: uidDemo("object", 1), type_id: 4, title: "Silver Bullet",
+    body: null,
+    field_values: JSON.stringify({ f1: "EURUSD", f2: "Long", f3: t("Balayage puis retour dans le range"), f4: 3 }),
+    created_at: created, updated_at: created,
+  },
+  {
+    id: 2, uid: uidDemo("object", 2), type_id: 2, title: "Trading in the Zone",
+    body: null,
+    field_values: JSON.stringify({ f1: t("Livre"), f2: "Mark Douglas", f4: addDays(todayStr(), -40) }),
+    created_at: created, updated_at: created,
+  },
+];
+
+let linkId = 100;
+const links: ObjectLink[] = [
+  {
+    id: 1, uid: `ol:task:${uidDemo("task", 6)}:object:${uidDemo("object", 1)}`,
+    from_kind: "task", from_uid: uidDemo("task", 6),
+    to_kind: "object", to_uid: uidDemo("object", 1),
+    origin: "manual", created_at: created,
+  },
+];
+
 export const demo = {
   async fetchAll(): Promise<AppData> {
     return {
@@ -1100,6 +1214,13 @@ export const demo = {
     tasks.push({
       id: nextTaskId++,
       ...input,
+      // Les champs de planification sont optionnels côté `TaskInput` : les
+      // écrans d'avant le calendrier appellent toujours sans eux.
+      due_date: input.due_date ?? null,
+      start_at: input.start_at ?? null,
+      end_at: input.end_at ?? null,
+      postponed_count: 0,
+      postponed_from: null,
       created_at: todayStr(),
     });
   },
@@ -1359,6 +1480,193 @@ export const demo = {
       if (i >= 0) financeFx[i] = r;
       else financeFx.push(r);
     }
+  },
+
+  // ─── Calendrier, liaisons et objets (migration 020) ────────────────────────
+
+  async uidDe(kind: LinkKind, id: number): Promise<string | null> {
+    return uidDemo(kind, id);
+  },
+
+  async fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
+    return calendarEvents
+      .filter((e) => e.date >= from && e.date <= to)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.start_at ?? "").localeCompare(b.start_at ?? ""));
+  },
+
+  async fetchRecurringEvents(): Promise<CalendarEvent[]> {
+    return calendarEvents.filter((e) => !!e.recurrence && e.recurrence !== "none");
+  },
+
+  async createCalendarEvent(input: CalendarEventInput, now: string): Promise<void> {
+    calendarEvents.push({
+      id: calendarEventId++,
+      title: input.title,
+      body: input.body,
+      date: input.date,
+      start_at: input.start_at,
+      end_at: input.end_at,
+      all_day: input.all_day ? 1 : 0,
+      color: input.color,
+      recurrence: input.recurrence,
+      created_at: now,
+      updated_at: now,
+    });
+  },
+
+  async updateCalendarEvent(id: number, input: CalendarEventInput, now: string): Promise<void> {
+    const e = calendarEvents.find((x) => x.id === id);
+    if (!e) return;
+    Object.assign(e, {
+      title: input.title,
+      body: input.body,
+      date: input.date,
+      start_at: input.start_at,
+      end_at: input.end_at,
+      all_day: input.all_day ? 1 : 0,
+      color: input.color,
+      recurrence: input.recurrence,
+      updated_at: now,
+    });
+  },
+
+  async deleteCalendarEvent(id: number): Promise<void> {
+    const i = calendarEvents.findIndex((e) => e.id === id);
+    if (i >= 0) calendarEvents.splice(i, 1);
+    // Le natif fait ce ménage par trigger (migration 020, § 8) ; ici, à la main,
+    // sinon le mode démo montrerait des backlinks fantômes que l'app n'a pas.
+    retirerLiens("event", uidDemo("event", id));
+  },
+
+  async fetchDatedTasks(from: string, to: string): Promise<Task[]> {
+    return tasks
+      .filter((t) => !!t.due_date && t.due_date >= from && t.due_date <= to)
+      .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+  },
+
+  async setTaskSchedule(
+    id: number,
+    dueDate: string | null,
+    startAt: string | null,
+    endAt: string | null,
+  ): Promise<void> {
+    const task = tasks.find((t) => t.id === id);
+    if (task) Object.assign(task, { due_date: dueDate, start_at: startAt, end_at: endAt });
+  },
+
+  async appliquerReport(id: number, report: { due_date: string; postponed_count: number; postponed_from: string }): Promise<void> {
+    const task = tasks.find((t) => t.id === id);
+    if (task) Object.assign(task, report);
+  },
+
+  async fetchObjectTypes(): Promise<ObjectType[]> {
+    return [...objectTypes].sort((a, b) => a.position - b.position || a.id - b.id);
+  },
+
+  async createObjectType(input: ObjectTypeInput, now: string): Promise<void> {
+    objectTypes.push({
+      id: objectTypeId++,
+      name: input.name,
+      icon: input.icon,
+      color: input.color,
+      fields: JSON.stringify(input.fields),
+      builtin: 0,
+      position: Math.max(0, ...objectTypes.map((t) => t.position)) + 1,
+      created_at: now,
+      updated_at: now,
+    });
+  },
+
+  async updateObjectType(id: number, input: ObjectTypeInput, now: string): Promise<void> {
+    const type = objectTypes.find((t) => t.id === id);
+    if (!type) return;
+    Object.assign(type, {
+      name: input.name,
+      icon: input.icon,
+      color: input.color,
+      fields: JSON.stringify(input.fields),
+      updated_at: now,
+    });
+  },
+
+  async deleteObjectType(id: number): Promise<void> {
+    const i = objectTypes.findIndex((t) => t.id === id);
+    if (i >= 0) objectTypes.splice(i, 1);
+    // Cascade : le natif la fait par trigger, le mode démo doit la faire aussi,
+    // sinon les deux ne racontent pas la même histoire.
+    for (const o of objects.filter((o) => o.type_id === id)) await demo.deleteObject(o.id);
+  },
+
+  async fetchObjects(typeId?: number): Promise<CustomObject[]> {
+    const liste = typeId == null ? objects : objects.filter((o) => o.type_id === typeId);
+    return [...liste].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  },
+
+  async createObject(input: ObjectInput, now: string): Promise<void> {
+    const id = objectId++;
+    objects.push({
+      id,
+      uid: uidDemo("object", id),
+      type_id: input.type_id,
+      title: input.title,
+      body: input.body,
+      field_values: JSON.stringify(input.field_values),
+      created_at: now,
+      updated_at: now,
+    });
+  },
+
+  async updateObject(id: number, input: ObjectInput, now: string): Promise<void> {
+    const o = objects.find((x) => x.id === id);
+    if (!o) return;
+    Object.assign(o, {
+      type_id: input.type_id,
+      title: input.title,
+      body: input.body,
+      field_values: JSON.stringify(input.field_values),
+      updated_at: now,
+    });
+  },
+
+  async deleteObject(id: number): Promise<void> {
+    const i = objects.findIndex((o) => o.id === id);
+    if (i >= 0) objects.splice(i, 1);
+    retirerLiens("object", uidDemo("object", id));
+  },
+
+  async fetchLinksFrom(kind: LinkKind, uid: string): Promise<ObjectLink[]> {
+    return links.filter((l) => l.from_kind === kind && l.from_uid === uid);
+  },
+
+  async fetchLinksTo(kind: LinkKind, uid: string): Promise<ObjectLink[]> {
+    return links.filter((l) => l.to_kind === kind && l.to_uid === uid);
+  },
+
+  async createLink(arete: AreteVoulue, now: string): Promise<void> {
+    // L'équivalent en mémoire de l'`ON CONFLICT DO NOTHING` du natif.
+    const existe = links.some(
+      (l) =>
+        l.from_kind === arete.from_kind &&
+        l.from_uid === arete.from_uid &&
+        l.to_kind === arete.to_kind &&
+        l.to_uid === arete.to_uid,
+    );
+    if (existe) return;
+    links.push({
+      id: linkId++,
+      uid: `ol:${arete.from_kind}:${arete.from_uid}:${arete.to_kind}:${arete.to_uid}`,
+      from_kind: arete.from_kind,
+      from_uid: arete.from_uid,
+      to_kind: arete.to_kind,
+      to_uid: arete.to_uid,
+      origin: arete.origin,
+      created_at: now,
+    });
+  },
+
+  async deleteLink(id: number): Promise<void> {
+    const i = links.findIndex((l) => l.id === id);
+    if (i >= 0) links.splice(i, 1);
   },
 
 };

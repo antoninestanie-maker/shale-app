@@ -61,6 +61,11 @@ export const CLES_ETRANGERES: Readonly<Record<string, readonly CleEtrangere[]>> 
   // identité sans s'être parlé.
   finance_balances: [{ colonne: "account_id", vers: "finance_accounts" }],
   finance_holdings: [{ colonne: "account_id", vers: "finance_accounts" }],
+  // Un objet tient ses champs de son type. C'est la SEULE clé étrangère des
+  // trois tables de liaison : `object_links` n'en a aucune, et ne peut pas en
+  // avoir — ses deux extrémités sont polymorphes, donc elles stockent des `uid`
+  // et non des `id` (migration 020, § 5). Rien à traduire là où rien n'est local.
+  objects: [{ colonne: "type_id", vers: "object_types" }],
   finance_recurring: [
     { colonne: "account_id", vers: "finance_accounts" },
     { colonne: "category_id", vers: "finance_categories" },

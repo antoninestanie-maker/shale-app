@@ -33,7 +33,10 @@ export const TABLES_SYNC = [
   "position_size_calculations",
   "finance_accounts",
   "finance_categories",
+  "calendar_events",
+  "object_types",
   // Dépendent d'une racine
+  "objects", // → object_types
   "tasks", // → goals
   "focus_sessions", // → tasks
   "knowledge_entries", // → knowledge_topics
@@ -45,6 +48,13 @@ export const TABLES_SYNC = [
   "metric_entries", // → custom_metrics
   "finance_balances", // → finance_accounts
   "finance_holdings", // → finance_accounts
+  // Arêtes entre objets. En dernier, parce qu'une arête peut citer n'importe
+  // quelle table ci-dessus. ⚠️ Ce placement est un CONFORT, pas une garantie :
+  // contrairement aux autres filles, `object_links` ne déclare aucune clé
+  // étrangère (ses extrémités sont polymorphes — migration 020, § 5), donc le
+  // moteur ne la met jamais en quarantaine. Une arête arrivée avant sa cible
+  // est conservée telle quelle et devient visible quand la cible arrive.
+  "object_links",
 ] as const;
 
 export type TableSync = (typeof TABLES_SYNC)[number];
