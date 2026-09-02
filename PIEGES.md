@@ -219,6 +219,31 @@ l'app est l'horodatage de l'outbox, parce qu'il départage deux écritures faite
 sur deux appareils, et que deux heures locales de fuseaux différents ne sont pas
 comparables.
 
+## 4.3 bis ⭐ `toISOString().slice(0, 10)` fait sauter une journée entière
+
+**Symptôme.** La sauvegarde automatique « une par jour » n'en produit qu'une
+pour deux journées. Invisible à Paris, sauf à lancer l'app entre 00 h et 02 h.
+Systématique pour un utilisateur à Auckland.
+
+**Cause.** `new Date().toISOString().slice(0, 10)` rend le jour **UTC**. La
+journée UTC et la journée de l'utilisateur ne coïncident pas : à UTC+12, tout
+ce qui suit midi appartient déjà au lendemain UTC, donc un lancement le soir et
+un lancement le lendemain matin portent la MÊME date. Le second est pris pour un
+doublon, et la sauvegarde est **sautée**. Rien n'est écrasé — c'est pire : c'est
+une copie qui n'existe pas, et personne ne s'aperçoit d'une absence.
+
+**Parade.** `toDateStr(d)` / `todayStr()` de `src/lib/logic.ts`, **toujours**.
+Le grep qui trouve les rechutes est `toISOString().slice(0, 10)` ; les autres
+`toISOString()` de l'app sont des horodatages complets (des instants), qui sont
+légitimes. Un `.slice(0, 10)` est légitime uniquement quand la date a été
+CONSTRUITE en UTC juste avant — `finance/burn.ts` le fait avec `Date.UTC(…)`.
+
+**Comment on l'a payée.** `src/lib/sauvegardes.ts` l'a portée depuis sa
+création, dans le verrou `backup.last_at`. Trouvée le 2026-09-02 en relisant le
+fichier, pas par un test ni par l'usage : à Paris, la fenêtre où elle mord fait
+deux heures par nuit. `VueAgenda.tsx` porte un avertissement en commentaire sur
+exactement le même piège — ce qui prouve qu'il avait déjà mordu une fois.
+
 ---
 
 # 5. i18n

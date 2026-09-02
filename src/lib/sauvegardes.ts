@@ -1,3 +1,4 @@
+import { todayStr } from "./logic";
 import { getSetting, isTauri, setSetting } from "./repo";
 
 /**
@@ -84,7 +85,17 @@ export async function programmerRestauration(nom: string): Promise<void> {
 export async function sauvegardeQuotidienne(): Promise<void> {
   if (!isTauri) return;
   try {
-    const aujourdhui = new Date().toISOString().slice(0, 10);
+    // ⚠️ `todayStr()` (heure LOCALE) et jamais `toISOString().slice(0, 10)`.
+    // Cette clé ne s'affiche nulle part — le nom du fichier est horodaté par le
+    // Rust avec `chrono::Local` —, elle sert uniquement de verrou « une par
+    // jour ». Mais en UTC la journée du verrou n'est pas celle de
+    // l'utilisateur, et DEUX jours locaux peuvent tomber dans le MÊME jour
+    // UTC : le second lancement est alors pris pour un doublon et la sauvegarde
+    // est SAUTÉE. Rien n'est écrasé, c'est une copie qui n'existe pas.
+    // À Paris la fenêtre est étroite (00 h–02 h). À Auckland (UTC+12/+13) elle
+    // couvre l'après-midi et le soir : un lancement le soir puis un lancement le
+    // lendemain matin ne produisent qu'UNE copie pour deux journées de travail.
+    const aujourdhui = todayStr();
     if ((await getSetting(CLE_DERNIERE)) === aujourdhui) return;
     await creer("auto");
     await setSetting(CLE_DERNIERE, aujourdhui);
