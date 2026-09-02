@@ -2191,6 +2191,13 @@ secondes. Il répondait « qui es-tu », jamais « as-tu le droit d'être là »
 Ce n'est **pas** un mur de paiement. `STRIPE_ENABLED` reste à `false`, rien ne
 s'achète, rien n'expire. C'est une liste d'invités.
 
+> ⚠️ **Ce paragraphe décrit l'état d'août 2026 et n'est plus le comportement
+> actuel** (note ajoutée le 2026-09-02). Depuis le **2026-08-31**,
+> `STRIPE_ENABLED = true`, la boutique est en LIVE et **le paiement EST le mur
+> d'entrée** ; le mur d'activation manuelle a été retiré. La section reste ici
+> parce qu'elle explique *pourquoi* la liste d'invités a existé — pas parce
+> qu'elle décrit le présent.
+
 ### Les deux questions, et leur cumul
 `src/lib/auth/access.ts` porte les deux, et elles ne se remplacent pas :
 
@@ -3223,3 +3230,132 @@ nouveauté sur le site.
    qu'aucune image disque ne reste montée (`mount | grep dmg`).
 7. Contrôle final : `find / -name "Shale.app" -maxdepth 12 2>/dev/null` ne doit
    renvoyer que les deux chemins firmlinkés de `/Applications`.
+
+## Socle Calendrier & Liaisons (2026-09-02) — migration 020
+
+Le chantier A d'une série de quatre. Il n'installe **aucune interface** : il
+pose le schéma, les accès et la logique pure que deux autres chantiers (le
+calendrier, les liaisons) consomment. Motif : les deux avaient besoin de
+migrations, et deux migrations portant le numéro `020` ne se voient qu'à la
+fusion — quand les deux ont déjà tourné sur des bases différentes.
+
+### Ce que la migration installe
+- **`tasks` devient datable** : `due_date`, `start_at`, `end_at`,
+  `postponed_count`, `postponed_from`. La table n'avait **aucune date**, et
+  c'est ce manque qui empêchait tout calendrier.
+- **`calendar_events`** — ce qui n'est ni une tâche ni un objectif. `recurrence`
+  reprend **mot pour mot** le vocabulaire de `tasks.recurrence` : deux
+  grammaires de récurrence, ce serait deux moteurs de projection à garder
+  d'accord.
+- **`object_types` + `objects`** — quatre types livrés (Personne, Ressource,
+  Projet, Setup de trading), plus la création libre. ⚠️ `builtin` **dit d'où
+  vient le type, il ne le verrouille pas** : un type livré reste modifiable et
+  supprimable, sinon c'est la « liste fermée » qu'Antonin a écartée, avec
+  l'illusion du choix en plus.
+- **`object_links`** — une arête générique entre deux objets, valable pour tous
+  les modules.
+
+### ⭐ Les deux familles de tâches ne se mélangent pas
+Une tâche **datée** arrive une fois et se reporte si elle n'est pas faite. Une
+tâche **récurrente** n'a pas de date : ses occurrences se calculent, et une
+occurrence manquée **n'est pas en retard, elle est manquée**. Reporter une
+habitude quotidienne en ferait deux le lendemain : l'app transformerait un jour
+de repos en dette. La règle vit dans `src/lib/taches.ts`, **pas** dans une
+contrainte `CHECK` — une contrainte violée à l'application d'une ligne distante
+arrêterait la synchronisation, là où ce n'est qu'une règle de saisie.
+
+**Seuil de report : 2** (décidé par Antonin le 2026-09-02). Deux glissements
+passent, le troisième demande une décision. `replanifier()` remet le compteur à
+zéro : déplacer une tâche à la main n'est pas subir un glissement, et garder le
+compteur ferait réapparaître l'avertissement dès le lendemain — l'app punirait
+un geste qu'elle vient de demander.
+
+### ⭐ Pourquoi une arête ne peut PAS pointer des `id`
+La rédaction naturelle (`from_id`, `to_id`) est fausse ici, pour trois raisons
+qui se cumulent :
+1. un `id` est **local** — la note n°7 est une autre note sur le second
+   appareil, et l'arête ne serait pas cassée à l'arrivée : elle pointerait vers
+   **autre chose**, sans erreur ni alerte ;
+2. la traduction de `sync/fk.ts` **ne s'applique pas** : elle associe une
+   colonne à **une** table fixe, or `from_kind` choisit la table à l'exécution.
+   Il n'existe aucun `vers` honnête à déclarer ;
+3. le test « TOUTE colonne en `_id` est traduite » (`fk.test.ts`) **le disait
+   déjà** : une colonne `from_id` aurait fait échouer la suite tant que personne
+   n'aurait tranché. Le garde-fou a fait son travail avant même d'exister pour
+   ce cas.
+
+L'arête stocke donc les **`uid`** de ses deux extrémités. Prix : un `JOIN` sur
+`uid` au lieu de `id` — chaque table synchronisée porte un index unique dessus,
+donc le coût est celui d'un join sur la clé primaire.
+
+**Identité de l'arête : uid DÉRIVÉ** (`ol:kind:uid:kind:uid`), famille « clé
+naturelle » de la migration 015. Deux appareils qui écrivent la même mention
+calculent le même uid, donc une seule ligne côté serveur. `origin` n'entre ni
+dans la dérivation ni dans l'index unique : rattacher à la main une note déjà
+mentionnée ne doit pas créer un doublon que l'interface ne saurait pas expliquer.
+
+### ⚠️ Un bogue LATENT du moteur, trouvé en écrivant le test
+`appliquerLigne` (`sync/local.ts`) écartait **toute** colonne finissant par
+`_uid`, en supposant qu'aucune table ne stockerait jamais un uid comme
+**donnée**. `object_links` fait exactement cela : les arêtes arrivaient sur le
+second appareil avec **leurs deux extrémités vidées**.
+
+Le tri se fait désormais sur la **liste des clés déclarées** (`clesDe(table)`),
+pas sur le suffixe. Les tables existantes sont inchangées — les seules colonnes
+en `_uid` qu'émet `serialiser()` sont précisément celles des clés déclarées — et
+`sync/liens.test.ts` échoue si quelqu'un revient en arrière (vérifié : 7 tests
+sur 8 tombent avec l'ancien tri).
+
+⭐ Au passage, une propriété de schéma à garder : `from_uid`/`to_uid` sont
+**NOT NULL**. C'est ce qui a transformé une corruption silencieuse en échec
+bruyant. Sans ce `NOT NULL`, les arêtes seraient arrivées vides, sans erreur.
+
+### Une cible supprimée n'abandonne pas de backlink fantôme
+Deux temps, et aucun ne suffit seul :
+- **des triggers de cascade** sur les sept tables d'extrémité. ⚠️ Ils ne sont
+  **pas** gardés par `applying` : quand l'autre appareil envoie la suppression,
+  la cascade doit se produire ici aussi. C'est le trigger d'**outbox** qui est
+  gardé, et lui seul — les deux appareils font le même ménage sans se renvoyer
+  l'écho ;
+- **un filtrage à la lecture** (`aretesResolues`), indispensable malgré la
+  cascade : l'ordre d'arrivée n'est pas garanti, une arête peut être appliquée
+  **avant** l'objet qu'elle cite. Elle est conservée — pas mise en quarantaine,
+  puisqu'elle ne déclare aucune clé étrangère — et devient visible d'elle-même.
+
+**Limite assumée** : une arête dont la cible a été supprimée sur un appareil
+resté longtemps hors ligne peut survivre sans jamais se résoudre. Invisible, une
+centaine d'octets, pas de ramassage périodique.
+
+### ⭐ Retirer un champ d'un type ne détruit rien
+Les valeurs d'un objet sont rangées **sous l'`id` du champ**, jamais sous son
+nom : renommer « Rôle » en « Fonction » n'efface donc pas ce que trois cents
+fiches contiennent. Une valeur dont le champ a été retiré est **conservée** et
+cesse seulement d'être affichée ; si le champ revient, elle réapparaît.
+`nouvelIdDeChamp()` **ne recycle jamais** un identifiant libéré — le faire
+ferait apparaître « Développeur » comme numéro de téléphone sur toutes les
+fiches. `fusionnerValeurs()` porte la promesse, un test la garde.
+
+### La colonne s'appelle `field_values`, pas `values`
+`VALUES` est un mot-clé SQL : la colonne aurait dû être échappée dans chaque
+requête de `repo.ts`, et le premier oubli aurait produit une erreur de syntaxe
+**à l'exécution**, donc en production.
+
+### Deux découvertes en passant
+- **`TaskInput` était recopié dans `demo.ts`.** La copie a divergé dès que
+  `repo.ts` a reçu les champs de planification. `demo.ts` importe désormais la
+  seule définition qui fait foi.
+- ⚠️ **Deux tests d'authentification échouent sur `mobile-ios`**, et c'était
+  déjà le cas avant ce chantier (vérifié sur la branche intacte, pas supposé) :
+  `auth/activation.sql.test.ts` lit le SQL **du dépôt du site**, qui a changé le
+  2026-08-31 avec le mur de paiement, sans que le test de l'app ne suive. La
+  ligne de base réelle est donc **457 tests, 455 au vert**, dont ces deux-là en
+  rouge pour une raison qui n'appartient pas à ce chantier. Inscrit dans
+  `DETTE-SITE-CALENDRIER.md`.
+
+### Le mode démo fait partie du livrable
+Chaque accès existe **des deux côtés** (`repo.ts` natif, `demo.ts` preview). Un
+accès écrit d'un seul côté rendrait invisible en preview l'interface qui s'en
+sert — donc invérifiable, puisque c'est le seul mode où l'on peut auditer sans
+piloter la vraie base d'Antonin. Le mode démo n'a ni SQLite ni colonne `uid` :
+il fabrique des identités synthétiques stables (`demo:note:3`), cohérentes entre
+elles, sans aucun rapport avec les uid réels.

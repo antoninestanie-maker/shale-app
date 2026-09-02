@@ -285,7 +285,13 @@ Elles sont dans `CLAUDE.md`, mais on les oublie :
   ⚠️ Au premier lancement, macOS redemande l'accès au trousseau : cliquer
   **« Toujours autoriser »**. C'est normal — la signature ad hoc change à chaque
   reconstruction. **Le lui dire**, sinon il découvre une fenêtre inexpliquée.
-- **`STRIPE_ENABLED` reste à `false`**, des deux côtés.
+- ⚠️ ~~**`STRIPE_ENABLED` reste à `false`**, des deux côtés.~~ **PÉRIMÉ, corrigé
+  le 2026-09-02.** C'est faux depuis le **2026-08-31** : la boutique est ouverte,
+  Stripe est en **LIVE**, `STRIPE_ENABLED = true` (`src/lib/auth/config.ts:93`),
+  et **le paiement est devenu le mur d'entrée** — le mur d'activation manuelle a
+  été retiré. Vérifié dans l'arbre, pas déduit. Ne jamais se fonder sur la
+  phrase barrée ci-dessus, ni sur celle du `SHALE.md` du dossier parent, qui
+  porte la même erreur.
 - **Ne jamais écrire que les données sont « 100 % locales »** — faux depuis la
   synchronisation chiffrée.
 
