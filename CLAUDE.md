@@ -29,39 +29,69 @@ a payée deux fois.
 Ce fichier-ci porte les **décisions** et le **pourquoi** ; `PIEGES.md` porte les
 **erreurs** et leur parade. Une session qui commence lit les deux.
 
+## ⭐ `DOCUMENTATION.md` — écrire fait partie du travail, à CHAQUE session
+
+Ouvert le 2026-09-04 à la demande d'Antonin. **La documentation n'est pas la
+dernière étape d'un chantier : elle en fait partie au même titre que le code et
+les tests. Une session qui a modifié le projet et n'a rien écrit n'a pas fini son
+travail** — même si tout compile, même si tout est vert, même si c'est poussé.
+
+`DOCUMENTATION.md` dit **où va quoi** (la table d'aiguillage entre `CLAUDE.md`,
+`PIEGES.md`, les passations, `DETTE-SITE.md`), **quand écrire** (au moment où
+l'erreur mord, au moment où la décision se prend, avant de rendre la main), et
+porte la liste de contrôle à parcourir avant de dire « c'est fini ».
+
+Deux règles qui en découlent et qu'on oublie systématiquement :
+- **On corrige en datant, on n'efface pas.** Une phrase devenue fausse se marque
+  périmée ; effacée, une session future la réécrira à l'identique.
+- **Le message de commit fait partie de la documentation** — c'est le seul
+  document qu'on lit avec le diff sous les yeux.
+
 ## Ce qu'est Shale, en un écran
 
 Une app de bureau **hors-ligne d'abord** : toutes les données vivent dans **un
 seul fichier SQLite** sur la machine (`~/Library/Application Support/com.atnfx.shale/shale.db`,
-19 migrations). Rien n'est indispensable au réseau sauf le briefing de marché et
+**20 migrations** depuis la 020 du 2026-09-02). Rien n'est indispensable au réseau sauf le briefing de marché et
 la synchronisation. Elle ne se connecte à **aucun broker** : elle ne lit ni ne
 passe d'ordres.
 
-### Les douze modules, dans l'ordre de la barre latérale
+### Les treize modules, dans l'ordre de la barre latérale
+
+⚠️ **Le compte est passé de DOUZE à TREIZE le 2026-09-02** avec le module
+Calendrier. Tout ce qui suit disant « douze » est daté d'avant — voir la section
+« Calendrier — le 13ᵉ module ». `ITEMS` de `Sidebar.tsx` fait foi, et il en
+compte treize hors Réglages.
 
 `Sidebar.tsx` (`ITEMS`, `CATEGORIES`) fait foi pour les noms et l'ordre.
 « Aujourd'hui » est hors catégorie — c'est l'accueil. **Réglages est un
-treizième item de la barre, mais PAS un module** : c'est pour ça que le compte
-tombe sur douze et non treize, et c'est l'erreur qu'on refait à chaque fois.
+quatorzième item de la barre, mais PAS un module** : c'est pour ça que le compte
+tombe sur treize et non quatorze, et c'est l'erreur qu'on refait à chaque fois.
 
 | # | Module | Catégorie | Ce qu'il fait réellement |
 |---|---|---|---|
-| 1 | **Aujourd'hui** | — | Tableau de bord. N'a pas de données propres : il rassemble ce que les onze autres produisent (discipline du jour, énergie, tâches, objectifs, session de marché ouverte). Cartes déplaçables, redimensionnables, masquables — on le réarrange, on ne le construit pas. |
+| 1 | **Aujourd'hui** | — | Tableau de bord. N'a pas de données propres : il rassemble ce que les douze autres produisent (discipline du jour, énergie, tâches, objectifs, session de marché ouverte). Cartes déplaçables, redimensionnables, masquables — on le réarrange, on ne le construit pas. |
 | 2 | **Tâches** | Productivité | Trois priorités, étiquettes libres, récurrences (quotidienne · hebdomadaire · jours de marché). Une case cochée fait monter l'anneau de discipline et part horodatée dans le Journal. **L'un des rares endroits de saisie** : le reste de l'app s'en nourrit. |
-| 3 | **Timer** | Productivité | Trois presets + durée sur mesure de 1 à 240 min, mémorisée. Une session peut être liée à une tâche ; le temps remonte dans Performance. Mode plein écran. Pas de son. |
-| 4 | **Objectifs** | Productivité | Objectifs décomposés en sous-objectifs ; l'avancement se lit sur ce qui est **fait**, pas sur ce qu'on déclare. Catégories inventées par l'utilisateur, horizons court · moyen · long terme. |
-| 5 | **Performance** | Productivité | **Ne trace PAS le P&L.** Complétion des tâches, temps de focus tenu, avancement des objectifs — jour, semaine ou mois. Elle juge le comportement, pas la chance. |
-| 6 | **Finance** | Productivité | Trésorerie personnelle pour un revenu irrégulier. Chiffre roi : le **runway** — combien de mois on tient si les revenus s'arrêtent. Modèle par **snapshots** (on relève ses soldes une fois par mois, on déclare ses flux récurrents une fois pour toutes), **aucune agrégation bancaire**, tous les montants en **centimes entiers**. La section « Trading → € » traduit les R du journal en euros, et c'est la seule partie réservée à Shale Trade. |
-| 7 | **Notes** | Productivité | Texte riche + index plein texte **local** (FTS SQLite) : on retrouve un post-mortem de huit mois dans l'avion, sans réseau. Les couleurs du texte suivent le thème. |
-| 8 | **Journal** | Productivité | Humeur, énergie, réflexion — et dessous, ce que les autres modules ont écrit tout seuls (tâches cochées, calculs, trades dénoués, sessions). Habitudes sur **12 semaines glissantes**, séries incluses. |
-| 9 | **Savoir** | Productivité | Base de connaissances par thèmes. Une fiche accepte texte, images collées/glissées, liens et **croquis vectoriels** dessinés dans l'app (donc modifiables plus tard). Images recompressées à l'import (1 Mo → ~12 ko). |
-| 10 | **Trading** | Trading | Journal de positions. Une position envoyée depuis le calculateur arrive avec heure d'entrée et R:R théorique ; dénouement en un clic, **sorties partielles pondérées automatiquement**. Profit factor, drawdown max, stats par session. **Tout est mesuré en R.** |
-| 11 | **Market-Brain** | Trading | Prix, volatilité, dollar, taux, calendrier économique, news, dérivés crypto — ramassés **sans aucune clé d'API**. La synthèse est rédigée par le LLM de l'utilisateur (Gemini ou Groq, sa clé). Sort un biais et une conviction par instrument, les niveaux, les créneaux à éviter. Deux briefings : **8 h pré-Londres, 14 h pré-New York (Paris)**. |
-| 12 | **Position** | Trading | Calculateur de taille. La distance au stop vient **des prix saisis**, pas d'un comptage de pips — c'est ce qui supprime l'erreur de virgule à 3 h du matin. Spread en case à cocher, take-profit optionnel → R:R et gain potentiel. « Trader cette position » alimente le module Trading. FX, métaux, indices, crypto. |
+| 3 | **Calendrier** | Productivité | ⭐ Ajouté le 2026-09-02. Mois · semaine · jour sur le bureau, **agenda** sur téléphone. Rassemble événements, tâches datées, occurrences d'habitudes et échéances d'objectifs. Détecte la **surcharge**, propose de **reporter** ce qui traîne, apprend les **créneaux libres** de l'utilisateur et signale les **objectifs en péril**. Glisser-déposer à la souris et au doigt (appui long). |
+| 4 | **Timer** | Productivité | Trois presets + durée sur mesure de 1 à 240 min, mémorisée. Une session peut être liée à une tâche ; le temps remonte dans Performance. Mode plein écran. Pas de son. |
+| 5 | **Objectifs** | Productivité | Objectifs décomposés en sous-objectifs ; l'avancement se lit sur ce qui est **fait**, pas sur ce qu'on déclare. Catégories inventées par l'utilisateur, horizons court · moyen · long terme. |
+| 6 | **Performance** | Productivité | **Ne trace PAS le P&L.** Complétion des tâches, temps de focus tenu, avancement des objectifs — jour, semaine ou mois. Elle juge le comportement, pas la chance. |
+| 7 | **Finance** | Productivité | Trésorerie personnelle pour un revenu irrégulier. Chiffre roi : le **runway** — combien de mois on tient si les revenus s'arrêtent. Modèle par **snapshots** (on relève ses soldes une fois par mois, on déclare ses flux récurrents une fois pour toutes), **aucune agrégation bancaire**, tous les montants en **centimes entiers**. La section « Trading → € » traduit les R du journal en euros, et c'est la seule partie réservée à Shale Trade. |
+| 8 | **Notes** | Productivité | Texte riche + index plein texte **local** (FTS SQLite) : on retrouve un post-mortem de huit mois dans l'avion, sans réseau. Les couleurs du texte suivent le thème. |
+| 9 | **Journal** | Productivité | Humeur, énergie, réflexion — et dessous, ce que les autres modules ont écrit tout seuls (tâches cochées, calculs, trades dénoués, sessions). Habitudes sur **12 semaines glissantes**, séries incluses. |
+| 10 | **Savoir** | Productivité | Base de connaissances par thèmes. Une fiche accepte texte, images collées/glissées, liens et **croquis vectoriels** dessinés dans l'app (donc modifiables plus tard). Images recompressées à l'import (1 Mo → ~12 ko). |
+| 11 | **Trading** | Trading | Journal de positions. Une position envoyée depuis le calculateur arrive avec heure d'entrée et R:R théorique ; dénouement en un clic, **sorties partielles pondérées automatiquement**. Profit factor, drawdown max, stats par session. **Tout est mesuré en R.** |
+| 12 | **Market-Brain** | Trading | Prix, volatilité, dollar, taux, calendrier économique, news, dérivés crypto — ramassés **sans aucune clé d'API**. La synthèse est rédigée par le LLM de l'utilisateur (Gemini ou Groq, sa clé). Sort un biais et une conviction par instrument, les niveaux, les créneaux à éviter. Deux briefings : **8 h pré-Londres, 14 h pré-New York (Paris)**. |
+| 13 | **Position** | Trading | Calculateur de taille. La distance au stop vient **des prix saisis**, pas d'un comptage de pips — c'est ce qui supprime l'erreur de virgule à 3 h du matin. Spread en case à cocher, take-profit optionnel → R:R et gain potentiel. « Trader cette position » alimente le module Trading. FX, métaux, indices, crypto. |
 
-⚠️ **Le nombre « douze » est écrit en toutes lettres à une dizaine d'endroits**,
+⚠️ **Le compte de modules est écrit en toutes lettres à plusieurs endroits**,
 dans l'app comme dans le site. Avant de conclure quoi que ce soit sur un ajout
-ou un retrait de module : `grep -rn "douze\|SUR 12\|12 modules" src`.
+ou un retrait de module : `grep -rn "douze\|treize\|SUR 12\|12 modules" src`.
+
+⚠️ **Attention aux faux positifs** : sept des huit occurrences de « douze »
+relevées un jour comme « le compte de modules » parlaient en réalité de douze
+**mois**, douze **loyers**, douze **mots**. **Aucun texte visible de l'app
+n'annonce le nombre de modules** — c'est le SITE qui l'annonce, et lui n'a pas
+encore suivi (`DETTE-SITE.md`).
 
 ### Ce que l'app promet, et qui doit rester vrai
 
@@ -85,10 +115,14 @@ même** — c'est la règle « l'app et le site ne divergent jamais ».
   ⚠️ Il n'y a **plus** de raccourci `⌘1`…`⌘9` par module : le champ `key` a
   disparu de `modules.ts`. Les consignes qui le mentionnent sont périmées.
 - **Langue** — français et anglais, suit macOS par défaut.
-- **Licence** — `SPECS` annonce encore 12 €/mois · 96 €/an (Shale) et 19 €/mois ·
-  180 €/an (Shale Trade) avec essai 7 jours. ⚠️ **Écart assumé** : le produit est
-  aujourd'hui gratuit et fermé par activation manuelle. Voir « L'accès se donne
-  compte par compte » en fin de fichier.
+- **Licence** — 12 €/mois · 96 €/an (Shale) et 19 €/mois · 180 €/an (Shale
+  Trade). ⚠️ **Le paragraphe qui disait ici « le produit est aujourd'hui gratuit
+  et fermé par activation manuelle » est PÉRIMÉ depuis le 2026-08-31** : Stripe
+  est en LIVE, **le paiement est le mur d'entrée**, et le mur d'activation
+  manuelle a été retiré. **L'essai de 7 jours reste POSSIBLE mais n'est pas
+  OBLIGATOIRE** (décision d'Antonin du 2026-09-02, drapeau `sansEssai` de
+  `create-checkout`) ; il exige une carte, et le premier prélèvement tombe au
+  8ᵉ jour, comme le promettent les CGV en ligne.
 
 ### Où vit quoi
 
@@ -97,7 +131,9 @@ même** — c'est la règle « l'app et le site ne divergent jamais ».
 | Vues des modules | `src/views/*View.tsx` |
 | Barre latérale (noms, ordre, catégories) | `src/components/Sidebar.tsx` |
 | Accès à SQLite | `src/lib/repo.ts` (+ `isTauri`) |
-| Migrations de la base | `src-tauri/migrations/` (19) |
+| Migrations de la base | `src-tauri/migrations/` (20) |
+| Calendrier (logique) | `src/lib/calendrier/` — `agenda.ts`, `disponibilite.ts`, `charge.ts`, `peril.ts` |
+| Liaisons entre objets | `src/lib/liens.ts`, `mentions.ts`, `objets.ts`, `recherche.ts`, `naviguer.ts` |
 | Authentification | `src/lib/auth/` — `config.ts`, `access.ts`, `useAuth.ts`, `supabase.ts`, `stockage.ts` |
 | Mur d'entrée (UI) | `src/components/auth/AuthGate.tsx`, `LoginScreen.tsx` |
 | Synchronisation chiffrée | `src/lib/sync/` — `engine.ts` (cycle), `outbox.ts` (file), `crypto.ts`/`keys.ts` (clés), `transport.ts` (réseau) |
@@ -3699,3 +3735,51 @@ paysage ont des largeurs très différentes et le même besoin.
 **19 cibles** ajoutées par les chantiers B et C sont passées au-dessus du seuil.
 ⚠️ Cela ne règle PAS les 62 cibles anciennes recensées dans
 `AMELIORATIONS-UI.md` § 8 — elles restent entières.
+
+## Mise en service du calendrier et des liaisons (2026-09-04)
+
+Les quatre chantiers étaient fusionnés depuis le 2026-09-02, mais **l'app
+installée d'Antonin datait du 2026-08-28** : elle ne connaissait ni la migration
+020, ni le module Calendrier, ni les mentions. Cette journée est celle où le
+travail est arrivé chez lui. Le récit complet de la série est dans
+**`BILAN-CALENDRIER-LIAISONS.md`** ; ne sont consignées ici que les décisions.
+
+### ⭐ La migration 020 s'est appliquée sur la vraie base, non vide
+Quatre tables créées, `_sqlx_migrations` en version 20, `integrity_check` → `ok`,
+**aucune donnée perdue** : 14 notes, 2 tâches, 5 fiches de savoir, 4 types
+d'objets. La note qui manquait à l'appel était **arrivée par synchronisation**
+entre la sauvegarde et le lancement, elle n'avait pas disparu.
+
+⚠️ **Deux sauvegardes cohérentes ont été prises AVANT**, avec
+`sqlite3 "$DB" ".backup 'copie.db'"` — **jamais un `cp` du fichier** : la base
+est en WAL, une copie brute peut manquer les transactions les plus récentes.
+Elles sont dans `~/Desktop/Shale-projet/shale-backups/avant-migration-020-*/`.
+
+### ⭐ `tauri build` fige le front à la première seconde, puis compile le Rust
+C'est l'erreur de la journée, et elle a été attrapée par une **autre session**,
+pas par mon invariant. Vérifier « le front installé est ≥ au dernier commit »
+**après** la compilation ne prouve rien : le bundle a été produit plusieurs
+minutes plus tôt, et un correctif fusionné entre-temps n'y est pas.
+
+**Ce qui marche vraiment**, dans l'ordre :
+1. revérifier l'état du dépôt **juste avant de copier**, pas après le build ;
+2. prouver le **CONTENU** de `dist/assets/*.js` — les horodatages mentent, et les
+   assets sont illisibles une fois compressés dans le binaire ;
+3. comparer le `sha256` **avant et après `ditto`**, pour savoir si la copie a
+   vraiment remplacé quelque chose.
+
+### Le trousseau redemande l'autorisation dès que le BINAIRE change
+Correction d'une affirmation fausse faite à Antonin : ce n'est pas « à chaque
+reconstruction ». Reconstruire le même code ne déclenche rien ; y ajouter un
+commit, si. Antonin doit cliquer « Toujours autoriser » — **aucune session ne
+peut le faire à sa place**, saisir un mot de passe est interdit.
+
+### La coordination entre sessions parallèles a fait son travail
+Le carnet `~/Desktop/Shale-chantiers/COORDINATION.md` (non versionné, partagé) et
+son verrou **BUILD NATIF** ont tenu : les fichiers chauds partagés n'ont jamais
+été en conflit, et c'est en y lisant l'heure du build qu'une session voisine a su
+que l'app installée ne pouvait pas contenir son correctif.
+
+⚠️ **La dette côté site a déménagé dans le dépôt** : `DETTE-SITE.md`. Elle vivait
+dans `Shale-chantiers/`, dossier non versionné qui disparaîtra au premier ménage,
+alors que la dette survit aux worktrees qui l'ont créée.

@@ -18,6 +18,10 @@ se voit pas tout de suite.
 `CLAUDE.md`), l'état d'un chantier (dans sa passation), et les bogues corrigés
 une fois pour toutes dont il ne reste aucune trace piégeuse.
 
+⭐ **La table d'aiguillage complète — où va quoi, et quand écrire — est dans
+`DOCUMENTATION.md`.** Ce carnet-ci est l'une de ses cinq destinations ; la règle
+qui l'oblige, elle, vaut pour toutes les sessions et pour tous les documents.
+
 **Format d'une entrée** — quatre lignes, toujours les mêmes :
 
 > **Le symptôme** (ce qu'on voit) · **La cause** (ce qui se passe vraiment) ·

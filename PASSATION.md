@@ -1,57 +1,76 @@
-# ▶️ COMMENCER ICI — passation du 2026-08-28
+# ▶️ COMMENCER ICI
 
 *Écrit pour une session qui n'a AUCUN contexte. Ce document se suffit : où on
 en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
+
+**§ 1 (l'état) est tenu à jour — dernière révision le 2026-09-04.** Les sections
+suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 **Il y a beaucoup de `.md` à la racine.** Ordre de lecture :
 
 | # | Fichier | Quand le lire |
 |---|---|---|
 | 1 | **ce fichier** | toujours, en premier |
+| 1 bis | ⭐ **`DOCUMENTATION.md`** | **la règle d'écriture, systématique à CHAQUE session.** Où va quoi, quand écrire, la liste de contrôle avant de rendre la main |
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
-| 3 | `PASSATION-UI.md` | l'état détaillé du chantier UI/UX et ses pièges |
-| 4 | `AUDIT-I18N-2026-08.md` | si tu touches à une chaîne affichée |
+| 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
+| 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
+| 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
 | 5 | `MOBILE.md` | si tu touches à iOS |
-| 6 | `AUDIT-UI-2026-08.md`, `AMELIORATIONS-UI.md` | les preuves et le chiffrage du chantier UI |
-| 7 | `PASSATION-savoir-site.md` | **périmé** — ce chantier est livré (site commit `0e6b51c`) |
+| 6 | `PASSATION-UI.md`, `AUDIT-I18N-2026-08.md` | le chantier UI/UX d'août et les chaînes affichées |
+| 7 | `AUDIT-UI-2026-08.md`, `AMELIORATIONS-UI.md` | les preuves et le chiffrage du chantier UI |
+| 8 | `PASSATION-savoir-site.md` | **périmé** — ce chantier est livré (site commit `0e6b51c`) |
 
 ---
 
-## 1. L'état, en dix lignes
+## 1. L'état — révisé le 2026-09-04
 
 | | |
 |---|---|
 | Dépôt app | `~/Desktop/Shale-projet/Shale` |
-| Branche | **`mobile-ios`**, poussée, à jour avec `origin/mobile-ios` |
+| Branche | **`mobile-ios`**, à `5511fc8`, poussée, à jour avec `origin/mobile-ios` |
 | Arbre | **propre** |
-| Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site`, propre, à jour |
-| App macOS | reconstruite et réinstallée le **2026-08-28 à 23:51** |
-| App iOS | reconstruite et réinstallée sur le **simulateur** (iPhone 17) à **23:48** |
-| iPhone réel | **jamais** — l'appareil est `unavailable`. Rien n'y a été vu |
-| Session du simulateur | ⚠️ **toujours perdue** (§ 5.1) — elle l'était déjà à 15:21, la réinstallation de 23:48 n'a rien aggravé. Seul un geste humain d'Antonin la rouvre |
-| Dernier commit touchant `src/` | `4a60058`, 23:47:47 |
-| Invariant | ✅ les deux bundles sont POSTÉRIEURS à ce commit (§ 19.1 de `MOBILE.md`) |
+| Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
+| Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue |
+| Sauvegardes | `~/Desktop/Shale-projet/shale-backups/avant-migration-020-20260904-1135/`, prises avec `sqlite3 .backup`, `integrity_check` ok |
+| App macOS | reconstruite et réinstallée le **2026-09-04 à 11:51** — contient `67ce66e` (vérifié par le CONTENU du bundle et le `sha256`) |
+| App iOS | **simulateur** iPhone 17 (iOS 26.5), réinstallée le 2026-09-02 |
+| iPhone réel | **jamais** — rien n'y a été vu. Tout ce qui dit « iPhone » ailleurs veut dire *simulateur* |
+| Modules | **treize** — le compte est passé de douze à treize le 2026-09-02 (Calendrier) |
+| Trousseau | ⚠️ macOS redemande l'autorisation dès que le **binaire** change. Seul Antonin peut cliquer « Toujours autoriser » |
 
 ### Ligne de base — à rejouer AVANT de croire quoi que ce soit
 
 ```
 npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
-npm run i18n:check                            # ✅ 1393 entrées, 0 manquante, 0 doublon
+npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 399 / 399
+npm test                                      # ✅ 553 / 553
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
-cargo test --lib                              # ✅ 113
+cargo test --lib                              # ✅ 129
 cargo check --target aarch64-apple-ios-sim    # ✅
 cargo check --target aarch64-apple-ios        # ✅
 ```
 
+⚠️ **Un échec est désormais un VRAI échec.** Les deux tests rouges d'`activation.sql`
+qui traînaient depuis le 2026-08-31 sont réparés (`db8652d`) : il n'y a plus de
+dette connue derrière laquelle se cacher.
+
 ⚠️ Si `npm test` échoue, **capturer le nom du test AVANT de relancer** :
-intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6). Elle n'a pas
-récidivé de toute la journée.
+intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
+
+---
+
+## 1 bis. Depuis cette passation — la série Calendrier & Liaisons
+
+Du 2026-09-02 au 2026-09-04 : six chantiers, +11 216 lignes, le 13ᵉ module, les
+mentions `@` entre objets, la parité iPhone, et la mise en service sur la machine
+d'Antonin. **Tout est dans `BILAN-CALENDRIER-LIAISONS.md`** — y compris les six
+points encore ouverts, qu'il faut lire avant de promettre quoi que ce soit.
 
 ---
 
