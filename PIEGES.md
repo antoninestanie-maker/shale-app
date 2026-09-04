@@ -99,6 +99,11 @@ lancement et interroger `kill -0 "$PID"`.
 **Comment on l'a payée.** Chantier iOS, 2026-09-02 : trois guetteurs armés, zéro
 notification utile, et un sondage manuel à la place.
 
+⚠️ **Puis de nouveau le 2026-09-04**, deux jours après avoir écrit cette entrée,
+sur `npm run tauri build`. Écrire un piège ne suffit pas à s'en garder : le
+réflexe reste d'écrire `pgrep -f "<la commande>"`. **Le seul remède fiable est de
+ne jamais guetter un processus quand un fichier fait l'affaire.**
+
 ## 1.3 `timeout` n'existe pas sur cette machine
 
 **Symptôme.** `(eval):1: command not found: timeout`.
