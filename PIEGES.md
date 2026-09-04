@@ -513,6 +513,33 @@ lève sans garde, et le retour haptique n'est de toute façon pas disponible là
 Chromium rend une valeur périmée sous `backdrop-filter`. **La capture d'écran
 tranche.**
 
+## 7.5 bis ⭐ `tauri build` fige le front AU DÉBUT, puis compile le Rust pendant des minutes
+
+**Symptôme.** On vérifie que le front compilé est postérieur au dernier commit,
+la construction réussit, on installe — et l'app livrée n'a pas un correctif
+fusionné entre-temps. L'invariant était vrai **quand on l'a vérifié**, et faux
+**quand on a installé**.
+
+**Cause.** `beforeBuildCommand` lance `vite build` à la toute première seconde,
+puis `cargo` prend plusieurs minutes. Le dépôt peut bouger pendant ce temps —
+une autre session qui fusionne, un `git pull`. Le front embarqué est celui du
+DÉBUT du build, jamais celui de la fin.
+
+**Parade, en deux temps.**
+1. Revérifier l'invariant **juste avant la copie vers `/Applications`**, pas
+   après la compilation.
+2. Mieux : **prouver le CONTENU** plutôt que les horodatages. Chercher dans
+   `dist/assets/*.js` le motif que le correctif est censé avoir fait
+   disparaître. Les assets y sont minifiés mais lisibles — c'est dans le
+   BINAIRE qu'ils deviennent illisibles (compressés), pas dans `dist/`.
+3. Et après la copie, comparer les **sha256** du binaire installé et de la
+   source : c'est la seule preuve que `ditto` a vraiment remplacé quelque chose.
+
+**Comment on l'a payée.** 2026-09-04 : une session voisine a fusionné un
+correctif 1 min 50 après le `vite build` et 1 min avant la fin du bundle. L'app
+a été installée sans lui. **C'est elle qui l'a signalé, pas moi** — mon
+invariant, vérifié au mauvais moment, disait que tout allait bien.
+
 ## 7.6 Vérifier que le bundle installé n'est pas plus vieux que le dernier commit
 
 Trois minutes d'écart ont déjà fait passer un garde déjà écrit pour un défaut
@@ -563,6 +590,12 @@ une garantie.
 La signature ad hoc change à chaque reconstruction : macOS redemande
 l'autorisation au premier lancement. **Le dire à Antonin** — sinon il découvre
 une fenêtre inexpliquée et ne sait pas s'il doit accepter.
+
+⚠️ **Précision acquise le 2026-09-04, après s'être trompé dessus** : la fenêtre
+revient dès que le **BINAIRE** change, pas seulement à la première installation.
+Reconstruire deux fois de suite le MÊME code ne la fait pas revenir ; y ajouter
+un seul commit, si. Ne jamais promettre à Antonin qu'elle ne réapparaîtra pas
+sans avoir vérifié que le code n'a pas bougé entre les deux constructions.
 
 ## 8.4 Auditer en `tauri dev` pilote la VRAIE base d'Antonin
 
