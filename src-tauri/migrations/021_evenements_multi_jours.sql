@@ -1,0 +1,36 @@
+-- Événements à cheval sur plusieurs journées — 2026-09-05.
+--
+-- CE QUI MANQUAIT. `calendar_events` n'avait qu'une seule colonne de date. Un
+-- séminaire du 4 au 6, des vacances, un déplacement de trois jours : rien de
+-- tout cela ne pouvait exister autrement qu'en trois lignes séparées, que rien
+-- n'aurait reliées et qu'il aurait fallu modifier une par une.
+--
+-- ⚠️ POURQUOI UNE COLONNE ET NON UNE TABLE. Un événement multi-jours n'est pas
+-- une série : c'est UN événement qui dure. Le modéliser en occurrences aurait
+-- fait de sa modification une transaction sur N lignes, et de sa suppression
+-- une occasion d'en oublier une. Une borne de fin est la seule forme qui ne
+-- puisse pas se désynchroniser d'elle-même.
+--
+-- ⚠️ NULLABLE, ET C'EST LA MOITIÉ DU SUJET. `ALTER TABLE ADD COLUMN` n'accepte
+-- pas d'expression par défaut (PIEGES § 3.3), mais surtout : les ~milliers de
+-- lignes existantes sont toutes d'une seule journée, et leur écrire `end_date =
+-- date` aurait été une migration de DONNÉES là où une convention suffit.
+--
+--   end_date NULL          → l'événement tient sur `date`. C'est le cas commun.
+--   end_date = date        → identique, écrit explicitement par une app récente.
+--   end_date > date        → l'événement occupe `date` … `end_date`, INCLUS.
+--
+-- Une app plus ANCIENNE qui reçoit une de ces lignes par synchronisation
+-- ignorera simplement la colonne : elle verra l'événement à son premier jour,
+-- ce qui est faux mais pas dangereux. C'est le motif pour lequel il n'y a
+-- AUCUNE contrainte `CHECK (end_date >= date)` ici : une contrainte violée à
+-- l'arrivée d'une ligne distante arrête la synchronisation (§ 3.4 de PIEGES),
+-- et une borne incohérente ne casse rien — `joursOccupes()` rend alors le seul
+-- jour de départ. La règle de SAISIE vit en TypeScript, gardée par des tests,
+-- exactement comme la frontière datée / récurrente de `taches.ts`.
+ALTER TABLE calendar_events ADD COLUMN end_date TEXT;   -- 'YYYY-MM-DD', local, INCLUS
+
+-- La lecture d'une plage doit trouver les événements COMMENCÉS AVANT elle et
+-- non encore terminés. Sans cet index, `fetchCalendarEvents` balaierait toute
+-- la table à chaque changement de semaine.
+CREATE INDEX idx_calendar_events_end_date ON calendar_events(end_date);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { entreesDuJour, type EntreeAgenda } from "../lib/calendrier/agenda";
+import { dansLeBandeau, entreesDuJour, type EntreeAgenda } from "../lib/calendrier/agenda";
 import { chargeDuJour } from "../lib/calendrier/charge";
 import { profilDisponibilite } from "../lib/calendrier/disponibilite";
 import { fetchCalendarEvents, fetchRecurringEvents } from "../lib/repo";
@@ -84,7 +84,7 @@ export default function CalendarCard({ data }: { data: AppData }) {
                 style={{ backgroundColor: couleur(e) }}
               />
               <span className="w-16 shrink-0 text-xs tabular-nums text-text-dim">
-                {e.start_at ? formatHeure(e.start_at) : e.allDay ? t("jour") : "—"}
+                {dansLeBandeau(e) ? t("jour") : e.start_at ? formatHeure(e.start_at) : "—"}
               </span>
               <span
                 className="truncate text-text"

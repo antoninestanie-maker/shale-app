@@ -719,18 +719,32 @@ let calendarEventId = 100;
 const calendarEvents: CalendarEvent[] = [
   {
     id: 1, title: t("Point hebdo prop firm"), body: null, date: todayStr(),
-    start_at: "09:30", end_at: "10:00", all_day: 0, color: "blue",
+    end_date: null, start_at: "09:30", end_at: "10:00", all_day: 0, color: "blue",
     recurrence: "none", created_at: created, updated_at: created,
   },
   {
     id: 2, title: t("Clôture mensuelle du journal"), body: null,
-    date: addDays(todayStr(), 3), start_at: null, end_at: null, all_day: 1,
+    date: addDays(todayStr(), 3), end_date: null, start_at: null, end_at: null, all_day: 1,
     color: "violet", recurrence: "none", created_at: created, updated_at: created,
   },
   {
     id: 3, title: t("Revue de la semaine"), body: null, date: addDays(todayStr(), 1),
+    end_date: null,
     start_at: "18:00", end_at: "19:00", all_day: 0, color: "green",
     recurrence: "weekdays", created_at: created, updated_at: created,
+  },
+  // Un séjour à cheval sur trois journées : sans lui, la bande continue de la
+  // vue semaine et de la vue mois ne serait vérifiable qu'en fabriquant la
+  // donnée à la main à chaque audit.
+  {
+    // ⚠️ Il enjambe VOLONTAIREMENT la fin de la semaine courante : c'est le seul
+    // jeu de données qui prouve d'un coup d'œil les deux moitiés de la
+    // fonctionnalité — la barre CONTINUE sur les jours qu'elle couvre, et le
+    // chevron « ▶ » qui dit qu'elle est COUPÉE par le bord de la fenêtre.
+    id: 4, title: t("Séminaire prop firm"), body: null, date: addDays(todayStr(), -1),
+    end_date: addDays(todayStr(), 2),
+    start_at: null, end_at: null, all_day: 1, color: "yellow",
+    recurrence: "none", created_at: created, updated_at: created,
   },
 ];
 
@@ -1490,8 +1504,10 @@ export const demo = {
   },
 
   async fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
+    // Même fenêtre que le natif : un événement COMMENCÉ avant la plage et non
+    // terminé en fait partie. Voir `repo.ts`.
     return calendarEvents
-      .filter((e) => e.date >= from && e.date <= to)
+      .filter((e) => e.date <= to && (e.end_date ?? e.date) >= from)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.start_at ?? "").localeCompare(b.start_at ?? ""));
   },
 
@@ -1505,6 +1521,7 @@ export const demo = {
       title: input.title,
       body: input.body,
       date: input.date,
+      end_date: input.end_date,
       start_at: input.start_at,
       end_at: input.end_at,
       all_day: input.all_day ? 1 : 0,
@@ -1522,6 +1539,7 @@ export const demo = {
       title: input.title,
       body: input.body,
       date: input.date,
+      end_date: input.end_date,
       start_at: input.start_at,
       end_at: input.end_at,
       all_day: input.all_day ? 1 : 0,

@@ -368,7 +368,12 @@ export interface CalendarEvent {
   id: number;
   title: string;
   body: string | null;
-  date: string; // YYYY-MM-DD, local
+  date: string; // YYYY-MM-DD, local — PREMIER jour
+  /**
+   * DERNIER jour occupé, bornes comprises. `null` (ou égal à `date`) =
+   * l'événement tient sur une seule journée, ce qui est le cas commun.
+   */
+  end_date: string | null; // YYYY-MM-DD, local
   start_at: string | null; // HH:MM
   end_at: string | null; // HH:MM
   /** Journée entière DÉCLARÉE — distinct d'une heure simplement inconnue. */

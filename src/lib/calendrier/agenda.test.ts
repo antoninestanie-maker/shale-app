@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   DUREE_DEFAUT_MIN,
+  bandesDu,
+  bornesDe,
+  dansLeBandeau,
   dureeMinutes,
+  entreesDeLaPlage,
   entreesDuJour,
+  estMultiJours,
   finApres,
   grilleDuMois,
   heureDe,
@@ -24,7 +29,7 @@ const tache = (p: Partial<Task> = {}): Task => ({
 });
 
 const evenement = (p: Partial<CalendarEvent> = {}): CalendarEvent => ({
-  id: 1, title: "rendez-vous", body: null, date: "2026-09-02", start_at: null,
+  id: 1, title: "rendez-vous", body: null, date: "2026-09-02", end_date: null, start_at: null,
   end_at: null, all_day: 0, color: null, recurrence: "none",
   created_at: "2026-08-01 09:00:00", updated_at: "2026-08-01 09:00:00", ...p,
 });
@@ -165,6 +170,121 @@ describe("les quatre familles d'une journée", () => {
     expect(e.allDay).toBe(true);
     expect(e.start_at).toBeNull();
     expect(e.dureeMin).toBeNull();
+  });
+});
+
+describe("les événements sur plusieurs jours", () => {
+  const sejour = evenement({
+    id: 9, title: "séminaire", date: "2026-09-02", end_date: "2026-09-04", all_day: 1,
+  });
+
+  it("occupe CHACUNE de ses journées, bornes comprises", () => {
+    const src = sources({ events: [sejour] });
+    for (const jour of ["2026-09-02", "2026-09-03", "2026-09-04"]) {
+      expect(entreesDuJour(src, jour, "2026-09-02").map((e) => e.titre)).toEqual(["séminaire"]);
+    }
+    expect(entreesDuJour(src, "2026-09-01", "2026-09-02")).toHaveLength(0);
+    expect(entreesDuJour(src, "2026-09-05", "2026-09-02")).toHaveLength(0);
+  });
+
+  it("porte ses deux bornes sur chaque journée traversée", () => {
+    const e = entreesDuJour(sources({ events: [sejour] }), "2026-09-03", "2026-09-02")[0];
+    expect(e.date).toBe("2026-09-03");
+    expect(e.debutJour).toBe("2026-09-02");
+    expect(e.finJour).toBe("2026-09-04");
+    expect(dansLeBandeau(e)).toBe(true);
+  });
+
+  it("⭐ n'a AUCUNE durée, pour ne pas fausser la charge", () => {
+    // Un séjour de trois jours compté à sa durée horaire ferait passer chaque
+    // journée pour surchargée. Il rejoint `sansCreneau`, compté à part.
+    const horaire = evenement({
+      id: 10, date: "2026-09-02", end_date: "2026-09-03", start_at: "14:00", end_at: "16:00",
+    });
+    const e = entreesDuJour(sources({ events: [horaire] }), "2026-09-02", "2026-09-02")[0];
+    expect(e.dureeMin).toBeNull();
+    expect(dansLeBandeau(e)).toBe(true);
+  });
+
+  it("⚠️ une borne INVERSÉE ou illisible rend UNE journée, pas une plage vide", () => {
+    // Aucune contrainte SQL ne garde `end_date >= date` — elle arrêterait la
+    // synchronisation. C'est donc ici que l'incohérence est absorbée, et
+    // l'événement doit rester VISIBLE.
+    const casse = evenement({ id: 11, date: "2026-09-04", end_date: "2026-09-01" });
+    expect(bornesDe(casse)).toEqual({ debut: "2026-09-04", fin: "2026-09-04" });
+    expect(estMultiJours(casse)).toBe(false);
+    expect(entreesDuJour(sources({ events: [casse] }), "2026-09-04", "2026-09-04")).toHaveLength(1);
+  });
+
+  it("⚠️ un événement RÉCURRENT est ramené à une seule journée", () => {
+    // Une série dont chaque terme durerait trois jours se recouvrirait
+    // elle-même dès le quotidien. Le formulaire l'interdit ; ce garde protège
+    // des lignes écrites par une autre version de l'app.
+    const serie = evenement({ id: 12, date: "2026-09-02", end_date: "2026-09-06", recurrence: "daily" });
+    expect(estMultiJours(serie)).toBe(false);
+  });
+});
+
+describe("les bandes continues du bandeau", () => {
+  const semaine = [
+    "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03",
+    "2026-09-04", "2026-09-05", "2026-09-06",
+  ];
+
+  it("recolle les journées consécutives en UNE barre", () => {
+    const src = sources({
+      events: [evenement({ id: 9, date: "2026-09-02", end_date: "2026-09-04", all_day: 1 })],
+    });
+    const b = bandesDu(semaine, entreesDeLaPlage(src, semaine[0], semaine[6], semaine[0]));
+    expect(b).toHaveLength(1);
+    expect(b[0].colonne).toBe(2);
+    expect(b[0].span).toBe(3);
+    expect(b[0].debuteAvant).toBe(false);
+    expect(b[0].finitApres).toBe(false);
+  });
+
+  it("⭐ NE recolle PAS deux occurrences séparées d'un même récurrent", () => {
+    // Une journée entière qui revient le lundi et le vendredi dessinerait sinon
+    // une barre de cinq jours sur une semaine où elle n'a lieu que deux fois.
+    const src = sources({
+      events: [evenement({ id: 13, date: "2026-08-31", all_day: 1, recurrence: JSON.stringify([1, 5]) })],
+    });
+    const b = bandesDu(semaine, entreesDeLaPlage(src, semaine[0], semaine[6], semaine[0]));
+    expect(b).toHaveLength(2);
+    expect(b.map((x) => x.span)).toEqual([1, 1]);
+  });
+
+  it("dit qu'une barre est COUPÉE quand le séjour déborde de la fenêtre", () => {
+    const src = sources({
+      events: [evenement({ id: 9, date: "2026-08-28", end_date: "2026-09-10", all_day: 1 })],
+    });
+    const b = bandesDu(semaine, entreesDeLaPlage(src, semaine[0], semaine[6], semaine[0]));
+    expect(b).toHaveLength(1);
+    expect(b[0].span).toBe(7);
+    expect(b[0].debuteAvant).toBe(true);
+    expect(b[0].finitApres).toBe(true);
+  });
+
+  it("⚠️ empile deux séjours qui se chevauchent au lieu de les superposer", () => {
+    const src = sources({
+      events: [
+        evenement({ id: 9, date: "2026-09-01", end_date: "2026-09-03", all_day: 1 }),
+        evenement({ id: 14, date: "2026-09-02", end_date: "2026-09-05", all_day: 1 }),
+      ],
+    });
+    const b = bandesDu(semaine, entreesDeLaPlage(src, semaine[0], semaine[6], semaine[0]));
+    expect(b.map((x) => x.rang).sort()).toEqual([0, 1]);
+  });
+
+  it("remet une barre au rez-de-chaussée dès que la place est libre", () => {
+    const src = sources({
+      events: [
+        evenement({ id: 9, date: "2026-08-31", end_date: "2026-09-01", all_day: 1 }),
+        evenement({ id: 14, date: "2026-09-04", end_date: "2026-09-05", all_day: 1 }),
+      ],
+    });
+    const b = bandesDu(semaine, entreesDeLaPlage(src, semaine[0], semaine[6], semaine[0]));
+    expect(b.map((x) => x.rang)).toEqual([0, 0]);
   });
 });
 
