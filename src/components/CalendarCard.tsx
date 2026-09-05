@@ -6,7 +6,7 @@ import { fetchCalendarEvents, fetchRecurringEvents } from "../lib/repo";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
 import { IconCalendar } from "./icons";
-import { t } from "../lib/i18n";
+import { formatHeure, t } from "../lib/i18n";
 
 /**
  * Le widget « Calendrier » du tableau de bord — la journée en cours.
@@ -83,8 +83,8 @@ export default function CalendarCard({ data }: { data: AppData }) {
                 className="h-3 w-0.5 shrink-0 rounded-full"
                 style={{ backgroundColor: couleur(e) }}
               />
-              <span className="w-11 shrink-0 text-xs tabular-nums text-text-dim">
-                {e.start_at ?? (e.allDay ? t("jour") : "—")}
+              <span className="w-16 shrink-0 text-xs tabular-nums text-text-dim">
+                {e.start_at ? formatHeure(e.start_at) : e.allDay ? t("jour") : "—"}
               </span>
               <span
                 className="truncate text-text"

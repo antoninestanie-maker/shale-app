@@ -68,6 +68,33 @@ export function heureDe(minutes: number): string {
 }
 
 /**
+ * ⭐ La durée qu'on prête à un créneau neuf, quand l'utilisateur n'en a pas
+ * choisi une.
+ *
+ * Soixante minutes, et ce n'est pas un chiffre rond pris au hasard : c'est la
+ * seule durée qui rende la carte assez haute pour AFFICHER SON HEURE. En
+ * dessous de quarante-cinq minutes, `GrilleHoraire` masque l'étiquette faute de
+ * place — on posait donc un rendez-vous à 14:37 et rien à l'écran ne le
+ * confirmait. Une durée par défaut n'est pas du confort ici, c'est ce qui rend
+ * la saisie vérifiable d'un coup d'œil.
+ */
+export const DUREE_DEFAUT_MIN = 60;
+
+/**
+ * L'heure de fin d'un créneau qui commence à `debut` et dure `dureeMin`.
+ *
+ * ⚠️ `heureDe` PLAFONNE à 23:59 : un rendez-vous de 23:30 ne déborde pas sur le
+ * lendemain, il s'arrête à minuit moins une. Un événement qui traverse la nuit
+ * relève du multi-jours (`end_date`), pas d'une fin plus petite que son début —
+ * qui ferait rendre `null` à `dureeMinutes` et disparaître la durée.
+ */
+export function finApres(debut: string, dureeMin: number): string {
+  const d = minutesDe(debut);
+  if (d == null) return debut;
+  return heureDe(d + dureeMin);
+}
+
+/**
  * Durée d'un créneau, en minutes.
  *
  * ⚠️ Une fin ANTÉRIEURE au début rend `null`, pas une durée négative : c'est

@@ -1764,7 +1764,7 @@ export const EN: Record<string, string> = {
   "Violet": "Purple",
   "Encre": "Ink",
   "Ambre": "Amber",
-  "Fin": "Thin",
+  "Fin": "End",
   "Moyen": "Medium",
 
   // ── Tâches, journal, aujourd'hui ──────────────────────────────────────────
