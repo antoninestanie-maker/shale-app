@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { joursEntre, type EntreeAgenda } from "../../lib/calendrier/agenda";
 import { toDateStr } from "../../lib/logic";
-import { localeTag, t } from "../../lib/i18n";
+import { formatHeure, localeTag, t } from "../../lib/i18n";
 
 /**
  * La vue AGENDA — le bon défaut sur téléphone.
@@ -98,8 +98,11 @@ export default function VueAgenda({
                       className="h-8 w-0.5 shrink-0 rounded-full"
                       style={{ backgroundColor: couleur(e) }}
                     />
-                    <span className="w-11 shrink-0 text-xs tabular-nums text-text-dim">
-                      {e.start_at ?? (e.allDay ? t("jour") : "—")}
+                    {/* ⚠️ `w-16` et non `w-11` : « 12:15 AM » est plus large
+                        que « 00:15 ». La colonne était taillée pour le format
+                        français, qui est le plus court des deux. */}
+                    <span className="w-16 shrink-0 text-xs tabular-nums text-text-dim">
+                      {e.start_at ? formatHeure(e.start_at) : e.allDay ? t("jour") : "—"}
                     </span>
                     <span
                       className="min-w-0 flex-1 truncate text-sm text-text"

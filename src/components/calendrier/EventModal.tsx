@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent, type CalendarEventInput } from "../../lib/repo";
+import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../../lib/calendrier/agenda";
 import type { CalendarEvent } from "../../lib/types";
 import { IconTrash } from "../icons";
 import { t } from "../../lib/i18n";
@@ -41,12 +42,38 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
   const [corps, setCorps] = useState(event?.body ?? "");
   const [date, setDate] = useState(event?.date ?? jour);
   const [debut, setDebut] = useState(event?.start_at ?? heure ?? "");
-  const [fin, setFin] = useState(event?.end_at ?? "");
+  /**
+   * ⭐ Un créneau neuf dure une heure. Le laisser vide donnait une carte trop
+   * courte pour porter son étiquette d'heure (`GrilleHoraire` la masque sous
+   * 45 min) : on posait un rendez-vous à 14:37 et l'écran n'en disait rien.
+   */
+  const [fin, setFin] = useState(
+    event?.end_at ?? (heure ? finApres(heure, DUREE_DEFAUT_MIN) : ""),
+  );
   const [journee, setJournee] = useState(!!event?.all_day);
   const [couleur, setCouleur] = useState(event?.color ?? "blue");
   const [recurrence, setRecurrence] = useState(event?.recurrence ?? "none");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+
+  /**
+   * ⭐ DÉPLACER LE DÉBUT DÉPLACE LA FIN, en gardant la durée.
+   *
+   * ⚠️ On ne « corrige » jamais la fin en la tirant derrière le début : on la
+   * TRANSLATE. Avancer un rendez-vous d'une heure ne doit pas le raccourcir, et
+   * un utilisateur qui a choisi 45 minutes les garde. Quand aucune fin n'existe
+   * encore, on retombe sur la durée par défaut plutôt que de laisser un créneau
+   * ouvert — c'est ce qui garantit qu'une fin est toujours postérieure à son
+   * début sans avoir à l'imposer par un message d'erreur.
+   */
+  function changerDebut(nouveau: string) {
+    const ancien = minutesDe(debut);
+    const suivant = minutesDe(nouveau);
+    const duree = minutesDe(fin) != null && ancien != null ? minutesDe(fin)! - ancien : null;
+    setDebut(nouveau);
+    if (suivant == null) return;
+    setFin(finApres(nouveau, duree != null && duree > 0 ? duree : DUREE_DEFAUT_MIN));
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -148,7 +175,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               <input
                 type="time"
                 value={debut}
-                onChange={(e) => setDebut(e.target.value)}
+                onChange={(e) => changerDebut(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
               />
             </div>

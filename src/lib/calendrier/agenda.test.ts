@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DUREE_DEFAUT_MIN,
   dureeMinutes,
   entreesDuJour,
+  finApres,
   grilleDuMois,
   heureDe,
   joursEntre,
@@ -59,6 +61,35 @@ describe("heures et durées", () => {
     expect(dureeMinutes("14:00", "13:00")).toBeNull();
     expect(dureeMinutes("14:00", "14:00")).toBeNull();
     expect(dureeMinutes("14:00", "15:30")).toBe(90);
+  });
+});
+
+describe("la fin d'un créneau", () => {
+  it("ajoute la durée demandée, à la minute près", () => {
+    expect(finApres("14:37", 60)).toBe("15:37");
+    expect(finApres("09:00", 45)).toBe("09:45");
+    expect(finApres("23:00", 15)).toBe("23:15");
+  });
+
+  it("⭐ PLAFONNE à 23:59 au lieu de déborder sur le lendemain", () => {
+    // Un créneau qui repasse minuit rendrait une fin PLUS PETITE que son début,
+    // et `dureeMinutes` rendrait alors `null` : la durée disparaîtrait de la
+    // charge sans que rien ne le signale. Le créneau qui traverse la nuit
+    // relève du multi-jours, pas d'une soustraction qui se retourne.
+    expect(finApres("23:30", 60)).toBe("23:59");
+    expect(finApres("23:59", 60)).toBe("23:59");
+    expect(dureeMinutes("23:30", finApres("23:30", 60))).toBe(29);
+  });
+
+  it("laisse passer une heure illisible plutôt que d'inventer", () => {
+    expect(finApres("", 60)).toBe("");
+    expect(finApres("midi", 60)).toBe("midi");
+  });
+
+  it("la durée par défaut rend la carte assez haute pour afficher son heure", () => {
+    // `GrilleHoraire` masque l'étiquette sous 45 minutes. Si cette constante
+    // repassait en dessous, la saisie redeviendrait invérifiable à l'écran.
+    expect(DUREE_DEFAUT_MIN).toBeGreaterThanOrEqual(45);
   });
 });
 

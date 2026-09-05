@@ -167,6 +167,37 @@ export function formatTime(d: Date | string, opts?: Intl.DateTimeFormatOptions):
   return date.toLocaleTimeString(localeTag(), opts);
 }
 
+/**
+ * ⭐ Une heure STOCKÉE ('HH:MM') telle que la langue de l'utilisateur l'écrit.
+ *
+ * POURQUOI ELLE EXISTE. Le calendrier affichait la chaîne de la base
+ * directement. En français c'était juste par accident — 'HH:MM' EST le format
+ * français —, et l'app anglaise annonçait donc « 06:00 » et « 14:37 » là où
+ * `en-US` dit « 6:00 AM » et « 2:37 PM ». Ni `i18n:check` ni `i18n:durs` ne
+ * peuvent voir ce défaut : il n'y a aucune clé à traduire, c'est de la DONNÉE
+ * affichée telle quelle (cf. `PIEGES.md` § 5.2 bis).
+ *
+ * `timeStyle: "short"` plutôt qu'un couple `hour`/`minute` : lui seul rend
+ * « 06:00 » en français ET « 6:00 AM » en anglais. Avec `hour: "2-digit"`
+ * l'anglais dirait « 06:00 AM », avec `hour: "numeric"` le français dirait
+ * « 6:00 ». Mesuré, pas supposé.
+ *
+ * ⚠️ CE N'EST QUE DE L'AFFICHAGE. Ce qui part en base reste 'HH:MM', produit
+ * par `heureDe()` : localiser une valeur stockée la rendrait illisible au
+ * prochain démarrage dans une autre langue.
+ */
+export function formatHeure(hhmm: string | null | undefined): string {
+  if (!hhmm) return "";
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  // Ce qui n'est pas une heure ressort tel quel : on n'invente pas une valeur
+  // pour masquer une donnée abîmée.
+  if (!m) return hhmm;
+  // Le 1er janvier : aucun changement d'heure ne s'y produit, donc l'heure
+  // construite est toujours celle qu'on a demandée (cf. `PIEGES.md` § 4.1).
+  const d = new Date(2000, 0, 1, Number(m[1]), Number(m[2]));
+  return d.toLocaleTimeString(localeTag(), { timeStyle: "short" });
+}
+
 export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string {
   return n.toLocaleString(localeTag(), opts);
 }

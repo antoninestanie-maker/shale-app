@@ -4,8 +4,10 @@ import GrilleHoraire from "../components/calendrier/GrilleHoraire";
 import VueAgenda from "../components/calendrier/VueAgenda";
 import { IconAlert, IconCalendar, IconChevronLeft, IconChevronRight } from "../components/icons";
 import {
+  DUREE_DEFAUT_MIN,
   entreesDeLaPlage,
   entreesDuJour,
+  finApres,
   grilleDuMois,
   joursEntre,
   moisDe,
@@ -32,7 +34,7 @@ import {
 } from "../lib/repo";
 import { demandeUneDecision, replanifier, reporter } from "../lib/taches";
 import type { AppData, CalendarEvent, Task } from "../lib/types";
-import { localeTag, t, tp } from "../lib/i18n";
+import { formatHeure, localeTag, t, tp } from "../lib/i18n";
 import { estTelephone, useIsPhone } from "../lib/platform";
 
 /**
@@ -224,7 +226,7 @@ export default function CalendarView({ data, refresh }: Props) {
     async (entree: EntreeAgenda, jour: string, heure: string) => {
       if (entree.kind === "task") {
         const tache = data.tasks.find((t) => t.id === entree.id);
-        const duree = entree.dureeMin ?? 60;
+        const duree = entree.dureeMin ?? DUREE_DEFAUT_MIN;
         const fin = finApres(heure, duree);
         await setTaskSchedule(entree.id, jour, heure, fin);
         // Déplacer à la main n'est pas subir un glissement : le compteur de
@@ -239,7 +241,7 @@ export default function CalendarView({ data, refresh }: Props) {
           body: e.body,
           date: jour,
           start_at: heure,
-          end_at: finApres(heure, entree.dureeMin ?? 60),
+          end_at: finApres(heure, entree.dureeMin ?? DUREE_DEFAUT_MIN),
           all_day: false,
           color: e.color,
           recurrence: e.recurrence ?? "none",
@@ -693,7 +695,7 @@ function VueMois({
                       opacity: e.faite ? 0.5 : 1,
                     }}
                   >
-                    {e.start_at ? `${e.start_at} ` : ""}
+                    {e.start_at ? `${formatHeure(e.start_at)} ` : ""}
                     {e.titre}
                   </span>
                 ))}
@@ -869,12 +871,6 @@ function enHeures(minutes: number): string {
   if (h === 0) return t("{n} min", { n: m });
   if (m === 0) return t("{n} h", { n: h });
   return `${h} h ${String(m).padStart(2, "0")}`;
-}
-
-function finApres(debut: string, dureeMin: number): string {
-  const [h, m] = debut.split(":").map(Number);
-  const total = Math.min(23 * 60 + 59, h * 60 + m + dureeMin);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function heureCourante(): string {

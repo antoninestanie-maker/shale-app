@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { heureDe, minutesDe, type EntreeAgenda } from "../../lib/calendrier/agenda";
-import { localeTag, t } from "../../lib/i18n";
+import { formatHeure, localeTag, t } from "../../lib/i18n";
 
 /**
  * La grille horaire — vues Semaine et Jour.
@@ -293,7 +293,10 @@ export default function GrilleHoraire({
               className="relative pr-2 text-right text-[0.65rem] text-text-dim"
               style={{ height: PX_PAR_HEURE }}
             >
-              <span className="absolute -top-1.5 right-2">{heureDe(h * 60)}</span>
+              {/* ⚠️ `formatHeure` et non la chaîne stockée : en anglais, `en-US`
+                  écrit « 6:00 AM », pas « 06:00 ». `heureDe` reste réservé à ce
+                  qui PART EN BASE. */}
+              <span className="absolute -top-1.5 right-2">{formatHeure(heureDe(h * 60))}</span>
             </div>
           ))}
         </div>
@@ -344,6 +347,21 @@ function vibrer(): void {
   }
 }
 
+/**
+ * ⭐ Le quart d'heure désigné par un point VERTICAL dans une cellule d'une heure.
+ *
+ * ⚠️ CETTE FONCTION EST PARTAGÉE PAR LE DÉPÔT ET PAR LE CLIC, et c'est tout le
+ * sujet de ce correctif. Le dépôt s'en servait déjà ; le clic, lui, jetait la
+ * position et rendait l'heure pile. Cliquer six pixels au-dessus de la ligne de
+ * 15 h ouvrait donc le formulaire sur 14:00 — vu à l'écran, et c'est l'origine
+ * de « on ne peut saisir que l'heure pleine » : le champ acceptait la minute
+ * depuis toujours, c'est la grille qui ne la proposait jamais.
+ */
+function minutesSousLePoint(rect: DOMRect, y: number, heureBase: number): number {
+  const part = Math.min(0.999, Math.max(0, (y - rect.top) / rect.height));
+  return heureBase * 60 + Math.floor((part * 60) / PAS_MIN) * PAS_MIN;
+}
+
 /** Le créneau sous ce point de l'écran, ou `null`. */
 function creneauSous(x: number, y: number): { jour: string; heure: string } | null {
   const el = document.elementFromPoint(x, y);
@@ -352,12 +370,7 @@ function creneauSous(x: number, y: number): { jour: string; heure: string } | nu
   const jour = cellule.dataset.jour;
   const base = Number(cellule.dataset.heure);
   if (!jour || !Number.isFinite(base)) return null;
-  // Position VERTICALE dans la cellule → quart d'heure. Sans cela, déposer en
-  // bas d'une case poserait la tâche à l'heure pile au-dessus.
-  const rect = cellule.getBoundingClientRect();
-  const part = Math.min(0.999, Math.max(0, (y - rect.top) / rect.height));
-  const minutes = base * 60 + Math.floor((part * 60) / PAS_MIN) * PAS_MIN;
-  return { jour, heure: heureDe(minutes) };
+  return { jour, heure: heureDe(minutesSousLePoint(cellule.getBoundingClientRect(), y, base)) };
 }
 
 function ColonneJour({
@@ -389,7 +402,12 @@ function ColonneJour({
           key={h}
           data-jour={jour}
           data-heure={h}
-          onClick={() => onCreer(jour, heureDe(h * 60))}
+          onClick={(ev) =>
+            onCreer(
+              jour,
+              heureDe(minutesSousLePoint(ev.currentTarget.getBoundingClientRect(), ev.clientY, h)),
+            )
+          }
           className="border-b border-border transition-colors hover:bg-overlay"
           style={{ height: PX_PAR_HEURE }}
         />
@@ -441,7 +459,9 @@ function ColonneJour({
             }}
           >
             <span className="block truncate font-medium">{e.titre}</span>
-            {duree >= 45 && <span className="block text-text-dim">{e.start_at}</span>}
+            {duree >= 45 && (
+              <span className="block text-text-dim">{formatHeure(e.start_at)}</span>
+            )}
           </button>
         );
       })}
