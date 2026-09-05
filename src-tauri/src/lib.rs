@@ -294,6 +294,12 @@ pub fn run() {
             sql: include_str!("../migrations/020_calendrier_liaisons.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 21,
+            description: "evenements_multi_jours",
+            sql: include_str!("../migrations/021_evenements_multi_jours.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

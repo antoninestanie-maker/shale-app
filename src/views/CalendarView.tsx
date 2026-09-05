@@ -5,6 +5,8 @@ import VueAgenda from "../components/calendrier/VueAgenda";
 import { IconAlert, IconCalendar, IconChevronLeft, IconChevronRight } from "../components/icons";
 import {
   DUREE_DEFAUT_MIN,
+  bandesDu,
+  dansLeBandeau,
   entreesDeLaPlage,
   entreesDuJour,
   finApres,
@@ -240,6 +242,14 @@ export default function CalendarView({ data, refresh }: Props) {
           title: e.title,
           body: e.body,
           date: jour,
+          // ⚠️ La PLAGE suit l'événement. Seul un événement d'une journée peut
+          // être saisi dans la grille — les multi-jours vivent dans le bandeau,
+          // qui n'a pas de poignée — mais recopier `end_date` tel quel
+          // inverserait les bornes le jour où ce ne serait plus vrai. On
+          // translate l'écart, ou on rend `null`.
+          end_date: e.end_date && e.end_date > e.date
+            ? addDays(jour, joursEntre(e.date, e.end_date).length - 1)
+            : null,
           start_at: heure,
           end_at: finApres(heure, entree.dureeMin ?? DUREE_DEFAUT_MIN),
           all_day: false,
@@ -654,9 +664,66 @@ function VueMois({
           </span>
         ))}
       </div>
+      {/* ⭐ SIX RANGÉES DE SEMAINE, ET NON QUARANTE-DEUX CELLULES À LA SUITE.
+          C'est ce qui rend une bande CONTINUE possible : une barre ne peut
+          s'étendre que dans la grille où elle vit, et une grille de 42 cellules
+          ne sait pas où une semaine finit. Chaque rangée porte donc sa propre
+          grille de sept colonnes, plus un calque de barres au-dessus. */}
+      {semaines(jours).map((semaine) => (
+        <RangeeSemaine
+          key={semaine[0]}
+          semaine={semaine}
+          mois={mois}
+          parJour={parJour}
+          surcharges={surcharges}
+          aujourdhui={aujourdhui}
+          onJour={onJour}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Les 42 jours de la grille du mois, découpés en six semaines de sept. */
+function semaines(jours: string[]): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < jours.length; i += 7) out.push(jours.slice(i, i + 7));
+  return out;
+}
+
+/** Une rangée de sept jours, et les séjours qui la traversent. */
+function RangeeSemaine({
+  semaine,
+  mois,
+  parJour,
+  surcharges,
+  aujourdhui,
+  onJour,
+}: {
+  semaine: string[];
+  mois: string;
+  parJour: ReadonlyMap<string, EntreeAgenda[]>;
+  surcharges: Set<string>;
+  aujourdhui: string;
+  onJour: (jour: string) => void;
+}) {
+  const bandes = bandesDu(semaine, parJour);
+  const etages = bandes.length ? Math.max(...bandes.map((b) => b.rang)) + 1 : 0;
+  /**
+   * ⚠️ La place des barres est RÉSERVÉE dans les cellules, pas prise dessus.
+   * Le calque des barres est en position absolue : sans ce creux, il
+   * recouvrirait les premières entrées de la journée, qui disparaîtraient sans
+   * message — le pire des défauts d'affichage, parce qu'il ne se voit que
+   * lorsqu'on cherche ce qui manque.
+   */
+  const creux = etages * 0.95;
+
+  return (
+    <div className="relative">
       <div className="grid grid-cols-7">
-        {jours.map((jour) => {
-          const entrees = parJour.get(jour) ?? [];
+        {semaine.map((jour) => {
+          // Ce que porte le bandeau ne se répète pas dans la liste du jour.
+          const entrees = (parJour.get(jour) ?? []).filter((e) => !dansLeBandeau(e));
           const horsMois = jour.slice(0, 7) !== mois;
           return (
             <button
@@ -683,7 +750,7 @@ function VueMois({
                   />
                 )}
               </span>
-              <span className="mt-1 block space-y-0.5">
+              <span className="mt-1 block space-y-0.5" style={{ paddingTop: `${creux}rem` }}>
                 {entrees.slice(0, 3).map((e) => (
                   <span
                     key={`${e.kind}-${e.id}`}
@@ -709,6 +776,35 @@ function VueMois({
           );
         })}
       </div>
+
+      {/* ⚠️ `pointer-events-none` : les barres SE LAISSENT TRAVERSER. Sans cela
+          elles feraient un trou dans la surface cliquable de la journée, et
+          cliquer sur un séjour n'ouvrirait rien du tout. La vue mois est une
+          vue d'ensemble — on y ouvre une journée, pas un événement. */}
+      {bandes.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 top-8 grid grid-cols-7 gap-y-0.5">
+          {bandes.map((b) => (
+            <span
+              key={`${b.entree.kind}-${b.entree.id}-${b.colonne}`}
+              className="mx-1 truncate px-1 text-[0.65rem] leading-[0.85rem]"
+              style={{
+                gridColumn: `${b.colonne + 1} / span ${b.span}`,
+                gridRow: b.rang + 1,
+                backgroundColor: `color-mix(in srgb, ${couleurEntree(b.entree)} 20%, transparent)`,
+                borderLeft: b.debuteAvant ? undefined : `2px solid ${couleurEntree(b.entree)}`,
+                borderTopLeftRadius: b.debuteAvant ? 0 : "0.25rem",
+                borderBottomLeftRadius: b.debuteAvant ? 0 : "0.25rem",
+                borderTopRightRadius: b.finitApres ? 0 : "0.25rem",
+                borderBottomRightRadius: b.finitApres ? 0 : "0.25rem",
+              }}
+            >
+              {b.debuteAvant && "◀ "}
+              {b.entree.titre}
+              {b.finitApres && " ▶"}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

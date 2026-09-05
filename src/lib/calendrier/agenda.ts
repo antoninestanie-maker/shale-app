@@ -26,7 +26,12 @@ export interface EntreeAgenda {
   /** `id` de la ligne d'origine, dans SA table. Deux familles peuvent partager un id. */
   id: number;
   titre: string;
+  /** Le jour où cette entrée est LUE. Pour un multi-jours, il y en a plusieurs. */
   date: string;
+  /** Premier jour occupé. Égal à `date` pour tout ce qui tient sur une journée. */
+  debutJour: string;
+  /** Dernier jour occupé, INCLUS. Égal à `debutJour` hors multi-jours. */
+  finJour: string;
   start_at: string | null;
   end_at: string | null;
   allDay: boolean;
@@ -109,6 +114,134 @@ export function dureeMinutes(start: string | null, end: string | null): number |
   return f > d ? f - d : null;
 }
 
+/**
+ * ⭐ Les deux bornes d'un événement, dans l'ordre, quoi qu'il y ait en base.
+ *
+ * ⚠️ AUCUNE CONTRAINTE `CHECK` NE GARDE `end_date >= date` — délibérément :
+ * une contrainte violée à l'arrivée d'une ligne venue d'un autre appareil
+ * arrêterait la synchronisation (PIEGES § 3.4). C'est donc ICI qu'une borne
+ * incohérente est absorbée : une fin antérieure au début, ou illisible, rend un
+ * événement d'UNE journée plutôt qu'une plage à l'envers. `joursEntre` boucle
+ * du début vers la fin ; sans ce garde, une borne inversée rendrait une liste
+ * vide et l'événement disparaîtrait de l'écran sans un mot.
+ */
+export function bornesDe(
+  e: Pick<CalendarEvent, "date" | "end_date" | "recurrence">,
+): { debut: string; fin: string } {
+  // ⚠️ Un événement RÉCURRENT est ramené à UNE journée, et ce n'est pas un
+  // oubli : sa `date` est celle de la PREMIÈRE occurrence, et une série dont
+  // chaque terme durerait trois jours se recouvrirait elle-même dès le
+  // quotidien. Le formulaire rend d'ailleurs la combinaison impossible ; ce
+  // garde protège des lignes écrites par une autre version de l'app.
+  if (estRecurrenteSerie(e.recurrence)) return { debut: e.date, fin: e.date };
+  const fin = e.end_date;
+  if (!fin || fin <= e.date) return { debut: e.date, fin: e.date };
+  return { debut: e.date, fin };
+}
+
+/** L'événement occupe-t-il plus d'une journée ? */
+export function estMultiJours(
+  e: Pick<CalendarEvent, "date" | "end_date" | "recurrence">,
+): boolean {
+  const { debut, fin } = bornesDe(e);
+  return fin > debut;
+}
+
+/**
+ * ⭐ Ce qui occupe le BANDEAU du haut, par opposition à la grille horaire.
+ *
+ * La migration 020 posait déjà la distinction en toutes lettres : une journée
+ * entière DÉCLARÉE et une heure simplement INCONNUE ne s'affichent pas pareil —
+ * « le premier occupe le bandeau du haut, le second attend qu'on lui donne une
+ * heure ». L'interface les avait pourtant mélangées dans la même bande.
+ *
+ * ⚠️ Un multi-jours HORAIRE entre ici aussi, et sort donc de la grille. Le
+ * placer à son heure sur chaque journée traversée mentirait deux fois : il n'a
+ * pas lieu de 14 h à 16 h le mardi ET le mercredi, et sa durée n'est celle
+ * d'aucune de ces journées.
+ */
+export function dansLeBandeau(e: EntreeAgenda): boolean {
+  return e.kind === "event" && (e.allDay || e.finJour > e.debutJour);
+}
+
+/** Une barre du bandeau : où elle commence, sur combien de colonnes, à quel étage. */
+export interface Bande {
+  entree: EntreeAgenda;
+  /** Index de la colonne de départ, dans `jours`. */
+  colonne: number;
+  /** Nombre de colonnes couvertes. */
+  span: number;
+  /** L'étage, pour que deux séjours qui se chevauchent ne se superposent pas. */
+  rang: number;
+  /** L'événement a commencé AVANT la fenêtre affichée. */
+  debuteAvant: boolean;
+  /** Il continue APRÈS elle. */
+  finitApres: boolean;
+}
+
+/**
+ * ⭐ Les barres continues du bandeau, à partir des entrées jour par jour.
+ *
+ * `entreesDuJour` rend un multi-jours UNE FOIS PAR JOURNÉE traversée : c'est ce
+ * qu'il faut pour la vue agenda, mais la vue semaine doit en faire UNE barre.
+ * On recolle donc les journées CONSÉCUTIVES.
+ *
+ * ⚠️ « Consécutives », et pas « même identifiant ». Un événement récurrent
+ * marqué journée entière apparaît le lundi et le vendredi : les fusionner
+ * dessinerait une barre de cinq jours sur une semaine où l'événement n'a lieu
+ * que deux fois. Le trou entre deux occurrences ouvre donc une barre neuve.
+ *
+ * ⚠️ L'ÉTAGE se calcule ici et pas en CSS : deux séjours qui se chevauchent
+ * occupant la même ligne de grille, le second écraserait le premier sans que
+ * rien ne le signale. On prend le premier étage libre sur toute la largeur.
+ */
+export function bandesDu(
+  jours: string[],
+  parJour: ReadonlyMap<string, EntreeAgenda[]>,
+): Bande[] {
+  const bandes: Bande[] = [];
+  const encours = new Map<string, { bande: Bande; colonne: number }>();
+
+  jours.forEach((jour, i) => {
+    for (const e of parJour.get(jour) ?? []) {
+      if (!dansLeBandeau(e)) continue;
+      const cle = `${e.kind}-${e.id}`;
+      const prec = encours.get(cle);
+      if (prec && prec.colonne === i - 1) {
+        prec.bande.span += 1;
+        prec.colonne = i;
+        continue;
+      }
+      const bande: Bande = {
+        entree: e,
+        colonne: i,
+        span: 1,
+        rang: 0,
+        debuteAvant: e.debutJour < jours[0],
+        finitApres: e.finJour > jours[jours.length - 1],
+      };
+      bandes.push(bande);
+      encours.set(cle, { bande, colonne: i });
+    }
+  });
+
+  const occupe: boolean[][] = [];
+  for (const b of bandes) {
+    let rang = 0;
+    for (;;) {
+      occupe[rang] ??= [];
+      const libre = Array.from({ length: b.span }, (_, k) => !occupe[rang][b.colonne + k]).every(Boolean);
+      if (libre) {
+        for (let k = 0; k < b.span; k++) occupe[rang][b.colonne + k] = true;
+        break;
+      }
+      rang++;
+    }
+    b.rang = rang;
+  }
+  return bandes;
+}
+
 // ─── Construction d'une journée ──────────────────────────────────────────────
 
 function completionsIndex(completions: readonly Completion[]): Map<string, boolean> {
@@ -129,21 +262,30 @@ export function entreesDuJour(
   const faites = completionsIndex(src.completions);
   const entrees: EntreeAgenda[] = [];
 
-  // 1) Les événements — ceux du jour, plus les occurrences des récurrents.
+  // 1) Les événements — ceux qui OCCUPENT ce jour (un multi-jours en occupe
+  // plusieurs), plus les occurrences des récurrents.
   for (const e of src.events) {
-    const ponctuel = e.date === jour && !estRecurrenteSerie(e.recurrence);
+    const { debut, fin } = bornesDe(e);
+    const ponctuel = !estRecurrenteSerie(e.recurrence) && debut <= jour && jour <= fin;
     const occurrence = estRecurrenteSerie(e.recurrence) && occurrenceLe(e.recurrence, e.date, jour);
     if (!ponctuel && !occurrence) continue;
+    const multi = fin > debut;
     entrees.push({
       kind: "event",
       id: e.id,
       titre: e.title,
       date: jour,
+      debutJour: debut,
+      finJour: fin,
       start_at: e.all_day ? null : e.start_at,
       end_at: e.all_day ? null : e.end_at,
       allDay: !!e.all_day,
       color: e.color,
-      dureeMin: e.all_day ? null : dureeMinutes(e.start_at, e.end_at),
+      // ⚠️ UN MULTI-JOURS N'A PAS DE DURÉE SUR UNE JOURNÉE DONNÉE, et lui en
+      // prêter une fausserait la charge exactement comme le ferait une journée
+      // entière comptée pour huit heures. Il rejoint donc `sansCreneau` dans
+      // `charge.ts` — compté à part, jamais additionné aux minutes posées.
+      dureeMin: e.all_day || multi ? null : dureeMinutes(e.start_at, e.end_at),
       enRetard: false,
       reports: 0,
       faite: null,
@@ -158,6 +300,8 @@ export function entreesDuJour(
       id: t.id,
       titre: t.label,
       date: jour,
+      debutJour: jour,
+      finJour: jour,
       start_at: t.start_at,
       end_at: t.end_at,
       allDay: false,
@@ -179,6 +323,8 @@ export function entreesDuJour(
       id: t.id,
       titre: t.label,
       date: jour,
+      debutJour: jour,
+      finJour: jour,
       start_at: t.start_at,
       end_at: t.end_at,
       allDay: false,
@@ -200,6 +346,8 @@ export function entreesDuJour(
       id: g.id,
       titre: g.title,
       date: jour,
+      debutJour: jour,
+      finJour: jour,
       start_at: null,
       end_at: null,
       allDay: true,

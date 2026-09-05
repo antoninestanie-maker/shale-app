@@ -1454,7 +1454,9 @@ export async function uidDe(kind: LinkKind, id: number): Promise<string | null> 
 export interface CalendarEventInput {
   title: string;
   body: string | null;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD, premier jour
+  /** Dernier jour, INCLUS. `null` = l'événement tient sur une seule journée. */
+  end_date: string | null; // YYYY-MM-DD
   start_at: string | null; // HH:MM
   end_at: string | null; // HH:MM
   all_day: boolean;
@@ -1466,8 +1468,14 @@ export interface CalendarEventInput {
 export async function fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
   if (!isTauri) return demo.fetchCalendarEvents(from, to);
   const db = await getDb();
+  // ⚠️ `coalesce(end_date, date) >= $1` et non `date >= $1` : un événement du 1er
+  // au 8 est INVISIBLE dans la semaine du 5 si l'on ne cherche que par son jour
+  // de départ. Le défaut ne se verrait qu'avec le premier séjour à cheval sur
+  // deux semaines, c'est-à-dire trop tard.
   return db.select<CalendarEvent[]>(
-    "SELECT * FROM calendar_events WHERE date >= $1 AND date <= $2 ORDER BY date, start_at",
+    `SELECT * FROM calendar_events
+      WHERE date <= $2 AND coalesce(end_date, date) >= $1
+      ORDER BY date, start_at`,
     [from, to],
   );
 }
@@ -1491,12 +1499,13 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<vo
   const db = await getDb();
   const now = localNow();
   await db.execute(
-    `INSERT INTO calendar_events (title, body, date, start_at, end_at, all_day, color, recurrence, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
+    `INSERT INTO calendar_events (title, body, date, end_date, start_at, end_at, all_day, color, recurrence, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
     [
       input.title,
       input.body,
       input.date,
+      input.end_date,
       input.start_at,
       input.end_at,
       input.all_day ? 1 : 0,
@@ -1512,13 +1521,14 @@ export async function updateCalendarEvent(id: number, input: CalendarEventInput)
   const db = await getDb();
   await db.execute(
     `UPDATE calendar_events
-        SET title = $1, body = $2, date = $3, start_at = $4, end_at = $5,
-            all_day = $6, color = $7, recurrence = $8, updated_at = $9
-      WHERE id = $10`,
+        SET title = $1, body = $2, date = $3, end_date = $4, start_at = $5, end_at = $6,
+            all_day = $7, color = $8, recurrence = $9, updated_at = $10
+      WHERE id = $11`,
     [
       input.title,
       input.body,
       input.date,
+      input.end_date,
       input.start_at,
       input.end_at,
       input.all_day ? 1 : 0,

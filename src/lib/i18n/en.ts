@@ -2128,4 +2128,14 @@ export const EN: Record<string, string> = {
   "Agenda": "Agenda",
   "Ce qui vient, dans l'ordre où ça vient.": "What's coming, in the order it comes.",
   "Rien de prévu sur les {n} prochains jours.": "Nothing planned for the next {n} days.",
+
+  // ─── Calendrier V2 (2026-09-05) ───────────────────────────────────────────
+  "Sur plusieurs jours": "Spans several days",
+  "jusqu'au": "until",
+  "Le dernier jour doit venir après le premier.": "The last day must come after the first.",
+  "Un événement sur plusieurs jours ne se répète pas.":
+    "An event spanning several days doesn't repeat.",
+  // L'en-tête de la bande des journées entières et des séjours, en vue semaine.
+  "Journée": "All day",
+  "Séminaire prop firm": "Prop firm seminar",
 };

@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { heureDe, minutesDe, type EntreeAgenda } from "../../lib/calendrier/agenda";
+import {
+  bandesDu,
+  dansLeBandeau,
+  heureDe,
+  minutesDe,
+  type EntreeAgenda,
+} from "../../lib/calendrier/agenda";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
 
 /**
@@ -96,6 +102,8 @@ export default function GrilleHoraire({
     () => Array.from({ length: heureMax - heureMin }, (_, i) => heureMin + i),
     [heureMin, heureMax],
   );
+
+  const bandes = useMemo(() => bandesDu(jours, parJour), [jours, parJour]);
 
   // ─── Le geste ──────────────────────────────────────────────────────────────
 
@@ -259,6 +267,49 @@ export default function GrilleHoraire({
         })}
       </div>
 
+      {/* ⭐ LE BANDEAU DES JOURNÉES ENTIÈRES ET DES SÉJOURS.
+          Il est SÉPARÉ de la bande « sans heure », et c'est tout le sujet : la
+          migration 020 posait déjà que « journée entière » déclarée et « heure
+          inconnue » ne devaient pas s'afficher pareil, et l'interface les avait
+          pourtant mises dans la même bande — vu à l'écran, un séminaire de
+          trois jours y était indiscernable d'une habitude sans horaire. */}
+      {bandes.length > 0 && (
+        <div
+          className="grid gap-y-0.5 border-b border-border py-1"
+          style={{ gridTemplateColumns: `3.5rem repeat(${jours.length}, minmax(0, 1fr))` }}
+        >
+          <span className="py-1 pr-2 text-right text-[0.6rem] uppercase text-text-dim">
+            {t("Journée")}
+          </span>
+          {bandes.map((b) => (
+            <button
+              key={`${b.entree.kind}-${b.entree.id}-${b.colonne}`}
+              type="button"
+              onClick={() => onOuvrir(b.entree)}
+              className="cible-tactile-ligne mx-1 truncate px-1.5 py-0.5 text-left text-[0.7rem]"
+              style={{
+                // +2 : la première colonne de la grille est la gouttière des heures.
+                gridColumn: `${b.colonne + 2} / span ${b.span}`,
+                gridRow: b.rang + 1,
+                backgroundColor: couleurDe(b.entree),
+                borderLeft: b.debuteAvant ? undefined : `2px solid ${bordDe(b.entree)}`,
+                // ⚠️ Les coins ne s'arrondissent QU'AUX VRAIES EXTRÉMITÉS. Un
+                // séjour qui déborde de la semaine affichée doit se lire comme
+                // coupé, pas comme terminé le dimanche.
+                borderTopLeftRadius: b.debuteAvant ? 0 : "0.25rem",
+                borderBottomLeftRadius: b.debuteAvant ? 0 : "0.25rem",
+                borderTopRightRadius: b.finitApres ? 0 : "0.25rem",
+                borderBottomRightRadius: b.finitApres ? 0 : "0.25rem",
+              }}
+            >
+              {b.debuteAvant && "◀ "}
+              {b.entree.titre}
+              {b.finitApres && " ▶"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Ce qui n'a pas d'heure — au-dessus de la grille, jamais noyé dedans.
           ⚠️ PLAFONNÉ ET DÉFILANT. Vu à l'écran : cinq tâches récurrentes par
           jour repoussaient la première heure de la grille sous le pli, et la
@@ -273,7 +324,7 @@ export default function GrilleHoraire({
         {jours.map((jour) => (
           <div key={jour} className="min-h-[1.75rem] space-y-1 border-l border-border p-1">
             {(parJour.get(jour) ?? [])
-              .filter((e) => minutesDe(e.start_at) == null)
+              .filter((e) => minutesDe(e.start_at) == null && !dansLeBandeau(e))
               .map((e) => (
                 <Chip key={`${e.kind}-${e.id}`} entree={e} onPointerDown={(ev) => saisir(ev, e)} />
               ))}
@@ -392,7 +443,9 @@ function ColonneJour({
   onCreer: (jour: string, heure: string) => void;
   onSaisir: (e: React.PointerEvent, entree: EntreeAgenda) => void;
 }) {
-  const placees = entrees.filter((e) => minutesDe(e.start_at) != null);
+  // ⚠️ Un séjour HORAIRE ne descend pas dans la grille : il n'a lieu ni de 14 h
+  // à 16 h le mardi ni le mercredi, et l'y poser deux fois mentirait deux fois.
+  const placees = entrees.filter((e) => minutesDe(e.start_at) != null && !dansLeBandeau(e));
   const haut = (min: number) => ((min - heureMin * 60) / 60) * PX_PAR_HEURE;
 
   return (

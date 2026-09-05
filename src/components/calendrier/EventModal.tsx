@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent, type CalendarEventInput } from "../../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../../lib/calendrier/agenda";
+import { addDays } from "../../lib/logic";
 import type { CalendarEvent } from "../../lib/types";
 import { IconTrash } from "../icons";
 import { t } from "../../lib/i18n";
@@ -51,6 +52,22 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
     event?.end_at ?? (heure ? finApres(heure, DUREE_DEFAUT_MIN) : ""),
   );
   const [journee, setJournee] = useState(!!event?.all_day);
+  /**
+   * ⭐ Le multi-jours passe par une CASE À COCHER, pas par un champ de date
+   * laissé vide.
+   *
+   * ⚠️ Un `<input type="date">` VIDE n'affiche RIEN sur iOS — pas même le
+   * gabarit `jj/mm/aaaa` que rend le bureau (vu à l'écran le 2026-08-27, cf.
+   * `TasksView`). Un second champ de date optionnel serait donc, sur téléphone,
+   * un rectangle gris muet dont rien ne dirait ce qu'il est. La case l'annonce
+   * et ne le montre que quand il sert.
+   */
+  const [plusieurs, setPlusieurs] = useState(
+    !!event?.end_date && event.end_date > event.date,
+  );
+  const [finJour, setFinJour] = useState(
+    event?.end_date && event.end_date > event.date ? event.end_date : "",
+  );
   const [couleur, setCouleur] = useState(event?.color ?? "blue");
   const [recurrence, setRecurrence] = useState(event?.recurrence ?? "none");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -90,8 +107,12 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
     }
     // ⚠️ Une fin antérieure au début n'est pas rattrapée en silence : la corriger
     // à la place de l'utilisateur déplacerait son rendez-vous sans le dire.
-    if (!journee && debut && fin && fin <= debut) {
+    if (!journee && !plusieurs && debut && fin && fin <= debut) {
       setErreur(t("La fin doit venir après le début."));
+      return;
+    }
+    if (plusieurs && (!finJour || finJour <= date)) {
+      setErreur(t("Le dernier jour doit venir après le premier."));
       return;
     }
     setEnCours(true);
@@ -99,11 +120,17 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
       title: titre.trim(),
       body: corps.trim() || null,
       date,
+      end_date: plusieurs ? finJour : null,
       start_at: journee ? null : debut || null,
       end_at: journee ? null : fin || null,
       all_day: journee,
       color: couleur,
-      recurrence,
+      // ⚠️ La récurrence est FORCÉE à « une fois » sur un multi-jours, et
+      // l'interface a déjà retiré le choix. Le forcer ici aussi ferme le cas où
+      // l'on coche « plusieurs jours » APRÈS avoir choisi une répétition : sans
+      // cela, on enregistrerait une série dont chaque terme dure trois jours et
+      // qui se recouvre elle-même dès le quotidien.
+      recurrence: plusieurs ? "none" : recurrence,
     };
     if (event) await updateCalendarEvent(event.id, input);
     else await createCalendarEvent(input);
@@ -166,6 +193,37 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           </label>
         </div>
 
+        <div className="mt-4 flex gap-3">
+          <label className="flex items-center gap-2 text-sm text-text-dim">
+            <input
+              type="checkbox"
+              checked={plusieurs}
+              onChange={(e) => {
+                setPlusieurs(e.target.checked);
+                // Le lendemain par défaut : c'est la plage la plus courte qui
+                // mérite le nom, et elle évite au champ de naître invalide.
+                if (e.target.checked && !finJour) setFinJour(addDays(date, 1));
+              }}
+              className="h-4 w-4"
+            />
+            {t("Sur plusieurs jours")}
+          </label>
+          {plusieurs && (
+            <div className="flex flex-1 items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-text-dim">
+                {t("jusqu'au")}
+              </span>
+              <input
+                type="date"
+                value={finJour}
+                min={date}
+                onChange={(e) => setFinJour(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+              />
+            </div>
+          )}
+        </div>
+
         {!journee && (
           <div className="mt-4 flex gap-3">
             <div className="flex-1">
@@ -193,20 +251,37 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           </div>
         )}
 
-        <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-text-dim">
-          {t("Répétition")}
-        </label>
-        <select
-          value={recurrence ?? "none"}
-          onChange={(e) => setRecurrence(e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
-        >
-          {RECURRENCES.map((r) => (
-            <option key={r.valeur} value={r.valeur}>
-              {t(r.label)}
-            </option>
-          ))}
-        </select>
+        {/* ⭐ LE MULTI-JOURS ET LA RÉPÉTITION NE SE MÉLANGENT PAS, et l'interface
+            rend le mélange IMPOSSIBLE plutôt que de le décourager — même
+            principe que la frontière entre tâche datée et tâche récurrente
+            (`lib/taches.ts`). Une série dont chaque terme durerait trois jours
+            se recouvrirait elle-même dès « tous les jours », et le vocabulaire
+            de récurrence de l'app ne connaît ni le mois ni l'année : il n'y a
+            donc aucune combinaison qui veuille dire quelque chose.
+            On ANNONCE le retrait au lieu de faire disparaître un champ en
+            silence : un contrôle qui s'évapore se lit comme un bogue. */}
+        {plusieurs ? (
+          <p className="mt-4 rounded-lg border border-border bg-overlay px-3 py-2 text-xs text-text-dim">
+            {t("Un événement sur plusieurs jours ne se répète pas.")}
+          </p>
+        ) : (
+          <>
+            <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-text-dim">
+              {t("Répétition")}
+            </label>
+            <select
+              value={recurrence ?? "none"}
+              onChange={(e) => setRecurrence(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+            >
+              {RECURRENCES.map((r) => (
+                <option key={r.valeur} value={r.valeur}>
+                  {t(r.label)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
         <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-text-dim">
           {t("Couleur")}
