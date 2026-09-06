@@ -108,6 +108,24 @@ sur `npm run tauri build`. Écrire un piège ne suffit pas à s'en garder : le
 réflexe reste d'écrire `pgrep -f "<la commande>"`. **Le seul remède fiable est de
 ne jamais guetter un processus quand un fichier fait l'affaire.**
 
+## 1.2 ter ⭐ Le patch de MODE DÉMO casse `tsc` — ce ne sont pas tes régressions
+
+**Symptôme.** On monte le mode démo (PASSATION § 5.3), on rejoue la ligne de
+base, et `npx tsc --noEmit` sort deux erreurs dans `src/lib/auth/useAuth.ts` :
+`TS2345` et `TS2322`, « `string | null` n'est pas assignable à `string` ». On
+cherche ce qu'on vient de casser dans un fichier qu'on n'a pas touché.
+
+**Cause.** La seconde ligne du patch remplace `if (!jeton)` par
+`if (!jeton && AUTH_CONFIGURED)`. Le garde ne rétrécit donc plus le type de
+`jeton` en aval, et les deux usages suivants ne compilent plus. C'est une
+conséquence mécanique du patch, pas un défaut du dépôt.
+
+**Parade.** **Démonter le mode démo AVANT de rejouer la ligne de base.** Et se
+méfier du raccourci inverse : on est tenté de « corriger » les deux erreurs.
+
+**Comment on l'a payée.** Calendrier V2, 2026-09-05 : quelques minutes à relire
+`useAuth.ts` avant de comprendre que c'était ma propre modification temporaire.
+
 ## 1.3 `timeout` n'existe pas sur cette machine
 
 **Symptôme.** `(eval):1: command not found: timeout`.
@@ -255,6 +273,29 @@ exactement le même piège — ce qui prouve qu'il avait déjà mordu une fois.
 
 ---
 
+## 4.4 ⭐ 'HH:MM' affiché tel quel n'est juste QU'EN FRANÇAIS
+
+**Symptôme.** L'app anglaise annonce « 06:00 » et « 14:37 » là où `en-US` dit
+« 6:00 AM » et « 2:37 PM ». **Les deux outils i18n sont au vert.**
+
+**Cause.** Le format de stockage de l'app ('HH:MM', heure locale) **est** le
+format d'affichage français. Afficher la chaîne de la base est donc juste par
+accident dans la langue de développement, et faux dans l'autre. Aucune clé n'est
+en jeu : c'est de la donnée affichée telle quelle — l'angle mort du § 5.2 bis.
+
+**Parade.** `formatHeure()` (`lib/i18n`), qui passe par
+`toLocaleTimeString(localeTag(), { timeStyle: "short" })`.
+⚠️ `timeStyle: "short"` et pas un couple `hour`/`minute` : mesuré, `hour:
+"2-digit"` rend « 06:00 AM » en anglais et `hour: "numeric"` rend « 6:00 » en
+français. Seul `timeStyle` est correct des deux côtés.
+⚠️ **L'affichage seulement.** Ce qui part en base reste 'HH:MM' (`heureDe`) :
+localiser une valeur stockée la rendrait illisible au prochain démarrage dans
+une autre langue.
+
+**Comment on l'a payée.** Calendrier V2, 2026-09-05, sur cinq points
+d'affichage. Vu en basculant l'app en anglais, comme les trois défauts du
+chantier B.
+
 # 5. i18n
 
 ## 5.1 ⭐ `i18n:check` au vert ne veut PAS dire « traduit »
@@ -382,6 +423,28 @@ distinctes : `regarderDemande` (sans consommer) et `consommerDemande`.
 **Comment on l'a payée.** Chantier C, 2026-09-02, vue à l'écran deux fois de
 suite — la seconde après avoir « corrigé » la première.
 
+## 6.2 quater ⭐ Un accès démo TROP INDULGENT masque ce que le natif détruit
+
+**Symptôme.** Une tâche posée sur le calendrier perd sa date quand on rouvre la
+tâche pour corriger son titre. **Impossible à reproduire en mode démo**, où tout
+se passe bien.
+
+**Cause.** `repo.ts` fait `UPDATE tasks SET … due_date = $6 …` avec
+`input.due_date ?? null` : une clé absente de l'entrée **vide la colonne**.
+`demo.ts` fait `Object.assign(task, input)` : une clé absente **ne fait rien**.
+Les deux implémentations ont la même signature et deux sémantiques différentes,
+et c'est la plus indulgente qui sert à auditer.
+
+**Parade.** Le § 6.2 dit « tout accès de `repo.ts` doit exister dans
+`demo.ts` ». Ce n'est pas assez : il doit avoir la **même sémantique**, en
+particulier sur ce qu'une valeur absente ou nulle EFFACE. Quand un accès écrit
+un jeu de colonnes en bloc, `demo.ts` doit écrire les mêmes, `null` compris —
+pas fusionner.
+
+**Comment on l'a payée.** Calendrier V2, 2026-09-05. Le défaut existait depuis
+la migration 020 et n'a été vu qu'en LISANT `updateTask`, jamais à l'usage :
+c'est une perte de données qui ne se produit que sur la vraie base d'Antonin.
+
 ## 6.3 Un token de couleur inexistant échoue EN SILENCE
 
 `text-amber` ne génère aucune classe (le token s'appelle `--color-yellow`) : la
@@ -434,6 +497,54 @@ coûte dix secondes.
 
 **Comment on l'a payée.** Chantier B, 2026-09-02 : quinze minutes à chercher un
 défaut de calcul qui n'existait pas.
+
+## 7.2 ter ⭐ Une règle écrite en ÉNUMÉRANT des familles finit par avoir un trou
+
+**Symptôme.** La règle « un événement récurrent ne se déplace pas au
+glisser-déposer » est écrite, documentée, et **fausse depuis toujours**. Glisser
+une occurrence hebdomadaire déplace la SÉRIE : cinq occurrences deviennent
+trois, deux journées disparaissent sans erreur ni annulation.
+
+**Cause.** Le garde disait `if (entree.kind === "recurrence" || entree.kind ===
+"deadline") return;`. Or `"recurrence"` désigne les **tâches** récurrentes ; un
+**événement** récurrent est un `kind: "event"` comme un autre. L'énumération
+avait un trou de la taille exacte de la règle qu'elle prétendait tenir — et
+l'audit d'origine n'avait essayé de glisser qu'une tâche.
+
+**Parade.** Faire porter la règle par la **propriété** qu'elle vise, pas par une
+liste de familles : ici un drapeau `serie` (« ceci est une occurrence
+projetée »), calculé à un seul endroit. Une liste doit être tenue à jour à
+chaque famille nouvelle ; une propriété se calcule.
+⚠️ **Et vérifier chaque BRANCHE de l'énumération à l'écran**, pas la première.
+
+**Comment on l'a payée.** Calendrier V2, 2026-09-05. Deux fois : réparer la
+première moitié de la règle a cassé la seconde (« il s'ouvre, et l'utilisateur
+décide » passait par le gestionnaire qu'on venait de court-circuiter), et
+l'événement récurrent est devenu complètement inerte jusqu'au second essai.
+
+## 7.2 quater ⚠️ Un sélecteur CSS peut être INERTE sans que rien ne le dise
+
+**Symptôme.** On écrit une garde CSS, elle est dans le fichier, le build passe,
+et elle ne s'applique jamais.
+
+**Cause.** `[data-glisse="1"] .cal-anime` suppose que l'élément porteur de
+`data-glisse` est un ANCÊTRE du calque animé. Il en était le descendant. Aucun
+outil ne signale un sélecteur qui ne correspond à rien.
+
+**Parade.** Lire le **CSSOM de l'app qui tourne**, pas le fichier source :
+
+```js
+// remonte toutes les règles qui mentionnent un sélecteur
+function balaye(rs, out){ for(const r of rs){ if(r.selectorText?.includes("mon-motif")) out.push(r.cssText); if(r.cssRules) balaye(r.cssRules,out); } }
+```
+
+Cela prouve d'un coup que la règle a survécu à Tailwind ET qu'elle vise le bon
+élément. ⚠️ Attention à la boucle elle-même : une version qui saute les feuilles
+ayant `cssRules` rate toutes les règles imbriquées et fait conclure à tort que
+la règle n'existe pas.
+
+**Comment on l'a payée.** Calendrier V2, 2026-09-05 — sans conséquence, la garde
+n'avait rien à garder, mais elle aurait pu.
 
 ## 7.3 Un test rouge n'est pas forcément le vôtre
 
