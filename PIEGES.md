@@ -526,6 +526,30 @@ avait été écartée à la lecture de `CLAUDE.md` avant d'être reprise.
 
 # 7. Vérifier — et ce qui ne vérifie rien
 
+> ## ⭐ LA RÈGLE QUI COIFFE TOUT CE CHAPITRE
+>
+> **Un contrôle doit pouvoir rendre « non ». Sinon ce n'est pas un contrôle.**
+>
+> Formulée le 2026-09-06 après en avoir rencontré **trois exemplaires en une
+> soirée**, tous autour du même geste — la mise en service chez Antonin — et
+> aucun repéré par son propre auteur :
+>
+> | Le contrôle | Pourquoi il ne pouvait pas échouer | Où |
+> |---|---|---|
+> | `grep "graineDeNote" dist/assets/*.js` | un nom de fonction est minifié : rend 0 quoi qu'il arrive | § 7.5 bis |
+> | `end_date` **= 25** exactement | compte dispersé dans des chunks : rejette les bons bundles | § 7.5 bis |
+> | `[ "$A" = "$B" ]` sur deux requêtes SQL fausses | les deux rendent la chaîne vide, donc l'égalité est vraie | § 7.5 quater |
+>
+> Les deux premiers auraient fait conclure à un défaut inexistant **au moment
+> précis où l'on écrit dans `/Applications`** ; le troisième a affiché
+> « ✅ identiques » sur une comparaison qui n'avait jamais tourné.
+>
+> ▶️ **Le geste qui les attrape tous les trois : faire échouer le contrôle
+> exprès une fois.** C'est le § 7.2 (« un test qui passe ne prouve rien tant
+> qu'on ne l'a pas vu échouer ») appliqué hors des tests — à un `grep`, à une
+> comparaison de shell, à une requête. Si l'on ne sait pas construire le cas où
+> il rend « non », il ne dit rien quand il rend « oui ».
+
 ## 7.1 ⭐ Aucun test de ce dépôt ne prouve une interface
 
 Les tests sont **tous** de logique pure ou de schéma. Il n'existe aucune
