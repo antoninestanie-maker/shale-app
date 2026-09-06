@@ -75,10 +75,16 @@ se rouvre**. Le composant est donc toujours démonté entre deux événements.
 
 ⚠️ **Mais une seule ouverture qui contournerait le voile suffirait** : un
 raccourci clavier, une notification cliquable, un lien depuis un autre module.
-La parade tient en un mot — une `key={modale.event?.id ?? "neuf"}` sur
-`<EventModal>` — et elle n'est pas posée, faute de défaut à corriger. C'est le
-même piège que celui trouvé le 2026-09-06 dans `RichNoteEditor` par la session
-[H-notes-contenu], à ceci près que là-bas il mordait pour de bon.
+
+⭐ **Et la parade n'est PAS une `key`**, contrairement à ce que j'avais d'abord
+écrit ici. La session [H-notes-contenu] a corrigé exactement ce piège dans
+`RichNoteEditor` le 2026-09-06, et son premier correctif — fondé sur la même
+intuition — **était faux, vert aux tests, et n'a été démasqué qu'à l'écran** :
+la clé de rechargement pouvait REVENIR EN ARRIÈRE à la première frappe, le DOM
+était resemé avec le texte d'avant, et la lettre partait en base en disparaissant
+de l'écran. Le motif à reprendre est `doitResemer()` dans
+`src/lib/graineEditeur.ts` : une clé de rechargement ne recule jamais, et
+« quel contenu » et « faut-il le reposer » sont deux questions distinctes.
 
 ## 4. Ce qui reste ouvert
 
