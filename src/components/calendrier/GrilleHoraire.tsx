@@ -389,7 +389,7 @@ export default function GrilleHoraire({
           sans lui, `elementFromPoint` ne trouverait que le fantôme lui-même. */}
       {glissement?.actif && (
         <div
-          className="pointer-events-none fixed z-50 rounded-md bg-blue px-2 py-1 text-xs font-medium text-white shadow-lg"
+          className="cal-fantome pointer-events-none fixed z-50 rounded-md bg-blue px-2 py-1 text-xs font-medium text-white shadow-lg"
           style={{ left: glissement.x + 12, top: glissement.y - 8 }}
         >
           {glissement.entree.titre}
