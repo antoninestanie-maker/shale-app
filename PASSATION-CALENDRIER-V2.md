@@ -59,6 +59,27 @@ une impression. **LU** = raisonné sur le code ou tenu par un test, jamais vu.
 - ⚠️ **Le rendu du bandeau quand plus de trois séjours se chevauchent.** Les
   étages sont calculés et testés, mais je n'en ai vu que deux à l'écran.
 
+### Une fragilité à un cheveu, signalée par la session voisine
+
+`EventModal` initialise **six** états par `useState(event?…)` — j'en ai ajouté
+quatre (`plusieurs`, `finJour`, `recMode`, `jours`). Un initialiseur `useState`
+ne se rejoue **pas** au changement de prop : si le composant restait monté en
+passant de l'événement A à l'événement B, le formulaire afficherait les valeurs
+de A tout en enregistrant sur B.
+
+**Ce n'est pas atteignable aujourd'hui, et c'est mesuré, pas déduit** : les
+quatre chemins qui ouvrent la modale sont couverts par son propre voile
+`fixed inset-0 z-50`. Vérifié à l'écran — modale ouverte sur un événement, clic
+sur « + Nouvel événement » : le voile intercepte, la modale se ferme, **rien ne
+se rouvre**. Le composant est donc toujours démonté entre deux événements.
+
+⚠️ **Mais une seule ouverture qui contournerait le voile suffirait** : un
+raccourci clavier, une notification cliquable, un lien depuis un autre module.
+La parade tient en un mot — une `key={modale.event?.id ?? "neuf"}` sur
+`<EventModal>` — et elle n'est pas posée, faute de défaut à corriger. C'est le
+même piège que celui trouvé le 2026-09-06 dans `RichNoteEditor` par la session
+[H-notes-contenu], à ceci près que là-bas il mordait pour de bon.
+
 ## 4. Ce qui reste ouvert
 
 - **La ligne de charge appelle un événement « une tâche »** — « plus 1 tâche
