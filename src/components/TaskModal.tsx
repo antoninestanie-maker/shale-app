@@ -7,6 +7,8 @@ import {
   type ModeRecurrence,
 } from "../lib/logic";
 import { createTask, updateTask, type TaskInput } from "../lib/repo";
+import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
+import { planificationDeSaisie } from "../lib/taches";
 import type { Goal, Priority, Tag, Task } from "../lib/types";
 
 import { t } from "../lib/i18n";
@@ -39,6 +41,23 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const [recMode, setRecMode] = useState<ModeRecurrence>(parsed.mode);
   const [days, setDays] = useState<number[]>(parsed.jours);
   const [goalId, setGoalId] = useState<number | null>(task?.goal_id ?? null);
+  /**
+   * ⭐ LA DATE D'UNE TÂCHE, ENFIN SAISISSABLE ICI.
+   *
+   * `tasks` porte `due_date`, `start_at` et `end_at` depuis la migration 020,
+   * mais AUCUNE interface ne les renseignait : le seul chemin était de glisser
+   * la tâche sur le calendrier. Antonin : « pour les tâches on ne peut pas
+   * saisir de date ».
+   *
+   * ⚠️ ET LEUR ABSENCE ICI LES EFFAÇAIT. `updateTask` écrit `due_date = $6`
+   * sans condition ; ce formulaire ne les envoyait pas, donc renommer une tâche
+   * qu'on avait posée sur le calendrier lui retirait sa date et son créneau,
+   * en silence. Le mode démo ne pouvait pas le montrer — son `updateTask` fait
+   * un `Object.assign`, qui ignore une clé absente au lieu de la vider.
+   */
+  const [dueDate, setDueDate] = useState(task?.due_date ?? "");
+  const [debut, setDebut] = useState(task?.start_at ?? "");
+  const [fin, setFin] = useState(task?.end_at ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -58,6 +77,15 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /** Même règle que le formulaire d'événement : la fin TRANSLATE avec le début. */
+  function changerDebut(nouveau: string) {
+    const ancien = minutesDe(debut);
+    const duree = minutesDe(fin) != null && ancien != null ? minutesDe(fin)! - ancien : null;
+    setDebut(nouveau);
+    if (minutesDe(nouveau) == null) return;
+    setFin(finApres(nouveau, duree != null && duree > 0 ? duree : DUREE_DEFAUT_MIN));
+  }
+
   const toggleDay = (d: number) =>
     setDays((prev) =>
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d],
@@ -71,12 +99,17 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
+    const recurrence = serialiserRecurrence(recMode, days);
     const input: TaskInput = {
       label: label.trim(),
       tag,
       priority,
-      recurrence: serialiserRecurrence(recMode, days),
+      recurrence,
       goal_id: goalId,
+      // ⚠️ La frontière datée / récurrente est tenue par `lib/taches.ts`, pas
+      // par ce formulaire : l'interface retire déjà le champ, mais une règle
+      // recopiée dans chaque formulaire finit par diverger.
+      ...planificationDeSaisie(recurrence, dueDate, debut, fin),
     };
     if (task) await updateTask(task.id, input);
     else await createTask(input);
@@ -174,6 +207,57 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
               </div>
             )}
           </div>
+
+          {/* ⭐ DATE ET RÉCURRENCE S'EXCLUENT — l'interface rend le mélange
+              IMPOSSIBLE, elle ne le décourage pas. C'est la règle structurante
+              de `lib/taches.ts` : une tâche datée arrive une fois et se
+              reporte ; une tâche récurrente n'a pas de date, ses occurrences
+              se calculent, et une occurrence manquée n'est PAS en retard —
+              elle est manquée. Reporter une habitude quotidienne en ferait
+              deux le lendemain, puis trois : l'app transformerait un jour de
+              repos en dette.
+
+              On ANNONCE le retrait plutôt que de faire disparaître un bloc en
+              silence — un contrôle qui s'évapore se lit comme un bogue. */}
+          {recMode === "none" ? (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Échéance")}</p>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+              />
+              {/* Le créneau n'a de sens qu'une fois la journée choisie : une
+                  heure sans date ne se pose nulle part dans le calendrier. */}
+              {dueDate && (
+                <div className="mt-2 flex gap-3">
+                  <div className="flex-1">
+                    <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Début")}</p>
+                    <input
+                      type="time"
+                      value={debut}
+                      onChange={(e) => changerDebut(e.target.value)}
+                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Fin")}</p>
+                    <input
+                      type="time"
+                      value={fin}
+                      onChange={(e) => setFin(e.target.value)}
+                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-xs text-text-dim">
+              {t("Une tâche qui se répète n'a pas d'échéance : ses occurrences se calculent.")}
+            </p>
+          )}
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Tag")}</p>
