@@ -754,6 +754,13 @@ DÉBUT du build, jamais celui de la fin.
    >
    > ▶️ **Choisir le témoin AU MOMENT D'ÉCRIRE le correctif**, et le vérifier
    > sur un `npx vite build` avant de le transmettre à qui que ce soit.
+   >
+   > ⚠️ **Et un bon témoin PÉRIME.** Celui des Notes tient parce que son message
+   > d'incident est écrit en dur, volontairement non traduit ; le jour où
+   > quelqu'un le passera à `t()`, la chaîne quittera le code pour `en.ts` et le
+   > témoin mourra avec elle — sans que rien ne le signale. Un témoin se
+   > REVÉRIFIE avant chaque build, il ne se recopie pas d'une passation.
+   > (Réserve trouvée par la session du chantier Notes, `PASSATION-NOTES.md`.)
 3. Et après la copie, comparer les **sha256** du binaire installé et de la
    source : c'est la seule preuve que `ditto` a vraiment remplacé quelque chose.
 
