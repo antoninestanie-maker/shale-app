@@ -764,10 +764,67 @@ DÉBUT du build, jamais celui de la fin.
 3. Et après la copie, comparer les **sha256** du binaire installé et de la
    source : c'est la seule preuve que `ditto` a vraiment remplacé quelque chose.
 
+   > ⚠️ **Deux angles morts de ce § 3, trouvés le 2026-09-06 pendant un vrai
+   > build.**
+   >
+   > **① Une égalité de `sha256` ne prouve la copie que si les deux opérandes
+   > étaient des fichiers DIFFÉRENTS au départ.** Ce soir-là, l'ancienne app et
+   > la neuve avaient déjà la même empreinte AVANT le `ditto`. Trois causes
+   > possibles, toutes bénignes, et **aucune n'a pu être tranchée parce que
+   > l'ancien bundle avait déjà été effacé** : `/Applications/Shale.app` et
+   > `/System/Volumes/Data/Applications/Shale.app` sont le MÊME fichier (même
+   > inode, § 8 de `PASSATION.md`) ; un `cargo --release` rejoué depuis le même
+   > worktree sur la même source rend un binaire identique ; ou le script avait
+   > déjà tourné.
+   > ▶️ **Garder le `shasum` horodaté de l'ancien binaire AVANT de le
+   > remplacer.** Un contrôle qui ne peut pas échouer ne contrôle rien.
+   >
+   > **② UN CORRECTIF PUREMENT FRONT N'EST PAS PROUVABLE DANS LE BINAIRE
+   > INSTALLÉ.** Dans un bundle Tauri le front est COMPRESSÉ : `find Shale.app
+   > -name '*.js'` est vide, et les trois témoins y rendent zéro. Mesuré côte à
+   > côte dans le même binaire livré :
+   >
+   > | Motif cherché dans `/Applications/Shale.app/Contents/MacOS/shale` | Rendu |
+   > |---|---|
+   > | `ALTER TABLE calendar_events ADD COLUMN end_date` (SQL, `include_str!`) | **1** |
+   > | `Shale/notes: refused a write` (chaîne du front) | **0** |
+   >
+   > ⭐ Seul ce que le **Rust** embarque en clair est prouvable sur l'app
+   > réellement installée — et le SQL des migrations en fait partie, ce qui en
+   > fait le meilleur témoin qui soit pour une migration. Pour une correction
+   > front, il n'existe **aucune** preuve tirée du bundle : on ne peut que
+   > relever les témoins sur `dist/` et chaîner par les horodatages
+   > (`dist` 18:40 → binaire 18:47). C'est plus faible, et il faut le savoir
+   > plutôt que de croire avoir prouvé.
+
 **Comment on l'a payée.** 2026-09-04 : une session voisine a fusionné un
 correctif 1 min 50 après le `vite build` et 1 min avant la fin du bundle. L'app
 a été installée sans lui. **C'est elle qui l'a signalé, pas moi** — mon
 invariant, vérifié au mauvais moment, disait que tout allait bien.
+
+## 7.5 ter ⭐ `LENGTH()` compte des CARACTÈRES, et un constat de dégâts se fait en OCTETS
+
+**Symptôme.** On relève « 45 835 octets de notes » avant une opération et
+« 45 394 » après. On croit à une perte de 441 octets et on cherche ce qui a
+disparu — alors que rien n'a été perdu.
+
+**Cause.** `LENGTH(body)` en SQLite rend un nombre de **caractères** sur une
+colonne TEXT. `LENGTH(CAST(body AS BLOB))` rend des **octets**. Sur du français,
+chaque accent vaut deux octets pour un caractère : l'écart faisait ici 495 sur
+45 000, soit très exactement l'ordre de grandeur d'une « perte » imaginaire.
+
+**Parade.** Pour un constat de dégâts, **toujours `LENGTH(CAST(x AS BLOB))`**, et
+écrire l'unité à côté du chiffre dans la passation. Et avant de conclure à une
+perte, chercher ce qui a **bougé** plutôt que ce qui manque :
+
+```sql
+SELECT id, title, updated_at FROM notes WHERE updated_at > '<l'heure du relevé>';
+```
+
+**Comment on l'a payée.** 2026-09-06, après le build de mise en service. L'écart
+réel entre les deux relevés était de **+54 octets** — une note écrite par Antonin
+à 18:52:59, six minutes après la relance. Rien n'avait disparu ; quelque chose
+avait été ajouté, et deux unités différentes le faisaient passer pour l'inverse.
 
 ## 7.6 Vérifier que le bundle installé n'est pas plus vieux que le dernier commit
 
