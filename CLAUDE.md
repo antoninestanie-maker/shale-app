@@ -3920,3 +3920,111 @@ après trois clics rapides).
   quand la correction tient en un mot.
 - **`recurrenceLabel()` utilise encore `DAY_SHORT`** (`TasksView` l'affiche).
   `TaskModal` ne l'emploie plus ; le libellé de la liste, si.
+## Notes : le contenu changeait de note (2026-09-05 / 06) — chantier H
+
+Bogue de **perte de données** rapporté par Antonin : « le contenu d'une note se
+retrouve dans une autre ». Trois commits, `42a515d` → `95f0e00`.
+
+### Ce que c'était, et ce que ce n'était pas
+
+**Ce n'était pas l'enregistrement.** L'hypothèse naturelle — le minuteur débouncé
+qui capture la note au déclenchement plutôt qu'à la frappe — est fausse, et c'est
+vérifié à l'écran : une marque tapée dans A puis un changement immédiat de note
+se retrouve dans A seule, et l'`updated_at` de B ne bouge pas. L'enregistrement a
+toujours visé la bonne note. **Il y écrivait un texte qui n'était pas le sien.**
+
+`NotesView` passait `corpsFrais ?? selected.body` à `RichNoteEditor`, où
+`corpsFrais` est le corps aux mentions rafraîchies : il arrive **en différé** et
+n'était **jamais remis à zéro au changement de note**. `RichNoteEditor`, lui,
+remplit son `contenteditable` dans un effet qui ne dépend que de `[noteId]`. À
+l'instant du basculement, il recevait donc la **nouvelle identité** et l'**ancien
+corps**, l'écrivait dans le DOM, puis restait sourd à l'arrivée du bon — `noteId`
+n'avait plus bougé. La première frappe rendait l'écrasement définitif.
+
+Aucun minutage : dès la deuxième note ouverte, l'éditeur montrait le texte de la
+précédente. Introduit par `f9472e9` (2026-09-02, chantier C — l'effet `[noteId]`,
+lui, existait depuis le premier import et était **juste** tant qu'`initialHtml`
+valait `selected.body`). Arrivé sur le Mac d'Antonin au rebuild du 2026-09-04.
+
+### Le correctif, et pourquoi celui-là
+
+La décision « quel texte, pour quelle note » **sort du `useEffect`** — seul
+endroit qu'aucun test de ce dépôt ne peut atteindre, puisqu'ils tournent en
+`environment: "node"` — et devient une fonction pure dans
+**`src/lib/graineEditeur.ts`**. C'est le partage `mentions.ts` / `mentionsDom.ts`
+repris tel quel, pas réinventé.
+
+- **`CorpsRafraichi` porte son identité.** Un `string` nu ne peut pas dire à
+  quelle note il appartient ; c'est exactement ce qui a permis au corps de A
+  d'être servi pour B sans que rien ne s'en aperçoive.
+- **`graineDeNote`** tient l'invariant : *le HTML rendu appartient toujours à
+  l'identifiant rendu*. Le désaccord n'est plus exprimable.
+- **`doitResemer`** répond à l'autre question, séparément — voir ci-dessous.
+- **Le filet** : l'éditeur dit de quelle note son texte **provient**, et
+  l'appelant **refuse** d'écrire si ce n'est pas la note affichée
+  (`ecritureAcceptable`), en journalisant. ⚠️ Refuser, pas corriger : une
+  écriture réorientée « vers la bonne note » masquerait le défaut suivant.
+  ⚠️ Ce filet ne garde **pas** la même chose que le correctif : ici la cible
+  était bonne, comparer deux identifiants de note n'aurait rien attrapé. C'est
+  la paire *(note affichée, note d'origine du texte)* qui divergeait.
+
+### ⚠️ Le premier correctif était faux, et seul l'écran l'a montré
+
+`doitResemer` existe parce que la première tentative mettait « l'utilisateur
+a-t-il tapé » **dans le calcul de la graine**. La clé de rechargement repassait
+donc de `frais` à `brut` à la première frappe : elle **revenait en arrière**,
+l'effet resemait le DOM avec le texte d'avant, et la lettre partait bien en base
+**en disparaissant de l'écran**. Les tests étaient verts.
+
+▶️ **Une clé de rechargement ne recule jamais**, et « quel contenu » / « faut-il
+le reposer » sont deux questions distinctes. `PIEGES.md` § 6.5.
+
+### Le second défaut, distinct : pas d'enregistrement à la fermeture
+
+`NotesView` n'en avait aucun. La phrase de ce document « enregistrement auto
+débouncé (600 ms) + flush garanti à la fermeture » décrit le **lecteur du
+Savoir**, jamais Notes — et c'est ce qui a fait écarter l'hypothèse une première
+fois. Corrigé en reprenant le motif de `KnowledgeView` (file en ref, `flush`
+stable, nettoyage d'effet au démontage).
+
+⚠️ **L'écriture en attente porte l'identité COMPLÈTE de sa cible**, numéro local
+ET uid. Une écriture différée qui irait chercher l'uid « courant » au moment de
+partir écrirait les mentions de l'ancienne note comme les arêtes de la nouvelle —
+la corruption silencieuse du § 2 de `PIEGES.md`. `enregistrerMentions` accepte
+donc un uid explicite ; par défaut son comportement ne change pas, et les deux
+autres écrans qui s'en servent sont intacts.
+
+⚠️ **Non reproduit** : en mode démo les données meurent avec la page. Ce qui est
+vérifié à l'écran, c'est que le flush part au démontage du module et écrit dans
+la bonne note. Le vrai « quitter l'app en moins de 700 ms » demande l'app native.
+
+### Le troisième : les fiches d'objets
+
+`GalerieObjets` portait le même défaut de graine, **en pire** : `FicheObjet` n'a
+ni `key` ni resynchronisation, et `titre`, `valeurs`, `corps` sont des `useState`
+d'initialisation. Une mention `@` d'une fiche vers une autre ne repasse pas par
+la galerie, donc le composant reste monté : la fiche d'arrivée aurait affiché le
+titre et les valeurs de la fiche de départ. **Jamais vu parce que la base
+d'Antonin contient zéro objet** (vérifié dans la sauvegarde). Corrigé par une
+`key` par fiche. ⚠️ **Non vérifié à l'écran** : le mode démo ne fournit aucun
+objet. Correctif raisonné, pas observé.
+
+### Les trois contre-épreuves — elles valent mieux que la relecture
+
+1. **Le Savoir n'était pas touché, et Antonin avait raison.** `KnowledgeView`
+   passe `initialHtml={entry.body}` : la valeur change dans le **même rendu** que
+   l'identité. Même composant, même effet, aucun défaut.
+2. **Sur téléphone, revenir à la liste réparait tout** — « aucune note
+   sélectionnée » était le seul endroit du code qui remettait `corpsFrais` à zéro.
+3. **Une note neuve, vide en base, affichait quand même un corps.** Rien dans la
+   donnée ne pouvait l'expliquer.
+
+### Le constat des dégâts : aucun
+
+Comparaison **uid par uid** contre la sauvegarde automatique du **2026-08-30**,
+antérieure au chantier C. Six notes inchangées à l'octet près, deux enrichies
+(l'une par une insertion **au milieu**, ce qui a fait crier à tort un premier
+contrôle par préfixe), neuf « Nouvelle note » vides supprimées, cinq créées.
+**Aucune note ne contient le corps d'une autre. Index FTS5 `notes_fts` intègre.
+Outbox vide.** Le bogue a vécu quatre jours sur le Mac sans mordre : il faut
+taper par-dessus la note mal affichée pour que l'écrasement devienne réel.

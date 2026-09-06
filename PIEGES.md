@@ -463,6 +463,67 @@ correction, l'élément déborde de l'écran dès que la densité n'est pas à 1
 
 ---
 
+## 6.5 ⭐ Une prop qui arrive EN DIFFÉRÉ, lue par un effet qui dépend d'une AUTRE
+
+**Symptôme.** Le contenu d'une note se retrouve dans une autre. On ouvre la note
+B, l'éditeur affiche le corps de la note A ; la première frappe écrit ce corps
+dans B, et le vrai corps de B est détruit. Aucune erreur, aucune alerte. Le
+titre, lui, est le bon — et le pied de page affiche les bons liens, puisqu'ils
+viennent de la donnée. **L'app se contredit elle-même à l'écran.**
+
+**Cause.** `RichNoteEditor` est un `contenteditable` : son contenu vit dans le
+DOM. Il le remplissait dans un `useEffect` dépendant de `[noteId]` SEUL, tout en
+lisant `initialHtml`. Or `NotesView` passait `corpsFrais ?? selected.body`, où
+`corpsFrais` arrive en différé et n'était pas remis à zéro au changement de
+note. À l'instant du basculement, l'effet recevait donc **la nouvelle identité
+et l'ancien contenu**, et il n'écoutait plus quand le bon arrivait, puisque
+`noteId` n'avait plus bougé.
+
+**Parade.** ⭐ **Une identité et le contenu qui lui correspond voyagent
+ENSEMBLE, dans un seul objet, calculé par une fonction pure.** C'est
+`graineDeNote` (`src/lib/graineEditeur.ts`) : le HTML rendu appartient toujours
+à l'identifiant rendu, et le désaccord devient impossible à exprimer. Corollaire
+général : **un effet ne doit jamais lire une valeur qui n'est pas dans ses
+dépendances** — s'il le fait, il lit celle de l'instant, pas la bonne.
+
+⚠️ **Le piège dans le piège, payé le même jour.** Le premier correctif mettait
+« l'utilisateur a-t-il tapé » dans le calcul de la graine. La clé de rechargement
+repassait donc de `frais` à `brut` à la première frappe : elle **revenait en
+arrière**, l'effet resemait le DOM avec le texte d'avant, et la lettre partait en
+base **en disparaissant de l'écran**. Les tests étaient verts.
+▶️ **Une clé de rechargement ne recule jamais.** « Quel contenu » et « faut-il le
+reposer » sont deux questions, donc deux fonctions (`graineDeNote` et
+`doitResemer`).
+
+**Comment on l'a payée.** Chantier H, 2026-09-05/06, quatre jours de bogue chez
+Antonin — sans perte, par chance : il faut taper par-dessus la note mal affichée
+pour que l'écrasement devienne réel. Le même défaut dormait dans
+`GalerieObjets`, où il aurait emporté aussi le titre et les valeurs de champs ;
+il n'a jamais mordu parce que la base d'Antonin contient zéro objet.
+⭐ **Les trois contre-épreuves valent mieux que le raisonnement** : le Savoir
+n'était pas touché (il passe `entry.body`, qui change dans le MÊME rendu) ; sur
+téléphone, revenir à la liste réparait tout (c'était le seul endroit qui remettait
+`corpsFrais` à zéro) ; et une note neuve, vide en base, affichait quand même un
+corps.
+
+## 6.6 Un module dont la doc décrit le VOISIN
+
+**Symptôme.** On cherche un défaut là où la documentation dit qu'il ne peut pas
+être. Ici : « enregistrement auto débouncé + **flush garanti à la fermeture** »
+dans `CLAUDE.md`. Notes n'a jamais eu de flush — ni `beforeunload`, ni
+`pagehide`, ni enregistrement au démontage. La phrase décrivait le lecteur du
+**Savoir** (`KnowledgeView`), qui en a bien un. Conséquence : ce qui est tapé
+dans les 700 ms avant la fermeture de l'app était perdu.
+
+**Parade.** Quand une phrase de doc couvre deux modules qui se ressemblent,
+**nommer celui dont on parle**. Et avant de rayer une hypothèse parce que « c'est
+déjà géré », faire le `grep` — il coûte dix secondes.
+
+**Comment on l'a payée.** Chantier H, 2026-09-06 : l'hypothèse « pas de flush »
+avait été écartée à la lecture de `CLAUDE.md` avant d'être reprise.
+
+---
+
 # 7. Vérifier — et ce qui ne vérifie rien
 
 ## 7.1 ⭐ Aucun test de ce dépôt ne prouve une interface

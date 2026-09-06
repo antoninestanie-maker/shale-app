@@ -2372,3 +2372,56 @@ qui était déjà la règle voulue, et ne l'était pas en fait. Sur téléphone,
 veut dire qu'un appui long sur un rendez-vous récurrent ne fait plus rien du
 tout : il faut un appui **court** pour l'ouvrir. **À regarder** : l'absence de
 retour au doigt pourrait se lire comme un écran qui ne répond pas.
+## Chantier H (2026-09-05/06) — ce qui reste dû à la synchro iPhone
+
+Le chantier H a corrigé une **perte de données dans les Notes** : le contenu
+d'une note s'écrivait dans une autre (détail dans `CLAUDE.md`, section datée, et
+`PASSATION-NOTES.md`).
+
+### Pourquoi ça concerne iOS
+
+Deux des trois symptômes rapportés par Antonin étaient des symptômes de synchro :
+« des notes du Mac n'arrivent jamais sur l'iPhone » et « des modifications
+reviennent à une version antérieure ». Ce sont des **conséquences attendues** des
+deux défauts corrigés :
+
+- le **last-write-wins propage fidèlement un écrasement local** — une note
+  écrasée sur le Mac écrase la bonne version sur l'iPhone, et rien ne signale
+  l'anomalie ;
+- une frappe **perdue faute d'enregistrement à la fermeture** ressemble
+  exactement, vue de l'utilisateur, à une modification revenue en arrière.
+
+### ⛔ Ce qui N'A PAS été vérifié, et pourquoi
+
+**La Phase 4 du prompt n'a pas pu commencer.** Il faut le dire plutôt que de
+laisser croire à une vérification :
+
+1. **Le correctif n'est sur aucun appareil.** Aucun build natif macOS (décision
+   d'Antonin : un seul build portera ce correctif et le chantier calendrier), et
+   le simulateur n'a pas été réinstallé.
+2. **La session du simulateur est déconnectée** depuis le 2026-09-02 : seul un
+   geste humain d'Antonin la rouvre. Une session Claude ne saisit pas
+   d'identifiants.
+3. **Rien n'a jamais été vu sur un iPhone RÉEL.**
+
+Les points 2 à 5 de la Phase 4 — les **deux horloges** (`server_seq` côté pull,
+`client_ts` côté LWW), la résolution de la ligne d'outbox en **`uid`** au moment
+de l'envoi, le **volume** d'une note lourde en data URL, les **tombstones** —
+**n'ont pas été instruits.**
+
+### Ce qui EST vérifié, sans appareil
+
+- L'**outbox de la base d'Antonin est vide** (0 ligne) au moment du constat :
+  aucune note n'attend d'être envoyée. Le symptôme « des notes n'arrivent
+  jamais » n'est donc pas, aujourd'hui, un blocage d'outbox.
+- Aucune note de sa base ne contient le corps d'une autre, et l'index FTS5 est
+  intègre : **rien de corrompu n'attend d'être propagé** à l'iPhone.
+
+### ⚠️ Un piège de ce chantier qui vaut pour toute écriture différée
+
+L'enregistrement débouncé porte désormais l'identité **complète** de sa cible,
+numéro local **et** uid. Une écriture différée qui irait chercher l'uid
+« courant » au moment de partir écrirait les mentions de l'ancienne note comme
+les **arêtes de la nouvelle** — exactement le genre de corruption que le § 2 de
+`PIEGES.md` décrit : invisible sur l'appareil où l'on développe, visible sur le
+second, plus tard, sous forme de données fausses et non d'erreur.

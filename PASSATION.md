@@ -17,6 +17,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
+| 3 ter | ⭐ **`PASSATION-NOTES.md`** | **le chantier H du 2026-09-05/06 — la perte de données des Notes.** Ce qui est corrigé, ce qui ne l'est pas, et les deux choses qui restent ouvertes (build natif, synchro iPhone) |
 | 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
 | 5 | `MOBILE.md` | si tu touches à iOS |
 | 6 | `PASSATION-UI.md`, `AUDIT-I18N-2026-08.md` | le chantier UI/UX d'août et les chaînes affichées |
@@ -25,7 +26,16 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 ---
 
-## 1. L'état — révisé le 2026-09-04
+## 1. L'état — révisé le 2026-09-06
+
+> ### ⚠️ À lire avant tout : l'app installée d'Antonin porte un bogue corrigé
+> Le chantier H a corrigé une **perte de données dans les Notes** (le contenu
+> d'une note s'écrivait dans une autre). Le correctif est sur `mobile-ios`
+> depuis `95f0e00`, mais **AUCUN BUILD NATIF N'A ÉTÉ FAIT** : `/Applications/Shale.app`
+> date du 2026-09-04 et porte encore le défaut. C'est une décision d'Antonin —
+> un seul build portera ce correctif ET le chantier calendrier, pour qu'il n'ait
+> à autoriser le trousseau qu'une fois. **Aucune note n'a été perdue** (constat
+> uid par uid dans `PASSATION-NOTES.md` § 4).
 
 | | |
 |---|---|
@@ -34,8 +44,8 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | Arbre | **propre** |
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
 | Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue. ⛔ **La 021 (`end_date`) existe dans le dépôt et n'est PAS appliquée** |
-| Sauvegardes | `~/Desktop/Shale-projet/shale-backups/avant-migration-020-20260904-1135/`, prises avec `sqlite3 .backup`, `integrity_check` ok |
-| App macOS | reconstruite et réinstallée le **2026-09-04 à 11:51** — contient `67ce66e`. ⚠️ **Elle ne connaît RIEN du chantier Calendrier V2** : ni la saisie à la minute, ni le multi-jours, ni les dates sur les tâches |
+| Sauvegardes | `avant-migration-020-20260904-1135/` et **`avant-correctif-notes-20260905-2107/`** (deux copies, app ouverte puis fermée), prises avec `sqlite3 .backup`, `integrity_check` ok |
+| App macOS | reconstruite le **2026-09-04 à 11:51** — contient `67ce66e`. ⚠️ **Elle est en retard de DEUX chantiers** : elle écrit encore le contenu d'une note dans une autre (correctif Notes absent), et elle ne connaît rien du Calendrier V2 — ni la saisie à la minute, ni le multi-jours, ni les dates sur les tâches. Un seul build portera les deux |
 | App iOS | **simulateur** iPhone 17 (iOS 26.5), réinstallée le 2026-09-02 |
 | iPhone réel | **jamais** — rien n'y a été vu. Tout ce qui dit « iPhone » ailleurs veut dire *simulateur* |
 | Modules | **treize** — le compte est passé de douze à treize le 2026-09-02 (Calendrier) |
@@ -60,6 +70,13 @@ cargo check --target aarch64-apple-ios        # ✅
 ⚠️ **Un échec est désormais un VRAI échec.** Les deux tests rouges d'`activation.sql`
 qui traînaient depuis le 2026-08-31 sont réparés (`db8652d`) : il n'y a plus de
 dette connue derrière laquelle se cacher.
+
+⚠️ **`npx tsc --noEmit` NE REMPLACE PAS `npm run test:types`** : le premier passe
+pendant que le second échoue, parce que les fabriques des `*.test.ts` ne
+compilent que sous `tsconfig.test.json`. Jouer les deux.
+⚠️ **Démonter le mode démo AVANT de rejouer la ligne de base** : le patch de
+`src/lib/auth/` fait sortir deux erreurs `TS2345`/`TS2322` dans `useAuth.ts` qui
+ne sont pas des régressions.
 
 ⚠️ Si `npm test` échoue, **capturer le nom du test AVANT de relancer** :
 intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
