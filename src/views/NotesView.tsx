@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RichNoteEditor from "../components/RichNoteEditor";
 import PanneauLiens from "../components/liens/PanneauLiens";
 import { useLiens } from "../components/liens/useLiens";
@@ -124,18 +124,67 @@ export default function NotesView({ data, refresh }: Props) {
     };
   }, [selectedId, rafraichir]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * L'écriture en attente — dans une REF, jamais dans l'état.
+   *
+   * ⚠️ Elle porte l'identité complète de sa cible : le numéro de la note ET son
+   * uid. Un enregistrement débouncé peut partir après un changement de note ;
+   * s'il allait chercher l'uid « courant » au moment de partir, il écrirait les
+   * mentions de l'ancienne note comme les arêtes de la nouvelle.
+   */
+  const enAttente = useRef<{
+    id: number;
+    uid: string | null;
+    titre: string;
+    corps: string;
+  } | null>(null);
+
+  // Les dernières versions, lisibles depuis un `flush` qui doit rester STABLE
+  // (une identité qui change ferait se déclencher le nettoyage à chaque rendu,
+  // donc un enregistrement à chaque rendu).
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const mentionsRef = useRef(enregistrerMentions);
+  mentionsRef.current = enregistrerMentions;
+
+  /**
+   * Écrit tout de suite ce qui attend. Sans argument et sans dépendance : c'est
+   * ce qui permet de l'appeler aussi bien depuis le minuteur que depuis le
+   * démontage.
+   */
+  const flush = useCallback(async () => {
+    window.clearTimeout(saveTimer.current);
+    const p = enAttente.current;
+    enAttente.current = null;
+    if (!p) return;
+    await updateNote(p.id, p.titre.trim() || "Sans titre", p.corps);
+    // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
+    // chaque lettre remplirait l'outbox de synchronisation de centaines
+    // d'entrées pour une seule mention tapée.
+    await mentionsRef.current(p.corps, p.uid);
+    setSaved(true);
+    await refreshRef.current();
+  }, []);
+
+  /**
+   * ⭐ ENREGISTREMENT GARANTI À LA FERMETURE — ajouté le 2026-09-05.
+   *
+   * Le module Notes n'en avait AUCUN : ni `beforeunload`, ni `pagehide`, ni
+   * enregistrement au démontage. Ce qui était tapé dans les 700 ms précédant la
+   * fermeture de l'app était donc perdu, sans un mot — ce qui ressemblait, vu
+   * de l'utilisateur, à « ma modification est revenue en arrière ».
+   * `CLAUDE.md` promettait pourtant un « flush garanti à la fermeture » : la
+   * phrase décrivait le lecteur du Savoir (`KnowledgeView`), jamais Notes.
+   *
+   * `flush` est stable, donc ce nettoyage ne part qu'au VRAI démontage.
+   */
+  useEffect(() => () => void flush(), [flush]);
+
   const scheduleSave = (id: number, nextTitle: string, nextBody: string) => {
     setSaved(false);
+    enAttente.current = { id, uid, titre: nextTitle, corps: nextBody };
     window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
-      await updateNote(id, nextTitle.trim() || "Sans titre", nextBody);
-      // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
-      // chaque lettre remplirait l'outbox de synchronisation de centaines
-      // d'entrées pour une seule mention tapée.
-      await enregistrerMentions(nextBody);
-      setSaved(true);
-      await refresh();
-    }, 700);
+    saveTimer.current = window.setTimeout(() => void flush(), 700);
   };
 
   /**

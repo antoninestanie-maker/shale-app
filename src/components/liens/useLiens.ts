@@ -43,16 +43,27 @@ export function useLiens(kind: LinkKind, id: number | null) {
     return rafraichirMentions(html, (k, u) => titres.get(`${k}:${u}`) ?? null);
   }, []);
 
-  /** Met les arêtes en accord avec ce que le texte contient MAINTENANT. */
+  /**
+   * Met les arêtes en accord avec ce que le texte contient MAINTENANT.
+   *
+   * ⚠️ `uidCible` EST OBLIGATOIRE DÈS QUE L'ÉCRITURE EST DIFFÉRÉE, et c'est le
+   * correctif du 2026-09-05. Par défaut la fonction écrit sous l'uid de l'objet
+   * actuellement ouvert — ce qui est juste tant qu'on l'appelle tout de suite.
+   * Un enregistrement débouncé, lui, peut partir APRÈS un changement de note :
+   * l'uid par défaut serait alors celui de la NOUVELLE note, et les mentions de
+   * l'ancienne s'écriraient comme les arêtes de l'autre. Un appelant qui diffère
+   * doit donc capturer l'uid au moment de la FRAPPE et le passer ici.
+   */
   const enregistrerMentions = useCallback(
-    async (html: string): Promise<void> => {
-      if (!uid) return;
+    async (html: string, uidCible?: string | null): Promise<void> => {
+      const cible = uidCible ?? uid;
+      if (!cible) return;
       await synchroniserMentions(
         kind,
-        uid,
+        cible,
         extraireMentions(html).map((m) => ({
           from_kind: kind,
-          from_uid: uid,
+          from_uid: cible,
           to_kind: m.kind,
           to_uid: m.uid,
           origin: "mention" as const,
