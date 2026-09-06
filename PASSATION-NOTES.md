@@ -128,8 +128,26 @@ des minutes. Revérifier l'invariant **juste avant la copie**, prouver le
 Le motif qui tranche pour ce chantier-ci :
 
 ```
-grep -c "graineDeNote" dist/assets/*.js     # doit être ≥ 1
+cat dist/assets/*.js | grep -o "Shale/notes: refused a write" | wc -l   # doit rendre 1
 ```
+
+⚠️ **CE TÉMOIN A ÉTÉ CORRIGÉ, ET L'ERREUR VAUT D'ÊTRE LUE.** J'avais d'abord
+transmis `grep -c "graineDeNote" dist/assets/*.js`. **Il rend zéro, correctif
+présent ou absent** : `graineDeNote` est un identifiant du code, donc réécrit en
+deux lettres par esbuild. Vérifié sur un vrai `vite build` — `graineDeNote`,
+`doitResemer`, `ecritureAcceptable`, `messageEcritureRefusee` et
+`CorpsRafraichi` rendent **tous 0**, seule la chaîne littérale rend 1.
+
+Un témoin qui échoue toujours est plus dangereux qu'aucun témoin : il fait
+conclure à un bundle périmé **au moment précis où l'on s'apprête à écrire dans
+`/Applications`**. C'est la session [G-calendrier-v2] qui l'a attrapé, avant le
+build. **Ce qui survit à la minification** : une chaîne littérale, une classe
+CSS, un attribut `data-*`, un nom de colonne SQL. **Ce qui n'y survit pas** :
+tout identifiant du code. Voir `PIEGES.md` § 7.5 bis, complété par elle.
+
+⚠️ Ce témoin-ci tient parce que le message d'incident est une **chaîne écrite en
+dur, en anglais, volontairement non traduite**. Si quelqu'un la passe un jour à
+`t()`, le témoin meurt avec elle — il faudra en choisir un autre.
 
 ⚠️ **Et prévenir Antonin** que macOS redemandera l'autorisation du trousseau.
 
