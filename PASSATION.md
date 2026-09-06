@@ -58,7 +58,7 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 600 / 600 (553 avant le 2026-09-05)
+npm test                                      # ✅ 608 / 608 (553 avant le 2026-09-05)
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -85,7 +85,15 @@ intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 
 ## 1 ter. ⛔ Ce qui attend une action — au 2026-09-06
 
-1. ⛔ **LE REBUILD NATIF N'EST PAS FAIT.** `mobile-ios` porte deux chantiers que
+0. ⛔ **LA ROULETTE D'HEURE N'EST PAS SUR LA MACHINE D'ANTONIN.** Elle est
+   écrite, vérifiée à l'écran dans les deux formulaires et les deux langues, et
+   poussée — mais elle est arrivée APRÈS le build du 2026-09-06 à 18:47. Il
+   faut un nouveau build pour qu'il l'ait. Les huit tests de synchronisation du
+   calendrier, eux, ne s'embarquent pas : ce sont des tests.
+1. ~~⛔ **LE REBUILD NATIF N'EST PAS FAIT.**~~ **FAIT le 2026-09-06 à 18:47** —
+   un seul build pour les deux chantiers, migration 021 appliquée sur base non
+   vide, aucune donnée perdue. Reste le point 0 ci-dessus.
+   *(Texte d'origine conservé pour mémoire :)* `mobile-ios` porte deux chantiers que
    la machine d'Antonin ignore : les Notes (le contenu d'une note se retrouvait
    dans une autre) et le Calendrier V2 (dont la **migration 021**, `end_date`,
    pas encore appliquée à la vraie base). **Décision d'Antonin le 2026-09-06 :

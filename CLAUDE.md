@@ -4028,3 +4028,65 @@ contrôle par préfixe), neuf « Nouvelle note » vides supprimées, cinq créé
 **Aucune note ne contient le corps d'une autre. Index FTS5 `notes_fts` intègre.
 Outbox vide.** Le bogue a vécu quatre jours sur le Mac sans mordre : il faut
 taper par-dessus la note mal affichée pour que l'écrasement devienne réel.
+
+## Roulette d'heure et synchro du calendrier (2026-09-06, soir)
+
+Deux demandes d'Antonin après la mise en service, dont l'une venait d'une note
+qu'il a écrite dans l'app une minute après l'avoir ouverte : « Roulette de
+sélection pour les heures dans calendrier ».
+
+### La molette : deux arbitrages qui protègent la veille
+
+**Elle s'AJOUTE, elle ne remplace pas**, et **les minutes vont une par une** —
+les deux décidés par Antonin. Remplacer le champ aurait retiré la saisie au
+clavier, qui est ce qui rend 14:37 aussi rapide que 14:00 ; un pas de cinq
+minutes aurait rendu 14:37 inatteignable, c'est-à-dire défait le chantier livré
+la veille. Une fonctionnalité demandée peut annuler la précédente : c'est la
+question à se poser avant de la construire, pas après.
+
+### ⭐ Le défilement natif plutôt qu'un geste écrit à la main
+
+`overflow-y` + `scroll-snap`, et rien d'autre. Écrire un glisser au pointeur
+aurait redemandé tout ce que `GrilleHoraire` a payé — appui long au doigt,
+`touch-action` à l'armement, écouteurs dans le `pointerdown` — pour réobtenir ce
+que le navigateur donne déjà : molette, trackpad, doigt avec inertie, clavier.
+**Le seul travail restant est de LIRE la position, pas de la produire.**
+
+⚠️ Trois défauts, tous vus à l'écran, aucun par un test — il n'existe pas
+d'infrastructure de test de rendu dans ce dépôt (`PIEGES.md` § 7.1) :
+
+1. **la molette ne se positionnait jamais** (`scrollTop` à 19 au lieu de 392) :
+   `scrollTo` animé, `scroll-snap` qui recale, et le verrou anti-boucle qui se
+   relâche avant la fin de l'animation — trois mécanismes en course. Corrigé en
+   positionnant instantanément (§ 7.7) ;
+2. **`scroll-behavior: smooth` n'apportait rien** : il ne touche que les
+   défilements programmatiques, jamais le geste de l'utilisateur. ⚠️ Et la règle
+   globale `prefers-reduced-motion` ne l'atteint pas (§ 6.3 bis) ;
+3. **une bordure retire deux pixels** sous `box-sizing: border-box` (§ 7.8).
+
+Les libellés d'heures passent par `Intl` — « 06 h » en français, « 6 AM » en
+anglais. Une colonne de 0 à 23 aurait été fausse dans l'app anglaise sans
+qu'aucun outil ne le voie.
+
+### ⭐ Le calendrier n'avait jamais fait le trajet entre deux appareils
+
+`calendar_events` existe depuis le 2026-09-02 et **aucun test de `sync/` ne la
+mentionnait** — ni la table, ni ses colonnes. `end_date` s'y était ajoutée sans
+plus de preuve, et les trois colonnes de planification des tâches non plus.
+
+C'est la classe de défaut que le § 2 de `PIEGES.md` interdit de traiter par
+relecture : elle ne se voit jamais sur l'appareil où l'on développe, mais sur le
+second, plus tard, **sous la forme de données fausses et non d'une erreur**. Le
+chantier A l'avait déjà payé une fois.
+
+Huit tests sur le banc à deux appareils — deux vraies bases SQLite, la vraie
+couche de chiffrement, seul le réseau simulé. Ils couvrent l'aller-retour champ
+par champ, « 14:37 » contre toute conversion de fuseau, la convention
+« `end_date` nulle = une journée », le JSON d'une récurrence, la modification, la
+suppression avec un second tour contre la résurrection, et les colonnes de
+planification des tâches. Vérifiés en retirant `end_date` de `serialiser()` :
+deux tombent, six restent verts — ce qui dit aussi que chacun vise autre chose.
+
+⚠️ **Ce que ces tests ne prouvent PAS** : que l'app iOS synchronise. Ils prouvent
+que la DONNÉE survit au trajet. Le simulateur est déconnecté depuis le
+2026-09-02 et seul un geste d'Antonin le rouvre (`PASSATION.md` § 5.1).
