@@ -30,7 +30,7 @@ const session = (date: string, debut: string, fin: string | null, kind = "focus"
 const entree = (start: string | null, duree: number | null): EntreeAgenda => ({
   kind: "task", id: 1, titre: "x", date: "2026-09-02",
   debutJour: "2026-09-02", finJour: "2026-09-02", start_at: start,
-  end_at: null, allDay: false, color: null, dureeMin: duree, enRetard: false,
+  end_at: null, allDay: false, color: null, dureeMin: duree, serie: false, enRetard: false,
   reports: 0, faite: false,
 });
 

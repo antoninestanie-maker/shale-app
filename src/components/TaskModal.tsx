@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { DAY_SHORT } from "../lib/logic";
+import {
+  ORDRE_SEMAINE,
+  nomCourtDuJour,
+  parseRecurrence,
+  serialiserRecurrence,
+  type ModeRecurrence,
+} from "../lib/logic";
 import { createTask, updateTask, type TaskInput } from "../lib/repo";
 import type { Goal, Priority, Tag, Task } from "../lib/types";
 
@@ -12,31 +18,13 @@ interface Props {
   onSaved: () => Promise<void>;
 }
 
-type RecMode = "none" | "daily" | "weekdays" | "custom";
-
-// Ordre d'affichage : lundi d'abord (valeurs JS getDay)
-const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-
-function parseRecurrence(rec: string | null): { mode: RecMode; days: number[] } {
-  if (!rec || rec === "none") return { mode: "none", days: [] };
-  if (rec === "daily") return { mode: "daily", days: [] };
-  if (rec === "weekdays") return { mode: "weekdays", days: [] };
-  try {
-    const days = JSON.parse(rec);
-    if (Array.isArray(days)) return { mode: "custom", days };
-  } catch {
-    // illisible → ponctuelle
-  }
-  return { mode: "none", days: [] };
-}
-
 const priorities = (): { value: Priority; label: string; color: string }[] => [
   { value: "high", label: t("Haute"), color: "var(--color-red)" },
   { value: "medium", label: t("Moyenne"), color: "var(--color-yellow)" },
   { value: "low", label: t("Basse"), color: "var(--color-text-dim)" },
 ];
 
-const recModes = (): { value: RecMode; label: string }[] => [
+const recModes = (): { value: ModeRecurrence; label: string }[] => [
   { value: "none", label: t("Une fois") },
   { value: "daily", label: t("Quotidien") },
   { value: "weekdays", label: t("Lun–ven") },
@@ -48,8 +36,8 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const [label, setLabel] = useState(task?.label ?? "");
   const [tag, setTag] = useState<string | null>(task?.tag ?? null);
   const [priority, setPriority] = useState<Priority>(task?.priority ?? "medium");
-  const [recMode, setRecMode] = useState<RecMode>(parsed.mode);
-  const [days, setDays] = useState<number[]>(parsed.days);
+  const [recMode, setRecMode] = useState<ModeRecurrence>(parsed.mode);
+  const [days, setDays] = useState<number[]>(parsed.jours);
   const [goalId, setGoalId] = useState<number | null>(task?.goal_id ?? null);
   const [saving, setSaving] = useState(false);
 
@@ -87,10 +75,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
       label: label.trim(),
       tag,
       priority,
-      recurrence:
-        recMode === "custom"
-          ? JSON.stringify(days.slice().sort((a, b) => a - b))
-          : recMode,
+      recurrence: serialiserRecurrence(recMode, days),
       goal_id: goalId,
     };
     if (task) await updateTask(task.id, input);
@@ -172,7 +157,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
             </div>
             {recMode === "custom" && (
               <div className="mt-2 flex gap-1.5">
-                {WEEK_ORDER.map((d) => (
+                {ORDRE_SEMAINE.map((d) => (
                   <button
                     key={d}
                     type="button"
@@ -183,7 +168,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                         : "border-border text-text-dim hover:text-text"
                     }`}
                   >
-                    {DAY_SHORT[d]}
+                    {nomCourtDuJour(d)}
                   </button>
                 ))}
               </div>

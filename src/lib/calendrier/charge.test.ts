@@ -14,7 +14,8 @@ const SAMEDI = "2026-09-05";
 const entree = (p: Partial<EntreeAgenda> = {}): EntreeAgenda => ({
   kind: "task", id: 1, titre: "x", date: MARDI, debutJour: MARDI, finJour: MARDI,
   start_at: "09:00", end_at: null,
-  allDay: false, color: null, dureeMin: 60, enRetard: false, reports: 0, faite: false, ...p,
+  allDay: false, color: null, dureeMin: 60, serie: false, enRetard: false, reports: 0,
+  faite: false, ...p,
 });
 
 const profilVide = profilDisponibilite([]); // repli 9 h – 18 h, soit 540 min

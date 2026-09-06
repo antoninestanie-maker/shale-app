@@ -225,6 +225,43 @@ describe("les événements sur plusieurs jours", () => {
   });
 });
 
+describe("⭐ ce qui ne se glisse pas : les occurrences projetées", () => {
+  // La règle du chantier B — « un récurrent ne se déplace pas, sa série serait
+  // silencieusement rompue » — était écrite en énumérant des `kind`, et
+  // l'énumération avait un trou : les ÉVÉNEMENTS récurrents sont des `event`.
+  it("marque `serie` sur un ÉVÉNEMENT récurrent, pas seulement sur une tâche", () => {
+    const src = sources({
+      events: [
+        evenement({ id: 1, title: "ponctuel", date: "2026-09-02" }),
+        evenement({ id: 2, title: "hebdo", date: "2026-08-31", recurrence: "weekdays" }),
+      ],
+    });
+    const parTitre = new Map(
+      entreesDuJour(src, "2026-09-02", "2026-09-02").map((e) => [e.titre, e]),
+    );
+    expect(parTitre.get("ponctuel")!.serie).toBe(false);
+    expect(parTitre.get("hebdo")!.serie).toBe(true);
+    // Les deux sont pourtant de la MÊME famille : c'est ce qui rendait le
+    // garde par `kind` incapable de les distinguer.
+    expect(parTitre.get("hebdo")!.kind).toBe("event");
+    expect(parTitre.get("ponctuel")!.kind).toBe("event");
+  });
+
+  it("marque `serie` sur une tâche récurrente et pas sur une tâche datée", () => {
+    const src = sources({
+      tasks: [
+        tache({ id: 1, label: "habitude", recurrence: "daily", created_at: "2026-08-01 09:00:00" }),
+        tache({ id: 2, label: "datée", due_date: "2026-09-02" }),
+      ],
+    });
+    const parTitre = new Map(
+      entreesDuJour(src, "2026-09-02", "2026-09-02").map((e) => [e.titre, e]),
+    );
+    expect(parTitre.get("habitude")!.serie).toBe(true);
+    expect(parTitre.get("datée")!.serie).toBe(false);
+  });
+});
+
 describe("les bandes continues du bandeau", () => {
   const semaine = [
     "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03",

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent, type CalendarEventInput } from "../../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../../lib/calendrier/agenda";
-import { addDays } from "../../lib/logic";
+import {
+  ORDRE_SEMAINE,
+  addDays,
+  nomCourtDuJour,
+  parseRecurrence,
+  serialiserRecurrence,
+  type ModeRecurrence,
+} from "../../lib/logic";
 import type { CalendarEvent } from "../../lib/types";
 import { IconTrash } from "../icons";
 import { t } from "../../lib/i18n";
@@ -21,10 +28,30 @@ const COULEURS: { token: string; label: string }[] = [
   { token: "red", label: "Rouge" },
 ];
 
-const RECURRENCES: { valeur: string; label: string }[] = [
-  { valeur: "none", label: "Une seule fois" },
-  { valeur: "daily", label: "Tous les jours" },
-  { valeur: "weekdays", label: "Du lundi au vendredi" },
+/**
+ * ⭐ EXACTEMENT LE VOCABULAIRE DES TÂCHES — les mêmes quatre entrées, les mêmes
+ * mots (`TaskModal`).
+ *
+ * Il y en avait TROIS ici, et écrites autrement : « Une seule fois / Tous les
+ * jours / Du lundi au vendredi » contre « Une fois / Quotidien / Lun–ven /
+ * Jours précis ». Une même grammaire, deux lectures, et « jours choisis »
+ * inatteignable pour un événement alors que la colonne et le moteur le
+ * savaient faire depuis la migration 020. Aligner sur les tâches plutôt que
+ * l'inverse : elles avaient déjà les quatre, et cela SUPPRIME la seconde
+ * formulation au lieu de la traduire (décision d'Antonin, 2026-09-05).
+ *
+ * ⚠️ Les libellés gardent la phrase FRANÇAISE et sont traduits à l'affichage :
+ * un `t()` dans une constante de module serait évalué à l'import, donc figé
+ * dans la langue de démarrage (PIEGES § 5.2). Et comme ils passent par une clé
+ * CALCULÉE, `i18n:check` ne les réclamera jamais — c'est ainsi que les trois
+ * anciens libellés s'affichaient EN FRANÇAIS dans l'app anglaise avec les deux
+ * outils au vert (§ 5.2 bis). Leurs entrées d'`en.ts` sont écrites à la main.
+ */
+const RECURRENCES: { valeur: ModeRecurrence; label: string }[] = [
+  { valeur: "none", label: "Une fois" },
+  { valeur: "daily", label: "Quotidien" },
+  { valeur: "weekdays", label: "Lun–ven" },
+  { valeur: "custom", label: "Jours précis" },
 ];
 
 interface Props {
@@ -69,7 +96,9 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
     event?.end_date && event.end_date > event.date ? event.end_date : "",
   );
   const [couleur, setCouleur] = useState(event?.color ?? "blue");
-  const [recurrence, setRecurrence] = useState(event?.recurrence ?? "none");
+  const recLue = parseRecurrence(event?.recurrence ?? null);
+  const [recMode, setRecMode] = useState<ModeRecurrence>(recLue.mode);
+  const [jours, setJours] = useState<number[]>(recLue.jours);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -115,6 +144,12 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
       setErreur(t("Le dernier jour doit venir après le premier."));
       return;
     }
+    // Une répétition « jours précis » sans aucun jour ne se projette nulle part :
+    // l'événement disparaîtrait du calendrier sans qu'on sache pourquoi.
+    if (!plusieurs && recMode === "custom" && jours.length === 0) {
+      setErreur(t("Choisis au moins un jour de répétition."));
+      return;
+    }
     setEnCours(true);
     const input: CalendarEventInput = {
       title: titre.trim(),
@@ -130,7 +165,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
       // l'on coche « plusieurs jours » APRÈS avoir choisi une répétition : sans
       // cela, on enregistrerait une série dont chaque terme dure trois jours et
       // qui se recouvre elle-même dès le quotidien.
-      recurrence: plusieurs ? "none" : recurrence,
+      recurrence: plusieurs ? "none" : serialiserRecurrence(recMode, jours),
     };
     if (event) await updateCalendarEvent(event.id, input);
     else await createCalendarEvent(input);
@@ -270,8 +305,8 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               {t("Répétition")}
             </label>
             <select
-              value={recurrence ?? "none"}
-              onChange={(e) => setRecurrence(e.target.value)}
+              value={recMode}
+              onChange={(e) => setRecMode(e.target.value as ModeRecurrence)}
               className="mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
             >
               {RECURRENCES.map((r) => (
@@ -280,6 +315,31 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
                 </option>
               ))}
             </select>
+            {recMode === "custom" && (
+              <div className="mt-2 flex gap-1.5">
+                {ORDRE_SEMAINE.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() =>
+                      setJours((prev) =>
+                        prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d],
+                      )
+                    }
+                    className={`cible-tactile h-8 w-9 rounded-[8px] border text-xs font-medium transition-colors ${
+                      jours.includes(d)
+                        ? "border-blue bg-blue/20 text-text"
+                        : "border-border text-text-dim hover:text-text"
+                    }`}
+                  >
+                    {/* ⚠️ `nomCourtDuJour` et non `DAY_SHORT` : la table est
+                        française et les deux outils i18n sont aveugles devant
+                        elle. `Intl` connaît toutes les langues. */}
+                    {nomCourtDuJour(d)}
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
 
