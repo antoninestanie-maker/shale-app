@@ -135,11 +135,20 @@ précisée ici sur trois points que la soirée du 2026-09-06 a fait apparaître 
 4. **Prouver le CONTENU** de `dist/assets/*.js`, pas les horodatages. Les trois
    témoins, revérifiés sur un build propre le 2026-09-06 :
 
-   | Ce qu'il prouve | Motif | Compte attendu |
+   | Ce qu'il prouve | Motif | Attendu |
    |---|---|---|
-   | le correctif Notes | `Shale/notes: refused a write` | 1 |
-   | le multi-jours | `end_date` | 25 |
-   | les animations | `cal-glisse` (dans le `.css`) | 2 |
+   | le correctif Notes | `Shale/notes: refused a write` | **1** — littéral unique |
+   | le multi-jours | `end_date` | **≥ 1** — jamais un compte exact |
+   | les animations | `cal-glisse` (dans le `.css`) | **2** — deux images clés |
+
+   ⚠️ **`end_date` se teste en PRÉSENCE, pas en compte.** J'avais écrit « 25 »
+   ici, et c'était une erreur : ce sont des occurrences dispersées dans des
+   chaînes SQL et des littéraux d'objet, dont le nombre **dépend du découpage en
+   chunks**. Un build parfaitement sain peut en rendre 23 ou 27, et abandonner
+   pour cette raison serait exactement le défaut que ces témoins existent pour
+   éviter — une conclusion fausse au moment d'installer. Seul **zéro** est un
+   signal. Les deux autres motifs sont stables parce qu'ils n'existent qu'une
+   fois dans le source.
 
    ⚠️ **Les revérifier sur un `vite build` à blanc avant de s'en servir pour
    trancher**, et ne jamais les recopier d'ici sans le faire : un témoin périme
@@ -150,8 +159,35 @@ précisée ici sur trois points que la soirée du 2026-09-06 a fait apparaître 
 ⚠️ **LE MOMENT LE PLUS RISQUÉ N'EST PAS LA COMPILATION, C'EST LE PREMIER
 LANCEMENT** : la migration **021** s'applique alors à une base NON VIDE. Le
 chantier D l'a fait sans casse pour la 020 le 2026-09-04, ce qui est rassurant
-mais ne prouve rien pour celle-ci. C'est là qu'il faut regarder
-`_sqlx_migrations`, `integrity_check`, et recompter.
+mais ne prouve rien pour celle-ci.
+
+⭐ **Trois contrôles DISTINCTS, et pas un seul** — ils ne disent pas la même
+chose et peuvent diverger :
+
+```sql
+SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 1;  -- 21
+PRAGMA table_info(calendar_events);                                  -- doit lister end_date
+PRAGMA integrity_check;                                              -- ok
+```
+
+Le premier dit que sqlx **croit** avoir appliqué, le second que la colonne **est
+là**. Une migration interrompue à mi-chemin les fait diverger — et le défaut ne
+se verrait pas autrement : les lectures du calendrier sont tolérantes à l'échec
+(`notifications/data.rs`), donc l'app s'ouvrirait normalement pendant que chaque
+lecture d'événement échouerait en silence.
+
+⚠️ **Si `integrity_check` n'est pas `ok` : RESTAURER depuis la sauvegarde et
+s'arrêter.** Une seconde tentative sur une base à moitié migrée est le geste qui
+transforme un incident récupérable en perte réelle.
+
+⚠️ **Prévenir Antonin de la fenêtre du trousseau AVANT de relancer.** Le binaire
+a changé, macOS redemandera l'autorisation, il doit cliquer « Toujours
+autoriser » — et personne ne peut le faire à sa place. S'il n'est pas devant
+l'écran, les contrôles ci-dessus se feront sur une app privée de son trousseau.
+
+⚠️ **Ne pas guetter le processus de compilation** (`pgrep -f` se trouve lui-même,
+§ 1.2 bis — commis trois fois dans ce dépôt). Guetter un artefact :
+`until [ -d src-tauri/target/release/bundle ]; do sleep 20; done`.
 
 ## 6. Comment reprendre
 
