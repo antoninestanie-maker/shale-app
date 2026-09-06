@@ -30,7 +30,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | | |
 |---|---|
 | Dépôt app | `~/Desktop/Shale-projet/Shale` |
-| Branche | ⚠️ **`chantier/calendrier-v2`** au 2026-09-06 — cinq commits posés sur `mobile-ios` (`324a222`), **non fusionnés**. Détail : `PASSATION-CALENDRIER-V2.md` |
+| Branche | **`mobile-ios`** — au 2026-09-06 elle porte le chantier Notes (3 commits) puis le chantier Calendrier V2 (7 commits), tous poussés |
 | Arbre | **propre** |
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
 | Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue. ⛔ **La 021 (`end_date`) existe dans le dépôt et n'est PAS appliquée** |
@@ -48,7 +48,7 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 583 / 583 (553 avant le 2026-09-05)
+npm test                                      # ✅ 600 / 600 (553 avant le 2026-09-05)
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -68,15 +68,13 @@ intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 
 ## 1 ter. ⛔ Ce qui attend une action — au 2026-09-06
 
-1. **Le rebuild natif du chantier Calendrier V2 n'est pas fait.** La migration
-   021 et cinq commits de corrections — dont **deux pertes de données
-   silencieuses** — n'ont pas atteint la machine d'Antonin. Marche à suivre et
-   coordination : `PASSATION-CALENDRIER-V2.md` § 5.
-2. **Une session voisine travaille sur une perte de données dans les Notes**
-   (le contenu d'une note se retrouvait dans une autre). Elle aura besoin du
-   même verrou BUILD NATIF. Un seul build devrait porter les deux, pour
-   n'imposer qu'une fois à Antonin la fenêtre de trousseau.
-3. **Une question en attente pour Antonin** : la ligne de charge du calendrier
+1. ⛔ **LE REBUILD NATIF N'EST PAS FAIT.** `mobile-ios` porte deux chantiers que
+   la machine d'Antonin ignore : les Notes (le contenu d'une note se retrouvait
+   dans une autre) et le Calendrier V2 (dont la **migration 021**, `end_date`,
+   pas encore appliquée à la vraie base). **Décision d'Antonin le 2026-09-06 :
+   un seul build pour les deux**, ce qui est fait côté dépôt — il ne reste que
+   la construction. Marche à suivre : `PASSATION-CALENDRIER-V2.md` § 5.
+2. **Une question en attente pour Antonin** : la ligne de charge du calendrier
    annonce un événement « journée entière » comme « 1 tâche sans horaire ». Le
    compte est juste, le mot est faux. Correction non faite, faute de mandat.
 

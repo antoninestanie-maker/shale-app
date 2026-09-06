@@ -9,11 +9,11 @@ reste**.*
 
 | | |
 |---|---|
-| Branche | `chantier/calendrier-v2`, cinq commits sur `mobile-ios` (324a222) |
-| Fusionnée ? | **NON au moment d'écrire** — voir § 5 |
+| Branche | `chantier/calendrier-v2`, **sept commits**, rebasée sur `mobile-ios` après le chantier Notes (`95f0e00`) |
+| Fusionnée ? | **OUI**, en avance rapide. Rebase sans le moindre conflit : **aucun fichier en commun** avec le chantier Notes |
 | Migration | **021**, `end_date` sur `calendar_events`. **PAS encore appliquée à la vraie base d'Antonin** |
 | App macOS installée | toujours celle du **2026-09-04 à 11:51** — elle ne connaît rien de ce chantier |
-| Tests front | **583 / 583** (553 au départ, +30) |
+| Tests front | **600 / 600** — 583 après ce chantier (+30), plus les 17 du chantier Notes |
 | Tests Rust | 129, inchangés — aucune ligne de Rust modifiée hors l'enregistrement de la migration |
 
 ### Les cinq commits
@@ -100,11 +100,16 @@ même piège que celui trouvé le 2026-09-06 dans `RichNoteEditor` par la sessio
 **La migration 021 doit atteindre la machine d'Antonin pour que ce chantier lui
 serve à quelque chose.** Le verrou **BUILD NATIF** n'a pas été pris.
 
-⚠️ **Une session voisine ([H-notes-contenu]) travaille en parallèle sur une
-perte de données dans les Notes**, et elle aura besoin du même verrou. Deux
-constructions séparées obligeraient Antonin à cliquer **deux fois** « Toujours
-autoriser » dans la fenêtre de trousseau (PIEGES § 8.3). Proposition transmise :
-elle fusionne d'abord, je rebase, **et un seul build porte les deux**.
+⭐ **Décision d'Antonin, 2026-09-06 : UN SEUL BUILD pour les deux chantiers.**
+Le chantier Notes ([H-notes-contenu], trois commits, quatre défauts corrigés) a
+fusionné le premier ; celui-ci a été rebasé par-dessus et fusionné ensuite. Un
+seul build porte donc les deux, et Antonin ne voit qu'une fois la fenêtre de
+trousseau (PIEGES § 8.3).
+
+⚠️ **La ligne de base a été rejouée EN ENTIER sur l'arbre COMBINÉ**, ce qu'aucun
+des deux chantiers n'avait pu faire seul : 600 tests front, 129 Rust, les trois
+cibles. Et vérifié à l'écran que les deux coexistent — le bandeau du calendrier
+et le passage d'une note à l'autre, dans la même session.
 
 **Avant de construire, la marche à suivre est dans `CLAUDE.md` (2026-09-04) :**
 1. sauvegarde `sqlite3 .backup` de la vraie base, **jamais un `cp`** (WAL) ;
