@@ -196,3 +196,24 @@ Le calendrier n'a **pas la même forme** sur téléphone : ni vue mois, ni vue
 semaine, mais une **vue agenda** (liste chronologique). Une capture de la vue
 semaine présentée comme l'écran mobile serait fausse.
 
+---
+
+## Calendrier V2 (2026-09-05/06) — ce que l'app sait faire de plus
+
+*Rien ici n'oblige à toucher au dépôt du site : la refonte est menée par Antonin
+et le compte de modules ne bouge pas (toujours **treize**). Ce sont des
+promesses que l'app tient désormais et que la vitrine ne mentionne pas.*
+
+| L'app fait maintenant | Ce que le site pourrait dire |
+|---|---|
+| Un rendez-vous se pose **à la minute** ; le clic et le glissement dans la grille se calent au quart d'heure | Rien aujourd'hui ne décrit la granularité du calendrier. À citer seulement si une page détaille le module |
+| Un événement peut durer **plusieurs jours** (séjour, séminaire, vacances) et s'affiche en bande continue | C'est la fonctionnalité la plus « visible » du lot — la seule qui mérite peut-être une capture |
+| Une **tâche reçoit une date et un créneau** depuis le module Tâches, et apparaît au calendrier | Si le site décrit les tâches comme « sans date », la phrase est **périmée** |
+| La récurrence d'un événement accepte des **jours choisis**, avec le même vocabulaire que les tâches | Détail d'interface, sans doute pas pour la vitrine |
+
+⚠️ **Ce que le site ne doit PAS promettre** : l'import/export ICS (écarté par
+Antonin), et une fin de série (« se répète jusqu'au … »), qui n'existe pas.
+
+⚠️ **Aucune capture d'écran du site ne montre le calendrier à ce jour.** Si
+Antonin en ajoute, prendre le module APRÈS le rebuild natif : celui installé sur
+sa machine ne connaît pas encore ce chantier.

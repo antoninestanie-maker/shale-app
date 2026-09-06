@@ -3,7 +3,7 @@
 *Écrit pour une session qui n'a AUCUN contexte. Ce document se suffit : où on
 en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
 
-**§ 1 (l'état) est tenu à jour — dernière révision le 2026-09-04.** Les sections
+**§ 1 (l'état) est tenu à jour — dernière révision le 2026-09-06.** Les sections
 suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 **Il y a beaucoup de `.md` à la racine.** Ordre de lecture :
@@ -14,6 +14,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 1 bis | ⭐ **`DOCUMENTATION.md`** | **la règle d'écriture, systématique à CHAQUE session.** Où va quoi, quand écrire, la liste de contrôle avant de rendre la main |
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
+| 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
 | 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
@@ -29,12 +30,12 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | | |
 |---|---|
 | Dépôt app | `~/Desktop/Shale-projet/Shale` |
-| Branche | **`mobile-ios`**, à `5511fc8`, poussée, à jour avec `origin/mobile-ios` |
+| Branche | ⚠️ **`chantier/calendrier-v2`** au 2026-09-06 — cinq commits posés sur `mobile-ios` (`324a222`), **non fusionnés**. Détail : `PASSATION-CALENDRIER-V2.md` |
 | Arbre | **propre** |
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
-| Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue |
+| Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue. ⛔ **La 021 (`end_date`) existe dans le dépôt et n'est PAS appliquée** |
 | Sauvegardes | `~/Desktop/Shale-projet/shale-backups/avant-migration-020-20260904-1135/`, prises avec `sqlite3 .backup`, `integrity_check` ok |
-| App macOS | reconstruite et réinstallée le **2026-09-04 à 11:51** — contient `67ce66e` (vérifié par le CONTENU du bundle et le `sha256`) |
+| App macOS | reconstruite et réinstallée le **2026-09-04 à 11:51** — contient `67ce66e`. ⚠️ **Elle ne connaît RIEN du chantier Calendrier V2** : ni la saisie à la minute, ni le multi-jours, ni les dates sur les tâches |
 | App iOS | **simulateur** iPhone 17 (iOS 26.5), réinstallée le 2026-09-02 |
 | iPhone réel | **jamais** — rien n'y a été vu. Tout ce qui dit « iPhone » ailleurs veut dire *simulateur* |
 | Modules | **treize** — le compte est passé de douze à treize le 2026-09-02 (Calendrier) |
@@ -47,7 +48,7 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 553 / 553
+npm test                                      # ✅ 583 / 583 (553 avant le 2026-09-05)
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -64,6 +65,20 @@ dette connue derrière laquelle se cacher.
 intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 
 ---
+
+## 1 ter. ⛔ Ce qui attend une action — au 2026-09-06
+
+1. **Le rebuild natif du chantier Calendrier V2 n'est pas fait.** La migration
+   021 et cinq commits de corrections — dont **deux pertes de données
+   silencieuses** — n'ont pas atteint la machine d'Antonin. Marche à suivre et
+   coordination : `PASSATION-CALENDRIER-V2.md` § 5.
+2. **Une session voisine travaille sur une perte de données dans les Notes**
+   (le contenu d'une note se retrouvait dans une autre). Elle aura besoin du
+   même verrou BUILD NATIF. Un seul build devrait porter les deux, pour
+   n'imposer qu'une fois à Antonin la fenêtre de trousseau.
+3. **Une question en attente pour Antonin** : la ligne de charge du calendrier
+   annonce un événement « journée entière » comme « 1 tâche sans horaire ». Le
+   compte est juste, le mot est faux. Correction non faite, faute de mandat.
 
 ## 1 bis. Depuis cette passation — la série Calendrier & Liaisons
 

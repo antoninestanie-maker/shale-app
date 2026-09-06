@@ -2336,3 +2336,39 @@ développeur Apple payant — et avant lui, la question de produit (achats
 intégrés Apple contre Stripe) qui appartient à Antonin seul.
 
 ⏳ Et l'échéance de l'encadré de tête : **2026-09-03 à 17 h 04**.
+
+---
+
+## Calendrier V2 (2026-09-05/06) — ce qui attend une vérification tactile
+
+Le chantier Calendrier V2 a ajouté des champs de saisie au module Calendrier et
+au module Tâches. **Rien n'a été vu sur le simulateur, et rien sur un iPhone
+réel.** Le cadrage mettait l'ergonomie tactile de ces champs hors périmètre ;
+cette section existe pour que la prochaine session sache exactement quoi
+regarder, et pourquoi.
+
+### Ce qui a été ajouté et qui touche le doigt
+
+| Champ | Où | Ce qui inquiète |
+|---|---|---|
+| Case « Sur plusieurs jours » + date de fin | `EventModal` | ⚠️ La date de fin est un `<input type="date">` **révélé par une case à cocher**, précisément pour éviter le piège du § 7.4 : un `<input type="date">` VIDE n'affiche RIEN sur iOS, pas même `jj/mm/aaaa`. La case l'annonce. **À confirmer à l'écran** |
+| Sélecteur de jours de récurrence | `EventModal` | Sept boutons de 36 × 32 px. `cible-tactile` est posé, donc 44 pt sous `pointer: coarse` — **non vérifié** |
+| Échéance + créneau d'une tâche | `TaskModal` | Trois champs natifs de plus dans une modale déjà haute. ⚠️ **Le défilement de la modale sous clavier logiciel n'est pas éprouvé** |
+| Bandeau des journées entières | `GrilleHoraire` | Il s'ajoute AU-DESSUS de la bande « sans heure », donc au-dessus de la grille. ⚠️ Sur six pouces, deux bandes empilées peuvent repousser la première heure sous le pli — c'est exactement le défaut n° 2 du chantier B, qui avait coûté un plafond `max-h-28`. **Le bandeau, lui, n'a pas de plafond** |
+
+### La vue agenda
+
+Le multi-jours apparaît sur **chacune** de ses journées dans la vue agenda,
+marqué « jour » dans la colonne d'heure. Un séjour de dix jours occupe donc dix
+lignes de la liste des trente jours. C'est cohérent avec la forme de la vue —
+« ce qui vient, dans l'ordre où ça vient » — mais **non vu sur téléphone**, et
+c'est le cas où cela se remarquerait le plus.
+
+### Ce qui n'a PAS changé
+
+Le glisser au doigt (appui long 400 ms, `touch-action` à l'armement) n'est pas
+touché. ⚠️ Sauf qu'un événement **récurrent** refuse désormais d'être saisi — ce
+qui était déjà la règle voulue, et ne l'était pas en fait. Sur téléphone, cela
+veut dire qu'un appui long sur un rendez-vous récurrent ne fait plus rien du
+tout : il faut un appui **court** pour l'ouvrir. **À regarder** : l'absence de
+retour au doigt pourrait se lire comme un écran qui ne répond pas.

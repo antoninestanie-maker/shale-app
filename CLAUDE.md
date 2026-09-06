@@ -3783,3 +3783,140 @@ que l'app installée ne pouvait pas contenir son correctif.
 ⚠️ **La dette côté site a déménagé dans le dépôt** : `DETTE-SITE.md`. Elle vivait
 dans `Shale-chantiers/`, dossier non versionné qui disparaîtra au premier ménage,
 alors que la dette survit aux worktrees qui l'ont créée.
+
+## Calendrier V2 — la saisie, le multi-jours, la récurrence (2026-09-05/06)
+
+Une reprise du 13ᵉ module, deux jours après sa mise en service. Ce n'est pas une
+construction : c'est une réparation de la saisie et un comblement de manques sur
+un module qui tournait déjà. **Trois des hypothèses de cadrage étaient fausses**,
+et c'est l'audit à l'écran qui l'a montré — pas la lecture du code.
+
+### ⭐ Ce qu'on croyait, et ce que c'était
+
+| On croyait | C'était |
+|---|---|
+| Un `<select>` d'heures entières, ou un arrondi à l'enregistrement | **Rien de tout cela.** `<input type="time">` sans `step`, donc à la minute depuis toujours ; rien n'arrondit nulle part. 14:37 se crée, se relit et se replace à 34,53 px sous la ligne de 14 h — soit 37,0 minutes |
+| La récurrence n'est pas exposée dans le formulaire | Elle l'était, avec **trois** des quatre entrées du vocabulaire et **d'autres mots** que les tâches |
+| Le glisser-déposer se cale à l'heure | Il se calait **déjà** au quart d'heure, et donnait déjà 60 minutes de durée |
+| « Journée entière » n'existe pas | La colonne, la case à cocher et le calcul de charge existaient. Seul l'**affichage** manquait |
+
+Le vrai défaut de la saisie était ailleurs, et double : **le CLIC sur la grille
+jetait la position verticale** et passait toujours l'heure pleine, et **un
+créneau neuf n'avait aucune durée** — donc une carte de 30 minutes supposées,
+sous le seuil de 45 minutes à partir duquel `GrilleHoraire` affiche l'étiquette
+d'heure. On posait un rendez-vous à 14:37 et l'écran ne le confirmait pas.
+
+⭐ **Leçon générale** : un défaut ressenti par l'utilisateur ne désigne pas
+l'endroit du code où il vit. « On ne peut saisir que l'heure pleine » ne parlait
+pas du champ de saisie.
+
+### ⭐ Deux pertes de données silencieuses, trouvées en vérifiant autre chose
+
+**① Un événement récurrent se déplaçait au glisser-déposer.** La règle du
+chantier B — « un récurrent ne se glisse pas, sa série serait silencieusement
+rompue » — était écrite en énumérant des familles : `kind === "recurrence" ||
+kind === "deadline"`. Or `"recurrence"` désigne les **tâches** récurrentes ; un
+**événement** récurrent est un `"event"` comme un autre. L'énumération avait un
+trou de la taille exacte de la règle. Vu à l'écran : glisser l'occurrence du
+mardi réécrivait `date` et l'heure de la **série**, cinq occurrences devenaient
+trois, deux journées disparaissaient sans un mot.
+
+L'entrée porte désormais `serie`, qui dit la **propriété** visée par la règle —
+une occurrence projetée — au lieu d'une liste de familles qu'il faut penser à
+tenir à jour. ⚠️ Et réparer la première moitié de la règle cassait la seconde :
+« il s'ouvre, et l'utilisateur décide » reposait sur `lacher()`, jamais atteint
+quand `saisir` rend la main immédiatement. Refuser le glissement rendait
+l'événement complètement inerte.
+
+**② Renommer une tâche datée effaçait sa date.** `updateTask` écrit `due_date =
+$6` sans condition ; `TaskModal` ne l'envoyait pas. Poser une tâche sur le
+calendrier puis corriger son titre lui retirait sa date et son créneau.
+⚠️ **Le mode démo ne pouvait pas le montrer** : son `updateTask` fait un
+`Object.assign`, qui ignore une clé absente au lieu de la vider. C'est l'inverse
+du § 6.2 de `PIEGES.md` — non pas un accès manquant côté démo, mais un accès
+démo **trop indulgent**, qui masque ce que le natif fait vraiment. Les deux
+implémentations doivent avoir la même **sémantique**, pas seulement la même
+signature.
+
+### La migration 021 — une colonne, et rien d'autre
+
+`calendar_events.end_date`, nullable, dernier jour **inclus**. Décision
+d'Antonin le 2026-09-05.
+
+- **Pas une table d'occurrences** : un séjour n'est pas une série, c'est un
+  événement qui dure. En occurrences, le modifier serait une transaction sur N
+  lignes et le supprimer une occasion d'en oublier une.
+- **Pas de `CHECK (end_date >= date)`** : une contrainte violée à l'arrivée
+  d'une ligne distante arrête la synchronisation. `bornesDe()` absorbe
+  l'incohérence en TypeScript — une borne inversée rend **une** journée, et
+  l'événement reste visible. Le réflexe naturel (`joursEntre(debut, fin)`)
+  rendrait une liste vide et le ferait disparaître sans un mot.
+- **Aucun travail côté serveur** : le cloud ne stocke que des octets chiffrés,
+  noms de tables masqués. `serialiser()` est générique et les triggers d'outbox
+  n'énumèrent aucune colonne — une colonne neuve voyage sans qu'on la déclare.
+- ⚠️ **`fetchCalendarEvents` cherchait `date >= from AND date <= to`.** Un
+  événement du 1er au 8 est invisible dans la semaine du 5 avec cette fenêtre.
+  Le défaut ne se serait vu qu'au premier séjour à cheval sur deux semaines.
+
+### ⭐ Un multi-jours n'a aucune durée
+
+Le poser à son heure sur chaque journée traversée mentirait deux fois : il n'a
+pas lieu de 14 h à 16 h le mardi **et** le mercredi, et sa durée n'est celle
+d'aucune de ces journées. Il rejoint `sansCreneau` dans `charge.ts`, exactement
+comme la journée entière. Vérifié à l'écran : la ligne passe de « 1 tâche sans
+horaire » à « 2 », et le compte des heures posées ne bouge pas.
+
+### Deux frontières rendues impossibles, pas déconseillées
+
+- **Multi-jours × répétition.** Une série dont chaque terme durerait trois jours
+  se recouvrirait elle-même dès « tous les jours », et le vocabulaire de
+  récurrence de l'app ne connaît ni le mois ni l'année : aucune combinaison ne
+  veut dire quoi que ce soit.
+- **Tâche datée × tâche récurrente.** La règle existait dans `taches.ts` ; il
+  lui manquait la fonction qui l'applique à une saisie. `planificationDeSaisie()`
+  remet les trois colonnes à zéro dès qu'une récurrence est en jeu — le cas réel
+  étant : on saisit une échéance, **puis** on coche « quotidien ».
+
+Dans les deux cas l'interface **annonce** le retrait au lieu de faire disparaître
+un champ en silence : un contrôle qui s'évapore se lit comme un bogue.
+
+### Un seul vocabulaire de récurrence, enfin lu au même endroit
+
+La migration 020 avait posé un seul dialecte et le chantier B un seul moteur de
+projection. Il manquait la contrepartie : **chaque formulaire écrivait sa propre
+lecture** de ce dialecte. `parseRecurrence` / `serialiserRecurrence` vivent
+maintenant dans `logic.ts`, à côté du moteur. ⚠️ Le tri des jours n'est pas
+cosmétique : sans lui, cocher « ven, lun » ici et « lun, ven » là écrirait deux
+chaînes différentes pour la même règle, et la synchronisation y verrait deux
+modifications qui se chassent.
+
+### L'animation : deux jeux d'images clés identiques
+
+Une animation CSS ne se rejoue pas si on lui redonne le même `animation-name`.
+La parade courante — changer la `key` React — **détruit et reconstruit**
+l'élément, or c'est précisément le coût qu'on cherchait à masquer : un changement
+de semaine reconstruit déjà 112 cellules, **mesuré entre 23 et 40 ms**. D'où
+`cal-glisse-a` / `cal-glisse-b`, entre lesquels on alterne : l'animation repart,
+rien n'est remonté, et il n'y en a jamais qu'une attachée à la fois — ce qui la
+rend **interruptible** sans une ligne de code (`getAnimations().length` vaut 1
+après trois clics rapides).
+
+⚠️ **Une animation et non une transition**, délibérément : la règle
+`prefers-reduced-motion` de l'app écrase `animation-duration` sur `*` avec
+`!important`. Tout tombe à zéro à `reduce` sans une ligne de plus.
+
+### Ce qui n'est PAS fait, et pourquoi
+
+- **La règle Rust `calendar_soon` ne verra jamais les occurrences projetées.**
+  `read_calendar` (`data.rs:149`) exclut `recurrence <> 'none'` avec son motif
+  écrit : projeter une récurrence en SQL reviendrait à réécrire le moteur qui
+  vit dans `logic.ts`. La demande de l'audit et l'interdit « ne réécris aucune
+  règle Rust » se contredisent ici ; l'interdit l'emporte, et c'est consigné.
+- **Une fin de série** (jamais / après N / à une date) : `occurrenceLe()` connaît
+  un début, pas une fin. Hors périmètre, comme le cadrage le prévoyait.
+- **La ligne de charge appelle un événement « une tâche »** — « plus 1 tâche
+  sans horaire » pour un séminaire. Le compte est juste, le mot non. Signalé à
+  Antonin, non corrigé : la règle « aucun refactoring opportuniste » vaut aussi
+  quand la correction tient en un mot.
+- **`recurrenceLabel()` utilise encore `DAY_SHORT`** (`TasksView` l'affiche).
+  `TaskModal` ne l'emploie plus ; le libellé de la liste, si.
