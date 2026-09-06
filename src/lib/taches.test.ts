@@ -6,6 +6,7 @@ import {
   estDatee,
   estEnRetard,
   estRecurrente,
+  planificationDeSaisie,
   replanifier,
   reporter,
   SEUIL_REPORT,
@@ -131,6 +132,51 @@ describe("replanifier n'est pas glisser", () => {
       due_date: "2026-09-12",
       postponed_count: 0,
       postponed_from: "2026-09-12",
+    });
+  });
+});
+
+describe("ce qu'une saisie écrit dans les colonnes de planification", () => {
+  it("une tâche ponctuelle garde sa date et son créneau", () => {
+    expect(planificationDeSaisie("none", "2026-09-10", "14:00", "15:00")).toEqual({
+      due_date: "2026-09-10",
+      start_at: "14:00",
+      end_at: "15:00",
+    });
+  });
+
+  it("une date sans créneau reste une date", () => {
+    expect(planificationDeSaisie("none", "2026-09-10", "", "")).toEqual({
+      due_date: "2026-09-10",
+      start_at: null,
+      end_at: null,
+    });
+  });
+
+  it("⭐ une RÉCURRENCE efface la date, même saisie avant elle", () => {
+    // Le cas réel : on saisit une échéance, puis on coche « quotidien ». Sans
+    // cette remise à zéro, `estDatee()` déclarerait la tâche non datée pendant
+    // que la colonne `due_date` resterait pleine — une tâche à la fois datée et
+    // récurrente, que rien en base n'interdit (pas de `CHECK`, cf. § 3.4 de
+    // PIEGES) et que le calendrier afficherait deux fois.
+    for (const rec of ["daily", "weekdays", "[1,3]"]) {
+      expect(planificationDeSaisie(rec, "2026-09-10", "14:00", "15:00")).toEqual({
+        due_date: null,
+        start_at: null,
+        end_at: null,
+      });
+    }
+    const t = { ...tache(), ...planificationDeSaisie("daily", "2026-09-10", "", ""), recurrence: "daily" };
+    expect(estDatee(t)).toBe(false);
+    expect(estRecurrente(t)).toBe(true);
+  });
+
+  it("⚠️ un créneau SANS jour ne se pose nulle part : il est écarté", () => {
+    // Une heure sans date n'apparaîtrait dans aucune journée du calendrier.
+    expect(planificationDeSaisie("none", "", "14:00", "15:00")).toEqual({
+      due_date: null,
+      start_at: null,
+      end_at: null,
     });
   });
 });

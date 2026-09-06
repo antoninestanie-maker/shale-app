@@ -2139,6 +2139,8 @@ export const EN: Record<string, string> = {
   "Journée": "All day",
   "Séminaire prop firm": "Prop firm seminar",
   "Choisis au moins un jour de répétition.": "Pick at least one day to repeat on.",
+  "Une tâche qui se répète n'a pas d'échéance : ses occurrences se calculent.":
+    "A repeating task has no due date: its occurrences are computed.",
   // ⚠️ Les quatre libellés de récurrence de l'événement passent par la table
   // `RECURRENCES`, donc par clé CALCULÉE : `i18n:check` ne les réclamera
   // JAMAIS (PIEGES § 5.2 bis). Ils existent déjà plus haut, écrits pour

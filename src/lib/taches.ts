@@ -40,6 +40,36 @@ export function aUnCreneau(t: Pick<Task, "start_at">): boolean {
 }
 
 /**
+ * ⭐ CE QU'UNE SAISIE ÉCRIT DANS LES TROIS COLONNES DE PLANIFICATION.
+ *
+ * La frontière datée / récurrente est tenue ICI plutôt que dans chaque
+ * formulaire, et pour la même raison qu'elle n'est pas une contrainte `CHECK` :
+ * une règle recopiée à deux endroits finit par diverger. L'interface rend déjà
+ * le mélange impossible en retirant le champ ; cette fonction fait que le
+ * mélange reste impossible même si elle change, ou si un troisième formulaire
+ * apparaît.
+ *
+ * ⚠️ Une récurrence n'a JAMAIS de date, quoi qu'ait contenu l'état avant que
+ * l'utilisateur ne change d'avis — c'est le cas réel : on saisit une échéance,
+ * puis on coche « quotidien ». Sans cette remise à zéro, la tâche serait à la
+ * fois datée et récurrente, et `estDatee()` la déclarerait non datée pendant
+ * que la colonne `due_date`, elle, resterait pleine.
+ *
+ * ⚠️ Et un créneau sans jour ne se pose nulle part : une heure sans date
+ * n'apparaîtrait dans aucune journée du calendrier.
+ */
+export function planificationDeSaisie(
+  recurrence: string,
+  dueDate: string,
+  debut: string,
+  fin: string,
+): { due_date: string | null; start_at: string | null; end_at: string | null } {
+  const datee = (!recurrence || recurrence === "none") && !!dueDate;
+  if (!datee) return { due_date: null, start_at: null, end_at: null };
+  return { due_date: dueDate, start_at: debut || null, end_at: fin || null };
+}
+
+/**
  * Au-delà de ce nombre de glissements, l'app cesse de reporter en silence.
  *
  * ⭐ Décidé par Antonin le 2026-09-02 : deux reports passent inaperçus, le
