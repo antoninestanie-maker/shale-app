@@ -532,6 +532,27 @@ Les tests sont **tous** de logique pure ou de schéma. Il n'existe aucune
 infrastructure de test de rendu React. **Ne jamais écrire qu'un correctif
 d'interface est « vérifié par un test ».** Une interface se vérifie à l'écran.
 
+> ### ⭐ Précision ajoutée le 2026-09-06 : le vert peut être au MAUVAIS ENDROIT
+>
+> Cette règle se lit trop souvent comme « il manque des tests ». Le danger est
+> plus retors : **des tests peuvent être verts parce qu'ils testent la bonne
+> chose au mauvais endroit.** La fonction pure est juste, ses tests le prouvent,
+> et le défaut est dans ce que le COMPOSANT en fait — un argument passé de
+> travers, un effet qui la rappelle au mauvais moment. Aucune ligne rouge
+> n'apparaît, et la suite entière donne l'impression de couvrir le sujet.
+>
+> **Trois fois en une semaine dans ce dépôt** : les trois défauts du chantier B
+> (2026-09-02, vus seulement à la mise à l'écran), un événement récurrent qui se
+> déplaçait au glisser-déposer alors que la règle était écrite et testée
+> (2026-09-05), et le premier correctif du chantier Notes — sa fonction de
+> décision était juste, mais le composant lui passait « l'utilisateur a-t-il
+> tapé », ce qui faisait reculer la clé de rechargement et effaçait la lettre à
+> l'écran tout en l'enregistrant en base (2026-09-06).
+>
+> ▶️ **Le corollaire pratique** : quand une correction d'interface s'accompagne
+> d'une fonction pure et de ses tests, la partie prouvée est la fonction, pas la
+> correction. Aller voir.
+
 ## 7.2 Un test qui passe ne prouve rien tant qu'on ne l'a pas vu échouer
 
 **Parade.** Après avoir corrigé un défaut, **remettre brièvement l'ancien code**
