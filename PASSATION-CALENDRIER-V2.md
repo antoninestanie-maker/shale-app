@@ -117,12 +117,41 @@ des deux chantiers n'avait pu faire seul : 600 tests front, 129 Rust, les trois
 cibles. Et vérifié à l'écran que les deux coexistent — le bandeau du calendrier
 et le passage d'une note à l'autre, dans la même session.
 
-**Avant de construire, la marche à suivre est dans `CLAUDE.md` (2026-09-04) :**
-1. sauvegarde `sqlite3 .backup` de la vraie base, **jamais un `cp`** (WAL) ;
-2. prendre le verrou dans `COORDINATION.md` ;
-3. ⚠️ revérifier l'état du dépôt **juste avant la copie**, pas après le build ;
-4. prouver le **contenu** de `dist/assets/*.js`, pas les horodatages ;
-5. comparer le `sha256` avant et après `ditto`.
+**Avant de construire, la marche à suivre est dans `CLAUDE.md` (2026-09-04),
+précisée ici sur trois points que la soirée du 2026-09-06 a fait apparaître :**
+
+1. **Sauvegarde `sqlite3 .backup` de la vraie base, PRISE AU MOMENT DU BUILD.**
+   Jamais un `cp` (la base est en WAL). Deux copies — app ouverte puis fermée —
+   et `integrity_check` sur les deux.
+   ⚠️ **Ne PAS reprendre une sauvegarde existante comme référence.** Celle du
+   chantier Notes (`avant-correctif-notes-20260905-2107/`) date du 2026-09-05 au
+   soir : si Antonin a écrit depuis, elle ne permet plus de dire « rien n'a été
+   perdu ».
+   ⚠️ **Relever le compte de notes, de tâches et de fiches AVANT.** Sans ce
+   chiffre, la vérification d'après n'a rien à quoi se comparer — et « ça a l'air
+   d'aller » n'est pas un constat.
+2. Prendre le verrou **BUILD NATIF** dans `COORDINATION.md`.
+3. ⚠️ Revérifier l'état du dépôt **juste avant la copie**, pas après le build.
+4. **Prouver le CONTENU** de `dist/assets/*.js`, pas les horodatages. Les trois
+   témoins, revérifiés sur un build propre le 2026-09-06 :
+
+   | Ce qu'il prouve | Motif | Compte attendu |
+   |---|---|---|
+   | le correctif Notes | `Shale/notes: refused a write` | 1 |
+   | le multi-jours | `end_date` | 25 |
+   | les animations | `cal-glisse` (dans le `.css`) | 2 |
+
+   ⚠️ **Les revérifier sur un `vite build` à blanc avant de s'en servir pour
+   trancher**, et ne jamais les recopier d'ici sans le faire : un témoin périme
+   (`PIEGES.md` § 7.5 bis). ⚠️ Et **jamais un nom de fonction** — mesuré, les
+   cinq noms exportés du module Notes ET cinq des miens rendent tous zéro.
+5. Comparer le `sha256` avant et après `ditto`.
+
+⚠️ **LE MOMENT LE PLUS RISQUÉ N'EST PAS LA COMPILATION, C'EST LE PREMIER
+LANCEMENT** : la migration **021** s'applique alors à une base NON VIDE. Le
+chantier D l'a fait sans casse pour la 020 le 2026-09-04, ce qui est rassurant
+mais ne prouve rien pour celle-ci. C'est là qu'il faut regarder
+`_sqlx_migrations`, `integrity_check`, et recompter.
 
 ## 6. Comment reprendre
 
