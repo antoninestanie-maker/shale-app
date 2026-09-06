@@ -122,9 +122,19 @@ export default function GrilleHoraire({
    */
   const saisir = useCallback(
     (e: React.PointerEvent, entree: EntreeAgenda) => {
-      // ⚠️ Un événement récurrent ne se déplace pas d'un jour : sa série serait
-      // silencieusement rompue. Il s'ouvre, et l'utilisateur décide.
-      if (entree.kind === "recurrence" || entree.kind === "deadline") return;
+      /**
+       * ⚠️ ON NE GLISSE PAS UNE OCCURRENCE PROJETÉE : sa série serait
+       * silencieusement rompue. Elle s'ouvre, et l'utilisateur décide.
+       *
+       * ⚠️ Le garde interrogeait des `kind`, et l'énumération avait un trou :
+       * `"recurrence"` désigne les TÂCHES récurrentes, alors qu'un ÉVÉNEMENT
+       * récurrent est un `"event"` comme un autre. Vu à l'écran : glisser
+       * l'occurrence du mardi déplaçait `date` ET l'heure de la SÉRIE, et les
+       * occurrences du lundi et du mardi disparaissaient — cinq rendez-vous
+       * hebdomadaires devenus trois, sans erreur ni annulation possible.
+       * `serie` dit la propriété visée par la règle, pas la famille.
+       */
+      if (entree.serie || entree.kind === "deadline") return;
       const auDoigt = e.pointerType === "touch";
       geste.current = { entree, x: e.clientX, y: e.clientY, actif: false };
       const depart = { x: e.clientX, y: e.clientY };
@@ -326,7 +336,14 @@ export default function GrilleHoraire({
             {(parJour.get(jour) ?? [])
               .filter((e) => minutesDe(e.start_at) == null && !dansLeBandeau(e))
               .map((e) => (
-                <Chip key={`${e.kind}-${e.id}`} entree={e} onPointerDown={(ev) => saisir(ev, e)} />
+                <Chip
+                  key={`${e.kind}-${e.id}`}
+                  entree={e}
+                  onPointerDown={(ev) => saisir(ev, e)}
+                  onClick={() => {
+                    if (e.serie) onOuvrir(e);
+                  }}
+                />
               ))}
           </div>
         ))}
@@ -363,6 +380,7 @@ export default function GrilleHoraire({
             cible={cible?.jour === jour ? cible.heure : null}
             onCreer={onCreer}
             onSaisir={saisir}
+            onOuvrir={onOuvrir}
           />
         ))}
       </div>
@@ -433,6 +451,7 @@ function ColonneJour({
   cible,
   onCreer,
   onSaisir,
+  onOuvrir,
 }: {
   jour: string;
   heures: number[];
@@ -442,6 +461,7 @@ function ColonneJour({
   cible: string | null;
   onCreer: (jour: string, heure: string) => void;
   onSaisir: (e: React.PointerEvent, entree: EntreeAgenda) => void;
+  onOuvrir: (entree: EntreeAgenda) => void;
 }) {
   // ⚠️ Un séjour HORAIRE ne descend pas dans la grille : il n'a lieu ni de 14 h
   // à 16 h le mardi ni le mercredi, et l'y poser deux fois mentirait deux fois.
@@ -497,7 +517,20 @@ function ColonneJour({
               ev.stopPropagation();
               onSaisir(ev, e);
             }}
-            onClick={(ev) => ev.stopPropagation()}
+            /**
+             * ⚠️ « Il s'ouvre, et l'utilisateur décide » est la SECONDE moitié
+             * de la règle, et elle se casse au moment où l'on répare la
+             * première : `onSaisir` rend la main tout de suite sur une
+             * occurrence projetée, donc aucun écouteur n'est posé et c'est
+             * `lacher` — jamais atteint — qui appelait `onOuvrir`. Sans ce
+             * `onClick`, refuser le glissement rendrait l'événement récurrent
+             * complètement inerte. Le garde `e.serie` évite la double
+             * ouverture pour tout le reste, que `lacher` traite déjà.
+             */
+            onClick={(ev) => {
+              ev.stopPropagation();
+              if (e.serie) onOuvrir(e);
+            }}
             className="absolute inset-x-1 overflow-hidden rounded-md px-1.5 py-1 text-left text-[0.7rem] leading-tight"
             style={{
               top: haut(d),
@@ -532,14 +565,17 @@ function ColonneJour({
 function Chip({
   entree,
   onPointerDown,
+  onClick,
 }: {
   entree: EntreeAgenda;
   onPointerDown: (e: React.PointerEvent) => void;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onPointerDown={onPointerDown}
+      onClick={onClick}
       className="cible-tactile-ligne block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.7rem]"
       style={{
         backgroundColor: couleurDe(entree),

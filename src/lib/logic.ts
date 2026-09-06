@@ -10,6 +10,74 @@ import { localeTag } from "./i18n";import type {
 
 export const DAY_SHORT = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
 
+/**
+ * L'ordre d'affichage d'une semaine, en indices `getDay()` — lundi d'abord.
+ *
+ * ⚠️ `getDay()` compte à partir du DIMANCHE, la semaine commence le LUNDI.
+ * Confondre les deux décale toute une grille d'un jour (PIEGES § 4.2).
+ */
+export const ORDRE_SEMAINE = [1, 2, 3, 4, 5, 6, 0] as const;
+
+/**
+ * ⭐ Le nom court d'un jour de semaine, dans la langue de l'utilisateur.
+ *
+ * ⚠️ PAS `DAY_SHORT`. Cette table est en français, sans clé de traduction, et
+ * les DEUX outils i18n restent au vert devant elle : `i18n:check` ne voit que
+ * les clés absentes, `i18n:durs` « ne suit pas la donnée » — une table de
+ * constantes EST de la donnée. C'est exactement le défaut que le chantier B a
+ * chassé des en-têtes du calendrier (PIEGES § 5.2 bis). `Intl` connaît toutes
+ * les langues sans qu'on lui en ajoute, et sa traduction ne peut pas se périmer.
+ *
+ * ⚠️ Une FONCTION, jamais une constante de module : une table calculée à
+ * l'import serait figée dans la langue de démarrage (PIEGES § 5.2).
+ *
+ * Le 4 janvier 1970 est un DIMANCHE — vérifié, pas supposé : c'est le point de
+ * départ qui fait coïncider l'index avec `getDay()`. Midi, pour laisser huit
+ * heures de marge au changement d'heure (PIEGES § 4.1).
+ */
+export function nomCourtDuJour(jsDay: number): string {
+  return new Date(1970, 0, 4 + jsDay, 12).toLocaleDateString(localeTag(), {
+    weekday: "short",
+  });
+}
+
+/**
+ * ⭐ LE VOCABULAIRE DE RÉCURRENCE, LU ET ÉCRIT AU MÊME ENDROIT.
+ *
+ * Il n'y a qu'un dialecte dans l'app ('none' | 'daily' | 'weekdays' | JSON de
+ * jours) — la migration 020 l'a posé, le chantier B s'y est tenu avec un seul
+ * moteur de projection. Il en manquait pourtant la contrepartie : chaque
+ * formulaire écrivait SA propre lecture de ce dialecte. Les tâches offraient
+ * les quatre entrées, les événements trois, et avec d'autres mots. Deux
+ * lectures d'une même grammaire finissent par ne plus se comprendre.
+ */
+export type ModeRecurrence = "none" | "daily" | "weekdays" | "custom";
+
+export function parseRecurrence(rec: Recurrence): {
+  mode: ModeRecurrence;
+  jours: number[];
+} {
+  if (!rec || rec === "none") return { mode: "none", jours: [] };
+  if (rec === "daily") return { mode: "daily", jours: [] };
+  if (rec === "weekdays") return { mode: "weekdays", jours: [] };
+  try {
+    const jours = JSON.parse(rec);
+    if (Array.isArray(jours)) return { mode: "custom", jours };
+  } catch {
+    // Récurrence illisible → traitée comme ponctuelle, jamais comme une erreur :
+    // une ligne venue d'une autre version de l'app ne doit pas bloquer un
+    // formulaire.
+  }
+  return { mode: "none", jours: [] };
+}
+
+export function serialiserRecurrence(mode: ModeRecurrence, jours: number[]): string {
+  // Le tri n'est pas cosmétique : deux appareils qui cochent les mêmes jours
+  // dans un ordre différent écriraient deux chaînes différentes pour la même
+  // règle, et la synchronisation les verrait comme deux modifications.
+  return mode === "custom" ? JSON.stringify([...jours].sort((a, b) => a - b)) : mode;
+}
+
 /** Libellé lisible d'une récurrence, null pour les tâches ponctuelles. */
 export function recurrenceLabel(rec: Recurrence): string | null {
   if (!rec || rec === "none") return null;

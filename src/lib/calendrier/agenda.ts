@@ -38,6 +38,20 @@ export interface EntreeAgenda {
   color: string | null;
   /** Durée en minutes, `null` si aucun créneau n'est connu. */
   dureeMin: number | null;
+  /**
+   * ⭐ Cette entrée est une OCCURRENCE PROJETÉE d'une série, pas une ligne
+   * qu'on peut déplacer.
+   *
+   * ⚠️ Elle existe parce que la règle « un récurrent ne se glisse pas » était
+   * écrite en énumérant des `kind`, et l'énumération avait un trou : elle
+   * couvrait les tâches récurrentes (`kind: "recurrence"`) mais pas les
+   * ÉVÉNEMENTS récurrents, qui sont des `kind: "event"` comme les autres.
+   * Glisser une occurrence déplaçait alors la série entière — vu à l'écran,
+   * cinq occurrences hebdomadaires devenues trois, deux journées disparues
+   * sans un mot. Le drapeau dit la PROPRIÉTÉ plutôt que la famille : c'est
+   * elle que la règle vise.
+   */
+  serie: boolean;
   /** Vrai pour une tâche datée d'hier ou avant, et non faite. */
   enRetard: boolean;
   /** Combien de fois elle a glissé. 0 partout ailleurs. */
@@ -281,6 +295,7 @@ export function entreesDuJour(
       end_at: e.all_day ? null : e.end_at,
       allDay: !!e.all_day,
       color: e.color,
+      serie: estRecurrenteSerie(e.recurrence),
       // ⚠️ UN MULTI-JOURS N'A PAS DE DURÉE SUR UNE JOURNÉE DONNÉE, et lui en
       // prêter une fausserait la charge exactement comme le ferait une journée
       // entière comptée pour huit heures. Il rejoint donc `sansCreneau` dans
@@ -307,6 +322,7 @@ export function entreesDuJour(
       allDay: false,
       color: null,
       dureeMin: dureeMinutes(t.start_at, t.end_at),
+      serie: false,
       enRetard: jour < aujourdhui && !faites.get(`${t.id}:${jour}`),
       reports: t.postponed_count,
       faite: !!faites.get(`${t.id}:${jour}`),
@@ -330,6 +346,7 @@ export function entreesDuJour(
       allDay: false,
       color: null,
       dureeMin: dureeMinutes(t.start_at, t.end_at),
+      serie: true,
       enRetard: false,
       reports: 0,
       faite: !!faites.get(`${t.id}:${jour}`),
@@ -353,6 +370,7 @@ export function entreesDuJour(
       allDay: true,
       color: null,
       dureeMin: null,
+      serie: false,
       enRetard: false,
       reports: 0,
       faite: null,

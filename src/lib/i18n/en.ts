@@ -2138,4 +2138,12 @@ export const EN: Record<string, string> = {
   // L'en-tête de la bande des journées entières et des séjours, en vue semaine.
   "Journée": "All day",
   "Séminaire prop firm": "Prop firm seminar",
+  "Choisis au moins un jour de répétition.": "Pick at least one day to repeat on.",
+  // ⚠️ Les quatre libellés de récurrence de l'événement passent par la table
+  // `RECURRENCES`, donc par clé CALCULÉE : `i18n:check` ne les réclamera
+  // JAMAIS (PIEGES § 5.2 bis). Ils existent déjà plus haut, écrits pour
+  // `TaskModal` — « Une fois », « Quotidien », « Lun–ven », « Jours précis » —
+  // et c'est précisément ce que veut dire « le même vocabulaire ». Les trois
+  // anciens libellés propres à l'événement s'affichaient en FRANÇAIS dans
+  // l'app anglaise, les deux outils au vert.
 };
