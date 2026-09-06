@@ -1017,6 +1017,94 @@
   background: var(--ambient);
 }
 
+/* ─── Calendrier : la navigation entre périodes ─────────────────────────────
+   ⭐ POURQUOI DEUX JEUX D'IMAGES IDENTIQUES (`-a` et `-b`).
+
+   Une animation CSS ne se REJOUE pas si on lui redonne le même
+   `animation-name` : le navigateur considère qu'elle tourne déjà. La parade
+   habituelle est de changer la `key` React de l'élément — mais cela le
+   DÉTRUIT et le reconstruit, ce qui est exactement le coût qu'on cherche à
+   masquer plutôt qu'à créer (mesuré : 112 cellules reconstruites, 23 à 40 ms
+   par changement de semaine). En alternant entre deux noms qui décrivent la
+   même chose, l'animation repart sans que rien ne soit remonté.
+
+   ⚠️ C'est aussi ce qui la rend INTERRUPTIBLE : trois clics rapides sur
+   « semaine suivante » ne peuvent pas empiler trois animations, puisqu'à tout
+   instant il n'y en a qu'une seule d'attachée à l'élément — la nouvelle
+   remplace la précédente.
+
+   ⚠️ ET C'EST UNE ANIMATION, PAS UNE TRANSITION, exprès : la règle
+   `prefers-reduced-motion` du § « préférences système » écrase
+   `animation-duration`. À `reduce`, tout ceci tombe donc à zéro sans une ligne
+   de plus. Ce n'est pas une politesse, c'est un besoin d'accessibilité réel.
+
+   `--cal-dx` porte le SENS du déplacement : la période suivante entre par la
+   droite, la précédente par la gauche. Un fondu sans direction ne dirait pas
+   dans quel sens on voyage. */
+@keyframes cal-glisse-a {
+  from {
+    transform: translate3d(var(--cal-dx, 0), 0, 0);
+    opacity: 0.35;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes cal-glisse-b {
+  from {
+    transform: translate3d(var(--cal-dx, 0), 0, 0);
+    opacity: 0.35;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Le changement de VUE (mois / semaine / jour) n'a aucun sens directionnel :
+   on ne va pas « à droite » en passant du mois au jour. Un fondu seul. */
+@keyframes cal-fondu-a {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes cal-fondu-b {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cal-anime {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out-quint);
+  animation-fill-mode: both;
+}
+
+/* ⚠️ LE JETON QUI SUIT LE DOIGT N'EST JAMAIS ANIMÉ. Sa position est écrite en
+   `left`/`top` à chaque `pointermove` : la moindre transition dessus le ferait
+   traîner derrière le curseur, ce qui donne exactement la sensation d'un
+   logiciel qui rame. Un `!important` explicite, parce que la couche
+   `utilities` de Tailwind bat la couche `components` à spécificité égale et
+   qu'on s'est déjà fait prendre deux fois (PASSATION § 5.4).
+
+   ⚠️ Une première version gardait aussi `.cal-anime` sous `[data-glisse="1"]`.
+   Elle était INERTE : `data-glisse` est posé sur la grille, qui est À
+   L'INTÉRIEUR du calque animé — la relation d'ancêtre était inversée. Vu dans
+   le CSSOM de l'app qui tourne, pas dans le fichier source. Elle n'avait de
+   toute façon rien à garder : l'animation de navigation ne se déclenche que
+   sur un changement de période, et un glissement n'en provoque aucun. */
+.cal-fantome {
+  transition: none !important;
+  animation: none !important;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

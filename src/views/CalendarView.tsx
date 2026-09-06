@@ -120,6 +120,21 @@ export default function CalendarView({ data, refresh }: Props) {
   const [curseur, setCurseur] = useState(aujourdhui);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [modale, setModale] = useState<{ event: CalendarEvent | null; jour: string; heure: string | null } | null>(null);
+  /**
+   * ⭐ LE MOUVEMENT COURANT — ce qui relance l'animation sans rien remonter.
+   *
+   * `tour` alterne le nom de l'image clé (voir `cal-glisse-a` / `-b` dans
+   * `index.css`) : une animation CSS ne se rejoue pas si on lui redonne le
+   * même nom, et la parade habituelle — changer la `key` React — détruirait et
+   * reconstruirait toute la grille. Or c'est précisément ce coût-là qu'on
+   * cherche à masquer, pas à doubler : un changement de semaine reconstruit
+   * déjà 112 cellules, mesuré entre 23 et 40 ms.
+   *
+   * `sens` vaut -1, 0 ou +1 : la période suivante entre par la droite, la
+   * précédente par la gauche, et 0 signifie « fondu sans direction » — un
+   * changement de vue ne va nulle part.
+   */
+  const [mouvement, setMouvement] = useState({ tour: 0, sens: 0 });
 
   // Les jours réellement affichés, selon le mode.
   const jours = useMemo(() => {
@@ -274,6 +289,7 @@ export default function CalendarView({ data, refresh }: Props) {
 
   const naviguer = useCallback(
     (sens: number) => {
+      setMouvement((m) => ({ tour: m.tour + 1, sens }));
       if (mode === "jour") setCurseur((c) => addDays(c, sens));
       else if (mode === "semaine") setCurseur((c) => addDays(c, 7 * sens));
       else {
@@ -343,7 +359,11 @@ export default function CalendarView({ data, refresh }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => setCurseur(aujourdhui)}
+            onClick={() => {
+              if (curseur === aujourdhui) return;
+              setMouvement((m) => ({ tour: m.tour + 1, sens: curseur > aujourdhui ? -1 : 1 }));
+              setCurseur(aujourdhui);
+            }}
             data-tip={t("Revenir à aujourd'hui")}
             className="pill cible-tactile-ligne px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-overlay hover:text-text"
           >
@@ -367,7 +387,11 @@ export default function CalendarView({ data, refresh }: Props) {
             <button
               key={m.id}
               type="button"
-              onClick={() => setMode(m.id)}
+              onClick={() => {
+                if (m.id === mode) return;
+                setMouvement((x) => ({ tour: x.tour + 1, sens: 0 }));
+                setMode(m.id);
+              }}
               data-tip={t(m.label)}
               data-tip-sub={t(m.aide)}
               className={`pill cible-tactile-ligne border px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -410,6 +434,27 @@ export default function CalendarView({ data, refresh }: Props) {
       )}
 
       <section className="card mt-6 overflow-hidden">
+        {/* ⚠️ Le calque animé n'a PAS de `key` : il ne doit rien remonter. Seul
+            le nom de l'image clé change, ce qui suffit à relancer l'animation
+            et ce qui la rend interruptible — il n'y en a jamais qu'une
+            attachée à la fois, donc trois clics rapides ne peuvent pas en
+            empiler trois. */}
+        <div
+          className="cal-anime"
+          style={
+            {
+              animationName:
+                mouvement.sens === 0
+                  ? mouvement.tour % 2 === 0
+                    ? "cal-fondu-a"
+                    : "cal-fondu-b"
+                  : mouvement.tour % 2 === 0
+                    ? "cal-glisse-a"
+                    : "cal-glisse-b",
+              "--cal-dx": `${mouvement.sens * 1.25}rem`,
+            } as React.CSSProperties
+          }
+        >
         {mode === "agenda" ? (
           <div className="max-h-[70vh] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
             <VueAgenda
@@ -453,6 +498,7 @@ export default function CalendarView({ data, refresh }: Props) {
             />
           </div>
         )}
+        </div>
       </section>
 
       {mode === "jour" && (
