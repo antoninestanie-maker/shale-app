@@ -769,13 +769,24 @@ DÉBUT du build, jamais celui de la fin.
    >
    > **① Une égalité de `sha256` ne prouve la copie que si les deux opérandes
    > étaient des fichiers DIFFÉRENTS au départ.** Ce soir-là, l'ancienne app et
-   > la neuve avaient déjà la même empreinte AVANT le `ditto`. Trois causes
-   > possibles, toutes bénignes, et **aucune n'a pu être tranchée parce que
-   > l'ancien bundle avait déjà été effacé** : `/Applications/Shale.app` et
-   > `/System/Volumes/Data/Applications/Shale.app` sont le MÊME fichier (même
-   > inode, § 8 de `PASSATION.md`) ; un `cargo --release` rejoué depuis le même
-   > worktree sur la même source rend un binaire identique ; ou le script avait
-   > déjà tourné.
+   > la neuve avaient déjà la même empreinte AVANT le `ditto`.
+   >
+   > ⚠️ **CORRECTION DU 2026-09-06, 19 h — j'avais écrit ici trois causes
+   > « toutes bénignes ». DEUX ONT ÉTÉ ÉLIMINÉES PAR LA MESURE, et le fait brut
+   > est qu'on ne sait pas.**
+   > · Ce n'était PAS le firmlink : les deux chemins hachés étaient bien
+   >   `/Applications/…` et `src-tauri/target/release/bundle/macos/…`, deux
+   >   fichiers distincts.
+   > · Ce n'était PAS un `cargo --release` reproductible : le binaire du
+   >   2026-09-04 existe encore et rend `ff645b6d…`, quand celui du 2026-09-06
+   >   rend `8d03ecf0…`. Deux builds du même dépôt depuis deux worktrees ne
+   >   coïncident pas sur cette machine.
+   > · L'app installée avant la copie aurait donc dû rendre `ff645b6d…`. Elle a
+   >   rendu `8d03ecf0…`, **et personne ne sait pourquoi** : l'ancien bundle
+   >   avait été effacé avant qu'on s'en aperçoive, la preuve est détruite.
+   >
+   > **Verdict : INDÉTERMINÉ.** C'est une information, pas une lacune du carnet —
+   > « on n'a pas pu savoir » se consigne, et la parade ne dépend pas de la cause.
    > ▶️ **Garder le `shasum` horodaté de l'ancien binaire AVANT de le
    > remplacer.** Un contrôle qui ne peut pas échouer ne contrôle rien.
    >
@@ -825,6 +836,33 @@ SELECT id, title, updated_at FROM notes WHERE updated_at > '<l'heure du relevé>
 réel entre les deux relevés était de **+54 octets** — une note écrite par Antonin
 à 18:52:59, six minutes après la relance. Rien n'avait disparu ; quelque chose
 avait été ajouté, et deux unités différentes le faisaient passer pour l'inverse.
+
+## 7.5 quater ⚠️ En shell, une requête cassée se lit comme une preuve
+
+**Symptôme.** Un contrôle de non-régression affiche « ✅ identiques » sur une
+comparaison qui n'a jamais tourné.
+
+**Cause.** `A=$(sqlite3 … "SELECT uid,title FROM tasks")` — la colonne s'appelle
+`label`, pas `title`. Les DEUX côtés échouent, rendent la chaîne vide, et
+`[ "$A" = "$B" ]` est vrai. Rien ne rougit : `sqlite3` écrit son erreur sur
+stderr et rend 0 lignes sur stdout.
+
+**Parade.** Toujours garder la non-vacuité avec la comparaison :
+
+```bash
+[ -n "$A" ] && [ "$A" = "$B" ] && echo "identiques"
+```
+
+Et pour du SQL écrit à la volée, vérifier le nom des colonnes
+(`PRAGMA table_info(<table>)`) plutôt que de se fier à sa mémoire — dans ce
+dépôt, `tasks` porte `label`, `notes` porte `title`, et `calendar_events` porte
+`title` aussi.
+
+**Comment on l'a payée.** 2026-09-06, pendant la vérification d'après-build sur
+la vraie base d'Antonin. Vue en RELISANT la sortie, pas parce qu'un contrôle
+avait échoué. C'est le même défaut que le témoin mort et que le compte trop
+strict, une troisième fois dans la même soirée : **un contrôle qui ne peut pas
+échouer ne contrôle rien.**
 
 ## 7.6 Vérifier que le bundle installé n'est pas plus vieux que le dernier commit
 
