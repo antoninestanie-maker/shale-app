@@ -708,6 +708,31 @@ DÉBUT du build, jamais celui de la fin.
    `dist/assets/*.js` le motif que le correctif est censé avoir fait
    disparaître. Les assets y sont minifiés mais lisibles — c'est dans le
    BINAIRE qu'ils deviennent illisibles (compressés), pas dans `dist/`.
+
+   > ⭐ **PRÉCISION AJOUTÉE LE 2026-09-06, et elle est la moitié manquante de la
+   > règle : LE MOTIF DOIT SURVIVRE À LA MINIFICATION.**
+   >
+   > « Minifiés mais lisibles » ne vaut que pour ce qui ne peut pas être
+   > renommé. Un **nom de fonction**, de variable ou de composant est réécrit en
+   > une ou deux lettres par esbuild : le chercher rend **toujours zéro**, que
+   > le correctif soit présent ou absent. Le test ne prouve alors rien et, pire,
+   > il fait conclure à un bundle périmé au moment exact où l'on s'apprête à
+   > installer.
+   >
+   > **Ce qui survit** : une chaîne de caractères littérale, un nom de classe
+   > CSS, un attribut `data-*`, un nom de colonne SQL. **Ce qui ne survit pas** :
+   > tout identifiant du code.
+   >
+   > **Comment on l'a payée.** Le 2026-09-06, la session du chantier Notes a
+   > transmis `grep -c "graineDeNote" dist/assets/*.js` comme preuve que son
+   > correctif était embarqué. `graineDeNote` est une fonction exportée : le
+   > compte est **0** alors que le correctif EST bien là — prouvé par la chaîne
+   > `"Shale/notes: refused a write"`, qui, elle, rend 1. Personne n'avait
+   > encore construit ; le témoin aurait été employé juste avant la copie vers
+   > `/Applications`.
+   >
+   > ▶️ **Choisir le témoin AU MOMENT D'ÉCRIRE le correctif**, et le vérifier
+   > sur un `npx vite build` avant de le transmettre à qui que ce soit.
 3. Et après la copie, comparer les **sha256** du binaire installé et de la
    source : c'est la seule preuve que `ditto` a vraiment remplacé quelque chose.
 
