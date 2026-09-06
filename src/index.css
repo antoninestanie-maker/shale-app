@@ -1100,6 +1100,41 @@
    le CSSOM de l'app qui tourne, pas dans le fichier source. Elle n'avait de
    toute façon rien à garder : l'animation de navigation ne se déclenche que
    sur un changement de période, et un glissement n'en provoque aucun. */
+/* ─── La roulette d'heure ────────────────────────────────────────────────────
+   ⭐ C'est le DÉFILEMENT NATIF qui la fait tourner : `scroll-snap` cale le cran
+   au centre, et le navigateur fournit gratuitement la molette de souris, les
+   deux doigts du trackpad, le glissement au doigt avec inertie, et le clavier.
+   Écrire un glisser au pointeur aurait redemandé tout ce que `GrilleHoraire` a
+   payé pour réobtenir ce qui existe déjà. */
+.roulette-colonne {
+  scroll-snap-type: y mandatory;
+  min-width: 3.4rem;
+}
+
+.roulette-cran {
+  scroll-snap-align: center;
+}
+
+/* ⚠️ IL N'Y A PAS DE `scroll-behavior: smooth` ICI, ET C'EST VOULU. Cette
+   propriété ne touche QUE les défilements programmatiques — jamais le geste de
+   l'utilisateur, qui garde son inertie native quoi qu'on écrive. Elle
+   n'apportait donc rien, et elle coûtait un bogue : l'animation se battait avec
+   le calage `scroll-snap`, la molette était relue en plein vol et retombait en
+   haut (mesuré : `scrollTop` à 19 au lieu de 392).
+   ⚠️ À noter au passage pour tout le reste de l'app : la règle globale
+   `prefers-reduced-motion` écrase `animation-duration` et
+   `transition-duration`, mais PAS `scroll-behavior`. Un défilement lissé ajouté
+   ailleurs devra être coupé à la main. */
+
+/* Une barre de défilement sur une colonne de 3,4 rem mangerait la moitié du
+   texte, et la molette dit déjà ce qu'elle fait. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .cal-fantome {
   transition: none !important;
   animation: none !important;

@@ -9,6 +9,7 @@ import {
 import { createTask, updateTask, type TaskInput } from "../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
 import { planificationDeSaisie } from "../lib/taches";
+import RouletteHeure from "./calendrier/RouletteHeure";
 import type { Goal, Priority, Tag, Task } from "../lib/types";
 
 import { t } from "../lib/i18n";
@@ -58,6 +59,8 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const [dueDate, setDueDate] = useState(task?.due_date ?? "");
   const [debut, setDebut] = useState(task?.start_at ?? "");
   const [fin, setFin] = useState(task?.end_at ?? "");
+  /** Repliée par défaut, comme dans le formulaire d'événement. */
+  const [roulette, setRoulette] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -251,6 +254,27 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                     />
                   </div>
                 </div>
+              )}
+              {dueDate && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setRoulette((v) => !v)}
+                    className="cible-tactile-ligne mt-2 text-xs text-text-dim hover:text-text"
+                  >
+                    {roulette ? t("Masquer la roulette") : t("Choisir à la roulette")}
+                  </button>
+                  {roulette && (
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <RouletteHeure valeur={debut} onChange={changerDebut} aria={t("Début")} />
+                      </div>
+                      <div className="flex-1">
+                        <RouletteHeure valeur={fin} onChange={setFin} aria={t("Fin")} />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (

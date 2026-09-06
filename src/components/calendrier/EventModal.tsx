@@ -11,6 +11,7 @@ import {
 } from "../../lib/logic";
 import type { CalendarEvent } from "../../lib/types";
 import { IconTrash } from "../icons";
+import RouletteHeure from "./RouletteHeure";
 import { t } from "../../lib/i18n";
 
 /**
@@ -99,6 +100,12 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
   const recLue = parseRecurrence(event?.recurrence ?? null);
   const [recMode, setRecMode] = useState<ModeRecurrence>(recLue.mode);
   const [jours, setJours] = useState<number[]>(recLue.jours);
+  /**
+   * La roulette est REPLIÉE par défaut : le champ de saisie reste le chemin le
+   * plus court quand on sait quelle heure on veut, et déplier deux molettes
+   * au-dessus de lui allongerait le formulaire pour tout le monde.
+   */
+  const [roulette, setRoulette] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -284,6 +291,32 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               />
             </div>
           </div>
+        )}
+
+        {!journee && (
+          <>
+            <button
+              type="button"
+              onClick={() => setRoulette((v) => !v)}
+              className="cible-tactile-ligne mt-2 text-xs text-text-dim hover:text-text"
+            >
+              {roulette ? t("Masquer la roulette") : t("Choisir à la roulette")}
+            </button>
+            {roulette && (
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <RouletteHeure
+                    valeur={debut}
+                    onChange={changerDebut}
+                    aria={t("Début")}
+                  />
+                </div>
+                <div className="flex-1">
+                  <RouletteHeure valeur={fin} onChange={setFin} aria={t("Fin")} />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* ⭐ LE MULTI-JOURS ET LA RÉPÉTITION NE SE MÉLANGENT PAS, et l'interface

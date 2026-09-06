@@ -2139,6 +2139,10 @@ export const EN: Record<string, string> = {
   "Journée": "All day",
   "Séminaire prop firm": "Prop firm seminar",
   "Choisis au moins un jour de répétition.": "Pick at least one day to repeat on.",
+  "Heure": "Hour",
+  "Minutes": "Minutes",
+  "Choisir à la roulette": "Pick on the wheel",
+  "Masquer la roulette": "Hide the wheel",
   "Une tâche qui se répète n'a pas d'échéance : ses occurrences se calculent.":
     "A repeating task has no due date: its occurrences are computed.",
   // ⚠️ Les quatre libellés de récurrence de l'événement passent par la table

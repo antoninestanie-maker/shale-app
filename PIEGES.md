@@ -456,6 +456,32 @@ couleur retombe sur l'héritage, sans erreur.
 échouerait donc exactement de la façon décrite ci-dessus. Corrigé dans
 `CLAUDE.md` le 2026-09-02.
 
+## 6.3 bis ⭐ `prefers-reduced-motion` de l'app N'ATTEINT PAS `scroll-behavior`
+
+**Symptôme.** On ajoute un défilement lissé quelque part, on se dit que la règle
+globale d'accessibilité le couvre — elle ne le couvre pas. Quelqu'un qui a
+demandé qu'on arrête de bouger continue de voir la page glisser.
+
+**Cause.** La règle du § « préférences système » de `src/index.css` écrase
+`animation-duration` et `transition-duration` sur `*`. **`scroll-behavior` est
+une troisième famille**, qu'aucune des deux ne touche.
+
+**Parade.** Couper à la main, sous la même requête média :
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .ma-zone { scroll-behavior: auto; }
+}
+```
+
+⭐ **Mais d'abord se demander si le lissé sert à quelque chose.**
+`scroll-behavior` ne s'applique qu'aux défilements **programmatiques**
+(`scrollTo`, ancres) — **jamais au geste de l'utilisateur**, qui garde son
+inertie native quoi qu'on écrive. Sur la roulette d'heure il n'apportait rien et
+coûtait un bogue (§ 7.7). Le meilleur correctif a été de le retirer.
+
+**Comment on l'a payée.** Roulette d'heure, 2026-09-06.
+
 ## 6.4 Tout `vh`/`vw` doit être multiplié par `--zoom-inv`
 
 Le `zoom` CSS de la densité multiplie **aussi** les unités de viewport : sans
@@ -969,3 +995,45 @@ sans avoir vérifié que le code n'a pas bougé entre les deux constructions.
 
 Avec un risque d'écriture à chaque `Tab`. Le mode démo navigateur n'est pas du
 confort, c'est la seule façon sûre de regarder une interface.
+
+## 7.7 ⭐ Un `scrollTo` lissé, un `scroll-snap` et un verrou anti-boucle se battent à trois
+
+**Symptôme.** Une molette à défilement (`scroll-snap`) ne se positionne jamais
+sur sa valeur : elle part vers le bon cran puis **retombe en haut**. Mesuré,
+`scrollTop` valait 19 là où on attendait 392.
+
+**Cause.** Trois mécanismes qui se marchent dessus :
+1. `scrollTo({top})` **anime** quand le CSS porte `scroll-behavior: smooth` ;
+2. `scroll-snap` recale à chaque image pendant cette animation ;
+3. le verrou qui empêche la boucle « défilement → état → repositionnement » se
+   relâche après un délai fixe — plus court que l'animation. Le gestionnaire de
+   `scroll` relit alors une position **intermédiaire**, l'écrit dans l'état, et
+   la molette se stabilise là où l'animation en était.
+
+**Parade.** Positionner **instantanément** (`el.scrollTo({ top, behavior:
+"auto" })`), ce qui supprime l'animation, donc la course, donc le besoin d'un
+verrou long. Et retirer `scroll-behavior: smooth`, qui n'apportait rien (§ 6.3
+bis).
+
+⚠️ **Le verrou anti-boucle reste nécessaire** même en instantané : sans lui,
+défiler écrit dans l'état, l'état repositionne, le repositionnement déclenche un
+`scroll`, qui réécrit dans l'état. La molette vibre entre deux crans dès qu'on la
+lâche entre les deux, et plus rien n'est visable.
+
+**Comment on l'a payée.** Roulette d'heure, 2026-09-06 — **vu à l'écran, jamais
+par un test** : aucun test de ce dépôt ne monte un composant (§ 7.1).
+
+## 7.8 ⚠️ Une bordure retire deux pixels de hauteur utile
+
+**Symptôme.** Une liste calée sur des crans de 28 px n'a jamais son élément
+sélectionné tout à fait au centre. `clientHeight` rend **82** là où le style
+demande 84.
+
+**Cause.** `box-sizing: border-box` — universel dans ce dépôt — fait compter la
+bordure DANS la hauteur. Trois crans de 28 px plus une bordure d'un pixel de
+chaque côté laissent 82 px de contenu.
+
+**Parade.** Mettre la bordure sur une **enveloppe**, et laisser au conteneur
+défilant une hauteur qui est exactement un multiple du cran.
+
+**Comment on l'a payée.** Roulette d'heure, 2026-09-06.
