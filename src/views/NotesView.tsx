@@ -5,6 +5,12 @@ import { useLiens } from "../components/liens/useLiens";
 import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
 import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
+import {
+  ecritureAcceptable,
+  graineDeNote,
+  messageEcritureRefusee,
+  type CorpsRafraichi,
+} from "../lib/graineEditeur";
 import type { AppData, LinkKind, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
@@ -42,11 +48,16 @@ export default function NotesView({ data, refresh }: Props) {
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
   const { uid, rafraichir, enregistrerMentions } = useLiens("note", selectedId);
   /**
-   * Le corps AVEC ses jetons rafraîchis. `null` tant que la résolution des
-   * titres n'a pas répondu : on n'affiche pas le corps brut entre-temps, sinon
-   * un titre périmé clignoterait à chaque ouverture de note.
+   * Le corps AVEC ses jetons rafraîchis, ET L'IDENTITÉ DE LA NOTE DONT IL VIENT.
+   *
+   * ⚠️ C'est ce couple qui répare le bogue du 2026-09-05. Ce corps arrive en
+   * différé, et il n'était pas remis à zéro au changement de note : à l'instant
+   * où l'éditeur basculait sur la note B, il recevait donc la nouvelle identité
+   * et le corps de A — et l'écrivait dans le DOM. Un `string` nu ne peut pas
+   * dire à quelle note il appartient ; ce couple, si, et `graineDeNote` refuse
+   * de les marier de travers.
    */
-  const [corpsFrais, setCorpsFrais] = useState<string | null>(null);
+  const [corpsFrais, setCorpsFrais] = useState<CorpsRafraichi | null>(null);
 
   /**
    * Ouvrir une mention.
@@ -101,20 +112,23 @@ export default function NotesView({ data, refresh }: Props) {
       setCorpsFrais(null);
       return;
     }
+    const idDemande = selected.id;
     void rafraichir(selected.body).then((html) => {
-      if (!annule) setCorpsFrais(html);
+      // ⚠️ L'identité voyage AVEC le corps : sans elle, un rafraîchissement
+      // lent qui répond après un changement de note servirait le corps de
+      // l'ancienne pour la nouvelle.
+      if (!annule) setCorpsFrais({ id: idDemande, html });
     });
     return () => {
       annule = true;
     };
   }, [selectedId, rafraichir]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scheduleSave = (nextTitle: string, nextBody: string) => {
+  const scheduleSave = (id: number, nextTitle: string, nextBody: string) => {
     setSaved(false);
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
-      if (selectedId === null) return;
-      await updateNote(selectedId, nextTitle.trim() || "Sans titre", nextBody);
+      await updateNote(id, nextTitle.trim() || "Sans titre", nextBody);
       // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
       // chaque lettre remplirait l'outbox de synchronisation de centaines
       // d'entrées pour une seule mention tapée.
@@ -122,6 +136,21 @@ export default function NotesView({ data, refresh }: Props) {
       setSaved(true);
       await refresh();
     }, 700);
+  };
+
+  /**
+   * Le filet : on n'écrit que si le texte vient bien de la note affichée.
+   *
+   * ⚠️ ON REFUSE, ON NE CORRIGE PAS — une écriture réorientée « vers la bonne
+   * note » masquerait le prochain défaut du même genre.
+   */
+  const enregistrerDepuisEditeur = (html: string, idSource: number) => {
+    if (!ecritureAcceptable(selectedId, idSource)) {
+      console.error(messageEcritureRefusee(selectedId, idSource));
+      return;
+    }
+    setBody(html);
+    scheduleSave(idSource, title, html);
   };
 
   const handleNew = async () => {
@@ -246,7 +275,7 @@ export default function NotesView({ data, refresh }: Props) {
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                scheduleSave(e.target.value, body);
+                if (selectedId !== null) scheduleSave(selectedId, e.target.value, body);
               }}
               className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold text-text focus:outline-none"
             />
@@ -270,13 +299,10 @@ export default function NotesView({ data, refresh }: Props) {
 
           <RichNoteEditor
             noteId={selected.id}
-            initialHtml={corpsFrais ?? selected.body}
+            graine={graineDeNote(selected.id, selected.body, corpsFrais)}
             source={uid ? { kind: "note", uid } : undefined}
             onOuvrirMention={(k, u) => ouvrirMention(k, u)}
-            onChange={(html) => {
-              setBody(html);
-              scheduleSave(title, html);
-            }}
+            onChange={enregistrerDepuisEditeur}
             placeholder={t("Écris ta note. Tape @ pour citer une note, une fiche, un objectif…")}
           />
 

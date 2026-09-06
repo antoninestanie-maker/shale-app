@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Normalisation des couleurs + conversion texte → HTML : partagées avec
 // l'éditeur de blocs du Savoir (src/lib/richtext.ts).
 import { toEditorHtml } from "../lib/richtext";
+import { doitResemer, type Graine } from "../lib/graineEditeur";
 
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
@@ -14,8 +15,26 @@ import type { LinkKind } from "../lib/types";
 interface Props {
   /** Change d'identité → recharge le contenu dans l'éditeur (sinon on ne touche pas au DOM). */
   noteId: number;
-  initialHtml: string;
-  onChange: (html: string) => void;
+  /**
+   * Ce qu'il faut poser dans le DOM, et quand.
+   *
+   * ⚠️ UN SEUL OBJET, PAS DEUX PROPS — c'est le correctif du 2026-09-05.
+   * Avant, l'identité (`noteId`) et le contenu (`initialHtml`) arrivaient
+   * séparément, et pouvaient donc se désaccorder le temps d'un rendu :
+   * l'éditeur recevait la nouvelle note avec l'ANCIEN corps, et l'écrivait
+   * dans le DOM. Un objet unique, calculé par `graineDeNote`, rend ce
+   * désaccord impossible à exprimer.
+   *
+   * `graine.cle` ne bouge que lorsqu'il faut réécrire le DOM — jamais pendant
+   * la frappe, qui replacerait le curseur au début de la note.
+   */
+  graine: Graine;
+  /**
+   * `idSource` est la note dont le texte PROVIENT (celle qui a semé le DOM).
+   * L'appelant doit refuser l'écriture si elle ne correspond pas à la note
+   * qu'il affiche — voir `ecritureAcceptable`.
+   */
+  onChange: (html: string, idSource: number) => void;
   placeholder?: string;
   /**
    * L'objet en cours d'édition. Sert à deux choses, et il est facultatif : un
@@ -47,7 +66,7 @@ const HIGHLIGHTS = [
 
 export default function RichNoteEditor({
   noteId,
-  initialHtml,
+  graine,
   onChange,
   placeholder,
   source,
@@ -55,11 +74,45 @@ export default function RichNoteEditor({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // (re)charge le contenu quand on change de note, sans casser le curseur pendant la frappe
+  /**
+   * La note dont le DOM porte actuellement le texte.
+   *
+   * ⚠️ C'est CELLE-CI qu'on renvoie à l'enregistrement, jamais `noteId` : si les
+   * deux venaient à diverger, renvoyer `noteId` ferait passer un texte étranger
+   * pour un texte légitime, et le filet de l'appelant ne verrait rien.
+   */
+  const idDuDom = useRef<number | null>(null);
+  /** La dernière graine réellement posée — pour ne pas réécrire le DOM pour rien. */
+  const grainePosee = useRef<string | null>(null);
+  /**
+   * L'utilisateur a-t-il tapé dans la note actuellement dans le DOM ?
+   *
+   * ⚠️ C'est l'ÉDITEUR qui le sait, pas l'appelant — il est le seul à voir les
+   * frappes. Le faire remonter à l'appelant pour qu'il le redescende dans la
+   * graine, c'est ce que j'avais fait au premier essai, et ça reprenait ses
+   * mots à l'utilisateur (voir `doitResemer`).
+   */
+  const aTape = useRef(false);
+
+  // (re)charge le contenu quand il le faut, sans jamais écraser une frappe.
   useEffect(() => {
-    if (ref.current) ref.current.innerHTML = toEditorHtml(initialHtml);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId]);
+    if (!ref.current) return;
+    if (
+      !doitResemer({
+        idAffiche: noteId,
+        idDuDom: idDuDom.current,
+        cle: graine.cle,
+        clePosee: grainePosee.current,
+        aTape: aTape.current,
+      })
+    ) {
+      return;
+    }
+    if (idDuDom.current !== noteId) aTape.current = false;
+    grainePosee.current = graine.cle;
+    idDuDom.current = noteId;
+    ref.current.innerHTML = toEditorHtml(graine.html);
+  }, [graine.cle, graine.html, noteId]);
 
   // ─── Mentions `@` ──────────────────────────────────────────────────────────
   const [mention, setMention] = useState<{
@@ -83,7 +136,7 @@ export default function RichNoteEditor({
   }, []);
 
   const emit = () => {
-    if (ref.current) onChange(ref.current.innerHTML);
+    if (ref.current) onChange(ref.current.innerHTML, idDuDom.current ?? noteId);
   };
 
   const verifierMention = useCallback(async () => {
@@ -282,6 +335,7 @@ export default function RichNoteEditor({
         contentEditable
         suppressContentEditableWarning
         onInput={() => {
+          aTape.current = true;
           emit();
           void verifierMention();
         }}

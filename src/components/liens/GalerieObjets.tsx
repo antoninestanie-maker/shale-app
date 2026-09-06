@@ -4,6 +4,12 @@ import PanneauLiens from "./PanneauLiens";
 import { useLiens } from "./useLiens";
 import RichNoteEditor from "../RichNoteEditor";
 import {
+  ecritureAcceptable,
+  graineDeNote,
+  messageEcritureRefusee,
+  type CorpsRafraichi,
+} from "../../lib/graineEditeur";
+import {
   champsDuType,
   fusionnerValeurs,
   valeursDeLObjet,
@@ -221,15 +227,17 @@ function FicheObjet({
   const [titre, setTitre] = useState(objet.title);
   const [valeurs, setValeurs] = useState(() => valeursDeLObjet(objet.field_values));
   const [corps, setCorps] = useState(objet.body ?? "");
-  const [corpsFrais, setCorpsFrais] = useState<string | null>(null);
+  const [corpsFrais, setCorpsFrais] = useState<CorpsRafraichi | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [confirme, setConfirme] = useState(false);
   const { rafraichir, enregistrerMentions } = useLiens("object", objet.id);
 
   useEffect(() => {
     let annule = false;
+    const idDemande = objet.id;
     void rafraichir(objet.body ?? "").then((html) => {
-      if (!annule) setCorpsFrais(html);
+      // L'identité voyage AVEC le corps — voir `graineEditeur.ts`.
+      if (!annule) setCorpsFrais({ id: idDemande, html });
     });
     return () => {
       annule = true;
@@ -345,10 +353,15 @@ function FicheObjet({
 
       <RichNoteEditor
         noteId={objet.id}
-        initialHtml={corpsFrais ?? objet.body ?? ""}
+        graine={graineDeNote(objet.id, objet.body ?? "", corpsFrais)}
         source={{ kind: "object", uid: objet.uid }}
         onOuvrirMention={(k: LinkKind, u: string) => void ouvrirObjet(k, u)}
-        onChange={(html) => {
+        onChange={(html, idSource) => {
+          // Le filet : on refuse un texte qui ne vient pas de la fiche affichée.
+          if (!ecritureAcceptable(objet.id, idSource)) {
+            console.error(messageEcritureRefusee(objet.id, idSource));
+            return;
+          }
           setCorps(html);
           void enregistrer(html);
         }}
