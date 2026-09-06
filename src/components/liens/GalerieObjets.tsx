@@ -75,6 +75,13 @@ export default function GalerieObjets() {
   if (fiche) {
     return (
       <FicheObjet
+        // ⚠️ `key` PAR FICHE — correctif du 2026-09-06. `titre`, `valeurs` et
+        // `corps` sont des `useState` initialisés au montage, et rien ne les
+        // resynchronise. Passer d'une fiche à l'autre SANS repasser par la
+        // galerie — ce que fait une mention `@` — emportait donc le titre et
+        // les valeurs de champs de la fiche précédente. Une `key` remonte le
+        // composant, et remet tout son état d'un coup.
+        key={fiche.id}
         objet={fiche}
         type={types.find((t) => t.id === fiche.type_id) ?? null}
         onFermer={() => setOuvert(null)}
