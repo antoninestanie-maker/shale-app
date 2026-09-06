@@ -811,8 +811,28 @@ DÉBUT du build, jamais celui de la fin.
    >
    > **Verdict : INDÉTERMINÉ.** C'est une information, pas une lacune du carnet —
    > « on n'a pas pu savoir » se consigne, et la parade ne dépend pas de la cause.
+   >
+   > ⭐ **Comment on a su que l'élimination tenait : par l'HORODATAGE, pas par le
+   > hash.** La valeur `ff645b6d…` figure aussi dans `COORDINATION.md` du
+   > 2026-09-04 — donc la citer ne prouvait rien. Ce qui prouve que la mesure a
+   > eu lieu, c'est le `mtime` rendu par `stat` : **11:51:49**, quand le carnet
+   > écrivait « le bundle de 11:51 ». Deux faits indépendants, un lu sur le
+   > disque et un écrit deux jours plus tôt par une autre session, concordants à
+   > la seconde. Une recopie n'aurait pas produit l'horodatage.
+   > ▶️ **Quand un chiffre existe déjà dans un document, ce n'est pas lui qui
+   > distingue la mesure de la citation** — c'est ce qui l'accompagne et que le
+   > document ne contient pas.
+   >
    > ▶️ **Garder le `shasum` horodaté de l'ancien binaire AVANT de le
    > remplacer.** Un contrôle qui ne peut pas échouer ne contrôle rien.
+   >
+   > ⚠️ **ET LA PARADE VAUT POUR TOUT `rm -rf` SUR UN ARTEFACT DE BUILD, PAS
+   > SEULEMENT POUR L'INSTALLATION.** Le binaire du 2026-09-04 a survécu à la
+   > copie, et il est parti quarante minutes plus tard dans un ménage disque —
+   > **fait par la même session, après qu'elle eut écrit la leçon sur le fait
+   > d'avoir détruit la preuve une première fois.** Deux fois le même geste dans
+   > la même soirée, la seconde en connaissant la règle. Tant qu'une question
+   > reste ouverte sur un build, ses artefacts sont des pièces, pas de l'encombre.
    >
    > **② UN CORRECTIF PUREMENT FRONT N'EST PAS PROUVABLE DANS LE BINAIRE
    > INSTALLÉ.** Dans un bundle Tauri le front est COMPRESSÉ : `find Shale.app
