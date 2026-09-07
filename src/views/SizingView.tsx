@@ -119,6 +119,22 @@ export default function SizingView({
     minLot: 0.01,
   });
 
+  /**
+   * Le calculateur n'a pas encore été touché.
+   *
+   * ⚠️ POURQUOI CE DRAPEAU. Le capital et le risque arrivent des réglages, donc
+   * ils sont valides d'emblée ; le prix d'entrée et le stop, eux, sont vides.
+   * Le calcul échouait donc dès l'ouverture et l'écran affichait, en rouge,
+   * « Prix d'entrée invalide. » — juste sous la phrase qui invite à remplir les
+   * champs. Deux messages qui se contredisent : l'un dit « commence », l'autre
+   * dit « tu t'es trompé », alors que l'utilisateur n'a rien tapé.
+   *
+   * ⚠️ On ne masque QUE tant que rien n'a été saisi. Dès la première frappe,
+   * l'erreur redevient utile — c'est elle qui dit ce qui manque encore.
+   * Corrigé le 2026-09-07, vu à l'écran.
+   */
+  const calculateurVierge = !entry.trim() && !stop.trim() && !takeProfit.trim();
+
   // TP optionnel → R:R théorique live (null si absent ou incohérent)
   const tpNum = useMemo(() => {
     const n = parse(takeProfit);
@@ -500,9 +516,11 @@ export default function SizingView({
                 </p>
               )}
 
-              <div className="mt-4">
-                <PositionSizeAlerts result={result} />
-              </div>
+              {!calculateurVierge && (
+                <div className="mt-4">
+                  <PositionSizeAlerts result={result} />
+                </div>
+              )}
 
               <button
                 type="button"
