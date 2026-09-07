@@ -4090,3 +4090,190 @@ deux tombent, six restent verts — ce qui dit aussi que chacun vise autre chose
 ⚠️ **Ce que ces tests ne prouvent PAS** : que l'app iOS synchronise. Ils prouvent
 que la DONNÉE survit au trajet. Le simulateur est déconnecté depuis le
 2026-09-02 et seul un geste d'Antonin le rouvre (`PASSATION.md` § 5.1).
+
+## Cartes mentales dans les Notes et le Savoir (2026-09-07)
+
+Un bloc « carte mentale » éditable, hors connexion, dans les deux éditeurs de
+texte riche de l'app. Un nœud porte soit du texte libre, soit une **référence à
+un objet existant** — et une référence crée une vraie arête `object_links`, donc
+un backlink.
+
+### ⭐ Une carte n'est pas un objet : c'est un bloc dans une note
+
+Le Savoir n'a qu'une seule unité de création depuis le 2026-07-21, la note. Une
+carte suit donc le précédent du croquis : un élément dans le corps, qui porte sa
+donnée ré-éditable dans un attribut. Conséquences, toutes voulues :
+
+- **pas de 14ᵉ module** — le compte reste à treize ;
+- **pas de table, pas de migration 022** ;
+- **rien à ajouter dans `src/lib/sync/scope.ts`** : la carte voyage dans le corps
+  de la note, donc dans la sauvegarde chiffrée, gratuitement.
+
+### ⭐⭐ Le rendu est un `<svg>` EN CLAIR, pas une image — et c'est une décision MESURÉE
+
+Le cahier des charges supposait « un rendu image l'accompagne », comme le PNG du
+croquis. **La mesure a renversé la prémisse.** Pour une carte de 60 nœuds :
+
+| Forme du rendu | Poids dans le corps |
+|---|---|
+| **SVG en clair** | **22 ko** |
+| WebP 1600 px (`encodeImage`) | 114 ko |
+| JPEG (repli WKWebView) | 227 ko |
+| **PNG brut — ce que fait `SketchPad`** | **347 ko** |
+
+Et dans les **Notes**, la facture double : `notes_fts` (migration 005) indexe le
+corps **BRUT**, pas `plainText(corps)`. Mesuré sur une base neuve montée avec la
+vraie migration : un raster de 114 ko coûte **143 ko d'index en plus**, soit
+~250 ko pour une carte, là où le JSON du graphe (8 ko) plus son SVG en coûtent
+~30. Pour comparaison, les 13 notes réelles d'Antonin pèsent **45 889 octets en
+tout** : une seule carte rendue en image aurait pesé deux fois et demie tout son
+corpus.
+
+**Le SVG gagne sur cinq points à la fois**, et c'est rare :
+1. cinq fois plus léger ;
+2. **le texte des nœuds entre dans `plainText()`**, donc dans FTS5 et dans la
+   colonne `text` du Savoir — chercher le mot d'un nœud retrouve la note, sans
+   une ligne de code en plus (les `<text>` et le `<title>` d'un SVG sont du
+   `textContent` comme le reste) ;
+3. il **suit le thème** clair/sombre, quand une image est cuite une fois ;
+4. il reste **net à n'importe quel zoom** — `encodeImage` plafonne à 1 600 px et
+   écrase une carte haute jusqu'à l'illisible (mesuré : 150 nœuds → 614 × 1600) ;
+5. il est produit par une **fonction pure**, donc testable, ce qu'un `<canvas>`
+   n'est pas.
+
+**Le prix, assumé** : une fiche du Savoir qui ne contient qu'une carte n'a pas
+de vignette de couverture (`firstImageSrc` ne trouve pas d'`<img>`).
+
+⚠️ **Corollaire : `encodeImage` n'est PAS sur le chemin de l'export.** Le cahier
+des charges le demandait, mais `encodeImage` n'encode que du WebP avec un repli
+JPEG — il **ne sait pas produire un PNG**, et l'export livrerait un WebP nommé
+`.png`. L'export passe donc par `canvas.toDataURL("image/png")`, qui est aussi le
+plus sûr : le PNG est le seul format qu'un `<canvas>` est tenu de savoir
+encoder — c'est précisément parce que le WebP ne l'est pas que `encodeImage`
+porte un repli.
+
+### ⭐ À l'écran le thème, à l'export des couleurs aplaties
+
+Même arbitrage que `SketchPad` le 2026-07-21, et pour la même raison. À l'écran
+la carte utilise `var(--color-…)` : elle vit dans une note qu'on lit en clair
+comme en sombre. À l'export, `var(--color-text)` ne résout plus rien — l'image
+sortirait vide. Les valeurs sont donc **aplaties** (copie des jetons du thème
+clair) sur un **fond opaque**. Vérifié à l'écran : le PNG exporté est lisible
+quel que soit le thème de l'app.
+
+### ⭐ Les couleurs de branche : quatre, et le rouge n'en est pas
+
+Il n'existe que cinq jetons de couleur (`blue`, `green`, `red`, `yellow`,
+`violet`). Mais `lib/knowledge.ts` avait déjà tranché, pour les thèmes du Savoir,
+que **rouge et vert sont sémantiques dans ce design system** — d'où son rouge
+corail placé en dernier. Décision d'Antonin du 2026-09-06 : rotation sur
+**bleu → violet → ambre → vert**, le rouge **jamais attribué d'office**. Il reste
+disponible pour un usage explicite.
+
+### ⭐⭐ Les deux éditeurs étaient exactement COMPLÉMENTAIRES
+
+C'est la découverte de l'audit, et elle a changé le plan :
+
+| | Notes (`RichNoteEditor`) | Savoir (`NoteComposer`) |
+|---|---|---|
+| Menu « Insérer », croquis, images | ❌ n'existait pas | ✅ |
+| Mentions `@`, écriture d'arêtes | ✅ | ❌ n'existait pas |
+
+`SketchPad` n'est importé que par `NoteComposer` ; `synchroniserMentions`
+n'était appelé que par `NotesView` et `GalerieObjets`. Livrer la carte des deux
+côtés a donc demandé de créer la moitié manquante de chaque côté :
+
+- **Notes** reçoit un **bouton** dans sa barre d'outils — pas une entrée de menu,
+  puisqu'il n'y a pas de menu, et un menu à une seule entrée ferait attendre les
+  autres ;
+- **le Savoir** reçoit `useLiens("knowledge", id)` : le rafraîchissement des
+  titres cités et **l'écriture des arêtes**, qui n'existaient pas du tout.
+
+⚠️ **Ce qui n'est TOUJOURS pas branché** : le sélecteur `@` dans le corps de
+TEXTE du Savoir, et le panneau « Mentionné dans » côté Savoir. La carte n'en a
+pas besoin — elle porte son propre sélecteur — mais une arête Savoir→Savoir
+reste invisible depuis le Savoir. Une arête Savoir→Note, elle, se voit dans la
+note. C'est un chantier à part.
+
+### ⭐ Le sélecteur `@` de la carte est AUTONOME, et c'est ce qui débloque le Savoir
+
+`MentionPicker` est purement présentationnel et `requeteEnCours()` travaille sur
+une **chaîne**. Dans un champ de saisie, `value.slice(0, selectionStart)` suffit :
+`mentionsDom.ts` n'est même pas nécessaire. La carte porte donc son propre
+sélecteur, identique dans les deux éditeurs, sans toucher à `NoteComposer`.
+Les deux règles du chantier C sont reprises telles quelles : **trois mots
+maximum**, et le `@` doit suivre un début de texte ou une espace.
+
+### ⭐⭐ Une carte ne peut PAS détruire une arête de mention — et voici pourquoi
+
+C'était la question de la porte 3, et la réponse tient à une propriété qui
+existait déjà. `synchroniserMentions()` ne fait **pas** un ajout incrémental : il
+calcule `diffMentions(existantes, voulues)` sur **l'ensemble** de ce que le corps
+veut, crée les manquantes, et ne supprime **que** les arêtes d'origine
+`'mention'`.
+
+▶️ **La parade était donc de ne rien inventer** : on a élargi *ce qui compte
+comme arête voulue*. `useLiens` calcule l'**UNION** des jetons `@` du texte et
+des nœuds-références des cartes, en une seule passe sur tout le corps, et la
+passe à l'appel qui existait déjà. Les deux familles sont réconciliées ensemble ;
+il devient **impossible d'exprimer** qu'une carte efface un backlink de `@`.
+Trois tests le gardent (`carte.test.ts`, § porte 3).
+
+⚠️ **Et c'est aussi pour cela que l'origine reste `'mention'`.** La migration 020
+déclare `CHECK (origin IN ('mention','manual'))`. Inventer une origine `'carte'`
+aurait demandé une migration — et une valeur inconnue arrivant d'un autre
+appareil **arrête la synchronisation** (`PIEGES.md` § 3.4).
+
+### Le partage pur / DOM, et ce qu'il achète
+
+`lib/carte.ts` (pur, 57 tests) porte le modèle, l'agencement, le rendu SVG,
+l'historique d'annulation et la navigation au clavier. `lib/carteDom.ts` (non
+testable) ne garde que l'insertion dans un `contenteditable` et la
+rastérisation. C'est le partage `mentions.ts` / `mentionsDom.ts`.
+
+Ce que ça achète concrètement : le **déterminisme** exigé (« la même carte se
+dessine identiquement à chaque ouverture ») devient une assertion de test au lieu
+d'une promesse. Corollaire : la largeur du texte est **estimée par une formule**,
+jamais mesurée par le navigateur — une mesure ferait dépendre les positions de la
+police réellement chargée, donc une carte différente d'une machine à l'autre.
+
+⚠️ **L'historique d'annulation est écrit ici, pas repris de `SketchPad`.** Le ⌘Z
+du croquis retire le dernier trait d'un tableau, sans pile et **sans rétablir** :
+il n'y avait rien à réutiliser. C'est une pile d'ÉTATS et non d'opérations —
+toutes les modifications rendent une carte neuve sans muter l'ancienne, donc un
+état passé ne coûte que quelques kilo-octets et ne peut pas être corrompu.
+
+### Un défaut préexistant corrigé au passage : l'extrait de recherche des notes
+
+`corpusPour` passait `n.body` — du **HTML** — au moteur de classement. L'extrait
+affiché sous un résultat montrait donc du balisage. Le défaut préexistait (une
+image en data URL produisait le même genre d'extrait) ; la carte l'a rendu
+flagrant, puisqu'on lisait le JSON du graphe. Corrigé des deux côtés
+(`repo.ts` et `demo.ts`, même sémantique — § 6.2 quater) : le corpus reçoit
+`plainText(body)`. Effet de bord voulu : une note dont FTS5 n'a matché que le
+balisage n'est plus proposée.
+
+### Une commande Rust neuve : `ecrire_fichier`
+
+L'export doit écrire un fichier choisi dans le dialogue système. Le greffon
+`tauri-plugin-fs` le ferait, mais il exigerait le paquet npm
+`@tauri-apps/plugin-fs` — et **aucune dépendance npm nouvelle** n'est autorisée
+sur ce chantier (décision d'Antonin). Un `<a download>` ne marche pas non plus :
+la webview d'une app Tauri n'a pas de gestionnaire de téléchargement, et le lien
+y est **inerte sans erreur** — ce qui marche en mode démo navigateur ne marche
+donc pas dans l'app installée.
+
+D'où `ecrire_fichier(chemin, contenu_base64)` dans `src-tauri/src/lib.rs`, avec
+son décodeur base64 écrit à la main (30 lignes plutôt qu'une crate compilée de
+plus, 4 tests). **Ce qui la borne** : le chemin ne vient jamais du code, il vient
+du dialogue `save()`, donc d'un geste de l'utilisateur ; la commande refuse en
+plus tout chemin non absolu ou contenant `..`.
+
+### Ce qui n'a PAS été fait, et pourquoi
+
+- **Le portage tactile.** Décision d'Antonin : desktop d'abord. Vérifié seulement
+  que rien ne casse sur un viewport de 375 pt (aucun débordement, l'éditeur
+  s'ouvre et s'affiche). L'ergonomie au doigt est un chantier de design.
+- **Un module « Cartes ».** Le compte reste à treize.
+- **Les liens `[[wiki]]`** des Notes : non touchés, comme au chantier C.
+- **Le site** : hors périmètre.

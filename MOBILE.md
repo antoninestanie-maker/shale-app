@@ -2425,3 +2425,57 @@ numéro local **et** uid. Une écriture différée qui irait chercher l'uid
 les **arêtes de la nouvelle** — exactement le genre de corruption que le § 2 de
 `PIEGES.md` décrit : invisible sur l'appareil où l'on développe, visible sur le
 second, plus tard, sous forme de données fausses et non d'erreur.
+
+## Cartes mentales (2026-09-07) — ce qui tient et ce qui ne tient pas au doigt
+
+Le portage tactile est **explicitement hors périmètre** du chantier (décision
+d'Antonin : desktop d'abord, l'iPhone après qu'il l'ait essayé). Ce qui suit dit
+donc exactement ce qui a été vérifié, et rien de plus.
+
+### Ce qui a été VU — et sur quoi
+
+**Viewport téléphone (375 × 812) dans le navigateur, en mode démo.** Pas sur le
+simulateur, pas sur l'iPhone réel.
+
+| Point | État |
+|---|---|
+| L'éditeur s'ouvre en plein écran | ✅ vu |
+| Débordement horizontal | ✅ **aucun** (`scrollWidth === innerWidth`) |
+| La scène occupe la place restante | ✅ 309 × 596 pt |
+| La barre d'outils passe à la ligne proprement | ✅ après correction — voir ci-dessous |
+| Le pied d'aide se replie sur trois lignes | ✅ vu |
+| `cargo check --target aarch64-apple-ios` et `-ios-sim` | ✅ verts |
+
+⚠️ **Un défaut trouvé et corrigé sur ce viewport** : le titre de l'éditeur était
+rogné jusqu'à **une seule lettre** (« M. » pour « Mind map »). Le `flex-1
+truncate` le laissait se réduire sans plancher. Un `basis-40` lui fait prendre sa
+propre ligne au lieu de disparaître.
+
+### Ce qui n'a PAS été vérifié, et qu'il ne faut pas lire comme conforme
+
+- **Le simulateur iOS.** Rien n'y a été ouvert pour ce chantier. Seule la
+  compilation croisée est prouvée.
+- **L'iPhone réel.** Comme toujours dans ce dépôt : jamais.
+- **Le geste au doigt.** Le glisser-déposer d'un nœud exige un **appui long de
+  400 ms** avant de s'armer, et s'annule si le doigt bouge avant l'échéance —
+  c'est la parade du § 7.4 ter de `PIEGES.md` (au doigt, glisser et défiler sont
+  le même geste), **écrite mais jamais éprouvée à la main.**
+- **Le sélecteur `@` sous le clavier logiciel.** Il réutilise `MentionPicker`,
+  qui mesure déjà `visualViewport` et se replie vers le haut (§ 7.4 bis) — donc
+  la parade est là, héritée. Mais le clavier logiciel n'est pas pilotable avec
+  l'outillage actuel : **ce n'est pas mesuré**.
+- **Le zoom au pointeur.** Il est branché sur `⌘molette`. Au doigt, **il n'y a
+  pas de pincement** : c'est le premier manque à combler pour un usage tactile
+  sérieux, et il est connu.
+
+### Ce qui reste dû, si Antonin veut la carte au doigt
+
+1. Le **pincement à deux doigts** pour zoomer (aujourd'hui : rien).
+2. Un moyen d'**ajouter un nœud sans clavier** — Entrée et Tab n'existent pas
+   sur un clavier logiciel réduit. Un bouton flottant « + frère / + enfant » est
+   la piste la plus simple.
+3. Éprouver l'**appui long** à la main : 400 ms est une valeur choisie par
+   analogie avec le calendrier, pas mesurée sur ce geste-ci.
+
+C'est du **design**, pas du portage — exactement ce que le chantier D avait
+établi le 2026-09-02.

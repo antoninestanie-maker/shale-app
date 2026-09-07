@@ -217,3 +217,39 @@ Antonin), et une fin de série (« se répète jusqu'au … »), qui n'existe pa
 ⚠️ **Aucune capture d'écran du site ne montre le calendrier à ce jour.** Si
 Antonin en ajoute, prendre le module APRÈS le rebuild natif : celui installé sur
 sa machine ne connaît pas encore ce chantier.
+
+---
+
+## Chantier « cartes mentales » (2026-09-07)
+
+**Une seule entrée, et elle est petite** — mais elle existe, ce qui n'était pas
+acquis : la carte est un bloc DANS une note, pas un module. Le compte de modules
+reste à **treize**, donc rien à corriger de ce côté.
+
+### G.1 ⚠️ L'app sait faire des cartes mentales, le site ne le dit nulle part
+
+**Ce qui a changé dans l'app.** Les Notes ET le Savoir peuvent contenir une carte
+mentale éditable au clavier, hors connexion, exportable en PNG et en SVG, dont
+les nœuds peuvent citer n'importe quel objet de l'app (note, fiche, tâche,
+objectif, événement, personne, ressource, projet, setup de trading) — et une
+citation crée un vrai backlink.
+
+**Où ça va, côté site.** La page qui décrit les Notes et le Savoir
+(`shale-site/`, section fonctionnalités). **La table de correspondance app→site
+est dans `CLAUDE.md`**, section « Règle : l'app et le site ne divergent jamais ».
+
+**Ce qu'il doit dire — et surtout ce qu'il ne doit PAS dire :**
+
+- ✅ « une carte mentale se construit entièrement au clavier, dans une note » ;
+- ✅ « ses nœuds citent tes autres objets, et la fiche citée sait qu'on parle
+  d'elle » ;
+- ✅ « elle s'exporte en PNG et en SVG » ;
+- ✅ « tout fonctionne hors connexion » — c'est vérifié, réseau coupé, pas déduit ;
+- ❌ **ne pas écrire « nouveau module »** : ce n'en est pas un ;
+- ❌ **ne pas promettre l'usage au doigt** : le portage tactile n'est pas fait
+  (voir `MOBILE.md`). Sur iPhone la carte s'ouvre et s'affiche, elle ne se
+  construit pas confortablement au doigt.
+
+**Priorité : basse.** Antonin mène sa refonte visuelle ; cette entrée attend
+qu'elle soit finie. Elle ne contredit rien de ce que le site affirme
+aujourd'hui — elle ajoute quelque chose qu'il ignore.

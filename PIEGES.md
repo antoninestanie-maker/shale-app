@@ -1037,3 +1037,198 @@ chaque côté laissent 82 px de contenu.
 défilant une hauteur qui est exactement un multiple du cran.
 
 **Comment on l'a payée.** Roulette d'heure, 2026-09-06.
+
+---
+
+# 9. React, le DOM, et les fermetures — chantier « cartes mentales » (2026-09-07)
+
+> **Ce chapitre a été ouvert le 2026-09-07.** Les six entrées ci-dessous ont
+> toutes été trouvées **à l'écran**, en une seule soirée, sur un chantier dont
+> les 57 tests unitaires étaient au vert du premier coup. C'est le § 7.1 dans sa
+> forme la plus brutale : **le modèle était juste, et rien de ce qui suit ne
+> pouvait être attrapé par un test de ce dépôt.**
+
+## 9.1 ⭐⭐ Un `useCallback([])` dans un éditeur RENOMME la note
+
+**Symptôme.** On insère une carte mentale dans une note. Le corps est
+parfaitement enregistré — et **le titre de la note devient « Sans titre »**.
+La note « Idées de reels » disparaît de la liste, remplacée par une « Sans
+titre » qui contient exactement son contenu. Aucune erreur, aucune alerte.
+
+**Cause.** L'enregistrement de la carte était mémoïsé avec des dépendances
+**vides** :
+
+```ts
+const enregistrerCarte = useCallback((c) => { …; emit(); }, []);
+```
+
+Elle capturait donc le `emit` du **premier** rendu, donc le `onChange` du premier
+rendu de `NotesView`, donc son état `title` — qui vaut `""` tant que l'effet de
+chargement ne l'a pas rempli. `NotesView.flush()` fait
+`updateNote(id, titre.trim() || "Sans titre", corps)` : le titre vide devient un
+titre par défaut, et le vrai titre est détruit.
+
+**Parade.** **Ne mémoïser AUCUNE fonction qui écrit dans le document.** Le coût
+d'une fonction recréée à chaque rendu est nul ; le coût d'une fermeture périmée
+est une perte de données. Quand la mémoïsation est indispensable, l'appelant
+range la fonction fraîche dans une `ref` à chaque rendu
+(`enregistrerRef.current = onEnregistrer`), et c'est la ref qu'on lit.
+
+⚠️ **C'est le § 6.5 transposé aux fermetures** : *une fonction ne doit jamais
+lire une valeur qui n'est pas dans ses dépendances*. Là c'était un effet, ici
+c'est un `useCallback` — le mode d'échec est identique, et la perte aussi.
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07. Vu à l'écran en
+vérifiant tout autre chose (le backlink pointait vers « Sans titre » au lieu de
+la note d'origine, et c'est CE détail qui a mis sur la piste).
+
+## 9.2 ⭐⭐ `outerHTML` sur un élément de premier niveau d'un `<template>` LÈVE
+
+**Symptôme.** Un nœud-référence continue d'afficher l'ANCIEN titre de sa cible
+après un renommage. Le lien, lui, est intact. Aucune erreur en console, aucun
+message : la fonctionnalité est simplement inerte.
+
+**Cause.** Le rafraîchissement des titres travaille sur un `<template>` détaché
+et remplaçait chaque bloc par `figure.outerHTML = …`. Or un bloc de carte est
+toujours un enfant de **premier niveau** du corps : dans un `<template>`, son
+parent est donc le `DocumentFragment`, pas un élément. Chrome lève alors
+
+```
+NoModificationAllowedError: Failed to set the 'outerHTML' property on 'Element':
+This element's parent is of type '#document-fragment', which is not an element node.
+```
+
+L'exception remontait dans la promesse qui produit le corps « frais ». La
+promesse était **rejetée**, le `.then()` ne partait jamais, et le corps
+rafraîchi n'arrivait pas — sans que rien ne le dise.
+
+**Parade.** `replaceWith()`, jamais `outerHTML`, dès qu'on manipule un
+`<template>` ou un fragment : `replaceWith` travaille sur le parent **NŒUD**, pas
+sur le parent **ÉLÉMENT**, et fonctionne partout.
+
+```js
+const neuf = document.createElement("template");
+neuf.innerHTML = htmlDeRemplacement;
+element.replaceWith(...Array.from(neuf.content.childNodes));
+```
+
+⚠️ **Et la vraie leçon est ailleurs** : une transformation de contenu ne doit
+jamais pouvoir empêcher l'affichage. Le rafraîchissement est désormais dans un
+`try/catch` qui journalise et rend le contenu inchangé — **un titre périmé se
+voit, un corps absent ne se diagnostique pas.**
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07. Une demi-heure de fausses
+pistes (regex, échappement, ordre des attributs) avant de tester la ligne
+elle-même dans la console.
+
+## 9.3 ⭐ Un `setTimeout(0)` après un `setState` ne garantit PAS que le DOM existe
+
+**Symptôme.** Un champ de saisie s'ouvre bien à l'écran, mais
+`document.activeElement` reste `BODY` : tout ce qu'on tape tombe à côté.
+
+**Cause.** Le focus était posé dans `window.setTimeout(() => champ.current?.focus(), 0)`
+juste après `setEdition(id)`. Rien ne promet que React ait **commité** le rendu
+quand la minuterie se déclenche — `champ.current` peut encore être nul, et
+`focus()` sur `undefined` ne fait rien, silencieusement.
+
+**Parade.** Un **effet** (`useEffect(..., [edition])`), qui s'exécute par
+construction APRÈS le commit.
+
+⚠️ **C'est le § 6.2 bis pris par l'autre bout** : là il fallait NE PAS attendre
+l'effet (un geste rapide se termine avant), ici il faut l'attendre (le DOM
+n'existe pas avant). La question à se poser n'est jamais « effet ou pas », c'est
+**« qu'est-ce qui doit exister au moment où ce code tourne ? »**
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07.
+
+## 9.4 ⭐ Un `position: fixed` porté sur `document.body` passe SOUS un voile plus haut
+
+**Symptôme.** Le sélecteur `@` s'ouvre, il contient les bons résultats, il est
+positionné au bon endroit — **et on ne le voit pas**.
+
+**Cause.** Il était porté sur `document.body` (`createPortal`) pour échapper au
+`transform` de la scène. Il devenait donc un **frère** du voile plein écran de
+l'éditeur. Le sélecteur est en `z-50`, le voile en `z-[75]` : à égalité de
+parent, c'est le `z-index` qui tranche, et le sélecteur se peignait dessous.
+
+**Parade.** Le rendre **DANS le calque** qui doit le couvrir, pas sur `body` —
+à condition que ce calque n'ait pas de `transform` (celui-ci est un
+`fixed inset-0`, donc son repère coïncide avec la fenêtre).
+
+⚠️ **Les deux pièges sont opposés et il faut choisir en connaissance de cause** :
+porter sur `body` échappe au `transform` d'un ancêtre mais fait perdre la
+superposition ; rester dans le calque garde la superposition mais expose au
+`transform`. **Regarder ce que l'ancêtre porte avant de trancher.**
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07, vu à l'écran — et
+diagnostiqué seulement après avoir vérifié en console que l'élément EXISTAIT
+avec les bonnes coordonnées.
+
+## 9.5 ⚠️ Le voile d'un plein écran s'arrête au bord du panneau qui le contient
+
+**Symptôme.** Un éditeur « plein écran » ouvert depuis une note couvre la zone
+de la note et **laisse la barre latérale allumée** à côté.
+
+**Cause.** Encore le `transform` : un ancêtre animé (`animate-fade-up`) devient
+le bloc conteneur de ses descendants `position: fixed`. `inset-0` ne veut alors
+plus dire « la fenêtre », mais « cet ancêtre ».
+
+**Parade.** `createPortal(…, document.body)`, comme le fait déjà `NoteComposer`
+pour sa bulle de mise en forme et sa feuille de croquis.
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07. ⚠️ **Et c'est la
+troisième fois que ce dépôt paie ce piège** — il est écrit dans `CLAUDE.md`
+depuis le 2026-07-21, avec le mot « portail obligatoire ». Le lire ne suffit
+pas : le réflexe, en écrivant un composant plein écran, est de le rendre là où
+on est. **Le geste qui l'attrape : ouvrir le composant et regarder si la barre
+latérale est couverte.** Deux secondes.
+
+## 9.6 ⚠️ Le panneau navigateur envoie « Entrée » avec un `key` VIDE
+
+**Symptôme.** Un raccourci sur `Entrée` ne se déclenche jamais depuis
+l'outillage, alors que le même code marche pour `Tab` et `Échap`. On croit à un
+défaut du code et on le « corrige » — trois fois de suite.
+
+**Cause.** Mesuré avec une sonde `keydown` : l'action `key: "Return"` du panneau
+produit un événement dont `key` et `code` valent **la chaîne vide**. `Tab` rend
+bien `key: "Tab"`. Aucun test `e.key === "Enter"` ne peut donc réussir.
+
+**Parade.** Injecter un VRAI événement pour cette touche-là :
+
+```js
+document.activeElement.dispatchEvent(
+  new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+);
+```
+
+Et, avant de conclure qu'un raccourci est cassé, **poser une sonde et lire ce
+qui arrive vraiment** :
+
+```js
+window.addEventListener("keydown", (e) => console.log(e.key, e.code));
+```
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07 : trois diagnostics
+successifs sur un code qui était juste.
+
+## 9.7 ⚠️ Un `cd X && …` ne fait RIEN quand on est déjà dans X
+
+**Symptôme.** Trois contrôles de suite affichent « tout va bien ». Aucun n'a
+tourné.
+
+**Cause.** `cd src-tauri && cp … && python …` lancé depuis un shell dont le
+répertoire courant EST déjà `src-tauri`. Le `cd` échoue (« no such file or
+directory »), et le `&&` fait sauter toute la suite. Le message d'erreur est une
+seule ligne, noyée au milieu d'une sortie longue — et la commande **suivante**,
+séparée par un retour à la ligne, s'exécute normalement et rend « ok ».
+
+**Parade.** Chemins **absolus**, ou `cd` sur une ligne séparée dont on lit le
+résultat. Et le geste général du chapitre 7 : **faire échouer le contrôle exprès
+une fois.** Ici, casser le décodeur base64 volontairement a montré du premier
+coup que les tests avaient des dents — et que la contre-épreuve précédente, elle,
+n'avait jamais tourné.
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07. Deux contre-épreuves et
+une ligne de base Rust complète, toutes trois fantômes. **C'est le quatrième
+exemplaire de « un contrôle qui ne peut pas échouer ne contrôle rien » dans ce
+carnet** (§ 7, § 7.5 bis, § 7.5 quater, et celui-ci).
