@@ -2479,3 +2479,57 @@ propre ligne au lieu de disparaître.
 
 C'est du **design**, pas du portage — exactement ce que le chantier D avait
 établi le 2026-09-02.
+
+## ⚠️ Le simulateur retient des données qui ne sont jamais arrivées (constat du 2026-09-07)
+
+**Mesuré**, en comparant les deux bases ligne à ligne par `uid` — la vraie base
+d'Antonin et celle du simulateur iPhone 17 :
+
+| | Mac | Simulateur |
+|---|---|---|
+| Notes | 13 | 14 |
+| En commun | **12** | |
+| Sur le simulateur SEULEMENT | | **2** |
+| Sur le Mac seulement | **1** | |
+| Tâches, objectifs, journal, savoir, calendrier, trades, habitudes | **aucune divergence** | |
+
+**Les deux notes bloquées sur le simulateur :**
+
+| Créée le | Titre | Corps |
+|---|---|---|
+| 2026-09-03 02:23 | « Nouvelle note » | **« Mindmap dans notes »** |
+| 2026-09-02 | « Nouvelle note » | *(vide)* |
+
+⭐ **La première est l'idée du chantier des cartes mentales, écrite sur le
+téléphone, et elle n'est jamais arrivée sur le Mac.** Son contenu est reproduit
+ci-dessus : rien n'est perdu, mais rien n'est revenu non plus.
+
+### Pourquoi — et ce n'est pas un défaut de la synchronisation
+
+`sync_meta` le dit sans ambiguïté :
+
+| | Mac | Simulateur |
+|---|---|---|
+| `cursor` | 517 | **39** |
+| `last_push_at` | 2026-09-06T16:54 | **2026-09-02T19:50** |
+| `last_pull_at` | 2026-09-06T16:54 | **2026-09-03T00:45** |
+
+La note a été écrite le 2026-09-03 à **02:23**, soit après le dernier `pull` du
+simulateur (00:45) et bien après son dernier `push` (la veille, 19:50). **Le
+simulateur n'a plus synchronisé depuis.** C'est la conséquence directe du § 5.1
+de `PASSATION.md` : une réinstallation lui fait perdre l'accès au trousseau,
+donc son `refresh_token` — et une session Claude ne peut pas se reconnecter.
+
+⚠️ **Ce que ce constat ajoute au § 5.1**, qui ne le disait pas : la session
+perdue ne se contente pas d'empêcher de tester. **Tout ce qui est écrit sur le
+simulateur ensuite y reste prisonnier**, sans le moindre signe — l'app affiche
+« sync en attente » et l'outbox est à zéro, ce qui a l'air normal.
+
+▶️ **La parade, et elle demande un geste d'Antonin** : se reconnecter une fois
+sur le simulateur. Tant que ce n'est pas fait, **ne jamais rien saisir de réel
+sur le simulateur** — ce serait perdu à la première réinstallation, puisque
+`simctl install` préserve la base mais pas la session.
+
+⚠️ **Et donc : ne PAS effacer le simulateur** tant que ces deux notes y sont, ni
+`simctl erase`, ni `simctl uninstall` — c'était déjà la règle du § 17.4, elle a
+maintenant une raison concrète et datée.

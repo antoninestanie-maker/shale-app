@@ -1268,3 +1268,37 @@ rien »** dans ce carnet, et le deuxième de la même soirée. Les cinq autres :
 § 7 (les trois du 2026-09-06), § 9.7 (le `cd` qui saute), et le code de sortie
 d'une tâche de fond, qui est celui de la DERNIÈRE commande — un `build ; tail`
 rapporte le succès de `tail`.
+
+## 9.9 ⚠️ Un `tauri ios build` lancé en tâche de fond se BLOQUE sur sa propre sortie
+
+**Symptôme.** La compilation avance normalement pendant quelques minutes, puis
+s'arrête net — sans erreur, sans message. `cargo` et `xcodebuild` sont toujours
+là mais à **0 % de CPU**, et le fichier de log n'a plus bougé depuis des heures.
+On croit à une compilation longue.
+
+**Cause.** `tauri ios build` fait passer la sortie de `cargo` par `xcodebuild`,
+qui la fait passer par le processus `tauri`, qui la fait passer par le shell.
+Quand personne ne vide plus le tuyau à l'autre bout — un shell de tâche de fond
+dont le lecteur s'est détaché — le tampon se remplit, et l'écrivain **bloque**.
+Le processus n'est pas mort, il attend qu'on le lise, et il attendra
+indéfiniment.
+
+**Parade.** Guetter l'ARTEFACT et pas le processus (§ 1.2 bis) — mais surtout
+**vérifier la CONSOMMATION CPU avant de conclure qu'une compilation est longue** :
+
+```bash
+ps -p <PID> -o %cpu=,command=
+stat -f '%Sm' -t '%H:%M:%S' <le fichier de log>   # a-t-il encore bougé ?
+```
+
+Un `cargo` à 0 % qui n'écrit plus depuis dix minutes n'est pas en train de
+compiler. Et pour relancer : rediriger vers un fichier **sans consommateur
+intermédiaire**, et détacher proprement l'entrée (`</dev/null`).
+
+⚠️ Avant de tuer quoi que ce soit : lire la ligne de commande ET remonter au
+parent (§ 8.2 bis). Ici les trois PID à arrêter étaient bien `cargo`,
+`xcodebuild` et le `node .../tauri ios build` qui les chapeautait — trois
+processus nommés, jamais un `pkill` par motif.
+
+**Comment on l'a payée.** Checkup du 2026-09-07 : environ quatre heures perdues
+à croire qu'une compilation iOS était simplement longue.
