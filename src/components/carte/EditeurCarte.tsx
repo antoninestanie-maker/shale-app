@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   agencer,
   ajouterEnfant,
@@ -7,6 +7,7 @@ import {
   appliquer,
   basculerPli,
   deplacer,
+  enfantsDe,
   historiqueDe,
   noeudDe,
   poserReference,
@@ -26,7 +27,22 @@ import { zoomFactor } from "../../lib/uiConfig";
 import type { Trouvaille } from "../../lib/recherche";
 import type { LinkKind } from "../../lib/types";
 import MentionPicker from "../liens/MentionPicker";
-import { IconCheck, IconExpand, IconExternal, IconReset, IconSave, IconTrash, IconX } from "../icons";
+import {
+  IconArobase,
+  IconCheck,
+  IconExpand,
+  IconExternal,
+  IconNoeudEnfant,
+  IconNoeudFrere,
+  IconPencil,
+  IconPlier,
+  IconReset,
+  IconSave,
+  IconTrash,
+  IconX,
+  IconZoomMoins,
+  IconZoomPlus,
+} from "../icons";
 import { t } from "../../lib/i18n";
 import { kbd } from "../../lib/platform";
 
@@ -74,6 +90,53 @@ const ZOOM_MAX = 3;
 const APPUI_LONG_MS = 400;
 /** Sous ce déplacement, on considère qu'on a cliqué, pas glissé. */
 const SEUIL_GLISSE = 5;
+/** Un cran de zoom au bouton — la molette, elle, est continue. */
+const PAS_ZOOM = 1.25;
+
+const OUTIL =
+  "pill flex h-8 items-center gap-1.5 px-3 text-xs font-medium text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30";
+
+/**
+ * Un bouton de la barre d'outils : une icône, un mot, et une bulle qui explique.
+ *
+ * ⚠️ L'INFO-BULLE EST PORTÉE PAR LE `<span>`, jamais par le bouton. Un bouton
+ * `disabled` ne reçoit aucun événement de survol (piège consigné dans
+ * `CLAUDE.md`, section « Hover Hints ») : la bulle disparaîtrait exactement
+ * quand elle sert le plus, c'est-à-dire pour dire POURQUOI c'est grisé.
+ */
+function Outil({
+  libelle,
+  aide,
+  raccourci,
+  onClick,
+  disabled,
+  iconeSeule,
+  children,
+}: {
+  libelle: string;
+  aide: string;
+  raccourci?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** Le zoom seulement : deux loupes se lisent sans légende, et la place manque. */
+  iconeSeule?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span className="inline-flex" data-tip={libelle} data-tip-sub={aide} data-tip-kbd={raccourci}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={iconeSeule ? libelle : undefined}
+        className={iconeSeule ? `${OUTIL} px-2` : OUTIL}
+      >
+        {children}
+        {!iconeSeule && libelle}
+      </button>
+    </span>
+  );
+}
 
 export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFermer, onOuvrirRef }: Props) {
   const ouvrirCible = (kind: LinkKind, uid: string) => {
@@ -223,12 +286,32 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
    */
   /** Faut-il sélectionner tout le texte à l'ouverture ? Lu par l'effet de focus. */
   const selectionnerALOuverture = useRef(false);
+  /**
+   * Faut-il ouvrir le sélecteur `@` dès que le champ existe ?
+   *
+   * ⚠️ C'est le bouton « Citer un objet » de la barre d'outils qui le pose. Il
+   * ne peut PAS lancer la recherche lui-même : `verifierMention` a besoin du
+   * rectangle du champ pour placer le sélecteur, et le champ n'est monté qu'au
+   * rendu suivant. Même leçon que le focus, juste en dessous.
+   */
+  const chercherALOuverture = useRef(false);
+
+  /**
+   * ⚠️ Un COMPTEUR d'ouvertures, en plus de l'identifiant édité.
+   *
+   * Rouvrir le nœud DÉJÀ en édition (le bouton « Renommer », le bouton
+   * « Citer un objet », F2) ne change pas `edition` : l'effet de focus ne
+   * repartirait pas, et le geste ne ferait visiblement rien. Le compteur, lui,
+   * bouge à chaque fois.
+   */
+  const [ouverture, setOuverture] = useState(0);
 
   const ouvrirEdition = useCallback(
     (id: string, texte: string, selectionner: boolean) => {
       selectionnerALOuverture.current = selectionner;
       setEdition(id);
       setBrouillon(texte);
+      setOuverture((n) => n + 1);
       fermerMention();
     },
     [fermerMention],
@@ -258,8 +341,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
     el.focus();
     if (selectionnerALOuverture.current) el.select();
     else el.setSelectionRange(el.value.length, el.value.length);
+    if (chercherALOuverture.current) {
+      chercherALOuverture.current = false;
+      void verifierMention(el.value, el.value.length);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edition]);
+  }, [edition, ouverture]);
 
   const validerEdition = useCallback(
     (id: string, texte: string): Carte => {
@@ -337,12 +424,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
       const n = noeudDe(courante, selection);
       if (!n) return;
 
+      // ⭐ ENTRÉE N'AJOUTE PLUS DE FRÈRE — décision d'Antonin, 2026-09-07.
+      // Hors édition il n'y a rien à valider : Entrée ouvre donc le nœud, ce
+      // qui est l'autre moitié du même geste (on entre, on tape, on valide par
+      // Entrée). ⌘Entrée, lui, crée le voisin.
       if (e.key === "Enter") {
         e.preventDefault();
-        const { carte: suivante, neuf } = ajouterFrere(courante, selection);
-        setHistoire((h) => appliquer(h, suivante));
-        setSelection(neuf);
-        ouvrirEdition(neuf, "", false);
+        if (meta) {
+          const { carte: suivante, neuf } = ajouterFrere(courante, selection);
+          setHistoire((h) => appliquer(h, suivante));
+          setSelection(neuf);
+          ouvrirEdition(neuf, "", false);
+        } else if (!n.ref) {
+          ouvrirEdition(selection, n.texte, true);
+        }
         return;
       }
       if (e.key === "Tab") {
@@ -415,6 +510,26 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
   useEffect(() => {
     toutVoir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Le zoom à la souris seule — pour qui n'a ni molette ni trackpad sous la
+   * main, et pour qui ne sait pas que ⌘molette existe.
+   *
+   * ⚠️ Il se recale sur le CENTRE de la scène, exactement comme la molette se
+   * recale sous le pointeur : sans ce calcul, chaque clic ferait fuir la carte
+   * vers le coin haut-gauche, et deux crans suffiraient à la perdre de vue.
+   */
+  const zoomer = useCallback((facteur: number) => {
+    const boite = scene.current?.getBoundingClientRect();
+    if (!boite) return;
+    const px = boite.width / 2;
+    const py = boite.height / 2;
+    setVue((v) => {
+      const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.z * facteur));
+      const k = z / v.z;
+      return { x: px - (px - v.x) * k, y: py - (py - v.y) * k, z };
+    });
   }, []);
 
   const surMolette = (e: React.WheelEvent) => {
@@ -525,6 +640,49 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
     window.addEventListener("pointercancel", fini);
   };
 
+  // ─── Les gestes de la barre d'outils ───────────────────────────────────────
+  //
+  // ⭐ ILS PASSENT PAR LES MÊMES FONCTIONS QUE LE CLAVIER, sans exception. Une
+  // barre d'outils qui emprunterait un autre chemin finirait par diverger des
+  // raccourcis, et l'un des deux deviendrait faux sans que rien ne le dise.
+  //
+  // ⚠️ Un clic sur un de ces boutons fait d'abord perdre le focus au champ
+  // d'édition, donc `fermerEdition(true)` s'exécute AVANT le `onClick` : ce que
+  // l'utilisateur venait de taper est déjà enregistré quand on arrive ici. Le
+  // `edition ? validerEdition(...)` reste là comme filet, au cas où un jour un
+  // chemin n'y passerait pas.
+
+  const creer = (comment: "enfant" | "frere") => {
+    const base = edition ? validerEdition(edition, brouillon) : courante;
+    const r = comment === "enfant" ? ajouterEnfant(base, selection) : ajouterFrere(base, selection);
+    setHistoire((h) => appliquer(h, r.carte));
+    setSelection(r.neuf);
+    setEdition(null);
+    ouvrirEdition(r.neuf, "", false);
+  };
+
+  const modifierTexte = () => {
+    const n = noeudDe(courante, selection);
+    if (!n || n.ref) return;
+    ouvrirEdition(selection, n.texte, true);
+  };
+
+  /** Transforme le nœud en citation : on ouvre le champ SUR un « @ » déjà tapé. */
+  const citer = () => {
+    if (!noeudDe(courante, selection)) return;
+    chercherALOuverture.current = true;
+    ouvrirEdition(selection, "@", false);
+  };
+
+  const supprimer = () => {
+    const n = noeudDe(courante, selection);
+    if (!n || n.parent === null) return; // la racine ne se supprime pas
+    const parent = n.parent;
+    setEdition(null);
+    modifier((c) => supprimerNoeud(c, selection));
+    setSelection(parent);
+  };
+
   // ─── L'export ──────────────────────────────────────────────────────────────
 
   const nomFichier = (ext: string) =>
@@ -546,8 +704,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
 
   const boiteEnEdition = edition ? agencement.boites.get(edition) : null;
   const noeudSel = noeudDe(courante, selection);
-  const outil =
-    "pill flex h-8 items-center gap-1.5 px-3 text-xs font-medium text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30";
+  const estRacine = !noeudSel || noeudSel.parent === null;
+  const aDesEnfants = !!noeudSel && enfantsDe(courante, selection).length > 0;
+  const outil = OUTIL;
 
   return (
     <div className="fixed inset-0 z-[75] flex flex-col bg-black/60 p-4 backdrop-blur-sm sm:p-6">
@@ -583,9 +742,6 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             <IconReset className="h-3.5 w-3.5" />
           </button>
           <span className="mx-0.5 h-5 w-px bg-border" />
-          <button type="button" onClick={toutVoir} data-tip={t("Tout voir")} className={outil}>
-            <IconExpand className="h-3.5 w-3.5" /> {t("Tout voir")}
-          </button>
           <button
             type="button"
             onClick={() => void exporter("png")}
@@ -624,6 +780,124 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           </button>
         </div>
 
+        {/*
+          La barre d'outils — la carte se construit ENTIÈREMENT à la souris.
+
+          ⭐ Chaque bouton porte une icône ET un mot : c'est la demande
+          d'Antonin (2026-09-07), « pour quelqu'un qui ne s'en est jamais
+          servi ». Une icône seule se devine ; une icône plus un mot se lit.
+          L'info-bulle ajoute la phrase complète et le raccourci — c'est ainsi
+          qu'on apprend le clavier en se servant de la souris, plutôt qu'en
+          lisant un pied de page.
+
+          ⚠️ Trois groupes séparés par des filets : CRÉER, le nœud choisi, la
+          vue. Sans cette séparation, dix boutons alignés se lisent comme une
+          liste indifférenciée où l'on cherche à chaque fois.
+        */}
+        <div className="mt-3 flex shrink-0 flex-wrap items-center gap-1 rounded-[var(--radius-field)] border border-border bg-surface-2 px-1.5 py-1">
+          <Outil
+            libelle={t("Sous-nœud")}
+            aide={t("Une idée qui découle de celle sélectionnée.")}
+            raccourci="Tab"
+            onClick={() => creer("enfant")}
+          >
+            <IconNoeudEnfant className="h-3.5 w-3.5" />
+          </Outil>
+          <Outil
+            libelle={t("Nœud voisin")}
+            aide={
+              estRacine
+                ? t("Le nœud central n'a pas de voisin : tout part de lui.")
+                : t("Une idée au même niveau, juste en dessous.")
+            }
+            raccourci={kbd("⌘↵")}
+            disabled={estRacine}
+            onClick={() => creer("frere")}
+          >
+            <IconNoeudFrere className="h-3.5 w-3.5" />
+          </Outil>
+
+          <span className="mx-1 h-5 w-px bg-border" />
+
+          <Outil
+            libelle={t("Renommer")}
+            aide={
+              noeudSel?.ref
+                ? t("Un nœud lié porte le titre de sa cible : il se renomme là-bas.")
+                : t("Réécrire le texte du nœud sélectionné.")
+            }
+            raccourci={t("Entrée")}
+            disabled={!noeudSel || !!noeudSel.ref}
+            onClick={modifierTexte}
+          >
+            <IconPencil className="h-3.5 w-3.5" />
+          </Outil>
+          <Outil
+            libelle={t("Citer un objet")}
+            aide={t("Remplace le nœud par un lien vers une note, une tâche, une fiche…")}
+            raccourci="@"
+            disabled={!noeudSel}
+            onClick={citer}
+          >
+            <IconArobase className="h-3.5 w-3.5" />
+          </Outil>
+          <Outil
+            libelle={noeudSel?.plie ? t("Déplier") : t("Replier")}
+            aide={
+              aDesEnfants
+                ? t("Cacher ou remontrer ce qui pend sous ce nœud.")
+                : t("Ce nœud n'a rien en dessous à cacher.")
+            }
+            raccourci={t("Espace")}
+            disabled={!aDesEnfants}
+            onClick={() => modifier((c) => basculerPli(c, selection))}
+          >
+            <IconPlier className="h-3.5 w-3.5" />
+          </Outil>
+          <Outil
+            libelle={t("Supprimer")}
+            aide={
+              estRacine
+                ? t("Le nœud central ne se supprime pas : c'est la carte elle-même.")
+                : t("Retire ce nœud et tout ce qui pend dessous.")
+            }
+            raccourci="⌫"
+            disabled={estRacine}
+            onClick={supprimer}
+          >
+            <IconTrash className="h-3.5 w-3.5" />
+          </Outil>
+
+          <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
+
+          <div className="ml-auto flex items-center gap-1">
+            <Outil
+              libelle={t("Zoom arrière")}
+              aide={t("Voir de plus loin.")}
+              iconeSeule
+              disabled={vue.z <= ZOOM_MIN + 0.001}
+              onClick={() => zoomer(1 / PAS_ZOOM)}
+            >
+              <IconZoomMoins className="h-3.5 w-3.5" />
+            </Outil>
+            <span className="w-11 text-center text-[11px] tabular-nums text-text-dim">
+              {Math.round(vue.z * 100)} %
+            </span>
+            <Outil
+              libelle={t("Zoom avant")}
+              aide={t("Voir de plus près.")}
+              iconeSeule
+              disabled={vue.z >= ZOOM_MAX - 0.001}
+              onClick={() => zoomer(PAS_ZOOM)}
+            >
+              <IconZoomPlus className="h-3.5 w-3.5" />
+            </Outil>
+            <Outil libelle={t("Tout voir")} aide={t("Recadrer la carte entière dans la fenêtre.")} onClick={toutVoir}>
+              <IconExpand className="h-3.5 w-3.5" />
+            </Outil>
+          </div>
+        </div>
+
         {/* La scène */}
         <div
           ref={scene}
@@ -634,7 +908,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             const id = cible?.dataset.noeud;
             if (id) ouvrirEdition(id, noeudDe(courante, id)?.texte ?? "", true);
           }}
-          className="carte-scene relative mt-3 min-h-0 flex-1 overflow-hidden rounded-[var(--radius-field)] border border-border bg-surface-2 touch-none"
+          className="carte-scene relative mt-2 min-h-0 flex-1 overflow-hidden rounded-[var(--radius-field)] border border-border bg-surface-2 touch-none"
         >
           <div
             style={{
@@ -682,7 +956,19 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
                       return;
                     }
                   }
-                  if (e.key === "Enter" || e.key === "Tab") {
+                  // ⭐ ENTRÉE VALIDE, ET RIEN D'AUTRE (2026-09-07). Elle
+                  // enregistre le texte et referme le champ, en laissant la
+                  // sélection sur le nœud qu'on vient d'écrire. Créer un voisin
+                  // dans la foulée est devenu ⌘Entrée — un geste distinct pour
+                  // un effet distinct.
+                  if (e.key === "Enter" && !(e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    const id = edition;
+                    fermerEdition(true);
+                    setSelection(id);
+                    return;
+                  }
+                  if (e.key === "Tab" || e.key === "Enter") {
                     e.preventDefault();
                     const id = edition;
                     const base = validerEdition(id, brouillon);
@@ -731,10 +1017,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
         {/* Le pied d'aide : les raccourcis ne servent que si on les connaît. */}
         <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
           <span>
-            <b className="text-text">{t("Entrée")}</b> {t("frère")}
+            <b className="text-text">{t("Entrée")}</b> {t("valider")}
           </span>
           <span>
-            <b className="text-text">Tab</b> {t("enfant")}
+            <b className="text-text">Tab</b> {t("sous-nœud")}
+          </span>
+          <span>
+            <b className="text-text">{kbd("⌘↵")}</b> {t("voisin")}
           </span>
           <span>
             <b className="text-text">{t("Flèches")}</b> {t("se déplacer")}

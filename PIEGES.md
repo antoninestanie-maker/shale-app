@@ -1193,7 +1193,14 @@ défaut du code et on le « corrige » — trois fois de suite.
 produit un événement dont `key` et `code` valent **la chaîne vide**. `Tab` rend
 bien `key: "Tab"`. Aucun test `e.key === "Enter"` ne peut donc réussir.
 
-**Parade.** Injecter un VRAI événement pour cette touche-là :
+**Parade la plus simple, mesurée le 2026-09-07 (barre d'outils des cartes)** :
+écrire **`key: "Enter"`**, et non `key: "Return"`. Le panneau livre alors un
+événement complet (`e.key === "Enter"`), et le raccourci se déclenche. C'est
+`"Return"` — le nom macOS de la touche — qui n'est pas traduit et arrive vide.
+Essayer les deux avant de conclure quoi que ce soit.
+
+**Parade de secours**, si un nom de touche reste muet : injecter un VRAI
+événement pour celle-là :
 
 ```js
 document.activeElement.dispatchEvent(

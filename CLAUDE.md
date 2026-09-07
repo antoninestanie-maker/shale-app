@@ -4370,3 +4370,95 @@ demandait de faire passer l'export PNG par `encodeImage`, qui n'encode que du
 WebP avec un repli JPEG. S'il avait été suivi, **l'export aurait produit sur
 iPhone un fichier JPEG portant l'extension `.png`**. L'écart était le bon choix,
 et il est maintenant justifié par une mesure et non par un raisonnement.
+
+## Cartes mentales : Entrée valide, et la souris suffit (2026-09-07, soir)
+
+Deux demandes d'Antonin le soir de la livraison des cartes. Elles ne se
+ressemblent pas, mais elles répondent à la même chose : **la carte ne devait
+plus supposer qu'on connaît déjà les raccourcis.**
+
+### ⭐ Entrée ne crée plus de frère — elle VALIDE
+
+C'était la convention des logiciels de carte mentale (MindNode, XMind), et elle
+suppose qu'on sache déjà que la touche a un sens spécial ici. Partout ailleurs
+dans l'app — et partout ailleurs dans un ordinateur — Entrée veut dire « c'est
+bon ». Quelqu'un qui tape un nœud, appuie sur Entrée et voit apparaître une
+case vide n'a pas appris un raccourci : il a fait une erreur qu'il ne comprend
+pas.
+
+Le nouveau partage, décidé avec Antonin :
+
+| Touche | Dans le champ | Sur un nœud sélectionné |
+|---|---|---|
+| **Entrée** | valide et referme, la sélection reste sur le nœud | ouvre le nœud pour le réécrire |
+| **⌘Entrée** | valide **et** crée le nœud voisin | crée le nœud voisin |
+| **Tab** | valide **et** crée un sous-nœud | crée un sous-nœud |
+
+⚠️ **Tab n'a PAS bougé**, et c'est délibéré : la demande portait sur Entrée. Un
+« tant qu'on y est » sur Tab aurait défait le seul repère qui restait à celui
+qui avait déjà commencé à s'en servir.
+
+⚠️ **Le geste inverse est celui qui se pense mal** : hors édition, Entrée n'a
+rien à valider. Elle **ouvre** le nœud — c'est l'autre moitié du même geste (on
+entre, on tape, on valide par Entrée), et non un troisième comportement à
+retenir. Sur un nœud-référence, elle ne fait rien : son texte est le titre de
+sa cible, il se renomme là-bas.
+
+### ⭐ La barre d'outils : une icône ET un mot, jamais l'un sans l'autre
+
+Demande littérale d'Antonin — « des icônes explicites pour quelqu'un qui ne
+s'en est jamais servi ». Une icône seule se devine ; une icône plus un mot se
+lit. Et l'info-bulle porte la phrase complète **plus le raccourci** : c'est
+ainsi qu'on apprend le clavier en se servant de la souris, plutôt qu'en lisant
+un pied de page qu'on ne regarde qu'une fois.
+
+Trois groupes séparés par des filets — **créer** (sous-nœud, nœud voisin), **le
+nœud choisi** (renommer, citer un objet, replier, supprimer), **la vue**
+(zoom −, pourcentage, zoom +, tout voir). Sans cette séparation, dix boutons
+alignés se lisent comme une liste indifférenciée où l'on cherche à chaque fois.
+
+⚠️ **Chaque bouton passe par la MÊME fonction que son raccourci**, sans
+exception. Une barre d'outils qui emprunterait un autre chemin finirait par
+diverger du clavier, et l'un des deux deviendrait faux sans que rien ne le
+dise.
+
+⚠️ **L'info-bulle est portée par un `<span>`, pas par le bouton** (composant
+`Outil`). Un bouton `disabled` ne reçoit aucun événement de survol — piège déjà
+consigné dans la section « Hover Hints ». Or c'est exactement quand le bouton
+est grisé qu'il faut expliquer POURQUOI : « Le nœud central n'a pas de voisin :
+tout part de lui », « Un nœud lié porte le titre de sa cible : il se renomme
+là-bas ». Vu à l'écran : la bulle s'affiche bien sur les boutons éteints.
+
+⭐ **« Citer un objet » ouvre le champ SUR un `@` déjà tapé**, sélecteur
+déployé. Le `@` restait la seule fonctionnalité de la carte inaccessible sans
+clavier — et c'est celle qui fait le lien avec le reste de l'app.
+⚠️ Le bouton ne peut PAS lancer la recherche lui-même : `verifierMention` a
+besoin du rectangle du champ pour placer le sélecteur, et le champ n'est monté
+qu'au rendu suivant. Il pose donc un drapeau que l'effet de focus consomme —
+même leçon que le § 9.3 de `PIEGES.md`, prise par le même bout.
+
+⭐ **Un COMPTEUR d'ouvertures en plus de l'identifiant édité.** Rouvrir le nœud
+DÉJÀ en édition (« Renommer » et « Citer un objet » sur le nœud courant, F2) ne
+change pas `edition` : l'effet de focus ne repartirait pas et le bouton ne
+ferait visiblement rien. C'est le même défaut de famille que le § 6.5 — une
+clé de rechargement qui ne bouge pas quand l'intention, elle, a bougé.
+
+⭐ **Le zoom au bouton se recale sur le CENTRE de la scène**, exactement comme
+la molette se recale sous le pointeur. Sans ce calcul, chaque clic ferait fuir
+la carte vers le coin haut-gauche et deux crans suffiraient à la perdre de vue.
+
+### Ce qui a été vu à l'écran (mode démo, pas la base d'Antonin)
+
+Tab crée un sous-nœud · frappe puis **Entrée valide** (champ refermé, texte
+dans le SVG) · **⌘Entrée** crée le voisin · les six boutons de nœud pilotés
+**à la souris seule** · « Citer un objet » ouvre le sélecteur et pose une vraie
+référence (`Plan de risque`, pastille + pied « Ouvrir ») · « Renommer » passe
+alors en grisé avec sa bulle explicative · replier/déplier bascule son libellé
+et affiche la pastille de comptage · supprimer remonte la sélection au parent ·
+zoom 100 → 156 → 41 %, carte toujours centrée · **anglais complet** (« Sub-node
+· Sibling node · Rename · Cite an object · Collapse · Delete · Fit to view »,
+pied « Enter confirm · Tab sub-node · ⌘↵ sibling ») · **thème clair** relu.
+
+⚠️ **Non vu** : l'app installée (front only, aucun Rust, aucune migration — un
+rebuild reste nécessaire pour qu'Antonin en profite), et le doigt : le portage
+tactile de la carte reste le chantier écarté du 2026-09-07 au matin.

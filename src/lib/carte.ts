@@ -208,7 +208,7 @@ function inserer(c: Carte, neuf: Noeud, apresId: string | null): Carte {
   return { ...c, noeuds };
 }
 
-/** Un frère juste après `id` — la touche Entrée. La racine n'en a pas. */
+/** Un frère juste après `id` — la touche ⌘Entrée. La racine n'en a pas. */
 export function ajouterFrere(c: Carte, id: string): { carte: Carte; neuf: string } {
   const n = noeudDe(c, id);
   if (!n || n.parent === null) return ajouterEnfant(c, id);

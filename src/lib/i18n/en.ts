@@ -2171,9 +2171,41 @@ export const EN: Record<string, string> = {
   "sans titre": "untitled",
   "Ouvrir « {titre} »": "Open \u201c{titre}\u201d",
   "La cible de ce nœud n'existe plus.": "This node's target no longer exists.",
+  // ─── La barre d'outils de la carte (2026-09-07) ───────────────────────────
+  // Chaque bouton = un LIBELLÉ court (data-tip) + une PHRASE (data-tip-sub).
+  // Les deux se traduisent : la phrase est ce que lit quelqu'un qui n'a jamais
+  // construit de carte, elle ne peut pas rester en français.
+  "Sous-nœud": "Sub-node",
+  "Une idée qui découle de celle sélectionnée.": "An idea that follows from the selected one.",
+  "Nœud voisin": "Sibling node",
+  "Une idée au même niveau, juste en dessous.": "An idea at the same level, just below.",
+  "Le nœud central n'a pas de voisin : tout part de lui.":
+    "The central node has no sibling: everything starts from it.",
+  "Réécrire le texte du nœud sélectionné.": "Rewrite the text of the selected node.",
+  "Un nœud lié porte le titre de sa cible : il se renomme là-bas.":
+    "A linked node carries its target's title: rename it over there.",
+  "Citer un objet": "Cite an object",
+  "Remplace le nœud par un lien vers une note, une tâche, une fiche…":
+    "Replaces the node with a link to a note, a task, a card…",
+  "Replier": "Collapse",
+  "Déplier": "Expand",
+  "Cacher ou remontrer ce qui pend sous ce nœud.": "Hide or show again what hangs under this node.",
+  "Ce nœud n'a rien en dessous à cacher.": "This node has nothing below to hide.",
+  "Retire ce nœud et tout ce qui pend dessous.": "Removes this node and everything hanging below it.",
+  "Le nœud central ne se supprime pas : c'est la carte elle-même.":
+    "The central node cannot be deleted: it is the map itself.",
+  "Zoom arrière": "Zoom out",
+  "Zoom avant": "Zoom in",
+  "Voir de plus loin.": "See from further away.",
+  "Voir de plus près.": "See from closer up.",
+  "Recadrer la carte entière dans la fenêtre.": "Fit the whole map into the window.",
   // Le pied d'aide : chaque raccourci en deux mots, pas une phrase.
-  "frère": "sibling",
-  "enfant": "child",
+  // ⚠️ « frère » / « enfant » ont vécu ici jusqu'au 2026-09-07 : Entrée validait
+  // un frère, elle valide maintenant la case. Les deux clés sont retirées avec
+  // le libellé qui les portait — les garder ferait croire à un raccourci mort.
+  "valider": "confirm",
+  "sous-nœud": "sub-node",
+  "voisin": "sibling",
   "Flèches": "Arrows",
   "se déplacer": "move around",
   "replier": "collapse",

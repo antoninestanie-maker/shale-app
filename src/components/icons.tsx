@@ -139,6 +139,62 @@ export const IconCarte = (p: IconProps) => (
   </Icon>
 );
 
+/* Les trois gestes de la barre d'outils d'une carte mentale (2026-09-07).
+   ⚠️ Ils doivent se lire à 14 px SANS leur libellé, parce qu'ils sont ce que
+   regarde quelqu'un qui n'a jamais construit de carte : la forme dit le
+   niveau (décalé = dessous, aligné = à côté), pas une flèche générique. */
+
+/** Sous-nœud — une case, puis une case DÉCALÉE dessous, reliée par un coude. */
+export const IconNoeudEnfant = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="9.5" height="6" rx="2" />
+    <path d="M6.5 9v6a2 2 0 0 0 2 2H12" />
+    <rect x="12.5" y="14" width="9.5" height="6" rx="2" />
+  </Icon>
+);
+
+/** Nœud voisin — deux cases au MÊME décalage, sur le même tronc. */
+export const IconNoeudFrere = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="10" y="3" width="12" height="6" rx="2" />
+    <rect x="10" y="15" width="12" height="6" rx="2" />
+    <path d="M4 6v12M4 6h6M4 18h6" />
+  </Icon>
+);
+
+/** Replier / déplier — deux chevrons qui se rapprochent. */
+export const IconPlier = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m7 5 5 5 5-5" />
+    <path d="m7 19 5-5 5 5" />
+  </Icon>
+);
+
+/** Arobase — citer un objet existant. */
+export const IconArobase = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9" />
+  </Icon>
+);
+
+/** Loupe + / − — le zoom, quand il n'y a ni molette ni trackpad sous la main. */
+export const IconZoomPlus = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.6-3.6" />
+    <path d="M11 8v6M8 11h6" />
+  </Icon>
+);
+
+export const IconZoomMoins = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.6-3.6" />
+    <path d="M8 11h6" />
+  </Icon>
+);
+
 export const IconExpand = (p: IconProps) => (
   <Icon {...p}>
     <path d="M8 3H5a2 2 0 0 0-2 2v3" />
