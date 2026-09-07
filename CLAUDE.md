@@ -4277,3 +4277,96 @@ plus tout chemin non absolu ou contenant `..`.
 - **Un module « Cartes ».** Le compte reste à treize.
 - **Les liens `[[wiki]]`** des Notes : non touchés, comme au chantier C.
 - **Le site** : hors périmètre.
+
+## Checkup complet de l'app et du mobile (2026-09-07)
+
+Demandé par Antonin après la livraison des cartes mentales. Le rapport détaillé
+est dans **`CHECKUP-2026-09-07.md`** ; ce qui suit est ce qui a été **décidé**,
+et le *pourquoi* — ce qu'aucune lecture du code ne rendrait.
+
+### ⭐ Un filet local ne doit dépendre de RIEN de distant
+
+`<App>` est monté à l'intérieur d'`AuthGate`, et l'appel à
+`sauvegardeQuotidienne()` vivait dans un de ses effets. Copier un fichier SQLite
+local ne demande pourtant ni réseau, ni jeton, ni compte.
+
+**La décision : l'appel remonte dans `main.tsx`, hors de la porte.** Le
+raisonnement dépasse ce cas précis et vaut comme règle :
+
+> **Une protection ne doit jamais dépendre de la chose contre laquelle elle
+> protège.** Lier la sauvegarde locale à l'authentification, c'est la faire
+> disparaître exactement dans les scénarios où elle compte : session expirée,
+> trousseau refusé, serveur d'auth en panne, compte suspendu.
+
+⚠️ Et le défaut ne s'est PAS vu en lisant le code — il s'est vu en regardant la
+vraie machine : l'app avait démarré à 03:39, `backup.last_at` était resté au
+2026-09-06, aucune copie du jour. Une sauvegarde qui manque ne fait aucun bruit
+(§ 4.3 bis de `PIEGES.md`). ⭐ **Le correctif est vérifié EN PRODUCTION**, pas
+seulement en test : la copie `2026-09-07T19-47-39_auto.db` existe.
+
+### ⭐ Un compte juste sous un mot faux reste un mensonge
+
+La ligne de charge du calendrier annonçait « 4 tâches sans horaire » là où il y
+avait 3 tâches **et** un événement « journée entière ». Aucun des quatre n'a de
+durée mesurable — le compte était donc exact — mais un séminaire de trois jours
+n'est pas une tâche.
+
+`chargeDuJour` rend désormais deux compteurs. ⚠️ **La distinction porte sur la
+PROPRIÉTÉ visée (« est-ce une tâche ? »), pas sur une énumération de `kind`** :
+c'est exactement là que le § 7.2 ter s'est fait avoir, avec une règle écrite en
+listant des familles et un trou de la taille de ce qu'elle prétendait tenir. Une
+tâche récurrente sans horaire reste donc du côté des tâches, et un test le garde.
+
+### ⭐ Une erreur de validation n'a de sens qu'après une saisie
+
+Le calculateur de position affichait « Prix d'entrée invalide. » en rouge à
+l'ouverture, sous la phrase qui invite à remplir les champs. Le capital et le
+risque viennent des réglages, donc ils sont valides d'emblée ; l'entrée et le
+stop sont vides. La validation disait vrai — **au mauvais moment**.
+
+L'alerte est masquée **tant que rien n'a été saisi**, et rien de plus : dès la
+première frappe elle redevient utile, puisque c'est elle qui dit ce qui manque.
+
+### ⚠️ Ce que ce checkup a appris sur la DOCUMENTATION elle-même
+
+Deux affirmations écrites dans ce dépôt étaient fausses, et les deux ont été
+crues avant d'être vérifiées :
+
+- **« `simctl install` préserve les données »** (`PASSATION.md` § 5.1, depuis le
+  2026-08-28). iOS a provisionné un nouveau conteneur et retiré l'ancien. Deux
+  notes du simulateur ont été détruites. Le contenu de la seule qui comptait
+  avait été recopié une demi-heure plus tôt — **par chance, pas par méthode**.
+- **« Cibles tactiles : reste ouvert et INTACT »** (`PASSATION.md` § 6). Le
+  chantier D avait livré `.cible-tactile`, utilisée à 28 endroits, quatre jours
+  plus tôt.
+
+▶️ **Le § 7.4 de `PIEGES.md` — « vérifier un document dans l'arbre avant de le
+croire » — vaut aussi pour les documents qu'on a écrits soi-même**, et
+particulièrement pour ceux qui autorisent un geste destructeur. Une phrase de
+doc qui dit « c'est sans risque » ne remplace pas une sauvegarde de dix secondes.
+
+### ⭐ Une « intermittence » qu'on n'a pas expliquée est une mesure qu'on n'a pas faite
+
+Le dépôt traînait depuis des semaines une « intermittence connue sur les suites
+PGlite », traitée comme une fatalité. Elle a une cause, et elle se mesure : la
+**charge machine**. Même suite, même code — 1 416 s et deux échecs à 37 de
+charge ; 16,8 s et 17/17 à 7. Un facteur 84.
+
+Le coupable était le **panneau du simulateur iOS laissé attaché**, qui fait
+tourner deux encodeurs vidéo en permanence. Détail et parade : `PIEGES.md` § 9.11.
+
+⚠️ **La décision qui va avec : ne PAS augmenter le `hookTimeout`.** Il est déjà à
+60 s, six fois la valeur par défaut. Le monter masquerait le jour où le hook
+échoue pour une vraie raison, et rendrait la suite plus lente sans rien réparer.
+
+### ⭐ Le WebP n'est pas encodable sur iOS — et ça valide un écart au cahier des charges
+
+Mesuré dans WebKit (iOS 26.5) : `canvas.toDataURL("image/webp")` rend `false`.
+La réserve écrite dans `lib/knowledge.ts` — « le WebP n'est pas encodable par
+tous les moteurs » — n'était donc pas de la prudence, c'est un fait.
+
+⚠️ **Conséquence rétroactive** : le cahier des charges des cartes mentales
+demandait de faire passer l'export PNG par `encodeImage`, qui n'encode que du
+WebP avec un repli JPEG. S'il avait été suivi, **l'export aurait produit sur
+iPhone un fichier JPEG portant l'extension `.png`**. L'écart était le bon choix,
+et il est maintenant justifié par une mesure et non par un raisonnement.

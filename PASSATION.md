@@ -12,10 +12,10 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 |---|---|---|
 | 1 | **ce fichier** | toujours, en premier |
 | 1 bis | ⭐ **`DOCUMENTATION.md`** | **la règle d'écriture, systématique à CHAQUE session.** Où va quoi, quand écrire, la liste de contrôle avant de rendre la main |
+| 1 ter | ⭐⭐ **`CHECKUP-2026-09-07.md`** | **le checkup complet du 2026-09-07** — les cinq défauts trouvés, les DEUX affirmations de doc qui étaient fausses, et ce qui reste ouvert |
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
 | 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
-| 1 ter | ⭐⭐ **`CHECKUP-2026-09-07.md`** | **le checkup complet du 2026-09-07** — les cinq défauts trouvés, les DEUX affirmations de doc qui étaient fausses, et ce qui reste ouvert |
 | 2 quater | ⭐ **`PASSATION-MINDMAP.md`** | **le chantier du 2026-09-07** — les cartes mentales dans les Notes et le Savoir. Livré et installé ; ce qui reste ouvert est en § 6 |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |

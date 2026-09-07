@@ -94,9 +94,17 @@ base d'Antonin (§ 8.4 de `PIEGES.md`).*
 
 - **La vraie base d'Antonin** — jamais ouverte, conformément au § 8.4.
 - **Le simulateur iOS**, l'iPhone réel, le geste au doigt : voir `MOBILE.md`.
-- **La WKWebView.** Toutes les mesures d'image et de SVG tournent en Chromium.
-  Le rendu SVG en WKWebView n'est pas vérifié — c'est le premier point à
-  regarder après le build natif.
+- ~~**La WKWebView.**~~ ⭐ **VÉRIFIÉ le 2026-09-07**, pendant le checkup, avec le
+  vrai SVG de `lib/carte.ts` sur le simulateur iPhone 17 (iOS 26.5,
+  `AppleWebKit/605.1.15`) : le `<svg>` est rendu (352 × 66 px, texte dessiné),
+  les `var(--color-…)` **sont résolues dans le SVG** (`rgb(139, 148, 166)` — le
+  risque n°1), et l'export PNG fait 52 286 octets et est lisible à l'écran.
+  ⭐ Et `canvas.toDataURL("image/webp")` rend **`false`** : l'écart au cahier des
+  charges sur l'export est donc justifié par une mesure. Détail : `MOBILE.md`.
+  ⚠️ Mesuré dans **Safari mobile**, pas dans la WKWebView de l'app : même moteur,
+  encapsulation différente. Et **l'éditeur n'a pas été ouvert dans l'app sur
+  iOS** — depuis la réinstallation, le simulateur resynchronise avec les vraies
+  données d'Antonin, et y créer une note d'essai la lui enverrait.
 
 ---
 
@@ -189,10 +197,18 @@ base est identique avant/après), mais c'était de la chance. Entrée `PIEGES.md
 du build. Le bundle installé la contient encore. **Aucun effet** — elle n'était
 appelée nulle part — mais il faut le savoir plutôt que de s'étonner d'un diff.
 
+### 6.1 bis ⚠️ Un SECOND build a suivi, le même jour
+
+Celui du 2026-09-07 à **03:39** (`e0966e0b…`) portait la roulette et les cartes.
+Le checkup a ensuite produit cinq correctifs, d'où un **second build à 17:31**
+(`683f0e99…`), avec le même protocole complet. C'est l'app installée
+aujourd'hui. Détail : `CHECKUP-2026-09-07.md` § 8.
+
 ### 6.2 bis ⛔ CE QUI RESTE, ET C'EST UN GESTE HUMAIN
 
-**La fenêtre de trousseau est ouverte** (`SecurityAgent` actif au moment où
-j'écris) et attend qu'Antonin clique **« Toujours autoriser »**. macOS la
+**macOS peut redemander l'accès au trousseau** au premier usage — il le fait
+dès que le binaire change. Si la fenêtre apparaît, Antonin doit cliquer
+**« Toujours autoriser »**. macOS la
 redemande dès que le binaire change (§ 8.3). **Aucune session ne peut le faire à
 sa place** — saisir un mot de passe est interdit. Sans ce clic, la
 synchronisation ne retrouve pas son jeton.
