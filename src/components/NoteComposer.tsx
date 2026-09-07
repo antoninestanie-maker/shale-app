@@ -358,7 +358,8 @@ export default function NoteComposer({
 
           {menuOpen && (
             <div
-              className="glass absolute left-0 top-full z-30 mt-1.5 max-h-[min(56vh,420px)] w-60 overflow-y-auto rounded-[var(--radius-card)] border border-border p-1.5 shadow-lg"
+              className="glass absolute left-0 top-full z-30 mt-1.5 w-60 overflow-y-auto rounded-[var(--radius-card)] border border-border p-1.5 shadow-lg"
+              style={{ maxHeight: "min(calc(56vh * var(--zoom-inv, 1)), 420px)" }}
               onPointerDown={(e) => e.stopPropagation()}
             >
               {menuItem("Image", "Capture, photo, graphique", <IconImage className="h-3.5 w-3.5" />, () =>

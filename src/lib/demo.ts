@@ -10,14 +10,13 @@ import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
-import type { CalendarEventInput, ObjectInput, ObjectTypeInput, TaskInput } from "./repo";
+import type { CalendarEventInput, ObjectTypeInput, SujetPatch, TaskInput } from "./repo";
 import type {
   Trade,
   AppData,
   CalendarEvent,
   Completion,
   CustomMetric,
-  CustomObject,
   FinanceAccount,
   FinanceBalance,
   FinanceCategory,
@@ -36,7 +35,7 @@ import type {
   KnowledgeEntry,
   KnowledgeEntryLite,
   KnowledgeKind,
-  KnowledgeTopic,
+  Sujet,
   LinkKind,
   LiveOutcome,
   LivePartial,
@@ -271,12 +270,44 @@ const SKETCH_DEMO =
     </svg>`,
   );
 
-const knowledgeTopics: KnowledgeTopic[] = [
-  { id: 1, name: t("Trading"), color: "#4d8dff", position: 0, created_at: `${addDays(today, -30)} 09:00:00` },
-  { id: 2, name: "Mindset", color: "#14c8a0", position: 1, created_at: `${addDays(today, -30)} 09:01:00` },
-  { id: 3, name: "Ressources", color: "#8e8bff", position: 2, created_at: `${addDays(today, -30)} 09:02:00` },
+/**
+ * Les SUJETS — ce qui était les thèmes ET les objets avant la migration 022.
+ *
+ * ⚠️ Les deux derniers portent un type et des champs : ils viennent de l'ancien
+ * jeu d'essai des « objets ». Leur `uid` est conservé tel quel (`demo:object:4`
+ * et `demo:object:5`) parce que l'arête d'exemple, plus bas, désigne l'un
+ * d'eux — c'est le même invariant que la migration, en miniature.
+ */
+const sujets: Sujet[] = [
+  {
+    id: 1, uid: "demo:object:1", name: t("Trading"), color: "#4d8dff", position: 0,
+    type_id: null, body: null, field_values: "{}",
+    created_at: `${addDays(today, -30)} 09:00:00`, updated_at: `${addDays(today, -30)} 09:00:00`,
+  },
+  {
+    id: 2, uid: "demo:object:2", name: "Mindset", color: "#14c8a0", position: 1,
+    type_id: null, body: null, field_values: "{}",
+    created_at: `${addDays(today, -30)} 09:01:00`, updated_at: `${addDays(today, -30)} 09:01:00`,
+  },
+  {
+    id: 3, uid: "demo:object:3", name: "Ressources", color: "#8e8bff", position: 2,
+    type_id: null, body: null, field_values: "{}",
+    created_at: `${addDays(today, -30)} 09:02:00`, updated_at: `${addDays(today, -30)} 09:02:00`,
+  },
+  {
+    id: 4, uid: "demo:object:4", name: "Silver Bullet", color: "#f0b341", position: 3,
+    type_id: 4, body: null,
+    field_values: JSON.stringify({ f1: "EURUSD", f2: "Long", f3: t("Balayage puis retour dans le range"), f4: 3 }),
+    created_at: created, updated_at: created,
+  },
+  {
+    id: 5, uid: "demo:object:5", name: "Trading in the Zone", color: "#41c9e2", position: 4,
+    type_id: 2, body: null,
+    field_values: JSON.stringify({ f1: t("Livre"), f2: "Mark Douglas", f4: addDays(todayStr(), -40) }),
+    created_at: created, updated_at: created,
+  },
 ];
-let nextTopicId = knowledgeTopics.length + 1;
+let nextTopicId = sujets.length + 1;
 
 // Toutes les fiches sont des NOTES : le corps porte texte, liens, images et
 // croquis (c'est l'unité unique de création depuis l'unification de l'éditeur).
@@ -793,28 +824,15 @@ const objectTypes: ObjectType[] = [
   },
 ];
 
-let objectId = 100;
-const objects: CustomObject[] = [
-  {
-    id: 1, uid: uidDemo("object", 1), type_id: 4, title: "Silver Bullet",
-    body: null,
-    field_values: JSON.stringify({ f1: "EURUSD", f2: "Long", f3: t("Balayage puis retour dans le range"), f4: 3 }),
-    created_at: created, updated_at: created,
-  },
-  {
-    id: 2, uid: uidDemo("object", 2), type_id: 2, title: "Trading in the Zone",
-    body: null,
-    field_values: JSON.stringify({ f1: t("Livre"), f2: "Mark Douglas", f4: addDays(todayStr(), -40) }),
-    created_at: created, updated_at: created,
-  },
-];
+// ⚠️ Le tableau `objects` a disparu avec la migration 022 : ses deux entrées
+// sont devenues des SUJETS, en tête de fichier.
 
 let linkId = 100;
 const links: ObjectLink[] = [
   {
-    id: 1, uid: `ol:task:${uidDemo("task", 6)}:object:${uidDemo("object", 1)}`,
+    id: 1, uid: `ol:task:${uidDemo("task", 6)}:object:${uidDemo("object", 4)}`,
     from_kind: "task", from_uid: uidDemo("task", 6),
-    to_kind: "object", to_uid: uidDemo("object", 1),
+    to_kind: "object", to_uid: uidDemo("object", 4),
     origin: "manual", created_at: created,
   },
 ];
@@ -1030,7 +1048,7 @@ export const demo = {
   // — Savoir —
 
   async fetchKnowledge(): Promise<{
-    topics: KnowledgeTopic[];
+    topics: Sujet[];
     entries: KnowledgeEntryLite[];
   }> {
     const entries = [...knowledgeEntries]
@@ -1044,9 +1062,11 @@ export const demo = {
       .map(({ media: _media, body, ...lite }) => ({ ...lite, body_len: body.length }));
     // Même tri qu'en natif (`ORDER BY position, id`) : sans lui, le
     // réordonnancement des thèmes serait invisible en mode démo.
-    const topics = [...knowledgeTopics].sort(
-      (a, b) => a.position - b.position || a.id - b.id,
-    );
+    // Même tri qu'en natif (`ORDER BY position, id`), et la page (`body`) est
+    // retirée comme elle l'est en SQL — une grille n'en affiche pas une ligne.
+    const topics = [...sujets]
+      .sort((a, b) => a.position - b.position || a.id - b.id)
+      .map((s) => ({ ...s, body: null }));
     return { topics, entries };
   },
 
@@ -1055,36 +1075,63 @@ export const demo = {
     return e ? { ...e } : null;
   },
 
-  async createKnowledgeTopic(name: string, color: string, now: string): Promise<number> {
+  async fetchSujet(id: number): Promise<Sujet | null> {
+    const s = sujets.find((x) => x.id === id);
+    return s ? { ...s } : null;
+  },
+
+  async createSujet(name: string, color: string, now: string): Promise<number> {
     const id = nextTopicId++;
-    knowledgeTopics.push({
+    sujets.push({
       id,
+      uid: `demo:object:${id}`,
       name,
       color,
-      position: knowledgeTopics.length,
+      position: sujets.length,
+      type_id: null,
+      body: null,
+      field_values: "{}",
       created_at: now,
+      updated_at: now,
     });
     return id;
   },
 
-  async updateKnowledgeTopic(id: number, name: string, color: string): Promise<void> {
-    const t = knowledgeTopics.find((k) => k.id === id);
-    if (t) {
-      t.name = name;
-      t.color = color;
-    }
+  /**
+   * ⚠️ PATCH PARTIEL, exactement comme le natif — et ce n'est pas du zèle.
+   *
+   * L'ancien `updateKnowledgeTopic` faisait un `Object.assign` d'un objet
+   * complet ; en natif, la même écriture posait toutes les colonnes. Le mode
+   * démo était donc plus INDULGENT que la vraie base, et masquait la classe de
+   * défaut « renommer efface le reste » (§ 6.2 de `PIEGES.md`). Les deux
+   * implémentations doivent avoir la même sémantique, pas seulement la même
+   * signature.
+   */
+  async updateSujet(id: number, patch: SujetPatch, now: string): Promise<void> {
+    const s = sujets.find((x) => x.id === id);
+    if (!s) return;
+    if (patch.name !== undefined) s.name = patch.name;
+    if (patch.color !== undefined) s.color = patch.color;
+    if (patch.type_id !== undefined) s.type_id = patch.type_id;
+    if (patch.body !== undefined) s.body = patch.body;
+    if (patch.field_values !== undefined) s.field_values = JSON.stringify(patch.field_values);
+    s.updated_at = now;
   },
 
-  async reorderKnowledgeTopics(ids: number[]): Promise<void> {
+  async reorderSujets(ids: number[]): Promise<void> {
     for (const [rang, id] of ids.entries()) {
-      const t = knowledgeTopics.find((k) => k.id === id);
-      if (t) t.position = rang;
+      const s = sujets.find((x) => x.id === id);
+      if (s) s.position = rang;
     }
   },
 
-  async deleteKnowledgeTopic(id: number): Promise<void> {
-    const i = knowledgeTopics.findIndex((t) => t.id === id);
-    if (i >= 0) knowledgeTopics.splice(i, 1);
+  async deleteSujet(id: number): Promise<void> {
+    const i = sujets.findIndex((s) => s.id === id);
+    if (i < 0) return;
+    // Les arêtes partent avec le sujet — le trigger `knowledge_topics_links_del`
+    // de la migration 022 fait exactement cela en natif.
+    retirerLiens("object", sujets[i].uid);
+    sujets.splice(i, 1);
     for (const e of knowledgeEntries) if (e.topic_id === id) e.topic_id = null;
   },
 
@@ -1609,49 +1656,15 @@ export const demo = {
     });
   },
 
+  /**
+   * ⭐ DÉTYPE, NE DÉTRUIT PAS — le natif fait exactement cela par trigger
+   * (migration 022, § 5). Un sujet a un nom, une page, des fiches et des
+   * backlinks : supprimer son type ne doit pas l'emporter avec lui.
+   */
   async deleteObjectType(id: number): Promise<void> {
     const i = objectTypes.findIndex((t) => t.id === id);
     if (i >= 0) objectTypes.splice(i, 1);
-    // Cascade : le natif la fait par trigger, le mode démo doit la faire aussi,
-    // sinon les deux ne racontent pas la même histoire.
-    for (const o of objects.filter((o) => o.type_id === id)) await demo.deleteObject(o.id);
-  },
-
-  async fetchObjects(typeId?: number): Promise<CustomObject[]> {
-    const liste = typeId == null ? objects : objects.filter((o) => o.type_id === typeId);
-    return [...liste].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  },
-
-  async createObject(input: ObjectInput, now: string): Promise<void> {
-    const id = objectId++;
-    objects.push({
-      id,
-      uid: uidDemo("object", id),
-      type_id: input.type_id,
-      title: input.title,
-      body: input.body,
-      field_values: JSON.stringify(input.field_values),
-      created_at: now,
-      updated_at: now,
-    });
-  },
-
-  async updateObject(id: number, input: ObjectInput, now: string): Promise<void> {
-    const o = objects.find((x) => x.id === id);
-    if (!o) return;
-    Object.assign(o, {
-      type_id: input.type_id,
-      title: input.title,
-      body: input.body,
-      field_values: JSON.stringify(input.field_values),
-      updated_at: now,
-    });
-  },
-
-  async deleteObject(id: number): Promise<void> {
-    const i = objects.findIndex((o) => o.id === id);
-    if (i >= 0) objects.splice(i, 1);
-    retirerLiens("object", uidDemo("object", id));
+    for (const s of sujets) if (s.type_id === id) s.type_id = null;
   },
 
   async fetchLinksFrom(kind: LinkKind, uid: string): Promise<ObjectLink[]> {
@@ -1723,9 +1736,9 @@ export const demo = {
       }
     }
     if (veut("object")) {
-      for (const o of objects) {
+      for (const o of sujets) {
         docs.push({
-          kind: "object", id: o.id, uid: o.uid, titre: o.title,
+          kind: "object", id: o.id, uid: o.uid, titre: o.name,
           contexte: objectTypes.find((t) => t.id === o.type_id)?.name,
         });
       }

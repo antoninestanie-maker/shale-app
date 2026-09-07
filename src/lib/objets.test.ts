@@ -58,19 +58,42 @@ describe("les quatre types livrés", () => {
     expect(db.prepare("SELECT COUNT(*) AS n FROM object_types").get()).toEqual({ n: 3 });
   });
 
-  it("supprimer un type emporte ses objets, et leurs arêtes", () => {
-    // Sans cette cascade, les fiches resteraient en base sans type, donc sans
-    // champs et sans écran : invisibles, mais toujours là.
+  it("⭐ supprimer un type DÉTYPE ses sujets — il ne les détruit plus", () => {
+    // Retournement assumé de la migration 022. La cascade d'avant se défendait
+    // tant qu'un objet n'était qu'un porte-champs : sans type il n'avait ni
+    // champs ni écran. Un SUJET, lui, a un nom, une page, des FICHES rangées
+    // dedans et des backlinks — la cascade voudrait dire qu'un clic sur
+    // « supprimer le type » emporte des notes.
     const typeId = (db.prepare("SELECT id FROM object_types WHERE name = 'Projet'").get() as { id: number }).id;
-    db.prepare("INSERT INTO objects (type_id, title) VALUES (?, 'Refonte du site')").run(typeId);
-    const objUid = (db.prepare("SELECT uid FROM objects").get() as { uid: string }).uid;
+    db.prepare("INSERT INTO knowledge_topics (name, color, position, created_at, type_id) VALUES ('Refonte du site', '#4d8dff', 0, '2026-09-07', ?)").run(typeId);
+    const sujetUid = (db.prepare("SELECT uid FROM knowledge_topics WHERE name = 'Refonte du site'").get() as { uid: string }).uid;
     db.prepare(
       "INSERT INTO object_links (from_kind, from_uid, to_kind, to_uid) VALUES ('note', 'n1', 'object', ?)",
-    ).run(objUid);
+    ).run(sujetUid);
+    db.prepare("INSERT INTO knowledge_entries (topic_id, kind, title, body, text, tags, pinned, created_at, updated_at) VALUES ((SELECT id FROM knowledge_topics WHERE name = 'Refonte du site'), 'note', 'maquette', '', '', '', 0, '2026-09-07', '2026-09-07')").run();
 
     db.prepare("DELETE FROM object_types WHERE id = ?").run(typeId);
 
-    expect(db.prepare("SELECT COUNT(*) AS n FROM objects").get()).toEqual({ n: 0 });
+    // Le sujet est là, sans type ; sa fiche et son backlink aussi.
+    expect(db.prepare("SELECT name, type_id FROM knowledge_topics WHERE name = 'Refonte du site'").get())
+      .toEqual({ name: "Refonte du site", type_id: null });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM object_links").get()).toEqual({ n: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM knowledge_entries").get()).toEqual({ n: 1 });
+  });
+
+  it("supprimer le SUJET, lui, emporte bien ses arêtes", () => {
+    // L'autre moitié de la règle : on retire l'étiquette sans retirer la chose,
+    // mais retirer la chose retire ce qui pointait dessus. Sans ce trigger, un
+    // « Mentionné dans » pointerait vers rien, pour toujours, et aucune clé
+    // étrangère ne le surveille (les extrémités sont polymorphes).
+    db.prepare("INSERT INTO knowledge_topics (name, color, position, created_at) VALUES ('Éphémère', '#4d8dff', 0, '2026-09-07')").run();
+    const uid = (db.prepare("SELECT uid FROM knowledge_topics WHERE name = 'Éphémère'").get() as { uid: string }).uid;
+    db.prepare(
+      "INSERT INTO object_links (from_kind, from_uid, to_kind, to_uid) VALUES ('note', 'n1', 'object', ?)",
+    ).run(uid);
+
+    db.prepare("DELETE FROM knowledge_topics WHERE uid = ?").run(uid);
+
     expect(db.prepare("SELECT COUNT(*) AS n FROM object_links").get()).toEqual({ n: 0 });
   });
 });

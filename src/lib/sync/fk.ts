@@ -65,7 +65,11 @@ export const CLES_ETRANGERES: Readonly<Record<string, readonly CleEtrangere[]>> 
   // trois tables de liaison : `object_links` n'en a aucune, et ne peut pas en
   // avoir — ses deux extrémités sont polymorphes, donc elles stockent des `uid`
   // et non des `id` (migration 020, § 5). Rien à traduire là où rien n'est local.
-  objects: [{ colonne: "type_id", vers: "object_types" }],
+  // ⭐ Les SUJETS (migration 022, ex-thèmes ET ex-objets). Sans cette ligne,
+  // le `type_id` local partirait tel quel et désignerait un AUTRE type sur le
+  // second appareil — sans erreur, ce qui est exactement le dégât que ce
+  // fichier existe pour empêcher.
+  knowledge_topics: [{ colonne: "type_id", vers: "object_types" }],
   finance_recurring: [
     { colonne: "account_id", vers: "finance_accounts" },
     { colonne: "category_id", vers: "finance_categories" },

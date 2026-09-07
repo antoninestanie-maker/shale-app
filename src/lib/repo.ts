@@ -14,7 +14,6 @@ import type {
   CalendarEvent,
   Completion,
   CustomMetric,
-  CustomObject,
   FinanceAccount,
   FinanceAccountKind,
   FinanceBalance,
@@ -34,7 +33,7 @@ import type {
   JournalEntry,
   KnowledgeEntry,
   KnowledgeEntryLite,
-  KnowledgeTopic,
+  Sujet,
   LinkKind,
   LiveOutcome,
   LivePartial,
@@ -660,13 +659,18 @@ const LITE_COLUMNS =
   "id, topic_id, kind, title, text, url, thumb, data, tags, pinned, created_at, updated_at, LENGTH(body) AS body_len";
 
 export async function fetchKnowledge(): Promise<{
-  topics: KnowledgeTopic[];
+  topics: Sujet[];
   entries: KnowledgeEntryLite[];
 }> {
   if (!isTauri) return demo.fetchKnowledge();
   const db = await getDb();
-  const topics = await db.select<KnowledgeTopic[]>(
-    "SELECT * FROM knowledge_topics ORDER BY position, id",
+  // ⚠️ `body` est EXCLU de la liste, comme il l'est pour les fiches : la page
+  // d'un sujet peut peser des centaines de ko (images en data URL), et la
+  // grille d'accueil n'en affiche pas une ligne. Elle est lue à l'ouverture,
+  // par `fetchSujet()`.
+  const topics = await db.select<Sujet[]>(
+    `SELECT id, uid, name, color, position, type_id, NULL AS body, field_values, created_at, updated_at
+       FROM knowledge_topics ORDER BY position, id`,
   );
   const entries = await db.select<KnowledgeEntryLite[]>(
     `SELECT ${LITE_COLUMNS} FROM knowledge_entries ORDER BY pinned DESC, updated_at DESC, id DESC`,
@@ -687,33 +691,73 @@ export async function fetchKnowledgeEntry(
   return rows[0] ?? null;
 }
 
-export async function createKnowledgeTopic(
-  name: string,
-  color: string,
-): Promise<number> {
-  if (!isTauri) return demo.createKnowledgeTopic(name, color, localNow());
+/** La page complète d'un sujet — `body` compris. Pour l'écran du sujet. */
+export async function fetchSujet(id: number): Promise<Sujet | null> {
+  if (!isTauri) return demo.fetchSujet(id);
   const db = await getDb();
+  const rows = await db.select<Sujet[]>("SELECT * FROM knowledge_topics WHERE id = $1", [id]);
+  return rows[0] ?? null;
+}
+
+/**
+ * ⭐ CRÉER UN SUJET NE DEMANDE QU'UN NOM — décision d'Antonin, 2026-09-07.
+ *
+ * C'est la contrainte qui a présidé à toute la fusion : la moitié « Objets »
+ * est restée vide cinq jours parce qu'elle faisait choisir un type AVANT de
+ * rendre le moindre service. Le type est facultatif et s'ajoute après.
+ */
+export async function createSujet(name: string, color: string): Promise<number> {
+  if (!isTauri) return demo.createSujet(name, color, localNow());
+  const db = await getDb();
+  const now = localNow();
   const rows = await db.select<{ next: number | null }[]>(
     "SELECT MAX(position) + 1 AS next FROM knowledge_topics",
   );
   const res = await db.execute(
-    "INSERT INTO knowledge_topics (name, color, position, created_at) VALUES ($1, $2, $3, $4)",
-    [name, color, rows[0]?.next ?? 0, localNow()],
+    "INSERT INTO knowledge_topics (name, color, position, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)",
+    [name, color, rows[0]?.next ?? 0, now],
   );
   return res.lastInsertId ?? 0;
 }
 
-export async function updateKnowledgeTopic(
-  id: number,
-  name: string,
-  color: string,
-): Promise<void> {
-  if (!isTauri) return demo.updateKnowledgeTopic(id, name, color);
+export interface SujetPatch {
+  name?: string;
+  color?: string;
+  type_id?: number | null;
+  body?: string | null;
+  field_values?: Record<string, unknown>;
+}
+
+/**
+ * Écrit ce qui est FOURNI, et rien d'autre.
+ *
+ * ⚠️ Un `UPDATE … SET body = $n` inconditionnel effacerait la page d'un sujet
+ * dès qu'on renomme celui-ci depuis un formulaire qui ne connaît pas le corps —
+ * c'est mot pour mot le défaut « renommer une tâche effaçait sa date »
+ * (chantier Calendrier V2, § 6.2 de `PIEGES.md`). D'où le patch partiel.
+ *
+ * ⚠️ `field_values` doit avoir été passé par `fusionnerValeurs()` : écrire le
+ * seul contenu du formulaire effacerait les valeurs dont le champ a été retiré
+ * du type, sans un mot.
+ */
+export async function updateSujet(id: number, patch: SujetPatch): Promise<void> {
+  if (!isTauri) return demo.updateSujet(id, patch, localNow());
   const db = await getDb();
-  await db.execute(
-    "UPDATE knowledge_topics SET name = $1, color = $2 WHERE id = $3",
-    [name, color, id],
-  );
+  const sets: string[] = [];
+  const args: unknown[] = [];
+  const pose = (colonne: string, valeur: unknown) => {
+    args.push(valeur);
+    sets.push(`${colonne} = $${args.length}`);
+  };
+  if (patch.name !== undefined) pose("name", patch.name);
+  if (patch.color !== undefined) pose("color", patch.color);
+  if (patch.type_id !== undefined) pose("type_id", patch.type_id);
+  if (patch.body !== undefined) pose("body", patch.body);
+  if (patch.field_values !== undefined) pose("field_values", serialiserValeurs(patch.field_values));
+  if (sets.length === 0) return;
+  pose("updated_at", localNow());
+  args.push(id);
+  await db.execute(`UPDATE knowledge_topics SET ${sets.join(", ")} WHERE id = $${args.length}`, args);
 }
 
 /**
@@ -722,8 +766,8 @@ export async function updateKnowledgeTopic(
  * à leur rang ne sont pas réécrits, sinon un simple « monter d'un cran »
  * enverrait toute la liste dans la file de synchronisation.
  */
-export async function reorderKnowledgeTopics(ids: number[]): Promise<void> {
-  if (!isTauri) return demo.reorderKnowledgeTopics(ids);
+export async function reorderSujets(ids: number[]): Promise<void> {
+  if (!isTauri) return demo.reorderSujets(ids);
   const db = await getDb();
   const rows = await db.select<{ id: number; position: number }[]>(
     "SELECT id, position FROM knowledge_topics",
@@ -735,9 +779,12 @@ export async function reorderKnowledgeTopics(ids: number[]): Promise<void> {
   }
 }
 
-/** Supprime le thème ; ses fiches ne sont PAS perdues (elles passent « non classées »). */
-export async function deleteKnowledgeTopic(id: number): Promise<void> {
-  if (!isTauri) return demo.deleteKnowledgeTopic(id);
+/**
+ * Supprime le sujet ; ses fiches ne sont PAS perdues (elles passent « non
+ * classées »), et ses arêtes partent avec lui par trigger (migration 022, § 4).
+ */
+export async function deleteSujet(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteSujet(id);
   const db = await getDb();
   await db.execute(
     "UPDATE knowledge_entries SET topic_id = NULL WHERE topic_id = $1",
@@ -1637,9 +1684,12 @@ export async function updateObjectType(id: number, input: ObjectTypeInput): Prom
 }
 
 /**
- * ⚠️ Supprime AUSSI les objets de ce type, et leurs arêtes — par triggers
- * (migration 020, § 8). Des fiches sans type resteraient en base sans champs ni
- * écran pour les afficher : invisibles, mais toujours là.
+ * ⭐ NE SUPPRIME PLUS LES SUJETS DE CE TYPE — il les DÉTYPE (migration 022, § 5).
+ *
+ * La cascade d'avant se défendait tant qu'un objet n'était qu'un porte-champs :
+ * sans son type, il n'avait ni champs ni écran. Ce n'est plus vrai — un sujet a
+ * un nom, une page, des FICHES rangées dedans et des backlinks. Garder la
+ * cascade voudrait dire qu'un clic sur « supprimer le type » emporte des notes.
  */
 export async function deleteObjectType(id: number): Promise<void> {
   if (!isTauri) return demo.deleteObjectType(id);
@@ -1647,54 +1697,10 @@ export async function deleteObjectType(id: number): Promise<void> {
   await db.execute("DELETE FROM object_types WHERE id = $1", [id]);
 }
 
-// ─── Objets ──────────────────────────────────────────────────────────────────
-
-export interface ObjectInput {
-  type_id: number;
-  title: string;
-  body: string | null;
-  field_values: Record<string, unknown>;
-}
-
-export async function fetchObjects(typeId?: number): Promise<CustomObject[]> {
-  if (!isTauri) return demo.fetchObjects(typeId);
-  const db = await getDb();
-  return typeId == null
-    ? db.select<CustomObject[]>("SELECT * FROM objects ORDER BY updated_at DESC")
-    : db.select<CustomObject[]>("SELECT * FROM objects WHERE type_id = $1 ORDER BY updated_at DESC", [typeId]);
-}
-
-export async function createObject(input: ObjectInput): Promise<void> {
-  if (!isTauri) return demo.createObject(input, localNow());
-  const db = await getDb();
-  const now = localNow();
-  await db.execute(
-    `INSERT INTO objects (type_id, title, body, field_values, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $5)`,
-    [input.type_id, input.title, input.body, serialiserValeurs(input.field_values), now],
-  );
-}
-
-/**
- * ⚠️ `input.field_values` doit avoir été passé par `fusionnerValeurs()` :
- * écrire ici le seul contenu du formulaire effacerait les valeurs dont le champ
- * a été retiré du type, sans un mot. C'est la promesse du module (voir
- * `lib/objets.ts`).
- */
-export async function updateObject(id: number, input: ObjectInput): Promise<void> {
-  if (!isTauri) return demo.updateObject(id, input, localNow());
-  const db = await getDb();
-  await db.execute(
-    "UPDATE objects SET type_id = $1, title = $2, body = $3, field_values = $4, updated_at = $5 WHERE id = $6",
-    [input.type_id, input.title, input.body, serialiserValeurs(input.field_values), localNow(), id],
-  );
-}
-
-export async function deleteObject(id: number): Promise<void> {
-  if (!isTauri) return demo.deleteObject(id);
-  const db = await getDb();
-  await db.execute("DELETE FROM objects WHERE id = $1", [id]);
-}
+// ⚠️ La section « Objets » a disparu avec la migration 022 : `fetchObjects`,
+// `createObject`, `updateObject` et `deleteObject` n'ont plus de table. Leurs
+// lignes sont devenues des SUJETS — voir `createSujet` / `updateSujet` /
+// `deleteSujet`, plus haut, dans la section du Savoir.
 
 // ─── Liaisons ────────────────────────────────────────────────────────────────
 
@@ -1830,13 +1836,17 @@ async function corpusPour(
     for (const r of rows) docs.push({ kind: "knowledge", id: r.id, uid: r.uid, titre: r.title, corps: r.text });
   }
   if (veut("object")) {
-    const rows = await db.select<{ id: number; uid: string; title: string; nom: string }[]>(
+    // Les SUJETS (migration 022). Le contexte affiché sous le résultat est le
+    // nom du type quand il y en a un — un sujet sans type n'en affiche aucun,
+    // et c'est voulu : « Trading » n'a pas besoin d'être sous-titré.
+    const rows = await db.select<{ id: number; uid: string; name: string; nom: string | null }[]>(
       q
-        ? "SELECT o.id, o.uid, o.title, t.name AS nom FROM objects o LEFT JOIN object_types t ON t.id = o.type_id WHERE o.title LIKE $1 ORDER BY o.updated_at DESC LIMIT 40"
-        : "SELECT o.id, o.uid, o.title, t.name AS nom FROM objects o LEFT JOIN object_types t ON t.id = o.type_id ORDER BY o.updated_at DESC LIMIT 40",
+        ? "SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id WHERE s.name LIKE $1 ORDER BY s.position, s.id LIMIT 40"
+        : "SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id ORDER BY s.position, s.id LIMIT 40",
       q ? [like] : [],
     );
-    for (const r of rows) docs.push({ kind: "object", id: r.id, uid: r.uid, titre: r.title, contexte: r.nom });
+    for (const r of rows)
+      docs.push({ kind: "object", id: r.id, uid: r.uid, titre: r.name, contexte: r.nom ?? undefined });
   }
   if (veut("goal")) {
     const rows = await db.select<{ id: number; uid: string; title: string }[]>(
@@ -1909,7 +1919,9 @@ export async function titresDesMentions(
     goal: { table: "goals", titre: "title" },
     event: { table: "calendar_events", titre: "title" },
     trade: { table: "trades", titre: "pair" },
-    object: { table: "objects", titre: "title" },
+    // ⚠️ La colonne est `name`, pas `title` : les sujets ont hérité du
+    // schéma des thèmes (migration 022).
+    object: { table: "knowledge_topics", titre: "name" },
   };
 
   for (const [kind, uids] of parFamille) {

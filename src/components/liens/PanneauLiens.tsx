@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ICONE_DE_KIND, LIBELLE_DE_KIND, LIBELLE_PLURIEL } from "./libelles";
 import { aretesResolues, grouperParKind, LINK_KINDS } from "../../lib/liens";
 import { createLink, deleteLink, fetchLinksTo, rechercherPartout } from "../../lib/repo";
@@ -25,14 +25,28 @@ interface Props {
   uid: string;
   /** Ouvre l'objet cité. Sans elle, le panneau reste lisible mais inerte. */
   onOuvrir?: (kind: LinkKind, uid: string) => void;
+  /**
+   * Combien d'arêtes RÉSOLUES le panneau affiche.
+   *
+   * ⚠️ Sert à un appelant qui doit décider s'il y a quelque chose à montrer —
+   * la page d'un sujet se replie quand elle est vide. Le compte ne peut pas
+   * être calculé dehors : seul ce panneau sait quelles arêtes se résolvent
+   * vraiment, et une arête orpheline ne compte pas.
+   */
+  onCompte?: (n: number) => void;
 }
 
-export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
+export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
   const [liens, setLiens] = useState<ObjectLink[]>([]);
   const [titres, setTitres] = useState<Map<string, string>>(new Map());
   const [ajout, setAjout] = useState(false);
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Trouvaille[]>([]);
+  // ⚠️ Par REF, pas en dépendance : `onCompte` est souvent une lambda recréée à
+  // chaque rendu du parent, et la mettre dans les dépendances de `charger`
+  // relancerait la requête à chaque frappe du parent.
+  const compteRef = useRef(onCompte);
+  compteRef.current = onCompte;
 
   const charger = useCallback(async () => {
     if (!uid) return;
@@ -44,7 +58,11 @@ export default function PanneauLiens({ kind, uid, onOuvrir }: Props) {
     const corpus = await rechercherPartout("", { limite: 500 });
     const parCle = new Map(corpus.map((d) => [`${d.kind}:${d.uid}`, d.titre]));
     setTitres(parCle);
-    setLiens(aretesResolues(entrants, (k, u) => k === kind && u === uid ? true : parCle.has(`${k}:${u}`)));
+    const resolues = aretesResolues(entrants, (k, u) =>
+      k === kind && u === uid ? true : parCle.has(`${k}:${u}`),
+    );
+    setLiens(resolues);
+    compteRef.current?.(resolues.length);
   }, [kind, uid]);
 
   useEffect(() => {

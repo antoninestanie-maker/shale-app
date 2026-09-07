@@ -8,7 +8,7 @@ import {
   FIELD_TYPES,
 } from "../../lib/objets";
 import { createObjectType, deleteObjectType, updateObjectType } from "../../lib/repo";
-import type { CustomObject, FieldType, ObjectField, ObjectType } from "../../lib/types";
+import type { FieldType, ObjectField, ObjectType, Sujet } from "../../lib/types";
 import { IconPlus, IconTrash, IconX } from "../icons";
 import { t } from "../../lib/i18n";
 
@@ -34,8 +34,8 @@ const COULEURS = ["blue", "green", "violet", "yellow", "red"];
 interface Props {
   /** `null` = création. */
   type: ObjectType | null;
-  /** Les objets de ce type — pour dire ce qu'un retrait de champ va masquer. */
-  objets: readonly CustomObject[];
+  /** Les sujets de ce type — pour dire ce qu'un retrait de champ va masquer. */
+  objets: readonly Sujet[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }
@@ -274,8 +274,16 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
               className="pill flex items-center gap-1.5 px-3 py-2 text-sm text-text-dim hover:text-red"
             >
               <IconTrash className="h-4 w-4" />
+              {/* ⭐ Le libellé DIT ce qui va se passer, et ce qui ne va PAS se
+                  passer. Depuis la migration 022 la suppression d'un type
+                  DÉTYPE ses sujets au lieu de les détruire : promettre le
+                  contraire ferait renoncer à un geste sans danger. */}
               {confirmeSuppression
-                ? t("Supprimer le type ET ses {n} fiches ?", { n: objets.length })
+                ? objets.length > 0
+                  ? t("Supprimer le type ? Ses {n} sujets sont conservés, sans type.", {
+                      n: objets.length,
+                    })
+                  : t("Supprimer ce type ?")
                 : t("Supprimer")}
             </button>
           ) : (

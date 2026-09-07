@@ -40,7 +40,12 @@ export const TABLE_DE_KIND: Readonly<Record<LinkKind, string>> = {
   goal: "goals",
   event: "calendar_events",
   trade: "trades",
-  object: "objects",
+  // ⚠️ Depuis la migration 022, un « objet » EST un sujet, et les sujets
+  // vivent dans `knowledge_topics` — la table a gardé son nom physique.
+  // Le `kind` reste `'object'` : le changer réécrirait l'uid dérivé de chaque
+  // arête, c'est-à-dire l'identité que les deux appareils calculent chacun de
+  // leur côté. Un renommage cosmétique ne vaut pas une divergence d'identité.
+  object: "knowledge_topics",
 };
 
 const KINDS = new Set<string>(LINK_KINDS);

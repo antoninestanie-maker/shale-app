@@ -162,7 +162,8 @@ export default function NotificationBell({ onNavigate }: Props) {
                 </span>
               </p>
             ) : (
-              <div className="panel-scroll max-h-[min(60vh,420px)] overflow-y-auto">
+              <div className="panel-scroll overflow-y-auto"
+                style={{ maxHeight: "min(calc(60vh * var(--zoom-inv, 1)), 420px)" }}>
                 {notifs.list.map((n) => (
                   <div key={n.id} className="group/notif relative border-b border-border last:border-b-0">
                     <button

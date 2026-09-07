@@ -1,4 +1,4 @@
-import type { CustomObject, FieldType, ObjectField, ObjectType } from "./types";
+import type { Sujet, FieldType, ObjectField, ObjectType } from "./types";
 
 /**
  * Les types d'objets et leurs champs — logique pure.
@@ -221,10 +221,17 @@ export function valeursAffichables(
 
 // ─── Confort de lecture ──────────────────────────────────────────────────────
 
-/** Le type d'un objet, ou `undefined` si son type a été supprimé entre-temps. */
+/**
+ * Le type d'un sujet, ou `undefined` s'il n'en a pas.
+ *
+ * ⚠️ « Pas de type » est un état NORMAL depuis la migration 022, plus un
+ * accident : c'est ce qu'était un thème, et c'est ce qu'on obtient en créant un
+ * sujet d'un seul mot. C'est aussi ce qu'il reste après la suppression de son
+ * type, qui détype au lieu de détruire.
+ */
 export function typeDeLObjet(
-  objet: Pick<CustomObject, "type_id">,
+  objet: Pick<Sujet, "type_id">,
   types: readonly ObjectType[],
 ): ObjectType | undefined {
-  return types.find((t) => t.id === objet.type_id);
+  return objet.type_id == null ? undefined : types.find((t) => t.id === objet.type_id);
 }

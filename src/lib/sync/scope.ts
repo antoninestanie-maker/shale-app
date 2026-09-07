@@ -29,14 +29,17 @@ export const TABLES_SYNC = [
   "notes",
   "journal_entries",
   "trades",
-  "knowledge_topics",
   "position_size_calculations",
   "finance_accounts",
   "finance_categories",
   "calendar_events",
   "object_types",
   // Dépendent d'une racine
-  "objects", // → object_types
+  // ⚠️ `knowledge_topics` porte les SUJETS depuis la migration 022 (la table a
+  // gardé son nom physique, cf. l'en-tête de cette migration). Elle a donc
+  // cessé d'être une racine : son `type_id` pointe `object_types`, qui doit
+  // être appliquée AVANT elle.
+  "knowledge_topics", // → object_types
   "tasks", // → goals
   "focus_sessions", // → tasks
   "knowledge_entries", // → knowledge_topics

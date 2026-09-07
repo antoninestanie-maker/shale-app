@@ -195,17 +195,75 @@ describe("le garde-fou du moteur", () => {
 
   it("les clés étrangères VRAIES continuent d'être traduites", async () => {
     // Le miroir du test précédent : la correction ne devait rien changer aux
-    // tables existantes. Un objet et son type traversent, et l'objet reste
+    // tables existantes. Un SUJET et son type traversent, et le sujet reste
     // rattaché au BON type malgré des numéros locaux différents.
-    b.ecrire("INSERT INTO object_types (name) VALUES ('Décalage local')");
-    const typeId = (a.lire<{ id: number }>("SELECT id FROM object_types WHERE name = 'Projet'")[0]).id;
-    a.ecrire("INSERT INTO objects (type_id, title) VALUES (?, 'Refonte du site')", typeId);
+    //
+    // ⚠️ Ce test garde la ligne `knowledge_topics → object_types` ajoutée à
+    // `fk.ts` par la migration 022. Sans elle, le `type_id` local partirait tel
+    // quel et désignerait un AUTRE type sur le second appareil — sans erreur.
+    // ⚠️ DÉCALER LES `id` DE B POUR DE VRAI, et le vérifier. Une première
+    // rédaction se contentait d'insérer un type sur B : comme les quatre types
+    // livrés naissent identiques des deux côtés (migration 020), « Projet »
+    // gardait le MÊME numéro local sur les deux appareils et le test passait
+    // même sans traduction. Il ne prouvait rien. Vu en le faisant échouer.
+    b.ecrire("INSERT INTO object_types (name) VALUES ('Décalage 1')");
+    b.ecrire("INSERT INTO object_types (name) VALUES ('Décalage 2')");
+    a.ecrire("INSERT INTO object_types (name) VALUES ('Chantier')");
+    const typeIdA = (a.lire<{ id: number }>("SELECT id FROM object_types WHERE name = 'Chantier'")[0]).id;
+    a.ecrire(
+      "INSERT INTO knowledge_topics (name, color, position, created_at, type_id) VALUES ('Refonte du site', '#4d8dff', 9, '2026-09-07', ?)",
+      typeIdA,
+    );
 
     await converger();
 
+    // Le décalage est RÉEL : sans lui, l'assertion suivante ne dirait rien.
+    const typeIdB = (b.lire<{ id: number }>("SELECT id FROM object_types WHERE name = 'Chantier'")[0]).id;
+    expect(typeIdB).not.toBe(typeIdA);
+
     const chezB = b.lire<{ nom: string }>(
-      "SELECT t.name AS nom FROM objects o JOIN object_types t ON t.id = o.type_id WHERE o.title = 'Refonte du site'",
+      "SELECT t.name AS nom FROM knowledge_topics s JOIN object_types t ON t.id = s.type_id WHERE s.name = 'Refonte du site'",
     );
-    expect(chezB[0]?.nom).toBe("Projet");
+    expect(chezB[0]?.nom).toBe("Chantier");
+  });
+
+  it("⭐ un SUJET traverse avec sa page, ses champs et son uid", async () => {
+    // La fusion a fait voyager des colonnes neuves sur une table qui existait
+    // déjà. Une faute de sérialisation ne se verrait jamais sur l'appareil où
+    // l'on développe : elle se verrait sur le second, sous forme d'une page
+    // vide — pas d'une erreur.
+    a.ecrire(
+      `INSERT INTO knowledge_topics (name, color, position, created_at, body, field_values)
+       VALUES ('Trading', '#f0b341', 3, '2026-09-07', '<p>ce que je sais</p>', '{"f1":"EURUSD"}')`,
+    );
+    const uidA = (a.lire<{ uid: string }>("SELECT uid FROM knowledge_topics WHERE name = 'Trading'")[0]).uid;
+
+    await converger();
+
+    const chezB = b.lire<{ uid: string; color: string; position: number; body: string; field_values: string }>(
+      "SELECT uid, color, position, body, field_values FROM knowledge_topics WHERE name = 'Trading'",
+    );
+    expect(chezB).toHaveLength(1);
+    expect(chezB[0]).toEqual({
+      uid: uidA,
+      color: "#f0b341",
+      position: 3,
+      body: "<p>ce que je sais</p>",
+      field_values: '{"f1":"EURUSD"}',
+    });
+  });
+
+  it("⚠️ et sa suppression ne le ressuscite pas au tour suivant", async () => {
+    a.ecrire("INSERT INTO knowledge_topics (name, color, position, created_at) VALUES ('Provisoire', '#4d8dff', 7, '2026-09-07')");
+    await converger();
+    expect(b.lire("SELECT id FROM knowledge_topics WHERE name = 'Provisoire'")).toHaveLength(1);
+
+    a.ecrire("DELETE FROM knowledge_topics WHERE name = 'Provisoire'");
+    await converger();
+    expect(b.lire("SELECT id FROM knowledge_topics WHERE name = 'Provisoire'")).toHaveLength(0);
+    // Un second tour : c'est là qu'une pierre tombale mal posée fait revenir la
+    // ligne, et c'est le seul moment où on peut le voir.
+    await converger();
+    expect(b.lire("SELECT id FROM knowledge_topics WHERE name = 'Provisoire'")).toHaveLength(0);
   });
 });

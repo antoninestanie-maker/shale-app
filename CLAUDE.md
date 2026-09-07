@@ -4462,3 +4462,155 @@ pied « Enter confirm · Tab sub-node · ⌘↵ sibling ») · **thème clair** 
 ⚠️ **Non vu** : l'app installée (front only, aucun Rust, aucune migration — un
 rebuild reste nécessaire pour qu'Antonin en profite), et le doigt : le portage
 tactile de la carte reste le chantier écarté du 2026-09-07 au matin.
+
+## Les thèmes et les objets n'en font plus qu'un : le SUJET (2026-09-07, nuit)
+
+Migration **022**. Le module Savoir avait deux moitiés — les « thèmes » et les
+« objets » — et elles étaient **exactement complémentaires** :
+
+| | thème | objet |
+|---|---|---|
+| contient des fiches | ✅ | ❌ |
+| se cite avec `@`, a des backlinks | ❌ | ✅ |
+| a une page, des champs | ❌ | ✅ |
+| se crée en tapant juste un nom | ✅ | ❌ |
+
+### ⭐ Le chiffre qui a tranché, et il vient de la vraie base
+
+Cinq jours après la livraison des objets : **4 thèmes utilisés, 0 objet, 0
+arête**. Le thème sert parce qu'il est **gratuit** ; l'objet ne servait pas
+parce qu'il faisait **payer son entrée** — choisir un type, remplir des champs —
+avant de rendre le moindre service, et qu'en plus il ne pouvait pas contenir de
+fiches. Ce n'est pas un procès d'intention : c'est un compte lu dans la
+sauvegarde du jour, avant d'écrire une ligne.
+
+▶️ **Règle générale à garder** : une fonctionnalité restée à zéro n'a pas
+manqué de temps, elle a un **coût d'entrée**. Le chercher avant de la refaire.
+
+### ⚠️⚠️ Pourquoi la table s'appelle ENCORE `knowledge_topics`
+
+La rédaction naturelle — fusionner les thèmes DANS `objects` — a été écartée
+sur une raison de sécurité, pas de goût :
+
+- `objects.type_id` est `NOT NULL` : le rendre nullable impose de **recréer**
+  la table (SQLite ne modifie pas une colonne) ;
+- `knowledge_entries.topic_id` déclare `REFERENCES knowledge_topics(id)` :
+  faire pointer les fiches vers `objects` impose de recréer **aussi**
+  `knowledge_entries` — la table qui porte les vraies notes d'Antonin, avec
+  leurs images en base64.
+
+Deux recréations de table, dont une sur les seules données qui comptent, pour
+déplacer **zéro ligne**. Le sens inverse — les objets rejoignent les thèmes —
+se fait entièrement en `ALTER TABLE ADD COLUMN`, ne touche pas une ligne de
+`knowledge_entries` et laisse sa clé étrangère intacte.
+
+▶️ **Le nom PHYSIQUE reste `knowledge_topics`, le nom du CODE est `Sujet`.**
+Renommer la table changerait son empreinte de synchronisation (le `table_tag`
+est un HMAC du nom) et republierait les quatre lignes réelles sous une autre
+identité — un coût réel pour un gain cosmétique. Idem pour le `LinkKind`, qui
+reste `'object'` : le changer réécrirait l'uid dérivé de chaque arête
+(`ol:kind:uid:kind:uid`), c'est-à-dire l'identité que les deux appareils
+calculent chacun de leur côté.
+
+### ⭐ Supprimer un TYPE ne détruit plus ses sujets — il les DÉTYPE
+
+La 020 faisait cascader la suppression. C'était défendable tant qu'un objet
+n'était qu'un porte-champs : sans type, il n'avait ni champs ni écran. Ce n'est
+plus vrai — un sujet a un nom, une page, des **fiches rangées dedans** et des
+backlinks. Garder la cascade voudrait dire qu'un clic sur « supprimer le type »
+emporte des notes. C'est la règle « retirer un champ conserve ses valeurs », un
+cran au-dessus : **on retire l'étiquette, jamais la chose.**
+
+### La page du sujet se replie EN UNE LIGNE quand elle est vide
+
+Antonin venait de demander qu'on retire des onglets ; en rajouter un ici
+(« Fiches » / « À propos ») aurait rendu la moitié du travail. Un sujet qui
+n'est qu'un tiroir — « Sport » — n'affiche donc qu'un discret « ＋ Décrire ce
+sujet », et ses notes commencent tout de suite. **La fusion ne coûte rien à qui
+ne s'en sert pas.**
+
+⚠️ **Le corps est chargé à part** : `fetchKnowledge` force `body` à NULL en SQL
+(la page peut peser des centaines de ko d'images) et `fetchSujet` le lit à
+l'ouverture. Même partage que les fiches depuis la 014.
+
+⚠️ **`updateSujet` écrit un PATCH PARTIEL, et le mode démo aussi.** Un
+`UPDATE … SET body = $n` inconditionnel effacerait la page dès qu'on renomme le
+sujet depuis un formulaire qui ne connaît pas le corps — mot pour mot le défaut
+« renommer une tâche effaçait sa date » (§ 6.2 de `PIEGES.md`). L'ancien
+`updateKnowledgeTopic` démo faisait un `Object.assign`, donc **plus indulgent
+que le natif** : les deux implémentations doivent avoir la même *sémantique*,
+pas seulement la même signature.
+
+### Ce qui a été vérifié, et comment
+
+- **La migration jouée sur une COPIE de la vraie base** avant toute écriture :
+  4 sujets conservés avec leur `uid`, 5 fiches et 13 notes intactes,
+  `integrity_check` **ok**, `foreign_key_check` **0 violation**.
+- **Le banc à deux appareils** : un sujet traverse avec sa page, ses champs,
+  sa couleur et son uid ; sa suppression ne le ressuscite pas au tour suivant ;
+  et son `type_id` est bien **traduit** — ⚠️ ce dernier test a d'abord été écrit
+  **vacueux** (les quatre types livrés naissent avec les mêmes `id` des deux
+  côtés, donc rien n'était décalé). Il ne prouve quelque chose que depuis qu'il
+  décale les numéros pour de vrai **et le vérifie**. Vu échouer sans le
+  correctif.
+- À l'écran, en mode démo : la grille unique, le type sur la case, la page
+  repliée d'un sujet sans type, l'attribution d'un type qui fait apparaître ses
+  champs, `@Trading` depuis une note qui **ouvre la page du sujet** et y crée le
+  backlink, l'anglais complet et le thème clair.
+
+### Ce qui n'a PAS été fait
+
+Le `@` dans le corps de TEXTE du Savoir n'existe toujours pas (la page d'un
+sujet, elle, l'a). Une arête Savoir→Savoir reste donc invisible depuis une
+fiche. Chantier à part, inchangé depuis le 2026-09-07 matin.
+
+## Checkup global du 2026-09-07 (nuit) — ce qu'il a trouvé
+
+Demandé par Antonin après la fusion. Trois trouvailles, toutes dans la même
+famille : **des défauts qu'aucun outil du dépôt ne pouvait voir.**
+
+### ⭐⭐ Huit chaînes françaises s'affichaient dans l'app ANGLAISE
+
+Et **les deux outils i18n étaient au vert**. `i18n:check` ne voit que les clés
+ÉCRITES dans un `t("…")` ; `i18n:durs` signalait bien ces huit-là comme
+« entrées de table », mais sans savoir si elles étaient traduites. Ce sont des
+valeurs de TABLE (`ACTIONS`, `WIDGET_LABELS`, `DESCRIPTIONS` de la sidebar, les
+vues du calendrier, `correlations.ts`), traduites à l'affichage — le piège
+§ 5.2 bis, pris par le seul bout qui marche.
+
+▶️ **La méthode qui les a trouvées, à refaire** : basculer l'app en anglais et
+**lire le journal de `t()`**, qui écrit en console chaque traduction manquante.
+Puis la version statique : croiser les `[table]` de `i18n:durs` avec les clés
+de `en.ts`. Sept des huit venaient du chantier Calendrier (2026-09-02).
+
+### Deux `vh` non corrigés par `--zoom-inv`
+
+`NotificationBell` et `NoteComposer`. Bornés par un `min(…, 420px)`, donc sans
+dégât visible, mais la règle du 2026-08-28 vaut pour tous les usages : le
+`zoom` CSS multiplie AUSSI les unités de viewport.
+
+### Ce qui a été contrôlé et qui est SAIN
+
+- **14 destinations × 500 px et 720 px** : zéro contrôle incliquable, zéro
+  débordement de page, zéro texte en colonne d'une lettre. ⚠️ Une première
+  sonde criait au loup sur la vue Position : ses boutons vivent dans un
+  `overflow-x: auto` qui **défile**, donc ils sont atteignables. Une mesure qui
+  ignore les conteneurs défilants ne mesure rien.
+- **Téléphone (390 pt)** : barre d'onglets, Savoir et page d'un sujet — aucun
+  débordement. Les sélecteurs de la page du sujet ont reçu
+  `.cible-tactile-ligne` (qui ne mord que sous `pointer: coarse`).
+- Tokens de couleur : **aucun** `text-amber` / `--color-indigo` fantôme, aucun
+  `couleur + "22"`, aucun `var(--color-…)` inconnu.
+- Les 22 migrations sont enregistrées aux **trois** endroits (fichiers,
+  `lib.rs`, banc de test), et les deux garde-fous de portée passent : aucune
+  table hors sauvegarde, chaque table synchronisée porte ses trois triggers.
+
+### ⚠️ Deux bruits à ne PAS re-diagnostiquer
+
+- **`createRoot() on a container that has already been passed`** en console :
+  artefact du **HMR de Vite**, qui ré-exécute `main.tsx`. Le module ne tourne
+  qu'une fois en production.
+- **74 clés i18n jamais référencées** (sur 1616). Poids mort, pas défaut — et
+  **ne pas les purger à l'aveugle** : certaines sont des clés DYNAMIQUES
+  (`t(cat + "|palette")`) qu'un scan textuel ne peut pas voir, et les effacer
+  ferait retomber l'app anglaise en français sans le dire.

@@ -678,6 +678,58 @@ la règle n'existe pas.
 **Comment on l'a payée.** Calendrier V2, 2026-09-05 — sans conséquence, la garde
 n'avait rien à garder, mais elle aurait pu.
 
+## 7.2 quinquies ⭐⭐ Un test de traduction de clé étrangère peut être VACUEUX
+
+**Symptôme.** On écrit un test « la clé étrangère est bien traduite d'un
+appareil à l'autre », il passe, on est content. Il passe **aussi** quand on
+retire la traduction.
+
+**Cause.** Le test décalait les `id` en insérant une ligne sur l'appareil B…
+mais la table visée (`object_types`) est peuplée par la MIGRATION, identiquement
+sur les deux appareils. « Projet » avait donc le numéro 3 des deux côtés, et
+l'arête pointait juste par accident. Le décalage était une intention, pas un
+fait.
+
+**Parade, en deux temps :**
+1. décaler pour de vrai — créer la ligne visée sur A **après** avoir inséré des
+   lignes de bourrage sur B, pour qu'elle reçoive des numéros différents ;
+2. ⭐ **ASSERTER LE DÉCALAGE** (`expect(idB).not.toBe(idA)`). Sans cette
+   assertion, le test redeviendra vacueux le jour où le nombre de lignes livrées
+   par la migration changera — et personne ne le saura.
+
+**Comment on l'a payée.** Fusion des sujets, 2026-09-07 : le test a été écrit,
+il passait, et c'est en le faisant échouer volontairement (retrait de la ligne
+de `fk.ts`) qu'on a vu qu'il ne prouvait rien. Le § 7.2 dit « un test qui passe
+ne prouve rien tant qu'on ne l'a pas vu échouer » — c'est exactement ce cas, et
+il avait déjà été écrit dans ce fichier.
+
+## 7.9 ⭐ Une mesure de débordement qui ignore les conteneurs DÉFILANTS ment
+
+**Symptôme.** Une sonde balaie les vues à 720 px et dénonce trois boutons
+« hors écran, donc incliquables » dans la vue Position. On s'apprête à corriger
+une mise en page qui n'a rien.
+
+**Cause.** Les boutons vivaient dans un `div.overflow-x-auto` de 820 px de
+contenu pour 540 px de large : ils sont **atteignables en faisant défiler le
+tableau**, ce qui est précisément le patron `.table-scroll` que le dépôt
+recommande. Comparer un `getBoundingClientRect()` à `innerWidth` ne distingue
+pas « sorti du cadre et clippé » de « plus loin dans une zone qui défile ».
+
+**Parade.** Avant de conclure, **remonter les ancêtres** et écarter l'élément
+dès qu'un parent a `overflow-x: auto|scroll` ET `scrollWidth > clientWidth` :
+
+```js
+const defilable = (el) => { let p = el.parentElement;
+  while (p && p !== document.documentElement) {
+    const cs = getComputedStyle(p);
+    if ((cs.overflowX === "auto" || cs.overflowX === "scroll") && p.scrollWidth > p.clientWidth + 1) return true;
+    p = p.parentElement;
+  } return false; };
+```
+
+**Comment on l'a payée.** Checkup du 2026-09-07 : quelques minutes, et l'envie
+de « réparer » une vue saine.
+
 ## 7.3 Un test rouge n'est pas forcément le vôtre
 
 **Symptôme.** `auth/activation.sql.test.ts` échoue sur deux cas d'essai gratuit.
@@ -1356,6 +1408,37 @@ remplace un binaire au-dessus d'une base — installation, restauration,
 `ditto` — on copie la base. Ce carnet contient déjà deux entrées sur des preuves
 détruites par un `rm -rf` (§ 7.5 bis) ; c'est la même faute, appliquée à des
 données au lieu d'un artefact.
+
+## 9.12 ⭐⭐ Les deux outils i18n au vert ne prouvent RIEN pour une valeur de table
+
+**Symptôme.** `i18n:check` rend « 0 clé manquante » et `i18n:durs` « 0 chaîne
+sûrement française ». L'app basculée en anglais affiche pourtant « Aller au
+Calendrier », « Calendrier du jour » et « Vue d'ensemble : ce qui est chargé, ce
+qui est libre. »
+
+**Cause.** Ces chaînes ne sont pas écrites dans un appel `t("…")` : elles vivent
+comme VALEURS dans une table (`ACTIONS`, `WIDGET_LABELS`, `DESCRIPTIONS` de la
+sidebar, les vues du calendrier, `correlations.ts`) et sont traduites au point
+d'affichage par `t(item.title)`. `i18n:check` ne peut pas les réclamer — il lit
+les littéraux passés à `t()`. `i18n:durs` les VOIT (il les liste en
+`[table] "…"`) mais ne dit pas si elles sont traduites : sa question est
+« est-ce affiché sans `t()` ? », pas « est-ce traduit ? ».
+
+**Parade, dans cet ordre :**
+1. **la seule preuve** — basculer l'app en anglais et LIRE LE JOURNAL de `t()`,
+   qui écrit en console `[i18n] traduction anglaise manquante : "…"`. Poser une
+   sonde sur `console.warn` et parcourir les modules ramasse tout ;
+2. **la version statique**, à rejouer après tout ajout de table : croiser les
+   entrées `[table]` de `i18n:durs` avec les clés de `en.ts`.
+
+⚠️ **Le corollaire, dans l'autre sens** : ne JAMAIS purger les clés de `en.ts`
+« jamais référencées » d'après un scan textuel. Une clé dynamique
+(`t(cat + "|palette")`) n'apparaît nulle part en toutes lettres, et l'effacer
+fait retomber l'app anglaise en français **sans un mot**.
+
+**Comment on l'a payée.** Checkup du 2026-09-07 : huit chaînes, sept venant du
+chantier Calendrier du 2026-09-02 — cinq jours en production dans l'app
+anglaise.
 
 ## 9.11 ⭐ L'« intermittence PGlite » a une cause MESURABLE : la charge machine
 

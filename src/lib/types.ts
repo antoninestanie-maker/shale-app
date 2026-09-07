@@ -208,12 +208,39 @@ export interface LivePosition {
 /** Nature d'une fiche : détermine son rendu (carte, aperçu, lecteur). */
 export type KnowledgeKind = "note" | "link" | "image" | "sketch";
 
-export interface KnowledgeTopic {
+/**
+ * ⭐ UN SUJET — ce que le module Savoir range et ce qu'on peut citer.
+ *
+ * Depuis la migration 022 (2026-09-07) il n'y a plus qu'une seule chose là où
+ * il y avait un « thème » et un « objet ». Un sujet :
+ *   • range des fiches (`knowledge_entries.topic_id`) ;
+ *   • se cite avec `@` et porte des backlinks (`LinkKind: "object"`) ;
+ *   • a une page en texte riche (`body`) ;
+ *   • a FACULTATIVEMENT un type, qui lui donne des champs.
+ *
+ * ⚠️ LA TABLE S'APPELLE ENCORE `knowledge_topics`. Le nom physique a été gardé
+ * parce que le renommer changerait l'empreinte de synchronisation des lignes
+ * existantes — l'en-tête de la migration 022 porte le raisonnement complet.
+ * Le code, lui, dit `Sujet` partout : c'est le nom qui compte à la lecture.
+ *
+ * ⚠️ `color` est un HEX (`#4d8dff`, cf. `TOPIC_COLORS`), tandis que
+ * `ObjectType.color` est un NOM DE TOKEN (`blue`). Les deux ne se recopient
+ * JAMAIS l'un dans l'autre : `var(--color-#4d8dff)` échouerait en silence.
+ */
+export interface Sujet {
   id: number;
+  uid: string;
   name: string;
-  color: string; // hex de données (teinte du thème)
+  color: string; // hex de données (teinte du sujet)
   position: number;
+  /** `null` = sujet sans type : un simple tiroir, ce qu'était le thème. */
+  type_id: number | null;
+  /** HTML riche, même format que le corps d'une fiche. */
+  body: string | null;
+  /** JSON `{ "<id de champ>": valeur }` — passer par `valeursDeLObjet()`. */
+  field_values: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface KnowledgeEntry {
@@ -450,15 +477,6 @@ export interface ObjectType {
   updated_at: string;
 }
 
-export interface CustomObject {
-  id: number;
-  uid: string;
-  type_id: number;
-  title: string;
-  /** HTML riche, même format que les fiches du Savoir. */
-  body: string | null;
-  /** JSON `{ "<id de champ>": valeur }` — passer par `valeursDeLObjet()`. */
-  field_values: string;
-  created_at: string;
-  updated_at: string;
-}
+// ⚠️ `CustomObject` a disparu avec la migration 022 : ses lignes sont devenues
+// des `Sujet` (voir plus haut), en gardant leur `uid` pour que leurs arêtes
+// continuent de résoudre. La table `objects` n'existe plus.

@@ -1,13 +1,25 @@
 // Savoir — base de connaissances personnelle (section Productivité).
 //
+// ⭐ UN SEUL OBJET DEPUIS LE 2026-09-07 : LE SUJET. Le module avait deux
+// moitiés — les « thèmes » (qui rangeaient des fiches) et les « objets » (qui
+// se citaient avec `@` et portaient des champs) — et elles étaient exactement
+// complémentaires : chacune manquait de ce que l'autre avait. Le constat qui a
+// tranché est un chiffre : cinq jours après la livraison des objets, il y avait
+// 4 thèmes utilisés et 0 objet. Le thème servait parce qu'il est gratuit ;
+// l'objet faisait payer son entrée (choisir un type) avant de rendre service.
+//
+// Un sujet range des fiches, se cite avec `@`, a une page en texte riche, des
+// backlinks, et FACULTATIVEMENT un type qui lui donne des champs. Le créer ne
+// demande toujours qu'un nom — c'est la contrainte qui a présidé à la fusion.
+//
 // DEUX NIVEAUX DE LECTURE, et c'est toute la structure du module :
-//   1. l'ACCUEIL est une grille de THÈMES. Une grosse case par thème, plus une
-//      case « Sans thème » dès qu'une note n'en a pas, plus la case de
+//   1. l'ACCUEIL est une grille de SUJETS. Une grosse case par sujet, plus une
+//      case « Sans sujet » dès qu'une note n'en a pas, plus la case de
 //      création. Rien n'y devient invisible : les vues transverses (toutes les
 //      notes, épinglées) restent à portée dans la barre d'outils, et la
-//      recherche de l'accueil balaie TOUS les thèmes d'un coup ;
-//   2. entrer dans une case ouvre ses NOTES — la même grille de cartes
-//      qu'avant — avec un retour toujours visible et un fil d'Ariane.
+//      recherche de l'accueil balaie TOUS les sujets d'un coup ;
+//   2. entrer dans une case ouvre sa PAGE (type, champs, description,
+//      « mentionné dans ») puis ses NOTES — la même grille de cartes qu'avant.
 // Le lecteur immersif s'ouvre par-dessus les deux.
 //
 // Une seule unité de création : la NOTE. Tout vit dans son corps — texte,
@@ -17,7 +29,7 @@
 // - vue à hauteur pleine, hors `ResizableGrid` (comme Notes) ;
 // - la liste ne charge JAMAIS le corps des notes (images en data URL) : elle
 //   vit sur `text` (recherche + extrait) et `thumb` (couverture) ;
-// - zéro couleur codée en dur hors couleurs de DONNÉES (teinte des thèmes) ;
+// - zéro couleur codée en dur hors couleurs de DONNÉES (teinte des sujets) ;
 // - aucun emoji : icônes maison ; toute action non triviale porte une bulle ;
 // - les deux grilles partagent `.auto-cards` : le nombre de colonnes retombe
 //   tout seul quand la fenêtre rétrécit, sans point de rupture de viewport.
@@ -42,6 +54,7 @@ import {
   IconPin,
   IconPlus,
   IconSearch,
+  IconSliders,
   IconTrash,
   IconX,
 } from "../components/icons";
@@ -60,30 +73,50 @@ import {
 } from "../lib/knowledge";
 import { firstImageSrc, plainText } from "../lib/richtext";
 import { t, tp } from "../lib/i18n";
-import GalerieObjets from "../components/liens/GalerieObjets";
-import { consommerDemande, regarderDemande } from "../lib/naviguer";
+import EditeurType from "../components/liens/EditeurType";
+import PanneauLiens from "../components/liens/PanneauLiens";
+import RichNoteEditor from "../components/RichNoteEditor";
+import {
+  ecritureAcceptable,
+  graineDeNote,
+  messageEcritureRefusee,
+  type CorpsRafraichi,
+} from "../lib/graineEditeur";
+import {
+  champsDuType,
+  fusionnerValeurs,
+  valeursDeLObjet,
+  valeursOrphelines,
+  validerObjet,
+} from "../lib/objets";
+import { consommerDemande } from "../lib/naviguer";
 import {
   createKnowledgeEntry,
-  createKnowledgeTopic,
+  createSujet,
   deleteKnowledgeEntry,
-  deleteKnowledgeTopic,
+  deleteSujet,
   fetchKnowledge,
   fetchKnowledgeEntry,
+  fetchObjectTypes,
+  fetchSujet,
   markKnowledgeViewed,
-  reorderKnowledgeTopics,
+  reorderSujets,
   updateKnowledgeEntry,
-  updateKnowledgeTopic,
+  updateSujet,
   type KnowledgeInput,
 } from "../lib/repo";
 import type {
   KnowledgeEntry,
   KnowledgeEntryLite,
-  KnowledgeTopic,
+  LinkKind,
+  ObjectField,
+  ObjectType,
+  Sujet,
 } from "../lib/types";
 
 /**
- * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de thèmes ;
- * toute autre valeur est une liste de notes (un thème, ou une vue transverse).
+ * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
+ * toute autre valeur est une liste de notes (un sujet, ou une vue transverse).
  */
 type Scope = number | "all" | "pinned" | "none";
 
@@ -115,27 +148,23 @@ function figuresHtml(sources: string[]): string {
   return sources.map((src) => `<figure><img src="${src}" alt=""></figure>`).join("");
 }
 
-/** Ce que la grille doit savoir d'un thème : volume, fraîcheur, aperçu. */
+/** Ce que la grille doit savoir d'un sujet : volume, fraîcheur, aperçu. */
 type TopicStats = { count: number; last: string | null; recent: string[] };
 
 const EMPTY_STATS: TopicStats = { count: 0, last: null, recent: [] };
 
 export default function KnowledgeView() {
-  const [topics, setTopics] = useState<KnowledgeTopic[]>([]);
+  const [topics, setTopics] = useState<Sujet[]>([]);
+  const [types, setTypes] = useState<ObjectType[]>([]);
   const [entries, setEntries] = useState<KnowledgeEntryLite[]>([]);
   const [status, setStatus] = useState<Status>("loading");
-  /** `null` = accueil (grille de thèmes). */
+  /** `null` = accueil (grille de sujets). */
   const [scope, setScope] = useState<Scope | null>(null);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  /**
-   * Onglet du module. ⭐ Les objets personnalisés vivent ICI et non dans un 14ᵉ
-   * module — décision d'Antonin du 2026-09-02 : un module de plus aurait refait
-   * tout le travail du compte de modules (app ET site) pour une fonctionnalité
-   * qui est, littéralement, de la base de connaissances.
-   */
-  const [onglet, setOnglet] = useState<"savoir" | "objets">("savoir");
+  /** Le type en cours d'édition, ou `"nouveau"`. Ouvert depuis la page d'un sujet. */
+  const [editionType, setEditionType] = useState<ObjectType | "nouveau" | null>(null);
 
   /**
    * Ouverture demandée par une mention. Deux chemins, et il faut les deux :
@@ -143,24 +172,30 @@ export default function KnowledgeView() {
    * il vient d'être chargé en `lazy` (voir `lib/naviguer.ts`).
    */
   useEffect(() => {
-    const onOpen = (e: Event) => {
+    const onOpenNote = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (id) setOpenId(id);
+    };
+    // ⭐ Une mention vers un SUJET ouvre sa page — c'est-à-dire son périmètre.
+    // Depuis la fusion, il n'y a plus d'onglet à sélectionner : citer @Trading
+    // et cliquer dessus mène exactement là où mène un clic sur sa case.
+    const onOpenSujet = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
       if (id) {
-        setOnglet("savoir");
-        setOpenId(id);
+        setOpenId(null);
+        setScope(id);
       }
     };
-    window.addEventListener("sb:open-knowledge", onOpen);
-    const enAttente = consommerDemande("knowledge");
-    if (enAttente) {
-      setOnglet("savoir");
-      setOpenId(enAttente);
-    }
-    // Une mention vers un OBJET arrive aussi ici : c'est le même module. On
-    // REGARDE sans consommer — c'est `GalerieObjets`, montée juste après, qui
-    // ouvrira la fiche.
-    if (regarderDemande("object")) setOnglet("objets");
-    return () => window.removeEventListener("sb:open-knowledge", onOpen);
+    window.addEventListener("sb:open-knowledge", onOpenNote);
+    window.addEventListener("sb:open-object", onOpenSujet);
+    const note = consommerDemande("knowledge");
+    if (note) setOpenId(note);
+    const sujet = consommerDemande("object");
+    if (sujet) setScope(sujet);
+    return () => {
+      window.removeEventListener("sb:open-knowledge", onOpenNote);
+      window.removeEventListener("sb:open-object", onOpenSujet);
+    };
   }, []);
   const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -169,9 +204,10 @@ export default function KnowledgeView() {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchKnowledge();
+      const [data, ts] = await Promise.all([fetchKnowledge(), fetchObjectTypes()]);
       setTopics(data.topics);
       setEntries(data.entries);
+      setTypes(ts);
       setStatus("ready");
     } catch {
       // Écrire d'abord en local, lire d'abord en local : un échec ici est un
@@ -229,9 +265,9 @@ export default function KnowledgeView() {
 
   const searching = query.trim() !== "";
   /**
-   * Chercher DEPUIS L'ACCUEIL balaie tous les thèmes : c'est la promesse de la
-   * grille — on range par thème sans se condamner à savoir dans lequel chercher.
-   * Chaque résultat porte le nom de son thème (cf. `EntryCard`).
+   * Chercher DEPUIS L'ACCUEIL balaie tous les sujets : c'est la promesse de la
+   * grille — on range par sujet sans se condamner à savoir dans lequel chercher.
+   * Chaque résultat porte le nom de son sujet (cf. `EntryCard`).
    */
   const listScope: Scope = scope ?? "all";
   const showGrid = scope === null && !searching;
@@ -256,7 +292,7 @@ export default function KnowledgeView() {
 
   /**
    * Résultats que le périmètre courant CACHE. Sans ce compte, chercher dans un
-   * thème donnerait « aucun résultat » alors que la note existe deux cases plus
+   * sujet donnerait « aucun résultat » alors que la note existe deux cases plus
    * loin — le reproche exact qu'on fait à un classement.
    */
   const elsewhere = useMemo(() => {
@@ -279,7 +315,7 @@ export default function KnowledgeView() {
   );
 
   /**
-   * Volume, fraîcheur et aperçu, par thème — en UNE passe sur les fiches.
+   * Volume, fraîcheur et aperçu, par sujet — en UNE passe sur les fiches.
    * `entries` arrive trié `pinned DESC, updated_at DESC` : les trois premiers
    * titres rencontrés sont donc bien les plus en avant.
    */
@@ -302,7 +338,7 @@ export default function KnowledgeView() {
 
   const scopeTopic = typeof scope === "number" ? topics.find((x) => x.id === scope) ?? null : null;
 
-  /** Un thème supprimé pendant qu'on le regarde renvoie à l'accueil. */
+  /** Un sujet supprimé pendant qu'on le regarde renvoie à l'accueil. */
   useEffect(() => {
     if (typeof scope === "number" && status === "ready" && !scopeTopic) setScope(null);
   }, [scope, status, scopeTopic]);
@@ -315,7 +351,7 @@ export default function KnowledgeView() {
         : scope === "pinned"
           ? t("Épinglés")
           : scope === "none"
-            ? t("Sans thème")
+            ? t("Sans sujet")
             : (scopeTopic?.name ?? t("Savoir"));
 
   /** Changer de périmètre remet la liste à plat : ni tag ni recherche hérités. */
@@ -332,7 +368,7 @@ export default function KnowledgeView() {
   }, []);
 
   /**
-   * `Échap` remonte d'un cran : d'une liste de notes vers la grille de thèmes.
+   * `Échap` remonte d'un cran : d'une liste de notes vers la grille de sujets.
    * La bulle du fil d'Ariane l'ANNONCE, donc il doit exister — trois gardes
    * pour qu'il ne vole le geste à personne : pas quand le lecteur est ouvert
    * (il se ferme lui-même), pas depuis un champ de saisie (le champ de
@@ -394,7 +430,7 @@ export default function KnowledgeView() {
    * « Terminé », croix d'en-tête, Échap, clic hors du cadre. Le focus revient
    * sur la carte d'où l'on venait : la grille n'a jamais été démontée (le
    * lecteur est son frère, pas son remplaçant), donc sa position de défilement
-   * et son thème sont intacts — mais le focus, lui, disparaissait avec le
+   * et son sujet sont intacts — mais le focus, lui, disparaissait avec le
    * lecteur, et la tabulation repartait du haut de la page.
    */
   const closeReader = useCallback(() => {
@@ -460,7 +496,7 @@ export default function KnowledgeView() {
             <button
               type="button"
               onClick={() => goTo(null)}
-              data-tip={t("Revenir aux thèmes")}
+              data-tip={t("Revenir aux sujets")}
               data-tip-kbd={t("Échap")}
               className="hud-label -ml-1 inline-flex items-center gap-1 rounded-[var(--radius-field)] px-1 py-0.5 text-text-dim transition-colors hover:text-text"
             >
@@ -521,39 +557,26 @@ export default function KnowledgeView() {
         }}
       />
 
-      {/* Les deux moitiés du module. Les fiches du Savoir décrivent ce qu'on
-          SAIT ; les objets décrivent ce qu'on SUIT — des personnes, des
-          ressources, des projets, des setups. */}
-      <div className="mt-5 flex shrink-0 gap-1.5">
-        {([
-          ["savoir", "Fiches"],
-          ["objets", "Objets"],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setOnglet(id)}
-            data-tip={t(label)}
-            data-tip-sub={
-              id === "savoir"
-                ? t("Ce que tu sais, classé par thème.")
-                : t("Ce que tu suis : personnes, ressources, projets, setups.")
-            }
-            className={`pill border px-3 py-1.5 text-xs font-medium transition-colors ${
-              onglet === id
-                ? "border-border-strong bg-overlay-2 text-text"
-                : "border-border text-text-dim hover:text-text"
-            }`}
-          >
-            {t(label)}
-          </button>
-        ))}
-      </div>
+      {/*
+        ⭐ LA PAGE DU SUJET, au-dessus de ses fiches — pas dans un onglet.
+        Antonin venait de demander qu'on RETIRE des onglets : en rajouter un ici
+        (« Fiches » / « À propos ») aurait rendu la moitié du travail. La page se
+        replie donc en UNE LIGNE quand elle est vide, ce qui la rend invisible
+        pour les sujets qui ne sont que des tiroirs, et disponible en un clic
+        pour ceux qui deviennent des choses.
+      */}
+      {scopeTopic && (
+        <PageSujet
+          key={scopeTopic.id}
+          sujet={scopeTopic}
+          types={types}
+          onGererTypes={(type) => setEditionType(type)}
+          onChange={load}
+        />
+      )}
 
-      {onglet === "objets" && <GalerieObjets />}
-
-      <section className={`mt-6 flex min-h-0 flex-1 flex-col ${onglet === "objets" ? "hidden" : ""}`}>
-        {/* Barre d'outils : même position à l'accueil et dans un thème. */}
+      <section className="mt-6 flex min-h-0 flex-1 flex-col">
+        {/* Barre d'outils : même position à l'accueil et dans un sujet. */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <label className="relative min-w-[180px] flex-1">
             <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-dim" />
@@ -568,7 +591,7 @@ export default function KnowledgeView() {
               }}
               placeholder={
                 scope === null
-                  ? t("Rechercher dans tous les thèmes…")
+                  ? t("Rechercher dans tous les sujets…")
                   : t("Rechercher dans « {nom} »…", { nom: scopeTitle })
               }
               data-tip={t("Recherche")}
@@ -583,7 +606,7 @@ export default function KnowledgeView() {
               type="button"
               onClick={() => goTo("all")}
               data-tip={t("Toutes les notes")}
-              data-tip-sub={t("Tous thèmes confondus, sans quitter Savoir.")}
+              data-tip-sub={t("Tous sujets confondus, sans quitter Savoir.")}
               className="pill inline-flex shrink-0 items-center gap-1.5 border border-border bg-surface-2 px-3 py-1.5 text-[11px] font-medium text-text-dim transition-colors hover:text-text"
             >
               <IconNote className="h-3 w-3" /> {countOf("all")}
@@ -603,7 +626,7 @@ export default function KnowledgeView() {
 
           <p className="shrink-0 font-mono text-[11px] text-text-dim">
             {showGrid
-              ? tp(topics.length, "{n} thème", "{n} thèmes")
+              ? tp(topics.length, "{n} sujet", "{n} sujets")
               : tp(visible.length, "{n} note", "{n} notes")}
           </p>
         </div>
@@ -645,6 +668,7 @@ export default function KnowledgeView() {
           ) : showGrid ? (
             <TopicGrid
               topics={topics}
+              types={types}
               stats={stats}
               unfiledCount={unfiled.length}
               onOpen={goTo}
@@ -662,9 +686,9 @@ export default function KnowledgeView() {
                     searching
                       ? t("Aucune note ne correspond")
                       : typeof scope === "number"
-                        ? t("Ce thème est encore vide")
+                        ? t("Ce sujet est encore vide")
                         : // « Toutes les notes » sur une base neuve n'est pas un
-                          // thème vide : c'est un savoir qui n'a pas commencé.
+                          // sujet vide : c'est un savoir qui n'a pas commencé.
                           t("Ton savoir commence ici")
                   }
                   body={
@@ -760,14 +784,30 @@ export default function KnowledgeView() {
           onChanged={load}
         />
       )}
+
+      {/* Gérer les TYPES, depuis la page d'un sujet. Ils vivent au-dessus des
+          sujets — un type sert à plusieurs d'entre eux — d'où un écran à part
+          plutôt qu'un bloc dans la page. */}
+      {editionType && (
+        <EditeurType
+          type={editionType === "nouveau" ? null : editionType}
+          objets={
+            editionType === "nouveau"
+              ? []
+              : topics.filter((x) => x.type_id === editionType.id)
+          }
+          onClose={() => setEditionType(null)}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
 
-// ------------------------------------------------------------ grille thèmes
+// ------------------------------------------------------------ grille sujets
 
 /**
- * L'ACCUEIL du module. Une grosse case par thème, au même format que les cartes
+ * L'ACCUEIL du module. Une grosse case par sujet, au même format que les cartes
  * de notes (`.card` dans `.auto-cards`) : c'est la même grille, donc la même
  * réduction de colonnes quand la fenêtre rétrécit.
  *
@@ -782,12 +822,14 @@ export default function KnowledgeView() {
  */
 function TopicGrid({
   topics,
+  types,
   stats,
   unfiledCount,
   onOpen,
   reload,
 }: {
-  topics: KnowledgeTopic[];
+  topics: Sujet[];
+  types: readonly ObjectType[];
   stats: Map<number, TopicStats>;
   unfiledCount: number;
   onOpen: (scope: Scope) => void;
@@ -795,14 +837,14 @@ function TopicGrid({
 }) {
   /** `"new"` = la case de création est dépliée ; un nombre = ce thème s'édite. */
   const [editing, setEditing] = useState<number | "new" | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<KnowledgeTopic | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Sujet | null>(null);
 
   const create = useCallback(
     async (name: string) => {
       // Teinte attribuée d'office : créer un thème ne doit demander qu'un nom.
       // Elle reste modifiable ensuite, dans le formulaire d'édition.
       const color = TOPIC_COLORS[topics.length % TOPIC_COLORS.length];
-      await createKnowledgeTopic(name, color);
+      await createSujet(name, color);
       setEditing(null);
       await reload();
     },
@@ -816,7 +858,7 @@ function TopicGrid({
       const cible = index + delta;
       if (cible < 0 || cible >= next.length) return;
       [next[index], next[cible]] = [next[cible], next[index]];
-      await reorderKnowledgeTopics(next.map((x) => x.id));
+      await reorderSujets(next.map((x) => x.id));
       await reload();
     },
     [topics, reload],
@@ -844,7 +886,7 @@ function TopicGrid({
               others={topics.filter((x) => x.id !== topic.id)}
               onCancel={() => setEditing(null)}
               onSubmit={async (name, color) => {
-                await updateKnowledgeTopic(topic.id, name, color);
+                await updateSujet(topic.id, { name, color });
                 setEditing(null);
                 await reload();
               }}
@@ -854,6 +896,7 @@ function TopicGrid({
               key={topic.id}
               topic={topic}
               stats={stats.get(topic.id) ?? EMPTY_STATS}
+              type={types.find((x) => x.id === topic.type_id) ?? null}
               first={index === 0}
               last={index === topics.length - 1}
               onOpen={() => onOpen(topic.id)}
@@ -878,12 +921,12 @@ function TopicGrid({
           <button
             type="button"
             onClick={() => setEditing("new")}
-            data-tip={t("Nouveau thème")}
-            data-tip-sub={t("Un tiroir de plus pour ranger tes notes.")}
+            data-tip={t("Nouveau sujet")}
+            data-tip-sub={t("Un tiroir pour tes notes — qui peut aussi se citer avec @.")}
             className="flex min-h-[150px] flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-border p-4 text-text-dim transition-colors hover:border-text-dim/60 hover:text-text"
           >
             <IconPlus className="h-5 w-5" />
-            <span className="text-[13px] font-medium">{t("Nouveau thème")}</span>
+            <span className="text-[13px] font-medium">{t("Nouveau sujet")}</span>
           </button>
         )}
       </div>
@@ -894,7 +937,7 @@ function TopicGrid({
           count={stats.get(pendingDelete.id)?.count ?? 0}
           onCancel={() => setPendingDelete(null)}
           onConfirm={async () => {
-            await deleteKnowledgeTopic(pendingDelete.id);
+            await deleteSujet(pendingDelete.id);
             setPendingDelete(null);
             await reload();
           }}
@@ -904,10 +947,277 @@ function TopicGrid({
   );
 }
 
+// ─── La page d'un sujet ──────────────────────────────────────────────────────
+
+/**
+ * Ce qu'un sujet est, au-dessus de ce qu'il contient.
+ *
+ * ⭐ REPLIÉE EN UNE LIGNE QUAND ELLE EST VIDE. C'est ce qui permet à la fusion
+ * de ne rien coûter à qui ne se sert des sujets que comme de tiroirs : « Sport »
+ * reste une case qui contient des notes, et rien de plus, tant qu'on n'a pas
+ * demandé autre chose. Un bandeau toujours déplié aurait poussé les notes sous
+ * la ligne de flottaison pour afficher trois champs vides.
+ *
+ * ⚠️ LE CORPS EST CHARGÉ À PART. La grille d'accueil lit les sujets SANS leur
+ * page (`body` forcé à NULL en SQL) : elle peut peser des centaines de ko
+ * d'images en data URL, et la grille n'en affiche pas une ligne. Le même
+ * partage que les fiches depuis la migration 014.
+ */
+function PageSujet({
+  sujet,
+  types,
+  onGererTypes,
+  onChange,
+}: {
+  /** Version LÉGÈRE, sans `body` — cf. `fetchKnowledge`. */
+  sujet: Sujet;
+  types: readonly ObjectType[];
+  onGererTypes: (type: ObjectType | "nouveau") => void;
+  onChange: () => Promise<unknown>;
+}) {
+  const type = useMemo(
+    () => (sujet.type_id == null ? null : types.find((x) => x.id === sujet.type_id) ?? null),
+    [sujet.type_id, types],
+  );
+  const champs = useMemo(() => champsDuType(type?.fields), [type?.fields]);
+  const [valeurs, setValeurs] = useState(() => valeursDeLObjet(sujet.field_values));
+  const [erreurs, setErreurs] = useState<string[]>([]);
+  const [nbLiens, setNbLiens] = useState(0);
+
+  /** Y a-t-il quelque chose à montrer ? Sinon la page tient en une ligne. */
+  const [complet, setComplet] = useState<Sujet | null>(null);
+  const aDuContenu =
+    type !== null ||
+    Object.values(valeurs).some((v) => v !== undefined && v !== null && v !== "") ||
+    nbLiens > 0;
+  const [deplie, setDeplie] = useState(aDuContenu);
+
+  // La page complète n'est lue QUE si on la regarde — et une seule fois.
+  useEffect(() => {
+    if (!deplie || complet) return;
+    let annule = false;
+    void fetchSujet(sujet.id).then((s) => {
+      if (!annule && s) setComplet(s);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [deplie, complet, sujet.id]);
+
+  // Un sujet qui a du contenu s'ouvre de lui-même, y compris quand ce contenu
+  // arrive après coup (les backlinks sont comptés de façon asynchrone).
+  useEffect(() => {
+    if (aDuContenu) setDeplie(true);
+  }, [aDuContenu]);
+
+  const { rafraichir, enregistrerLiens } = useLiens("object", sujet.id);
+  const [corpsFrais, setCorpsFrais] = useState<CorpsRafraichi | null>(null);
+
+  useEffect(() => {
+    if (!complet) return;
+    let annule = false;
+    const idDemande = complet.id;
+    void rafraichir(complet.body ?? "").then((html) => {
+      // L'identité voyage AVEC le corps — voir `graineEditeur.ts`.
+      if (!annule) setCorpsFrais({ id: idDemande, html });
+    });
+    return () => {
+      annule = true;
+    };
+  }, [complet, rafraichir]);
+
+  const orphelines = valeursOrphelines(champs, valeurs);
+
+  /** Écrit UNIQUEMENT ce qui a changé — cf. `updateSujet`. */
+  const enregistrerChamps = useCallback(async () => {
+    const problemes = validerObjet(champs, valeurs);
+    setErreurs(problemes);
+    if (problemes.length) return;
+    await updateSujet(sujet.id, {
+      field_values: fusionnerValeurs(valeursDeLObjet(sujet.field_values), valeurs),
+    });
+    await onChange();
+  }, [champs, valeurs, sujet.id, sujet.field_values, onChange]);
+
+  if (!deplie) {
+    return (
+      <button
+        type="button"
+        onClick={() => setDeplie(true)}
+        data-tip={t("Décrire ce sujet")}
+        data-tip-sub={t("Un type, des champs, une description, ses liens.")}
+        className="mt-4 flex shrink-0 items-center gap-1.5 self-start text-xs text-text-dim transition-colors hover:text-text"
+      >
+        <IconPlus className="h-3.5 w-3.5" />
+        {t("Décrire ce sujet")}
+      </button>
+    );
+  }
+
+  return (
+    <section className="mt-4 shrink-0 rounded-[var(--radius-card)] border border-border bg-surface-2 p-4">
+      {/* Le type — facultatif, et c'est tout le sujet de la fusion. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="hud-label">{t("type")}</span>
+        <select
+          value={sujet.type_id ?? ""}
+          onChange={async (e) => {
+            const v = e.target.value;
+            await updateSujet(sujet.id, { type_id: v === "" ? null : Number(v) });
+            await onChange();
+          }}
+          className="cible-tactile-ligne rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs text-text outline-none focus:border-border-strong"
+        >
+          {/* ⭐ « Aucun » EST une option, et c'est la première. Un sujet sans
+              type est ce qu'était un thème : un tiroir, et c'est très bien. */}
+          <option value="">{t("Aucun")}</option>
+          {types.map((x) => (
+            <option key={x.id} value={x.id}>
+              {t(x.name)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => onGererTypes(type ?? "nouveau")}
+          data-tip={type ? t("Modifier ce type") : t("Nouveau type")}
+          data-tip-sub={t("Un type décrit les champs de ses sujets.")}
+          className="pill cible-tactile-ligne border border-border px-2.5 py-1.5 text-xs text-text-dim hover:text-text"
+        >
+          <IconSliders className="h-3.5 w-3.5" />
+        </button>
+        <span className="ml-auto text-[11px] text-text-dim">
+          {t("Un type est facultatif : il ajoute des champs, il ne range rien.")}
+        </span>
+      </div>
+
+      {champs.length > 0 && (
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+          {champs.map((champ) => (
+            <div key={champ.id}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-text-dim">
+                {t(champ.name)}
+                {champ.required === 1 && <span className="text-red"> *</span>}
+              </dt>
+              <dd className="mt-1">
+                <ChampSaisie
+                  champ={champ}
+                  valeur={valeurs[champ.id]}
+                  onChange={(v) => setValeurs((x) => ({ ...x, [champ.id]: v }))}
+                  onBlur={() => void enregistrerChamps()}
+                />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {/* ⭐ Les valeurs dont le champ a été retiré : conservées, et DITES.
+          Les taire donnerait l'impression qu'elles ont été perdues. */}
+      {orphelines.length > 0 && (
+        <p className="mt-3 text-xs text-text-dim">
+          {t("{n} valeurs sont conservées pour des champs retirés du type. Elles reviendront si tu remets ces champs.", {
+            n: orphelines.length,
+          })}
+        </p>
+      )}
+
+      {erreurs.length > 0 && (
+        <ul className="mt-3 space-y-0.5 text-sm text-red">
+          {erreurs.map((e) => (
+            <li key={e}>{t(e)}</li>
+          ))}
+        </ul>
+      )}
+
+      {complet && (
+        <RichNoteEditor
+          noteId={complet.id}
+          graine={graineDeNote(complet.id, complet.body ?? "", corpsFrais)}
+          source={{ kind: "object", uid: complet.uid }}
+          onOuvrirMention={(k: LinkKind, u: string) => void ouvrirObjet(k, u)}
+          onChange={(html, idSource) => {
+            // Le filet : on refuse un texte qui ne vient pas du sujet affiché.
+            if (!ecritureAcceptable(complet.id, idSource)) {
+              console.error(messageEcritureRefusee(complet.id, idSource));
+              return;
+            }
+            void (async () => {
+              await updateSujet(complet.id, { body: html });
+              await enregistrerLiens(html);
+              await onChange();
+            })();
+          }}
+          placeholder={t("Ce que tu sais de ce sujet. Tape @ pour citer autre chose.")}
+        />
+      )}
+
+      <PanneauLiens
+        kind="object"
+        uid={sujet.uid}
+        onOuvrir={(k, u) => void ouvrirObjet(k, u)}
+        onCompte={setNbLiens}
+      />
+    </section>
+  );
+}
+
+/** Saisie d'un champ de type. Repris tel quel de l'ancienne galerie d'objets. */
+function ChampSaisie({
+  champ,
+  valeur,
+  onChange,
+  onBlur,
+}: {
+  champ: ObjectField;
+  valeur: unknown;
+  onChange: (v: unknown) => void;
+  onBlur: () => void;
+}) {
+  // ⚠️ `cible-tactile-ligne` ne mord QUE sous `pointer: coarse` : le bureau
+  // garde sa densité, le doigt obtient ses 44 pt. C'est l'utilitaire du
+  // chantier D, pas une refonte.
+  const classe =
+    "cible-tactile-ligne w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong";
+
+  if (champ.type === "choice") {
+    return (
+      <select
+        value={(valeur as string) ?? ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        onBlur={onBlur}
+        className={classe}
+      >
+        <option value="">—</option>
+        {(champ.options ?? []).map((o) => (
+          <option key={o} value={o}>
+            {t(o)}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return (
+    <input
+      type={champ.type === "date" ? "date" : champ.type === "number" ? "number" : "text"}
+      value={valeur == null ? "" : String(valeur)}
+      onChange={(e) => {
+        const brut = e.target.value;
+        // ⚠️ Un champ « nombre » doit rendre un NOMBRE : une chaîne passerait la
+        // validation en silence et casserait tout calcul ultérieur.
+        onChange(brut === "" ? undefined : champ.type === "number" ? Number(brut) : brut);
+      }}
+      onBlur={onBlur}
+      className={classe}
+    />
+  );
+}
+
 /** Une case de thème : nom, volume, fraîcheur, aperçu des dernières notes. */
 function TopicTile({
   topic,
   stats,
+  type,
   first,
   last,
   onOpen,
@@ -915,8 +1225,9 @@ function TopicTile({
   onMove,
   onDelete,
 }: {
-  topic: KnowledgeTopic;
+  topic: Sujet;
   stats: TopicStats;
+  type: ObjectType | null;
   first: boolean;
   last: boolean;
   onOpen: () => void;
@@ -930,7 +1241,7 @@ function TopicTile({
     <div
       role="button"
       tabIndex={0}
-      aria-label={t("Ouvrir le thème « {nom} »", { nom: topic.name })}
+      aria-label={t("Ouvrir le sujet « {nom} »", { nom: topic.name })}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -953,7 +1264,11 @@ function TopicTile({
             style={{ backgroundColor: topic.color }}
             aria-hidden
           />
-          <span className="hud-label">{t("thème")}</span>
+          {/* ⭐ Le TYPE quand il y en a un, sinon le mot « sujet ». C'est le seul
+              endroit de la grille où la fusion se voit : « Personne » et
+              « Trading » cohabitent, et rien ne dit que l'un est d'une autre
+              nature que l'autre — parce qu'il ne l'est plus. */}
+          <span className="hud-label truncate">{type ? t(type.name) : t("sujet")}</span>
         </span>
 
         <h3
@@ -1017,9 +1332,9 @@ function TopicTile({
         <button
           type="button"
           onClick={onEdit}
-          data-tip={t("Renommer le thème")}
+          data-tip={t("Renommer le sujet")}
           data-tip-sub={t("Change aussi sa teinte.")}
-          aria-label={t("Renommer le thème")}
+          aria-label={t("Renommer le sujet")}
           className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
         >
           <IconPencil className="h-3.5 w-3.5" />
@@ -1027,9 +1342,9 @@ function TopicTile({
         <button
           type="button"
           onClick={onDelete}
-          data-tip={t("Supprimer le thème")}
-          data-tip-sub={t("Les notes ne sont pas supprimées : elles passent « sans thème ».")}
-          aria-label={t("Supprimer le thème")}
+          data-tip={t("Supprimer le sujet")}
+          data-tip-sub={t("Les notes ne sont pas supprimées : elles passent « sans sujet ».")}
+          aria-label={t("Supprimer le sujet")}
           className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-red"
         >
           <IconTrash className="h-3.5 w-3.5" />
@@ -1045,7 +1360,7 @@ function UnfiledTile({ count, onOpen }: { count: number; onOpen: () => void }) {
     <div
       role="button"
       tabIndex={0}
-      aria-label={t("Ouvrir les notes sans thème")}
+      aria-label={t("Ouvrir les notes sans sujet")}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -1060,10 +1375,10 @@ function UnfiledTile({ count, onOpen }: { count: number; onOpen: () => void }) {
         <span className="hud-label">{t("hors classement")}</span>
       </span>
       <h3 className="clamp-2 mt-1.5 font-display text-[15px] font-bold leading-snug text-text">
-        {t("Sans thème")}
+        {t("Sans sujet")}
       </h3>
       <p className="mt-2 text-xs leading-relaxed text-text-dim">
-        {t("Ces notes existent et restent trouvables : elles n’ont simplement pas encore de thème.")}
+        {t("Ces notes existent et restent trouvables : elles n’ont simplement pas encore de sujet.")}
       </p>
       <div className="mt-auto flex items-center pt-3">
         <span className="pill bg-overlay px-2 py-0.5 text-[10px] text-text-dim">
@@ -1085,8 +1400,8 @@ function TopicForm({
   onCancel,
   onSubmit,
 }: {
-  initial?: KnowledgeTopic;
-  others: KnowledgeTopic[];
+  initial?: Sujet;
+  others: Sujet[];
   onCancel: () => void;
   onSubmit: (name: string, color: string) => Promise<void>;
 }) {
@@ -1126,7 +1441,7 @@ function TopicForm({
       }}
       className="card flex min-h-[150px] flex-col p-4"
     >
-      <p className="hud-label">{initial ? t("modifier le thème") : t("nouveau thème")}</p>
+      <p className="hud-label">{initial ? t("modifier le sujet") : t("nouveau sujet")}</p>
       <input
         autoFocus
         value={name}
@@ -1143,12 +1458,12 @@ function TopicForm({
           e.preventDefault();
           void valider();
         }}
-        placeholder={t("Nom du thème")}
-        aria-label={t("Nom du thème")}
+        placeholder={t("Nom du sujet")}
+        aria-label={t("Nom du sujet")}
         className="mt-2 w-full rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
       />
       {doublon && (
-        <p className="mt-1.5 text-[11px] text-red">{t("Ce thème existe déjà.")}</p>
+        <p className="mt-1.5 text-[11px] text-red">{t("Ce sujet existe déjà.")}</p>
       )}
 
       {initial && (
@@ -1158,7 +1473,7 @@ function TopicForm({
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              aria-label={t("Teinte du thème")}
+              aria-label={t("Teinte du sujet")}
               aria-pressed={color === c}
               className={`h-4 w-4 rounded-full transition-transform ${
                 color === c ? "scale-110 ring-2 ring-blue" : "hover:scale-110"
@@ -1201,7 +1516,7 @@ function ConfirmDeleteTopic({
   onCancel,
   onConfirm,
 }: {
-  topic: KnowledgeTopic;
+  topic: Sujet;
   count: number;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
@@ -1225,7 +1540,7 @@ function ConfirmDeleteTopic({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={t("Supprimer le thème")}
+        aria-label={t("Supprimer le sujet")}
         className="card card-solid animate-fade-up w-full max-w-sm p-6"
       >
         <p className="font-display text-lg font-bold text-text">
@@ -1233,7 +1548,7 @@ function ConfirmDeleteTopic({
         </p>
         <p className="mt-2 text-sm leading-relaxed text-text-dim">
           {count === 0
-            ? t("Ce thème ne contient aucune note.")
+            ? t("Ce sujet ne contient aucune note.")
             : tp(
                 count,
                 "Sa note n’est pas supprimée : elle passe « sans thème » et reste accessible depuis l’accueil.",
@@ -1254,7 +1569,7 @@ function ConfirmDeleteTopic({
             onClick={() => void onConfirm()}
             className="pill bg-red px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
-            {t("Supprimer le thème")}
+            {t("Supprimer le sujet")}
           </button>
         </div>
       </div>
@@ -1283,7 +1598,7 @@ function ThemesEmptyState({
     <div className="card flex h-full min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center">
       <IconFolder className="h-8 w-8 text-text-dim/60" aria-hidden />
       <p className="font-display text-lg font-bold text-text">
-        {t("Un thème, c’est un tiroir pour tes notes")}
+        {t("Un sujet, c’est un tiroir — et bien plus si tu veux")}
       </p>
       <p className="max-w-sm text-sm text-text-dim">
         {t("Range par sujet, et retrouve tout d’un clic au lieu de chercher.")}
@@ -1293,7 +1608,7 @@ function ThemesEmptyState({
         onClick={onCreate}
         className="pill mt-1 bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
       >
-        {t("Créer mon premier thème")}
+        {t("Créer mon premier sujet")}
       </button>
 
       <p className="hud-label mt-4">{t("ou commence par")}</p>
@@ -1303,7 +1618,7 @@ function ThemesEmptyState({
             key={nom}
             type="button"
             onClick={() => void onSuggest(nom)}
-            data-tip={t("Créer le thème « {nom} »", { nom })}
+            data-tip={t("Créer le sujet « {nom} »", { nom })}
             data-tip-sub={t("Créé immédiatement, renommable ensuite.")}
             className="pill inline-flex items-center gap-1.5 border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-dim transition-colors hover:text-text"
           >
@@ -1337,7 +1652,7 @@ function EntryCard({
   onDelete,
 }: {
   entry: KnowledgeEntryLite;
-  topic: KnowledgeTopic | null;
+  topic: Sujet | null;
   onOpen: () => void;
   onTogglePin: () => void;
   onDelete: () => void;
@@ -1498,7 +1813,7 @@ function Reader({
   onChanged,
 }: {
   entryId: number;
-  topics: KnowledgeTopic[];
+  topics: Sujet[];
   siblings: KnowledgeEntryLite[];
   onNavigate: (id: number) => void;
   onClose: () => void;
@@ -1696,8 +2011,8 @@ function Reader({
             onChange={(e) =>
               patch({ topic_id: e.target.value === "" ? null : Number(e.target.value) })
             }
-            data-tip={t("Thème de classement")}
-            data-tip-sub={t("Déplace la note dans un autre thème.")}
+            data-tip={t("Sujet de classement")}
+            data-tip-sub={t("Déplace la note dans un autre sujet.")}
             className="min-w-0 max-w-[200px] truncate rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-xs text-text focus:border-blue focus:outline-none"
           >
             <option value="">{t("Non classée")}</option>
@@ -1831,7 +2146,7 @@ function Reader({
             onBlur={addTag}
             placeholder={t("+ tag")}
             data-tip={t("Ajouter un tag")}
-            data-tip-sub={t("Entrée pour valider. Les tags filtrent les notes, tous thèmes confondus.")}
+            data-tip-sub={t("Entrée pour valider. Les tags filtrent les notes, tous sujets confondus.")}
             className="w-24 rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
           />
 

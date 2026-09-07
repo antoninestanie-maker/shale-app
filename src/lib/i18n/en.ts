@@ -395,13 +395,7 @@ export const EN: Record<string, string> = {
   "Reprendre l’édition": "Resume editing",
 
   // ── Savoir ────────────────────────────────────────────────────────────────
-  "Nouveau thème": "New topic",
   "Créer le thème": "Create topic",
-  "Nom du thème": "Topic name",
-  "Renommer le thème": "Rename topic",
-  "Supprimer le thème": "Delete topic",
-  "Teinte du thème": "Topic colour",
-  "Thème de classement": "Filing topic",
   "Un dossier de couleur pour regrouper des notes.":
     "A colour-coded folder to group notes.",
   "Les notes ne sont pas supprimées : elles passent « non classées ».":
@@ -409,7 +403,6 @@ export const EN: Record<string, string> = {
   "Aucun thème. Crée-en un pour classer tes notes.":
     "No topics yet. Create one to file your notes.",
   "Afficher les notes de ce thème.": "Show the notes in this topic.",
-  "Déplace la note dans un autre thème.": "Move the note to another topic.",
   "Non classée": "Unfiled",
   "Non classées": "Unfiled",
   "Notes qui n’appartiennent encore à aucun thème.":
@@ -425,8 +418,6 @@ export const EN: Record<string, string> = {
   "Titre, tags et contenu — tous les mots doivent correspondre.":
     "Title, tags and content — every word must match.",
   "Ajouter un tag": "Add a tag",
-  "Entrée pour valider. Les tags filtrent les notes, tous thèmes confondus.":
-    "Press Enter to confirm. Tags filter notes across every topic.",
   "N’afficher que les notes de ce tag.": "Show only notes with this tag.",
   "Les notes épinglées remontent en tête de liste.":
     "Pinned notes move to the top of the list.",
@@ -1667,52 +1658,29 @@ export const EN: Record<string, string> = {
     "A banner before London and before New York. The briefing isn’t written yet when it lands: Market Brain writes it when you open the app. With no AI key set up, nothing is scheduled.",
   // ── Savoir : grille de thèmes (refonte 2026-08-26) ────────────────────────
   "Lectures": "Reading",
-  "Sans thème": "No topic",
-  "Revenir aux thèmes": "Back to topics",
   "Elle sera classée dans « {nom} ».": "It will be filed under “{nom}”.",
-  "Rechercher dans tous les thèmes…": "Search every topic…",
   "Rechercher dans « {nom} »…": "Search “{nom}”…",
-  "Tous thèmes confondus, sans quitter Savoir.":
-    "Every topic at once, without leaving Knowledge.",
   "Le savoir n’a pas pu être ouvert": "Knowledge couldn’t be opened",
   "La base locale n’a pas répondu. Rien n’est perdu : réessaie.":
     "The local database didn’t answer. Nothing is lost — try again.",
-  "Ce thème est encore vide": "This topic is still empty",
   "Chercher partout": "Search everywhere",
   "Quitte ce périmètre et garde les mots cherchés.":
     "Leaves this topic and keeps what you typed.",
-  "Un tiroir de plus pour ranger tes notes.": "One more drawer to file your notes in.",
-  "Ouvrir le thème « {nom} »": "Open the “{nom}” topic",
-  "thème": "topic",
   "Aucune note pour l’instant.": "No notes yet.",
   "Déplacer avant": "Move earlier",
   "Déplacer après": "Move later",
   "Change aussi sa teinte.": "Its colour too.",
-  "Les notes ne sont pas supprimées : elles passent « sans thème ».":
-    "Notes aren’t deleted: they move to “no topic”.",
-  "Ouvrir les notes sans thème": "Open the notes with no topic",
   "hors classement": "unfiled",
-  "Ces notes existent et restent trouvables : elles n’ont simplement pas encore de thème.":
-    "These notes are still here and still findable — they just don’t have a topic yet.",
-  "modifier le thème": "edit topic",
-  "nouveau thème": "new topic",
-  "Ce thème existe déjà.": "That topic already exists.",
   "Supprimer « {nom} » ?": "Delete “{nom}”?",
-  "Ce thème ne contient aucune note.": "This topic holds no notes.",
-  "Un thème, c’est un tiroir pour tes notes": "A topic is a drawer for your notes",
   "Range par sujet, et retrouve tout d’un clic au lieu de chercher.":
     "File by subject, and get everything back in one click instead of searching.",
-  "Créer mon premier thème": "Create my first topic",
   "ou commence par": "or start with",
-  "Créer le thème « {nom} »": "Create the “{nom}” topic",
   "Créé immédiatement, renommable ensuite.": "Created right away, renamable later.",
   "Les voir": "See them",
   "Une note correspond, mais elle est rangée ailleurs.":
     "One note matches, but it’s filed elsewhere.",
   "{n} notes correspondent, mais elles sont rangées ailleurs.":
     "{n} notes match, but they’re filed elsewhere.",
-  "{n} thème": "{n} topic",
-  "{n} thèmes": "{n} topics",
   "{n} note": "{n} note",
   "{n} notes": "{n} notes",
   "{n} résultat ailleurs — chercher partout": "{n} match elsewhere — search everywhere",
@@ -2058,7 +2026,6 @@ export const EN: Record<string, string> = {
   "Événements": "Events",
   "Trades": "Trades",
   "Objets": "Objects",
-  "Fiches": "Cards",
 
   // Types de champ — même remarque : clés dynamiques.
   "Texte": "Text",
@@ -2068,8 +2035,6 @@ export const EN: Record<string, string> = {
   // Mentions et backlinks
   "Écris ta note. Tape @ pour citer une note, une fiche, un objectif…":
     "Write your note. Type @ to cite a note, a card, a goal…",
-  "Ce que tu sais de cette fiche. Tape @ pour citer autre chose.":
-    "What you know about this card. Type @ to cite something else.",
   "Rien à citer sous ce nom.": "Nothing to cite under that name.",
   "Mentionné dans": "Mentioned in",
   "Rien ne cite encore ceci.": "Nothing cites this yet.",
@@ -2083,20 +2048,9 @@ export const EN: Record<string, string> = {
   "Rien ne correspond.": "Nothing matches.",
 
   // Objets et types
-  "Ce que tu sais, classé par thème.": "What you know, sorted by topic.",
-  "Ce que tu suis : personnes, ressources, projets, setups.":
-    "What you track: people, resources, projects, setups.",
-  "Tous": "All",
-  "fiches": "cards",
-  "+ Nouvelle fiche": "+ New card",
-  "Aucune fiche de ce type pour l'instant.": "No card of this type yet.",
-  "Crée d'abord un type : il décrit les champs de ses fiches.":
-    "Create a type first: it describes the fields of its cards.",
   "Nouveau type d'objet": "New object type",
   "Modifier ce type": "Edit this type",
   "Modifier le type": "Edit type",
-  "Un type décrit les champs de ses fiches.": "A type describes the fields of its cards.",
-  "Type": "Type",
   "Type livré avec l'app. Tu peux le modifier et le supprimer comme les autres.":
     "Type shipped with the app. You can edit and delete it like any other.",
   "Client, Recette, Lieu…": "Client, Recipe, Place…",
@@ -2106,7 +2060,6 @@ export const EN: Record<string, string> = {
   "Retirer ce champ": "Remove this field",
   "obligatoire": "required",
   "Options, séparées par des virgules": "Options, comma-separated",
-  "Supprimer le type ET ses {n} fiches ?": "Delete the type AND its {n} cards?",
   "← Retour": "← Back",
 
   // ⭐ Ce que l'app promet : retirer un champ ne détruit rien.
@@ -2229,4 +2182,80 @@ export const EN: Record<string, string> = {
     "{n} event with no time \u2014 not counted, no known duration.",
   "{n} événements sans horaire — non comptés, faute de durée connue.":
     "{n} events with no time \u2014 not counted, no known duration.",
+  // ─── Fusion des thèmes et des objets : le SUJET (2026-09-07) ──────────────
+  // 38 clés ont été RETIRÉES avec ce bloc — « Nouveau thème », « Sans thème »,
+  // « Aucune fiche de ce type pour l'instant. », les libellés des deux onglets…
+  // Contrairement à la documentation, une clé i18n périmée ne se marque pas :
+  // elle ne dit rien de l'histoire du projet, et la garder ferait croire à un
+  // écran qui existe encore. Le journal de ce commit tient ce rôle.
+  // ⚠️ Le vocabulaire visible change des DEUX côtés : « theme » et « object »
+  // disparaissent de l'app anglaise en même temps qu'ils disparaissent de la
+  // française. Les anciennes clés (« Nouveau thème », « Sans thème »…) sont
+  // retirées avec les libellés qui les portaient — les garder ferait croire à
+  // un écran qui existe encore.
+  "sujet": "subject",
+  "{n} sujet": "{n} subject",
+  "{n} sujets": "{n} subjects",
+  "type": "type",
+  "Sans sujet": "No subject",
+  "Nouveau sujet": "New subject",
+  "Renommer le sujet": "Rename subject",
+  "Supprimer le sujet": "Delete subject",
+  "Ouvrir le sujet « {nom} »": "Open subject \u201c{nom}\u201d",
+  "Ouvrir les notes sans sujet": "Open notes with no subject",
+  "Revenir aux sujets": "Back to subjects",
+  "Rechercher dans tous les sujets…": "Search across all subjects\u2026",
+  "Tous sujets confondus, sans quitter Savoir.": "Across every subject, without leaving Knowledge.",
+  "Ce sujet est encore vide": "This subject is still empty",
+  "Ce sujet ne contient aucune note.": "This subject holds no notes.",
+  "Ce sujet existe déjà.": "That subject already exists.",
+  "Nom du sujet": "Subject name",
+  "Teinte du sujet": "Subject colour",
+  "modifier le sujet": "edit subject",
+  "nouveau sujet": "new subject",
+  "Créer mon premier sujet": "Create my first subject",
+  "Créer le sujet « {nom} »": "Create subject \u201c{nom}\u201d",
+  "Un sujet, c’est un tiroir — et bien plus si tu veux":
+    "A subject is a drawer \u2014 and much more if you want it to be",
+  "Un tiroir pour tes notes — qui peut aussi se citer avec @.":
+    "A drawer for your notes \u2014 which you can also cite with @.",
+  "Les notes ne sont pas supprimées : elles passent « sans sujet ».":
+    "The notes are not deleted: they become \u201cno subject\u201d.",
+  "Ces notes existent et restent trouvables : elles n’ont simplement pas encore de sujet.":
+    "These notes exist and stay findable \u2014 they just have no subject yet.",
+  "Sujet de classement": "Filed under",
+  "Déplace la note dans un autre sujet.": "Move the note to another subject.",
+  "Entrée pour valider. Les tags filtrent les notes, tous sujets confondus.":
+    "Enter to confirm. Tags filter notes across every subject.",
+  // La page d'un sujet
+  "Décrire ce sujet": "Describe this subject",
+  "Un type, des champs, une description, ses liens.": "A type, fields, a description, its links.",
+  "Ce que tu sais de ce sujet. Tape @ pour citer autre chose.":
+    "What you know about this subject. Type @ to cite something else.",
+  "Un type est facultatif : il ajoute des champs, il ne range rien.":
+    "A type is optional: it adds fields, it files nothing.",
+  "Nouveau type": "New type",
+  "Un type décrit les champs de ses sujets.": "A type describes the fields of its subjects.",
+  "Supprimer ce type ?": "Delete this type?",
+  "Supprimer le type ? Ses {n} sujets sont conservés, sans type.":
+    "Delete the type? Its {n} subjects are kept, untyped.",
+  // ─── Checkup du 2026-09-07 : du français dans l'app ANGLAISE ──────────────
+  // ⚠️ Ces huit chaînes passaient par `t()` mais n'avaient AUCUNE traduction, et
+  // les deux outils étaient au vert : `i18n:check` ne voit que les clés
+  // ÉCRITES dans un appel `t("…")`, or celles-ci sont des valeurs de TABLE
+  // (`ACTIONS`, `WIDGET_LABELS`, `DESCRIPTIONS`, `VUES`, `correlations.ts`)
+  // traduites à l'affichage — le piège § 5.2 bis. `i18n:durs`, lui, les
+  // signalait comme « entrées de table » sans savoir si elles étaient
+  // traduites. Seul l'app basculée en anglais les a montrées, en lisant le
+  // journal de `t()`. Sept viennent du chantier Calendrier (2026-09-02).
+  "Aller au Calendrier": "Go to Calendar",
+  "Calendrier du jour": "Today's calendar",
+  "Mois, semaine, jour : événements, tâches datées et échéances, au même endroit.":
+    "Month, week, day: events, dated tasks and deadlines, all in one place.",
+  "Vue d'ensemble : ce qui est chargé, ce qui est libre.":
+    "The wide view: what's busy, what's free.",
+  "L'horizon où la planification se décide.": "The horizon where planning happens.",
+  "La grille horaire, pour poser les créneaux.": "The hour grid, to lay out your slots.",
+  "Dollar fort": "Strong dollar",
+  "Dollar faible": "Weak dollar",
 };
