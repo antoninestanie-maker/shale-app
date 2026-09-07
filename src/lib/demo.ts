@@ -5,6 +5,7 @@ import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
+import { plainText } from "./richtext";
 import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
@@ -1702,7 +1703,10 @@ export const demo = {
     const docs: DocumentRecherche[] = [];
     if (veut("note")) {
       for (const n of notes) {
-        docs.push({ kind: "note", id: n.id, uid: uidDemo("note", n.id), titre: n.title, corps: n.body ?? "" });
+        // ⚠️ MÊME SÉMANTIQUE QUE LE NATIF, `plainText` compris (§ 6.2 quater de
+        // `PIEGES.md`) : un corpus démo plus indulgent que le vrai laisserait
+        // passer un extrait illisible sans qu'on puisse le voir en audit.
+        docs.push({ kind: "note", id: n.id, uid: uidDemo("note", n.id), titre: n.title, corps: plainText(n.body ?? "") });
       }
     }
     if (veut("knowledge")) {

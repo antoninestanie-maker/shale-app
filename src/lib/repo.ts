@@ -5,6 +5,7 @@ import { toDateStr } from "./logic";
 import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
+import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
 import type { Report } from "./taches";
@@ -1807,7 +1808,16 @@ async function corpusPour(
   if (veut("note")) {
     // FTS5 quand il y a une requête, les plus récentes sinon.
     for (const n of await searchNotes(q)) {
-      docs.push({ kind: "note", id: n.id, uid: "", titre: n.title, corps: n.body ?? "" });
+      // ⚠️ `plainText` ET PAS `body` — corrigé le 2026-09-07, en livrant les
+      // cartes mentales. Le corps d'une note est du HTML : le passer tel quel
+      // au moteur de classement lui fait chercher DANS LE BALISAGE, et
+      // l'extrait affiché devient illisible. Avec une carte, c'est flagrant —
+      // on lisait `…&quot;texte&quot;:&quot;zoolographie&quot;}]}"><svg xmlns=…`
+      // sous le titre du résultat. Le défaut préexistait (une image en data URL
+      // produisait le même genre d'extrait) ; la carte l'a seulement rendu
+      // visible. Effet de bord voulu : une note dont FTS5 n'a matché que le
+      // balisage n'est plus proposée, puisque son score retombe à zéro.
+      docs.push({ kind: "note", id: n.id, uid: "", titre: n.title, corps: plainText(n.body ?? "") });
     }
   }
   if (veut("knowledge")) {
