@@ -15,6 +15,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
 | 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
+| 1 ter | ⭐⭐ **`CHECKUP-2026-09-07.md`** | **le checkup complet du 2026-09-07** — les cinq défauts trouvés, les DEUX affirmations de doc qui étaient fausses, et ce qui reste ouvert |
 | 2 quater | ⭐ **`PASSATION-MINDMAP.md`** | **le chantier du 2026-09-07** — les cartes mentales dans les Notes et le Savoir. Livré et installé ; ce qui reste ouvert est en § 6 |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
@@ -46,7 +47,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
 | Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue. ⛔ **La 021 (`end_date`) existe dans le dépôt et n'est PAS appliquée** |
 | Sauvegardes | **`avant-cartes-mentales-20260907-0332/`** (la plus récente), `avant-migration-020-20260904-1135/` et `avant-correctif-notes-20260905-2107/` (deux copies, app ouverte puis fermée), prises avec `sqlite3 .backup`, `integrity_check` ok |
-| App macOS | reconstruite le **2026-09-07 à 03:39**, binaire `e0966e0b…`, installation prouvée par sha256. Elle porte la roulette d'heure ET les cartes mentales. ⛔ **La fenêtre de trousseau attend un clic d'Antonin.** *(historique, conservé pour mémoire : le build du 2026-09-04 à 11:51 ne connaissait ni le correctif Notes ni le Calendrier V2 ; celui du 2026-09-06 à 18:47 les portait mais pas la roulette.)* |
+| App macOS | reconstruite le **2026-09-07 à 17:31**, binaire `683f0e99…`, installation prouvée par sha256. Elle porte la roulette d'heure, les cartes mentales, et les cinq correctifs du checkup. ⚠️ macOS peut redemander l'accès au trousseau au premier usage (§ 8.3) : cliquer **« Toujours autoriser »**. *(build intermédiaire du même jour à 03:39, `e0966e0b…`.)* *(historique, conservé pour mémoire : le build du 2026-09-04 à 11:51 ne connaissait ni le correctif Notes ni le Calendrier V2 ; celui du 2026-09-06 à 18:47 les portait mais pas la roulette.)* |
 | App iOS | **simulateur** iPhone 17 (iOS 26.5), réinstallée le 2026-09-02 |
 | iPhone réel | **jamais** — rien n'y a été vu. Tout ce qui dit « iPhone » ailleurs veut dire *simulateur* |
 | Modules | **treize** — le compte est passé de douze à treize le 2026-09-02 (Calendrier) |
@@ -59,7 +60,7 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 665 / 665 (608 avant le 2026-09-07)
+npm test                                      # ✅ 674 / 674, 47 fichiers — ⚠️ MACHINE CALME (PIEGES § 9.11)
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
@@ -86,10 +87,16 @@ intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 
 ## 1 ter. ⛔ Ce qui attend une action — au 2026-09-07
 
-0 ter. ⛔ **UN SEUL GESTE RESTE, ET IL EST HUMAIN : la fenêtre de trousseau.**
-   L'app a été reconstruite et installée le **2026-09-07 à 03:39**, et elle
-   tourne. macOS redemande l'accès au trousseau dès que le binaire change
-   (§ 8.3) : **Antonin doit cliquer « Toujours autoriser »**, une fois. Aucune
+0 quater. ⭐ **LE CHECKUP COMPLET EST FAIT — `CHECKUP-2026-09-07.md`.**
+   Cinq défauts corrigés (dont la sauvegarde quotidienne, qui ne partait pas
+   sans être connecté), deux affirmations de la documentation corrigées parce
+   qu'elles étaient FAUSSES, et l'« intermittence PGlite » enfin expliquée.
+   Tout est livré, construit et installé.
+
+0 ter. ⚠️ **LE SEUL GESTE QUI PEUT RESTER EST HUMAIN : la fenêtre de trousseau.**
+   L'app a été reconstruite et installée le **2026-09-07 à 17:31**, et elle
+   tourne. macOS redemande l'accès au trousseau quand le binaire change
+   (§ 8.3) : si la fenêtre apparaît, **cliquer « Toujours autoriser »**. Aucune
    session ne peut le faire à sa place. Sans ce clic, la synchronisation ne
    retrouve pas son jeton.
 
