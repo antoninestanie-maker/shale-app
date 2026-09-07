@@ -123,9 +123,109 @@ fn import_screenshot(app: tauri::AppHandle, src: String) -> Result<String, Strin
     Ok(dest.to_string_lossy().to_string())
 }
 
+/// Écrit un fichier choisi par l'utilisateur dans le sélecteur système.
+///
+/// ⚠️ POURQUOI CETTE COMMANDE EXISTE, alors que le front sait tout faire d'autre.
+/// L'export d'une carte mentale produit une image ou un SVG, et il faut
+/// l'écrire quelque part. Le greffon `tauri-plugin-fs` le ferait — mais il
+/// demanderait le paquet npm `@tauri-apps/plugin-fs`, et **aucune dépendance
+/// npm nouvelle** n'est autorisée sur ce chantier (décision d'Antonin). Un
+/// `<a download>` ne marche pas non plus : la webview d'une app Tauri n'a pas de
+/// gestionnaire de téléchargement.
+///
+/// ⚠️ CE QUI BORNE CETTE COMMANDE, et c'est le point à ne pas relâcher : le
+/// chemin ne vient JAMAIS du code, il vient du dialogue système `save()`, donc
+/// d'un geste de l'utilisateur. On refuse quand même les cas qui trahiraient un
+/// appel qui n'est pas passé par là — chemin relatif, ou remontée `..`.
+///
+/// Le contenu arrive en base64 : c'est le seul encodage qui traverse le pont
+/// JS↔Rust sans se faire réinterpréter, et un PNG n'est pas du texte.
+#[tauri::command]
+fn ecrire_fichier(chemin: String, contenu_base64: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&chemin);
+    if !p.is_absolute() {
+        return Err("chemin non absolu".into());
+    }
+    if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return Err("chemin invalide".into());
+    }
+    let octets = base64_decoder(&contenu_base64)?;
+    std::fs::write(&p, octets).map_err(|e| format!("écriture de {} : {e}", p.display()))
+}
+
+/// Décodeur base64 écrit à la main.
+///
+/// ⚠️ Une crate le ferait en une ligne, mais ce serait **une dépendance
+/// compilée de plus** pour trente lignes de table de correspondance. Le format
+/// est figé depuis 1987 et n'a aucun cas particulier au-delà du remplissage.
+fn base64_decoder(s: &str) -> Result<Vec<u8>, String> {
+    let valeur = |c: u8| -> Option<u32> {
+        match c {
+            b'A'..=b'Z' => Some((c - b'A') as u32),
+            b'a'..=b'z' => Some((c - b'a') as u32 + 26),
+            b'0'..=b'9' => Some((c - b'0') as u32 + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    };
+    let mut out = Vec::with_capacity(s.len() / 4 * 3);
+    let mut tampon: u32 = 0;
+    let mut bits = 0;
+    for c in s.bytes() {
+        if c == b'=' || c.is_ascii_whitespace() {
+            continue;
+        }
+        let v = valeur(c).ok_or("base64 invalide")?;
+        tampon = (tampon << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((tampon >> bits) as u8);
+            tampon &= (1 << bits) - 1;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
+    use super::base64_decoder;
     use super::chemin_reel;
+
+    /// Les trois longueurs possibles d'un bloc base64 — c'est le remplissage
+    /// (`=`) qui les distingue, et c'est le seul endroit où l'on peut se tromper.
+    #[test]
+    fn le_base64_se_decode_aux_trois_restes() {
+        assert_eq!(base64_decoder("TWFu").unwrap(), b"Man");
+        assert_eq!(base64_decoder("TWE=").unwrap(), b"Ma");
+        assert_eq!(base64_decoder("TQ==").unwrap(), b"M");
+        assert_eq!(base64_decoder("").unwrap(), Vec::<u8>::new());
+    }
+
+    /// Les octets d'un PNG : le décodeur doit rendre du binaire, pas du texte.
+    #[test]
+    fn le_base64_rend_du_binaire() {
+        // les huit octets de l'en-tête PNG
+        assert_eq!(
+            base64_decoder("iVBORw0KGgo=").unwrap(),
+            vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        );
+    }
+
+    /// Une data URL passée telle quelle (avec son préfixe) doit ÉCHOUER, et pas
+    /// écrire un fichier à moitié juste : `:` et `,` ne sont pas du base64.
+    #[test]
+    fn un_caractere_etranger_est_refuse() {
+        assert!(base64_decoder("data:image/png;base64,iVBORw0KGgo=").is_err());
+    }
+
+    /// Les sauts de ligne d'un base64 replié sont tolérés — certains encodeurs
+    /// en insèrent tous les 76 caractères.
+    #[test]
+    fn les_espaces_sont_ignores() {
+        assert_eq!(base64_decoder("TWFu\n TWFu").unwrap(), b"ManMan");
+    }
 
     /// Le cas iPhone : le sélecteur de photos rend une URL, pas un chemin.
     #[test]
@@ -314,6 +414,7 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             import_screenshot,
+            ecrire_fichier,
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_delete,

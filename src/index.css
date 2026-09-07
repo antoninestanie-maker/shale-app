@@ -855,6 +855,45 @@
     border-color: var(--color-blue);
   }
 
+  /* ─── Cartes mentales ────────────────────────────────────────────────────
+     Le bloc porte son graphe dans `data-mindmap` et son rendu en SVG EN CLAIR
+     — pas en image. Mesuré le 2026-09-06 : 22 ko contre 114 ko en WebP, le
+     texte des nœuds entre dans la recherche, et le SVG suit le thème.
+     C'est aussi pour ça qu'il n'y a AUCUNE couleur écrite ici : elles sont
+     dans le SVG, en `var(--color-…)`, posées par `lib/carte.ts`. */
+  .note-rich figure.carte-bloc {
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-field);
+    background: var(--color-surface-2);
+    /* Une carte large ne doit pas élargir la note : elle défile chez elle. */
+    overflow-x: auto;
+    cursor: pointer;
+    transition: border-color var(--dur-base) var(--ease-out-quint);
+  }
+  .note-rich figure.carte-bloc:hover {
+    border-color: var(--color-blue);
+  }
+  /* ⚠️ `max-width` et `height: auto` : le SVG porte des dimensions explicites
+     (c'est ce qui le rend déterministe), et sans cette règle une carte de
+     1 400 px déborderait la colonne de la note. */
+  .note-rich figure.carte-bloc svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* La scène de l'éditeur : le fond quadrillé dit qu'on peut se déplacer
+     dedans, ce qu'un aplat ne dit pas. */
+  .carte-scene {
+    background-image:
+      radial-gradient(circle, var(--color-border-strong) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .carte-scene [data-noeud] {
+    cursor: pointer;
+  }
+
   .note-rich hr {
     margin: 1.4em 0;
     border: 0;

@@ -2152,4 +2152,38 @@ export const EN: Record<string, string> = {
   // et c'est précisément ce que veut dire « le même vocabulaire ». Les trois
   // anciens libellés propres à l'événement s'affichaient en FRANÇAIS dans
   // l'app anglaise, les deux outils au vert.
+  // ─── Cartes mentales (2026-09-07) ─────────────────────────────────────────
+  "Carte mentale": "Mind map",
+  "Insérer une carte mentale": "Insert a mind map",
+  "Une idée par nœud, au clavier": "One idea per node, from the keyboard",
+  "Écris ici. « Insérer » ajoute une image, un croquis, une carte mentale…":
+    "Write here. \u201cInsert\u201d adds an image, a sketch, a mind map\u2026",
+  "Tout voir": "Fit to view",
+  "Rétablir": "Redo",
+  "Exporter en PNG": "Export as PNG",
+  "Une image qui se colle partout.": "An image you can paste anywhere.",
+  "Exporter en SVG": "Export as SVG",
+  "Net à n'importe quel agrandissement.": "Sharp at any zoom level.",
+  "Carte exportée": "Map exported",
+  "La carte est déjà enregistrée.": "The map is already saved.",
+  "Déposer sous « {cible} »": "Drop under \u201c{cible}\u201d",
+  "Relâche sur un nœud pour l'y rattacher": "Release on a node to attach it there",
+  "sans titre": "untitled",
+  "Ouvrir « {titre} »": "Open \u201c{titre}\u201d",
+  "La cible de ce nœud n'existe plus.": "This node's target no longer exists.",
+  // Le pied d'aide : chaque raccourci en deux mots, pas une phrase.
+  "frère": "sibling",
+  "enfant": "child",
+  "Flèches": "Arrows",
+  "se déplacer": "move around",
+  "replier": "collapse",
+  "citer un objet": "cite an object",
+  "annuler": "undo",
+  "molette : déplacer · ⌘molette : zoomer": "wheel: pan \u00b7 \u2318wheel: zoom",
+  // ⚠️ CLÉS DYNAMIQUES — `i18n:check` ne les réclamera JAMAIS (PIEGES § 5.2
+  // bis) : `lib/fichiers.ts` fait `t(NOM[extension])`, donc une clé CALCULÉE.
+  // Elles sont ajoutées à la main, et vérifiées en basculant l'app en anglais.
+  "Image PNG": "PNG image",
+  "Image SVG": "SVG image",
+  "Fichier": "File",
 };

@@ -125,6 +125,20 @@ export const IconStop = (p: IconProps) => (
 );
 
 /** Plein écran. */
+/* Carte mentale — un nœud central et trois branches. Volontairement lisible à
+   16 px : c'est la taille à laquelle il vit dans les barres d'outils. */
+export const IconCarte = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="9.5" width="7" height="5" rx="1.5" />
+    <rect x="15" y="3" width="7" height="4.5" rx="1.5" />
+    <rect x="15" y="9.75" width="7" height="4.5" rx="1.5" />
+    <rect x="15" y="16.5" width="7" height="4.5" rx="1.5" />
+    <path d="M9 12h2.5v-6.75H15" />
+    <path d="M11.5 12H15" />
+    <path d="M9 12h2.5v6.75H15" />
+  </Icon>
+);
+
 export const IconExpand = (p: IconProps) => (
   <Icon {...p}>
     <path d="M8 3H5a2 2 0 0 0-2 2v3" />
