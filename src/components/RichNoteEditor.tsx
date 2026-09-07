@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 // Normalisation des couleurs + conversion texte → HTML : partagées avec
 // l'éditeur de blocs du Savoir (src/lib/richtext.ts).
 import { toEditorHtml } from "../lib/richtext";
@@ -7,6 +8,10 @@ import { doitResemer, type Graine } from "../lib/graineEditeur";
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
 import MentionPicker from "./liens/MentionPicker";
+import EditeurCarte from "./carte/EditeurCarte";
+import { carteVide, type Carte } from "../lib/carte";
+import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
+import { IconCarte } from "./icons";
 import { requeteEnCours } from "../lib/mentions";
 import { remplacerParMention, rectDuCurseur, texteAvantCurseur } from "../lib/mentionsDom";
 import { rechercherPartout } from "../lib/repo";
@@ -93,6 +98,53 @@ export default function RichNoteEditor({
    * mots à l'utilisateur (voir `doitResemer`).
    */
   const aTape = useRef(false);
+
+  // ─── Cartes mentales ───────────────────────────────────────────────────────
+  //
+  // ⚠️ Notes n'a AUCUN menu « Insérer » : le croquis et l'image n'existent que
+  // dans l'éditeur du Savoir (`NoteComposer`). La carte reçoit donc un bouton
+  // dans la barre d'outils, et pas une entrée dans un menu qui n'existe pas.
+  const [carteOuverte, setCarteOuverte] = useState<Carte | null>(null);
+  /** Le bloc en cours d'édition. `null` = la carte n'est pas encore posée. */
+  const blocCarteRef = useRef<HTMLElement | null>(null);
+
+  /**
+   * Écrit la carte dans le corps de la note.
+   *
+   * ⚠️ `aTape.current = true` N'EST PAS DE LA PRÉCAUTION. Une mutation
+   * programmatique du DOM ne déclenche pas `onInput`, donc l'éditeur ne saurait
+   * pas que son contenu a changé. Si la graine rafraîchie (`corpsFrais`) arrive
+   * APRÈS l'insertion, `doitResemer` rendrait vrai — le DOM serait resemé avec
+   * le corps d'avant, et **la carte disparaîtrait de l'écran**. Elle serait
+   * encore enregistrée, puis perdue à la frappe suivante. C'est la même famille
+   * que le § 6.5 de `PIEGES.md`, et le seul remède est de dire à l'éditeur que
+   * son contenu ne vient plus de la graine.
+   */
+  //
+  // ⚠️⚠️ PAS DE `useCallback([])` ICI, ET J'AI PAYÉ POUR LE SAVOIR.
+  // La première version mémoïsait cette fonction avec des dépendances VIDES.
+  // Elle capturait donc le `emit` du PREMIER rendu, donc le `onChange` du
+  // premier rendu de `NotesView`, donc son état `title` — qui vaut `""` avant
+  // que l'effet de chargement ne l'ait rempli. Résultat vu à l'écran le
+  // 2026-09-07 : enregistrer une carte RENOMMAIT la note en « Sans titre ».
+  // Le corps était juste, le titre était détruit, et rien ne le signalait.
+  // C'est très exactement le § 6.5 de `PIEGES.md` transposé aux fermetures :
+  // une fonction ne doit jamais lire une valeur qui n'est pas dans ses
+  // dépendances. Ici, la bonne réponse est de n'en mémoïser aucune.
+  const enregistrerCarte = (c: Carte) => {
+    const racine = ref.current;
+    if (!racine) return;
+    const bloc = blocCarteRef.current;
+    if (bloc && racine.contains(bloc)) remplacerBloc(bloc, c);
+    else blocCarteRef.current = insererBloc(racine, c);
+    aTape.current = true;
+    emit();
+  };
+
+  const ouvrirCarte = (bloc: HTMLElement | null, c: Carte) => {
+    blocCarteRef.current = bloc;
+    setCarteOuverte(c);
+  };
 
   // (re)charge le contenu quand il le faut, sans jamais écraser une frappe.
   useEffect(() => {
@@ -327,6 +379,22 @@ export default function RichNoteEditor({
           title={t("Effacer la mise en forme")}
           onDo={() => exec("removeFormat")}
         />
+
+        <span className="mx-1 h-5 w-px bg-border" />
+
+        {/* ⚠️ Un BOUTON et pas une entrée de menu : Notes n'a pas de menu
+            « Insérer » à étendre (il n'existe que dans l'éditeur du Savoir). Un
+            menu à une seule entrée ferait attendre les autres. */}
+        <Btn
+          label={
+            <span className="flex items-center gap-1.5">
+              <IconCarte className="h-3.5 w-3.5" />
+              <span className="text-xs">{t("Carte mentale")}</span>
+            </span>
+          }
+          title={t("Insérer une carte mentale")}
+          onDo={() => ouvrirCarte(null, carteVide(""))}
+        />
       </div>
 
       {/* Zone d'édition */}
@@ -343,6 +411,16 @@ export default function RichNoteEditor({
           if (toucheMention(e)) e.preventDefault();
         }}
         onBlur={fermerMention}
+        onDoubleClick={(e) => {
+          // Une carte se rouvre au double-clic, ses nœuds conservés — le geste
+          // du croquis (`NoteComposer`), pour que les deux blocs s'ouvrent pareil.
+          const bloc = figureDeCarte(e.target);
+          const c = carteDuBloc(bloc);
+          if (bloc && c) {
+            e.preventDefault();
+            ouvrirCarte(bloc, c);
+          }
+        }}
         onClick={(e) => {
           // ⚠️ Un jeton MORT ne mène nulle part : sa cible n'existe plus. Le
           // rendre cliquable promettrait une navigation impossible.
@@ -364,6 +442,26 @@ export default function RichNoteEditor({
           onChoisir={choisir}
         />
       )}
+
+      {/* PORTAIL OBLIGATOIRE — vu à l'écran le 2026-09-07 : sans lui, le voile
+          plein écran de la carte s'arrêtait au bord de la colonne de note et
+          laissait la barre latérale allumée derrière. Un ancêtre porte un
+          `transform` (`animate-fade-up`), ce qui fait de lui le bloc conteneur
+          de tout descendant `position: fixed`. C'est le même piège que la bulle
+          de mise en forme et la feuille de croquis de `NoteComposer`, déjà
+          consigné dans `CLAUDE.md` — et je l'ai quand même repayé. */}
+      {carteOuverte &&
+        createPortal(
+          <EditeurCarte
+            titre={t("Carte mentale")}
+            carte={carteOuverte}
+            source={source}
+            onEnregistrer={enregistrerCarte}
+            onFermer={() => setCarteOuverte(null)}
+            onOuvrirRef={onOuvrirMention}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

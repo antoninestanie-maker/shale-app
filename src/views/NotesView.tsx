@@ -46,7 +46,7 @@ export default function NotesView({ data, refresh }: Props) {
 
   const list = results ?? data.notes;
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
-  const { uid, rafraichir, enregistrerMentions } = useLiens("note", selectedId);
+  const { uid, rafraichir, enregistrerLiens } = useLiens("note", selectedId);
   /**
    * Le corps AVEC ses jetons rafraîchis, ET L'IDENTITÉ DE LA NOTE DONT IL VIENT.
    *
@@ -144,8 +144,8 @@ export default function NotesView({ data, refresh }: Props) {
   // donc un enregistrement à chaque rendu).
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
-  const mentionsRef = useRef(enregistrerMentions);
-  mentionsRef.current = enregistrerMentions;
+  const mentionsRef = useRef(enregistrerLiens);
+  mentionsRef.current = enregistrerLiens;
 
   /**
    * Écrit tout de suite ce qui attend. Sans argument et sans dépendance : c'est

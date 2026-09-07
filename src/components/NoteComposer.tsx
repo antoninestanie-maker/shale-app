@@ -14,12 +14,17 @@ import { createPortal } from "react-dom";
 import SketchPad, { parseSketch, type SketchData } from "./SketchPad";
 import {
   IconBrush,
+  IconCarte,
   IconImage,
   IconLink,
   IconPlus,
   IconX,
 } from "./icons";
+import EditeurCarte from "./carte/EditeurCarte";
+import { carteVide, type Carte } from "../lib/carte";
+import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
 import { encodeImage, imageFilesOf, normalizeUrl, openExternal } from "../lib/knowledge";
+import type { LinkKind } from "../lib/types";
 import { toEditorHtml } from "../lib/richtext";
 import { zoomFactor } from "../lib/uiConfig";
 
@@ -34,6 +39,16 @@ interface Props {
   /** Lecture immersive : édition désactivée, barre d'insertion masquée. */
   reading?: boolean;
   autoFocus?: boolean;
+  /**
+   * L'objet en cours d'édition — la fiche du Savoir qui porte ce corps.
+   *
+   * ⚠️ Facultatif : un appelant qui ne le donne pas garde exactement le
+   * comportement d'avant. Il sert aux nœuds-références d'une carte, pour ne pas
+   * se proposer soi-même dans le sélecteur `@`.
+   */
+  source?: { kind: LinkKind; uid: string };
+  /** Clic sur un nœud-référence d'une carte. Sans elle, le nœud n'ouvre rien. */
+  onOuvrirRef?: (kind: LinkKind, uid: string) => void;
 }
 
 /** Couleurs de texte : variables de thème, donc lisibles en clair comme en sombre. */
@@ -53,6 +68,8 @@ export default function NoteComposer({
   placeholder,
   reading = false,
   autoFocus = false,
+  source,
+  onOuvrirRef,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -65,6 +82,9 @@ export default function NoteComposer({
   >(null);
   const [bubble, setBubble] = useState<{ x: number; y: number } | null>(null);
   const [linkDraft, setLinkDraft] = useState<string | null>(null);
+  const [carteOuverte, setCarteOuverte] = useState<Carte | null>(null);
+  /** Le bloc en cours d'édition. `null` = la carte n'est pas encore posée. */
+  const blocCarte = useRef<HTMLElement | null>(null);
 
   // (re)charge le contenu quand on change de note, jamais pendant la frappe
   useEffect(() => {
@@ -234,6 +254,29 @@ export default function NoteComposer({
     };
   }, [menuOpen]);
 
+  /**
+   * Écrit la carte dans le corps de la fiche.
+   *
+   * ⚠️ Contrairement à `RichNoteEditor`, il n'y a rien à marquer comme « touché »
+   * ici : `NoteComposer` ne recharge le DOM que quand `noteId` change, pas sur
+   * l'arrivée différée d'un corps rafraîchi. Le piège de resemis qui menace
+   * Notes n'existe donc pas de ce côté — mais il fallait le vérifier, pas le
+   * supposer.
+   */
+  const enregistrerCarte = (c: Carte) => {
+    const root = ref.current;
+    if (!root) return;
+    const bloc = blocCarte.current;
+    if (bloc && root.contains(bloc)) remplacerBloc(bloc, c);
+    else blocCarte.current = insererBloc(root, c);
+    emit();
+  };
+
+  const ouvrirCarte = (bloc: HTMLElement | null, c: Carte) => {
+    blocCarte.current = bloc;
+    setCarteOuverte(c);
+  };
+
   const openSketch = (target: HTMLImageElement | null) => {
     setSketch({
       data: target ? parseSketch(target.dataset.sketch ?? null) : null,
@@ -323,6 +366,12 @@ export default function NoteComposer({
               )}
               {menuItem("Croquis", t("Schéma tracé à la main"), <IconBrush className="h-3.5 w-3.5" />, () =>
                 openSketch(null),
+              )}
+              {menuItem(
+                t("Carte mentale"),
+                t("Une idée par nœud, au clavier"),
+                <IconCarte className="h-3.5 w-3.5" />,
+                () => ouvrirCarte(null, carteVide("")),
               )}
               {menuItem("Lien", t("Vers une ressource externe"), <IconLink className="h-3.5 w-3.5" />, () =>
                 setLinkDraft(""),
@@ -416,6 +465,14 @@ export default function NoteComposer({
           if (img) {
             e.preventDefault();
             openSketch(img);
+            return;
+          }
+          // une carte aussi, ses nœuds conservés — le même geste pour les deux
+          const bloc = figureDeCarte(e.target);
+          const c = carteDuBloc(bloc);
+          if (bloc && c) {
+            e.preventDefault();
+            ouvrirCarte(bloc, c);
           }
         }}
         onClick={(e) => {
@@ -552,6 +609,24 @@ export default function NoteComposer({
         />,
         document.body,
       )}
+
+      {/* PORTAIL OBLIGATOIRE, pour la raison exacte de la feuille de croquis
+          juste au-dessus : le lecteur porte une animation, donc un `transform`,
+          donc il devient le bloc conteneur de ses descendants `position: fixed`.
+          Sans portail, le plein écran de la carte se limite à la carte de la
+          fiche. Vu à l'écran le 2026-09-07, côté Notes. */}
+      {carteOuverte &&
+        createPortal(
+          <EditeurCarte
+            titre={t("Carte mentale")}
+            carte={carteOuverte}
+            source={source}
+            onEnregistrer={enregistrerCarte}
+            onFermer={() => setCarteOuverte(null)}
+            onOuvrirRef={onOuvrirRef}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

@@ -29,6 +29,8 @@ import {
   useState,
 } from "react";
 import NoteComposer from "../components/NoteComposer";
+import { useLiens } from "../components/liens/useLiens";
+import { ouvrirObjet } from "../lib/naviguer";
 import { useIsPhone } from "../lib/platform";
 import {
   IconCheck,
@@ -1515,6 +1517,24 @@ function Reader({
   /** Source de l'image de couverture actuellement reflétée par `thumb`. */
   const coverSrc = useRef<string | null>(null);
 
+  /**
+   * ⭐ LES LIAISONS DU SAVOIR — branchées le 2026-09-07, elles n'existaient pas.
+   *
+   * Constat de l'audit : `useLiens` n'était appelé que par `NotesView` et
+   * `GalerieObjets`. Le Savoir ne rafraîchissait aucun titre cité et n'écrivait
+   * **aucune arête** — donc un nœud-référence posé dans la carte d'une fiche
+   * n'aurait produit aucun backlink, et personne ne l'aurait vu, puisqu'un
+   * backlink manquant ne se voit que de l'autre côté.
+   *
+   * ⚠️ Ce qui est branché ici, c'est l'écriture des arêtes et le
+   * rafraîchissement des titres. Le sélecteur `@` DANS LE CORPS DE TEXTE du
+   * Savoir n'existe toujours pas — c'est un autre chantier, et la carte n'en a
+   * pas besoin : elle porte son propre sélecteur.
+   */
+  const { uid: uidFiche, rafraichir, enregistrerLiens } = useLiens("knowledge", entryId);
+  const liensRef = useRef(enregistrerLiens);
+  liensRef.current = enregistrerLiens;
+
   // Position dans la liste filtrée : permet de feuilleter au clavier.
   const index = siblings.findIndex((e) => e.id === entryId);
   const prevId = index > 0 ? siblings[index - 1].id : null;
@@ -1522,17 +1542,25 @@ function Reader({
 
   useEffect(() => {
     let alive = true;
-    fetchKnowledgeEntry(entryId).then((e) => {
+    fetchKnowledgeEntry(entryId).then(async (e) => {
       if (!alive || !e) return;
       // fiche d'avant l'unification : son média redevient un bloc du corps
-      const body = legacyBodyOf(e);
+      const brut = legacyBodyOf(e);
+      // ⚠️ Les titres cités par les cartes sont des COPIES d'affichage : on les
+      // réaligne sur l'état actuel AVANT de poser le corps dans l'éditeur.
+      // Après, il faudrait réécrire le DOM sous le curseur.
+      const body = await rafraichir(brut);
+      if (!alive) return;
       setEntry({ ...e, kind: "note", body });
       coverSrc.current = firstImageSrc(body);
+      // Un rafraîchissement qui change quelque chose doit être ENREGISTRÉ,
+      // sinon la fiche affiche le bon titre et la base garde l'ancien.
+      if (body !== brut) pending.current = { ...pending.current, body };
     });
     return () => {
       alive = false;
     };
-  }, [entryId]);
+  }, [entryId, rafraichir]);
 
   /**
    * Écrit le patch accumulé. Le TEXTE BRUT et la COUVERTURE sont dérivés ici,
@@ -1565,8 +1593,12 @@ function Reader({
     }
     setSaveError(false);
     setDirty(false);
+    // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
+    // chaque lettre remplirait l'outbox de centaines d'entrées pour une seule
+    // citation. `uidFiche` est capturé ici, jamais relu au départ du minuteur.
+    if (patch.body !== undefined) await liensRef.current(patch.body ?? "", uidFiche);
     await onChanged();
-  }, [entryId, onChanged]);
+  }, [entryId, onChanged, uidFiche]);
 
   const patch = useCallback(
     (p: KnowledgeInput) => {
@@ -1745,7 +1777,13 @@ function Reader({
               reading={reading}
               autoFocus={entry.title === newTitle() && !entry.body}
               onChange={(html) => patch({ body: html })}
-              placeholder={t("Écris ici. « Insérer » ajoute une image, un croquis, un lien…")}
+              source={uidFiche ? { kind: "knowledge", uid: uidFiche } : undefined}
+              // ⚠️ TOUT passe par `ouvrirObjet` : la vue cible peut être chargée
+              // en `lazy`, donc pas encore montée. La demande est DÉPOSÉE et
+              // consommée au montage (`lib/naviguer.ts`) — un `setTimeout(0)`
+              // n'y changerait rien, c'est un téléchargement de chunk.
+              onOuvrirRef={(kind, uid) => void ouvrirObjet(kind, uid)}
+              placeholder={t("Écris ici. « Insérer » ajoute une image, un croquis, une carte mentale…")}
             />
           </div>
         </div>

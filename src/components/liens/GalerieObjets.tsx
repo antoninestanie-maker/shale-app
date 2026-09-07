@@ -237,7 +237,7 @@ function FicheObjet({
   const [corpsFrais, setCorpsFrais] = useState<CorpsRafraichi | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [confirme, setConfirme] = useState(false);
-  const { rafraichir, enregistrerMentions } = useLiens("object", objet.id);
+  const { rafraichir, enregistrerLiens } = useLiens("object", objet.id);
 
   useEffect(() => {
     let annule = false;
@@ -265,7 +265,7 @@ function FicheObjet({
       // effacerait les valeurs dont le champ a été retiré du type, sans un mot.
       field_values: fusionnerValeurs(valeursDeLObjet(objet.field_values), valeurs),
     });
-    await enregistrerMentions(prochainCorps);
+    await enregistrerLiens(prochainCorps);
     await onChange();
   }
 
