@@ -582,6 +582,15 @@ function BandeauIntelligence({
               "Et {n} tâche sans horaire, qui n'est pas comptée.",
               "Et {n} tâches sans horaire, qui ne sont pas comptées.",
             )}{" "}
+          {/* ⚠️ Une phrase séparée, et pas un total commun : un événement
+              « journée entière » n'est pas une tâche. Le compte était juste, le
+              mot était faux — corrigé le 2026-09-07. */}
+          {charge.evenementsSansHeure > 0 &&
+            tp(
+              charge.evenementsSansHeure,
+              "Et {n} événement sans horaire, qui n'est pas compté.",
+              "Et {n} événements sans horaire, qui ne sont pas comptés.",
+            )}{" "}
           {!profil.appris && (
             <span className="text-text-dim">
               {t("(capacité par défaut — pas encore assez de sessions pour l'apprendre)")}
@@ -968,6 +977,15 @@ function NoteDuJour({
               charge.sansCreneau,
               "{n} tâche sans horaire — non comptée, faute de durée connue.",
               "{n} tâches sans horaire — non comptées, faute de durée connue.",
+            )}
+          </p>
+        )}
+        {charge.evenementsSansHeure > 0 && (
+          <p className="mt-1 text-xs text-text-dim">
+            {tp(
+              charge.evenementsSansHeure,
+              "{n} événement sans horaire — non compté, faute de durée connue.",
+              "{n} événements sans horaire — non comptés, faute de durée connue.",
             )}
           </p>
         )}

@@ -298,8 +298,11 @@ export function entreesDuJour(
       serie: estRecurrenteSerie(e.recurrence),
       // ⚠️ UN MULTI-JOURS N'A PAS DE DURÉE SUR UNE JOURNÉE DONNÉE, et lui en
       // prêter une fausserait la charge exactement comme le ferait une journée
-      // entière comptée pour huit heures. Il rejoint donc `sansCreneau` dans
-      // `charge.ts` — compté à part, jamais additionné aux minutes posées.
+      // entière comptée pour huit heures. Il rejoint donc les non-mesurables de
+      // `charge.ts` — comptés à part, jamais additionnés aux minutes posées.
+      // ⚠️ Depuis le 2026-09-07 c'est `evenementsSansHeure` et non `sansCreneau`
+      // qui l'accueille : les deux sont non mesurables, mais un séjour n'est pas
+      // une tâche, et l'écran le disait.
       dureeMin: e.all_day || multi ? null : dureeMinutes(e.start_at, e.end_at),
       enRetard: false,
       reports: 0,

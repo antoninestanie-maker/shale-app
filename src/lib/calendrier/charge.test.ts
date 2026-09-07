@@ -43,12 +43,47 @@ describe("la charge d'une journée", () => {
     expect(c.sansCreneau).toBe(2);
   });
 
+  it("⭐ une JOURNÉE ENTIÈRE n'est pas comptée comme une TÂCHE sans horaire", () => {
+    // Le compte était juste et le mot était faux : un séminaire de trois jours
+    // s'annonçait « 1 tâche sans horaire ». Vu à l'écran par Antonin le
+    // 2026-09-06, tranché le 2026-09-07. Les deux restent non mesurables — mais
+    // l'un se fait, l'autre a lieu.
+    const c = chargeDuJour(
+      [
+        entree({ kind: "task", dureeMin: null, start_at: null }),
+        entree({ kind: "event", dureeMin: null, start_at: null, allDay: true }),
+        entree({ kind: "event", dureeMin: null, start_at: null }),
+      ],
+      profilVide,
+      MARDI,
+    );
+    expect(c.sansCreneau).toBe(1);
+    expect(c.evenementsSansHeure).toBe(2);
+    // Et rien n'est perdu en route : le total des non-mesurables ne bouge pas.
+    expect(c.sansCreneau + c.evenementsSansHeure).toBe(3);
+    expect(c.posees).toBe(0);
+  });
+
+  it("une tâche RÉCURRENTE sans horaire reste du côté des tâches", () => {
+    // La règle porte sur « est-ce une tâche ? », pas sur une liste de familles —
+    // c'est le § 7.2 ter de PIEGES.md, où une énumération avait un trou de la
+    // taille exacte de ce qu'elle prétendait tenir.
+    const c = chargeDuJour(
+      [entree({ kind: "recurrence", dureeMin: null, start_at: null })],
+      profilVide,
+      MARDI,
+    );
+    expect(c.sansCreneau).toBe(1);
+    expect(c.evenementsSansHeure).toBe(0);
+  });
+
   it("une échéance d'objectif n'occupe pas de temps", () => {
     // C'est une date, pas un travail : la compter ferait grossir la charge sans
     // qu'aucune minute ne soit engagée.
     const c = chargeDuJour([entree({ kind: "deadline", dureeMin: null })], profilVide, MARDI);
     expect(c.posees).toBe(0);
     expect(c.sansCreneau).toBe(0);
+    expect(c.evenementsSansHeure).toBe(0);
   });
 
   it("ce qui est fait ne pèse plus sur la suite", () => {

@@ -2186,4 +2186,15 @@ export const EN: Record<string, string> = {
   "Image PNG": "PNG image",
   "Image SVG": "SVG image",
   "Fichier": "File",
+  // ─── Charge d'une journée : événements ≠ tâches (2026-09-07) ──────────────
+  // Le compte était juste, le mot était faux : une « journée entière »
+  // s'annonçait comme « 1 tâche sans horaire ».
+  "Et {n} événement sans horaire, qui n'est pas compté.":
+    "Plus {n} event with no time, which is not counted.",
+  "Et {n} événements sans horaire, qui ne sont pas comptés.":
+    "Plus {n} events with no time, which are not counted.",
+  "{n} événement sans horaire — non compté, faute de durée connue.":
+    "{n} event with no time \u2014 not counted, no known duration.",
+  "{n} événements sans horaire — non comptés, faute de durée connue.":
+    "{n} events with no time \u2014 not counted, no known duration.",
 };

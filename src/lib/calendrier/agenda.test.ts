@@ -197,7 +197,7 @@ describe("les événements sur plusieurs jours", () => {
 
   it("⭐ n'a AUCUNE durée, pour ne pas fausser la charge", () => {
     // Un séjour de trois jours compté à sa durée horaire ferait passer chaque
-    // journée pour surchargée. Il rejoint `sansCreneau`, compté à part.
+    // journée pour surchargée. Il rejoint `evenementsSansHeure`, compté à part.
     const horaire = evenement({
       id: 10, date: "2026-09-02", end_date: "2026-09-03", start_at: "14:00", end_at: "16:00",
     });

@@ -13,6 +13,10 @@ import type { EntreeAgenda } from "./agenda";
  * Les tâches sans créneau sont donc COMPTÉES À PART, et l'interface les annonce
  * comme telles : « 4 h 30 posées, plus 6 tâches sans horaire ». C'est moins
  * spectaculaire qu'un chiffre unique, et c'est la seule version honnête.
+ *
+ * ⚠️ Et elles sont comptées SÉPARÉMENT des événements sans horaire (2026-09-07).
+ * Les mettre dans le même seau donnait un compte juste sous un mot faux : une
+ * « journée entière » s'annonçait comme « 1 tâche sans horaire ».
  */
 
 export interface ChargeDuJour {
@@ -22,8 +26,28 @@ export interface ChargeDuJour {
   capacite: number;
   /** Part de la capacité occupée, 0..∞. `null` si la capacité est nulle (repos). */
   ratio: number | null;
-  /** Ce qui est daté ce jour-là mais n'a pas d'horaire — non mesurable. */
+  /**
+   * Les TÂCHES datées ce jour-là sans créneau — non mesurables.
+   *
+   * ⚠️ NE COMPTE QUE DES TÂCHES, depuis le 2026-09-07. Ce champ comptait
+   * auparavant tout ce qui n'avait pas de durée, événements « journée entière »
+   * compris, et l'interface annonçait le total comme « n tâches sans horaire ».
+   * Le compte était juste, le mot était faux : un séminaire de trois jours
+   * s'annonçait comme une tâche. Vu à l'écran par Antonin, laissé en attente de
+   * décision le 2026-09-06, tranché le 2026-09-07.
+   */
   sansCreneau: number;
+  /**
+   * Les ÉVÉNEMENTS sans horaire de ce jour-là — « journée entière » ou heure
+   * inconnue. Ils ne se mesurent pas davantage, mais ce ne sont pas des tâches :
+   * ils ne se font pas, ils ont lieu.
+   *
+   * ⚠️ La distinction porte sur la PROPRIÉTÉ visée (« est-ce une tâche ? »), pas
+   * sur une énumération de familles — c'est la leçon du § 7.2 ter de
+   * `PIEGES.md`, où une règle écrite en listant des `kind` avait un trou de la
+   * taille exacte de ce qu'elle prétendait tenir.
+   */
+  evenementsSansHeure: number;
   /** Tâches en retard, remontées d'un jour précédent. */
   enRetard: number;
   /** La journée demande plus que ce qu'elle peut donner. */
@@ -47,6 +71,7 @@ export function chargeDuJour(
 ): ChargeDuJour {
   let posees = 0;
   let sansCreneau = 0;
+  let evenementsSansHeure = 0;
   let enRetard = 0;
 
   for (const e of entrees) {
@@ -56,7 +81,13 @@ export function chargeDuJour(
     if (e.kind === "deadline") continue;
     if (e.faite) continue; // ce qui est fait ne pèse plus sur la suite
     if (e.enRetard) enRetard++;
-    if (e.dureeMin != null) posees += e.dureeMin;
+    if (e.dureeMin != null) {
+      posees += e.dureeMin;
+      continue;
+    }
+    // Ni l'un ni l'autre n'est mesurable — mais l'un est une tâche à faire, et
+    // l'autre un événement qui a lieu. Les nommer pareil ferait mentir l'écran.
+    if (e.kind === "event") evenementsSansHeure++;
     else sansCreneau++;
   }
 
@@ -66,6 +97,7 @@ export function chargeDuJour(
     capacite,
     ratio: capacite > 0 ? posees / capacite : null,
     sansCreneau,
+    evenementsSansHeure,
     enRetard,
     surchargee: capacite > 0 && posees > capacite * SEUIL_SURCHARGE,
   };
