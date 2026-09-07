@@ -18,7 +18,6 @@ import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
 import { useScreenTime } from "./lib/mentalLoad";
-import { sauvegardeQuotidienne } from "./lib/sauvegardes";
 import { loadTheme } from "./lib/theme";
 import { applyZoom, useUiConfig } from "./lib/uiConfig";
 import { addDays, effectiveProgress, todayStr } from "./lib/logic";
@@ -268,7 +267,11 @@ function App() {
     loadTheme();
     // Copie datée de la base, au plus une par jour. AU LANCEMENT et non à la
     // fermeture : une app qu'on force à quitter ne sauvegarderait jamais.
-    void sauvegardeQuotidienne();
+    // ⚠️ PLUS DE SAUVEGARDE ICI — elle est déclenchée par `main.tsx`, HORS
+    // d'`AuthGate`. Elle était liée à l'authentification alors qu'elle est
+    // purement locale, et elle ne partait donc pas quand la session manquait —
+    // c'est-à-dire précisément quand le filet compte le plus. Voir le
+    // commentaire de `main.tsx`, et le constat du 2026-09-07.
   }, [refresh]);
 
   // Densité (zoom global) pilotée par la page Personnaliser, composée avec la

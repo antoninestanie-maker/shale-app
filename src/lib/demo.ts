@@ -1706,6 +1706,14 @@ export const demo = {
         // ⚠️ MÊME SÉMANTIQUE QUE LE NATIF, `plainText` compris (§ 6.2 quater de
         // `PIEGES.md`) : un corpus démo plus indulgent que le vrai laisserait
         // passer un extrait illisible sans qu'on puisse le voir en audit.
+        //
+        // ⚠️ CONSÉQUENCE À CONNAÎTRE : `plainText` a besoin du `document`, donc
+        // `corpusRecherche` n'est plus appelable depuis un test en
+        // `environment: "node"`. Aucun ne le fait aujourd'hui (vérifié le
+        // 2026-09-07), et le reste de `demo.ts` reste chargeable en node —
+        // `src/lib/finance/demo.test.ts` l'importe et passe. Mais si un test
+        // futur appelle cette fonction, il tombera sur « document is not
+        // defined », et ce commentaire lui dira pourquoi.
         docs.push({ kind: "note", id: n.id, uid: uidDemo("note", n.id), titre: n.title, corps: plainText(n.body ?? "") });
       }
     }

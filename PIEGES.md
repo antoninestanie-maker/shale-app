@@ -1302,3 +1302,93 @@ processus nommés, jamais un `pkill` par motif.
 
 **Comment on l'a payée.** Checkup du 2026-09-07 : environ quatre heures perdues
 à croire qu'une compilation iOS était simplement longue.
+
+## 9.10 ⚠️⚠️ `simctl install` peut créer un NOUVEAU conteneur de données — et l'ancien disparaît
+
+**Symptôme.** On réinstalle l'app sur le simulateur en s'appuyant sur une phrase
+écrite noir sur blanc dans la documentation du dépôt : « `simctl install`
+par-dessus l'app **préserve les données** (`shale.db` intact) ». Après
+l'installation, l'app repart avec une base **neuve** — et l'ancienne, avec ce
+qu'elle contenait, **n'existe plus sur le disque**.
+
+**Cause.** iOS n'attache pas la base au *bundle identifier* seul : il provisionne
+un **conteneur de données** par installation, sous
+`…/Devices/<UDID>/data/Containers/Data/Application/<UUID>/`. Quand le bundle
+installé change suffisamment — signature, build, provenance — le système en
+alloue un **nouveau** et **retire l'ancien**. Mesuré : le conteneur est passé de
+`D77D31BD-…` à `EA43202F-…`, et une recherche exhaustive de `shale.db` sur tout
+le simulateur n'a plus rendu qu'un seul fichier.
+
+**Parade — en trois mots : COPIER AVANT D'INSTALLER.**
+
+```bash
+SIMDB=$(find ~/Library/Developer/CoreSimulator/Devices/<UDID>/data/Containers/Data/Application \
+        -name 'shale.db' | head -1)
+cp "$SIMDB" /un/endroit/sûr/shale-sim-$(date +%Y%m%d-%H%M).db
+xcrun simctl install booted …
+```
+
+⚠️ **Et vérifier le conteneur APRÈS**, en comparant le chemin : s'il a changé,
+la base d'avant n'est plus celle que l'app ouvre.
+
+**Comment on l'a payée.** Checkup du 2026-09-07. Deux notes écrites sur le
+simulateur et jamais synchronisées ont été détruites par la réinstallation :
+une note vide, et une note du 2026-09-03 dont le corps disait
+**« Mindmap dans notes »**. ⭐ **Rien n'a été perdu pour de bon** — le contenu
+avait été LU et recopié dans `MOBILE.md` une demi-heure plus tôt, en comparant
+les deux bases. Mais c'est un coup de chance, pas une méthode : la lecture avait
+été faite pour établir un constat, pas pour se prémunir d'une destruction.
+
+⚠️ **La phrase du § 5.1 de `PASSATION.md` est donc CORRIGÉE, pas effacée** :
+`simctl install` préserve les données **parfois**, et rien ne prévient quand ce
+n'est pas le cas. Le raisonnement « la doc dit que c'est sûr » a remplacé une
+sauvegarde de dix secondes.
+
+▶️ **La règle générale, qui dépasse le simulateur** : avant toute opération qui
+remplace un binaire au-dessus d'une base — installation, restauration,
+`ditto` — on copie la base. Ce carnet contient déjà deux entrées sur des preuves
+détruites par un `rm -rf` (§ 7.5 bis) ; c'est la même faute, appliquée à des
+données au lieu d'un artefact.
+
+## 9.11 ⭐ L'« intermittence PGlite » a une cause MESURABLE : la charge machine
+
+**Symptôme.** `npm test` échoue sur `sync/supabase.test.ts` avec
+`Hook timed out in 60000ms` — dans le `beforeEach`, jamais sur une assertion. On
+relance, ça passe, ou ça échoue ailleurs. Le dépôt appelle ça depuis longtemps
+« intermittence connue sur les suites PGlite » et s'arrête là.
+
+**Cause, mesurée le 2026-09-07.** Ce n'est pas du hasard, c'est de la
+**contention**. Ces trois fichiers montent une instance Postgres COMPLÈTE dans
+leur `beforeEach` ; sur une machine chargée, le hook n'obtient pas le processeur
+dans les 60 s et rend la main. Deux exécutions de la MÊME suite, même code :
+
+| Charge (`uptime`, 1 min) | Mémoire libre | Durée | Résultat |
+|---|---|---|---|
+| **37** | **65 Mo** | **1 416 s** | 2 échecs |
+| **7** | 830 Mo | **16,8 s** | **17 / 17** |
+
+**Un facteur 84 sur la durée, et le rouge disparaît.**
+
+**Ce qui chargeait la machine, et c'est le vrai enseignement** : le **panneau du
+simulateur iOS laissé attaché**. Il fait tourner deux encodeurs `VideoToolbox`
+en permanence pour diffuser l'écran. À eux seuls ils prenaient plus de 12 % de
+processeur, en plus du simulateur lui-même.
+
+**Parade.**
+1. **Avant de lancer la ligne de base : `uptime`.** Au-dessus de ~10 de charge,
+   un rouge PGlite ne veut rien dire — ni dans un sens ni dans l'autre.
+2. **Détacher le panneau du simulateur** (`detach`) et **éteindre le simulateur**
+   (`simctl shutdown`) dès qu'on n'en a plus besoin. Ce n'est pas de l'hygiène,
+   c'est ce qui fait la différence entre 17 s et 24 minutes.
+3. Et le geste déjà écrit dans `PASSATION.md` : **capturer le nom du test AVANT
+   de relancer**. Ici il a servi — le nom montrait un `beforeEach`, donc un
+   problème d'environnement, pas une assertion fausse.
+
+⚠️ **Ne pas augmenter le `hookTimeout` pour faire taire le symptôme.** Il est
+déjà à 60 s, six fois la valeur par défaut. Le porter plus haut rendrait la
+suite encore plus lente sans rien réparer, et masquerait le jour où le hook
+échoue pour une VRAIE raison.
+
+**Comment on l'a payée.** Checkup du 2026-09-07 : environ quarante minutes à
+soupçonner une régression de mes propres modifications, alors que la seule chose
+qui avait changé était la charge de la machine.

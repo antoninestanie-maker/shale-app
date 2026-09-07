@@ -247,8 +247,19 @@ Le détail est au § 3 de `PASSATION-UI.md`. Les quatre qui mordent le plus :
 > « Admin » comprise. Une seule observation ne fait pas une règle, et le coût
 > d'une session perdue reste élevé : **continuer à faire l'audit visuel AVANT de
 > reconstruire.**
-`simctl install` par-dessus l'app **préserve les données** (`shale.db` intact)
-mais **fait perdre l'accès au trousseau**, donc le `refresh_token`. L'app repart
+⚠️ **CORRIGÉ LE 2026-09-07, ET C'EST L'INVERSE QUI EST ARRIVÉ.** La phrase
+d'origine — « `simctl install` par-dessus l'app **préserve les données**
+(`shale.db` intact) mais **fait perdre l'accès au trousseau** » — s'est révélée
+fausse dans les deux moitiés, le même jour :
+· **les données N'ONT PAS été préservées** : iOS a provisionné un NOUVEAU
+  conteneur (`D77D31BD-…` → `EA43202F-…`) et retiré l'ancien. Deux notes non
+  synchronisées ont été détruites (`PIEGES.md` § 9.10) ;
+· **la session, elle, a survécu** : l'app est repartie sur le tableau de bord et
+  a resynchronisé (`last_pull_at` au 2026-09-07).
+▶️ **La seule parade est de COPIER la base avant d'installer.** Ne plus se fier
+à cette phrase dans un sens ou dans l'autre.
+*(Texte d'origine, conservé :)* `simctl install` préserve les données
+(`shale.db` intact) mais fait perdre l'accès au trousseau, donc le `refresh_token`. L'app repart
 sur l'écran de connexion, et **une session Claude ne peut pas s'y reconnecter**.
 ▶️ **Faire tout l'audit visuel AVANT de reconstruire.** C'est le cas
 actuellement : la session du simulateur est perdue, seul un geste humain

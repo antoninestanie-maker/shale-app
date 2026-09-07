@@ -2533,3 +2533,45 @@ sur le simulateur** — ce serait perdu à la première réinstallation, puisque
 ⚠️ **Et donc : ne PAS effacer le simulateur** tant que ces deux notes y sont, ni
 `simctl erase`, ni `simctl uninstall` — c'était déjà la règle du § 17.4, elle a
 maintenant une raison concrète et datée.
+
+## ⭐ La carte mentale EN WEBKIT — mesuré le 2026-09-07
+
+C'était le point que la passation du chantier annonçait comme **non vérifié** :
+toutes les mesures d'image et de SVG avaient été prises dans Chromium. Voici
+celles prises dans le moteur d'Apple, sur le simulateur iPhone 17 (iOS 26.5),
+avec le **vrai SVG produit par `lib/carte.ts`** — pas une imitation.
+
+| Ce qui était en jeu | Mesure |
+|---|---|
+| Le `<svg>` du bloc est-il **rendu** ? | ✅ 352 × 66 px, et le premier `<text>` fait 46 × 8 px — **le texte est dessiné** |
+| Les `var(--color-…)` sont-elles **résolues DANS le SVG** ? | ✅ `stroke` calculé = `rgb(139, 148, 166)` — **c'était le risque n°1** |
+| L'export PNG (`canvas.toDataURL("image/png")`) | ✅ 1490 × 280, **52 286 octets**, en-tête `data:image/png;base64` |
+| Le PNG est-il **lisible** ? | ✅ vu à l'écran : fond blanc opaque, couleurs de branche correctes |
+| Le **WebP** est-il encodable ? | ⛔ **`false`** |
+| Moteur | `AppleWebKit/605.1.15 … Version/26.5` |
+
+### ⭐ Le `false` de la dernière ligne vaut une décision
+
+`encodeImage` (`lib/knowledge.ts`) porte un repli JPEG « pour le cas où le
+moteur ne sait pas encoder le WebP ». **Ce cas n'est pas hypothétique : c'est
+iOS, et c'est mesuré.** Deux conséquences :
+
+1. la réserve écrite dans `knowledge.ts` est **confirmée sur pièce**, pas
+   seulement prudente ;
+2. ⭐ **l'écart au cahier des charges sur l'export de carte était le bon
+   choix.** Le cahier demandait de faire passer le PNG par `encodeImage` ; s'il
+   avait été suivi, l'export aurait produit sur iPhone un fichier **JPEG portant
+   l'extension `.png`**. C'est `canvas.toDataURL("image/png")` qui est utilisé,
+   et le PNG est le seul format qu'un canevas soit tenu de savoir encoder.
+
+### ⚠️ Ce que cette mesure ne dit PAS
+
+Elle a été prise dans **Safari mobile** du simulateur, pas dans la WKWebView de
+l'app. C'est le **même moteur** (WebKit), et les trois faits mesurés sont des
+faits de moteur — mais l'encapsulation Tauri n'est pas identique.
+
+⚠️ **Et l'éditeur de carte lui-même n'a PAS été ouvert dans l'app sur iOS**, pour
+une raison qui n'est pas de la prudence excessive : depuis la réinstallation, le
+simulateur **resynchronise avec les vraies données d'Antonin** (`last_pull_at`
+au 2026-09-07). Y créer une note d'essai la lui aurait envoyée. C'est la règle du
+§ 17.4, appliquée : on ne saisit rien sur le simulateur.
