@@ -115,8 +115,28 @@ recomptée dans le dépôt du site (hors périmètre) :
 | les vues de `/compte` | le décompte affiché à l'abonné |
 | `Demo.astro` | « APERÇU · 3 MODULES SUR 12 » → « … SUR 13 » |
 
-▶️ **Commencer par recompter** : `grep -rn "douze\|twelve\|SUR 12\|12 modules"`
-dans `shale-site`, en écartant les faux positifs comme l'a fait l'app.
+▶️ ~~**Commencer par recompter**~~ — **RECOMPTÉ le 2026-09-07**, pendant le
+checkup général. Le chiffre, mesuré dans `shale-site/vitrine/src` (branche
+`sync-chiffree`, `756feb7`) et pas déduit d'un document :
+
+| Mesure | Valeur |
+|---|---|
+| Occurrences de « douze » / « 12 modules » / « SUR 12 » dans `vitrine/src` | **37** |
+| Entrées de `vitrine/src/lib/modules.ts` | **12** |
+| Le module **Calendrier** y figure-t-il ? | **NON** — absent de la liste |
+
+Les douze noms présents : Aujourd'hui, Tâches, Timer, Objectifs, Performance,
+Finance, Notes, Journal, Savoir, Trading, Market-Brain, Position. Il manque
+**Calendrier**, qui s'insère entre Tâches et Timer.
+
+⚠️ **Les 37 occurrences ne sont PAS toutes à corriger** : au moins deux parlent
+d'autre chose (« douze semaines glissantes » pour les habitudes, « les douze
+autres » dans un article de blog). C'est exactement le faux positif contre lequel
+cette entrée mettait en garde — le recomptage le confirme au lieu de le supposer.
+
+⚠️ **Et le site ignore aussi les CARTES MENTALES** (2026-09-07) — voir l'entrée
+G.1. Ce n'est pas un module, donc le compte ne bouge pas, mais la description
+des Notes et du Savoir est incomplète.
 
 ### B.2 Un module de plus à présenter
 
