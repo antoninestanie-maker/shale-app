@@ -208,12 +208,3 @@ export async function pngDeCarte(carte: Carte, echelle = 2): Promise<string> {
   ctx.drawImage(image, 0, 0, w, h);
   return canvas.toDataURL("image/png");
 }
-
-/** Les octets d'une data URL, prêts à être écrits dans un fichier. */
-export function octetsDeDataUrl(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-  const binaire = atob(base64);
-  const out = new Uint8Array(binaire.length);
-  for (let i = 0; i < binaire.length; i++) out[i] = binaire.charCodeAt(i);
-  return out;
-}

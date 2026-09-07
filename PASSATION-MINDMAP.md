@@ -21,8 +21,8 @@
 | Tests front | **665 / 665** (608 avant, +57) |
 | Tests Rust | **133** (129 avant, +4) |
 | Dépendances npm | **aucune ajoutée** |
-| App macOS | ⛔ **PAS reconstruite** — Antonin n'a rien de tout ceci |
-| Verrou BUILD NATIF | **jamais pris** |
+| App macOS | ⭐ **reconstruite et installée le 2026-09-07 à 03:39** — binaire `e0966e0b…`, copie prouvée par sha256. ⛔ La fenêtre de trousseau attend un clic d'Antonin |
+| Verrou BUILD NATIF | pris à 03:36, **libéré à 03:45** |
 
 ### La ligne de base — jouée en entier le 2026-09-07 à 03 h 30
 
@@ -150,23 +150,52 @@ nouveau **chapitre 9**.
 
 ## 6. ⛔ Ce qui attend une action
 
-### 6.1 ⛔ La branche n'est PAS fusionnée
+### 6.1 ~~⛔ La branche n'est PAS fusionnée~~ — **FAIT le 2026-09-07 à 03:35**
 
-`chantier/mindmap` est locale. Elle n'a pas été poussée ni fusionnée dans
-`mobile-ios` : le protocole du dépôt veut qu'un chantier soit fusionné quand il
-est accepté, et Antonin n'a pas encore vu la carte tourner.
+`chantier/mindmap` → `mobile-ios` en fast-forward (`24a4954`), poussé sur
+`origin`. Puis construite et installée à 03:39.
 
-### 6.2 ⛔ AUCUN BUILD NATIF — et il y en a DEUX en attente, à grouper
+### 6.2 ⭐ LE BUILD EST FAIT — et il portait bien les DEUX chantiers
 
-`/Applications/Shale.app` date du **2026-09-06 à 18:47**. Elle ne connaît :
+Fait le **2026-09-07 à 03:39**, en 5 min 03, code de sortie 0. Un seul build
+pour la roulette d'heure ET les cartes mentales, comme il le fallait : chaque
+reconstruction coûte à Antonin une fenêtre de trousseau que lui seul peut fermer.
 
-- **ni la roulette d'heure** du calendrier (déjà due avant ce chantier —
-  `PASSATION.md` § 1 ter, point 0) ;
-- **ni les cartes mentales.**
+**La chaîne de preuve, dans l'ordre où elle a été établie :**
 
-⚠️ **Un seul build doit porter les deux.** Chaque reconstruction coûte à Antonin
-une fenêtre de trousseau que lui seul peut fermer (§ 8.3), et le code a bougé
-depuis le dernier build, donc elle reviendra.
+| Étape | Mesure |
+|---|---|
+| Sauvegarde cohérente AVANT | `shale-backups/avant-cartes-mentales-20260907-0332/`, `integrity_check` **ok** |
+| Empreinte horodatée de l'app à remplacer | `8d03ecf0…`, mtime **2026-09-06 18:47:30** |
+| Horodatage : commit → dist → binaire | 03:32:10 → 03:33:50 → 03:39:18 |
+| Témoins DANS `dist/` (cartes) | `data-mindmap` **2**, `Shale/carte: could not refresh` **1**, `carte-bloc` **5** |
+| Témoin DANS `dist/` (roulette) | `roulette` **10** — le build porte bien l'autre chantier |
+| Contre-épreuve | `rafraichirBlocs` (nom de fonction) → **0**, comme le § 7.5 bis l'annonce |
+| Les deux empreintes DIFFÉRAIENT avant la copie | `8d03ecf0…` ≠ `e0966e0b…` — donc la comparaison d'après a du sens |
+| Après `ditto` | installée = source = `e0966e0b…` |
+| Témoin RUST sur le binaire INSTALLÉ | `ecrire_fichier` **1**, `ALTER TABLE … end_date` **1** |
+| Chaîne du FRONT dans le binaire | **0** — le front est compressé, exactement comme le § 7.5 bis ② le décrit |
+| Base après lancement | `integrity_check` **ok**, version **21**, **13 notes / 45 889 octets** — inchangée |
+
+⚠️ **Une erreur commise pendant l'installation, et consignée** : le contrôle
+« l'app est-elle lancée ? » utilisait `pgrep -x Shale`, qui ne peut PAS matcher —
+le processus s'appelle `shale`. Une instance tournait, et le `rm -rf` a eu lieu
+sur un bundle en cours d'exécution. Sans conséquence (macOS garde les inodes, la
+base est identique avant/après), mais c'était de la chance. Entrée `PIEGES.md`
+§ 9.8, et le carnet de coordination porte la correction datée.
+
+⚠️ **Une différence connue entre le dépôt et le bundle installé** : la fonction
+`octetsDeDataUrl` de `carteDom.ts`, morte, a été retirée du dépôt APRÈS le début
+du build. Le bundle installé la contient encore. **Aucun effet** — elle n'était
+appelée nulle part — mais il faut le savoir plutôt que de s'étonner d'un diff.
+
+### 6.2 bis ⛔ CE QUI RESTE, ET C'EST UN GESTE HUMAIN
+
+**La fenêtre de trousseau est ouverte** (`SecurityAgent` actif au moment où
+j'écris) et attend qu'Antonin clique **« Toujours autoriser »**. macOS la
+redemande dès que le binaire change (§ 8.3). **Aucune session ne peut le faire à
+sa place** — saisir un mot de passe est interdit. Sans ce clic, la
+synchronisation ne retrouve pas son jeton.
 
 ⚠️ **Les témoins de build, VÉRIFIÉS SUR UN VRAI `npx vite build` avant d'être
 écrits ici** — c'est la moitié de la règle du § 7.5 bis que la session du

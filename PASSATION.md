@@ -15,7 +15,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
 | 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
-| 2 quater | ⭐ **`PASSATION-MINDMAP.md`** | **le chantier du 2026-09-07** — les cartes mentales dans les Notes et le Savoir. ⛔ Branche NON fusionnée, et un rebuild natif qui doit être GROUPÉ avec celui de la roulette |
+| 2 quater | ⭐ **`PASSATION-MINDMAP.md`** | **le chantier du 2026-09-07** — les cartes mentales dans les Notes et le Savoir. Livré et installé ; ce qui reste ouvert est en § 6 |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
 | 3 ter | ⭐ **`PASSATION-NOTES.md`** | **le chantier H du 2026-09-05/06 — la perte de données des Notes.** Ce qui est corrigé, ce qui ne l'est pas, et les deux choses qui restent ouvertes (build natif, synchro iPhone) |
@@ -41,12 +41,12 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | | |
 |---|---|
 | Dépôt app | `~/Desktop/Shale-projet/Shale` |
-| Branche | **`mobile-ios`** — au 2026-09-06 elle porte le chantier Notes (3 commits) puis le chantier Calendrier V2 (7 commits), tous poussés. ⛔ **Au 2026-09-07 une branche `chantier/mindmap` (5 commits) attend à côté, NON fusionnée** — voir `PASSATION-MINDMAP.md` |
+| Branche | **`mobile-ios`** à `24a4954`, poussée. Elle porte le chantier Notes, le Calendrier V2, la roulette d'heure, et **les cartes mentales** (5 commits, 2026-09-07) |
 | Arbre | **propre** |
 | Dépôt site | `~/Desktop/Shale-projet/shale-site`, branche `responsive-site` — **hors périmètre**, Antonin mène sa refonte ; la dette est tracée dans `DETTE-SITE.md` |
 | Base de données | **migration 020 appliquée à la vraie base** le 2026-09-04 à 11:41 — 4 tables créées, aucune donnée perdue. ⛔ **La 021 (`end_date`) existe dans le dépôt et n'est PAS appliquée** |
-| Sauvegardes | `avant-migration-020-20260904-1135/` et **`avant-correctif-notes-20260905-2107/`** (deux copies, app ouverte puis fermée), prises avec `sqlite3 .backup`, `integrity_check` ok |
-| App macOS | ⛔ **En retard de DEUX choses au 2026-09-07** : la roulette d'heure ET les cartes mentales. Un seul build doit porter les deux. *(historique :)* reconstruite le **2026-09-04 à 11:51** — contient `67ce66e`. ⚠️ **Elle est en retard de DEUX chantiers** : elle écrit encore le contenu d'une note dans une autre (correctif Notes absent), et elle ne connaît rien du Calendrier V2 — ni la saisie à la minute, ni le multi-jours, ni les dates sur les tâches. Un seul build portera les deux |
+| Sauvegardes | **`avant-cartes-mentales-20260907-0332/`** (la plus récente), `avant-migration-020-20260904-1135/` et `avant-correctif-notes-20260905-2107/` (deux copies, app ouverte puis fermée), prises avec `sqlite3 .backup`, `integrity_check` ok |
+| App macOS | reconstruite le **2026-09-07 à 03:39**, binaire `e0966e0b…`, installation prouvée par sha256. Elle porte la roulette d'heure ET les cartes mentales. ⛔ **La fenêtre de trousseau attend un clic d'Antonin.** *(historique, conservé pour mémoire : le build du 2026-09-04 à 11:51 ne connaissait ni le correctif Notes ni le Calendrier V2 ; celui du 2026-09-06 à 18:47 les portait mais pas la roulette.)* |
 | App iOS | **simulateur** iPhone 17 (iOS 26.5), réinstallée le 2026-09-02 |
 | iPhone réel | **jamais** — rien n'y a été vu. Tout ce qui dit « iPhone » ailleurs veut dire *simulateur* |
 | Modules | **treize** — le compte est passé de douze à treize le 2026-09-02 (Calendrier) |
@@ -59,11 +59,11 @@ npx tsc --noEmit                              # ✅
 npm run test:types                            # ✅
 npm run i18n:check                            # ✅ 0 manquante, 0 doublon
 npm run i18n:durs                             # ✅ 0 chaîne sûrement française
-npm test                                      # ✅ 608 / 608 sur mobile-ios · 665 / 665 sur chantier/mindmap
+npm test                                      # ✅ 665 / 665 (608 avant le 2026-09-07)
 npx vite build                                # ✅
 cd src-tauri
 cargo check --all-targets                     # ✅
-cargo test --lib                              # ✅ 129 sur mobile-ios · 133 sur chantier/mindmap
+cargo test --lib                              # ✅ 133 (129 avant le 2026-09-07)
 cargo check --target aarch64-apple-ios-sim    # ✅
 cargo check --target aarch64-apple-ios        # ✅
 ```
@@ -86,20 +86,26 @@ intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 
 ## 1 ter. ⛔ Ce qui attend une action — au 2026-09-07
 
-0 bis. ⛔ **LES CARTES MENTALES SONT ÉCRITES ET NON LIVRÉES.** La branche
-   `chantier/mindmap` (5 commits, ligne de base entièrement verte, 665 tests
-   front et 133 Rust) **n'est ni poussée ni fusionnée**, et l'app d'Antonin ne
-   les connaît pas. Tout est vérifié à l'écran en mode démo — insertion dans les
-   deux modules, clavier, `@`, backlinks, export PNG/SVG, réseau coupé — mais
-   **rien n'a été vu sur la vraie base ni en WKWebView**. Détail complet et
-   témoins de build : `PASSATION-MINDMAP.md` § 6.
-   ▶️ **Le build de ce chantier et celui du point 0 ci-dessous NE FONT QU'UN.**
+0 ter. ⛔ **UN SEUL GESTE RESTE, ET IL EST HUMAIN : la fenêtre de trousseau.**
+   L'app a été reconstruite et installée le **2026-09-07 à 03:39**, et elle
+   tourne. macOS redemande l'accès au trousseau dès que le binaire change
+   (§ 8.3) : **Antonin doit cliquer « Toujours autoriser »**, une fois. Aucune
+   session ne peut le faire à sa place. Sans ce clic, la synchronisation ne
+   retrouve pas son jeton.
 
-0. ⛔ **LA ROULETTE D'HEURE N'EST PAS SUR LA MACHINE D'ANTONIN.** Elle est
-   écrite, vérifiée à l'écran dans les deux formulaires et les deux langues, et
-   poussée — mais elle est arrivée APRÈS le build du 2026-09-06 à 18:47. Il
-   faut un nouveau build pour qu'il l'ait. Les huit tests de synchronisation du
-   calendrier, eux, ne s'embarquent pas : ce sont des tests.
+0 bis. ~~⛔ **LES CARTES MENTALES SONT ÉCRITES ET NON LIVRÉES.**~~
+   **LIVRÉES le 2026-09-07 à 03:39** — fusionnées (`24a4954`), poussées,
+   construites et installées. Vérifié à l'écran en mode démo : insertion dans
+   les deux modules, clavier, `@`, backlinks des deux côtés, export PNG/SVG,
+   thème clair et sombre, anglais, et **réseau coupé (zéro requête tentée)**.
+   ⚠️ **Rien n'a été vu sur la vraie base ni en WKWebView** : c'est le premier
+   point à regarder. Détail : `PASSATION-MINDMAP.md`.
+
+0. ~~⛔ **LA ROULETTE D'HEURE N'EST PAS SUR LA MACHINE D'ANTONIN.**~~
+   **RÉGLÉ le 2026-09-07 à 03:39** — le build des cartes mentales portait les
+   deux chantiers, comme prévu. Prouvé par le contenu du bundle consommé :
+   `roulette` y apparaît 10 fois. *(Texte d'origine :)* elle était arrivée APRÈS
+   le build du 2026-09-06 à 18:47, et il fallait un nouveau build.
 1. ~~⛔ **LE REBUILD NATIF N'EST PAS FAIT.**~~ **FAIT le 2026-09-06 à 18:47** —
    un seul build pour les deux chantiers, migration 021 appliquée sur base non
    vide, aucune donnée perdue. Reste le point 0 ci-dessus.

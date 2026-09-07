@@ -1232,3 +1232,39 @@ n'avait jamais tourné.
 une ligne de base Rust complète, toutes trois fantômes. **C'est le quatrième
 exemplaire de « un contrôle qui ne peut pas échouer ne contrôle rien » dans ce
 carnet** (§ 7, § 7.5 bis, § 7.5 quater, et celui-ci).
+
+## 9.8 ⚠️ `pgrep -x Shale` ne peut PAS trouver l'app : le processus s'appelle `shale`
+
+**Symptôme.** Avant de remplacer `/Applications/Shale.app`, on vérifie que l'app
+n'est pas lancée. `pgrep -x Shale` ne rend rien, on conclut qu'elle est fermée —
+et on fait un `rm -rf` sur un bundle **dont une instance tourne**.
+
+**Cause.** Le binaire s'appelle `Contents/MacOS/shale`, en **minuscules** ; c'est
+lui que voit le noyau. `pgrep -x` compare le nom du processus **exactement et en
+respectant la casse**. `pgrep -x Shale` est donc un contrôle qui ne peut jamais
+rendre « oui », quoi qu'il arrive.
+
+**Parade.** Chercher le CHEMIN, pas un nom deviné :
+
+```bash
+pgrep -f '/Applications/Shale.app/Contents/MacOS/shale'
+```
+
+Et lire la ligne de commande de ce qu'on trouve (§ 8.2 bis) :
+`ps -p <PID> -o command=`.
+
+⚠️ **Et vérifier le contrôle lui-même** : ici, lancer l'app puis relancer le
+`pgrep` aurait montré en dix secondes qu'il rend zéro dans les deux cas.
+
+**Comment on l'a payée.** Cartes mentales, 2026-09-07, pendant l'installation :
+le `rm -rf` a bien eu lieu sur un bundle en cours d'exécution. **Sans
+conséquence** — macOS garde les inodes ouverts, le processus a continué, la base
+est restée intacte (13 notes / 45 889 octets avant et après, `integrity_check`
+ok) — mais c'était de la chance, pas une garantie. L'ancienne instance a ensuite
+été refermée proprement par `osascript quit`, jamais par un `kill`.
+
+⚠️ **Sixième exemplaire de « un contrôle qui ne peut pas échouer ne contrôle
+rien »** dans ce carnet, et le deuxième de la même soirée. Les cinq autres :
+§ 7 (les trois du 2026-09-06), § 9.7 (le `cd` qui saute), et le code de sortie
+d'une tâche de fond, qui est celui de la DERNIÈRE commande — un `build ; tail`
+rapporte le succès de `tail`.
