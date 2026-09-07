@@ -4614,3 +4614,23 @@ dégât visible, mais la règle du 2026-08-28 vaut pour tous les usages : le
   **ne pas les purger à l'aveugle** : certaines sont des clés DYNAMIQUES
   (`t(cat + "|palette")`) qu'un scan textuel ne peut pas voir, et les effacer
   ferait retomber l'app anglaise en français sans le dire.
+
+### Le build du 2026-09-07 à 23:26 — ce qu'il porte
+
+`885af912…`, installé et prouvé. **Un seul build pour deux chantiers** : la
+barre d'outils et la touche Entrée des cartes mentales (`7ceab44`) et la fusion
+des sujets (`87e55b7`, migration 022).
+
+⭐ **La migration 022 a tourné sur la vraie base** : version 22,
+`integrity_check` ok, `foreign_key_check` 0 violation, **13 notes / 48 352
+octets et 6 fiches — identiques à la sauvegarde prise une minute plus tôt**, la
+table `objects` disparue, les 4 sujets conservés avec leur couleur, leur
+position et leurs fiches.
+
+⚠️ **Nuance sur les témoins de bundle, à ajouter au § 7.5 bis.** La règle dit
+« ne jamais choisir un nom de fonction ». C'est plus fin que « les noms
+disparaissent » : mesuré ici, `PageSujet` (composant **local**) rend 0, mais
+`updateSujet` et `fetchSujet` — **exportés**, donc conservés aux frontières de
+chunk — rendent 3. Un témoin choisi parmi les seconds passerait, et donnerait
+une fausse confiance à celui qui le reprendrait sur une fonction locale.
+**Choisir une chaîne de caractères reste la seule règle sûre.**
