@@ -270,6 +270,14 @@ est dans `CLAUDE.md`**, section « Règle : l'app et le site ne divergent jamais
   (voir `MOBILE.md`). Sur iPhone la carte s'ouvre et s'affiche, elle ne se
   construit pas confortablement au doigt.
 
+**⚠️ Mise à jour du 2026-09-08 — la formulation « au clavier » est devenue trop
+étroite.** Depuis le 2026-09-07 la carte se construit **entièrement à la souris**
+aussi : une barre d'outils à icônes ET légendes, pensée « pour quelqu'un qui ne
+s'en est jamais servi » (demande d'Antonin). Le site devrait donc écrire
+**« au clavier ou à la souris, comme tu veux »** plutôt que « entièrement au
+clavier », qui vend moins que ce que l'app fait. Le ❌ sur le doigt, lui, tient
+toujours.
+
 **Priorité : basse.** Antonin mène sa refonte visuelle ; cette entrée attend
 qu'elle soit finie. Elle ne contredit rien de ce que le site affirme
 aujourd'hui — elle ajoute quelque chose qu'il ignore.
