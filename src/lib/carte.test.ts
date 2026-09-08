@@ -18,6 +18,7 @@ import {
   lignesDe,
   lireCarte,
   noeudDe,
+  poserCote,
   poserReference,
   rafraichirReferences,
   refsDeCarte,
@@ -177,6 +178,83 @@ describe("⭐ le déterminisme de l'agencement", () => {
     expect(a.boites.get("n3")!.cote).toBe(1);
     // un enfant reste du côté de sa branche
     expect(a.boites.get("n4")!.cote).toBe(1);
+  });
+
+  it("⭐ insérer une branche au milieu ne déplace ni ne repeint les autres", () => {
+    // Le défaut d'avant : le côté et la couleur se déduisaient du RANG. Insérer
+    // une branche en deuxième position décalait tous les rangs suivants, donc
+    // faisait traverser la carte à toutes les branches d'après. Ajouter une
+    // idée réorganisait le travail déjà fait.
+    const c = carteEssai();
+    const avant = agencer(c);
+    const temoin = ["n2", "n3"].map((id) => ({
+      id,
+      cote: avant.boites.get(id)!.cote,
+      couleur: avant.boites.get(id)!.couleur,
+    }));
+
+    const apres = agencer(ajouterFrere(c, "n1").carte);
+    for (const t of temoin) {
+      expect(apres.boites.get(t.id)!.cote).toBe(t.cote);
+      expect(apres.boites.get(t.id)!.couleur).toBe(t.couleur);
+    }
+  });
+
+  it("la branche neuve naît du côté le moins chargé, dans la couleur la moins servie", () => {
+    // Trois branches : droite, gauche, droite. La quatrième rééquilibre.
+    const { carte, neuf } = ajouterFrere(carteEssai(), "n3");
+    const a = agencer(carte);
+    expect(a.boites.get(neuf)!.cote).toBe(-1);
+    expect(a.boites.get(neuf)!.couleur).toBe("green");
+    expect(new Set(["n1", "n2", "n3", neuf].map((id) => a.boites.get(id)!.couleur)).size).toBe(4);
+  });
+
+  it("une carte écrite AVANT ce champ se rouvre exactement telle qu'elle était", () => {
+    // Le JSON d'une version antérieure : aucune branche ne porte de côté.
+    const ancienne = JSON.stringify({
+      v: 1,
+      noeuds: [
+        { id: "r", parent: null, texte: "Racine" },
+        { id: "a", parent: "r", texte: "Une" },
+        { id: "b", parent: "r", texte: "Deux" },
+        { id: "c", parent: "r", texte: "Trois" },
+      ],
+    });
+    const a = agencer(lireCarte(ancienne)!);
+    expect([a.boites.get("a")!.cote, a.boites.get("b")!.cote, a.boites.get("c")!.cote]).toEqual([1, -1, 1]);
+    expect([a.boites.get("a")!.couleur, a.boites.get("b")!.couleur, a.boites.get("c")!.couleur]).toEqual([
+      COULEURS_BRANCHE[0],
+      COULEURS_BRANCHE[1],
+      COULEURS_BRANCHE[2],
+    ]);
+  });
+
+  it("promu branche, un nœud reçoit un côté ; redescendu, il le rend", () => {
+    const promu = deplacer(carteEssai(), "n4", "r", null);
+    expect(noeudDe(promu, "n4")!.cote).toBeDefined();
+    expect(agencer(promu).boites.get("n4")!.profondeur).toBe(1);
+
+    const redescendu = deplacer(promu, "n4", "n2", null);
+    expect(noeudDe(redescendu, "n4")!.cote).toBeUndefined();
+    // et il suit désormais la branche qui le porte, sans hésiter
+    expect(agencer(redescendu).boites.get("n4")!.cote).toBe(agencer(redescendu).boites.get("n2")!.cote);
+  });
+
+  it("une branche envoyée de l'autre côté emmène tout son sous-arbre", () => {
+    const c = poserCote(carteEssai(), "n1", -1);
+    const a = agencer(c);
+    expect(a.boites.get("n1")!.cote).toBe(-1);
+    expect(a.boites.get("n4")!.cote).toBe(-1); // l'enfant suit sa branche
+    expect(a.boites.get("n5")!.cote).toBe(-1);
+    // et la couleur, elle, ne bouge pas : changer de côté n'est pas renaître
+    expect(a.boites.get("n1")!.couleur).toBe(agencer(carteEssai()).boites.get("n1")!.couleur);
+  });
+
+  it("seule une branche a un côté à changer", () => {
+    const c = carteEssai();
+    expect(poserCote(c, "n4", -1)).toBe(c); // un nœud profond
+    expect(poserCote(c, "r", -1)).toBe(c); // la racine
+    expect(poserCote(c, "n1", 1)).toBe(c); // déjà de ce côté-là
   });
 
   it("un nœud replié ne pose PAS ses descendants", () => {

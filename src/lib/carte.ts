@@ -47,6 +47,30 @@ export interface Noeud {
   plie?: boolean;
   /** La cible n'existe plus : le nœud reste, marqué mort, non cliquable. */
   mort?: boolean;
+  /**
+   * ⭐ DE QUEL CÔTÉ DE LA RACINE PEND CETTE BRANCHE, ET DE QUELLE COULEUR.
+   *
+   * N'a de sens que sur un enfant DIRECT de la racine ; ailleurs, ces deux
+   * champs sont ignorés (un nœud suit toujours la branche qui le porte).
+   *
+   * Ils existent pour une seule raison, et elle vaut d'être dite. Avant eux, le
+   * côté et la couleur d'une branche se DÉDUISAIENT de son rang : pair à
+   * droite, impair à gauche, couleur = rang modulo quatre. Le dessin obtenu
+   * était le bon — mais insérer une branche au milieu décalait tous les rangs
+   * suivants, donc **faisait traverser la carte à toutes les branches d'après,
+   * et les repeignait**. Ajouter une idée réorganisait le travail déjà fait.
+   *
+   * Écrits une fois, ils ne bougent plus : une branche posée reste où elle est.
+   * L'alternance n'est pas perdue pour autant — elle est reproduite à la
+   * CRÉATION par `nouvelleBranche()`, qui choisit le côté le moins chargé.
+   *
+   * ⚠️ Absents d'une carte écrite avant ce champ : `lireCarte` les y inscrit à
+   * l'ouverture, d'après l'ancienne règle, pour que la carte se rouvre
+   * exactement telle qu'on l'a laissée.
+   */
+  cote?: -1 | 1;
+  /** Index dans `COULEURS_BRANCHE`. Voir `cote` — même histoire, même remède. */
+  teinte?: number;
 }
 
 export interface Carte {
@@ -97,6 +121,13 @@ export function lireCarte(brut: string | null | undefined): Carte | null {
       ...(ref ? { ref } : {}),
       ...(n.plie ? { plie: true as const } : {}),
       ...(n.mort ? { mort: true as const } : {}),
+      ...(n.cote === 1 || n.cote === -1 ? { cote: n.cote } : {}),
+      ...(typeof n.teinte === "number" &&
+      Number.isInteger(n.teinte) &&
+      n.teinte >= 0 &&
+      n.teinte < COULEURS_BRANCHE.length
+        ? { teinte: n.teinte }
+        : {}),
     });
   }
   if (noeuds.length === 0) return null;
@@ -124,6 +155,16 @@ export function lireCarte(brut: string | null | undefined): Carte | null {
       p = noeuds.find((x) => x.id === p)?.parent ?? null;
     }
   }
+  // ⭐ Les branches d'une carte écrite avant `cote`/`teinte` les reçoivent ICI,
+  // d'après l'ancienne alternance par rang : la carte se rouvre exactement
+  // comme on l'a laissée, et plus rien ne la fera bouger ensuite. C'est le seul
+  // endroit où l'ancienne règle sert encore, et elle n'y sert qu'une fois.
+  noeuds
+    .filter((n) => n.parent === racine.id)
+    .forEach((b, i) => {
+      if (b.cote !== 1 && b.cote !== -1) b.cote = i % 2 === 0 ? 1 : -1;
+      if (typeof b.teinte !== "number") b.teinte = i % COULEURS_BRANCHE.length;
+    });
   return { v: 1, noeuds };
 }
 
@@ -149,9 +190,10 @@ export function sousArbre(c: Carte, id: string): string[] {
 /**
  * De quel côté de la racine tombe un nœud, et à quelle profondeur.
  *
- * La racine porte ses enfants des DEUX côtés, en alternance : c'est ce qui
- * donne la silhouette d'une carte mentale plutôt que celle d'un organigramme,
- * et ce qui garde la largeur raisonnable quand la racine a dix branches.
+ * La racine porte ses enfants des DEUX côtés : c'est ce qui donne la silhouette
+ * d'une carte mentale plutôt que celle d'un organigramme, et ce qui garde la
+ * largeur raisonnable quand la racine a dix branches. Le côté est PORTÉ par la
+ * branche (voir `Noeud.cote`), il n'est plus déduit de son rang.
  */
 export function coteEtProfondeur(c: Carte, id: string): { cote: -1 | 1; profondeur: number } {
   const racine = racineDe(c);
@@ -165,8 +207,52 @@ export function coteEtProfondeur(c: Carte, id: string): { cote: -1 | 1; profonde
   }
   if (profondeur === 0) return { cote: 1, profondeur: 0 };
   const branche = chemin[chemin.length - 1]; // l'ancêtre de profondeur 1
-  const rang = enfantsDe(c, racine.id).findIndex((e) => e.id === branche.id);
-  return { cote: rang % 2 === 0 ? 1 : -1, profondeur };
+  return { cote: coteDeBranche(c, branche), profondeur };
+}
+
+/**
+ * Le côté d'une branche : celui qu'elle porte, ou — à défaut — l'ancienne
+ * alternance par rang.
+ *
+ * ⚠️ Ce secours n'est pas décoratif. `lireCarte` inscrit le champ sur tout ce
+ * qui vient de la base, mais une carte construite en mémoire — les tests, une
+ * version future du format — peut en manquer, et une branche sans côté ne doit
+ * jamais disparaître de l'agencement.
+ */
+function coteDeBranche(c: Carte, branche: Noeud): -1 | 1 {
+  if (branche.cote === 1 || branche.cote === -1) return branche.cote;
+  const rang = enfantsDe(c, racineDe(c).id).findIndex((e) => e.id === branche.id);
+  return rang % 2 === 0 ? 1 : -1;
+}
+
+/** La teinte d'une branche. Même contrat, même secours que `coteDeBranche`. */
+function teinteDeBranche(c: Carte, branche: Noeud): number {
+  if (typeof branche.teinte === "number") return branche.teinte;
+  const rang = enfantsDe(c, racineDe(c).id).findIndex((e) => e.id === branche.id);
+  return Math.max(0, rang) % COULEURS_BRANCHE.length;
+}
+
+/**
+ * ⭐ Où naît une branche NEUVE : du côté le moins chargé, dans la couleur la
+ * moins servie. L'égalité se tranche à droite.
+ *
+ * C'est ce qui remplace l'ancienne alternance par rang — et qui la reproduit
+ * EXACTEMENT quand on construit une carte de haut en bas : droite, gauche,
+ * droite, gauche… avec les quatre couleurs dans l'ordre. La différence ne se
+ * voit que là où l'ancienne règle se trompait : au milieu d'une liste, où elle
+ * déplaçait et repeignait tout ce qui suivait.
+ */
+function nouvelleBranche(c: Carte): { cote: -1 | 1; teinte: number } {
+  const branches = enfantsDe(c, racineDe(c).id);
+  const usage = COULEURS_BRANCHE.map(() => 0);
+  let droite = 0;
+  for (const b of branches) {
+    if (coteDeBranche(c, b) === 1) droite++;
+    usage[teinteDeBranche(c, b)]++;
+  }
+  let teinte = 0;
+  for (let i = 1; i < usage.length; i++) if (usage[i] < usage[teinte]) teinte = i;
+  return { cote: droite <= branches.length - droite ? 1 : -1, teinte };
 }
 
 /** Un nœud est-il visible ? Non si un de ses ancêtres est replié. */
@@ -208,11 +294,24 @@ function inserer(c: Carte, neuf: Noeud, apresId: string | null): Carte {
   return { ...c, noeuds };
 }
 
-/** Un frère juste après `id` — la touche ⌘Entrée. La racine n'en a pas. */
+/**
+ * Un frère juste après `id` — la touche ⌘Entrée. La racine n'en a pas.
+ *
+ * ⚠️ Le frère d'une BRANCHE est lui-même une branche : il reçoit son propre
+ * côté, du côté le moins chargé. Il peut donc apparaître en face de celui dont
+ * il est le voisin — c'est la silhouette d'une carte mentale, et c'est ce que
+ * font MindNode et XMind. Ce qui n'arrive plus, en revanche, c'est que les
+ * branches DÉJÀ POSÉES changent de côté parce qu'on en a inséré une.
+ */
 export function ajouterFrere(c: Carte, id: string): { carte: Carte; neuf: string } {
   const n = noeudDe(c, id);
   if (!n || n.parent === null) return ajouterEnfant(c, id);
-  const neuf: Noeud = { id: nouvelId(c), parent: n.parent, texte: "" };
+  const neuf: Noeud = {
+    id: nouvelId(c),
+    parent: n.parent,
+    texte: "",
+    ...(n.parent === racineDe(c).id ? nouvelleBranche(c) : {}),
+  };
   return { carte: inserer(c, neuf, id), neuf: neuf.id };
 }
 
@@ -223,7 +322,12 @@ export function ajouterFrere(c: Carte, id: string): { carte: Carte; neuf: string
  * et rien n'apparaît à l'écran, ce qui se lit comme un bug.
  */
 export function ajouterEnfant(c: Carte, id: string): { carte: Carte; neuf: string } {
-  const neuf: Noeud = { id: nouvelId(c), parent: id, texte: "" };
+  const neuf: Noeud = {
+    id: nouvelId(c),
+    parent: id,
+    texte: "",
+    ...(id === racineDe(c).id ? nouvelleBranche(c) : {}),
+  };
   const derniers = enfantsDe(c, id);
   const carte = deplier(inserer(c, neuf, derniers.length ? derniers[derniers.length - 1].id : id), id);
   return { carte, neuf: neuf.id };
@@ -271,6 +375,26 @@ export function basculerPli(c: Carte, id: string): Carte {
 }
 
 /**
+ * ⭐ Envoie une BRANCHE à droite ou à gauche de la racine.
+ *
+ * Ce geste n'existait pas, et il n'existait pas parce qu'il ne servait à rien :
+ * le côté se déduisait du rang, donc il suffisait de réordonner pour faire
+ * traverser la carte à une branche. C'était commode par accident, et
+ * catastrophique par défaut — insérer une branche déplaçait toutes les autres.
+ * Maintenant que le côté est POSÉ (voir `Noeud.cote`), il faut une façon
+ * délibérée de le changer : la voici.
+ *
+ * Ne fait rien sur ce qui n'est pas une branche : un nœud plus profond suit
+ * toujours celle qui le porte, et le prétendre déplaçable serait mentir.
+ */
+export function poserCote(c: Carte, id: string, cote: -1 | 1): Carte {
+  const n = noeudDe(c, id);
+  if (!n || n.parent !== racineDe(c).id) return c;
+  if (coteDeBranche(c, n) === cote) return c;
+  return { ...c, noeuds: c.noeuds.map((x) => (x.id === id ? { ...x, cote } : x)) };
+}
+
+/**
  * Reparente et réordonne en un seul geste — c'est ce que fait un glissement.
  *
  * ⚠️ Déposer un nœud DANS SON PROPRE SOUS-ARBRE détacherait la branche de la
@@ -285,6 +409,16 @@ export function deplacer(c: Carte, id: string, nouveauParent: string, avantId: s
 
   const sansLui = c.noeuds.filter((x) => x.id !== id);
   const deplace: Noeud = { ...n, parent: nouveauParent };
+  // Devenir une branche, c'est recevoir un côté ; cesser d'en être une, c'est
+  // le rendre. Une branche seulement réordonnée garde le sien : elle est déjà
+  // quelque part, et la déplacer d'un bord à l'autre de la carte pour un
+  // changement de rang serait précisément le défaut qu'on vient de retirer.
+  if (nouveauParent === racineDe(c).id) {
+    if (deplace.cote !== 1 && deplace.cote !== -1) Object.assign(deplace, nouvelleBranche(c));
+  } else {
+    delete deplace.cote;
+    delete deplace.teinte;
+  }
   const i = avantId ? sansLui.findIndex((x) => x.id === avantId) : -1;
   const noeuds = [...sansLui];
   if (i >= 0) noeuds.splice(i, 0, deplace);
@@ -600,7 +734,7 @@ export function agencer(carte: Carte): Agencement {
     }
   };
 
-  // La racine, puis ses branches réparties de part et d'autre, en alternance.
+  // La racine, puis ses branches, chacune du côté qu'elle porte.
   const bRacine = brutes.get(racine.id)!;
   boites.set(racine.id, {
     x: -bRacine.w / 2,
@@ -616,8 +750,8 @@ export function agencer(carte: Carte): Agencement {
 
   if (!racine.plie) {
     const branches = enfantsDe(carte, racine.id);
-    const droite = branches.filter((_, i) => i % 2 === 0);
-    const gauche = branches.filter((_, i) => i % 2 === 1);
+    const droite = branches.filter((b) => coteDeBranche(carte, b) === 1);
+    const gauche = branches.filter((b) => coteDeBranche(carte, b) === -1);
     for (const [liste, cote] of [
       [droite, 1],
       [gauche, -1],
@@ -628,8 +762,7 @@ export function agencer(carte: Carte): Agencement {
       const xAncre = cote === 1 ? bRacine.w / 2 + ECART_H : -bRacine.w / 2 - ECART_H;
       for (const e of liste) {
         const he = mesurer(e.id);
-        const rang = branches.findIndex((b) => b.id === e.id);
-        poser(e.id, xAncre, curseur + he / 2, cote, 1, COULEURS_BRANCHE[rang % COULEURS_BRANCHE.length]);
+        poser(e.id, xAncre, curseur + he / 2, cote, 1, COULEURS_BRANCHE[teinteDeBranche(carte, e)]);
         curseur += he + ECART_V;
       }
     }
@@ -920,8 +1053,7 @@ export function voisin(carte: Carte, id: string, direction: Direction): string |
     // Les enfants de la RACINE sont répartis des deux côtés : on ne monte et on
     // ne descend que parmi ceux du même côté, sinon la sélection traverse la carte.
     if (n.parent === racine.id) {
-      const rang = freres.findIndex((f) => f.id === id);
-      freres = freres.filter((_, i) => i % 2 === rang % 2);
+      freres = freres.filter((f) => coteDeBranche(carte, f) === cote);
     }
     const i = freres.findIndex((f) => f.id === id);
     const j = direction === "haut" ? i - 1 : i + 1;
@@ -941,9 +1073,8 @@ export function voisin(carte: Carte, id: string, direction: Direction): string |
   if (n.parent === null) {
     // Depuis la racine, « vers l'intérieur » n'a pas de sens : on part vers la
     // première branche du côté demandé, ce qui est ce que l'œil attend.
-    const branches = enfantsDe(carte, racine.id);
-    const voulu = direction === "droite" ? 0 : 1;
-    return branches.find((_, i) => i % 2 === voulu)?.id ?? null;
+    const voulu = direction === "droite" ? 1 : -1;
+    return enfantsDe(carte, racine.id).find((b) => coteDeBranche(carte, b) === voulu)?.id ?? null;
   }
   return n.parent;
 }

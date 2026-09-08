@@ -2134,6 +2134,15 @@ export const EN: Record<string, string> = {
   "Une idée au même niveau, juste en dessous.": "An idea at the same level, just below.",
   "Le nœud central n'a pas de voisin : tout part de lui.":
     "The central node has no sibling: everything starts from it.",
+  // ─── Le côté d'une branche (2026-09-08) ───────────────────────────────────
+  "Une branche de plus. Elle naît du côté le moins chargé, pour équilibrer la carte.":
+    "One more branch. It appears on the lighter side, to keep the map balanced.",
+  "Changer de côté": "Switch side",
+  "Faire passer cette branche, et tout ce qui pend dessous, de l'autre côté du centre.":
+    "Move this branch, and everything hanging under it, to the other side of the centre.",
+  "Seule une branche partant du centre a un côté à changer.":
+    "Only a branch starting from the centre has a side to switch.",
+  "⌥ flèches": "⌥ arrows",
   "Réécrire le texte du nœud sélectionné.": "Rewrite the text of the selected node.",
   "Un nœud lié porte le titre de sa cible : il se renomme là-bas.":
     "A linked node carries its target's title: rename it over there.",

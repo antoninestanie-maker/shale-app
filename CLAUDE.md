@@ -4634,3 +4634,81 @@ disparaissent » : mesuré ici, `PageSujet` (composant **local**) rend 0, mais
 chunk — rendent 3. Un témoin choisi parmi les seconds passerait, et donnerait
 une fausse confiance à celui qui le reprendrait sur une fonction locale.
 **Choisir une chaîne de caractères reste la seule règle sûre.**
+
+---
+
+## 2026-09-08 — ⭐ Le côté d'une branche se PORTE, il ne se déduit plus
+
+**La question d'Antonin.** « Quand je clique sur une case et que je fais nœud
+voisin, ça l'envoie un coup à gauche un coup à droite, je ne sais pas si c'est
+normal. »
+
+**La réponse est double, et c'est ce qui rendait la chose difficile à voir.**
+
+**Oui, l'alternance est normale**, et seulement au PREMIER niveau. Une carte
+mentale pend des deux côtés de son centre — MindNode et XMind font pareil —
+sinon ce n'est plus une carte mentale mais un organigramme, et sa largeur double
+à chaque branche. Ce comportement-là n'a pas changé.
+
+**Non, ce qui allait avec ne l'était pas.** Le côté d'une branche, et sa
+couleur, se DÉDUISAIENT de son rang : pair à droite, impair à gauche, couleur
+égale rang modulo quatre. Le dessin obtenu était juste, mais **insérer une
+branche au milieu décalait tous les rangs suivants** — donc faisait traverser la
+carte à toutes les branches d'après, et les repeignait. Ajouter une idée
+réorganisait le travail déjà fait, et c'est ce que l'œil d'Antonin a attrapé
+sans pouvoir le nommer.
+
+Mesuré avant correction, sur trois branches D/G/D : `⌘Entrée` sur la première
+faisait passer la deuxième à droite et la troisième à gauche, **avec échange de
+leurs couleurs**. Deux branches déplacées pour une ajoutée.
+
+**La décision.** `Noeud` porte deux champs facultatifs, `cote` et `teinte`, qui
+n'ont de sens que sur un enfant direct de la racine. Écrits une fois, ils ne
+bougent plus. L'alternance n'est pas perdue : elle est reproduite **à la
+création** par `nouvelleBranche()`, qui prend le côté le moins chargé et la
+couleur la moins servie, l'égalité tranchée à droite. Sur une carte construite
+de haut en bas, le résultat est **identique au pixel** à l'ancien — la
+différence n'apparaît que là où l'ancienne règle se trompait.
+
+⚠️ **Compatibilité, dans les deux sens.** `lireCarte` inscrit les deux champs
+sur les branches qui en manquent, d'après l'ancienne règle : une carte écrite
+avant aujourd'hui se rouvre **exactement telle qu'on l'a laissée**. Et une
+version antérieure de l'app qui relirait une carte neuve ignorerait simplement
+les deux champs et retomberait sur l'alternance par rang — dégradation visuelle,
+jamais perte de donnée.
+
+⭐ **Ce que la correction a créé comme manque, et qu'il fallait combler.** Tant
+que le côté se déduisait du rang, on faisait traverser une branche en la
+réordonnant : commode par accident. Maintenant qu'il est posé, il faut un geste
+délibéré — d'où `poserCote()`, le bouton **« Changer de côté »** de la barre
+d'outils (actif sur une branche seulement) et le raccourci **⌥ flèche**. Une
+branche change de bord avec tout ce qui pend dessous, **sans changer de
+couleur** : changer de côté n'est pas renaître.
+
+### Les deux gains d'interface qui vont avec
+
+**① Le nœud choisi est amené sous les yeux.** La carte ne se cadrait qu'au
+montage. Un nœud ajouté hors du champ visible ouvrait donc son champ de saisie
+quelque part, et **on tapait dans un rectangle qu'on ne voyait pas** — vu à
+l'écran à 300 % de zoom, sur une chaîne de trois sous-nœuds. La vue glisse
+maintenant du strict nécessaire, et pas du tout quand le nœud est déjà visible.
+
+⚠️ Elle GLISSE, elle ne recadre pas : rappeler « Tout voir » rendrait le zoom au
+système à chaque frappe. ⚠️ Et elle vise le CHAMP, plus large que la boîte
+(`LARGEUR_CHAMP_MIN`) tant que la frappe n'est pas validée — l'agencement, lui,
+ne connaît que le texte enregistré.
+
+**② Sous 640 px, les boutons perdent leur mot.** Sept boutons légendés se
+repliaient sur quatre lignes sur un viewport de 390 pt : la barre mangeait 40 %
+de la fenêtre. Le `aria-label` est désormais posé **toujours**, pas seulement en
+mode icône seule — sinon le bouton devient muet pour un lecteur d'écran
+exactement là où il devient muet pour l'œil. **Rien ne change au-dessus de
+640 px**, la demande d'Antonin (« une icône ET un mot ») tient sur son écran.
+
+### La preuve
+
+Six tests neufs dans `carte.test.ts` (63 au total, dont un **rejoué contre le
+code d'avant : il échoue**, comme celui du déplacement d'un nœud promu). Et la
+vérification à l'écran en mode démo : trois branches posées, une quatrième
+insérée après la première — **les trois premières n'ont bougé ni de côté ni de
+couleur**, et la neuve est née à gauche pour équilibrer.

@@ -1482,3 +1482,69 @@ suite encore plus lente sans rien réparer, et masquerait le jour où le hook
 **Comment on l'a payée.** Checkup du 2026-09-07 : environ quarante minutes à
 soupçonner une régression de mes propres modifications, alors que la seule chose
 qui avait changé était la charge de la machine.
+
+## 9.13 ⭐⭐ Déduire d'un RANG une propriété visible, c'est signer une réorganisation à chaque insertion
+
+**Symptôme.** L'utilisateur signale que l'ajout d'un élément « l'envoie un coup
+à gauche, un coup à droite ». On regarde le nouvel élément — il est correct. Ce
+qui est faux, ce sont les AUTRES : ils ont bougé.
+
+**Cause.** Une propriété visible et durable — un côté, une couleur, une colonne,
+une voie — était CALCULÉE à partir de l'index dans une liste
+(`rang % 2`, `rang % COULEURS.length`). Insérer au milieu décale tous les rangs
+suivants, donc **repeint et redéplace tout ce qui suit**. Le calcul n'est jamais
+faux ; il est juste recalculé pour des éléments auxquels personne n'a touché.
+Mesuré sur les cartes mentales de Shale, le 2026-09-08 : sur trois branches,
+`⌘Entrée` sur la première **en déplaçait deux et en repeignait deux**.
+
+**Parade.** Une propriété que l'utilisateur VOIT et considère comme acquise doit
+être **posée sur l'objet**, pas dérivée de sa position. La règle de répartition
+ne disparaît pas : elle se déplace du rendu vers la CRÉATION (« la nouvelle va
+du côté le moins chargé »), ce qui donne exactement la même silhouette sans
+jamais toucher à l'existant. Deux précautions vont avec :
+
+1. **Inscrire le champ à la lecture** pour ce qui a été écrit avant lui, d'après
+   l'ancienne règle — sinon le remède déplace lui-même, une bonne fois, tout ce
+   qui existait déjà. Le rendre facultatif garde la relecture par une version
+   antérieure de l'app possible.
+2. **Rendre le geste explicite**, parce qu'on vient de le retirer sans le dire.
+   Tant que le côté se déduisait du rang, réordonner suffisait à faire traverser
+   la carte à une branche. Figer la propriété sans offrir « changer de côté »
+   enlève une capacité que l'utilisateur avait, même s'il l'avait par accident.
+
+**Le test qui l'attrape**, et qui vaut pour toute la famille : relever la
+propriété de tous les éléments AVANT, insérer au milieu, et **exiger qu'aucun de
+ceux d'avant n'ait changé**. Il ne coûte rien et il échoue franchement — vérifié
+en le rejouant contre le code d'avant.
+
+**Comment on l'a payée.** Rien, cette fois : Antonin l'a vu à l'œil nu et a
+demandé si c'était normal. Le vrai coût est celui qu'on n'a pas payé — le défaut
+vivait depuis la création du module, il ne mordait qu'à l'insertion au milieu,
+et aucun test ne le regardait.
+
+## 9.14 ⚠️ `.claude/launch.json` existe DÉJÀ et il est suivi par git — ne pas l'écraser
+
+**Symptôme.** On crée un `.claude/launch.json` pour ouvrir l'aperçu, on le
+retire proprement à la fin… et `git status` annonce
+`D .claude/launch.json`. On vient d'effacer un fichier **suivi**, écrit par
+quelqu'un d'autre. Pris sur le fait le 2026-09-08, rattrapé avant le `push`.
+
+**Cause.** Deux dossiers `.claude/` cohabitent, et ils ne servent pas la même
+chose :
+
+- `Shale/.claude/launch.json` — **suivi par git**, deux entrées `vite` et
+  `vite-preview` (ports 1420 / 1430). C'est du dépôt.
+- `<racine de travail>/.claude/launch.json` — **c'est celui que `preview_start`
+  lit**, à la racine du répertoire de travail principal, PAS dans `Shale/`.
+  L'erreur du serveur donne d'ailleurs le chemin exact qu'il attend.
+
+**Parade.** Écrire l'entrée d'attache dans le `.claude/` de la **racine de
+travail**, et à la fin ne retirer QUE ce fichier-là, en vérifiant que
+`git status` ne montre aucun `D`. Plus généralement : **regarder ce qu'on
+supprime avant de le supprimer** — un `rm` sur un chemin qu'on croit être le
+sien coûte le fichier de quelqu'un d'autre.
+
+⚠️ Et vérifier la liste que `git add -A` s'apprête à emporter : la même session
+a failli committer un `src-tauri/migrations/023_facturation.sql` non suivi,
+posé dans l'intervalle par une session voisine. **`git status --short` avant le
+commit, pas après.**

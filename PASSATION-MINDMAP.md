@@ -268,7 +268,7 @@ il n'y a donc rien à sauvegarder au-delà de l'hygiène habituelle.
 
 | Fichier | Ce qu'il porte |
 |---|---|
-| `src/lib/carte.ts` | ⭐ le modèle, l'agencement, le rendu SVG, l'historique, les flèches. **Pur, 57 tests.** C'est ici qu'on travaille |
+| `src/lib/carte.ts` | ⭐ le modèle, l'agencement, le rendu SVG, l'historique, les flèches. **Pur, 63 tests.** C'est ici qu'on travaille |
 | `src/lib/carte.test.ts` | dont trois tests qui gardent « une carte ne détruit pas un backlink » |
 | `src/lib/carteDom.ts` | l'insertion dans un `contenteditable`, le rafraîchissement des blocs, la rastérisation. **Court exprès, non testable** |
 | `src/lib/fichiers.ts` | écrire un fichier : dialogue système + Rust en natif, `<a download>` en démo |
@@ -280,3 +280,29 @@ il n'y a donc rien à sauvegarder au-delà de l'hygiène habituelle.
 `carte.ts`. Le jour où l'on ajoute une fonctionnalité à la carte, elle commence
 là — sinon elle n'aura aucun test, et ce chantier a montré que **les six vrais
 défauts étaient tous du côté DOM**, aucun dans le modèle.
+
+---
+
+## 8. Le côté des branches — 2026-09-08
+
+**Livré, prouvé, dans la ligne de base.** Détail et raisons : `CLAUDE.md`,
+section du 2026-09-08 ; le piège de conception : `PIEGES.md` § 9.13.
+
+| Ce qui a changé | État |
+|---|---|
+| `Noeud.cote` et `Noeud.teinte`, portés par la branche au lieu d'être déduits de son rang | ⭐ **fait** — une branche posée ne bouge plus jamais |
+| `nouvelleBranche()` : la neuve naît du côté le moins chargé, dans la couleur la moins servie | fait — reproduit à l'identique l'ancienne alternance quand on construit de haut en bas |
+| `lireCarte` inscrit les deux champs sur les cartes écrites avant eux | fait — une carte existante se rouvre telle qu'on l'a laissée |
+| `poserCote()` + bouton « Changer de côté » + raccourci ⌥ flèche | fait — le geste délibéré qui remplace le déplacement par accident |
+| La vue suit le nœud choisi (`LARGEUR_CHAMP_MIN` pour viser le champ, pas la boîte) | fait — on ne tape plus dans un rectangle hors écran |
+| Sous 640 px, les boutons perdent leur mot ; `aria-label` posé toujours | fait — la barre passait de 4 lignes à 2 sur 390 pt |
+
+**Ligne de base rejouée le 2026-09-08** : `tsc`, `test:types`, `i18n:check`
+(1621), `i18n:durs`, **683 tests front** (47 fichiers), `vite build`,
+`cargo check --all-targets`, **133 tests Rust**.
+
+⚠️ **Ce que les tests ne prouvent pas**, et qui a donc été vu à l'écran en mode
+démo (§ 5.3 de `PASSATION.md`) : l'insertion au milieu ne déplace ni ne repeint
+les trois branches existantes ; le bouton « Changer de côté » et ⌥ flèche ; la
+vue qui suit une chaîne de sous-nœuds à 300 % de zoom ; la barre d'outils à
+390 pt.

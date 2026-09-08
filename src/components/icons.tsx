@@ -162,6 +162,20 @@ export const IconNoeudFrere = (p: IconProps) => (
   </Icon>
 );
 
+/**
+ * Changer de côté — une boîte qui traverse l'axe de la racine.
+ *
+ * L'axe est en pointillé : c'est la racine, elle ne bouge pas. Les deux têtes
+ * de flèche disent que le geste va dans les deux sens.
+ */
+export const IconCote = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3v18" strokeDasharray="2 3" />
+    <rect x="3" y="9" width="7" height="6" rx="2" />
+    <path d="M14 12h7m-2.5-2.5L21 12l-2.5 2.5" />
+  </Icon>
+);
+
 /** Replier / déplier — deux chevrons qui se rapprochent. */
 export const IconPlier = (p: IconProps) => (
   <Icon {...p}>

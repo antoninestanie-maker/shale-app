@@ -9,8 +9,11 @@ import {
   deplacer,
   enfantsDe,
   historiqueDe,
+  coteEtProfondeur,
   noeudDe,
+  poserCote,
   poserReference,
+  racineDe,
   rendreSvg,
   renommer,
   retablir,
@@ -30,6 +33,7 @@ import MentionPicker from "../liens/MentionPicker";
 import {
   IconArobase,
   IconCheck,
+  IconCote,
   IconExpand,
   IconExternal,
   IconNoeudEnfant,
@@ -92,6 +96,15 @@ const APPUI_LONG_MS = 400;
 const SEUIL_GLISSE = 5;
 /** Un cran de zoom au bouton — la molette, elle, est continue. */
 const PAS_ZOOM = 1.25;
+/**
+ * Largeur minimale du champ de saisie, en pixels de la feuille logique.
+ *
+ * ⚠️ Le champ est PLUS LARGE que la boîte du nœud tant qu'on n'a pas validé :
+ * l'agencement, lui, ne connaît que le texte enregistré. Deux endroits doivent
+ * s'accorder là-dessus — le champ qui se pose, et l'effet qui le garde à
+ * l'écran — d'où cette constante plutôt que deux `160` qui se perdraient.
+ */
+const LARGEUR_CHAMP_MIN = 160;
 
 const OUTIL =
   "pill flex h-8 items-center gap-1.5 px-3 text-xs font-medium text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30";
@@ -103,6 +116,13 @@ const OUTIL =
  * `disabled` ne reçoit aucun événement de survol (piège consigné dans
  * `CLAUDE.md`, section « Hover Hints ») : la bulle disparaîtrait exactement
  * quand elle sert le plus, c'est-à-dire pour dire POURQUOI c'est grisé.
+ *
+ * ⚠️ LE MOT DISPARAÎT SOUS 640 px, PAS SUR L'ÉCRAN D'ANTONIN. Sur un viewport
+ * de 390 pt, sept boutons légendés se replient sur quatre lignes et la barre
+ * mange 40 % de la fenêtre : il ne reste presque plus de carte à regarder. Le
+ * `aria-label` est donc posé TOUJOURS, pas seulement en mode icône seule —
+ * sinon le bouton devient muet pour un lecteur d'écran exactement là où il
+ * devient muet pour l'œil.
  */
 function Outil({
   libelle,
@@ -128,11 +148,11 @@ function Outil({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        aria-label={iconeSeule ? libelle : undefined}
-        className={iconeSeule ? `${OUTIL} px-2` : OUTIL}
+        aria-label={libelle}
+        className={iconeSeule ? `${OUTIL} px-2` : `${OUTIL} max-sm:px-2`}
       >
         {children}
-        {!iconeSeule && libelle}
+        {!iconeSeule && <span className="hidden sm:inline">{libelle}</span>}
       </button>
     </span>
   );
@@ -456,6 +476,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
         setSelection(parent);
         return;
       }
+      // ⌥ + flèche envoie la BRANCHE de ce côté, au lieu d'y déplacer la
+      // sélection. Un geste délibéré : depuis que le côté est posé, réordonner
+      // ne fait plus traverser la carte à une branche (voir `poserCote`).
+      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        modifier((c) => poserCote(c, selection, e.key === "ArrowRight" ? 1 : -1));
+        return;
+      }
       const fleches: Record<string, Direction> = {
         ArrowUp: "haut",
         ArrowDown: "bas",
@@ -511,6 +539,46 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
     toutVoir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * ⭐ AMENER LE NŒUD CHOISI SOUS LES YEUX, ET LUI SEUL.
+   *
+   * Sans cela, la carte ne se cadrait qu'au montage : un nœud ajouté hors du
+   * champ visible ouvrait son champ de saisie QUELQUE PART, et on tapait dans
+   * un rectangle qu'on ne voyait pas. Le cas n'est pas théorique — une branche
+   * neuve naît du côté le moins chargé, donc parfois à l'opposé de celle qu'on
+   * regardait (voir `nouvelleBranche` dans `lib/carte.ts`).
+   *
+   * ⚠️ ON DÉPLACE, ON NE RECADRE PAS. Rappeler `toutVoir()` rendrait le zoom au
+   * système à chaque frappe et ferait sauter toute la carte ; ici la vue glisse
+   * du strict nécessaire, et ne bouge pas du tout quand le nœud est déjà
+   * visible — l'effet rend alors le MÊME objet d'état, ce qui évite le rendu.
+   *
+   * ⚠️ Un nœud plus large que la fenêtre alignerait son bord gauche, puis son
+   * bord droit, indéfiniment. D'où le premier cas : ce qui ne tient pas se cale
+   * par le coin haut-gauche, une fois, et on n'y revient plus.
+   */
+  useEffect(() => {
+    const b = agencement.boites.get(edition ?? selection);
+    const cadre = scene.current?.getBoundingClientRect();
+    if (!b || !cadre) return;
+    const M = 44;
+    setVue((v) => {
+      const glissement = (debut: number, taille: number, fenetre: number) => {
+        const a = debut;
+        const b2 = debut + taille;
+        if (taille > fenetre - M * 2) return M - a;
+        if (a < M) return M - a;
+        if (b2 > fenetre - M) return fenetre - M - b2;
+        return 0;
+      };
+      // En édition, c'est le CHAMP qu'il faut voir, et il déborde la boîte.
+      const w = edition ? Math.max(b.w, LARGEUR_CHAMP_MIN) : b.w;
+      const dx = glissement(v.x + b.x * v.z, w * v.z, cadre.width);
+      const dy = glissement(v.y + b.y * v.z, b.h * v.z, cadre.height);
+      return dx === 0 && dy === 0 ? v : { ...v, x: v.x + dx, y: v.y + dy };
+    });
+  }, [agencement, edition, selection, ouverture]);
 
   /**
    * Le zoom à la souris seule — pour qui n'a ni molette ni trackpad sous la
@@ -706,6 +774,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
   const noeudSel = noeudDe(courante, selection);
   const estRacine = !noeudSel || noeudSel.parent === null;
   const aDesEnfants = !!noeudSel && enfantsDe(courante, selection).length > 0;
+  /** Une BRANCHE : un enfant direct de la racine. Elle seule porte un côté. */
+  const estBranche = !!noeudSel && noeudSel.parent === racineDe(courante).id;
+  const coteSel = coteEtProfondeur(courante, selection).cote;
   const outil = OUTIL;
 
   return (
@@ -808,7 +879,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             aide={
               estRacine
                 ? t("Le nœud central n'a pas de voisin : tout part de lui.")
-                : t("Une idée au même niveau, juste en dessous.")
+                : estBranche
+                  ? t("Une branche de plus. Elle naît du côté le moins chargé, pour équilibrer la carte.")
+                  : t("Une idée au même niveau, juste en dessous.")
             }
             raccourci={kbd("⌘↵")}
             disabled={estRacine}
@@ -853,6 +926,19 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             onClick={() => modifier((c) => basculerPli(c, selection))}
           >
             <IconPlier className="h-3.5 w-3.5" />
+          </Outil>
+          <Outil
+            libelle={t("Changer de côté")}
+            aide={
+              estBranche
+                ? t("Faire passer cette branche, et tout ce qui pend dessous, de l'autre côté du centre.")
+                : t("Seule une branche partant du centre a un côté à changer.")
+            }
+            raccourci={t("⌥ flèches")}
+            disabled={!estBranche}
+            onClick={() => modifier((c) => poserCote(c, selection, coteSel === 1 ? -1 : 1))}
+          >
+            <IconCote className={`h-3.5 w-3.5 ${coteSel === -1 ? "-scale-x-100" : ""}`} />
           </Outil>
           <Outil
             libelle={t("Supprimer")}
@@ -995,7 +1081,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
                 style={{
                   left: boiteEnEdition.x,
                   top: boiteEnEdition.y,
-                  width: Math.max(boiteEnEdition.w, 160),
+                  width: Math.max(boiteEnEdition.w, LARGEUR_CHAMP_MIN),
                   height: boiteEnEdition.h,
                 }}
               />
