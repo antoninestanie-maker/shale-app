@@ -4712,3 +4712,30 @@ code d'avant : il échoue**, comme celui du déplacement d'un nœud promu). Et l
 vérification à l'écran en mode démo : trois branches posées, une quatrième
 insérée après la première — **les trois premières n'ont bougé ni de côté ni de
 couleur**, et la neuve est née à gauche pour équilibrer.
+
+### Le build du 2026-09-08 à 21:13 — ce qu'il porte
+
+`1307bfa2…`, installé et prouvé. Il porte **le seul chantier du jour** : le côté
+des branches, le bouton « Changer de côté », la vue qui suit le nœud choisi, et
+la barre d'outils qui perd ses mots sous 640 px.
+
+Chaîne d'horodatage : commit `957a17c` 21:11:02 → `dist/assets` 21:12:12 →
+binaire 21:13:13. Arbre **propre et revérifié APRÈS la compilation**, pas
+seulement avant (§ 7.5 bis).
+
+Témoins dans le bundle consommé : `Changer de côté` 2, `Faire passer cette
+branche` 2, `Elle naît du côté le moins chargé` 2, `teinte` 14. Contre-épreuves
+à 0 : `nouvelleBranche` (fonction **locale**, donc minifiée — la nuance du build
+précédent) et `Changer de bord` (chaîne qui n'a jamais existé). Empreintes :
+ancienne `885af912…` ≠ nouvelle `1307bfa2…`, identiques après `ditto`.
+
+⚠️ **Aucune migration dans ce build** : la base reste en **version 22**. Vérifié
+après relance — `integrity_check` ok, `foreign_key_check` 0 violation, **13
+notes / 4 sujets / 6 fiches, identiques à la sauvegarde** prise deux minutes
+plus tôt (`shale-backups/avant-cote-branches-20260908-2111/`).
+
+⭐ **Une session voisine travaille sur la facturation.** Son
+`src-tauri/migrations/023_facturation.sql` était présent dans l'arbre, **non
+suivi et non enregistré** dans `lib.rs` — les migrations sont embarquées une par
+une par `include_str!`, donc un fichier non déclaré est inerte. Vérifié sur le
+binaire installé : `023_facturation` y rend **0**. Ce build ne l'emporte pas.
