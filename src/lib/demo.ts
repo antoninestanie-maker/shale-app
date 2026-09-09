@@ -26,6 +26,13 @@ import type {
   FinanceQuote,
   FinanceRecurring,
   FinanceSource,
+  Invoice,
+  InvoiceIssuer,
+  InvoiceLine,
+  InvoiceParty,
+  InvoicePayment,
+  InvoiceSeries,
+  InvoiceStatut,
   FocusSession,
   Goal,
   GoalProgressPoint,
@@ -723,6 +730,307 @@ const financeQuotes: FinanceQuote[] = [
 const financeFx: FinanceFxRate[] = [
   { base: "USD", quote: "EUR", rate_e8: 92_400_000, fetched_at: new Date().toISOString() },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturation — migration 023
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️ RIEN N'EST LIVRABLE SANS MODE DÉMO. C'est le seul mode où l'on peut
+// auditer une interface sans piloter la vraie base d'Antonin — donc le seul où
+// la section « Facturation » est vérifiable.
+//
+// ⭐ LES DONNÉES SONT COHÉRENTES AVEC LES SOLDES DE DÉMO EXISTANTS. Les
+// encaissements tombent sur le compte courant (id 1), APRÈS son dernier relevé
+// mensuel : le solde composé les ajoute, et le runway « avec créances » a donc
+// quelque chose à raconter à l'écran. Des montants tirés au hasard auraient
+// donné une section qui s'affiche sans rien démontrer.
+//
+// ⚠️ L'émetteur est FICTIF. Ne jamais mettre ici l'identité réelle de
+// l'utilisateur : le mode démo tourne dans un navigateur, et ces données ne
+// sont pas les siennes.
+
+/** Décale une date 'YYYY-MM-DD' de `n` jours. Positif = plus tard. */
+const jours = (n: number) => addDays(todayStr(), n);
+
+let nextPartyId = 1;
+let nextSeriesId = 1;
+let nextInvoiceId = 1;
+let nextLineId = 1;
+let nextPaymentId = 1;
+
+const invoiceIssuer: InvoiceIssuer = {
+  id: 1,
+  denomination: "Studio Meridian",
+  forme_juridique: "Entreprise individuelle",
+  capital_cents: null,
+  adresse: "14 rue des Ateliers",
+  code_postal: "75011",
+  ville: "Paris",
+  pays: "France",
+  siren: "000000000",
+  siret: "00000000000000",
+  rcs: null,
+  ape: "6201Z",
+  tva_intra: null,
+  iban: "FR76 0000 0000 0000 0000 0000 000",
+  bic: null,
+  logo: null,
+  // Le cas NOMINAL de cette app : auto-entreprise en franchise en base.
+  regime: "franchise_en_base",
+  mentions_defaut: "Paiement à 30 jours. Aucun escompte pour paiement anticipé.",
+  penalites_retard: "Pénalités de retard : 3 fois le taux d'intérêt légal.",
+  indemnite_forfaitaire_cents: 4000,
+  created_at: todayStr(),
+  updated_at: todayStr(),
+};
+
+const invoiceSeries: InvoiceSeries[] = (
+  [
+    ["F", "Factures", 5],
+    ["AV", "Avoirs", 2],
+    ["D", "Devis", 3],
+  ] as const
+).map(([code, libelle, prochain]) => ({
+  id: nextSeriesId++,
+  code,
+  libelle,
+  format: "{code}-{AAAA}-{NNNN}",
+  prochain,
+  annee_courante: Number(todayStr().slice(0, 4)),
+  remise_a_zero_annuelle: 1,
+  created_at: todayStr(),
+  updated_at: todayStr(),
+}));
+
+const invoiceParties: InvoiceParty[] = (
+  [
+    ["Groupe Vallée", "client", "12 avenue Carnot", "69003", "Lyon", "812345678"],
+    ["Maison Orsay", "client", "5 quai Voltaire", "75007", "Paris", "902345678"],
+    ["Cabinet Nord", "client", "3 place Rihour", "59000", "Lille", "512345678"],
+    ["Papeterie Levant", "fournisseur", "8 rue du Marché", "31000", "Toulouse", "722345678"],
+  ] as const
+).map(([nom, role, adresse, cp, ville, siren]) => ({
+  id: nextPartyId++,
+  nom,
+  role,
+  adresse,
+  code_postal: cp,
+  ville,
+  pays: "France",
+  siren,
+  siret: `${siren}00012`,
+  tva_intra: null,
+  email: `contact@${nom.toLowerCase().replace(/[^a-z]/g, "")}.fr`,
+  telephone: null,
+  devise: "EUR",
+  notes: null,
+  archived: 0,
+  created_at: todayStr(),
+  updated_at: todayStr(),
+}));
+
+const annee = Number(todayStr().slice(0, 4));
+
+/** Fabrique une facture de démo. Les totaux sont posés à la main, cohérents. */
+function factureDemo(p: Partial<Invoice> & { id: number }): Invoice {
+  return {
+    type: "facture",
+    sens: "vente",
+    statut: "emise",
+    numero: null,
+    serie_id: 1,
+    party_id: 1,
+    date_emission: jours(-45),
+    date_echeance: jours(-15),
+    conditions_paiement: "30 jours",
+    devise: "EUR",
+    taux_change_e8: null,
+    total_ht_cents: 0,
+    total_tva_cents: 0,
+    total_ttc_cents: 0,
+    // Franchise en base : la mention est OBLIGATOIRE, pas décorative.
+    mentions: "TVA non applicable, art. 293 B du CGI",
+    emetteur_fige: null,
+    objet: null,
+    note: null,
+    avoir_de_id: null,
+    devis_origine_id: null,
+    created_at: todayStr(),
+    updated_at: todayStr(),
+    ...p,
+  };
+}
+
+const invoices: Invoice[] = [
+  // ① Encaissée — payée en une fois, après le dernier relevé du compte courant.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: `F-${annee}-0001`,
+    statut: "encaissee",
+    party_id: 1,
+    objet: "Refonte du site vitrine",
+    date_emission: jours(-70),
+    date_echeance: jours(-40),
+    total_ht_cents: 420_000,
+    total_ttc_cents: 420_000,
+  }),
+  // ② Partiellement encaissée — acompte versé, solde à venir.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: `F-${annee}-0002`,
+    statut: "partiellement_encaissee",
+    party_id: 2,
+    objet: "Accompagnement éditorial — trimestre",
+    date_emission: jours(-30),
+    date_echeance: jours(12),
+    total_ht_cents: 360_000,
+    total_ttc_cents: 360_000,
+  }),
+  // ③ EN RETARD — échue depuis trois semaines, rien encaissé.
+  // ⚠️ Son statut stocké reste `emise` : le retard se CALCULE.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: `F-${annee}-0003`,
+    statut: "emise",
+    party_id: 3,
+    objet: "Audit de performance",
+    date_emission: jours(-52),
+    date_echeance: jours(-22),
+    total_ht_cents: 180_000,
+    total_ttc_cents: 180_000,
+  }),
+  // ④ Brouillon — pas de numéro, pas de date d'émission.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: null,
+    statut: "brouillon",
+    party_id: 1,
+    objet: "Maintenance — mois en cours",
+    date_emission: null,
+    date_echeance: null,
+    total_ht_cents: 96_000,
+    total_ttc_cents: 96_000,
+  }),
+  // ⑤ Une facture ANNULÉE, et son avoir juste après.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: `F-${annee}-0004`,
+    statut: "annulee",
+    party_id: 2,
+    objet: "Prestation annulée",
+    date_emission: jours(-60),
+    date_echeance: jours(-30),
+    total_ht_cents: 150_000,
+    total_ttc_cents: 150_000,
+  }),
+  // ⑥ L'AVOIR — montants négatifs, il annule la précédente.
+  factureDemo({
+    id: nextInvoiceId++,
+    type: "avoir",
+    numero: `AV-${annee}-0001`,
+    statut: "emise",
+    party_id: 2,
+    objet: "Avoir sur F-0004",
+    avoir_de_id: 5,
+    date_emission: jours(-58),
+    date_echeance: jours(-58),
+    total_ht_cents: -150_000,
+    total_ttc_cents: -150_000,
+  }),
+  // ⑦ Un DEVIS accepté. ⚠️ Il est CONSERVÉ, jamais transformé.
+  factureDemo({
+    id: nextInvoiceId++,
+    type: "devis",
+    numero: `D-${annee}-0002`,
+    statut: "emise",
+    serie_id: 3,
+    party_id: 3,
+    objet: "Refonte de l'identité — proposition",
+    date_emission: jours(-20),
+    date_echeance: null,
+    total_ht_cents: 540_000,
+    total_ttc_cents: 540_000,
+  }),
+  // ⑧ La facture NÉE du devis accepté.
+  factureDemo({
+    id: nextInvoiceId++,
+    numero: `F-${annee}-0005`,
+    statut: "emise",
+    party_id: 3,
+    objet: "Refonte de l'identité",
+    devis_origine_id: 7,
+    date_emission: jours(-8),
+    date_echeance: jours(22),
+    total_ht_cents: 540_000,
+    total_ttc_cents: 540_000,
+  }),
+  // ⑨ Un ACHAT fournisseur — il alimente le runway « avec créances » par le bas.
+  factureDemo({
+    id: nextInvoiceId++,
+    sens: "achat",
+    numero: "FA-2291",
+    statut: "emise",
+    party_id: 4,
+    objet: "Fournitures et impressions",
+    date_emission: jours(-12),
+    date_echeance: jours(18),
+    total_ht_cents: 42_000,
+    total_ttc_cents: 42_000,
+  }),
+];
+
+/** Une ligne par facture suffit à la démo — sauf pour montrer le multi-lignes. */
+const invoiceLines: InvoiceLine[] = (
+  [
+    [1, "Conception et intégration du site", 1, 420_000],
+    [2, "Accompagnement éditorial (3 mois)", 3, 120_000],
+    [3, "Audit de performance", 1, 180_000],
+    [4, "Maintenance mensuelle", 1, 96_000],
+    [5, "Prestation annulée", 1, 150_000],
+    [6, "Avoir sur prestation annulée", 1, -150_000],
+    [7, "Refonte de l'identité visuelle", 1, 540_000],
+    [8, "Refonte de l'identité visuelle", 1, 540_000],
+    [9, "Papeterie et impressions", 1, 42_000],
+  ] as const
+).map(([invoiceId, description, quantite, prixCents]) => ({
+  id: nextLineId++,
+  invoice_id: invoiceId,
+  position: 0,
+  description,
+  unite: null,
+  quantite_e8: quantite * 100_000_000,
+  prix_unitaire_cents: prixCents,
+  // Franchise en base : zéro partout, et ce n'est pas un oubli.
+  taux_tva_e4: 0,
+  remise_cents: 0,
+  total_ht_cents: quantite * prixCents,
+  created_at: todayStr(),
+}));
+
+const invoicePayments: InvoicePayment[] = (
+  [
+    // ① soldée : 4 200 € encaissés il y a 38 jours.
+    [1, 420_000, -38],
+    // ② acompte de 1 200 € sur 3 600 — il reste 2 400 € à venir.
+    [2, 120_000, -25],
+    // ⑧ acompte de 1 800 € sur la facture née du devis, encaissé récemment.
+    [8, 180_000, -3],
+    // ⑨ l'achat fournisseur, réglé pour moitié.
+    [9, 21_000, -5],
+  ] as const
+).map(([invoiceId, montant, decalage]) => ({
+  id: nextPaymentId++,
+  invoice_id: invoiceId,
+  date: jours(decalage),
+  montant_cents: montant,
+  devise: "EUR",
+  taux_change_e8: null,
+  // Tout arrive sur le compte courant de la démo (id 1) : c'est ce qui rend le
+  // solde composé visible à l'écran.
+  account_id: 1,
+  moyen: "virement",
+  note: null,
+  created_at: todayStr(),
+}));
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1770,6 +2078,212 @@ export const demo = {
       if (titre !== undefined) out.set(`${r.kind}:${r.uid}`, titre);
     }
     return out;
+  },
+
+
+  // ─── Facturation (migration 023) ───────────────────────────────────────────
+  // ⚠️ MÊME SÉMANTIQUE que le natif, pas seulement la même signature. Le piège
+  // du § 6.2 de PIEGES.md était l'inverse : un `Object.assign` démo plus
+  // indulgent que le SQL, qui masquait ce que le natif faisait vraiment.
+
+  async fetchFacturation() {
+    return {
+      tiers: [...invoiceParties],
+      series: [...invoiceSeries],
+      factures: [...invoices],
+      lignes: [...invoiceLines],
+      paiements: [...invoicePayments],
+      emetteur: { ...invoiceIssuer },
+    };
+  },
+
+  async createInvoiceParty(
+    input: Omit<InvoiceParty, "id" | "archived" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<number> {
+    const id = nextPartyId++;
+    invoiceParties.push({ ...input, id, archived: 0, created_at: now, updated_at: now });
+    return id;
+  },
+
+  async updateInvoiceParty(
+    id: number,
+    input: Omit<InvoiceParty, "id" | "archived" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<void> {
+    const t = invoiceParties.find((x) => x.id === id);
+    if (t) Object.assign(t, input, { updated_at: now });
+  },
+
+  async archiveInvoiceParty(id: number, archive: boolean, now: string): Promise<void> {
+    const t = invoiceParties.find((x) => x.id === id);
+    if (t) {
+      t.archived = archive ? 1 : 0;
+      t.updated_at = now;
+    }
+  },
+
+  async deleteInvoiceParty(id: number): Promise<boolean> {
+    if (invoices.some((f) => f.party_id === id)) return false;
+    const i = invoiceParties.findIndex((x) => x.id === id);
+    if (i >= 0) invoiceParties.splice(i, 1);
+    return true;
+  },
+
+  async createInvoiceSeries(
+    input: Omit<InvoiceSeries, "id" | "annee_courante" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<number> {
+    const id = nextSeriesId++;
+    invoiceSeries.push({ ...input, id, annee_courante: null, created_at: now, updated_at: now });
+    return id;
+  },
+
+  async updateInvoiceSeries(
+    id: number,
+    input: Omit<InvoiceSeries, "id" | "code" | "annee_courante" | "created_at" | "updated_at">,
+    now: string,
+  ): Promise<void> {
+    const serie = invoiceSeries.find((x) => x.id === id);
+    // ⚠️ `code` volontairement absent : l'uid en dérive (`is:<code>`).
+    if (serie) Object.assign(serie, input, { updated_at: now });
+  },
+
+  async deleteInvoiceSeries(id: number): Promise<boolean> {
+    if (invoices.some((f) => f.serie_id === id)) return false;
+    const i = invoiceSeries.findIndex((x) => x.id === id);
+    if (i >= 0) invoiceSeries.splice(i, 1);
+    return true;
+  },
+
+  /** ⚠️ PATCH PARTIEL, comme le natif : une clé absente ne vide rien. */
+  async updateInvoiceIssuer(
+    patch: Partial<Omit<InvoiceIssuer, "id" | "created_at" | "updated_at">>,
+    now: string,
+  ): Promise<void> {
+    Object.assign(invoiceIssuer, patch, { updated_at: now });
+  },
+
+  async createInvoice(
+    input: Omit<
+      Invoice,
+      | "id" | "statut" | "numero" | "emetteur_fige"
+      | "total_ht_cents" | "total_tva_cents" | "total_ttc_cents"
+      | "created_at" | "updated_at"
+    >,
+    now: string,
+  ): Promise<number> {
+    const id = nextInvoiceId++;
+    invoices.push({
+      ...input,
+      id,
+      // Une facture naît TOUJOURS en brouillon, sans numéro.
+      statut: "brouillon",
+      numero: null,
+      emetteur_fige: null,
+      total_ht_cents: 0,
+      total_tva_cents: 0,
+      total_ttc_cents: 0,
+      created_at: now,
+      updated_at: now,
+    });
+    return id;
+  },
+
+  async updateInvoice(
+    id: number,
+    input: Omit<
+      Invoice,
+      | "id" | "statut" | "numero" | "emetteur_fige"
+      | "total_ht_cents" | "total_tva_cents" | "total_ttc_cents"
+      | "created_at" | "updated_at"
+    >,
+    now: string,
+  ): Promise<void> {
+    const f = invoices.find((x) => x.id === id);
+    // ⚠️ Ni `statut` ni `numero` : le natif ne les écrit pas non plus ici.
+    if (f) Object.assign(f, input, { updated_at: now });
+  },
+
+  async setInvoiceTotaux(
+    id: number,
+    totaux: { total_ht_cents: number; total_tva_cents: number; total_ttc_cents: number },
+    now: string,
+  ): Promise<void> {
+    const f = invoices.find((x) => x.id === id);
+    if (f) Object.assign(f, totaux, { updated_at: now });
+  },
+
+  async emettreInvoice(
+    id: number,
+    numero: string,
+    serieId: number,
+    compteur: { prochain: number; annee_courante: number },
+    emetteurFige: string | null,
+    mentions: string | null,
+    now: string,
+  ): Promise<void> {
+    const f = invoices.find((x) => x.id === id);
+    if (f) {
+      f.numero = numero;
+      f.statut = "emise";
+      f.emetteur_fige = emetteurFige;
+      f.mentions = mentions;
+      f.updated_at = now;
+    }
+    const serie = invoiceSeries.find((x) => x.id === serieId);
+    if (serie) {
+      serie.prochain = compteur.prochain;
+      serie.annee_courante = compteur.annee_courante;
+      serie.updated_at = now;
+    }
+  },
+
+  async setInvoiceStatut(id: number, statut: InvoiceStatut, now: string): Promise<void> {
+    const f = invoices.find((x) => x.id === id);
+    if (f) {
+      f.statut = statut;
+      f.updated_at = now;
+    }
+  },
+
+  /** ⚠️ Refuse tout ce qui n'est pas un brouillon — comme le natif. */
+  async deleteInvoice(id: number): Promise<boolean> {
+    const f = invoices.find((x) => x.id === id);
+    if (!f || f.statut !== "brouillon") return false;
+
+    for (let i = invoiceLines.length - 1; i >= 0; i--)
+      if (invoiceLines[i].invoice_id === id) invoiceLines.splice(i, 1);
+    for (let i = invoicePayments.length - 1; i >= 0; i--)
+      if (invoicePayments[i].invoice_id === id) invoicePayments.splice(i, 1);
+
+    invoices.splice(invoices.indexOf(f), 1);
+    return true;
+  },
+
+  async replaceInvoiceLines(
+    invoiceId: number,
+    lignes: Omit<InvoiceLine, "id" | "invoice_id" | "created_at">[],
+    now: string,
+  ): Promise<void> {
+    for (let i = invoiceLines.length - 1; i >= 0; i--)
+      if (invoiceLines[i].invoice_id === invoiceId) invoiceLines.splice(i, 1);
+    for (const l of lignes)
+      invoiceLines.push({ ...l, id: nextLineId++, invoice_id: invoiceId, created_at: now });
+  },
+
+  async createInvoicePayment(
+    input: Omit<InvoicePayment, "id" | "created_at">,
+    now: string,
+  ): Promise<number> {
+    const id = nextPaymentId++;
+    invoicePayments.push({ ...input, id, created_at: now });
+    return id;
+  },
+
+  async deleteInvoicePayment(id: number): Promise<void> {
+    const i = invoicePayments.findIndex((x) => x.id === id);
+    if (i >= 0) invoicePayments.splice(i, 1);
   },
 
 };

@@ -11,6 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { todayStr } from "../logic";
 import {
+  FACTURATION_VIDE,
+  fetchFacturation,
   fetchFinance,
   fetchSizingSettings,
   getSetting,
@@ -18,10 +20,19 @@ import {
   saveFinanceFx,
   saveFinanceQuotes,
   setSetting,
+  type FacturationData,
   type FinanceData,
 } from "../repo";
 import { burnMensuel, recurrentsPerimes } from "./burn";
 import { ajouterMois, debutDeMois } from "./calendrier";
+import { encours } from "./facturation/creances";
+import { comparerRevenus, type FenetreMois } from "./facturation/revenus";
+import {
+  comparerRunways,
+  echeancesAttendues,
+  runwayAvecCreances,
+} from "./facturation/runway-creances";
+import { mouvementsDeTresorerie } from "./facturation/tresorerie";
 import { datesMensuelles, patrimoineAu, seriePatrimoine } from "./patrimoine";
 import { risqueParRSuggere } from "./pont-trading";
 import { estFraiche, rafraichirCotations, rafraichirTaux } from "./quotes";
@@ -50,6 +61,9 @@ export const signalerChangementFinance = () => window.dispatchEvent(new CustomEv
 
 export function useFinance() {
   const [data, setData] = useState<FinanceData>(VIDE);
+  const [facturation, setFacturation] = useState<FacturationData>(FACTURATION_VIDE);
+  /** Fenêtre de la comparaison « déclaré vs encaissé ». Réglage d'écran, pas de base. */
+  const [fenetreRevenus, setFenetreRevenus] = useState<FenetreMois>(6);
   const [pret, setPret] = useState(false);
   const [risqueParRCents, setRisqueParRCents] = useState<number | null>(null);
   const [risqueSuggere, setRisqueSuggere] = useState<number | null>(null);
@@ -59,12 +73,14 @@ export function useFinance() {
   const marcheFait = useRef(false);
 
   const recharger = useCallback(async () => {
-    const [d, brut, dev] = await Promise.all([
+    const [d, fac, brut, dev] = await Promise.all([
       fetchFinance(),
+      fetchFacturation(),
       getSetting(CLE_RISQUE_PAR_R),
       getSetting(CLE_DEVISE),
     ]);
     setData(d);
+    setFacturation(fac);
     const n = brut === null ? null : Number(brut);
     setRisqueParRCents(n !== null && Number.isFinite(n) ? n : null);
     setDeviseEtat(dev || DEVISE_DEFAUT);
@@ -97,9 +113,22 @@ export function useFinance() {
 
   const aujourdhui = todayStr();
 
+  /**
+   * ⭐ Les encaissements, traduits en mouvements de trésorerie.
+   *
+   * ⚠️ Ils ne sont PAS écrits en base : `finance_balances` reste la seule
+   * source des soldes relevés. La composition se fait ici, au calcul, à chaque
+   * rendu — c'est la règle qui gouverne tout le chantier facturation
+   * (migration 023, en-tête).
+   */
+  const tresorerie = useMemo(
+    () => mouvementsDeTresorerie(facturation.factures, facturation.paiements, data.comptes),
+    [facturation.factures, facturation.paiements, data.comptes],
+  );
+
   const patrimoine = useMemo(
-    () => patrimoineAu(data.comptes, data.balances, aujourdhui),
-    [data.comptes, data.balances, aujourdhui],
+    () => patrimoineAu(data.comptes, data.balances, aujourdhui, undefined, tresorerie.mouvements),
+    [data.comptes, data.balances, aujourdhui, tresorerie.mouvements],
   );
 
   const burn = useMemo(
@@ -124,6 +153,53 @@ export function useFinance() {
     [liquideConnu, burn, aujourdhui],
   );
 
+  /**
+   * ⚠️ LE RUNWAY PRUDENT CI-DESSUS N'A PAS CHANGÉ DE DÉFINITION. Ce qui suit
+   * est un SECOND chiffre, affiché à côté — jamais à la place. Quelqu'un a déjà
+   * pris une décision sur le premier.
+   */
+  const echeances = useMemo(
+    () => echeancesAttendues(facturation.factures, facturation.paiements, aujourdhui),
+    [facturation.factures, facturation.paiements, aujourdhui],
+  );
+
+  const runwayCreances = useMemo(
+    () => runwayAvecCreances(liquideConnu, burn, echeances, aujourdhui),
+    [liquideConnu, burn, echeances, aujourdhui],
+  );
+
+  const deuxRunways = useMemo(
+    () => comparerRunways(piste, runwayCreances),
+    [piste, runwayCreances],
+  );
+
+  const creancesClients = useMemo(
+    () => encours(facturation.factures, facturation.paiements, "vente", aujourdhui),
+    [facturation.factures, facturation.paiements, aujourdhui],
+  );
+
+  const dettesFournisseurs = useMemo(
+    () => encours(facturation.factures, facturation.paiements, "achat", aujourdhui),
+    [facturation.factures, facturation.paiements, aujourdhui],
+  );
+
+  /**
+   * ⚠️ NE TOUCHE PAS AU BURN. Un écart durable entre le revenu déclaré et le
+   * revenu encaissé est une INFORMATION, pas une erreur à corriger.
+   */
+  const revenus = useMemo(
+    () =>
+      comparerRevenus(
+        data.recurrents,
+        facturation.factures,
+        facturation.paiements,
+        fenetreRevenus,
+        aujourdhui,
+        devise,
+      ),
+    [data.recurrents, facturation.factures, facturation.paiements, fenetreRevenus, aujourdhui, devise],
+  );
+
   const valorisation = useMemo(
     () => valoriser(data.holdings, data.quotes, data.fx, devise, new Date().toISOString()),
     [data.holdings, data.quotes, data.fx, devise],
@@ -136,8 +212,9 @@ export function useFinance() {
       data.comptes,
       data.balances,
       datesMensuelles(ajouterMois(fin, -12), fin),
+      tresorerie.mouvements,
     );
-  }, [data.comptes, data.balances, aujourdhui]);
+  }, [data.comptes, data.balances, aujourdhui, tresorerie.mouvements]);
 
   const enregistrerRisqueParR = useCallback(async (cents: number | null) => {
     setRisqueParRCents(cents);
@@ -211,6 +288,17 @@ export function useFinance() {
     patrimoine,
     burn,
     runway: piste,
+    // ── Facturation (migration 023) ───────────────────────────────────────
+    facturation,
+    tresorerie,
+    /** Les deux runways, à afficher CÔTE À CÔTE — jamais l'un à la place de l'autre. */
+    deuxRunways,
+    echeances,
+    creancesClients,
+    dettesFournisseurs,
+    revenus,
+    fenetreRevenus,
+    setFenetreRevenus,
     valorisation,
     serie,
     perimes,

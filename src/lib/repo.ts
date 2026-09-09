@@ -30,6 +30,16 @@ import type {
   GoalProgressPoint,
   Habit,
   HabitCheck,
+  Invoice,
+  InvoiceIssuer,
+  InvoiceLine,
+  InvoiceParty,
+  InvoicePayment,
+  InvoiceRole,
+  InvoiceSens,
+  InvoiceSeries,
+  InvoiceStatut,
+  InvoiceType,
   JournalEntry,
   KnowledgeEntry,
   KnowledgeEntryLite,
@@ -1934,4 +1944,430 @@ export async function titresDesMentions(
     for (const r of rows) out.set(`${kind}:${r.uid}`, r.titre ?? "");
   }
   return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturation — migration 023
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️ LES SUPPRESSIONS SONT EXPLICITES, ENFANTS D'ABORD — même règle que le
+// reste de Finance : `PRAGMA foreign_keys` n'est pas activé par
+// tauri-plugin-sql. La migration pose bien un trigger de cascade sur
+// `invoices` (indispensable pour une suppression VENUE du cloud), mais on ne
+// s'y repose pas ici : chaque DELETE explicite émet sa propre pierre tombale,
+// donc la suppression voyage jusqu'aux autres appareils.
+//
+// ⚠️ AUCUNE ÉCRITURE DANS `finance_balances` dans tout ce bloc. Si une requête
+// d'ici touche un jour cette table, elle est fausse — quelle que soit sa raison
+// apparente. La composition solde + encaissements se fait AU CALCUL
+// (`lib/finance/patrimoine.ts`), jamais en base.
+
+export interface FacturationData {
+  tiers: InvoiceParty[];
+  series: InvoiceSeries[];
+  factures: Invoice[];
+  lignes: InvoiceLine[];
+  paiements: InvoicePayment[];
+  emetteur: InvoiceIssuer | null;
+}
+
+export const FACTURATION_VIDE: FacturationData = {
+  tiers: [],
+  series: [],
+  factures: [],
+  lignes: [],
+  paiements: [],
+  emetteur: null,
+};
+
+export async function fetchFacturation(): Promise<FacturationData> {
+  if (!isTauri) return demo.fetchFacturation();
+  const db = await getDb();
+  const [tiers, series, factures, lignes, paiements, emetteurs] = await Promise.all([
+    db.select<InvoiceParty[]>("SELECT * FROM invoice_parties ORDER BY archived, nom"),
+    db.select<InvoiceSeries[]>("SELECT * FROM invoice_series ORDER BY code"),
+    db.select<Invoice[]>(
+      "SELECT * FROM invoices ORDER BY COALESCE(date_emission, date(created_at)) DESC, id DESC",
+    ),
+    db.select<InvoiceLine[]>("SELECT * FROM invoice_lines ORDER BY invoice_id, position"),
+    db.select<InvoicePayment[]>("SELECT * FROM invoice_payments ORDER BY date, id"),
+    db.select<InvoiceIssuer[]>("SELECT * FROM invoice_issuer LIMIT 1"),
+  ]);
+  return { tiers, series, factures, lignes, paiements, emetteur: emetteurs[0] ?? null };
+}
+
+// ─── Tiers ───────────────────────────────────────────────────────────────────
+
+export interface InvoicePartyInput {
+  nom: string;
+  role: InvoiceRole;
+  adresse: string | null;
+  code_postal: string | null;
+  ville: string | null;
+  pays: string | null;
+  siren: string | null;
+  siret: string | null;
+  tva_intra: string | null;
+  email: string | null;
+  telephone: string | null;
+  devise: string;
+  notes: string | null;
+}
+
+export async function createInvoiceParty(input: InvoicePartyInput): Promise<number> {
+  if (!isTauri) return demo.createInvoiceParty(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO invoice_parties
+       (nom, role, adresse, code_postal, ville, pays, siren, siret, tva_intra, email, telephone, devise, notes, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)`,
+    [
+      input.nom, input.role, input.adresse, input.code_postal, input.ville, input.pays,
+      input.siren, input.siret, input.tva_intra, input.email, input.telephone,
+      input.devise, input.notes, localNow(),
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function updateInvoiceParty(id: number, input: InvoicePartyInput): Promise<void> {
+  if (!isTauri) return demo.updateInvoiceParty(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE invoice_parties
+        SET nom=$1, role=$2, adresse=$3, code_postal=$4, ville=$5, pays=$6, siren=$7,
+            siret=$8, tva_intra=$9, email=$10, telephone=$11, devise=$12, notes=$13, updated_at=$14
+      WHERE id=$15`,
+    [
+      input.nom, input.role, input.adresse, input.code_postal, input.ville, input.pays,
+      input.siren, input.siret, input.tva_intra, input.email, input.telephone,
+      input.devise, input.notes, localNow(), id,
+    ],
+  );
+}
+
+/**
+ * ⚠️ ARCHIVER, PAS SUPPRIMER, dès qu'un tiers porte une facture. Une facture
+ * émise porte le nom de son client : supprimer le tiers laisserait le document
+ * pointer vers rien, et SQLite ne dirait rien (les FK sont documentaires ici).
+ * La règle est tenue en TypeScript, comme pour les comptes.
+ */
+export async function archiveInvoiceParty(id: number, archive: boolean): Promise<void> {
+  if (!isTauri) return demo.archiveInvoiceParty(id, archive, localNow());
+  const db = await getDb();
+  await db.execute("UPDATE invoice_parties SET archived = $1, updated_at = $2 WHERE id = $3", [
+    archive ? 1 : 0,
+    localNow(),
+    id,
+  ]);
+}
+
+/** Ne réussit que si AUCUNE facture ne cite ce tiers. Sinon : archiver. */
+export async function deleteInvoiceParty(id: number): Promise<boolean> {
+  if (!isTauri) return demo.deleteInvoiceParty(id);
+  const db = await getDb();
+  const rows = await db.select<{ n: number }[]>(
+    "SELECT COUNT(*) AS n FROM invoices WHERE party_id = $1",
+    [id],
+  );
+  if ((rows[0]?.n ?? 0) > 0) return false;
+  await db.execute("DELETE FROM invoice_parties WHERE id = $1", [id]);
+  return true;
+}
+
+// ─── Séries ──────────────────────────────────────────────────────────────────
+
+export interface InvoiceSeriesInput {
+  code: string;
+  libelle: string | null;
+  format: string;
+  prochain: number;
+  remise_a_zero_annuelle: number;
+}
+
+export async function createInvoiceSeries(input: InvoiceSeriesInput): Promise<number> {
+  if (!isTauri) return demo.createInvoiceSeries(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO invoice_series (code, libelle, format, prochain, remise_a_zero_annuelle, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$6)`,
+    [input.code, input.libelle, input.format, input.prochain, input.remise_a_zero_annuelle, localNow()],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+/**
+ * ⚠️ `code` N'EST PAS MODIFIABLE et n'est donc pas dans cette requête : l'uid en
+ * dérive (`is:<code>`, migration 023). Le corriger se fait en supprimant la
+ * série et en la recréant — même contrainte que le symbole d'une position
+ * (migration 018). L'interface doit le dire au lieu de laisser le champ ouvert.
+ */
+export async function updateInvoiceSeries(
+  id: number,
+  input: Omit<InvoiceSeriesInput, "code">,
+): Promise<void> {
+  if (!isTauri) return demo.updateInvoiceSeries(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE invoice_series SET libelle=$1, format=$2, prochain=$3, remise_a_zero_annuelle=$4, updated_at=$5 WHERE id=$6`,
+    [input.libelle, input.format, input.prochain, input.remise_a_zero_annuelle, localNow(), id],
+  );
+}
+
+/** Ne réussit que si aucune facture n'a été numérotée par cette série. */
+export async function deleteInvoiceSeries(id: number): Promise<boolean> {
+  if (!isTauri) return demo.deleteInvoiceSeries(id);
+  const db = await getDb();
+  const rows = await db.select<{ n: number }[]>(
+    "SELECT COUNT(*) AS n FROM invoices WHERE serie_id = $1",
+    [id],
+  );
+  if ((rows[0]?.n ?? 0) > 0) return false;
+  await db.execute("DELETE FROM invoice_series WHERE id = $1", [id]);
+  return true;
+}
+
+// ─── L'émetteur ──────────────────────────────────────────────────────────────
+
+export type InvoiceIssuerInput = Omit<InvoiceIssuer, "id" | "created_at" | "updated_at">;
+
+/**
+ * ⚠️ PATCH PARTIEL, et c'est délibéré. Un `UPDATE … SET logo = $n`
+ * inconditionnel effacerait le logo dès qu'on enregistre depuis un formulaire
+ * qui ne le connaît pas — exactement le défaut « renommer une tâche effaçait sa
+ * date » (PIEGES.md § 6.2). Le mode démo doit avoir la MÊME sémantique, pas
+ * seulement la même signature.
+ */
+export async function updateInvoiceIssuer(patch: Partial<InvoiceIssuerInput>): Promise<void> {
+  if (!isTauri) return demo.updateInvoiceIssuer(patch, localNow());
+  const db = await getDb();
+  const champs = Object.keys(patch) as (keyof InvoiceIssuerInput)[];
+  if (champs.length === 0) return;
+
+  const sets = champs.map((c, i) => `${c} = $${i + 1}`).join(", ");
+  const valeurs = champs.map((c) => patch[c] ?? null);
+  await db.execute(
+    `UPDATE invoice_issuer SET ${sets}, updated_at = $${champs.length + 1}
+      WHERE id = (SELECT MIN(id) FROM invoice_issuer)`,
+    [...valeurs, localNow()],
+  );
+}
+
+// ─── Factures, lignes, paiements ─────────────────────────────────────────────
+
+export interface InvoiceInput {
+  type: InvoiceType;
+  sens: InvoiceSens;
+  serie_id: number | null;
+  party_id: number | null;
+  date_emission: string | null;
+  date_echeance: string | null;
+  conditions_paiement: string | null;
+  devise: string;
+  taux_change_e8: number | null;
+  mentions: string | null;
+  objet: string | null;
+  note: string | null;
+  avoir_de_id: number | null;
+  devis_origine_id: number | null;
+}
+
+export interface InvoiceLineInput {
+  position: number;
+  description: string;
+  unite: string | null;
+  quantite_e8: number;
+  prix_unitaire_cents: number;
+  taux_tva_e4: number;
+  remise_cents: number;
+  total_ht_cents: number;
+}
+
+/** Une facture naît TOUJOURS en brouillon, sans numéro. */
+export async function createInvoice(input: InvoiceInput): Promise<number> {
+  if (!isTauri) return demo.createInvoice(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO invoices
+       (type, sens, statut, numero, serie_id, party_id, date_emission, date_echeance,
+        conditions_paiement, devise, taux_change_e8, mentions, objet, note,
+        avoir_de_id, devis_origine_id, created_at, updated_at)
+     VALUES ($1,$2,'brouillon',NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)`,
+    [
+      input.type, input.sens, input.serie_id, input.party_id, input.date_emission,
+      input.date_echeance, input.conditions_paiement, input.devise, input.taux_change_e8,
+      input.mentions, input.objet, input.note, input.avoir_de_id, input.devis_origine_id,
+      localNow(),
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+/**
+ * Modifie l'en-tête d'une facture.
+ *
+ * ⚠️ N'ÉCRIT NI `statut` NI `numero`. Le premier se change par l'émission ou
+ * l'annulation, le second s'attribue une seule fois et n'est jamais rendu.
+ * Les laisser dans cette requête permettrait à un formulaire de les écraser
+ * sans le savoir.
+ */
+export async function updateInvoice(id: number, input: InvoiceInput): Promise<void> {
+  if (!isTauri) return demo.updateInvoice(id, input, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE invoices
+        SET type=$1, sens=$2, serie_id=$3, party_id=$4, date_emission=$5, date_echeance=$6,
+            conditions_paiement=$7, devise=$8, taux_change_e8=$9, mentions=$10, objet=$11,
+            note=$12, avoir_de_id=$13, devis_origine_id=$14, updated_at=$15
+      WHERE id=$16`,
+    [
+      input.type, input.sens, input.serie_id, input.party_id, input.date_emission,
+      input.date_echeance, input.conditions_paiement, input.devise, input.taux_change_e8,
+      input.mentions, input.objet, input.note, input.avoir_de_id, input.devis_origine_id,
+      localNow(), id,
+    ],
+  );
+}
+
+/** Totaux recalculés par `totaux.ts` — jamais par une somme SQL sur les lignes. */
+export async function setInvoiceTotaux(
+  id: number,
+  totaux: { total_ht_cents: number; total_tva_cents: number; total_ttc_cents: number },
+): Promise<void> {
+  if (!isTauri) return demo.setInvoiceTotaux(id, totaux, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE invoices SET total_ht_cents=$1, total_tva_cents=$2, total_ttc_cents=$3, updated_at=$4 WHERE id=$5`,
+    [totaux.total_ht_cents, totaux.total_tva_cents, totaux.total_ttc_cents, localNow(), id],
+  );
+}
+
+/**
+ * ⭐ L'ÉMISSION — le seul moment où un numéro s'attribue.
+ *
+ * Les deux écritures (le numéro sur la facture, le compteur sur la série) sont
+ * faites À LA SUITE. ⚠️ Ce n'est pas une transaction : `tauri-plugin-sql`
+ * n'expose pas de transaction explicite, et chaque `execute` est autonome. Le
+ * pire cas est donc un compteur avancé pour une facture qui n'aurait pas reçu
+ * son numéro — c'est-à-dire un TROU dans la série, jamais un doublon. C'est le
+ * bon côté pour se tromper : un trou se voit et s'explique, un doublon
+ * dédouble une référence chez un client.
+ *
+ * `emetteur_fige` est l'instantané JSON de l'identité au moment de l'émission :
+ * il rend le document reproductible des années plus tard, sans stocker un
+ * octet de PDF.
+ */
+export async function emettreInvoice(
+  id: number,
+  numero: string,
+  serieId: number,
+  compteur: { prochain: number; annee_courante: number },
+  emetteurFige: string | null,
+  mentions: string | null,
+): Promise<void> {
+  if (!isTauri)
+    return demo.emettreInvoice(id, numero, serieId, compteur, emetteurFige, mentions, localNow());
+  const db = await getDb();
+  await db.execute(
+    `UPDATE invoices SET numero=$1, statut='emise', emetteur_fige=$2, mentions=$3, updated_at=$4 WHERE id=$5`,
+    [numero, emetteurFige, mentions, localNow(), id],
+  );
+  await db.execute(
+    `UPDATE invoice_series SET prochain=$1, annee_courante=$2, updated_at=$3 WHERE id=$4`,
+    [compteur.prochain, compteur.annee_courante, localNow(), serieId],
+  );
+}
+
+/** Statut : émise ↔ partiellement encaissée ↔ encaissée, ou annulée. */
+export async function setInvoiceStatut(id: number, statut: InvoiceStatut): Promise<void> {
+  if (!isTauri) return demo.setInvoiceStatut(id, statut, localNow());
+  const db = await getDb();
+  await db.execute("UPDATE invoices SET statut=$1, updated_at=$2 WHERE id=$3", [
+    statut,
+    localNow(),
+    id,
+  ]);
+}
+
+/**
+ * ⚠️ NE SUPPRIME QU'UN BROUILLON. Une facture émise s'annule par un AVOIR : le
+ * numéro est parti chez un client, et une série doit rester continue. Le refus
+ * est ici, en dur, et pas seulement dans l'interface — un bouton peut être
+ * appelé par erreur, une règle de dépôt non.
+ */
+export async function deleteInvoice(id: number): Promise<boolean> {
+  if (!isTauri) return demo.deleteInvoice(id);
+  const db = await getDb();
+  const rows = await db.select<{ statut: string }[]>(
+    "SELECT statut FROM invoices WHERE id = $1",
+    [id],
+  );
+  if (rows[0]?.statut !== "brouillon") return false;
+
+  // Enfants d'abord : chaque DELETE émet sa pierre tombale.
+  await db.execute("DELETE FROM invoice_lines WHERE invoice_id = $1", [id]);
+  await db.execute("DELETE FROM invoice_payments WHERE invoice_id = $1", [id]);
+  await db.execute("DELETE FROM invoices WHERE id = $1", [id]);
+  return true;
+}
+
+/**
+ * Remplace TOUTES les lignes d'une facture.
+ *
+ * ⚠️ Effacer puis réécrire fait perdre l'uid de chaque ligne, donc produit une
+ * pierre tombale + une création à chaque enregistrement. C'est assumé : les
+ * lignes se réordonnent, se suppriment et s'insèrent au milieu, et tenter de
+ * les apparier par position ferait exactement ce que la migration interdit —
+ * lier une identité à un rang qui bouge.
+ */
+export async function replaceInvoiceLines(
+  invoiceId: number,
+  lignes: InvoiceLineInput[],
+): Promise<void> {
+  if (!isTauri) return demo.replaceInvoiceLines(invoiceId, lignes, localNow());
+  const db = await getDb();
+  await db.execute("DELETE FROM invoice_lines WHERE invoice_id = $1", [invoiceId]);
+  for (const l of lignes) {
+    await db.execute(
+      `INSERT INTO invoice_lines
+         (invoice_id, position, description, unite, quantite_e8, prix_unitaire_cents,
+          taux_tva_e4, remise_cents, total_ht_cents, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        invoiceId, l.position, l.description, l.unite, l.quantite_e8,
+        l.prix_unitaire_cents, l.taux_tva_e4, l.remise_cents, l.total_ht_cents, localNow(),
+      ],
+    );
+  }
+}
+
+export interface InvoicePaymentInput {
+  invoice_id: number;
+  date: string;
+  montant_cents: number;
+  devise: string;
+  taux_change_e8: number | null;
+  account_id: number | null;
+  moyen: string | null;
+  note: string | null;
+}
+
+export async function createInvoicePayment(input: InvoicePaymentInput): Promise<number> {
+  if (!isTauri) return demo.createInvoicePayment(input, localNow());
+  const db = await getDb();
+  const res = await db.execute(
+    `INSERT INTO invoice_payments
+       (invoice_id, date, montant_cents, devise, taux_change_e8, account_id, moyen, note, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [
+      input.invoice_id, input.date, input.montant_cents, input.devise,
+      input.taux_change_e8, input.account_id, input.moyen, input.note, localNow(),
+    ],
+  );
+  return res.lastInsertId ?? 0;
+}
+
+export async function deleteInvoicePayment(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteInvoicePayment(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM invoice_payments WHERE id = $1", [id]);
 }
