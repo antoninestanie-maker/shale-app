@@ -16,6 +16,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { FinanceAccount, FinanceBalance } from "../types";
 import { ajouterMois, joursEntre } from "./calendrier";
+import type { Mouvement } from "./facturation/tresorerie";
+import { mouvementsDansFenetre } from "./facturation/tresorerie";
 import { divArrondi } from "./montants";
 
 /** Relevés d'un compte, triés par date croissante. */
@@ -55,6 +57,57 @@ export function soldeInterpole(releves: FinanceBalance[], date: string): number 
   return dernier.amount_cents;
 }
 
+/**
+ * ⭐⭐ LE SOLDE COMPOSÉ — la règle qui gouverne tout le chantier facturation.
+ *
+ *     solde = dernier relevé saisi
+ *           + mouvements datés STRICTEMENT APRÈS ce relevé
+ *
+ * Finance est un module de SNAPSHOTS : le solde n'est pas calculé, il est
+ * relevé à la main. Un encaissement du 15 février s'ajoute au relevé du
+ * 1er février. Le jour où l'utilisateur relève son solde au 1er mars, cet
+ * encaissement devient ANTÉRIEUR au relevé : la banque l'a déjà compté dans le
+ * chiffre affiché, donc il est ABSORBÉ et cesse d'être ajouté.
+ *
+ * ⚠️⚠️ SANS CETTE FENÊTRE, L'UTILISATEUR COMPTE DEUX FOIS LE MÊME EURO, ET RIEN
+ * NE LE LUI SIGNALE. C'est exactement le type de faux chiffre que la doctrine
+ * du module interdit depuis la migration 018.
+ *
+ * ⭐ ET LA COMPOSITION NE S'APPLIQUE QUE DANS LA ZONE D'EXTRAPOLATION.
+ *
+ * C'est le point qui se pense mal, et il vaut son paragraphe. `soldeInterpole`
+ * trace une DROITE entre deux relevés qui encadrent la date : cette droite
+ * contient déjà, au prorata, tout ce qui s'est passé entre les deux — le
+ * paiement du 15 février compris, puisque le relevé du 1er mars le contient.
+ * Ajouter les mouvements par-dessus une valeur interpolée les compterait donc
+ * une seconde fois, sur chaque point passé de la courbe.
+ *
+ * On ne compose donc QUE lorsque la date évaluée dépasse le dernier relevé du
+ * compte — c'est-à-dire là où `soldeInterpole` prolonge à l'horizontale et ne
+ * sait, de son propre aveu, plus rien. Entre deux relevés, ce sont les relevés
+ * qui font foi ; après le dernier, ce sont les mouvements.
+ *
+ * ⚠️ `null` reste `null`. Un compte jamais relevé ne devient pas « 300 € »
+ * parce qu'un encaissement de 300 € existe : on ne sait toujours pas ce qu'il y
+ * avait dessus avant.
+ */
+export function soldeCompose(
+  releves: FinanceBalance[],
+  mouvements: readonly Mouvement[],
+  accountId: number,
+  date: string,
+): number | null {
+  const base = soldeInterpole(releves, date);
+  if (base === null) return null;
+  if (mouvements.length === 0) return base;
+
+  const dernier = releves[releves.length - 1].date;
+  // Date encadrée par des relevés : l'interpolation fait déjà le travail.
+  if (date <= dernier) return base;
+
+  return base + mouvementsDansFenetre(mouvements, accountId, dernier, date);
+}
+
 export interface LignePatrimoine {
   compte: FinanceAccount;
   /** `null` = jamais relevé. */
@@ -91,6 +144,18 @@ export function patrimoineAu(
   balances: FinanceBalance[],
   date: string,
   seuilJours = 45,
+  /**
+   * Encaissements et décaissements de la facturation (migration 023).
+   *
+   * ⚠️ EN DERNIÈRE POSITION, derrière un paramètre optionnel, et c'est
+   * délibéré : `seuilJours` était déjà le quatrième et des appelants le
+   * passent. Le déplacer aurait cassé des appels existants pour une question
+   * d'esthétique de signature.
+   *
+   * Vide par défaut : sans facturation, `patrimoineAu` se comporte
+   * EXACTEMENT comme avant ce chantier.
+   */
+  mouvements: readonly Mouvement[] = [],
 ): Patrimoine {
   let totalCents = 0;
   let liquideCents = 0;
@@ -100,7 +165,7 @@ export function patrimoineAu(
   for (const compte of comptes) {
     if (compte.archived === 1) continue;
     const releves = relevesDe(balances, compte.id);
-    const montantCents = soldeInterpole(releves, date);
+    const montantCents = soldeCompose(releves, mouvements, compte.id, date);
     const dernierReleve = releves.length ? releves[releves.length - 1].date : null;
 
     if (montantCents === null) sansReleve++;
@@ -144,9 +209,10 @@ export function seriePatrimoine(
   comptes: FinanceAccount[],
   balances: FinanceBalance[],
   dates: string[],
+  mouvements: readonly Mouvement[] = [],
 ): PointPatrimoine[] {
   return dates.map((date) => {
-    const p = patrimoineAu(comptes, balances, date);
+    const p = patrimoineAu(comptes, balances, date, undefined, mouvements);
     return { date, totalCents: p.totalCents, liquideCents: p.liquideCents };
   });
 }

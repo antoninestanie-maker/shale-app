@@ -52,3 +52,68 @@ describe("projectionAuxHorizons", () => {
     expect(h[12].date).toBe("2027-08-25");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Les échéances de facturation (migration 023)
+// ─────────────────────────────────────────────────────────────────────────────
+describe("projection avec les échéances de facturation", () => {
+  const burn: Burn = {
+    entreesCents: 0,
+    sortiesCents: 100_000,
+    netCents: 100_000,
+    actifs: 1,
+  };
+
+  it("sans échéance, la courbe est EXACTEMENT la droite d'avant", () => {
+    expect(projection("2026-09-01", 500_000, burn, 3, [])).toEqual(
+      projection("2026-09-01", 500_000, burn, 3),
+    );
+  });
+
+  it("⭐ une créance est un PALIER, pas un changement de pente", () => {
+    // Elle rentre le mois où elle est due, puis plus jamais. Lui faire
+    // infléchir la droite reviendrait à extrapoler un revenu depuis une facture.
+    const p = projection("2026-09-01", 500_000, burn, 4, [
+      { date: "2026-11-01", cents: 300_000, invoiceId: 1 },
+    ]);
+    expect(p.map((x) => x.valeurCents)).toEqual([
+      500_000, // mois 0
+      400_000, // mois 1
+      600_000, // mois 2 — la créance entre : 300 000 − 200 000 de burn
+      500_000, // mois 3 — la pente reprend, inchangée
+      400_000, // mois 4
+    ]);
+  });
+
+  it("une dette fournisseur creuse la courbe à sa date", () => {
+    const p = projection("2026-09-01", 500_000, burn, 2, [
+      { date: "2026-10-01", cents: -150_000, invoiceId: 1 },
+    ]);
+    expect(p[2].valeurCents).toBe(150_000);
+  });
+
+  it("plusieurs échéances au même mois se cumulent", () => {
+    const p = projection("2026-09-01", 0, burn, 1, [
+      { date: "2026-10-01", cents: 100_000, invoiceId: 1 },
+      { date: "2026-10-15", cents: 50_000, invoiceId: 2 },
+    ]);
+    // Le 15 octobre est postérieur au point du 1er octobre : il n'entre qu'au
+    // mois suivant. Seule la première est comptée ici.
+    expect(p[1].valeurCents).toBe(0);
+  });
+
+  it("une échéance déjà arrivée au départ est comptée dès le mois 0", () => {
+    const p = projection("2026-09-01", 100_000, burn, 1, [
+      { date: "2026-09-01", cents: 200_000, invoiceId: 1 },
+    ]);
+    expect(p[0].valeurCents).toBe(300_000);
+  });
+
+  it("les horizons reçoivent les échéances eux aussi", () => {
+    const h = projectionAuxHorizons("2026-09-01", 500_000, burn, [
+      { date: "2026-11-01", cents: 300_000, invoiceId: 1 },
+    ]);
+    expect(h[3].valeurCents).toBe(500_000);
+    expect(h[12].valeurCents).toBe(-400_000);
+  });
+});

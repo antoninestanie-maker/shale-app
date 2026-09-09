@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Burn } from "./burn";
 import { ajouterMois } from "./calendrier";
+import type { EcheanceAttendue } from "./facturation/runway-creances";
 
 export interface PointProjection {
   date: string;
@@ -38,13 +39,39 @@ export function projection(
   patrimoineCents: number,
   burn: Burn,
   mois: number,
+  /**
+   * Échéances de facturation à faire entrer comme ÉVÉNEMENTS DATÉS
+   * (migration 023). Vide par défaut : sans facturation, la projection est
+   * exactement la droite d'avant ce chantier.
+   *
+   * ⚠️ Ce ne sont PAS une tendance. Une créance rentre le mois où elle est due,
+   * puis plus jamais — c'est un palier dans la courbe, pas un changement de
+   * pente. Lui faire infléchir la droite reviendrait à extrapoler un revenu à
+   * partir d'une facture, ce que ce fichier refuse depuis son en-tête.
+   *
+   * ⚠️ Un DEVIS n'y figure jamais : `echeancesAttendues()` l'écarte à la source.
+   */
+  echeances: readonly EcheanceAttendue[] = [],
 ): PointProjection[] {
   const points: PointProjection[] = [];
+
+  // Cumul des échéances déjà entrées au mois k. On avance un curseur en même
+  // temps que la boucle plutôt que de rebalayer la liste à chaque point.
+  let cumulEcheances = 0;
+  let i = 0;
+  const triees = [...echeances].sort((a, b) => a.date.localeCompare(b.date));
+
   for (let k = 0; k <= mois; k++) {
+    const date = ajouterMois(depart, k);
+    // Toutes les échéances dues à cette date ou avant sont désormais encaissées.
+    while (i < triees.length && triees[i].date <= date) {
+      cumulEcheances += triees[i].cents;
+      i++;
+    }
     points.push({
-      date: ajouterMois(depart, k),
+      date,
       moisEcoules: k,
-      valeurCents: patrimoineCents - k * burn.netCents,
+      valeurCents: patrimoineCents - k * burn.netCents + cumulEcheances,
     });
   }
   return points;
@@ -55,8 +82,9 @@ export function projectionAuxHorizons(
   depart: string,
   patrimoineCents: number,
   burn: Burn,
+  echeances: readonly EcheanceAttendue[] = [],
 ): Record<Horizon, PointProjection> {
-  const serie = projection(depart, patrimoineCents, burn, Math.max(...HORIZONS));
+  const serie = projection(depart, patrimoineCents, burn, Math.max(...HORIZONS), echeances);
   return {
     3: serie[3],
     6: serie[6],
