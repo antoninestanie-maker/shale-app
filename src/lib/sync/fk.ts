@@ -74,6 +74,35 @@ export const CLES_ETRANGERES: Readonly<Record<string, readonly CleEtrangere[]>> 
     { colonne: "account_id", vers: "finance_accounts" },
     { colonne: "category_id", vers: "finance_categories" },
   ],
+  // Facturation (migration 023).
+  //
+  // ⚠️ Les DEUX DERNIÈRES pointent `invoices` depuis `invoices` : un avoir cite
+  // la facture qu'il annule, une facture cite le devis dont elle est née. Même
+  // cas que `goals.parent_goal_id` — à l'application, la cible peut ne pas être
+  // encore arrivée, et c'est la mise en quarantaine du moteur qui couvre le
+  // décalage.
+  //
+  // ⚠️ Ces colonnes sont bien des `_id` LOCAUX et non des `_uid` en dur. Le
+  // stockage direct d'uid est réservé au POLYMORPHE (`object_links`, migration
+  // 020 § 5), où il n'existe aucun `vers` honnête à déclarer. Ici chaque
+  // colonne pointe une table fixe : la traduction de ce fichier s'applique, et
+  // avec elle les vraies clés étrangères, la quarantaine, et le test qui
+  // compare cette table au `PRAGMA foreign_key_list` réel.
+  invoices: [
+    { colonne: "serie_id", vers: "invoice_series" },
+    { colonne: "party_id", vers: "invoice_parties" },
+    { colonne: "avoir_de_id", vers: "invoices" },
+    { colonne: "devis_origine_id", vers: "invoices" },
+  ],
+  invoice_lines: [{ colonne: "invoice_id", vers: "invoices" }],
+  invoice_payments: [
+    { colonne: "invoice_id", vers: "invoices" },
+    // ⚠️ NULLABLE, et le rester : un paiement dont on ignore le compte crédité
+    // n'entre dans aucun solde (migration 023, § 5). Le trigger
+    // `finance_accounts_paiements_detache` remet cette colonne à NULL plutôt
+    // que d'emporter le paiement avec le compte.
+    { colonne: "account_id", vers: "finance_accounts" },
+  ],
 };
 
 export function clesDe(table: string): readonly CleEtrangere[] {

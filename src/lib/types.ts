@@ -370,6 +370,154 @@ export interface FinanceFxRate {
   fetched_at: string; // ISO UTC
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturation — migration 023
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️ `en_retard` N'EST PAS ICI, et n'y sera jamais : c'est un état DÉRIVÉ
+// (émise + échéance dépassée + reste dû > 0), calculé par
+// `lib/finance/facturation/statuts.ts`. Stocké, il deviendrait faux au passage
+// de minuit sans que personne n'écrive quoi que ce soit.
+
+export type InvoiceRole = "client" | "fournisseur" | "les_deux";
+export type InvoiceType = "facture" | "avoir" | "devis";
+export type InvoiceSens = "vente" | "achat";
+export type InvoiceStatut =
+  | "brouillon"
+  | "emise"
+  | "partiellement_encaissee"
+  | "encaissee"
+  | "annulee";
+export type InvoiceRegime = "franchise_en_base" | "assujetti";
+
+export interface InvoiceParty {
+  id: number;
+  nom: string;
+  role: InvoiceRole;
+  adresse: string | null;
+  code_postal: string | null;
+  ville: string | null;
+  pays: string | null;
+  siren: string | null;
+  siret: string | null;
+  tva_intra: string | null;
+  email: string | null;
+  telephone: string | null;
+  devise: string; // ISO 4217
+  notes: string | null;
+  archived: number; // SQLite: 0 | 1
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceSeries {
+  id: number;
+  /** ⚠️ NON MODIFIABLE : l'uid en dérive (`is:<code>`). Se corrige en recréant. */
+  code: string;
+  libelle: string | null;
+  /** Gabarit : `{code}` `{AAAA}` `{AA}` `{MM}` `{NNNN}`. */
+  format: string;
+  prochain: number;
+  annee_courante: number | null;
+  remise_a_zero_annuelle: number; // SQLite: 0 | 1
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Invoice {
+  id: number;
+  type: InvoiceType;
+  sens: InvoiceSens;
+  statut: InvoiceStatut;
+  /** NULL tant que brouillon. Attribué à l'émission, jamais rendu. */
+  numero: string | null;
+  serie_id: number | null;
+  party_id: number | null;
+  date_emission: string | null; // YYYY-MM-DD
+  date_echeance: string | null; // YYYY-MM-DD
+  conditions_paiement: string | null;
+  devise: string; // ISO 4217
+  /** Figé à l'émission si `devise` ≠ devise de référence. Jamais recalculé. */
+  taux_change_e8: number | null;
+  total_ht_cents: number;
+  total_tva_cents: number;
+  total_ttc_cents: number;
+  /** Texte légal, figé à l'émission — il ne se réécrit pas rétroactivement. */
+  mentions: string | null;
+  /** JSON : instantané de `InvoiceIssuer` à l'émission. Rend le PDF reproductible. */
+  emetteur_fige: string | null;
+  objet: string | null;
+  /** Note interne, jamais imprimée. */
+  note: string | null;
+  avoir_de_id: number | null;
+  devis_origine_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceLine {
+  id: number;
+  invoice_id: number;
+  position: number;
+  description: string;
+  unite: string | null;
+  /** Quantité à l'échelle 10⁻⁸. */
+  quantite_e8: number;
+  prix_unitaire_cents: number;
+  /** Taux de TVA à l'échelle 10⁻⁴ : 2000 = 20,00 %. */
+  taux_tva_e4: number;
+  remise_cents: number;
+  /**
+   * ⚠️ Il n'y a PAS de TVA par ligne, et c'est une décision fiscale : en France
+   * la TVA s'arrondit PAR TAUX, jamais par ligne. Une colonne de TVA par ligne
+   * aurait une somme différente de la TVA de la facture.
+   */
+  total_ht_cents: number;
+  created_at: string;
+}
+
+export interface InvoicePayment {
+  id: number;
+  invoice_id: number;
+  date: string; // YYYY-MM-DD
+  /** SIGNÉ : un remboursement ou un impayé se saisit en négatif. */
+  montant_cents: number;
+  devise: string;
+  /** Figé à la date du paiement. */
+  taux_change_e8: number | null;
+  /** ⚠️ `null` = l'utilisateur n'a pas dit où l'argent est arrivé : n'entre dans aucun solde. */
+  account_id: number | null;
+  moyen: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface InvoiceIssuer {
+  id: number;
+  denomination: string;
+  forme_juridique: string | null;
+  capital_cents: number | null;
+  adresse: string | null;
+  code_postal: string | null;
+  ville: string | null;
+  pays: string;
+  siren: string | null;
+  siret: string | null;
+  rcs: string | null;
+  ape: string | null;
+  tva_intra: string | null;
+  iban: string | null;
+  bic: string | null;
+  /** data URI. */
+  logo: string | null;
+  regime: InvoiceRegime;
+  mentions_defaut: string | null;
+  penalites_retard: string | null;
+  /** 4000 = 40 €, montant légal de l'indemnité forfaitaire de recouvrement. */
+  indemnite_forfaitaire_cents: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AppData {
   tasks: Task[];
   completions: Completion[];

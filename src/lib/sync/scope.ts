@@ -32,6 +32,11 @@ export const TABLES_SYNC = [
   "position_size_calculations",
   "finance_accounts",
   "finance_categories",
+  // Facturation (migration 023). Trois racines : un tiers, une série de
+  // numérotation et l'émetteur ne dépendent de personne.
+  "invoice_parties",
+  "invoice_series",
+  "invoice_issuer",
   "calendar_events",
   "object_types",
   // Dépendent d'une racine
@@ -45,6 +50,14 @@ export const TABLES_SYNC = [
   "knowledge_entries", // → knowledge_topics
   "live_positions", // → position_size_calculations, trades
   "finance_recurring", // → finance_accounts, finance_categories
+  // ⚠️ Les trois tables de facturation ci-dessous ont un uid ALÉATOIRE, pas
+  // naturel : elles n'ont donc rien à faire dans le bloc suivant. Elles sont
+  // ici pour la seule raison qui gouverne cette liste — l'ORDRE. Une ligne de
+  // facture appliquée avant sa facture serait mise en quarantaine par le
+  // moteur ; il sait la rejouer, autant ne pas provoquer le cas.
+  "invoices", // → invoice_parties, invoice_series, invoices (avoir, devis)
+  "invoice_lines", // → invoices
+  "invoice_payments", // → invoices, finance_accounts
   // Feuilles à clé naturelle (dépendent de leur parent pour leur propre uid)
   "task_completions", // → tasks
   "habit_checks", // → habits

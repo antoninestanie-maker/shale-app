@@ -406,6 +406,12 @@ pub fn run() {
             sql: include_str!("../migrations/022_fusion_sujets.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 23,
+            description: "facturation",
+            sql: include_str!("../migrations/023_facturation.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
