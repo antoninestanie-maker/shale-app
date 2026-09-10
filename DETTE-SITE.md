@@ -281,3 +281,53 @@ toujours.
 **Priorité : basse.** Antonin mène sa refonte visuelle ; cette entrée attend
 qu'elle soit finie. Elle ne contredit rien de ce que le site affirme
 aujourd'hui — elle ajoute quelque chose qu'il ignore.
+
+---
+
+## Chantier « premier démarrage » (2026-09-10)
+
+Le site reste **hors périmètre** (refonte visuelle d'Antonin en cours). Rien
+n'a été touché dans `shale-site`.
+
+### L.1 — L'app a un accueil qui la CONFIGURE, le site n'en dit rien
+
+**Dans l'app.** Au premier lancement, trois questions (lever/coucher, jours et
+horaires de travail, blocs contraints), puis une grille de 168 cases — une par
+heure de la semaine — puis un curseur « combien d'heures veux-tu récupérer par
+semaine ? » qui crée un objectif. Les réponses règlent réellement les créneaux
+libres proposés par le calendrier et la détection de journée surchargée.
+
+**Côté site.** `vitrine/src/lib/modules.ts` → `SPECS`, et `content.json`
+(`features`). C'est un argument de vente qui n'existait pas : *l'app est réglée
+sur ta semaine avant que tu aies cliqué sur quoi que ce soit.*
+
+⚠️ **Ce que le site ne doit SURTOUT pas écrire** — ce sont les interdits du
+cahier des charges, et ils valent pour la page de vente autant que pour l'app :
+
+- aucune estimation de « temps perdu sans Shale », aucun coefficient, aucune
+  projection de gain calculée. **Le seul chiffre de gain vient de
+  l'utilisateur** (le curseur) ;
+- aucune formulation en perte : « il te reste 32 h libres », **jamais** « tu
+  perds 14 h » ;
+- rien qui suggère de dormir moins. Le sommeil est un bloc incompressible ;
+  ce qui se travaille est la **régularité** de l'heure de coucher, jamais sa
+  durée.
+
+### L.2 — L'app n'est plus vide au premier lancement
+
+**Dans l'app.** Un parcours d'exemple est créé une fois par compte : un sujet et
+une fiche dans le **Savoir**, une note dans **Notes** qui cite la fiche, une
+tâche quotidienne dans **Tâches**, une habitude dans **Journal**. Les objets
+portent un badge « exemple », un bouton unique les retire, et ils n'alimentent
+aucune statistique.
+
+**Côté site.** Rien d'obligatoire. Mais la **démo jouable** de `Demo.astro`
+montre une app peuplée : si elle doit un jour ressembler à ce que voit un
+nouveau client, c'est ce parcours-là qu'elle montre, pas les données de
+démonstration actuelles.
+
+### L.3 — Aucun changement de promesse
+
+Le compte de modules reste **treize**. Plateformes, stockage, hors-ligne, clés
+d'API, sauvegarde, langue, licence, gating : **inchangés**. Rien à corriger dans
+`SPECS` sur ces lignes.

@@ -1,5 +1,7 @@
 
-import { localeTag } from "./i18n";import type {
+import { localeTag } from "./i18n";
+import { sansExemples } from "./onboarding/exemples";
+import type {
   Completion,
   DayStat,
   Goal,
@@ -192,10 +194,15 @@ export function todayTasks(
  * + one-off ayant une ligne de complétion ce jour-là.
  */
 export function dayStat(
-  tasks: Task[],
+  tousLesTasks: Task[],
   completions: Completion[],
   date: string,
 ): DayStat {
+  // ⭐ Le contenu de DÉPART ne compte pas. Le filtre est ici, au fond, et non
+  // chez les appelants : `weekStats`, `computeStreak`, `streakHistory` et
+  // `aggregateStats` passent tous par cette fonction, donc ils sont en règle
+  // d'un coup — comme tout appelant futur. Voir `onboarding/exemples.ts`.
+  const tasks = sansExemples(tousLesTasks);
   const comps = completions.filter((c) => c.date === date);
   const doneIds = new Set(comps.filter((c) => c.done).map((c) => c.task_id));
   const byId = new Map(tasks.map((t) => [t.id, t]));
@@ -218,8 +225,13 @@ export function dayStat(
 }
 
 export function pctOfList(list: TodayTask[]): number | null {
-  if (list.length === 0) return null;
-  return Math.round((list.filter((t) => t.done).length / list.length) * 100);
+  // ⚠️ `todayTasks()` rend la liste AFFICHÉE, exemples compris — c'est voulu,
+  // un exemple doit se voir. Le filtre se pose donc ici, au moment où la liste
+  // devient un POURCENTAGE : sans lui, la tâche « revue de fin de journée »
+  // ferait tomber l'anneau de discipline à 0 % le premier jour.
+  const compte = sansExemples(list);
+  if (compte.length === 0) return null;
+  return Math.round((compte.filter((t) => t.done).length / compte.length) * 100);
 }
 
 /** 7 derniers jours (aujourd'hui inclus) ; le jour courant est calculé sur la liste live. */
@@ -268,7 +280,11 @@ export function effectiveProgress(
   for (const child of goals.filter((g) => g.parent_goal_id === goal.id)) {
     parts.push(effectiveProgress(child, goals, tasks, completions, seen));
   }
-  for (const t of tasks.filter(
+  // ⚠️ `sansExemples` ici aussi : une tâche d'exemple rattachée à un objectif
+  // ferait plafonner sa progression à 50 % sans que rien ne l'explique. Le
+  // contenu de départ ne rattache aucune tâche à un objectif aujourd'hui — mais
+  // rien n'empêche un exemple futur de le faire, et le défaut serait silencieux.
+  for (const t of sansExemples(tasks).filter(
     (t) =>
       t.goal_id === goal.id && (!t.recurrence || t.recurrence === "none"),
   )) {

@@ -2575,3 +2575,51 @@ une raison qui n'est pas de la prudence excessive : depuis la réinstallation, l
 simulateur **resynchronise avec les vraies données d'Antonin** (`last_pull_at`
 au 2026-09-07). Y créer une note d'essai la lui aurait envoyée. C'est la règle du
 § 17.4, appliquée : on ne saisit rien sur le simulateur.
+
+---
+
+## 19. L'accueil du premier démarrage sur téléphone (2026-09-10)
+
+Chantier « premier démarrage ». Décisions et pourquoi : section datée du
+2026-09-10 de `CLAUDE.md`. État : `PASSATION-ONBOARDING.md`.
+
+### La grille de 168 cases tient sur 375 px — mesuré, pas supposé
+
+Le cahier des charges l'exigeait explicitement : « la grille de 168 cases doit
+rester lisible sur écran étroit, **ne la remplace pas par un résumé chiffré**,
+la grille est le cœur de l'écran ». Elle n'a donc **pas** de variante mobile.
+
+Mesuré à 375 × 812 : la grille occupe **293 px de large** et 259 px de haut,
+`document.scrollWidth === clientWidth` (aucun débordement horizontal), et le
+DOM contient bien **200 enfants** = 1 coin + 7 en-têtes de jour + 24 × (1
+étiquette d'heure + 7 cases) = **168 cases**.
+
+Ce qui rétrécit, et rien d'autre :
+
+- l'axe des heures porte **un repère toutes les trois heures**, pas vingt-quatre
+  étiquettes — au-delà, l'axe devient illisible avant la grille ;
+- la case passe de 13 px à **9 px** de haut (`compact`).
+
+⚠️ **Aucune unité de viewport** dans ce composant (`GrilleSemaine.tsx`) : tout
+est en `fr` et en pixels, donc le zoom de l'app s'applique sans avoir à
+multiplier par `--zoom-inv` (§ 6.4 de `PIEGES.md`).
+
+⚠️ **L'axe s'élargit en anglais** et c'est normal : `formatHeure` rend
+« 12:00 AM » là où le français rend « 00:00 ». La colonne est en `auto`, la
+grille se resserre d'autant. Vérifié à l'écran dans les deux langues.
+
+### Les champs d'heure : `<input type="time">`, pas la roulette maison
+
+L'accueil emploie le champ natif, comme `EventModal` — qui garde la roulette en
+second recours. Deux raisons : iOS substitue **sa propre molette native** à
+`<input type="time">`, donc le confort tactile est déjà là sans une ligne de
+code ; et un écran de cinq secondes ne justifie pas la hauteur d'une molette
+maison. La roulette reste le confort d'un formulaire qu'on ouvre longtemps.
+
+### Ce qui n'a PAS été vu
+
+⚠️ **Rien sur le simulateur ni sur un iPhone réel.** La vérification est un
+navigateur émulant 375 × 812, pas WKWebView. Restent donc non observés : le
+rendu réel de la grille en WebKit, le clavier logiciel sous le champ « première
+tâche », et la molette native d'`<input type="time">` sur iOS. Le simulateur est
+déconnecté depuis le 2026-09-02 et seul Antonin peut le rouvrir.

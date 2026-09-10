@@ -2267,4 +2267,75 @@ export const EN: Record<string, string> = {
   "La grille horaire, pour poser les créneaux.": "The hour grid, to lay out your slots.",
   "Dollar fort": "Strong dollar",
   "Dollar faible": "Weak dollar",
+  // ── Premier démarrage : l'accueil, la grille, le contenu de départ ────────
+  // Chantier L, 2026-09-10.
+  // ⚠️ Les entrées de `lib/onboarding/exemples.ts` sont un cas à part : elles
+  // partent en BASE, pas à l'écran. Elles sont traduites au moment où le
+  // contenu de départ est créé et ne changent plus ensuite — basculer l'app en
+  // anglais après coup ne réécrit pas les notes de l'utilisateur, et ne doit
+  // pas.
+  "Créer et commencer": "Create and start",
+  "À quelle heure te lèves-tu et te couches-tu, d'habitude ?":
+    "What time do you usually get up and go to bed?",
+  "Ces deux heures dessinent ta semaine et servent à repérer la régularité de ton coucher. Elles ne servent jamais à te proposer de dormir moins.":
+    "These two times draw your week and help spot how regular your bedtime is. They are never used to suggest you sleep less.",
+  "Lever": "Wake-up",
+  "Coucher": "Bedtime",
+  "Quand travailles-tu ?": "When do you work?",
+  "C'est de là que partent les créneaux que le calendrier te proposera, jusqu'à ce qu'il ait appris tes heures réelles.":
+    "This is where the slots the calendar suggests come from, until it has learnt your real hours.",
+  "Trajet": "Commute",
+  "Un trajet, un cours, une garde ?": "A commute, a class, a shift?",
+  "Tout bloc qui revient et que tu ne choisis pas. Facultatif — tu peux passer.":
+    "Any block that comes back and that you do not choose. Optional — you can skip it.",
+  "Trajet, cours, garde…": "Commute, class, shift…",
+  "Ta semaine": "Your week",
+  "Il te reste {n} h libres.": "You have {n} h free.",
+  "Combien d'heures veux-tu récupérer par semaine ?":
+    "How many hours a week do you want to get back?",
+  "Au plus {n} h — c'est ce que ta semaine laisse de libre. Ça devient un objectif que tu pourras changer.":
+    "At most {n} h — that is what your week leaves free. It becomes a goal you can change.",
+  "Une première tâche, pour commencer": "A first task, to get started",
+  "Quelque chose que tu dois vraiment faire. Elle t'attendra dans Tâches.":
+    "Something you actually have to do. It will be waiting in Tasks.",
+  "Ce que je fais en premier…": "What I do first…",
+  "Créé par Shale pour te montrer le produit. Modifie-le, il devient tien.":
+    "Created by Shale to show you around. Edit it and it becomes yours.",
+  "exemple": "example",
+  "Quelques exemples sont là pour te montrer le produit, dans Tâches, Notes, Journal et Savoir. Modifie-en un, il devient tien.":
+    "A few examples are here to show you around, in Tasks, Notes, Journal and Knowledge. Edit one and it becomes yours.",
+  "Supprimer l'exemple": "Delete the example",
+  "Supprimer les {n} exemples": "Delete the {n} examples",
+  "Sommeil": "Sleep",
+  "Travail": "Work",
+  "Trajets": "Commutes",
+  "Temps libre": "Free time",
+  "Ta semaine, heure par heure — {n} h libres": "Your week, hour by hour — {n} h free",
+  "La revue de fin de journée": "The end-of-day review",
+  "Cinq minutes, le soir, toujours au même moment. Trois questions, dans cet ordre :":
+    "Five minutes, in the evening, always at the same time. Three questions, in this order:",
+  "Qu'est-ce qui a avancé aujourd'hui ?": "What moved forward today?",
+  "Qu'est-ce qui a coincé, et pourquoi ?": "What got stuck, and why?",
+  "Quelle est la première chose à faire demain ?": "What is the first thing to do tomorrow?",
+  "La troisième question est celle qui compte : c'est elle qui fait que le lendemain commence sans hésiter.":
+    "The third question is the one that matters: it is what makes tomorrow start without hesitating.",
+  "Faire la revue au même moment chaque soir la rend automatique. C'est aussi pour cela que l'habitude porte sur la RÉGULARITÉ de l'heure de coucher, et sur rien d'autre : une heure de coucher stable est ce qui rend le soir prévisible, donc utilisable.":
+    "Doing the review at the same time every evening makes it automatic. That is also why the habit is about the REGULARITY of your bedtime, and nothing else: a stable bedtime is what makes the evening predictable, and therefore usable.",
+  "Ma revue du soir — modèle": "My evening review — template",
+  "Le modèle que je recopie chaque soir. La méthode est ici :":
+    "The template I copy every evening. The method is here:",
+  "Ce qui a avancé": "What moved forward",
+  "Ce qui a coincé": "What got stuck",
+  "La première chose de demain": "Tomorrow's first thing",
+  "Revue de fin de journée": "End-of-day review",
+  "Me coucher à heure régulière": "Go to bed at a regular time",
+  "Récupérer {n} h par semaine": "Get back {n} h a week",
+  "Temps": "Time",
+  "C'est prêt : l'accueil se rejouera au prochain démarrage de Shale.":
+    "Done: the welcome flow will play again next time Shale starts.",
+  "Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment.":
+    "Three questions to tune the app to your week. Nothing decorative: every answer is used for something. You can skip at any time.",
+  "Refaire l'accueil du premier démarrage": "Redo the first-launch welcome",
+  "Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.":
+    "Sets your wake-up, bedtime and work hours again. Your data is untouched.",
 };

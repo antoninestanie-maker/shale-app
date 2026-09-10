@@ -1,0 +1,87 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 024 — Le contenu de départ se reconnaît, et se retire d'un geste
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- Chantier « premier démarrage », 2026-09-10. L'app crée UNE FOIS PAR COMPTE un
+-- petit parcours d'exemple (une tâche, une habitude, une note, une fiche du
+-- Savoir) qui raconte la revue de fin de journée. Trois promesses tiennent à
+-- cette colonne, et à elle seule :
+--
+--   ① ces objets sont VISIBLEMENT des exemples à l'écran ;
+--   ② un bouton unique les retire tous ;
+--   ③ ils n'alimentent NI les statistiques, NI les séries, NI les compteurs de
+--      progression — aucune habitude d'exemple n'affiche 0 %, aucun objectif
+--      d'exemple n'est en retard.
+--
+-- ⭐⭐ POURQUOI UNE COLONNE, ET NON UNE TABLE DE REGISTRE
+--
+-- La rédaction concurrente était une table `exemples(kind, uid)` citant les
+-- lignes de loin, sur le modèle de `object_links`. Elle a été écartée pour
+-- trois raisons qui se cumulent :
+--
+--   • le FILTRE. La promesse ③ se joue dans une vingtaine de lectures. Avec une
+--     colonne, c'est un `WHERE`. Avec un registre, c'est une jointure
+--     polymorphe à écrire vingt fois — et le premier oubli est silencieux, il
+--     ne se voit que par un compteur légèrement faux ;
+--   • la SUPPRESSION. Une colonne fait de la suppression un `DELETE` ordinaire,
+--     qui produit ses tombstones par les triggers existants et se propage sans
+--     une ligne de code de synchronisation. Un registre imposerait de supprimer
+--     DEUX choses, dans le bon ordre, sur chaque appareil ;
+--   • la LIGNE ORPHELINE. `object_links` a déjà appris au dépôt qu'une table
+--     qui cite des lignes de loin survit à leur disparition (§ « une cible
+--     supprimée n'abandonne pas de backlink fantôme », migration 020). Un
+--     registre aurait hérité du même défaut, pour aucun gain.
+--
+-- ⚠️ `ALTER TABLE ADD COLUMN` n'accepte ni `UNIQUE` ni défaut calculé
+-- (PIEGES § 3.3) : `DEFAULT 0` est un littéral, et c'est tout ce qu'il faut.
+-- Les lignes existantes — les vraies notes d'Antonin — prennent 0 sans qu'une
+-- seule soit réécrite.
+--
+-- ⚠️ AUCUNE CONTRAINTE `CHECK` ici, délibérément (PIEGES § 3.4) : une
+-- contrainte violée à l'application d'une ligne venue d'un autre appareil
+-- ARRÊTERAIT la synchronisation. La seule règle qui gouverne cette colonne est
+-- une règle de saisie, et elle vit en TypeScript avec ses tests — exactement
+-- comme la frontière datée / récurrente de `lib/taches.ts`.
+--
+-- ⚠️ CE QUE LA COLONNE FAIT AU MOTEUR DE SYNCHRONISATION : rien à écrire.
+-- `colonnesDe()` lit les colonnes par `PRAGMA table_info` et `serialiser()`
+-- fait `SELECT *` : la colonne part toute seule. `colonnesLocales()` ne retire
+-- que `id` et les clés étrangères, donc elle n'est pas filtrée — et c'est
+-- voulu : supprimer les exemples sur un appareil doit les faire disparaître sur
+-- l'autre, et ADOPTER un exemple doit se propager aussi. Une app plus ancienne
+-- qui reçoit la colonne l'ignore (`appliquerLigne` écarte les colonnes
+-- inconnues) : elle verra quatre objets ordinaires, ce qui est faux mais
+-- inoffensif.
+--
+-- ⚠️ PAS D'INDEX. Ces quatre tables tiennent en quelques centaines de lignes
+-- chez un utilisateur chargé, et le filtre est un balayage sur un entier. Un
+-- index coûterait de l'écriture à chaque coche de tâche pour un gain nul.
+--
+-- ⭐⭐ ET LA RÈGLE QUI DONNE SON SENS À TOUT LE RESTE : un exemple CESSE d'en
+-- être un dès que l'utilisateur y touche. Cocher, renommer, écrire dedans remet
+-- `is_example` à 0. Sans cela, un exemple resterait exclu des compteurs à vie —
+-- cocher « revue de fin de journée » ne ferait pas bouger l'anneau de
+-- discipline, et l'app aurait l'air cassée au premier geste utile qu'on lui
+-- demande. Corollaire : le bouton de suppression ne détruit jamais ce que
+-- l'utilisateur s'est approprié.
+
+-- ⭐ Les quatre tables du parcours, celles qui portent des objets COMPTÉS.
+ALTER TABLE tasks             ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE habits            ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE notes             ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_entries ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+
+-- ⭐⭐ ET LA CINQUIÈME, QUI N'EST PAS DU MÊME GENRE : le SUJET du Savoir.
+--
+-- Un sujet est un CONTENANT. Il n'entre pas dans le compte annoncé par le
+-- bouton (« supprimer les 4 exemples »), et il ne se supprime que s'il est
+-- RESTÉ VIDE — sinon il emporterait les fiches que l'utilisateur y aurait
+-- rangées depuis.
+--
+-- ⚠️ Pourquoi il la porte quand même, alors qu'on venait d'écrire l'inverse :
+-- vu à l'écran le 2026-09-10, en mode démo. Sans marqueur, le sujet « Méthode »
+-- restait dans la grille du Savoir APRÈS un clic sur « supprimer les
+-- exemples » — un carton vide, créé par l'app, que le bouton disait avoir
+-- retiré. Une promesse tenue à 4/5 se lit comme un défaut, pas comme une
+-- nuance.
+ALTER TABLE knowledge_topics  ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;

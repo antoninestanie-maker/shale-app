@@ -27,6 +27,8 @@ import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
 
 import { localeTag, t } from "../lib/i18n";
+import BarreExemples from "../components/onboarding/BarreExemples";
+
 /** Largeur par défaut (en colonnes /12) de chaque widget du dashboard. */
 const WIDGET_DEFAULT_W: Record<string, number> = {
   perf: 12,
@@ -230,6 +232,12 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         </p>
         <h1 className="mt-2 text-[32px] text-text">{t("Aujourd'hui")}</h1>
       </header>
+
+      {/* ⭐ Le bouton unique « supprimer les exemples ». Il s'efface de lui-même
+          quand il n'y a plus rien à supprimer — voir `BarreExemples`. */}
+      <div className="mt-4">
+        <BarreExemples signal={data} onChange={refresh} />
+      </div>
 
       <ResizableGrid gridId="today" className="mt-4">
         {ordered.map((w) => {

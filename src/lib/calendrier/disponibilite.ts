@@ -30,6 +30,24 @@ export const REPLI_DEBUT = 9;
 export const REPLI_FIN = 18;
 
 /**
+ * Jours ouvrés du repli — lundi à vendredi, convention `getDay()`.
+ *
+ * ⭐ 2026-09-10. Ces trois valeurs étaient CODÉES EN DUR ici, et les deux
+ * appelants (`CalendarView`, `CalendarCard`) ne passaient aucune option : tout
+ * le monde héritait de « 9 h – 18 h en semaine », y compris qui n'a jamais
+ * travaillé un lundi. C'est ce trou que l'accueil du premier démarrage vient
+ * remplir — il ne pose pas un nouveau moteur, il alimente celui-ci avec les
+ * heures que la personne vient de déclarer (`lib/onboarding/reglages.ts`,
+ * `repliDuTravail`).
+ *
+ * ⚠️ Le repli reste un REPLI : dès que dix sessions de concentration sont
+ * mesurées, l'apprentissage reprend la main et ces valeurs cessent de servir.
+ * L'interface doit continuer de dire « heures par défaut » tant que
+ * `appris` est faux — déclarer ses horaires n'est pas les avoir tenus.
+ */
+export const REPLI_JOURS: readonly number[] = [1, 2, 3, 4, 5];
+
+/**
  * En dessous de ce nombre de sessions terminées, on ne prétend RIEN avoir
  * appris.
  *
@@ -64,13 +82,20 @@ export interface ProfilDisponibilite {
    * que cette fonctionnalité puisse commettre.
    */
   appris: boolean;
-  /** Bornes du repli, telles qu'appliquées (réglables). */
-  repli: { debut: number; fin: number };
+  /** Bornes et jours du repli, tels qu'appliqués (réglables). */
+  repli: { debut: number; fin: number; jours: readonly number[] };
 }
 
 export interface OptionsProfil {
   debut?: number;
   fin?: number;
+  /**
+   * Jours ouvrés du repli, convention `getDay()`. Une liste VIDE est une
+   * réponse valide — quelqu'un qui ne déclare aucun jour de travail n'a pas de
+   * jour ouvré, et le calendrier ne doit alors lui proposer aucun créneau par
+   * défaut plutôt que de lui en inventer cinq.
+   */
+  jours?: readonly number[];
 }
 
 const grilleVide = (): number[][] => Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
@@ -89,6 +114,7 @@ export function profilDisponibilite(
 ): ProfilDisponibilite {
   const debut = options.debut ?? REPLI_DEBUT;
   const fin = options.fin ?? REPLI_FIN;
+  const jours = options.jours ?? REPLI_JOURS;
   const minutes = grilleVide();
   // Total de concentration par DATE : c'est de là que sort la capacité.
   const parDate = new Map<string, number>();
@@ -120,7 +146,7 @@ export function profilDisponibilite(
     totauxParJour,
     sessions: comptees,
     appris: comptees >= SESSIONS_MINIMUM,
-    repli: { debut, fin },
+    repli: { debut, fin, jours },
   };
 }
 
@@ -133,8 +159,9 @@ export function profilDisponibilite(
 export function heureOuvrable(profil: ProfilDisponibilite, jour: string, heure: number): boolean {
   const wd = weekdayOf(jour);
   if (profil.appris) return profil.minutes[wd][heure] > 0;
-  const ouvre = wd >= 1 && wd <= 5;
-  return ouvre && heure >= profil.repli.debut && heure < profil.repli.fin;
+  return (
+    profil.repli.jours.includes(wd) && heure >= profil.repli.debut && heure < profil.repli.fin
+  );
 }
 
 /**
@@ -158,8 +185,9 @@ export function capaciteDuJour(profil: ProfilDisponibilite, jour: string): numbe
     // une personne dont les mardis font en réalité une heure et demie.
     return mediane(totaux);
   }
-  const ouvre = wd >= 1 && wd <= 5;
-  return ouvre ? (profil.repli.fin - profil.repli.debut) * 60 : 0;
+  return profil.repli.jours.includes(wd)
+    ? (profil.repli.fin - profil.repli.debut) * 60
+    : 0;
 }
 
 /** Médiane d'une liste non vide, arrondie à la minute. */

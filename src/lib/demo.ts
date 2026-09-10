@@ -101,13 +101,13 @@ interface OpenPositionInput {
 const created = addDays(todayStr(), -30);
 
 const tasks: Task[] = [
-  { id: 1, label: "Backtesting 1h", tag: t("Trading"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
-  { id: 2, label: t("Session trading (Londres)"), tag: t("Trading"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
-  { id: 3, label: t("Publier un reel ChartCore"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
-  { id: 4, label: t("Réviser module BTS"), tag: "BTS", priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
-  { id: 5, label: t("Préparer script reel Moov"), tag: t("Contenu"), priority: "low", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null },
-  { id: 6, label: t("Ouvrir le compte prop firm"), tag: t("Trading"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null },
-  { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3) },
+  { id: 1, label: "Backtesting 1h", tag: t("Trading"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 2, label: t("Session trading (Londres)"), tag: t("Trading"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 3, label: t("Publier un reel ChartCore"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 4, label: t("Réviser module BTS"), tag: "BTS", priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 5, label: t("Préparer script reel Moov"), tag: t("Contenu"), priority: "low", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 6, label: t("Ouvrir le compte prop firm"), tag: t("Trading"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
 ];
 
 const goals: Goal[] = [
@@ -237,6 +237,7 @@ const notes: Note[] = [
     id: 1,
     title: t("Setup cassure H4"),
     body: t("Règles du setup :\n- attendre la cassure du range H4\n- retest + rejet\n- SL sous la mèche, TP 2R minimum\n\nVoir aussi [[Plan de risque]] pour le sizing."),
+    is_example: 0,
     created_at: `${addDays(today, -12)} 10:00:00`,
     updated_at: `${addDays(today, -2)} 21:30:00`,
   },
@@ -244,6 +245,7 @@ const notes: Note[] = [
     id: 2,
     title: t("Plan de risque"),
     body: t("Max 1% par trade. Max 3 trades/jour. Stop à -2R quotidien.\n\nRappel : la discipline > le setup. [[Setup cassure H4]]"),
+    is_example: 0,
     created_at: `${addDays(today, -12)} 10:05:00`,
     updated_at: `${addDays(today, -5)} 18:00:00`,
   },
@@ -251,6 +253,7 @@ const notes: Note[] = [
     id: 3,
     title: t("Idées de reels"),
     body: t("- 3 erreurs de débutant en trading\n- POV : ta première prop firm\n- Breakdown d'un trade perdant (transparence)"),
+    is_example: 0,
     created_at: `${addDays(today, -7)} 20:00:00`,
     updated_at: `${addDays(today, -1)} 22:10:00`,
   },
@@ -281,28 +284,28 @@ const SKETCH_DEMO =
 const sujets: Sujet[] = [
   {
     id: 1, uid: "demo:object:1", name: t("Trading"), color: "#4d8dff", position: 0,
-    type_id: null, body: null, field_values: "{}",
+    type_id: null, body: null, field_values: "{}", is_example: 0,
     created_at: `${addDays(today, -30)} 09:00:00`, updated_at: `${addDays(today, -30)} 09:00:00`,
   },
   {
     id: 2, uid: "demo:object:2", name: "Mindset", color: "#14c8a0", position: 1,
-    type_id: null, body: null, field_values: "{}",
+    type_id: null, body: null, field_values: "{}", is_example: 0,
     created_at: `${addDays(today, -30)} 09:01:00`, updated_at: `${addDays(today, -30)} 09:01:00`,
   },
   {
     id: 3, uid: "demo:object:3", name: "Ressources", color: "#8e8bff", position: 2,
-    type_id: null, body: null, field_values: "{}",
+    type_id: null, body: null, field_values: "{}", is_example: 0,
     created_at: `${addDays(today, -30)} 09:02:00`, updated_at: `${addDays(today, -30)} 09:02:00`,
   },
   {
     id: 4, uid: "demo:object:4", name: "Silver Bullet", color: "#f0b341", position: 3,
-    type_id: 4, body: null,
+    type_id: 4, body: null, is_example: 0,
     field_values: JSON.stringify({ f1: "EURUSD", f2: "Long", f3: t("Balayage puis retour dans le range"), f4: 3 }),
     created_at: created, updated_at: created,
   },
   {
     id: 5, uid: "demo:object:5", name: "Trading in the Zone", color: "#41c9e2", position: 4,
-    type_id: 2, body: null,
+    type_id: 2, body: null, is_example: 0,
     field_values: JSON.stringify({ f1: t("Livre"), f2: "Mark Douglas", f4: addDays(todayStr(), -40) }),
     created_at: created, updated_at: created,
   },
@@ -328,6 +331,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
     url: null, media: null, thumb: null, data: null,
     tags: "setup, price action",
     pinned: 1,
+    is_example: 0,
     created_at: `${addDays(today, -20)} 11:00:00`,
     updated_at: `${addDays(today, -3)} 19:20:00`,
   },
@@ -343,6 +347,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
     url: null, media: null, thumb: SKETCH_DEMO, data: null,
     tags: "setup",
     pinned: 0,
+    is_example: 0,
     created_at: `${addDays(today, -14)} 08:30:00`,
     updated_at: `${addDays(today, -14)} 08:45:00`,
   },
@@ -360,6 +365,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
     url: null, media: null, thumb: null, data: null,
     tags: "discipline, psychologie",
     pinned: 0,
+    is_example: 0,
     created_at: `${addDays(today, -9)} 21:00:00`,
     updated_at: `${addDays(today, -9)} 21:15:00`,
   },
@@ -378,6 +384,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
     url: null, media: null, thumb: null, data: null,
     tags: "outil, macro",
     pinned: 0,
+    is_example: 0,
     created_at: `${addDays(today, -6)} 10:00:00`,
     updated_at: `${addDays(today, -6)} 10:00:00`,
   },
@@ -397,9 +404,9 @@ for (let i = 5; i >= 1; i--) {
 }
 
 const habits: Habit[] = [
-  { id: 1, name: t("Méditation"), color: "#33d17a", archived: 0 },
-  { id: 2, name: t("Sport"), color: "#2e7ff2", archived: 0 },
-  { id: 3, name: t("Lecture"), color: "#f2b13d", archived: 0 },
+  { id: 1, name: t("Méditation"), color: "#33d17a", archived: 0, is_example: 0 },
+  { id: 2, name: t("Sport"), color: "#2e7ff2", archived: 0, is_example: 0 },
+  { id: 3, name: t("Lecture"), color: "#f2b13d", archived: 0, is_example: 0 },
 ];
 let nextHabitId = habits.length + 1;
 
@@ -1022,7 +1029,7 @@ export const demo = {
 
   async createNote(title: string, body: string, now: string): Promise<number> {
     const id = nextNoteId++;
-    notes.push({ id, title, body, created_at: now, updated_at: now });
+    notes.push({ id, title, body, created_at: now, updated_at: now, is_example: 0 });
     return id;
   },
 
@@ -1089,6 +1096,7 @@ export const demo = {
       color,
       position: sujets.length,
       type_id: null,
+      is_example: 0,
       body: null,
       field_values: "{}",
       created_at: now,
@@ -1147,6 +1155,7 @@ export const demo = {
       title: input.title,
       body: input.body ?? "",
       text: input.text ?? "",
+      is_example: 0,
       url: input.url ?? null,
       media: input.media ?? null,
       thumb: input.thumb ?? null,
@@ -1183,8 +1192,10 @@ export const demo = {
     else journal.push({ id: jId++, date, ...entry });
   },
 
-  async addHabit(name: string, color: string): Promise<void> {
-    habits.push({ id: nextHabitId++, name, color, archived: 0 });
+  async addHabit(name: string, color: string): Promise<number> {
+    const id = nextHabitId++;
+    habits.push({ id, name, color, archived: 0, is_example: 0 });
+    return id;
   },
 
   async deleteHabit(id: number): Promise<void> {
@@ -1273,9 +1284,10 @@ export const demo = {
     else metricEntries.push({ id: entryId++, metric_id: metricId, date, value });
   },
 
-  async createTask(input: TaskInput): Promise<void> {
+  async createTask(input: TaskInput): Promise<number> {
+    const id = nextTaskId++;
     tasks.push({
-      id: nextTaskId++,
+      id,
       ...input,
       // Les champs de planification sont optionnels côté `TaskInput` : les
       // écrans d'avant le calendrier appellent toujours sans eux.
@@ -1284,8 +1296,10 @@ export const demo = {
       end_at: input.end_at ?? null,
       postponed_count: 0,
       postponed_from: null,
+      is_example: 0,
       created_at: todayStr(),
     });
+    return id;
   },
 
   async updateTask(id: number, input: TaskInput): Promise<void> {
@@ -1770,6 +1784,67 @@ export const demo = {
       if (titre !== undefined) out.set(`${r.kind}:${r.uid}`, titre);
     }
     return out;
+  },
+
+  // ─── Le marqueur d'exemple — chantier « premier démarrage » (2026-09-10) ──
+  //
+  // ⚠️ Ces trois accès font en mémoire EXACTEMENT ce que le natif fait en SQL,
+  // suppressions en cascade comprises. Un accès démo plus indulgent que le
+  // natif masque ce que le natif détruit (PIEGES § 6.2 quater) : ici, il ferait
+  // croire que supprimer les exemples laisse leurs coches derrière.
+
+  async marquerExemple(table: string, id: number, valeur: number): Promise<void> {
+    const cible =
+      table === "tasks" ? tasks
+      : table === "habits" ? habits
+      : table === "notes" ? notes
+      : table === "knowledge_topics" ? sujets
+      : knowledgeEntries;
+    const ligne = (cible as { id: number; is_example: number }[]).find((x) => x.id === id);
+    if (ligne) ligne.is_example = valeur;
+  },
+
+  async compterExemples(): Promise<number> {
+    const compte = (liste: { is_example: number }[]) =>
+      liste.filter((x) => x.is_example === 1).length;
+    return compte(tasks) + compte(habits) + compte(notes) + compte(knowledgeEntries);
+  },
+
+  async supprimerExemples(): Promise<void> {
+    const tachesRetirees = tasks.filter((x) => x.is_example === 1).map((x) => x.id);
+    const habitudesRetirees = habits.filter((x) => x.is_example === 1).map((x) => x.id);
+    const notesRetirees = notes.filter((x) => x.is_example === 1).map((x) => x.id);
+    const fichesRetirees = knowledgeEntries.filter((x) => x.is_example === 1).map((x) => x.id);
+
+    const purger = (liste: { is_example: number }[]) => {
+      for (let i = liste.length - 1; i >= 0; i--) if (liste[i].is_example === 1) liste.splice(i, 1);
+    };
+    purger(tasks);
+    purger(habits);
+    purger(notes);
+    purger(knowledgeEntries);
+
+    for (let i = completions.length - 1; i >= 0; i--) {
+      if (tachesRetirees.includes(completions[i].task_id)) completions.splice(i, 1);
+    }
+    for (let i = habitChecks.length - 1; i >= 0; i--) {
+      if (habitudesRetirees.includes(habitChecks[i].habit_id)) habitChecks.splice(i, 1);
+    }
+    // ⭐ Le sujet, sous condition : seulement s'il est resté vide.
+    for (let i = sujets.length - 1; i >= 0; i--) {
+      const s = sujets[i];
+      if (s.is_example !== 1) continue;
+      if (knowledgeEntries.some((e) => e.topic_id === s.id)) continue;
+      retirerLiens("object", uidDemo("object", s.id));
+      sujets.splice(i, 1);
+    }
+
+    // Les arêtes du parcours : la cascade de la migration 020, en mémoire.
+    // Les DEUX extrémités, comme les triggers SQL : une arête dont la cible
+    // disparaît ne doit pas laisser de backlink fantôme de l'autre côté.
+    for (const id of tachesRetirees) retirerLiens("task", uidDemo("task", id));
+    for (const id of notesRetirees) retirerLiens("note", uidDemo("note", id));
+    for (const id of fichesRetirees) retirerLiens("knowledge", uidDemo("knowledge", id));
   },
 
 };

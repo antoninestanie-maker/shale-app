@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import BootScreen from "./components/BootScreen";
-import Onboarding, { needsOnboarding } from "./components/auth/Onboarding";
+import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
 import FocusOverlay from "./components/FocusOverlay";
@@ -136,7 +136,6 @@ function App() {
   const [view, setView] = useState<View>("today");
   const [data, setData] = useState<AppData | null>(null);
   const [erreurDonnees, setErreurDonnees] = useState<string | null>(null);
-  const [onboarding, setOnboarding] = useState(needsOnboarding);
   const snapshotDone = useRef(false);
 
   // ⚠️ Le `catch` n'est pas décoratif — il répare un défaut mesuré.
@@ -399,7 +398,19 @@ function App() {
     <SyncProvider>
     <div className="relative flex h-screen bg-bg">
       <BootScreen />
-      {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
+      {/* ⭐ L'accueil du premier démarrage. Monté ICI, sous `SyncProvider` :
+          il ne peut trancher qu'après le premier cycle de synchronisation,
+          sinon un second appareil rejouerait un accueil déjà fait
+          (`lib/onboarding/useAccueil.ts`). */}
+      <PorteAccueil
+        onFini={(allerAuxTaches) => {
+          // Le contenu de départ et l'objectif viennent d'être écrits : sans
+          // relecture, l'app resterait sur l'instantané d'avant l'accueil et
+          // afficherait une app vide juste après l'avoir remplie.
+          void refresh();
+          if (allerAuxTaches) navigate("tasks");
+        }}
+      />
       <div className="hud-bg" aria-hidden />
       <FocusOverlay focus={focus} />
       {/* Info-bulles : une seule instance pour toute l'app (déclenchée par

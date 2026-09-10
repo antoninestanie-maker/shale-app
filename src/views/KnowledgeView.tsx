@@ -113,6 +113,8 @@ import type {
   ObjectType,
   Sujet,
 } from "../lib/types";
+import BadgeExemple from "../components/onboarding/BadgeExemple";
+import { estExemple } from "../lib/onboarding/exemples";
 
 /**
  * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
@@ -1706,6 +1708,12 @@ function EntryCard({
         >
           {entry.title}
         </h3>
+
+        {estExemple(entry) && (
+          <div className="mt-1.5">
+            <BadgeExemple />
+          </div>
+        )}
 
         {text && <p className="clamp-3 mt-1.5 text-xs leading-relaxed text-text-dim">{text}</p>}
 

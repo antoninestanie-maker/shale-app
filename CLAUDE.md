@@ -4739,3 +4739,190 @@ plus tôt (`shale-backups/avant-cote-branches-20260908-2111/`).
 suivi et non enregistré** dans `lib.rs` — les migrations sont embarquées une par
 une par `include_str!`, donc un fichier non déclaré est inerte. Vérifié sur le
 binaire installé : `023_facturation` y rend **0**. Ce build ne l'emporte pas.
+
+## 2026-09-10 — ⭐ Le premier démarrage : un accueil qui CONFIGURE, et une app qui n'est pas vide
+
+Chantier « premier démarrage », mené dans le worktree
+`~/Desktop/Shale-chantiers/onboarding`, branche `onboarding-premiere-ouverture`.
+Détail d'état : `PASSATION-ONBOARDING.md`.
+
+Le problème posé par Antonin : quelqu'un qui vient de payer ouvre Shale et
+tombe sur une app vide. Il doit tout construire avant de comprendre ce que
+l'outil sait faire. Deux réponses, et elles ne se confondent pas — **un accueil
+qui règle réellement l'app**, et **un contenu de départ qui montre le produit en
+fonctionnement**.
+
+### ⭐⭐ La règle qui a décidé de tout : une question qui ne branche rien n'existe pas
+
+L'accueil qui existait (`components/auth/Onboarding.tsx`, **supprimé**) affichait
+trois écrans de présentation — « Exécute proprement », « Garde le cap ». Ils ne
+branchaient rien : après les avoir lus, on retrouvait une app aussi vide
+qu'avant. C'est exactement ce que le cahier des charges interdit, et c'est ce qui
+a fait du chantier un **remplacement**, pas un ajout.
+
+Les trois questions posées, et ce qu'elles alimentent :
+
+| Question | Ce que ça règle |
+|---|---|
+| Heure de lever, heure de coucher | la grille de la semaine ; l'habitude de régularité du contenu de départ |
+| Jours et horaires de travail | ⭐ le **repli du profil de disponibilité** — donc les créneaux libres proposés par le calendrier, la capacité d'une journée, donc la détection de surcharge |
+| Trajets et blocs contraints (optionnel) | la grille et les créneaux libres |
+| Le curseur de clôture | un objectif dans le module Objectifs |
+
+⭐ **Le point de branchement réel était un trou du calendrier.**
+`lib/calendrier/disponibilite.ts` codait **en dur** « 9 h – 18 h, du lundi au
+vendredi » (`REPLI_DEBUT`, `REPLI_FIN`, et un `wd >= 1 && wd <= 5` écrit deux
+fois), et ses deux appelants — `CalendarView`, `CalendarCard` — ne lui passaient
+**aucune** option. Tout le monde héritait donc des mêmes heures, y compris qui
+travaille du mercredi au dimanche. `OptionsProfil` reçoit désormais `jours`, et
+`ProfilDisponibilite.repli` le porte. **L'accueil n'a pas posé un moteur neuf :
+il a rempli celui qui existait.**
+
+⚠️ Et le repli reste un repli : dès dix sessions de concentration mesurées,
+l'apprentissage reprend la main. Déclarer ses horaires n'est pas les avoir
+tenus, et l'interface doit continuer de dire « heures par défaut » tant que
+`appris` est faux.
+
+### Le drapeau vit dans la sync, et il n'a demandé aucun code de sync
+
+`onboarding.done_at` est une clé de `settings`. Or `sync/scope.ts` synchronise
+`settings` **par défaut** — une clé neuve part sans que personne l'inscrive
+nulle part. **`scope.ts` n'a donc pas été touché** (c'est un fichier déclaré
+exclusif au chantier A). Deux conditions à ne pas violer pour toute clé future :
+ne jamais préfixer `sync.`, et ne jamais ressembler à un secret — un test les
+vérifie (`onboarding/reglages.test.ts`).
+
+⚠️ **Le repli local n'est pas qu'un filet, c'est une MIGRATION.** `shale.onboarded`
+est la clé localStorage de l'ancien accueil : tout utilisateur existant la porte
+à `"1"`. Sans la reprendre, basculer le drapeau en base aurait rejoué le nouvel
+accueil chez **tout le monde**, au prochain lancement. `accueilNecessaire()`
+reprend donc le drapeau local et l'écrit en base. Conséquence pour Antonin : il
+ne verra pas l'accueil au démarrage — il le lance depuis les Réglages.
+
+⚠️⚠️ **Le second appareil est une question de MOMENT, pas de donnée.** Sur un Mac
+neuf, la base locale est vide **avant** le premier échange : demander « l'accueil
+est-il fait ? » à cet instant répond « non » pour tout le monde. `useAccueil()`
+attend donc `dernierSucces`, ou huit secondes — hors ligne au premier lancement,
+`dernierSucces` ne viendrait jamais et l'app démarrerait sans réglages. Le cas
+dégradé est assumé : l'accueil se joue, le last-write-wins garde ensuite la
+version la plus récente.
+
+### Ce qui est interdit, et comment c'est rendu impossible
+
+Pas seulement « on a fait attention » — les interdits sont tenus par la forme du
+code :
+
+- **aucune projection de gain.** Le seul chiffre de gain de l'app est celui du
+  curseur, donc celui de l'utilisateur ;
+- **aucune formulation en perte.** `lib/onboarding/grille.ts` expose
+  `heuresLibres()` et **n'expose aucune fonction qui compte les heures
+  occupées**, ni aucun ratio. Écrire « tu perds N heures » à partir de ce module
+  est mécaniquement impossible, et un test interdit l'apparition d'un tel nom ;
+- **le sommeil est incompressible.** Il gagne toutes les collisions de la grille
+  (`PRIORITE`), et le nom de l'habitude d'exemple ne porte ni heure ni durée —
+  un test le vérifie, ainsi que l'absence de « dormir moins » dans tous les
+  textes du parcours.
+
+⭐ **La grille arrondit à l'OCCUPÉ en cas d'égalité, et c'est un choix.** Cent
+soixante-huit cases horaires ne savent pas représenter une demi-heure : une
+journée 09:30 – 17:30 s'affiche en 7 h ou en 9 h. On prend 9. Le compte
+d'heures libres **borne le curseur** ; le surestimer laisserait poser un
+objectif sur des heures qui n'existent pas, là où le sous-estimer ne promet rien
+de faux.
+
+⚠️ **L'objectif du curseur n'a PAS d'échéance**, et ce n'est pas un oubli :
+`calendrier/peril.ts` ne signale que ce qui a une échéance. Lui en donner une
+aurait fait apparaître, une semaine après l'installation, une alerte « objectif
+en péril » sur la toute première chose que l'utilisateur ait dite à l'app.
+`manual_progress: 1` pour la même raison d'honnêteté : personne ne sait mesurer
+« des heures récupérées » à partir de tâches cochées, et le laisser en mesuré
+aurait affiché 0 % pour toujours.
+
+⚠️ **Un skip complet ne dégrade rien** : `REGLAGES_PAR_DEFAUT.travail` reproduit
+**exactement** l'ancien repli codé en dur. Skipper laisse donc l'app dans le
+comportement qu'elle avait déjà. Et **le curseur non touché ne crée aucun
+objectif** — « la réponse crée un objectif » : pas de réponse, pas d'objectif.
+
+### Le contenu de départ — quatre modules, deux arêtes, un fil
+
+Fil conducteur : **la revue de fin de journée**. Cinq objets :
+
+| Module | Objet |
+|---|---|
+| **Savoir** | le sujet « Méthode » et sa fiche « La revue de fin de journée » |
+| **Notes** | « Ma revue du soir — modèle », qui **cite la fiche** par une mention `@` |
+| **Tâches** | « Revue de fin de journée », quotidienne, **rattachée à la note à la main** |
+| **Journal** | l'habitude « Me coucher à heure régulière » |
+
+⭐ **Ce qu'on ne touche PAS est aussi un choix.** Le **Calendrier** ne possède
+aucune donnée : il rassemble. La tâche récurrente et l'habitude y apparaissent
+d'elles-mêmes — il est donc démontré **gratuitement**, ce qui est le meilleur
+usage d'un budget de quatre modules. Et les **Objectifs** sont déjà remplis par
+l'accueil : y ajouter un exemple aurait donné deux objectifs au premier
+lancement, dont un faux.
+
+⭐ **La tâche d'exemple est RÉCURRENTE, jamais datée.** Une occurrence manquée
+n'est pas en retard, elle est manquée (`lib/taches.ts`). L'interdit « aucun
+exemple en retard » est donc tenu **par construction**, pas par un filtre
+d'affichage.
+
+### ⭐⭐ Un exemple cesse d'en être un dès qu'on y touche
+
+Décision prise avec Antonin. Toute écriture de l'utilisateur — cocher, renommer,
+écrire dedans — remet `is_example` à 0 : la ligne redevient ordinaire, elle
+compte dans les statistiques, et le bouton de suppression ne l'emporte plus.
+
+Le motif est un défaut mesurable de l'alternative. Un exemple marqué à vie
+serait exclu des compteurs à vie : cocher « revue de fin de journée » ne ferait
+alors **pas** bouger l'anneau de discipline, sans que rien ne l'explique. L'app
+aurait l'air cassée au premier geste utile qu'on lui demande.
+
+⚠️ Une écriture **technique** n'adopte pas (`updateKnowledgeEntry` avec
+`touch: false`) : l'app s'approprierait ses propres exemples à la place de
+l'utilisateur, et le bouton n'aurait plus rien à supprimer.
+
+### Le marqueur est une COLONNE, pas une table de registre — migration 024
+
+La rédaction concurrente était une table `exemples(kind, uid)` sur le modèle
+d'`object_links`. Écartée pour trois raisons cumulées, écrites en tête de la
+migration : le **filtre** (un `WHERE` contre vingt jointures polymorphes, dont
+le premier oubli est silencieux), la **suppression** (un `DELETE` ordinaire qui
+produit ses tombstones seul, contre deux choses à supprimer dans le bon ordre
+sur chaque appareil), et la **ligne orpheline** (`object_links` a déjà appris au
+dépôt qu'une table citant des lignes de loin survit à leur disparition).
+
+⭐ **Le filtre est posé AU FOND, pas chez les appelants.** `dayStat`,
+`pctOfList` et `effectiveProgress` de `lib/logic.ts` le portent eux-mêmes, ce
+qui met en règle d'un coup `weekStats`, `computeStreak`, `streakHistory`,
+`aggregateStats` — qui passent tous par elles — et tout appelant futur. Le poser
+call site par call site aurait été une règle écrite par ÉNUMÉRATION, et le
+§ 7.2 ter de `PIEGES.md` dit ce qu'il advient de celles-là. Ici, le trou aurait
+été un anneau de discipline légèrement faux : invisible, indémontrable, jamais
+signalé par un test.
+
+⚠️ `todayTasks()` n'est **pas** filtrée : c'est la liste AFFICHÉE, et un exemple
+doit se voir. La frontière est « ce tableau devient-il un chiffre ? », pas
+« contient-il des tâches ? ».
+
+### ⚠️ Le SUJET du Savoir est un contenant — la cinquième colonne, et sa condition
+
+Écrit d'abord comme « le sujet n'est pas marqué, il reste ». Vu à l'écran : le
+carton « Méthode », vide, restait dans la grille du Savoir **après** un clic sur
+« supprimer les exemples ». Le raisonnement était bon (un sujet peut recevoir
+des fiches de l'utilisateur, on ne doit pas les emporter), la conclusion trop
+courte. `knowledge_topics` porte donc la colonne, **n'entre pas dans le compte
+annoncé** par le bouton, et n'est supprimé que s'il est **resté vide**. Deux
+tests le tiennent, dont une contre-épreuve : une fiche de l'utilisateur rangée
+dedans le fait survivre.
+
+### Ce qui est prouvé, et ce qui ne l'est pas
+
+Les points 3 et 4 de la recette (second appareil, propagation de la suppression)
+sont prouvés par `sync/exemples.test.ts` — **deux vraies bases SQLite, la vraie
+couche de chiffrement, seul le réseau simulé**. Ils ne sont **pas** prouvés sur
+deux vraies machines : le simulateur iPhone est déconnecté depuis le 2026-09-02
+et aucun second Mac n'a été monté. C'est le mécanisme qui est prouvé, pas le
+trajet.
+
+Le reste a été vu à l'écran en mode démo, en français **et en anglais**, en
+1024 px et en 375 px.

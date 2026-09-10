@@ -49,6 +49,7 @@ import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
 
 import { t } from "../lib/i18n";
+import { rejouerAccueil } from "../lib/onboarding/semer";
 /** Interrupteur avec libellé + description (sauvegarde immédiate au clic). */
 function ToggleRow({
   title,
@@ -152,6 +153,7 @@ export default function SettingsView() {
   const { session, subscription, signOut, changePassword } = useSession();
   const { tier, isTrialing, hasTrading, billingPeriod } = useEntitlements();
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  const [accueilMsg, setAccueilMsg] = useState<string | null>(null);
   // Changement de mot de passe (replié par défaut)
   const [pwOpen, setPwOpen] = useState(false);
   const [newPw, setNewPw] = useState("");
@@ -234,6 +236,21 @@ export default function SettingsView() {
       window.setTimeout(() => setBackupMsg(null), 3000);
     } catch (e) {
       setBackupMsg(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /**
+   * ⚠️ Le rejeu N'AFFICHE PAS l'accueil tout de suite : `PorteAccueil` ne
+   * tranche qu'au montage de l'app, exprès (il doit attendre le premier cycle
+   * de synchronisation, cf. `useAccueil`). Le dire est le seul comportement
+   * honnête — un bouton qui semble ne rien faire passe pour cassé.
+   */
+  const relancerAccueil = async () => {
+    try {
+      await rejouerAccueil();
+      setAccueilMsg(t("C'est prêt : l'accueil se rejouera au prochain démarrage de Shale."));
+    } catch (e) {
+      setAccueilMsg(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -970,6 +987,30 @@ export default function SettingsView() {
             </span>
           )}
           {backupMsg && <span className="text-xs text-green">{backupMsg}</span>}
+        </div>
+
+        {/* ⭐ REJOUER L'ACCUEIL — « rejouable depuis les Réglages, SANS MISE EN
+            AVANT » (cahier des charges). D'où un lien en bas d'une section
+            existante, et non une section à lui : ce n'est pas une
+            fonctionnalité, c'est une porte de sortie.
+
+            ⚠️ Il écrase les quatre réglages horaires et rien d'autre. Ni
+            l'objectif créé la première fois, ni le contenu de départ, ni la
+            moindre donnée produite depuis — et pas non plus le drapeau des
+            exemples, sans quoi rejouer régénérerait un contenu qu'on a peut-
+            être supprimé exprès (`onboarding/semer.ts`, `rejouerAccueil`). */}
+        <div className="mt-5 border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => void relancerAccueil()}
+            className="cible-tactile-ligne text-xs text-text-dim underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+          >
+            {t("Refaire l'accueil du premier démarrage")}
+          </button>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-text-dim">
+            {accueilMsg ||
+              t("Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.")}
+          </p>
         </div>
       </section>
       </ResizablePanel>

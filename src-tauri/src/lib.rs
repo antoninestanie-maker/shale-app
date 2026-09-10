@@ -406,6 +406,17 @@ pub fn run() {
             sql: include_str!("../migrations/022_fusion_sujets.sql"),
             kind: MigrationKind::Up,
         },
+        // ⚠️ La version 23 (`023_facturation.sql`) appartient à un chantier
+        // voisin, mené en parallèle et pas encore poussé au moment où celle-ci
+        // a été écrite. Le trou est donc ATTENDU sur cette branche et se
+        // referme à la fusion ; il ne doit surtout pas être comblé en
+        // renumérotant la 024, qui a déjà pu tourner sur une base de test.
+        Migration {
+            version: 24,
+            description: "onboarding_exemples",
+            sql: include_str!("../migrations/024_onboarding_exemples.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

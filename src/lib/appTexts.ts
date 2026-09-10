@@ -15,8 +15,13 @@ export interface AppTexts {
 
 export const defaultTexts = (): AppTexts => ({
   onboardingTitle: t("Bienvenue dans Shale"),
+  // ⚠️ RÉÉCRIT le 2026-09-10. L'ancien texte annonçait « l'essentiel en trois
+  // écrans » : il décrivait les trois écrans de PRÉSENTATION de l'ancien
+  // accueil, qui ne branchaient rien et n'existent plus. Un texte éditable
+  // depuis « Personnaliser » qui décrit un parcours disparu est un mensonge que
+  // personne ne va voir venir.
   onboardingBody:
-    t("Ton poste de commande de trader : discipline, journal, sizing et briefing marché réunis. Voici l'essentiel en trois écrans."),
+    t("Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment."),
   loginSubtitle: t("Connecte-toi pour accéder à ton espace."),
   subRequiredBody:
     t("Ton compte n'a pas d'abonnement actif. Souscris sur le site pour débloquer Shale."),

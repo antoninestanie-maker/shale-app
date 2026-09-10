@@ -28,6 +28,7 @@ const tache = (p: Partial<Task> = {}): Task => ({
   end_at: null,
   postponed_count: 0,
   postponed_from: null,
+  is_example: 0,
   ...p,
 });
 

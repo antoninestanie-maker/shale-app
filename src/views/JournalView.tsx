@@ -18,6 +18,9 @@ import { IconBolt, IconFlame, IconMood, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { localeTag, t } from "../lib/i18n";
+import BadgeExemple from "../components/onboarding/BadgeExemple";
+import { estExemple, sansExemples } from "../lib/onboarding/exemples";
+
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -122,9 +125,16 @@ export default function JournalView({ data, refresh, navigate }: Props) {
 
   // Grille type GitHub : 12 semaines, intensité = part d'habitudes cochées
   const grid = useMemo(() => {
-    const nHabits = Math.max(data.habits.length, 1);
+    // ⭐ Les habitudes d'EXEMPLE ne comptent pas — ni au dénominateur, ni au
+    // numérateur. Les laisser au dénominateur ferait baisser l'intensité de
+    // toutes les cases de douze semaines dès l'installation : la série d'un
+    // utilisateur assidu se serait affichée à 50 %, et rien ne l'aurait dit.
+    const habitudes = sansExemples(data.habits);
+    const idsComptes = new Set(habitudes.map((h) => h.id));
+    const nHabits = Math.max(habitudes.length, 1);
     const checksByDate = new Map<string, number>();
     for (const c of data.habitChecks) {
+      if (!idsComptes.has(c.habit_id)) continue;
       checksByDate.set(c.date, (checksByDate.get(c.date) ?? 0) + 1);
     }
     const monday = addDays(today, weekdayOf(today) === 0 ? -6 : 1 - weekdayOf(today));
@@ -142,7 +152,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
       weeks.push(col);
     }
     return weeks;
-  }, [data.habitChecks, data.habits.length, today]);
+  }, [data.habitChecks, data.habits, today]);
 
   const habitStreak = (habitId: number): number => {
     let streak = 0;
@@ -390,9 +400,18 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   )}
                 </button>
                 <span className="w-32 truncate text-sm text-text">{habit.name}</span>
-                <span className="pill inline-flex shrink-0 items-center gap-1 bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-text-dim">
-                  <IconFlame className="h-2.5 w-2.5" /> {habitStreak(habit.id)}
-                </span>
+                {/* ⚠️ Pour un exemple, le badge REMPLACE la série. Le cahier des
+                    charges interdit qu'une habitude d'exemple affiche 0 %, et
+                    l'autre issue — lui fabriquer des coches passées — aurait
+                    menti sur l'historique de l'utilisateur. Dès qu'il la coche,
+                    elle est adoptée et sa vraie série apparaît. */}
+                {estExemple(habit) ? (
+                  <BadgeExemple />
+                ) : (
+                  <span className="pill inline-flex shrink-0 items-center gap-1 bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-text-dim">
+                    <IconFlame className="h-2.5 w-2.5" /> {habitStreak(habit.id)}
+                  </span>
+                )}
                 <span className="flex flex-1 justify-end gap-[3px]">
                   {last14.map((date) => (
                     <button

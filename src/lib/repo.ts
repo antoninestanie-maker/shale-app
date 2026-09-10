@@ -595,12 +595,17 @@ export async function updateNote(
   title: string,
   body: string,
 ): Promise<void> {
-  if (!isTauri) return demo.updateNote(id, title, body, localNow());
+  if (!isTauri) {
+    await demo.updateNote(id, title, body, localNow());
+    await adopter("notes", id);
+    return;
+  }
   const db = await getDb();
   await db.execute(
     "UPDATE notes SET title = $1, body = $2, updated_at = $3 WHERE id = $4",
     [title, body, localNow(), id],
   );
+  await adopter("notes", id);
 }
 
 export async function deleteNote(id: number): Promise<void> {
@@ -741,7 +746,11 @@ export interface SujetPatch {
  * du type, sans un mot.
  */
 export async function updateSujet(id: number, patch: SujetPatch): Promise<void> {
-  if (!isTauri) return demo.updateSujet(id, patch, localNow());
+  if (!isTauri) {
+    await demo.updateSujet(id, patch, localNow());
+    await adopter("knowledge_topics", id);
+    return;
+  }
   const db = await getDb();
   const sets: string[] = [];
   const args: unknown[] = [];
@@ -835,7 +844,11 @@ export async function updateKnowledgeEntry(
   const touch = opts.touch !== false;
   const fields = KNOWLEDGE_FIELDS.filter((f) => patch[f] !== undefined);
   if (fields.length === 0) return;
-  if (!isTauri) return demo.updateKnowledgeEntry(id, patch, touch ? localNow() : null);
+  if (!isTauri) {
+    await demo.updateKnowledgeEntry(id, patch, touch ? localNow() : null);
+    if (touch) await adopter("knowledge_entries", id);
+    return;
+  }
   const db = await getDb();
   const sets = fields.map((f, i) => `${f} = $${i + 1}`).join(", ");
   const values = fields.map((f) => patch[f] as string | number | null);
@@ -845,6 +858,9 @@ export async function updateKnowledgeEntry(
       : `UPDATE knowledge_entries SET ${sets} WHERE id = $${fields.length + 1}`,
     touch ? [...values, localNow(), id] : [...values, id],
   );
+  // ⚠️ `touch: false` = écriture technique de l'app, pas geste de
+  // l'utilisateur : elle n'adopte pas.
+  if (touch) await adopter("knowledge_entries", id);
 }
 
 export async function deleteKnowledgeEntry(id: number): Promise<void> {
@@ -869,13 +885,15 @@ export async function upsertJournal(
 
 // — Habitudes —
 
-export async function addHabit(name: string, color: string): Promise<void> {
+/** ⚠️ Rend l'`id` depuis le 2026-09-10, pour la même raison que `createTask`. */
+export async function addHabit(name: string, color: string): Promise<number> {
   if (!isTauri) return demo.addHabit(name, color);
   const db = await getDb();
-  await db.execute("INSERT INTO habits (name, color) VALUES ($1, $2)", [
+  const res = await db.execute("INSERT INTO habits (name, color) VALUES ($1, $2)", [
     name,
     color,
   ]);
+  return res.lastInsertId ?? 0;
 }
 
 export async function deleteHabit(id: number): Promise<void> {
@@ -890,7 +908,11 @@ export async function setHabitCheck(
   date: string,
   checked: boolean,
 ): Promise<void> {
-  if (!isTauri) return demo.setHabitCheck(habitId, date, checked);
+  if (!isTauri) {
+    await demo.setHabitCheck(habitId, date, checked);
+    await adopter("habits", habitId);
+    return;
+  }
   const db = await getDb();
   if (checked)
     await db.execute(
@@ -902,6 +924,7 @@ export async function setHabitCheck(
       "DELETE FROM habit_checks WHERE habit_id = $1 AND date = $2",
       [habitId, date],
     );
+  await adopter("habits", habitId);
 }
 
 export interface FocusInput {
@@ -1034,10 +1057,38 @@ export async function setMetricValue(
   );
 }
 
-export async function createTask(input: TaskInput): Promise<void> {
+/**
+ * ⭐⭐ L'ADOPTION — un exemple cesse d'en être un dès qu'on y touche.
+ *
+ * Posée sur les CINQ écritures utilisateur des quatre tables marquées : cocher
+ * une tâche, la modifier, cocher une habitude, écrire dans une note, écrire
+ * dans une fiche. Après cela, la ligne compte dans les statistiques et le
+ * bouton « supprimer les exemples » ne l'emporte plus.
+ *
+ * ⚠️ CE QUI N'ADOPTE PAS, et c'est délibéré : une écriture TECHNIQUE. Une
+ * ré-indexation de texte ou une conversion de fiche historique
+ * (`updateKnowledgeEntry` avec `touch: false`) n'est pas un geste de
+ * l'utilisateur — l'app s'approprierait ses propres exemples à sa place, et le
+ * bouton de suppression n'aurait plus rien à supprimer.
+ *
+ * ⚠️ `marquerExemple` ne fait rien quand la ligne n'est pas un exemple (son
+ * `WHERE is_example <> $2`) : l'appeler à chaque coche ne coûte donc ni une
+ * écriture, ni une entrée d'outbox, dans le cas courant.
+ */
+async function adopter(table: TableExemple, id: number): Promise<void> {
+  await marquerExemple(table, id, false);
+}
+
+/**
+ * ⚠️ Rend l'`id` de la tâche créée depuis le 2026-09-10 (chantier « premier
+ * démarrage »), là où elle ne rendait rien. Les appelants qui l'ignorent sont
+ * inchangés ; le contenu de départ, lui, a besoin de l'id pour aller chercher
+ * l'`uid` et poser une arête vers la note du parcours.
+ */
+export async function createTask(input: TaskInput): Promise<number> {
   if (!isTauri) return demo.createTask(input);
   const db = await getDb();
-  await db.execute(
+  const res = await db.execute(
     `INSERT INTO tasks (label, tag, priority, recurrence, goal_id, created_at, due_date, start_at, end_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
@@ -1052,10 +1103,15 @@ export async function createTask(input: TaskInput): Promise<void> {
       input.end_at ?? null,
     ],
   );
+  return res.lastInsertId ?? 0;
 }
 
 export async function updateTask(id: number, input: TaskInput): Promise<void> {
-  if (!isTauri) return demo.updateTask(id, input);
+  if (!isTauri) {
+    await demo.updateTask(id, input);
+    await adopter("tasks", id);
+    return;
+  }
   const db = await getDb();
   await db.execute(
     `UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5,
@@ -1073,6 +1129,7 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
       id,
     ],
   );
+  await adopter("tasks", id);
 }
 
 export async function deleteTask(id: number): Promise<void> {
@@ -1087,12 +1144,17 @@ export async function setTaskDone(
   date: string,
   done: boolean,
 ): Promise<void> {
-  if (!isTauri) return demo.setTaskDone(taskId, date, done);
+  if (!isTauri) {
+    await demo.setTaskDone(taskId, date, done);
+    await adopter("tasks", taskId);
+    return;
+  }
   const db = await getDb();
   await db.execute(
     "INSERT INTO task_completions (task_id, date, done) VALUES ($1, $2, $3) ON CONFLICT(task_id, date) DO UPDATE SET done = $3",
     [taskId, date, done ? 1 : 0],
   );
+  await adopter("tasks", taskId);
 }
 
 export interface GoalInput {
@@ -1934,4 +1996,119 @@ export async function titresDesMentions(
     for (const r of rows) out.set(`${kind}:${r.uid}`, r.titre ?? "");
   }
   return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Le marqueur d'exemple — chantier « premier démarrage » (2026-09-10)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Les tables qui portent `is_example` (migration 024).
+ *
+ * ⚠️ Liste EN DUR et non paramétrable depuis l'appelant : elle est interpolée
+ * dans du SQL. La typer par une union rend impossible d'y faire entrer une
+ * chaîne venue d'ailleurs.
+ *
+ * ⚠️ `knowledge_topics` en fait partie mais n'est PAS dans `TABLES_EXEMPLE` :
+ * un sujet est un CONTENANT. Il ne se compte pas, et il ne se supprime que
+ * s'il est resté vide — voir `supprimerExemples`.
+ */
+export type TableExemple =
+  | "tasks"
+  | "habits"
+  | "notes"
+  | "knowledge_entries"
+  | "knowledge_topics";
+
+/** Les objets COMPTÉS par le bouton « supprimer les N exemples ». */
+const TABLES_EXEMPLE: readonly TableExemple[] = [
+  "tasks",
+  "habits",
+  "notes",
+  "knowledge_entries",
+];
+
+/**
+ * ⭐ Retire (ou repose) le marqueur d'exemple sur une ligne.
+ *
+ * Appelée à chaque ÉCRITURE de l'utilisateur sur une ligne d'exemple : c'est ce
+ * qui fait qu'un exemple adopté redevient une donnée ordinaire et recommence à
+ * compter dans les statistiques. Voir `lib/onboarding/exemples.ts` pour le
+ * pourquoi.
+ *
+ * ⚠️ `WHERE is_example <> $2` et non un `UPDATE` inconditionnel : sans ce
+ * garde-fou, chaque coche de tâche réécrirait la ligne, la remettrait dans
+ * l'outbox et enverrait une révision identique à l'autre appareil. Une écriture
+ * qui ne change rien ne doit pas produire de trafic de synchronisation.
+ */
+export async function marquerExemple(
+  table: TableExemple,
+  id: number,
+  exemple: boolean,
+): Promise<void> {
+  const valeur = exemple ? 1 : 0;
+  if (!isTauri) return demo.marquerExemple(table, id, valeur);
+  const db = await getDb();
+  await db.execute(
+    `UPDATE ${table} SET is_example = $2 WHERE id = $1 AND is_example <> $2`,
+    [id, valeur],
+  );
+}
+
+/** Combien d'objets d'exemple SUBSISTENT, tous modules confondus. */
+export async function compterExemples(): Promise<number> {
+  if (!isTauri) return demo.compterExemples();
+  const db = await getDb();
+  let total = 0;
+  for (const table of TABLES_EXEMPLE) {
+    const rows = await db.select<{ n: number }[]>(
+      `SELECT COUNT(*) AS n FROM ${table} WHERE is_example = 1`,
+    );
+    total += rows[0]?.n ?? 0;
+  }
+  return total;
+}
+
+/**
+ * ⭐ Supprime tout le contenu de départ encore marqué comme exemple.
+ *
+ * ⚠️ CE QUE CETTE FONCTION NE FAIT PAS, et c'est le cœur du sujet :
+ *
+ *   • elle n'emporte PAS ce que l'utilisateur s'est approprié. Une ligne
+ *     touchée a perdu son marqueur (`marquerExemple`) et n'est plus vue d'ici ;
+ *   • elle ne supprime PAS le sujet « Méthode » du Savoir. Un sujet est un
+ *     CONTENANT : le retirer emporterait les fiches qu'on y aurait rangées
+ *     depuis. Il reste, vide, et se supprime comme n'importe quel sujet ;
+ *   • elle n'écrit AUCUN code de synchronisation. Ce sont des `DELETE`
+ *     ordinaires : les triggers de la migration 016 produisent leurs pierres
+ *     tombales, et la suppression se propage comme n'importe quelle autre.
+ *
+ * ⚠️ Les arêtes du parcours (la mention vers la fiche, le rattachement de la
+ * tâche) partent par les triggers de CASCADE de la migration 020 — sur les deux
+ * appareils, puisque ces triggers-là ne sont pas gardés par `applying`.
+ */
+export async function supprimerExemples(): Promise<void> {
+  if (!isTauri) return demo.supprimerExemples();
+  const db = await getDb();
+  // Les coches et sessions rattachées d'abord : `task_completions` et
+  // `habit_checks` ont une clé naturelle dérivée de leur parent, et une feuille
+  // orpheline resterait invisible sans jamais se résoudre.
+  await db.execute(
+    "DELETE FROM task_completions WHERE task_id IN (SELECT id FROM tasks WHERE is_example = 1)",
+  );
+  await db.execute(
+    "DELETE FROM habit_checks WHERE habit_id IN (SELECT id FROM habits WHERE is_example = 1)",
+  );
+  for (const table of TABLES_EXEMPLE) {
+    await db.execute(`DELETE FROM ${table} WHERE is_example = 1`);
+  }
+  // ⭐ Le sujet du Savoir, EN DERNIER et SOUS CONDITION : il ne part que s'il
+  // est resté vide. Ses fiches d'exemple viennent de disparaître à la ligne
+  // précédente ; s'il en reste, ce sont celles que l'utilisateur y a rangées,
+  // et le contenant doit rester avec elles.
+  await db.execute(
+    `DELETE FROM knowledge_topics
+      WHERE is_example = 1
+        AND NOT EXISTS (SELECT 1 FROM knowledge_entries WHERE topic_id = knowledge_topics.id)`,
+  );
 }
