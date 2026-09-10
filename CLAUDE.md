@@ -4739,3 +4739,185 @@ plus tôt (`shale-backups/avant-cote-branches-20260908-2111/`).
 suivi et non enregistré** dans `lib.rs` — les migrations sont embarquées une par
 une par `include_str!`, donc un fichier non déclaré est inerte. Vérifié sur le
 binaire installé : `023_facturation` y rend **0**. Ce build ne l'emporte pas.
+
+## Facturation dans Finance (2026-09-10) — migration 023
+
+**Le compte de modules reste à TREIZE.** La facturation est une **section** de
+`FinanceView`, pas une entrée de `Sidebar.tsx` : trois panneaux dans la grille
+existante (créances, factures, achats) et quatre modales.
+
+### La thèse
+
+Finance répondait à « combien de mois je tiens ». Il lui manquait la moitié
+amont : **d'où vient l'argent, et QUAND il arrive**. Un indépendant au revenu
+irrégulier ne vit pas d'un salaire mensualisé — il vit de factures qu'il émet,
+qui sont payées en retard, en plusieurs fois, parfois jamais.
+
+Ce chantier lui permet d'**émettre une facture légalement valable**, de **saisir
+ce qu'il a réellement encaissé**, et de voir **son solde et son runway réagir
+sans jamais compter deux fois le même euro**.
+
+### ⭐⭐ LA RÈGLE DU SOLDE COMPOSÉ — et la subtilité que le cadrage ne disait pas
+
+    solde d'un compte = dernier relevé saisi
+                      + mouvements datés STRICTEMENT APRÈS ce relevé
+
+Finance est un module de **snapshots** : le solde n'est pas calculé, il est
+relevé à la main. Un encaissement du 15 février s'ajoute au relevé du 1er. Le
+jour où l'utilisateur relève son solde au 1er mars, la banque l'a déjà compté :
+il est **absorbé** et cesse d'être ajouté. Sans cette fenêtre, on compte deux
+fois le même euro et **rien ne le signale**.
+
+⚠️ **Mais appliquer la règle littéralement introduisait le défaut qu'elle
+prétend empêcher.** `soldeInterpole` trace une **droite** entre deux relevés, et
+cette droite contient déjà, au prorata, tout ce qui s'est passé entre les deux —
+le paiement compris, puisque le relevé suivant le contient. Ajouter les
+mouvements par-dessus une valeur interpolée les compterait **une seconde fois
+sur chaque point passé de la courbe**.
+
+▶️ **On ne compose que dans la zone d'EXTRAPOLATION**, là où `soldeInterpole`
+prolonge à l'horizontale et ne sait, de son propre aveu, plus rien. Entre deux
+relevés, ce sont les relevés qui font foi ; après le dernier, les mouvements.
+
+⚠️ **`finance_balances` n'est JAMAIS écrite par la facturation.** La composition
+se fait **au calcul** (`lib/finance/patrimoine.ts`), jamais en base. Si une
+requête de ce chantier touche un jour cette table, elle est fausse.
+
+### ⭐ Deux runways, et le prudent ne change pas de définition
+
+`runway.ts` n'est **pas touché** — vérifié au diff. Le second vit dans son
+propre fichier, respecte les quatre états d'impossibilité existants, et
+s'affiche **à côté**, jamais à la place : quelqu'un a déjà pris une décision sur
+le premier chiffre.
+
+Il **simule jour par jour au lieu de diviser**, et ce n'est pas du zèle : une
+division `(liquidités + créances) ÷ burn` supposerait que l'argent est déjà là.
+Quelqu'un dont la trésorerie tombe à zéro le 12 octobre et dont le client paye
+le 1er décembre est en défaut **en octobre** — la division répondrait « 6 mois ».
+
+⚠️ Tenir jusqu'au bout de l'horizon **ne se dit PAS « infini »** : ce mot a un
+sens précis ici (les revenus couvrent les charges), et l'employer autrement
+serait un mensonge confortable.
+
+### Le schéma — six tables, deux uid dérivés
+
+| Table | uid | Pourquoi |
+|---|---|---|
+| `invoice_series` | **`is:<code>`** | la série « F » désigne le même fait partout ; deux appareils créeraient sinon deux compteurs concurrents |
+| `invoice_issuer` | **`ii:default`** | il n'y a qu'un émetteur ; sans dérivation, chaque appareil créerait sa fiche |
+| les quatre autres | aléatoire | leur identité est arbitraire |
+
+⚠️ **`invoice_lines` a un uid ALÉATOIRE**, surtout pas `il:<facture>:<position>` :
+la position change au réordonnancement, et un uid qui bouge crée des doublons
+serveur.
+
+⚠️ **Les clés étrangères sont des `_id` locaux traduits par `fk.ts`**, pas des
+`_uid` en dur. Le stockage direct d'uid est réservé au **polymorphe**
+(`object_links`, 020 § 5), où aucun `vers` n'est déclarable. Ici chaque colonne
+pointe une table fixe : on garde les vraies FK, la quarantaine du moteur et le
+test qui compare `CLES_ETRANGERES` au `PRAGMA` réel.
+
+⚠️ **AUCUN index unique sur (serie_id, numero).** Le compteur `prochain` est
+LWW : il écrase, il n'additionne pas, donc deux appareils hors ligne
+produiront le même numéro. Une contrainte violée à l'application d'une ligne
+distante **arrêterait la synchronisation** (doctrine de la 018). On détecte et
+on **alerte** — jamais renuméroter : un numéro déjà envoyé à un client est la
+référence commune de deux comptabilités.
+
+⚠️ **Pas de `total_tva_cents` sur la ligne.** En France la TVA s'arrondit **par
+taux, jamais par ligne** : dix lignes à 10,01 € arrondies séparément donnent
+20,00 € là où le calcul correct donne 20,02. Une colonne dont la somme ne vaut
+pas la TVA de la facture finirait par être additionnée de bonne foi.
+
+⚠️ **Un trigger touche une table de la 018** : supprimer un compte **DÉTACHE**
+ses paiements (`account_id = NULL`) au lieu de les emporter — le paiement a eu
+lieu, seul le compte crédité est inconnu.
+
+### ⭐ `emetteur_fige` — pourquoi on ne stocke PAS le PDF
+
+Le cadrage laissait ouvert « stocker ou régénérer ». **On régénère** : un blob
+binaire par facture gonflerait chaque sauvegarde chiffrée pour un document
+reconstructible (doctrine `market_briefings`).
+
+Mais régénérer n'est honnête que si **tout ce dont le document dépend est
+figé** — or l'identité de l'émetteur change avec le temps. Reconstruire un PDF
+de 2026 avec l'adresse de 2028 produirait un document que le client n'a jamais
+reçu. `invoices.emetteur_fige` est donc un instantané JSON écrit à l'émission :
+~300 octets contre ~300 Ko.
+
+### La dérogation `pdf-lib` — la SEULE dépendance du chantier
+
+L'impression système ne permet pas d'embarquer le XML Factur-X en pièce
+jointe — or c'est tout l'intérêt du format — et une caisse Rust n'existerait pas
+sur iOS. **pdf-lib est du JS pur**, ses quatre dépendances transitives aussi,
+donc valable sur les trois plateformes. Le dépôt passe de 13 à **14
+dépendances**.
+
+⚠️ **Aucun hôte réseau ajouté** : `coterFx()` passe par Yahoo, déjà autorisé
+dans `capabilities/default.json`. `src-tauri/capabilities/` n'est pas touché.
+
+### ⚠️⚠️ LA RÉSERVE FACTUR-X — à ne jamais adoucir
+
+    Ce qu'on produit est un PDF VALIDE portant un XML Factur-X CONFORME
+    (profil BASIC, CII). Ce n'est PAS un PDF/A-3 CERTIFIÉ.
+
+PDF/A-3 impose un profil de couleurs embarqué, toutes les polices incorporées
+avec leurs métriques et un dictionnaire XMP complet ; pdf-lib ne produit pas ça.
+Prétendre le contraire exposerait l'utilisateur à un **rejet au moment précis où
+il compte dessus**. La conformité finale se jouera au branchement d'une
+plateforme de dématérialisation partenaire (PDP), en 2027 — **préparé, pas
+branché** : aucun appel réseau.
+
+Cette réserve est écrite dans `facturx.ts` **et affichée à l'écran** dans
+l'aperçu.
+
+### ⭐ L'aperçu EST le PDF
+
+Le cadrage demandait « le même code que le PDF, pas deux mises en page ».
+Partager un composant entre un rendu HTML et un rendu pdf-lib les aurait fait
+diverger au premier ajustement, sans que personne s'en aperçoive avant qu'un
+client reçoive autre chose que ce qu'on avait relu.
+
+Il n'y a **qu'un seul rendu** : on produit les octets et on les affiche dans un
+`<iframe>`. La divergence n'est pas improbable, elle est **inexprimable**.
+
+Le **contenu légal** est séparé du dessin (`document.ts`, pur et testé) : un
+test ne sait pas lire un PDF, mais il sait lire un `DocumentImprimable`. D'où
+`manquesLegaux()` — SIRET absent, adresse vide, pas de numéro — **signalé, non
+bloquant** : mieux vaut une facture émise avec un avertissement qu'une facture
+irrégulière émise en silence.
+
+### ⭐ Les relances passent par le CALENDRIER, pas par `object_links`
+
+Le cadrage disait « réutiliser le socle de liaisons de la 020 ». **Ce n'était
+pas le bon socle** : `object_links.from_kind` porte un `CHECK` à liste **fermée**
+de sept familles, et SQLite ne sait pas modifier un CHECK — y ajouter
+`'invoice'` imposerait de **recréer la table d'arêtes**, sur une migration
+supplémentaire, pour des données qui ne sont pas des arêtes.
+
+Le vrai socle réutilisable est **`lib/calendrier/agenda.ts`** : les quatre
+familles déjà affichées n'ont aucune arête non plus. Le calendrier ne possède
+rien, il **rassemble**. Une échéance est la **cinquième source**. Aucune table,
+aucune migration.
+
+⚠️ Elle n'occupe **aucune minute** : sans l'exclusion dans `charge.ts`, elle
+tombait dans « N tâches sans horaire » — un compte juste sous un mot faux.
+
+### Ce que ce chantier ne fait PAS
+
+Aucun e-mail, aucune relance automatique. Aucune connexion PDP. Aucune
+agrégation bancaire, aucun rapprochement automatique. Aucune écriture dans
+`finance_balances`. Aucune modification du journal de trading ni des R
+(`pont-trading.ts` intact au diff). Aucun module, aucune entrée de sidebar.
+**Aucune comptabilité en partie double** — c'est un outil de trésorerie.
+
+### Ligne de base
+
+`tsc` ✓ · `test:types` ✓ · `npm run build` ✓ · **949 tests** (+266) ·
+`i18n:check` **0 manquante, 1783 entrées** · `cargo check` ✓.
+
+⛔ **La migration 023 n'a PAS encore tourné sur la vraie base d'Antonin** : elle
+est enregistrée dans `lib.rs`, donc le **prochain build natif la jouera**. Elle
+crée six tables et ne touche aucune table existante (sauf un trigger ajouté sur
+`finance_accounts`). Validée à blanc : les 23 migrations jouent d'affilée,
+uid dérivés corrects, cascades vérifiées, aucun `REAL`.

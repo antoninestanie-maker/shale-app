@@ -16,6 +16,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 2 | `CLAUDE.md` | la référence permanente du projet — long, mais c'est lui qui fait foi |
 | 2 bis | ⭐ **`PIEGES.md`** | **le carnet des erreurs qui se répètent.** À lire AVANT de commencer, et à COMPLÉTER dès qu'on en rencontre une nouvelle |
 | 2 ter | ⭐ **`PASSATION-CALENDRIER-V2.md`** | **le chantier du 2026-09-05/06** — saisie à la minute, multi-jours, récurrence, dates sur les tâches, animations. ⛔ Contient le rebuild natif RESTANT À FAIRE |
+| 2 penta | ⭐⭐ **`PASSATION-FACTURATION.md`** | **le chantier du 2026-09-10** — Finance sait facturer (migration 023). ⛔ Contient le point le plus urgent : **la 023 n'a pas encore tourné sur la vraie base**, et le prochain build natif la jouera |
 | 2 quater | ⭐ **`PASSATION-MINDMAP.md`** | **le chantier du 2026-09-07** — les cartes mentales dans les Notes et le Savoir. Livré et installé ; ce qui reste ouvert est en § 6 |
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
@@ -27,6 +28,23 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 8 | `PASSATION-savoir-site.md` | **périmé** — ce chantier est livré (site commit `0e6b51c`) |
 
 ---
+
+## ⭐ Dernier chantier livré — la FACTURATION (2026-09-10)
+
+Finance sait émettre des factures. **Lire `PASSATION-FACTURATION.md`** : il se
+suffit — état, ligne de base, ce qui est prouvé, ce qui ne l'est pas, ce qui
+reste et qui décide.
+
+⛔ **Le point à connaître avant tout build natif : la migration 023 est
+enregistrée dans `lib.rs` mais n'a PAS encore tourné sur la vraie base**
+(toujours en version 22). Le prochain build la jouera, quel que soit le chantier
+qui le lance. Prendre une sauvegarde `sqlite3 .backup` avant — jamais un `cp`,
+la base est en WAL.
+
+⚠️ **Deux écrans manquent pour un premier usage réel** : celui de l'émetteur
+(identité, SIRET, régime) et celui des tiers. Les accès aux données existent des
+deux côtés et sont testés ; sur la vraie base, la migration livre deux séries et
+**aucun client** — donc aucune facture ne peut encore être adressée à quelqu'un.
 
 ## 1. L'état — révisé le 2026-09-07
 

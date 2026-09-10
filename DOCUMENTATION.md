@@ -147,3 +147,34 @@ détail de style.
 4. **cette page** — comment laisser le projet dans le même état pour la suivante
 
 *Les fichiers de cette page sont dans `~/Desktop/Shale-projet/Shale/`.*
+
+---
+
+## 9. Un cas d'école : le chantier facturation (2026-09-10)
+
+Ajouté parce qu'il illustre les trois moments de la § 2 mieux qu'une consigne.
+
+| Ce qui a été produit | Où c'est parti | Pourquoi là |
+|---|---|---|
+| La règle du **solde composé**, et pourquoi elle ne s'applique QUE dans la zone d'extrapolation | `CLAUDE.md`, section datée | c'est une décision et son *pourquoi* — le cadrage disait la règle, il ne disait pas la subtilité |
+| La **réserve Factur-X** (« pas un PDF/A-3 certifié ») | `CLAUDE.md` **et** dans le code (`facturx.ts`) **et** à l'écran | une promesse de conformité engage : elle doit être démentie aux trois endroits où quelqu'un peut la croire |
+| Un **avoir affiché « Encaissée »**, puis « En retard » après la première correction | `PIEGES.md` § 9.15 | erreur reproductible : « un seuil fixe ment dès qu'un montant peut être négatif » |
+| `%n` au lieu de `{n}`, et `includes` trop laxiste pour croiser `en.ts` | `PIEGES.md` § 9.16 et 9.17 | les deux passaient `i18n:check` au vert |
+| « Finance sait facturer, la fiche du site est incomplète » | `DETTE-SITE.md`, **le jour même** | l'app a dépassé ce que le site annonce |
+| État, ce qui est prouvé, ce qui ne l'est pas | `PASSATION-FACTURATION.md` | un chantier, un fichier |
+
+### ⭐ Ce que ce chantier a appris sur la documentation elle-même
+
+**Un cadrage écrit peut se tromper, et le dire fait partie du travail.** Trois
+de ses instructions étaient fausses ou incomplètes — le numéro de migration
+(022 était pris), le passage par `object_links` (son `CHECK` est fermé), et la
+règle du solde composé (incomplète pour les points interpolés). Les trois sont
+consignées **avec leur raison**, pas silencieusement contournées : la session
+suivante doit pouvoir vérifier le raisonnement, pas seulement constater l'écart.
+
+**Et une vérification peut être fausse sans échouer.** Le croisement des clés
+i18n par `includes` rendait « tout est traduit » sur une app qui affichait du
+français. Quand un contrôle est vert et que l'écran dit le contraire, **c'est le
+contrôle qu'il faut relire d'abord** — c'est la leçon du § 8 de `CLAUDE.md`
+(« un outil de contrôle porte ses propres hypothèses, et elles vieillissent »),
+appliquée à un outil écrit dix minutes plus tôt.

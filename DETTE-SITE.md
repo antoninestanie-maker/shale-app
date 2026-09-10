@@ -281,3 +281,72 @@ toujours.
 **Priorité : basse.** Antonin mène sa refonte visuelle ; cette entrée attend
 qu'elle soit finie. Elle ne contredit rien de ce que le site affirme
 aujourd'hui — elle ajoute quelque chose qu'il ignore.
+
+---
+
+# ⚠️ Finance sait désormais FACTURER — la fiche du site est devenue incomplète
+
+**Inscrit le 2026-09-10, le jour même du chantier**, comme la règle l'exige.
+
+## Ce qui a changé dans l'app
+
+Finance a gagné une **section Facturation** (migration 023) : émettre une
+facture légalement valable, suivre ce qui a été réellement encaissé, relancer ce
+qui traîne, exporter pour le comptable. **Aucun module ajouté — le compte reste
+à TREIZE**, et la barre latérale n'a pas bougé d'un pixel.
+
+## Ce que le site dit aujourd'hui, et qui est devenu trop étroit
+
+`shale-site/vitrine/src/lib/modules.ts`, fiche **Finance** :
+
+- `desc` — « Tu relèves tes soldes une fois par mois […] De là sortent ton
+  patrimoine net, ton burn mensuel et ton runway. **Ce n'est pas un gestionnaire
+  de budget** ». Toujours vrai, mais la phrase décrit maintenant **la moitié** du
+  module : elle ne dit rien de la facturation.
+- `points[]` — les quatre puces parlent du runway, de l'absence d'agrégation
+  bancaire, du choix du liquide et du pont trading. **Aucune ne mentionne les
+  factures.**
+- `widget` — `kind: "runway"` avec trois lignes (liquidités, charges, part
+  couverte par le trading). Il pourrait porter une quatrième ligne « encours
+  client », qui est maintenant un vrai chiffre de l'écran.
+- `specLabel`/`specValue` — « Montants · centimes entiers · chiffrés de bout en
+  bout ». Toujours exact.
+
+## Ce qu'il faudrait écrire — et surtout ce qu'il ne faut PAS écrire
+
+- ✅ « émets une facture, un devis ou un avoir, et suis ce qui est réellement
+  entré en banque » ;
+- ✅ « **deux runways côte à côte** : avec l'argent que tu as, et si tes clients
+  payent à l'échéance » — c'est l'argument le plus concret du chantier ;
+- ✅ « les encours par ancienneté : à échoir, 30, 60, plus de 60 jours » ;
+- ✅ « export comptable en CSV, une ligne par facture ou par ligne de facture » ;
+- ✅ « PDF avec **XML Factur-X** (profil BASIC) en pièce jointe » ;
+
+- ❌ **NE JAMAIS ÉCRIRE « conforme à la facturation électronique 2026 » ni
+  « PDF/A-3 »**. Ce qui est produit est un **PDF valide portant un XML
+  conforme**, pas un PDF/A-3 certifié, et aucune plateforme de dématérialisation
+  n'est branchée. La réserve est écrite dans `facturx.ts` et affichée dans
+  l'app ; le site ne doit pas promettre plus que l'app n'assume. C'est le point
+  le plus risqué de cette entrée : une promesse de conformité engage
+  commercialement, et un utilisateur qui se voit rejeter une facture parce qu'il
+  a cru le site aurait raison de se plaindre ;
+- ❌ ne pas écrire « nouveau module » ni toucher au compte de modules : **TREIZE
+  reste TREIZE**, et ce nombre est écrit en toutes lettres à une dizaine
+  d'endroits du site (`content.json`, `Demo.astro`, `lib/i18n/en.ts`) ;
+- ❌ ne pas promettre de relance automatique par e-mail : **l'app n'envoie rien
+  à personne**, et c'est une décision, pas un manque.
+
+## Ce qui n'a RIEN à changer, vérifié
+
+- **`Demo.astro`** — la démo jouable ne rend que `today`, `position` et
+  `journal`. Finance n'y est qu'un libellé de barre latérale.
+- **Le compte de modules** — inchangé.
+- **`SPECS`** (plateformes, stockage, hors-ligne, clés d'API, langue, licence) —
+  la facturation ne change aucune de ces promesses. Elle fonctionne **hors
+  ligne** comme le reste : le PDF est produit localement, aucun appel réseau.
+
+**Priorité : moyenne.** Plus haute que l'entrée « cartes mentales » : la
+facturation est un argument de vente pour la cible exacte du produit —
+l'indépendant au revenu irrégulier — et le site n'en dit rien. Mais elle attend
+la refonte visuelle en cours, et **rien de ce que le site affirme aujourd'hui
+n'est faux** : il est seulement incomplet.

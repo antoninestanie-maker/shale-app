@@ -1548,3 +1548,118 @@ sien coûte le fichier de quelqu'un d'autre.
 a failli committer un `src-tauri/migrations/023_facturation.sql` non suivi,
 posé dans l'intervalle par une session voisine. **`git status --short` avant le
 commit, pas après.**
+
+## 9.15 ⭐⭐ Un seuil de comparaison FIXE ment dès qu'un montant peut être négatif
+
+**Trouvé à l'écran le 2026-09-10**, pendant le chantier facturation, et il a
+fallu DEUX corrections parce que la première a créé un second défaut.
+
+`statutCalcule` décidait qu'une facture est soldée avec `reste <= 0`, ce qui est
+juste — un trop-perçu solde la facture, et l'égalité stricte l'aurait laissée
+« partiellement encaissée » pour toujours.
+
+Sauf qu'un **AVOIR porte un total NÉGATIF**. Son reste dû vaut −1 500 € tant que
+rien n'a été remboursé : `reste <= 0` est donc vrai **d'emblée**, et l'avoir
+s'affichait « Encaissée » alors que personne n'avait rien versé.
+
+▶️ **La règle : un document est soldé quand son reste a atteint zéro EN VENANT
+DU CÔTÉ de son total**, pas quand il est passé sous une borne fixe.
+
+```ts
+const solde = total > 0 ? reste <= 0 : reste >= 0;   // et non `reste <= 0`
+```
+
+### ⚠️ Et la correction évidente de la correction était fausse aussi
+
+En réparant ça, j'ai passé l'exigibilité de `reste > 0` à `reste !== 0`, par
+symétrie. L'écran l'a démenti immédiatement : l'avoir affichait **« En retard de
+58 jours »** et comptait dans « 2 documents en retard ».
+
+Or le retard sert à décider s'il faut **RELANCER** quelqu'un — et on ne relance
+pas un client pour un avoir qu'on lui doit. Un reste dû négatif est de l'argent
+qui part, pas une créance à recouvrer. Retour à `reste > 0`, ce que le cadrage
+disait depuis le début.
+
+**La leçon générale : une symétrie mathématique n'est pas une symétrie
+métier.** Les deux corrections portaient sur la même donnée, et une seule des
+deux devait être symétrique.
+
+## 9.16 ⚠️ Le dépôt substitue `{n}`, PAS `%n` — et `i18n:check` ne le voit pas
+
+`t()` remplace `{n}` (`out.split('{'+k+'}')`), et `tp(n, une, autre)` passe la
+variable à `t()`. Une clé écrite avec `%n` **existe** dans `en.ts`, donc
+`i18n:check` est au vert — et l'écran affiche littéralement
+« **%n documents en retard** ».
+
+Constaté sur 22 clés d'un coup. Le seul contrôle qui l'attrape est de
+**regarder l'écran**.
+
+## 9.17 ⭐⭐ Croiser les valeurs de table avec `en.ts` : sur la CLÉ EXACTE, jamais par `includes`
+
+Le § 9.12 dit déjà que les deux outils i18n ne prouvent rien pour une valeur de
+table. Le piège suivant est dans la **vérification elle-même**.
+
+J'ai croisé mes tables avec `en.includes("Tous")` → vert. L'app anglaise
+affichait quand même « Tous ». La raison : `en.ts` contient
+`"Tous les clients": …`, dont la sous-chaîne « Tous » satisfait `includes`.
+
+▶️ **Chercher la clé sous sa forme d'entrée d'objet** :
+
+```js
+en.includes("\n  " + JSON.stringify(cle) + ":")   // et non en.includes(cle)
+```
+
+Avec le bon test, 17 des 20 chaînes que je croyais traduites ne l'étaient pas.
+
+### Et « mois » est invariable en français, pas en anglais
+
+`"mois": "month"` existait déjà, au singulier, et servait ailleurs. Affiché
+derrière un nombre, il donnait « **9.3 month** ». Deux clés désambiguïsées par
+le suffixe `|` de `t()` (`"mois|un"`, `"mois|plusieurs"`) règlent le cas sans
+toucher à la clé partagée.
+
+## 9.18 ⚠️ Chercher une chaîne dans les OCTETS d'un PDF ne prouve rien
+
+pdf-lib écrit par défaut des **object streams**, qui sont compressés. Chercher
+`factur-x.xml` dans le PDF rend `false` **alors que la pièce jointe est bien
+là**. Mesuré dans les deux modes : trouvée avec `useObjectStreams: false`,
+introuvable avec le défaut.
+
+▶️ Interroger le **catalogue** (`Names` → `EmbeddedFiles`), pas le texte.
+
+⚠️ Au passage : `dict.lookup(clé, Type)` **LÈVE** quand la clé est absente.
+Pour une question dont la réponse peut être « il n'y en a pas » — un devis, qui
+n'a légitimement aucune pièce jointe — c'est **`lookupMaybe`** qu'il faut.
+
+## 9.19 ⚠️ Les polices standard d'un PDF sont en WinAnsi : un caractère hors jeu fait LEVER
+
+`StandardFonts.Helvetica` ne couvre pas l'Unicode. Un idéogramme, un emoji — ou
+simplement le signe **€** — dans une raison sociale fait lever `drawText`,
+c'est-à-dire **au moment de l'émission**, sur un document que l'utilisateur
+croyait prêt.
+
+▶️ **Assainir plutôt qu'échouer** : tiret cadratin → tiret, apostrophe
+typographique → droite, € → « EUR », inconnu → `?`. Incorporer une police
+complète réglerait le fond mais ajouterait ~300 ko à chaque PDF.
+
+## 9.20 ⭐ Ne pas inventer la forme d'un type : la lire, ou appeler son constructeur
+
+En testant les relances, j'ai écrit à la main un `ProfilDisponibilite`
+plausible — `{ appris, parJour, debutMedian, finMediane, sessions }`. Le vrai
+type porte `minutes`, `totauxParJour`, `sessions`, `appris` et `repli`. Le test
+échouait sur `Cannot read properties of undefined (reading 'fin')`, très loin de
+la cause.
+
+▶️ `profilDisponibilite([])` construit le repli documenté en un appel. **Un
+objet littéral inventé dans un test est une seconde définition du type**, et
+elle diverge dès la première évolution.
+
+## 9.21 ⚠️ Un compteur de série ne se compare qu'à SES propres numéros
+
+`compteursEnRetard` cherchait le plus grand numéro déjà émis pour dire si le
+compteur d'une série était en retard. Il comptait aussi les factures
+d'**ACHAT** — dont le numéro vient du **fournisseur**. Un « FA-2291 » reçu d'un
+imprimeur faisait croire que ma série F était en retard de 2 285 numéros.
+
+▶️ Ce que je numérote et ce que je reçois n'appartiennent pas à la même suite.
+Trouvé par le test de cohérence de la démo, pas par la lecture.
