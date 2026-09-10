@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { dansLeBandeau, entreesDuJour, type EntreeAgenda } from "../lib/calendrier/agenda";
+import {
+  dansLeBandeau,
+  entreesDuJour,
+  type EcheanceFacture,
+  type EntreeAgenda,
+} from "../lib/calendrier/agenda";
 import { chargeDuJour } from "../lib/calendrier/charge";
 import { profilDisponibilite } from "../lib/calendrier/disponibilite";
-import { fetchCalendarEvents, fetchRecurringEvents } from "../lib/repo";
+import { fetchCalendarEvents, fetchFacturation, fetchRecurringEvents } from "../lib/repo";
+import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
 import { IconCalendar } from "./icons";
@@ -18,17 +24,31 @@ import { formatHeure, t } from "../lib/i18n";
 export default function CalendarCard({ data }: { data: AppData }) {
   const aujourdhui = todayStr();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  /** Les échéances de facturation du jour (migration 023). */
+  const [echeances, setEcheances] = useState<EcheanceFacture[]>([]);
 
   useEffect(() => {
     let annule = false;
     void (async () => {
-      const [duJour, recurrents] = await Promise.all([
+      const [duJour, recurrents, facturation] = await Promise.all([
         fetchCalendarEvents(aujourdhui, aujourdhui),
         fetchRecurringEvents(),
+        // ⚠️ Jamais bloquant : le widget doit s'afficher même si la
+        // facturation ne répond pas.
+        fetchFacturation().catch(() => null),
       ]);
       if (annule) return;
       const vus = new Set(duJour.map((e) => e.id));
       setEvents([...duJour, ...recurrents.filter((e) => !vus.has(e.id))]);
+      if (facturation)
+        setEcheances(
+          echeancesDuCalendrier(
+            facturation.factures,
+            facturation.paiements,
+            facturation.tiers,
+            aujourdhui,
+          ),
+        );
     })();
     return () => {
       annule = true;
@@ -38,11 +58,17 @@ export default function CalendarCard({ data }: { data: AppData }) {
   const entrees = useMemo(
     () =>
       entreesDuJour(
-        { events, tasks: data.tasks, completions: data.completions, goals: data.goals },
+        {
+          events,
+          tasks: data.tasks,
+          completions: data.completions,
+          goals: data.goals,
+          echeances,
+        },
         aujourdhui,
         aujourdhui,
       ),
-    [events, data.tasks, data.completions, data.goals, aujourdhui],
+    [events, data.tasks, data.completions, data.goals, echeances, aujourdhui],
   );
 
   const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);

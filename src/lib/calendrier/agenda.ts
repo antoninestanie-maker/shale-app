@@ -17,9 +17,18 @@ import type { CalendarEvent, Completion, Goal, Task } from "../types";
  * Les quatre familles, dans l'ORDRE DE PRIORITÉ décidé par Antonin. L'ordre
  * n'est pas cosmétique : c'est celui dans lequel une journée se lit.
  */
-export type EntreeKind = "event" | "task" | "recurrence" | "deadline";
+export type EntreeKind = "event" | "task" | "recurrence" | "deadline" | "echeance";
 
-const RANG: Record<EntreeKind, number> = { event: 0, task: 1, recurrence: 2, deadline: 3 };
+const RANG: Record<EntreeKind, number> = {
+  event: 0,
+  task: 1,
+  recurrence: 2,
+  deadline: 3,
+  // ⭐ Les échéances de facturation arrivent en DERNIER, et c'est délibéré :
+  // une facture ne se « fait » pas, elle arrive à terme. Elle informe la
+  // journée, elle ne l'occupe pas.
+  echeance: 4,
+};
 
 export interface EntreeAgenda {
   kind: EntreeKind;
@@ -65,6 +74,36 @@ export interface SourcesAgenda {
   tasks: readonly Task[];
   completions: readonly Completion[];
   goals: readonly Goal[];
+  /**
+   * ⭐ Les échéances de facturation (migration 023).
+   *
+   * ⚠️ ON NE PASSE PAS PAR `object_links`, et ce n'est pas un contournement :
+   * son `CHECK` énumère sept familles fermées ('note','knowledge','task',
+   * 'goal','event','trade','object') et SQLite ne sait pas modifier un CHECK —
+   * y ajouter 'invoice' imposerait de RECRÉER la table. Le socle réutilisable
+   * du calendrier n'est pas la table d'arêtes, c'est CE FICHIER : les quatre
+   * familles existantes n'ont jamais eu d'arête non plus. Une échéance est donc
+   * une cinquième source, exactement comme les échéances d'objectifs.
+   *
+   * Facultatif : les appelants qui n'en ont pas continuent de marcher.
+   */
+  echeances?: readonly EcheanceFacture[];
+}
+
+/**
+ * Une échéance à faire remonter dans Aujourd'hui et dans le Calendrier.
+ *
+ * ⚠️ Volontairement réduite à ce que l'agenda a besoin de savoir : il ne
+ * connaît ni `Invoice`, ni le reste dû, ni la notion de statut. Lui passer une
+ * facture entière ferait dépendre le calendrier du module Finance.
+ */
+export interface EcheanceFacture {
+  id: number;
+  /** 'YYYY-MM-DD'. */
+  date: string;
+  titre: string;
+  /** Déjà calculé par `statuts.ts` — l'agenda ne recalcule rien. */
+  enRetard: boolean;
 }
 
 // ─── Heures et durées ────────────────────────────────────────────────────────
@@ -375,6 +414,35 @@ export function entreesDuJour(
       dureeMin: null,
       serie: false,
       enRetard: false,
+      reports: 0,
+      faite: null,
+    });
+  }
+
+  // 5) Les échéances de facturation (migration 023).
+  // ⚠️ Elles n'ont NI DURÉE NI CRÉNEAU : une facture n'occupe pas la journée,
+  // elle y arrive à terme. Elle rejoint donc les non-mesurables de `charge.ts`
+  // au même titre qu'une échéance d'objectif — lui prêter une durée fausserait
+  // la charge exactement comme le ferait une journée entière comptée pour huit
+  // heures.
+  for (const e of src.echeances ?? []) {
+    if (e.date !== jour) continue;
+    entrees.push({
+      kind: "echeance",
+      id: e.id,
+      titre: e.titre,
+      date: jour,
+      debutJour: jour,
+      finJour: jour,
+      start_at: null,
+      end_at: null,
+      allDay: true,
+      color: null,
+      dureeMin: null,
+      serie: false,
+      // ⚠️ Le retard est CALCULÉ par `statuts.ts` et passé tel quel : l'agenda
+      // ne sait pas ce qu'est un reste dû, et il n'a pas à l'apprendre.
+      enRetard: e.enRetard,
       reports: 0,
       faite: null,
     });

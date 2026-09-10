@@ -14,9 +14,18 @@ import { useMemo, useState } from "react";
 import { IconAlert, IconCheckCircle, IconPencil, IconPlus, IconSend } from "../icons";
 import { BoutonDiscret, Montant } from "./champs";
 import { collisionsNumeros, compteursEnRetard } from "../../lib/finance/facturation/collisions";
+import {
+  csvFactures,
+  csvLignes,
+  csvPaiements,
+  nomExport,
+  type Periode,
+} from "../../lib/finance/facturation/export";
+import { enregistrerFichier } from "../../lib/fichiers";
 import { etatFacture, type EtatFacture } from "../../lib/finance/facturation/statuts";
 import type {
   Invoice,
+  InvoiceLine,
   InvoiceParty,
   InvoicePayment,
   InvoiceSens,
@@ -74,6 +83,7 @@ export default function FacturesPanel({
   paiements,
   tiers,
   series,
+  lignesDoc,
   aujourdhui,
   devise,
   sens,
@@ -85,6 +95,8 @@ export default function FacturesPanel({
   paiements: readonly InvoicePayment[];
   tiers: readonly InvoiceParty[];
   series: readonly InvoiceSeries[];
+  /** Toutes les lignes, pour l'export détaillé. */
+  lignesDoc: readonly InvoiceLine[];
   aujourdhui: string;
   devise: string;
   sens: InvoiceSens;
@@ -94,6 +106,25 @@ export default function FacturesPanel({
 }) {
   const [filtre, setFiltre] = useState<FiltreStatut>("tous");
   const [partyId, setPartyId] = useState<number | "tous">("tous");
+  /** Période de l'export comptable. Vide = tout. */
+  const [periode, setPeriode] = useState<Periode>({ du: null, au: null });
+
+  /**
+   * ⚠️ L'export porte sur TOUT ce qui est exportable, jamais sur le filtre
+   * d'écran : un comptable qui reçoit « les factures » et qui n'a en fait que
+   * celles d'un client, parce que c'était le filtre affiché, ne peut pas le
+   * deviner. La seule restriction est la PÉRIODE, qui est explicite.
+   */
+  const exporter = async (quoi: "factures" | "lignes" | "paiements") => {
+    const ctx = { factures, lignes: lignesDoc, paiements, tiers, aujourdhui };
+    const contenu =
+      quoi === "factures"
+        ? csvFactures(ctx, periode)
+        : quoi === "lignes"
+          ? csvLignes(ctx, periode)
+          : csvPaiements(ctx, periode);
+    await enregistrerFichier(nomExport(quoi, periode), contenu, "csv");
+  };
 
   const parTiers = useMemo(() => new Map(tiers.map((x) => [x.id, x])), [tiers]);
 
@@ -212,6 +243,38 @@ export default function FacturesPanel({
           </select>
         )}
       </div>
+
+      {sens === "vente" && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+          <span className="text-[11px] text-text-dim">{t("Export comptable")}</span>
+          <input
+            type="date"
+            aria-label={t("Du")}
+            className="cible-tactile-ligne min-w-0 rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-xs text-text"
+            value={periode.du ?? ""}
+            onChange={(e) => setPeriode((p) => ({ ...p, du: e.target.value || null }))}
+          />
+          <input
+            type="date"
+            aria-label={t("Au")}
+            className="cible-tactile-ligne min-w-0 rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-xs text-text"
+            value={periode.au ?? ""}
+            onChange={(e) => setPeriode((p) => ({ ...p, au: e.target.value || null }))}
+          />
+          <BoutonDiscret onClick={() => void exporter("factures")} tip={t("Une ligne par facture")}>
+            {t("Factures")}
+          </BoutonDiscret>
+          <BoutonDiscret
+            onClick={() => void exporter("lignes")}
+            tip={t("Une ligne par ligne de facture — c'est celui qui permet de refaire le calcul de TVA")}
+          >
+            {t("Détail")}
+          </BoutonDiscret>
+          <BoutonDiscret onClick={() => void exporter("paiements")} tip={t("Les encaissements, à part")}>
+            {t("Paiements")}
+          </BoutonDiscret>
+        </div>
+      )}
 
       {/* `.panel-scroll` : c'est cette région qui encaisse la variation de
           hauteur quand on redimensionne le panneau. */}

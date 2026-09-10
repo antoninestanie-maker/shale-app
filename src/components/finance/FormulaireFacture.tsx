@@ -16,6 +16,7 @@ import { Dialogue } from "./ComptesPanel";
 import { BoutonDiscret, Champ, ChampMontant, Montant, inputCls, labelCls } from "./champs";
 import { MENTION_FRANCHISE, TAUX_TVA_USUELS, formaterTaux, totalLigneHtCents, totauxFacture } from "../../lib/finance/facturation/totaux";
 import { empechementsEmission, numeroSuivant } from "../../lib/finance/facturation/numerotation";
+import { factureDepuisDevis, factureDuDevis } from "../../lib/finance/facturation/devis";
 import { parseQuantiteE8 } from "../../lib/finance/montants";
 import {
   createInvoice,
@@ -80,6 +81,7 @@ const enLigneInput = (l: LigneEditee, position: number): InvoiceLineInput => {
 export default function FormulaireFacture({
   facture,
   lignesExistantes,
+  toutesFactures,
   tiers,
   series,
   emetteur,
@@ -92,6 +94,8 @@ export default function FormulaireFacture({
   /** `null` = création. */
   facture: Invoice | null;
   lignesExistantes: readonly InvoiceLine[];
+  /** Sert à savoir si un devis a DÉJÀ produit sa facture. */
+  toutesFactures: readonly Invoice[];
   tiers: readonly InvoiceParty[];
   series: readonly InvoiceSeries[];
   emetteur: InvoiceIssuer | null;
@@ -233,6 +237,43 @@ export default function FormulaireFacture({
       setEnCours(false);
     }
   };
+
+  /**
+   * ⭐ Facturer un devis accepté : on CRÉE une facture, le devis reste.
+   *
+   * ⚠️ La facture naît en BROUILLON. C'est volontaire : l'échéance et la date
+   * se relisent avant d'attribuer un numéro, et le numéro ne se rend jamais.
+   */
+  const facturerLeDevis = async () => {
+    if (!facture) return;
+    const serieF = series.find((s) => s.code === "F") ?? series[0];
+    const prep = factureDepuisDevis(
+      facture,
+      lignesExistantes,
+      serieF?.id ?? null,
+      aujourdhui,
+    );
+    if (!prep) return;
+
+    setEnCours(true);
+    try {
+      const id = await createInvoice(prep.entree);
+      await replaceInvoiceLines(id, prep.lignes);
+      await setInvoiceTotaux(id, {
+        total_ht_cents: facture.total_ht_cents,
+        total_tva_cents: facture.total_tva_cents,
+        total_ttc_cents: facture.total_ttc_cents,
+      });
+      await onChange();
+      onFerme();
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  const dejaFacture = facture && facture.type === "devis"
+    ? factureDuDevis(facture.id, toutesFactures)
+    : null;
 
   const supprimer = async () => {
     if (!facture) return;
@@ -455,6 +496,24 @@ export default function FormulaireFacture({
               </span>
             </BoutonDiscret>
           )}
+          {/* ⚠️ Proposé UNE SEULE FOIS : facturer deux fois le même devis est
+              une erreur discrète — les deux factures sont valides prises
+              séparément, et le client reçoit deux demandes de paiement. */}
+          {lectureSeule && facture?.type === "devis" && facture.statut !== "annulee" && (
+            dejaFacture ? (
+              <span className="text-[11px] text-text-dim">
+                {t("Déjà facturé :")} {dejaFacture.numero ?? t("Brouillon")}
+              </span>
+            ) : (
+              <BoutonDiscret
+                onClick={() => void facturerLeDevis()}
+                tip={t("Crée une facture depuis ce devis. Le devis est conservé.")}
+              >
+                {t("Facturer ce devis")}
+              </BoutonDiscret>
+            )
+          )}
+
           {lectureSeule && facture?.statut !== "annulee" && (
             <BoutonDiscret
               onClick={annuler}

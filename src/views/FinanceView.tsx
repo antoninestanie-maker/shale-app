@@ -154,6 +154,7 @@ export default function FinanceView({ data }: Props) {
               ? []
               : f.facturation.lignes.filter((l) => l.invoice_id === editeFacture.id)
           }
+          toutesFactures={f.facturation.factures}
           tiers={f.facturation.tiers}
           series={f.facturation.series}
           emetteur={f.facturation.emetteur}
@@ -246,6 +247,7 @@ export default function FinanceView({ data }: Props) {
             paiements={f.facturation.paiements}
             tiers={f.facturation.tiers}
             series={f.facturation.series}
+            lignesDoc={f.facturation.lignes}
             aujourdhui={f.aujourdhui}
             devise={f.devise}
             sens="vente"
@@ -267,6 +269,7 @@ export default function FinanceView({ data }: Props) {
             paiements={f.facturation.paiements}
             tiers={f.facturation.tiers}
             series={f.facturation.series}
+            lignesDoc={f.facturation.lignes}
             aujourdhui={f.aujourdhui}
             devise={f.devise}
             sens="achat"

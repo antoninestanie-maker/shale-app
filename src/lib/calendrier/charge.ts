@@ -78,7 +78,14 @@ export function chargeDuJour(
     // Une échéance d'objectif n'occupe pas de temps : c'est une date, pas un
     // travail. La compter ferait grossir la charge sans qu'aucune minute ne
     // soit réellement engagée.
-    if (e.kind === "deadline") continue;
+    //
+    // ⚠️ Une ÉCHÉANCE DE FACTURE non plus (migration 023), et pour la même
+    // raison. Sans cette ligne elle tomberait dans `sansCreneau`, donc dans
+    // « N tâches sans horaire » — un compte juste sous un mot faux, exactement
+    // le défaut corrigé au checkup du 2026-09-07. Et son retard ne doit pas
+    // gonfler le compteur des tâches en retard : une facture impayée n'est pas
+    // du travail qui traîne.
+    if (e.kind === "deadline" || e.kind === "echeance") continue;
     if (e.faite) continue; // ce qui est fait ne pèse plus sur la suite
     if (e.enRetard) enRetard++;
     if (e.dureeMin != null) {

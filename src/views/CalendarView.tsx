@@ -15,8 +15,10 @@ import {
   moisDe,
   semaineDe,
   type EntreeAgenda,
+  type EcheanceFacture,
   type SourcesAgenda,
 } from "../lib/calendrier/agenda";
+import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { chargeDuJour, joursSurcharges } from "../lib/calendrier/charge";
 import {
   capaciteDuJour,
@@ -29,6 +31,7 @@ import {
   appliquerReport,
   deleteTask,
   fetchCalendarEvents,
+  fetchFacturation,
   fetchRecurringEvents,
   setTaskDone,
   setTaskSchedule,
@@ -199,9 +202,35 @@ export default function CalendarView({ data, refresh }: Props) {
     };
   }, [data.tasks, data.completions, aujourdhui, refresh]);
 
+  /**
+   * ⭐ Les échéances de facturation (migration 023).
+   *
+   * ⚠️ Chargées ICI, et pas par `fetchAll` : le calendrier ne possède aucune
+   * donnée, il RASSEMBLE — et faire porter les factures par `AppData`
+   * obligerait chaque écran de l'app à les transporter pour rien.
+   */
+  const [echeances, setEcheances] = useState<EcheanceFacture[]>([]);
+  useEffect(() => {
+    let annule = false;
+    void (async () => {
+      const f = await fetchFacturation().catch(() => null);
+      if (annule || !f) return;
+      setEcheances(echeancesDuCalendrier(f.factures, f.paiements, f.tiers, aujourdhui));
+    })();
+    return () => {
+      annule = true;
+    };
+  }, [aujourdhui]);
+
   const sources: SourcesAgenda = useMemo(
-    () => ({ events, tasks: data.tasks, completions: data.completions, goals: data.goals }),
-    [events, data.tasks, data.completions, data.goals],
+    () => ({
+      events,
+      tasks: data.tasks,
+      completions: data.completions,
+      goals: data.goals,
+      echeances,
+    }),
+    [events, data.tasks, data.completions, data.goals, echeances],
   );
 
   const parJour = useMemo(
