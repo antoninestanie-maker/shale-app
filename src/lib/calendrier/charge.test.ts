@@ -159,7 +159,7 @@ const objectif = (p: Partial<Goal> = {}): Goal => ({
 const tache = (p: Partial<Task> = {}): Task => ({
   id: 1, label: "t", tag: null, priority: "medium", recurrence: "none",
   goal_id: null, created_at: "2026-08-01 09:00:00", due_date: null, start_at: null,
-  end_at: null, postponed_count: 0, postponed_from: null, ...p,
+  end_at: null, postponed_count: 0, postponed_from: null, is_example: 0, ...p,
 });
 
 describe("l'écart entre deux dates", () => {

@@ -27,6 +27,19 @@ export interface Task {
   postponed_count: number;
   /** Le jour où elle était prévue à l'origine, 'YYYY-MM-DD'. */
   postponed_from: string | null;
+  /**
+   * ⭐ 1 = contenu de DÉPART créé par l'app au premier lancement, pas par
+   * l'utilisateur (migration 024).
+   *
+   * Trois conséquences, et elles vont ensemble : la ligne se signale à l'écran,
+   * le bouton « supprimer les exemples » l'emporte, et elle n'alimente NI les
+   * statistiques, NI les séries, NI les compteurs de progression.
+   *
+   * ⚠️ Le marqueur DISPARAÎT à la première écriture de l'utilisateur sur la
+   * ligne : un exemple adopté redevient une donnée ordinaire et recommence à
+   * compter. Voir `lib/onboarding/exemples.ts`.
+   */
+  is_example: number; // SQLite: 0 | 1
 }
 
 export interface TodayTask extends Task {
@@ -110,6 +123,19 @@ export interface Note {
   body: string;
   created_at: string;
   updated_at: string;
+  /**
+   * ⭐ 1 = contenu de DÉPART créé par l'app au premier lancement, pas par
+   * l'utilisateur (migration 024).
+   *
+   * Trois conséquences, et elles vont ensemble : la ligne se signale à l'écran,
+   * le bouton « supprimer les exemples » l'emporte, et elle n'alimente NI les
+   * statistiques, NI les séries, NI les compteurs de progression.
+   *
+   * ⚠️ Le marqueur DISPARAÎT à la première écriture de l'utilisateur sur la
+   * ligne : un exemple adopté redevient une donnée ordinaire et recommence à
+   * compter. Voir `lib/onboarding/exemples.ts`.
+   */
+  is_example: number; // SQLite: 0 | 1
 }
 
 export interface JournalEntry {
@@ -125,6 +151,19 @@ export interface Habit {
   name: string;
   color: string;
   archived: number;
+  /**
+   * ⭐ 1 = contenu de DÉPART créé par l'app au premier lancement, pas par
+   * l'utilisateur (migration 024).
+   *
+   * Trois conséquences, et elles vont ensemble : la ligne se signale à l'écran,
+   * le bouton « supprimer les exemples » l'emporte, et elle n'alimente NI les
+   * statistiques, NI les séries, NI les compteurs de progression.
+   *
+   * ⚠️ Le marqueur DISPARAÎT à la première écriture de l'utilisateur sur la
+   * ligne : un exemple adopté redevient une donnée ordinaire et recommence à
+   * compter. Voir `lib/onboarding/exemples.ts`.
+   */
+  is_example: number; // SQLite: 0 | 1
 }
 
 export interface HabitCheck {
@@ -239,6 +278,14 @@ export interface Sujet {
   body: string | null;
   /** JSON `{ "<id de champ>": valeur }` — passer par `valeursDeLObjet()`. */
   field_values: string;
+  /**
+   * ⭐ 1 = sujet créé par le contenu de départ (migration 024).
+   *
+   * ⚠️ Il n'entre PAS dans le compte du bouton « supprimer les exemples » : un
+   * sujet est un contenant, pas un objet du parcours. Il est retiré seulement
+   * s'il est resté VIDE.
+   */
+  is_example: number; // SQLite: 0 | 1
   created_at: string;
   updated_at: string;
 }
@@ -264,6 +311,19 @@ export interface KnowledgeEntry {
   data: string | null;
   tags: string; // tags libres séparés par des virgules
   pinned: number; // SQLite: 0 | 1
+  /**
+   * ⭐ 1 = contenu de DÉPART créé par l'app au premier lancement, pas par
+   * l'utilisateur (migration 024).
+   *
+   * Trois conséquences, et elles vont ensemble : la ligne se signale à l'écran,
+   * le bouton « supprimer les exemples » l'emporte, et elle n'alimente NI les
+   * statistiques, NI les séries, NI les compteurs de progression.
+   *
+   * ⚠️ Le marqueur DISPARAÎT à la première écriture de l'utilisateur sur la
+   * ligne : un exemple adopté redevient une donnée ordinaire et recommence à
+   * compter. Voir `lib/onboarding/exemples.ts`.
+   */
+  is_example: number; // SQLite: 0 | 1
   created_at: string;
   updated_at: string;
 }

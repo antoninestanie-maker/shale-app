@@ -8,6 +8,7 @@ import {
   mediane,
   profilDisponibilite,
   REPLI_DEBUT,
+  REPLI_JOURS,
   REPLI_FIN,
   SESSIONS_MINIMUM,
 } from "./disponibilite";
@@ -62,7 +63,11 @@ describe("ce qu'on refuse d'apprendre", () => {
     // un accident comme une règle.
     const profil = profilDisponibilite([session(MARDI, "14:00", "15:00")]);
     expect(profil.appris).toBe(false);
-    expect(profil.repli).toEqual({ debut: REPLI_DEBUT, fin: REPLI_FIN });
+    expect(profil.repli).toEqual({
+      debut: REPLI_DEBUT,
+      fin: REPLI_FIN,
+      jours: REPLI_JOURS,
+    });
   });
 
   it("ignore les pauses et les sessions en cours", () => {
@@ -98,6 +103,27 @@ describe("le repli, quand il n'y a rien à apprendre", () => {
     const tot = profilDisponibilite([], { debut: 6, fin: 12 });
     expect(heureOuvrable(tot, MARDI, 7)).toBe(true);
     expect(heureOuvrable(tot, MARDI, 14)).toBe(false);
+  });
+
+  it("⭐ les JOURS du repli sont réglables aussi (2026-09-10)", () => {
+    // Avant l'accueil du premier démarrage, « lundi à vendredi » était codé en
+    // dur : quelqu'un qui travaille du mercredi au dimanche se voyait proposer
+    // ses lundis et refuser ses samedis, sans recours.
+    const weekend = profilDisponibilite([], { jours: [0, 6] });
+    expect(heureOuvrable(weekend, SAMEDI, 14)).toBe(true);
+    expect(heureOuvrable(weekend, MARDI, 14)).toBe(false);
+    expect(capaciteDuJour(weekend, SAMEDI)).toBe((REPLI_FIN - REPLI_DEBUT) * 60);
+    expect(capaciteDuJour(weekend, MARDI)).toBe(0);
+  });
+
+  it("⚠️ une liste de jours VIDE ne propose rien, et n'invente pas la semaine", () => {
+    // Qui ne déclare aucun jour de travail n'a pas de jour ouvré. Retomber sur
+    // lundi-vendredi ferait dire à l'app le contraire de ce qu'on vient de lui
+    // répondre.
+    const aucun = profilDisponibilite([], { jours: [] });
+    expect(heureOuvrable(aucun, MARDI, 14)).toBe(false);
+    expect(capaciteDuJour(aucun, MARDI)).toBe(0);
+    expect(creneauxLibres(aucun, [], MARDI, { dureeMin: 60 })).toEqual([]);
   });
 });
 

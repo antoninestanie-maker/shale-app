@@ -15,6 +15,9 @@ import type { AppData, LinkKind, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import { kbd, useIsPhone } from "../lib/platform";
+import BadgeExemple from "../components/onboarding/BadgeExemple";
+import { estExemple } from "../lib/onboarding/exemples";
+
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -293,8 +296,9 @@ export default function NotesView({ data, refresh }: Props) {
                 }`}
               >
                 <p className="truncate text-sm font-medium">{note.title}</p>
-                <p className="mt-0.5 font-mono text-[10px] text-text-dim">
+                <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-text-dim">
                   {note.updated_at.slice(0, 10)}
+                  {estExemple(note) && <BadgeExemple />}
                 </p>
               </button>
             </li>

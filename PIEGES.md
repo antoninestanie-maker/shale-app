@@ -1663,3 +1663,109 @@ imprimeur faisait croire que ma série F était en retard de 2 285 numéros.
 
 ▶️ Ce que je numérote et ce que je reçois n'appartiennent pas à la même suite.
 Trouvé par le test de cohérence de la démo, pas par la lecture.
+# 10. Chantier « premier démarrage » (2026-09-10)
+
+## 10.1 ⭐⭐ Insérer un `import` « après le dernier `import` » tombe DANS un `import type { … }`
+
+**Symptôme.** Un script d'édition ajoute une ligne d'import en cherchant la
+dernière ligne qui commence par `import `. Le fichier ne compile plus, et
+`tsc` sort des `TS1003: Identifier expected` sur une ligne qu'on n'a pas
+touchée.
+
+**Cause.** Un import **multi-lignes** commence par `import type {` et se
+poursuit sur dix lignes qui, elles, ne commencent PAS par `import`. La
+« dernière ligne d'import » est donc l'OUVERTURE du dernier bloc, et l'insertion
+se fait entre l'accolade et son premier membre :
+
+```ts
+import type {
+import { sansExemples } from "./onboarding/exemples";   // ← ici
+  Completion,
+```
+
+**Parade.** Ne jamais viser « la dernière ligne d'import » : viser une **ancre
+textuelle unique et refermée** (`} from "../lib/types";`, ou la ligne d'import
+précise qu'on connaît). Et **relancer `tsc` après CHAQUE fichier patché par
+script**, pas après la série : deux fichiers cassés se lisent beaucoup moins
+bien qu'un seul.
+
+**Comment on l'a payée.** Deux fois dans la même heure, le 2026-09-10 —
+`lib/logic.ts` puis `views/KnowledgeView.tsx`. La seconde alors que la première
+venait d'être corrigée : la parade n'avait pas été écrite, seulement appliquée.
+
+## 10.2 ⭐ Ajouter un champ OBLIGATOIRE à un type partagé : `tsc` passe, `test:types` tombe
+
+**Symptôme.** On ajoute `is_example: number` à `Task`, on corrige les erreurs
+que `npx tsc --noEmit` signale, tout est vert. `npm run test:types` échoue
+ensuite sur trois fabriques de tests jamais ouvertes.
+
+**Cause.** Les `*.test.ts` ne compilent que sous `tsconfig.test.json` — ils sont
+hors du programme de `tsc`. Or c'est précisément là que vivent les fabriques
+`const tache = (p: Partial<Task> = {}): Task => ({ … })`, qui doivent fournir
+CHAQUE champ obligatoire.
+
+**Parade.** Après tout ajout d'un champ obligatoire à un type de `lib/types.ts`,
+**jouer les deux** immédiatement. `PASSATION.md` le dit déjà en général ; ce qui
+est nouveau ici, c'est le déclencheur : *un champ obligatoire de plus = des
+fabriques de test à compléter*. Chercher `): Task => ({`, `): Habit => ({`, etc.
+
+**Comment on l'a payée.** 2026-09-10 : découvert par la ligne de base complète,
+après que `tsc` seul eut donné une fausse assurance pendant une demi-heure.
+
+## 10.3 ⭐ Un compteur lu HORS de `AppData` reste figé après une écriture
+
+**Symptôme.** L'accueil du premier démarrage sème son contenu d'exemple, puis
+rend la main. Le bandeau « supprimer les 4 exemples » **n'apparaît pas**. Il
+apparaît au démarrage SUIVANT — c'est-à-dire jamais au moment qui compte.
+
+**Cause.** Le compte se lit en base (`compterExemples()`) et non dans `AppData`,
+parce qu'une des quatre tables — les fiches du Savoir — n'y est pas. Le
+composant le lisait donc dans un `useEffect(…, [])`, qui ne se rejoue jamais.
+`refresh()` renouvelle `data` ; il ne dit rien à qui n'en dépend pas.
+
+**Parade.** Tout composant qui lit la base **à côté** d'`AppData` doit recevoir
+un signal de fraîcheur — l'objet `data` lui-même fait très bien l'affaire, il
+est recréé à chaque `refresh()`. Le mettre dans les dépendances de l'effet.
+
+⚠️ Le corollaire est plus large : **`refresh()` n'est pas un rafraîchissement
+global de l'écran**, c'est une relecture d'`AppData`. Ce qui vit en dehors ne
+bouge pas.
+
+**Comment on l'a payée.** 2026-09-10, vu en mode démo. Aucun test ne pouvait
+l'attraper : il n'y a pas de test de rendu React dans ce dépôt (§ 7.1).
+
+## 10.4 ⚠️ Un contrôle i18n joué AVANT la dernière modification ne prouve rien
+
+**Symptôme.** `npm run i18n:check` rend « 0 clé manquante ». Vingt minutes plus
+tard, l'app basculée en anglais affiche un paragraphe entier en français.
+
+**Cause.** Le texte fautif a été écrit APRÈS le contrôle. L'outil ne ment pas :
+il décrit l'état du dépôt à l'instant où on l'a lancé, et c'est tout.
+
+**Parade.** Les deux contrôles i18n se jouent **en dernier**, avec la ligne de
+base, jamais au milieu du chantier. Et la preuve finale reste la même :
+**basculer l'app en anglais et regarder** (`localStorage.setItem("shale.lang","en")`).
+C'est comme cela que ce défaut-ci a été vu, pas par l'outil.
+
+**Comment on l'a payée.** 2026-09-10 : le texte de bienvenue par défaut
+(`appTexts.ts`) réécrit après le contrôle, donc jamais traduit.
+
+## 10.5 ⚠️ Supprimer un LOT d'objets laisse leur contenant vide derrière
+
+**Symptôme.** On clique « supprimer les 4 exemples ». Les quatre objets
+disparaissent — et le sujet « Méthode » du Savoir reste dans la grille, vide,
+créé par l'app, alors que le bouton vient d'annoncer le contraire.
+
+**Cause.** Le contenant n'était pas marqué, sur le raisonnement — juste — qu'un
+sujet peut recevoir des fiches de l'utilisateur et qu'on ne doit pas les
+emporter. Le raisonnement était bon, la conclusion trop courte : il fallait
+marquer le contenant ET conditionner sa suppression à ce qu'il soit **resté
+vide**, pas renoncer à le supprimer.
+
+**Parade.** Pour tout lot d'objets créé par l'app, se demander **ce qui les
+contient**, et lui appliquer la règle « je pars si je suis vide ». Un bouton qui
+tient sa promesse à quatre objets sur cinq se lit comme un défaut, pas comme une
+nuance.
+
+**Comment on l'a payée.** 2026-09-10, vu à l'écran en mode démo — jamais par un
+test, puisque le test vérifiait exactement ce que le code faisait.

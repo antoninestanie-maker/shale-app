@@ -21,6 +21,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 3 | ⭐ **`BILAN-CALENDRIER-LIAISONS.md`** | **ce qui a été livré du 2026-09-02 au 2026-09-04** — calendrier, mentions, parité iPhone, et ce qui reste ouvert |
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
 | 3 ter | ⭐ **`PASSATION-NOTES.md`** | **le chantier H du 2026-09-05/06 — la perte de données des Notes.** Ce qui est corrigé, ce qui ne l'est pas, et les deux choses qui restent ouvertes (build natif, synchro iPhone) |
+| 3 quater | ⭐ **`PASSATION-ONBOARDING.md`** | **le chantier du 2026-09-10** — l'accueil du premier démarrage, la grille de la semaine et le contenu de départ. ⛔ **NON FUSIONNÉ, aucun build natif** ; il porte la **migration 024** |
 | 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
 | 5 | `MOBILE.md` | si tu touches à iOS |
 | 6 | `PASSATION-UI.md`, `AUDIT-I18N-2026-08.md` | le chantier UI/UX d'août et les chaînes affichées |
@@ -104,6 +105,16 @@ intermittence connue sur les suites PGlite (`MOBILE.md` § 17.6).
 ---
 
 ## 1 ter. ⛔ Ce qui attend une action — au 2026-09-07
+
+0 sexies. ⛔ **LE CHANTIER « PREMIER DÉMARRAGE » EST ÉCRIT ET NON LIVRÉ** *(ajouté
+   le 2026-09-10)*. Branche `onboarding-premiere-ouverture`, worktree
+   `~/Desktop/Shale-chantiers/onboarding`, ligne de base entièrement verte
+   (**746 tests**, +63). Il porte la **migration 024** — cinq
+   `ALTER TABLE ADD COLUMN is_example`, aucune recréation de table. **Rien n'a
+   été fusionné, aucun build natif, la base d'Antonin n'a pas été touchée.**
+   ⚠️ La **023 appartient à la session facturation** : fusionner APRÈS elle, et
+   grouper le build natif avec le sien — sinon Antonin autorise le trousseau
+   deux fois. Détail : `PASSATION-ONBOARDING.md`.
 
 0 quater. ⭐ **LE CHECKUP COMPLET EST FAIT — `CHECKUP-2026-09-07.md`.**
    Cinq défauts corrigés (dont la sauvegarde quotidienne, qui ne partait pas

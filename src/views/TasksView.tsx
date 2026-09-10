@@ -12,6 +12,9 @@ import { IconCalendar, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { t } from "../lib/i18n";
+import BadgeExemple from "../components/onboarding/BadgeExemple";
+import { estExemple } from "../lib/onboarding/exemples";
+
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -301,6 +304,8 @@ export default function TasksView({ data, refresh }: Props) {
               >
                 {task.label}
               </span>
+
+              {estExemple(task) && <BadgeExemple />}
 
               {recurrenceLabel(task.recurrence) && (
                 <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[11px] text-text-dim">
