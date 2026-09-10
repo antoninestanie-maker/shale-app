@@ -11,6 +11,7 @@
 import { useMemo, useState } from "react";
 
 import { IconAlert, IconPlus, IconTrash } from "../icons";
+import ApercuFacture from "./ApercuFacture";
 import { Dialogue } from "./ComptesPanel";
 import { BoutonDiscret, Champ, ChampMontant, Montant, inputCls, labelCls } from "./champs";
 import { MENTION_FRANCHISE, TAUX_TVA_USUELS, formaterTaux, totalLigneHtCents, totauxFacture } from "../../lib/finance/facturation/totaux";
@@ -131,6 +132,7 @@ export default function FormulaireFacture({
       : [{ ...LIGNE_VIDE }],
   );
   const [confirmeEmission, setConfirmeEmission] = useState(false);
+  const [apercu, setApercu] = useState(false);
   const [enCours, setEnCours] = useState(false);
 
   /** ⭐ Recalculés à CHAQUE frappe, par les fonctions pures. */
@@ -255,6 +257,31 @@ export default function FormulaireFacture({
     : sens === "achat"
       ? t("Saisir un achat")
       : t("Nouveau document");
+
+  if (apercu)
+    return (
+      <ApercuFacture
+        facture={{
+          ...(facture ?? ({} as Invoice)),
+          ...entree(),
+          numero: facture?.numero ?? null,
+          total_ht_cents: totaux.totalHtCents,
+          total_tva_cents: totaux.totalTvaCents,
+          total_ttc_cents: totaux.totalTtcCents,
+        }}
+        lignes={lignes
+          .filter((l) => l.description.trim() !== "")
+          .map((l, i) => ({
+            ...enLigneInput(l, i),
+            id: i,
+            invoice_id: facture?.id ?? 0,
+            created_at: "",
+          }))}
+        destinataire={tiers.find((x) => x.id === partyId) ?? null}
+        emetteur={emetteur}
+        onFerme={() => setApercu(false)}
+      />
+    );
 
   if (confirmeEmission && serie)
     return (
@@ -437,6 +464,12 @@ export default function FormulaireFacture({
               {t("Annuler le document")}
             </BoutonDiscret>
           )}
+
+          {/* ⭐ Disponible sur un BROUILLON aussi : c'est avant l'émission
+              qu'on veut relire un document, pas après. */}
+          <BoutonDiscret onClick={() => setApercu(true)} tip={t("Voir le document tel qu'il sera imprimé")}>
+            {t("Aperçu")}
+          </BoutonDiscret>
 
           <button
             type="button"
