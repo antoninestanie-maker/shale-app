@@ -1,4 +1,4 @@
-# Chantier « premier démarrage » — état au 2026-09-10
+# Chantier « premier démarrage » — ✅ LIVRÉ, FUSIONNÉ ET INSTALLÉ (2026-09-10)
 
 *L'accueil qui configure l'app, la grille de la semaine, et le contenu de
 départ. Les DÉCISIONS et leur pourquoi sont dans la section datée du
@@ -14,9 +14,9 @@ départ. Les DÉCISIONS et leur pourquoi sont dans la section datée du
 | Branche | `onboarding-premiere-ouverture`, basée sur **`origin/mobile-ios` (`6b17f60`)** |
 | Pourquoi pas le `mobile-ios` local | il porte 2 commits **non poussés** de la session voisine [K-facturation] (migration 023). Partir de l'origine évite d'emporter son travail en cours |
 | Migration | **024** (`024_onboarding_exemples.sql`). ⛔ La **023 est à la facturation** — le trou dans `lib.rs` et `schema.testutil.ts` est ATTENDU sur cette branche et se referme à la fusion |
-| Fusionné | **non** |
-| Build natif | **non** — verrou jamais pris |
-| Base d'Antonin | **intacte** : rien n'a tourné en `tauri dev`, la migration 024 n'a jamais été jouée sur la vraie base |
+| Fusionné | ✅ **oui** — `6718bf7` sur `mobile-ios`, poussé, en fast-forward après rebase sur la facturation |
+| Build natif | ✅ **fait le 2026-09-10 à 10:46** — UN SEUL build pour la facturation ET ce chantier |
+| Base d'Antonin | ✅ **migrée en version 24**, `integrity_check` ok, 0 violation de clé étrangère, **13 notes / 51 761 octets inchangés** |
 
 ---
 
@@ -94,15 +94,65 @@ dans la file de synchronisation — c'était le risque à écarter, et il l'est.
 
 ---
 
-## 4. Ce qui reste à faire
+## 4. La livraison — ce qui a été fait le 2026-09-10 au matin
 
-1. ⛔ **Fusionner** — après la fusion de [K-facturation], pour que les
-   migrations 023 et 024 se rangent dans l'ordre. Rebaser, rejouer la ligne de
-   base en entier, vérifier que `lib.rs` porte bien 23 **et** 24.
-2. ⛔ **Build natif** — la migration 024 doit atteindre la machine d'Antonin.
-   Le verrou est partagé : **un seul build pour la facturation et ce
-   chantier**, sinon Antonin doit autoriser le trousseau deux fois. Sauvegarde
-   `sqlite3 .backup` obligatoire avant, et la 024 jouée sur une COPIE d'abord.
+**Fusion.** Rebase sur `mobile-ios` (les 8 commits de la facturation), six
+conflits, dont deux réels : `lib.rs` et `schema.testutil.ts` enregistrent
+désormais **23 puis 24**, dans l'ordre. Ligne de base rejouée EN ENTIER après
+rebase et intégralement verte — **1012 tests** (949 facturation + 63 ici),
+i18n 1831 entrées / 0 manquante, `cargo check --all-targets`, 133 tests Rust,
+et les deux cibles iOS. Fusionné en fast-forward (`6718bf7`), poussé.
+
+⚠️ **`npm ci` a dû être rejoué dans le worktree** : la facturation a ajouté
+`pdf-lib`, et `tsc` échouait sur un module absent tant que les dépendances
+dataient d'avant son chantier.
+
+**Sauvegarde.** `shale-backups/avant-onboarding-20260910-1045/` — DEUX copies
+`sqlite3 .backup` (app ouverte, puis fermée par `osascript quit`), **même
+sha256** `2661947d…` : rien n'attendait dans le WAL. `integrity_check` et
+`quick_check` ok.
+
+**Répétition à blanc.** Les migrations 023 **et** 024 jouées d'affilée sur une
+COPIE de cette sauvegarde : integrity ok, 0 violation de clé étrangère, tous les
+comptes identiques, 6 tables de facturation créées, **zéro ligne existante
+marquée comme exemple**, et `sync_outbox` inchangé à 0 — un
+`ALTER TABLE ADD COLUMN` ne déclenche aucun trigger, donc les notes d'Antonin ne
+repartent PAS dans la file de synchronisation.
+
+**Le bundle porte bien les deux chantiers**, prouvé sur le `dist/` consommé :
+`is_example` 43, `onboarding.done_at` 1, `Il te reste` 4, `Factur-X` 4,
+`invoice_lines` 6. Contre-épreuves à **0** (`EtapeGrille`, `PorteAccueil`,
+`rafraichirBlocs`) — des noms LOCAUX, minifiés : le grep ne compte pas du bruit.
+Témoins RUST sur le binaire installé : `ALTER TABLE tasks … ADD COLUMN
+is_example` 1, `onboarding_exemples` 1, `invoice_series` 14.
+
+**La vraie base, après lancement** : **version 24**, `integrity_check` ok,
+0 violation de clé étrangère, **13 notes / 51 761 octets / 2 tâches /
+3 habitudes / 6 fiches / 4 sujets / 2 objectifs / 1 trade — identiques à la
+sauvegarde**. 6 tables de facturation. **0 ligne marquée comme exemple.**
+
+⭐ **Et la migration du drapeau est prouvée EN PRODUCTION** : `settings` porte
+`onboarding.done_at = 2026-09-10 10:48:00`, écrit au premier lancement. L'app a
+donc bien REPRIS le `shale.onboarded` d'Antonin au lieu de lui rejouer
+l'accueil — c'est le comportement voulu, et c'était la seule façon de le
+vérifier pour de vrai. Aucune clé `horaires.*`, aucun `exemples.crees_at` :
+rien n'a été semé, ce qui est correct puisque l'accueil ne s'est pas joué.
+
+⚠️ **L'installation dans `/Applications` n'a été faite par personne.** Voir
+`PIEGES.md` § 10.6 : l'app y était déjà remplacée par le bundle neuf au moment
+d'installer, cause indéterminée. Vérifié autrement, et c'est ce qui compte :
+`diff -r` entre l'installée et la sortie de build rend **identiques, fichier par
+fichier**, et les témoins Rust sont dans le binaire installé.
+
+### Ce qui reste
+
+1. ⛔ **UN GESTE HUMAIN : la fenêtre de trousseau est OUVERTE** (`SecurityAgent`
+   actif au moment d'écrire). Le binaire a changé, donc macOS redemande l'accès.
+   **Antonin doit cliquer « Toujours autoriser »** — aucune session ne peut le
+   faire à sa place, et sans ce clic la synchronisation ne retrouve pas son jeton.
+2. **Antonin ne verra PAS l'accueil au lancement**, et c'est voulu (son drapeau
+   a été repris). Pour le voir, et obtenir le contenu de départ :
+   **Réglages → « Refaire l'accueil du premier démarrage »**, puis relancer.
 3. **Le simulateur iOS**, quand Antonin le rouvre : la grille en WKWebView, et
    la synchronisation réelle du drapeau vers un second appareil.
 

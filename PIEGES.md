@@ -1769,3 +1769,44 @@ nuance.
 
 **Comment on l'a payée.** 2026-09-10, vu à l'écran en mode démo — jamais par un
 test, puisque le test vérifiait exactement ce que le code faisait.
+
+## 10.6 ⚠️⚠️ `/Applications/Shale.app` peut être REMPLACÉE pendant `tauri build`, sans `ditto`
+
+**Symptôme.** On relève l'empreinte de l'app installée AVANT le build (§ 7.5 bis
+l'exige), on lance `npm run tauri build`, et au moment d'installer on trouve
+`/Applications/Shale.app` **déjà remplacée par le bundle neuf** : même sha256
+que la sortie de build, et tout le contenu du bundle horodaté à la seconde du
+binaire. Aucun `ditto`, aucun `cp` n'a été lancé.
+
+**Mesuré le 2026-09-10.** Avant : `1307bfa2…`, mtime 2026-09-08 21:13:13. Après
+le build : `35198bea…`, et `Contents/`, `Info.plist`, `MacOS/`, `Resources/`
+tous à 10:46:10 — l'horodatage exact du binaire produit. `diff -r` entre l'app
+installée et `target/release/bundle/macos/Shale.app` rend **identiques, fichier
+par fichier**.
+
+**Cause : INDÉTERMINÉE.** Ce qui a été éliminé, mesures à l'appui : ce n'est pas
+un lien symbolique (`readlink` échoue, et les inodes diffèrent — 41902400 contre
+41902233) ; il n'y a **aucun** `beforeBuildCommand`/hook d'installation dans
+`package.json` ni `tauri.conf.json` (`grep -rn "/Applications"` sur les scripts
+et la config rend zéro) ; aucun hook git ; aucune image disque de Shale montée
+(les deux montées sont les runtimes de simulateur d'Apple) ; et le journal
+unifié ne garde aucune trace sur la fenêtre concernée.
+
+**Parade.** ⚠️ **Ne pas supposer que `/Applications` est intacte pendant un
+build.** Concrètement :
+
+1. relever l'empreinte AVANT, comme le § 7.5 bis le dit déjà — c'est ce qui a
+   permis de VOIR le remplacement ;
+2. **re-relever l'empreinte de l'installée juste avant de copier**, et si elle
+   est déjà celle de la source, ne pas conclure « ma copie a marché » : rien n'a
+   été copié, et la comparaison d'après n'a plus aucune valeur probante (elle
+   rend « identique » dans les deux cas) ;
+3. prouver l'installation par le **CONTENU** — `diff -r` du bundle entier, et
+   les témoins Rust dans le binaire installé — jamais par le seul fait qu'une
+   commande de copie a rendu 0.
+
+**Comment on l'a payée.** Chantier « premier démarrage », 2026-09-10 : dix
+minutes d'enquête, et surtout le risque d'écrire « installé et prouvé » pour un
+geste qu'on n'a pas fait. Le dépôt a déjà une entrée sur un build qui n'emportait
+pas ce qu'on croyait (§ 7.5 bis) ; celle-ci est la symétrique — une installation
+qu'on n'a pas faite et qu'on aurait pu s'attribuer.
