@@ -70,6 +70,15 @@ export interface EtatFacture {
  * ⚠️ Le seuil de « encaissée » est `reste <= 0` et non `reste === 0` : un
  * trop-perçu solde la facture. Avec l'égalité stricte, une facture surpayée
  * serait restée « partiellement encaissée » pour toujours.
+ *
+ * ⚠️⚠️ MAIS LE SENS DE LA COMPARAISON SUIT LE SIGNE DU TOTAL, et c'est un
+ * AVOIR qui l'a montré — à l'écran, pas en test.
+ *
+ * Un avoir porte un total NÉGATIF (−1 500 €). Tant que rien n'a été remboursé,
+ * son reste dû vaut −1 500, donc `reste <= 0` est vrai d'emblée : il
+ * s'affichait « Encaissée » alors que personne n'avait rien versé. Un document
+ * est soldé quand son reste dû a atteint zéro EN VENANT DU CÔTÉ de son total,
+ * pas quand il est passé sous une borne fixe.
  */
 export function statutCalcule(
   facture: Pick<Invoice, "statut" | "total_ttc_cents">,
@@ -80,7 +89,9 @@ export function statutCalcule(
   const reste = resteDuCents(facture, paiements);
   const encaisse = encaisseCents(paiements);
 
-  if (reste <= 0 && facture.total_ttc_cents !== 0) return "encaissee";
+  if (facture.total_ttc_cents === 0) return "emise";
+  const solde = facture.total_ttc_cents > 0 ? reste <= 0 : reste >= 0;
+  if (solde) return "encaissee";
   if (encaisse !== 0) return "partiellement_encaissee";
   return "emise";
 }
@@ -104,6 +115,19 @@ export function etatFacture(
   const reste = resteDuCents(facture, paiements);
   const encaisse = encaisseCents(paiements);
 
+  /**
+   * ⚠️⚠️ `reste > 0`, et surtout PAS `reste !== 0`.
+   *
+   * J'ai tenté `!== 0` en corrigeant le statut des avoirs, et l'écran l'a
+   * démenti tout de suite : l'avoir s'affichait « En retard de 58 jours » et
+   * comptait dans « 2 documents en retard ». Or le retard sert à décider s'il
+   * faut RELANCER quelqu'un — et on ne relance pas un client pour un avoir
+   * qu'on lui doit. Un reste dû négatif est de l'argent qui part, pas une
+   * créance à recouvrer.
+   *
+   * L'avoir garde bien son reste dû signé (il réduit l'encours, c'est son
+   * rôle) ; il n'est simplement jamais « en retard ».
+   */
   const exigible =
     facture.type !== "devis" &&
     (statut === "emise" || statut === "partiellement_encaissee") &&

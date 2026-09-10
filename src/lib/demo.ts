@@ -785,7 +785,11 @@ const invoiceIssuer: InvoiceIssuer = {
 
 const invoiceSeries: InvoiceSeries[] = (
   [
-    ["F", "Factures", 5],
+    // ⚠️ `prochain` doit être STRICTEMENT au-dessus du dernier numéro produit.
+    // Il valait 5 alors que F-2026-0005 existait déjà : l'écran d'émission
+    // proposait un numéro en double. Vu à l'écran, pas en test — d'où le test
+    // de cohérence ajouté dans `facturation/demo.test.ts`.
+    ["F", "Factures", 6],
     ["AV", "Avoirs", 2],
     ["D", "Devis", 3],
   ] as const
@@ -967,6 +971,8 @@ const invoices: Invoice[] = [
   factureDemo({
     id: nextInvoiceId++,
     sens: "achat",
+    // ⚠️ Pas de série : le numéro vient du FOURNISSEUR, je ne le fabrique pas.
+    serie_id: null,
     numero: "FA-2291",
     statut: "emise",
     party_id: 4,

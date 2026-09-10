@@ -5,7 +5,7 @@ import { todayStr } from "../../logic";
 import { burnMensuel } from "../burn";
 import { patrimoineAu } from "../patrimoine";
 import { runway } from "../runway";
-import { collisionsNumeros } from "./collisions";
+import { collisionsNumeros, compteursEnRetard } from "./collisions";
 import { encours } from "./creances";
 import { runwayAvecCreances, echeancesAttendues } from "./runway-creances";
 import { etatFacture } from "./statuts";
@@ -93,6 +93,14 @@ describe("le jeu de démonstration Facturation", () => {
   it("aucune collision de numéro dans le jeu livré", async () => {
     const f = await demo.fetchFacturation();
     expect(collisionsNumeros(f.factures)).toEqual([]);
+  });
+
+  it("⭐ aucun compteur de série n'est en retard sur ce qu'il a produit", async () => {
+    // Sans ce test, la démo proposait à l'émission un numéro DÉJÀ PRIS
+    // (F-2026-0005). Trouvé en cliquant « Émettre » à l'écran : le compteur de
+    // la série F valait 5 alors qu'elle avait produit 0001 à 0005.
+    const f = await demo.fetchFacturation();
+    expect(compteursEnRetard(f.series, f.factures)).toEqual([]);
   });
 
   it("l'avoir annule bien la facture qu'il cite", async () => {

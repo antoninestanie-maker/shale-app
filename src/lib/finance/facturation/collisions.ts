@@ -123,6 +123,11 @@ export function compteursEnRetard(
 
   for (const f of factures) {
     if (f.numero === null || f.serie_id === null) continue;
+    // ⚠️ UN ACHAT N'EST PAS NUMÉROTÉ PAR MOI. Son numéro est celui du
+    // fournisseur (« FA-2291 »), et il n'a aucun rapport avec mes compteurs.
+    // Le compter faisait croire que la série F était en retard de 2 285
+    // numéros. Trouvé par le test de cohérence de la démo.
+    if (f.sens === "achat") continue;
     // Le compteur est le DERNIER groupe de chiffres du numéro. « F-2026-0007 »
     // → 7. Prendre le premier attraperait l'année ; prendre tous les chiffres
     // collés donnerait 20260007.

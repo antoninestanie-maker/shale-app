@@ -174,6 +174,17 @@ describe("compteur de série en retard sur ce qu'elle a produit", () => {
     expect(r).toHaveLength(1);
   });
 
+  it("⭐ IGNORE les factures d'ACHAT — leur numéro vient du fournisseur", () => {
+    // « FA-2291 » d'un fournisseur ferait croire que ma série F est en retard
+    // de 2 285 numéros. Trouvé par le test de cohérence de la démo.
+    expect(
+      compteursEnRetard(
+        [{ id: 1, prochain: 6 }],
+        [facture({ id: 1, numero: "FA-2291", serie_id: 1, sens: "achat" })],
+      ),
+    ).toEqual([]);
+  });
+
   it("ignore un numéro sans chiffre et les brouillons", () => {
     expect(
       compteursEnRetard(

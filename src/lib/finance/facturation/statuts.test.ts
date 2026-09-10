@@ -80,6 +80,36 @@ describe("le statut se recalcule d'après les paiements", () => {
     expect(statutCalcule(facture(), [paiement(110_000)])).toBe("encaissee");
   });
 
+  it("⭐⭐ un AVOIR non remboursé n'est PAS « encaissé » — trouvé à l'écran", () => {
+    // Un avoir porte un total NÉGATIF. Avec un seuil fixe `reste <= 0`, il
+    // passait « encaissé » d'emblée, alors que personne n'avait rien versé.
+    // Un document est soldé quand son reste a atteint zéro EN VENANT DU CÔTÉ
+    // de son total.
+    const avoir = facture({ type: "avoir", total_ttc_cents: -150_000 });
+    expect(statutCalcule(avoir, [])).toBe("emise");
+
+    // Remboursé pour moitié : partiellement.
+    expect(statutCalcule(avoir, [paiement(-70_000)])).toBe("partiellement_encaissee");
+
+    // Remboursé en entier : là, il est soldé.
+    expect(statutCalcule(avoir, [paiement(-150_000)])).toBe("encaissee");
+  });
+
+  it("⭐ un avoir n'est JAMAIS « en retard » — on ne relance pas pour un avoir", () => {
+    // Il garde son reste dû signé (il réduit l'encours, c'est son rôle), mais
+    // le retard sert à décider s'il faut relancer un client, et un avoir est de
+    // l'argent qui part. Vu à l'écran : « En retard de 58 jours » sur un avoir.
+    const avoir = facture({ type: "avoir", total_ttc_cents: -150_000 });
+    const e = etatFacture(avoir, [], "2026-09-09");
+    expect(e.resteDuCents).toBe(-150_000);
+    expect(e.enRetard).toBe(false);
+    expect(e.aEchoir).toBe(false);
+  });
+
+  it("un document à total NUL reste émis, il n'est pas « encaissé »", () => {
+    expect(statutCalcule(facture({ total_ttc_cents: 0 }), [])).toBe("emise");
+  });
+
   it("⚠️ un brouillon reste un brouillon, même payé", () => {
     expect(statutCalcule(facture({ statut: "brouillon" }), [paiement(100_000)])).toBe(
       "brouillon",

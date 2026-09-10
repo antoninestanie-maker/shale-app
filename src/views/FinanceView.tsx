@@ -22,6 +22,10 @@ import { useState } from "react";
 
 import ComptesPanel, { FormulaireCompte } from "../components/finance/ComptesPanel";
 import CourbePatrimoine from "../components/finance/CourbePatrimoine";
+import CreancesPanel from "../components/finance/CreancesPanel";
+import FacturesPanel from "../components/finance/FacturesPanel";
+import FormulaireEncaissement from "../components/finance/FormulaireEncaissement";
+import FormulaireFacture from "../components/finance/FormulaireFacture";
 import DemarrageFinance, {
   demarrageTermine,
 } from "../components/finance/DemarrageFinance";
@@ -32,7 +36,7 @@ import PontTradingPanel from "../components/finance/PontTradingPanel";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import { useEntitlements } from "../lib/entitlements";
 import { useFinance } from "../lib/finance/useFinance";
-import type { AppData } from "../lib/types";
+import type { AppData, Invoice, InvoiceSens } from "../lib/types";
 import { t } from "../lib/i18n";
 
 interface Props {
@@ -53,6 +57,16 @@ export default function FinanceView({ data }: Props) {
   const [signalFlux, setSignalFlux] = useState(0);
   const [ouvreCompte, setOuvreCompte] = useState(false);
   const [ouvreFlux, setOuvreFlux] = useState(false);
+
+  /**
+   * Facturation (migration 023). L'état vit ICI parce que `ResizableGrid` ne
+   * lit que ses enfants DIRECTS : un composant qui envelopperait les deux
+   * panneaux dans un fragment les rendrait invisibles à la grille — ils
+   * n'apparaîtraient ni dans l'ordre enregistré, ni dans les chips « + titre ».
+   */
+  const [editeFacture, setEditeFacture] = useState<Invoice | "nouvelle" | null>(null);
+  const [sensEdite, setSensEdite] = useState<InvoiceSens>("vente");
+  const [encaisse, setEncaisse] = useState<Invoice | null>(null);
 
   if (!f.pret)
     return (
@@ -130,6 +144,38 @@ export default function FinanceView({ data }: Props) {
         />
       )}
 
+      {/* Les modales de facturation vivent HORS de la grille : une modale dans
+          un panneau redimensionnable serait rognée par son `overflow`. */}
+      {editeFacture !== null && (
+        <FormulaireFacture
+          facture={editeFacture === "nouvelle" ? null : editeFacture}
+          lignesExistantes={
+            editeFacture === "nouvelle"
+              ? []
+              : f.facturation.lignes.filter((l) => l.invoice_id === editeFacture.id)
+          }
+          tiers={f.facturation.tiers}
+          series={f.facturation.series}
+          emetteur={f.facturation.emetteur}
+          sens={sensEdite}
+          devise={f.devise}
+          aujourdhui={f.aujourdhui}
+          onFerme={() => setEditeFacture(null)}
+          onChange={f.recharger}
+        />
+      )}
+
+      {encaisse !== null && (
+        <FormulaireEncaissement
+          facture={encaisse}
+          paiements={f.facturation.paiements.filter((p) => p.invoice_id === encaisse.id)}
+          comptes={f.data.comptes}
+          aujourdhui={f.aujourdhui}
+          onFerme={() => setEncaisse(null)}
+          onChange={f.recharger}
+        />
+      )}
+
       {!vide && (
       <ResizableGrid gridId="finance" className="mt-4">
         {!enRodage && (
@@ -176,6 +222,63 @@ export default function FinanceView({ data }: Props) {
             devise={f.devise}
             onChange={f.recharger}
             signalNouveau={signalFlux}
+          />
+        </ResizablePanel>
+
+        {/* ── Facturation (migration 023) ────────────────────────────────
+            Une SECTION de Finance, pas un module : rien n'est ajouté à
+            `Sidebar.tsx`, et le compte reste à TREIZE. */}
+        <ResizablePanel id="finance-creances" defaultW={12} title={t("Créances et trésorerie")}>
+          <CreancesPanel
+            deuxRunways={f.deuxRunways}
+            creances={f.creancesClients}
+            dettes={f.dettesFournisseurs}
+            revenus={f.revenus}
+            fenetreRevenus={f.fenetreRevenus}
+            onFenetreRevenus={f.setFenetreRevenus}
+            devise={f.devise}
+          />
+        </ResizablePanel>
+
+        <ResizablePanel id="finance-factures" defaultW={6} title={t("Factures")} minH={220}>
+          <FacturesPanel
+            factures={f.facturation.factures}
+            paiements={f.facturation.paiements}
+            tiers={f.facturation.tiers}
+            series={f.facturation.series}
+            aujourdhui={f.aujourdhui}
+            devise={f.devise}
+            sens="vente"
+            onNouveau={() => {
+              setSensEdite("vente");
+              setEditeFacture("nouvelle");
+            }}
+            onOuvrir={(facture) => {
+              setSensEdite(facture.sens);
+              setEditeFacture(facture);
+            }}
+            onEncaisser={setEncaisse}
+          />
+        </ResizablePanel>
+
+        <ResizablePanel id="finance-achats" defaultW={6} title={t("Achats")} minH={220}>
+          <FacturesPanel
+            factures={f.facturation.factures}
+            paiements={f.facturation.paiements}
+            tiers={f.facturation.tiers}
+            series={f.facturation.series}
+            aujourdhui={f.aujourdhui}
+            devise={f.devise}
+            sens="achat"
+            onNouveau={() => {
+              setSensEdite("achat");
+              setEditeFacture("nouvelle");
+            }}
+            onOuvrir={(facture) => {
+              setSensEdite(facture.sens);
+              setEditeFacture(facture);
+            }}
+            onEncaisser={setEncaisse}
           />
         </ResizablePanel>
 
