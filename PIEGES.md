@@ -1784,13 +1784,47 @@ tous à 10:46:10 — l'horodatage exact du binaire produit. `diff -r` entre l'ap
 installée et `target/release/bundle/macos/Shale.app` rend **identiques, fichier
 par fichier**.
 
-**Cause : INDÉTERMINÉE.** Ce qui a été éliminé, mesures à l'appui : ce n'est pas
-un lien symbolique (`readlink` échoue, et les inodes diffèrent — 41902400 contre
-41902233) ; il n'y a **aucun** `beforeBuildCommand`/hook d'installation dans
-`package.json` ni `tauri.conf.json` (`grep -rn "/Applications"` sur les scripts
-et la config rend zéro) ; aucun hook git ; aucune image disque de Shale montée
-(les deux montées sont les runtimes de simulateur d'Apple) ; et le journal
-unifié ne garde aucune trace sur la fenêtre concernée.
+**Cause : INDÉTERMINÉE au moment d'écrire.** Ce qui avait été éliminé, mesures à
+l'appui : ce n'est pas un lien symbolique (`readlink` échoue, et les inodes
+diffèrent — 41902400 contre 41902233) ; il n'y a **aucun**
+`beforeBuildCommand`/hook d'installation dans `package.json` ni
+`tauri.conf.json` (`grep -rn "/Applications"` sur les scripts et la config rend
+zéro) ; aucun hook git ; aucune image disque de Shale montée (les deux montées
+sont les runtimes de simulateur d'Apple) ; et le journal unifié ne garde aucune
+trace sur la fenêtre concernée.
+
+### ⭐⭐ MIS À JOUR LE 2026-09-11 — l'outillage est HORS DE CAUSE, et le build est REPRODUCTIBLE
+
+Le lendemain, un second build a été lancé **avec une surveillance armée sur
+l'empreinte de `/Applications/Shale.app`**, interrogée toutes les cinq secondes
+pendant toute la compilation. Résultat : **elle n'a jamais bougé.** Build
+terminé (code de sortie 0, `Shale.app` et le DMG produits), et l'app installée
+toujours à `35198bea…`, mtime **2026-09-10 10:46:10** — inchangée.
+
+▶️ **`tauri build` ne copie donc RIEN dans `/Applications`.** L'hypothèse d'un
+outillage qui installerait à notre insu est éliminée par la mesure, pas par le
+raisonnement. Reste l'explication qui colle à tout le reste et qu'on ne peut pas
+prouver d'ici : **un geste humain** — une installation depuis le DMG, qui
+préserve les mtimes de la source et expliquerait aussi la fenêtre de trousseau
+apparue à 10:48. Écrit comme hypothèse, pas comme fait.
+
+⭐ **Et une découverte qui vaut pour tous les futurs builds : le profil `release`
+de ce dépôt est REPRODUCTIBLE.** Deux builds d'un même contenu, à trente-sept
+heures d'intervalle, ont produit **exactement le même binaire** — `35198bea…`
+des deux côtés, et `diff -r` entre l'app installée et la sortie neuve rend
+« identiques, fichier par fichier ».
+
+⚠️ Ce que cela change concrètement, et c'est une bonne nouvelle pour Antonin :
+**reconstruire sans avoir changé le code ne déclenche AUCUNE fenêtre de
+trousseau**, puisque le binaire est identique et que macOS n'attache ses
+autorisations qu'à la signature. Vérifié le 2026-09-11 : aucun `SecurityAgent`
+après relance.
+
+⚠️ Le revers, à ne pas oublier : **quand deux empreintes sont identiques avant la
+copie, aucune comparaison d'après ne prouve quoi que ce soit** — ni que la copie
+a eu lieu, ni qu'elle a échoué. Il faut alors prouver par le CONTENU (`diff -r`,
+témoins Rust dans le binaire installé) et dire franchement qu'on n'a rien
+installé, parce qu'il n'y avait rien à installer.
 
 **Parade.** ⚠️ **Ne pas supposer que `/Applications` est intacte pendant un
 build.** Concrètement :
