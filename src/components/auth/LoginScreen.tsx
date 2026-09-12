@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { IconAlert, IconEye, IconEyeOff } from "../icons";
 import { ACCOUNT_PAGES, AUTH_CONFIGURED } from "../../lib/auth/config";
 import { sendPasswordReset } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
 import ShaleMark from "./ShaleMark";
+import { mesurerMarque } from "../../lib/entree/signal";
 
 import { t } from "../../lib/i18n";
 interface Props {
@@ -87,6 +88,8 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
           );
         }
       } else {
+        // Dernier instant où la marque est encore à l'écran, à sa vraie place.
+        mesurerMarque(marque.current);
         await onSignIn(email, password, remember);
       }
     } catch (err) {
@@ -121,6 +124,16 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
     }
   };
 
+  /**
+   * ⭐ LA MESURE DE LA MARQUE SE PREND ICI, ET NULLE PART AILLEURS.
+   *
+   * `AuthGate` remplace le mur par l'app en un seul rendu : au moment où la
+   * transition d'entrée voudrait mesurer la marque, cet écran n'existe plus.
+   * Il faut donc relever sa position AVANT d'attendre `onSignIn` — d'où
+   * l'appel dans `submit`, et non dans un effet de la transition.
+   */
+  const marque = useRef<HTMLDivElement>(null);
+
   const field =
     "w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text " +
     "outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim";
@@ -133,12 +146,18 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
     <div className="flex h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-7 flex flex-col items-center text-center">
-          <ShaleMark size={52} />
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-text">Shale</h1>
-          <p className="mt-1 text-sm text-text-dim">{texts.loginSubtitle}</p>
+          {/* `entree-marque` : la copie animée de la transition d'entrée vient
+              se poser exactement là, et cache alors l'originale. */}
+          <div ref={marque} className="entree-marque">
+            <ShaleMark size={52} />
+          </div>
+          <h1 className="entree-part mt-4 text-2xl font-bold tracking-tight text-text">
+            Shale
+          </h1>
+          <p className="entree-part mt-1 text-sm text-text-dim">{texts.loginSubtitle}</p>
         </div>
 
-        <form onSubmit={submit} className="card p-6">
+        <form onSubmit={submit} className="entree-part card p-6">
           {error && (
             <div className="mb-4 flex items-start gap-2 rounded-[12px] border border-red/40 bg-red/10 px-3 py-2.5 text-sm text-text">
               <IconAlert className="mt-0.5 h-4 w-4 shrink-0 text-red" />
@@ -237,7 +256,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
         {/* L'inscription se fait ici, dans l'app. Elle renvoyait vers le site :
             un aller-retour par le navigateur pour revenir taper les mêmes
             identifiants, alors que GoTrue expose le même endpoint aux deux. */}
-        <p className="mt-5 text-center text-sm text-text-dim">
+        <p className="entree-part mt-5 text-center text-sm text-text-dim">
           {signingUp ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <button
             onClick={switchMode}
@@ -248,7 +267,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
         </p>
 
         {!AUTH_CONFIGURED && (
-          <p className="mt-6 text-center text-xs text-text-dim opacity-70">
+          <p className="entree-part mt-6 text-center text-xs text-text-dim opacity-70">
             {t(
               "Mode démo — auth non configurée (voir src/lib/auth/config.ts). N'importe quel identifiant déverrouille l'app.",
             )}

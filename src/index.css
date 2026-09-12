@@ -1042,9 +1042,6 @@
   .animate-fade-up {
     animation: fade-up 0.42s var(--ease-out-quint) both;
   }
-  .animate-boot-line {
-    animation: boot-line 1.1s cubic-bezier(0.65, 0, 0.35, 1) both;
-  }
 }
 
 /* Fond ambiant : un seul halo très doux, theme-aware. Rien d'autre. */
@@ -1206,11 +1203,256 @@
   }
 }
 
-@keyframes boot-line {
+
+/* ─── L'entrée dans Shale : la traversée de la marque ───────────────────────
+   Voir `src/components/auth/EntryTransition.tsx` et `DESIGN.md`.
+
+   ⭐ CE N'EST PAS UN ÉCRAN DE CHARGEMENT. C'est une transition d'ÉLÉMENT
+   PARTAGÉ : la marque déjà affichée au-dessus du formulaire ne disparaît pas,
+   c'est elle qui grandit et qu'on traverse. Une copie en `position: fixed` est
+   posée à la position RÉELLE de l'originale (FLIP), l'originale est cachée,
+   et c'est la copie qui joue. Aucun saut.
+
+   ⭐ L'EMPILEMENT, qui est tout le truc du temps 3 :
+
+       voile (z 200)  le mur de connexion, opaque, INCHANGÉ jusqu'à la fin
+       app   (z 300)  l'app, DÉCOUPÉE par un cercle qui s'agrandit
+       copie (z 400)  la marque, qui grossit et s'efface
+
+   L'app est AU-DESSUS du mur et découpée, au lieu d'un trou percé dans le mur.
+   Percer un trou demanderait un masque ou un `path()` pair-impair ; découper
+   un cercle qui grandit est une seule propriété, et le résultat à l'écran est
+   le même — on passe au travers de la plaque.
+
+   ⚠️ `transform`, `opacity` et `clip-path`, rien d'autre. Aucun `filter`,
+   aucun `backdrop-filter` animé, aucune animation de `width`/`height`/`box-shadow`.
+
+   ⚠️ DES ANIMATIONS, PAS DES TRANSITIONS, exprès et partout. Une transition sur
+   une propriété qui ne change pas n'émet jamais `transitionend`, et la machine
+   à états attendrait pour toujours. Une animation émet `animationend` même à
+   durée quasi nulle — ce qui est précisément le cas sous
+   `prefers-reduced-motion`, où la règle globale du § « préférences système »
+   écrase `animation-duration` sur `*`.
+
+   ⚠️ Pas de jeux de keyframes alternés `-a`/`-b` ici, contrairement à
+   `cal-glisse`. Le piège ne s'applique pas : chaque temps porte un nom
+   d'animation DIFFÉRENT, et le composant entier est démonté à la fin — une
+   nouvelle entrée repart donc d'un montage neuf, jamais d'un même nom réappliqué.
+
+   Les variables sont posées par le composant sur `<html>` : `--entree-x/y/taille`
+   (le rectangle mesuré), `--entree-cx/cy` (son centre), `--entree-r0/r1` (le
+   cercle d'ouverture), `--entree-echelle` (le grossissement du temps 2). */
+
+/* ⭐ LE TEMPS 1 EST PORTÉ PAR LA COPIE, PAS PAR LE FORMULAIRE.
+   ⚠️ Et c'est un défaut RÉEL, mesuré dans l'app iOS le 2026-09-12, pas une
+   précaution : le temps 1 n'était animé que sur `.entree-part`, c'est-à-dire
+   sur le formulaire de connexion. À l'ouverture À FROID il n'y a pas de
+   formulaire — donc aucun élément ne portait l'animation, donc `animationend`
+   n'arrivait jamais, et la machine restait dans `poser` jusqu'au minuteur de
+   sécurité. Relevé dans l'app : `2936 poser` puis `5451 done`, soit 2515 ms
+   d'attente pour une animation de 200 ms.
+
+   La copie de la marque, elle, existe TOUJOURS. C'est donc elle qui porte
+   l'horloge du temps 1, dans les deux cas.
+
+   `entree-tenir` ne change rien À DESSEIN : après connexion, la marque ne doit
+   pas bouger, c'est ce qui vend la continuité. Son seul travail est de FINIR,
+   pour que la machine avance. Une animation vide qui a une raison d'être.
+   `src/lib/entree/temps.test.ts` échoue si un temps perd son horloge. */
+@keyframes entree-tenir {
   from {
-    width: 0%;
+    opacity: 1;
   }
   to {
-    width: 100%;
+    opacity: 1;
+  }
+}
+
+/* À froid, il n'y a rien à effacer : la marque apparaît, brièvement. */
+@keyframes entree-apparaitre {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes entree-effacer {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+}
+
+@keyframes entree-approche {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(var(--entree-echelle, 4.5));
+  }
+}
+
+/* Les quatre strates se décollent : même centre, facteurs différents. C'est
+   cette parallaxe qui porte le spectacle, pas la durée. */
+@keyframes entree-strate {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(var(--strate, 1));
+  }
+}
+
+@keyframes entree-traversee-marque {
+  from {
+    transform: scale(var(--entree-echelle, 4.5));
+    opacity: 1;
+  }
+  to {
+    transform: scale(calc(var(--entree-echelle, 4.5) * 2.4));
+    opacity: 0;
+  }
+}
+
+@keyframes entree-ouvrir {
+  from {
+    clip-path: circle(var(--entree-r0, 0px) at var(--entree-cx, 50%) var(--entree-cy, 50%));
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  to {
+    clip-path: circle(var(--entree-r1, 150%) at var(--entree-cx, 50%) var(--entree-cy, 50%));
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Le repli de `prefers-reduced-motion` : un fondu, aucun mouvement. */
+@keyframes entree-fondu {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Le mur pendant la transition ──────────────────────────────────────────
+   Il est figé et plein cadre. `inert` côté composant : ni clavier, ni souris,
+   ni lecteur d'écran n'y entrent pendant qu'il s'efface. */
+.entree-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  /* À froid il n'y a pas de mur de connexion à l'intérieur : c'est le voile
+     lui-même qui porte le fond. Après connexion, `Mur` peint la même couleur
+     par-dessus — même valeur, aucun effet. */
+  background: var(--color-bg);
+}
+
+/* Le formulaire, le titre et le sous-titre s'effacent. La marque, elle, NE
+   BOUGE PAS : c'est ce qui vend la continuité. */
+[data-entree="poser"] .entree-part {
+  animation: entree-effacer var(--dur-base) var(--ease-out-quint) both;
+}
+[data-entree="approche"] .entree-part,
+[data-entree="traversee"] .entree-part {
+  opacity: 0;
+}
+
+/* L'originale disparaît dès le premier temps : la copie est posée au pixel
+   près par-dessus, donc l'échange est invisible. */
+[data-entree] .entree-marque {
+  visibility: hidden;
+}
+
+/* ── La copie animée de la marque ──────────────────────────────────────────*/
+.entree-copie {
+  position: fixed;
+  left: var(--entree-x, 0px);
+  top: var(--entree-y, 0px);
+  width: var(--entree-taille, 52px);
+  height: var(--entree-taille, 52px);
+  z-index: 400;
+  pointer-events: none;
+  transform-origin: center;
+}
+.entree-copie[data-phase="poser"] {
+  animation: entree-tenir var(--dur-base) linear both;
+}
+.entree-copie[data-origine="froid"][data-phase="poser"] {
+  animation: entree-apparaitre var(--dur-base) var(--ease-out-quint) both;
+}
+.entree-copie[data-phase="approche"] {
+  /* ⚠️ ease IN, pas out : la marque ACCÉLÈRE vers l'écran. C'est la seule
+     courbe que le design system n'avait pas — d'où sa déclaration ici, locale
+     au composant, et non dans `@theme`. */
+  animation: entree-approche 400ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+.entree-copie[data-phase="traversee"] {
+  animation: entree-traversee-marque 300ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+.entree-copie[data-phase="approche"] .entree-strate {
+  animation: entree-strate 400ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  /* ⚠️ `view-box` et non `fill-box` : les quatre strates doivent grossir
+     autour du centre COMMUN de la marque, pas chacune autour du sien. Avec
+     `fill-box`, elles s'épaississent sur place au lieu de se décoller — on
+     perd toute la parallaxe, et le défaut est presque invisible en revue. */
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+/* ── L'app, découpée puis rendue à elle-même ───────────────────────────────
+   ⚠️ `display: contents` au repos, et c'est important : sans boîte, l'enveloppe
+   n'existe pas pour la mise en page, donc `App` se comporte EXACTEMENT comme
+   sans elle. On ne peut pas la retirer du DOM à la fin — React démonterait
+   `App`, qui relirait SQLite et perdrait son état. */
+.entree-app {
+  display: contents;
+}
+.entree-app[data-phase="poser"],
+.entree-app[data-phase="approche"],
+.entree-app[data-phase="traversee"] {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  overflow: hidden;
+  transform-origin: center;
+}
+.entree-app[data-phase="poser"],
+.entree-app[data-phase="approche"] {
+  /* Montée et au travail derrière le mur, mais entièrement découpée. */
+  clip-path: circle(0 at var(--entree-cx, 50%) var(--entree-cy, 50%));
+  opacity: 0;
+}
+.entree-app[data-phase="traversee"] {
+  animation: entree-ouvrir 300ms var(--ease-out-quint) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* ⚠️ `animation-duration` est ici en `!important` pour battre la règle
+     globale du § « préférences système », qui met tout à 0,001 ms.
+     Ce n'est pas un contournement de l'accessibilité : il ne reste AUCUN
+     mouvement — ni `transform`, ni `clip-path`, juste 150 ms d'`opacity`.
+     Un fondu court se lit mieux qu'un saut, et ne déclenche pas de vertige. */
+  .entree-app[data-phase="traversee"] {
+    animation: entree-fondu 150ms linear both !important;
+    clip-path: none;
+    transform: none;
+  }
+  .entree-copie[data-phase="approche"],
+  .entree-copie[data-phase="traversee"],
+  [data-entree="poser"] .entree-part {
+    animation: none !important;
+  }
+  .entree-copie[data-phase="traversee"] {
+    opacity: 0;
   }
 }

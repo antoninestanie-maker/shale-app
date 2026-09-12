@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 // Monogramme Shale — marque « Strates ».
 //
 // Quatre couches empilées de largeurs inégales (100 · 68 · 100 · 46 %), la
@@ -18,7 +20,21 @@ const BARS = [
   { y: 18, w: 7.36, accent: false },
 ];
 
-export default function ShaleMark({ size = 40 }: { size?: number }) {
+export default function ShaleMark({
+  size = 40,
+  parallaxe,
+}: {
+  /** Nombre de pixels, ou une longueur CSS (« 100% » pour la copie animée). */
+  size?: number | string;
+  /**
+   * Facteurs d'échelle par strate, dans l'ordre de `BARS`.
+   *
+   * Sert UNIQUEMENT à la transition d'entrée : chaque couche prend son propre
+   * facteur pour que les strates se décollent (`src/index.css`, § « L'entrée
+   * dans Shale »). Absent partout ailleurs, donc la marque reste une marque.
+   */
+  parallaxe?: readonly number[];
+}) {
   return (
     <svg
       width={size}
@@ -41,9 +57,13 @@ export default function ShaleMark({ size = 40 }: { size?: number }) {
         stroke="var(--color-border)"
         strokeWidth="1"
       />
-      {BARS.map((b) => (
+      {BARS.map((b, i) => (
         <rect
           key={b.y}
+          className={parallaxe ? "entree-strate" : undefined}
+          style={
+            parallaxe ? ({ "--strate": parallaxe[i] ?? 1 } as CSSProperties) : undefined
+          }
           x="4"
           y={b.y}
           width={b.w}

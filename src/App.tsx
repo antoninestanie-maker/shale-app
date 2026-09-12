@@ -1,5 +1,4 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import BootScreen from "./components/BootScreen";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
@@ -18,6 +17,7 @@ import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
 import { useScreenTime } from "./lib/mentalLoad";
+import { signalerAppPrete } from "./lib/entree/signal";
 import { loadTheme } from "./lib/theme";
 import { applyZoom, useUiConfig } from "./lib/uiConfig";
 import { addDays, effectiveProgress, todayStr } from "./lib/logic";
@@ -156,6 +156,24 @@ function App() {
       setErreurDonnees(e instanceof Error ? e.message : String(e));
     }
   }, []);
+
+  /**
+   * ⭐ « L'APP EST PRÊTE » — le signal que la transition d'entrée attend.
+   *
+   * Elle habille du travail réel : l'ouverture de SQLite, `fetchAll`, la
+   * poignée de main de synchronisation. Elle ne se termine qu'au PLUS TARD de
+   * (fin de l'animation, ce signal). Sans lui, la traversée découvrirait un
+   * écran vide, puis les données arriveraient dans un second ressaut : deux
+   * entrées au lieu d'une.
+   *
+   * ⚠️ Une ERREUR de chargement compte aussi comme « prête ». Le contraire
+   * laisserait quelqu'un derrière le voile jusqu'au minuteur de sécurité,
+   * alors que l'app a quelque chose à montrer — le bandeau d'erreur, avec son
+   * bouton « Réessayer ».
+   */
+  useEffect(() => {
+    if (data || erreurDonnees) signalerAppPrete();
+  }, [data, erreurDonnees]);
 
   const { isAdmin } = useSession();
   const { hasTrading } = useEntitlements();
@@ -397,7 +415,6 @@ function App() {
        les commandes dans Réglages — une vue chargée en `lazy`. */
     <SyncProvider>
     <div className="relative flex h-screen bg-bg">
-      <BootScreen />
       {/* ⭐ L'accueil du premier démarrage. Monté ICI, sous `SyncProvider` :
           il ne peut trancher qu'après le premier cycle de synchronisation,
           sinon un second appareil rejouerait un accueil déjà fait
