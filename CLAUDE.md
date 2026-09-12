@@ -5107,3 +5107,81 @@ trajet.
 
 Le reste a été vu à l'écran en mode démo, en français **et en anglais**, en
 1024 px et en 375 px.
+
+## 2026-09-12 — ⭐ L'icône iOS sans halo, et l'entrée qui traverse la marque
+
+Deux chantiers liés par un seul sujet : ce que Shale montre de sa marque au
+moment où on entre dedans. Six commits, `92ade78` → `a523548`.
+
+### Ce qui a été fait
+
+1. **Le thème est posé avant le premier paint.** Un miroir
+   `shale.theme.resolved` en `localStorage`, écrit par `applyTheme()`, lu par
+   un script en ligne dans `index.html`. ⚠️ Au passage, un vrai défaut trouvé
+   à l'audit : `loadTheme()` n'était appelé que depuis `App`, monté après
+   authentification — **l'écran de connexion n'appliquait donc jamais le thème
+   choisi**. Quelqu'un réglé sur « Clair » traversait tout le mur en sombre.
+2. **L'icône iOS** : trois variantes (claire, sombre, teintée), plein cadre,
+   sans halo. Détail complet dans `MOBILE.md` § 21.
+3. **La transition d'entrée** : `EntryTransition.tsx`, machine à états pure
+   dans `lib/entree/`. Motif décrit dans `DESIGN.md`.
+4. **Le réglage** « Animation d'entrée » (`Complète · Courte · Aucune`).
+
+### Les pièges rencontrés — et ils sont dans `PIEGES.md` § 11
+
+Trois méritent d'être répétés ici, parce qu'ils ont tous **passé le pipeline
+complet** :
+
+- ⚠️ **Un `--` dans un commentaire XML casse le build iOS.** J'ai écrit le nom
+  du token de fond avec ses deux tirets dans `LaunchScreen.storyboard` ;
+  `ibtool` refuse, `xcodebuild` rend 65, et le message n'apparaît qu'au bout
+  d'un build complet. `MOBILE.md` § 17.3 a maintenant un cinquième piège, avec
+  la commande pour compiler le storyboard seul en deux secondes.
+- ⚠️ **`git rm` laisse ses suppressions dans l'index**, et le commit suivant
+  les emporte. Le commit de la phase B a ainsi avalé 18 suppressions de la
+  phase A — et le dépôt est passé par un état qui ne construisait pas. Refait
+  proprement. Lire `git diff --cached --stat` avant tout commit partiel.
+- ⚠️ **Le panneau navigateur caché ne rend AUCUNE animation** : `document.hidden`
+  vrai, zéro `requestAnimationFrame`, `currentTime` bloqué à 0, et un viewport
+  **0×0** — donc toute géométrie lue est du bruit. J'ai cherché longtemps un
+  défaut dans mon code avant de mesurer l'outil.
+
+### ⭐ La leçon de méthode, et c'est la plus importante
+
+**Trois défauts de ce chantier n'étaient pas dans la logique, mais dans les
+BRANCHEMENTS** — et aucun test de logique ne pouvait les voir :
+
+1. le temps 1 n'était animé que sur le formulaire, donc n'avait pas d'horloge à
+   l'ouverture à froid : la machine restait bloquée 2 515 ms ;
+2. la copie de la marque est SŒUR du voile (il le faut, pour le `z-index`), et
+   un `animationend` ne remonte qu'à ses ANCÊTRES : son gestionnaire ne
+   l'entendait jamais ;
+3. la création de compte ne relevait pas la position de la marque, et
+   `noSub → ready` ne déclenchait rien du tout — une régression, puisque
+   `BootScreen` couvrait ce passage avant d'être supprimé.
+
+La machine à états était juste dans les trois cas, et ses 15 tests verts.
+La parade est le **test de concordance** : lire le CSS et le composant, et
+vérifier qu'ils disent la même chose. `lib/entree/temps.test.ts` (chaque temps
+a une horloge sur un élément qui existe toujours) et `lib/entree/portes.test.ts`
+(la transition part de chaque état verrouillé, lu dans `AuthStatus` à la
+source) sont nés de ces trois défauts.
+
+C'est le même motif que `theme.premier-paint.test.ts` et `icone-ios.test.ts` :
+là où une valeur est forcément dupliquée, on ne teste pas le code, on teste la
+CONCORDANCE.
+
+### Ce qui reste ouvert
+
+- ▶️ **La transition n'a pas été vue après CONNEXION.** L'auth réelle est
+  configurée en développement et je ne saisis pas d'identifiants ; elle est
+  validée à l'ouverture à froid, qui partage tout le code. Un regard d'Antonin
+  suffit.
+- ▶️ **Le blanc de WKWebView** entre le LaunchScreen et le premier paint du HTML
+  (~1 s en debug). Il précède le chargement du document : ni `index.html` ni
+  `tauri.conf.json` ne l'atteignent. Corriger demande de toucher au natif.
+  `MOBILE.md` § 21.5.
+- ▶️ **1 072 ms mesurés** pour la transition, contre ~950 visés. L'écart est un
+  aller-retour React entre chaque temps, sur un build DEBUG de simulateur. Les
+  durées nominales (200/400/300) n'ont pas été raccourcies pour faire tomber un
+  chiffre mesuré sur le mauvais build.

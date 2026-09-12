@@ -405,3 +405,77 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
 - **V4 « Graphite & Signal »** (2026-07-12) : bg #0c0f14, bleu #2e7ff2.
 - **V3** (2026-07-11) : suppression de l'esthétique HUD (grille, scanlines,
   orbes, glows, coins tactiques) au profit d'une sobriété type Apple.
+
+---
+
+## Entrer dans Shale — la traversée de la marque
+
+*(ajouté le 2026-09-12)*
+
+Ce n'est **pas** un écran de chargement avec un logo. C'est une **transition
+d'élément partagé** : la marque déjà affichée au-dessus du formulaire de
+connexion ne disparaît pas — c'est elle qui grandit, et qu'on traverse.
+
+### Les trois temps
+
+| Temps | Durée | Ce qui bouge |
+|---|---|---|
+| **1. Poser** | 200 ms | Le formulaire, le titre et le sous-titre s'effacent (`opacity`, 8 px de `translateY`). La marque **ne bouge pas** — c'est ce qui vend la continuité. |
+| **2. Approche** | 400 ms, ease **in** | La marque grossit vers l'écran (×4,5). Les quatre strates se décollent : facteurs 1,00 / 1,06 / 1,12 / 1,18 **autour d'un centre commun**. |
+| **3. Traversée** | 300 ms | L'app, déjà montée dessous, s'ouvre par un cercle parti du centre de la marque, en remontant de `scale(1.04)` à `1`. La marque continue de grossir et s'efface. |
+
+C'est la parallaxe des strates du temps 2 qui porte le spectacle, pas la durée.
+
+### La règle qui gouverne tout
+
+**La transition habille du TRAVAIL RÉEL.** Elle démarre quand la porte s'ouvre,
+l'app est montée derrière pendant qu'elle joue, et elle se termine au **plus
+tard** de (fin de l'animation, app prête).
+
+- L'app est prête avant → on ne ralentit rien, l'animation va au bout.
+- L'app est en retard → on ne rallonge pas, on **tient la dernière image**.
+- Jamais de délai inventé pour faire joli.
+
+Un minuteur de 2 500 ms force l'état final : un chargement bloqué ne doit
+jamais piéger quelqu'un derrière un logo. Une tape ou une touche saute à la
+fin. Un onglet caché aussi — une animation que personne ne regarde n'a rien à
+jouer.
+
+### Ce qu'elle a le droit d'animer
+
+`transform`, `opacity` et `clip-path`. **Rien d'autre.** Aucun `filter`, aucun
+`backdrop-filter` animé, aucune animation de `width`, `height` ou `box-shadow`
+— animer par-dessus le verre de la sidebar est ce qui coûte le plus cher dans
+WKWebView. `will-change` est posé au démarrage et retiré à la fin, jamais laissé
+en permanence.
+
+⚠️ **Des animations, jamais des transitions.** Une transition sur une propriété
+qui ne change pas n'émet jamais `transitionend`, et la machine à états
+attendrait pour toujours. Une animation émet `animationend` même à durée quasi
+nulle — ce qui est le cas sous `prefers-reduced-motion`, où la règle globale
+d'`index.css` écrase `animation-duration` sur `*`.
+
+### Les trois portes
+
+Trois murs mènent à la même porte, et la transition part des trois :
+connexion **ou création de compte** (`signedOut`), ouverture à froid
+(`loading`), et retour du mur d'abonnement (`noSub`). Chacun relève la position
+de sa marque avant de disparaître, pour que la traversée reparte de sa vraie
+place et non du centre de l'écran.
+
+### Le réglage, et pourquoi il existe
+
+**Réglages → Apparence → Animation d'entrée** : `Complète` (défaut) · `Courte`
+· `Aucune`.
+
+Une animation spectaculaire vue dix fois par jour finit par être perçue comme
+de la lenteur. « Aucune » ne montre vraiment rien — pas une image de voile.
+`prefers-reduced-motion` l'emporte sur « Complète » (un fondu de 150 ms, sans
+mouvement), mais pas sur « Aucune », qui montre déjà moins.
+
+### ▶️ Parité site — décision d'Antonin, 2026-09-12
+
+**La démo jouable de la page d'accueil du site commence APRÈS la transition.**
+Un visiteur n'a pas de session à ouvrir : la traversée n'y habillerait aucun
+travail réel, elle ne serait qu'une seconde d'attente avant de pouvoir toucher
+quoi que ce soit. C'est la règle « elle couvre du travail réel », appliquée.

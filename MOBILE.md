@@ -1576,7 +1576,7 @@ redit un jour « Xcode is installed but not selected » : **c'est vrai**, et
 `xcode-select -p` ne répond PAS à cette question — il répond par repli. Vérifier
 le lien, pas la commande. Le § 8 bis porte le diagnostic complet.
 
-### 17.3 La procédure de build iOS, et ses quatre pièges
+### 17.3 La procédure de build iOS, et ses CINQ pièges
 
 ```
 rm -rf <CHEMIN_ABSOLU>/src-tauri/gen/apple/build/arm64-sim/Shale.app \
@@ -1598,6 +1598,20 @@ xcrun simctl launch booted com.atnfx.shale
    l'`excludes: ["**/*.a"]` de `project.yml`. Ne pas le retirer.
 4. ⚠️ **Attendre ~15 s après `launch`** avant de taper : une tape envoyée
    pendant le chargement se perd, et on croit que l'écran ne réagit pas.
+5. ⚠️ **Un commentaire XML ne peut pas contenir `--`.** Écrire le nom d'un
+   token CSS tel quel (avec ses deux tirets) dans `LaunchScreen.storyboard`
+   fait échouer `ibtool`, donc `xcodebuild` (code 65) — et le message
+   n'apparaît qu'au bout d'un build COMPLET, noyé sous les lignes de commande
+   `actool`. Ni `tsc`, ni `npm test`, ni `cargo check`, ni `i18n:check` ne le
+   voient. Après toute modification d'un `.storyboard`, le compiler seul
+   d'abord, c'est deux secondes :
+
+   ```
+   xcrun ibtool --errors --warnings --notices \
+     --output-format human-readable-text \
+     --compile /tmp/sb-out/LaunchScreen.storyboardc \
+     src-tauri/gen/apple/LaunchScreen.storyboard
+   ```
 
 ### 17.4 ⚠️ Ce qu'il ne faut JAMAIS faire
 
@@ -2623,3 +2637,116 @@ navigateur émulant 375 × 812, pas WKWebView. Restent donc non observés : le
 rendu réel de la grille en WebKit, le clavier logiciel sous le champ « première
 tâche », et la molette native d'`<input type="time">` sur iOS. Le simulateur est
 déconnecté depuis le 2026-09-02 et seul Antonin peut le rouvrir.
+
+---
+
+# 21. L'icône iOS et ses trois variantes (2026-09-12)
+
+## 21.1 Le halo blanc était DANS la source
+
+`logos/shale-appicon-1024.png` portait une **marge entièrement transparente de
+100 px** sur les quatre côtés — boîte englobante des pixels opaques mesurée à
+`100,100 → 923,923`, soit une plaque de 824 dans un cadre de 1024 — **et** des
+coins arrondis DESSINÉS de 165 px de rayon.
+
+iOS aplatit l'alpha sur blanc, puis applique son propre masque. La marge
+devenait donc un anneau blanc autour d'une plaque plus petite. C'est
+exactement ce qui se voyait.
+
+Effet de bord bienvenu de la correction : la marque occupait 80 % du cadre, elle
+l'occupe maintenant en entier.
+
+## 21.2 Les trois variantes, et d'où viennent leurs couleurs
+
+| Variante | Fond | Barres | Accent |
+|---|---|---|---|
+| Claire (`Any`) | `#f4f5f7` | `#0b0d12` | `#0075b4` |
+| Sombre (`Dark`) | `#07090d` | `#eef1f6` | `#22b5e1` |
+| Teintée (`Tinted`) | *aucun* | `#f1f1f1` | `#a7a7a7` |
+
+Fonds et barres sont les tokens `color-bg` / `color-text` de `src/index.css`.
+Les accents sont le token `accent` du site (`shale-site/vitrine/src/styles/global.css`),
+chacun sur SA surface : `oklch(0.72 0.13 225)` = `#22b5e1` en sombre,
+`oklch(0.528 0.15 235)` = `#0075b4` en clair.
+
+⚠️ **Le cyan sombre n'est pas réutilisable sur le fond clair** : `#22b5e1` sur
+`#f4f5f7` donne 2,20:1 — la troisième strate s'efface. Avec l'accent clair,
+4,58:1. (En sombre, `#22b5e1` sur `#07090d` : 8,32:1.)
+
+La teintée conserve le rapport de clarté de la sombre : ses deux gris ont la
+luminance de `#eef1f6` et de `#22b5e1`, pour que la strate d'accent reste
+lisible comme un accent une fois la teinte de l'utilisateur appliquée.
+
+## 21.3 ⚠️ Les icônes iOS ne passent PAS par `tauri icon`
+
+`npm run tauri icon` régénère les 18 PNG de `src-tauri/icons/ios/` et **ne
+touche pas d'un octet** `gen/apple/Assets.xcassets/` — mesuré dans un worktree
+jetable le 2026-09-10. Or c'est le catalogue que le build compile, et lui seul
+qu'iOS lit. On peut donc « régénérer l'icône » et n'avoir rien changé.
+
+Et la commande écrase aussi macOS, Windows et Android. Ce qui est juste pour
+iOS est FAUX pour macOS : iOS applique son masque et veut une source pleine
+cadre, macOS n'en applique aucun et attend que l'icône dessine sa plaque et sa
+marge. **Une source unique pour les deux est une erreur de conception.**
+
+**La procédure :**
+
+```
+node tools/icone-ios.mjs
+```
+
+Le script dessine les trois variantes depuis la géométrie de `ShaleMark.tsx` et
+les écrit directement dans le catalogue. Rasterisation par `sips` (ImageIO lit
+le SVG depuis macOS 13) : aucune dépendance npm ajoutée. Il refuse d'écrire une
+variante opaque qui contiendrait un seul pixel translucide.
+
+`src/lib/icone-ios.test.ts` (6 tests) vérifie que la géométrie du script est
+celle du composant, que les couleurs sont bien les tokens, et que l'accent garde
+plus de 3:1 sur sa surface.
+
+**Le catalogue survit à la régénération** : vérifié marqueur à l'appui,
+`tauri ios init` (qui appelle XcodeGen) ne réécrit ni `Contents.json`, ni
+`project.yml`, ni les PNG. Le catalogue versionné EST le point de vérité.
+
+## 21.4 ⚠️ Sur iOS 26, l'icône ne suit PAS l'apparence du système
+
+Vérifié sur simulateur : téléphone en apparence **sombre**, style d'icônes
+« Par défaut » → c'est la variante CLAIRE qui s'affiche. Les icônes d'Apple
+elles-mêmes ne basculent pas.
+
+L'icône suit le **style d'icônes choisi par l'utilisateur** : écran d'accueil →
+maintien long → `+` → **Personnaliser** → « Par défaut / Sombre / Transparent /
+Teinté ». La variante sombre n'apparaît qu'avec le style « Sombre », qui a
+lui-même un sous-choix « Toujours / Automatique » — c'est ce dernier, et lui
+seul, qui suit l'apparence système.
+
+Ce n'est pas un défaut à corriger : c'est le choix de l'utilisateur, et il est
+au-dessus du nôtre.
+
+⚠️ Pour photographier les variantes : `xcrun simctl ui <udid> appearance dark`
+**ne suffit pas**, il faut passer par ce menu. Et il n'existe pas de réglage
+correspondant dans les Réglages du simulateur.
+
+## 21.5 Le LaunchScreen, et le blanc qui reste
+
+Le storyboard utilisait `systemBackgroundColor` — blanc pur en apparence claire,
+noir pur en sombre. Il pointe maintenant un colorset `LaunchBackground` à deux
+apparences, aux deux vrais fonds du design system.
+
+⚠️ **Il suit l'apparence du SYSTÈME, pas le réglage `ui.theme` de Shale.**
+Téléphone en sombre et Shale forcée en clair, la frame de lancement reste
+sombre. C'est une limite d'iOS : le LaunchScreen est peint par SpringBoard,
+avant que la moindre ligne de Shale ait tourné.
+
+⚠️ **ET IL RESTE UN BLANC, QUI N'EST PAS CELUI-LÀ.** Séquence mesurée au
+lancement (build debug, iPhone 17) :
+
+```
+LaunchScreen #f4f5f7   (correct)
+webview BLANCHE ~1 s   ← le fond propre de WKWebView, avant que le HTML existe
+#07090d                 (le script du premier paint d'index.html)
+```
+
+Ce blanc-là n'est atteignable ni par `index.html`, ni par `tauri.conf.json` :
+il précède le chargement du document. Le corriger demande de toucher au natif
+(`gen/apple`). **Non fait, et non décidé.**
