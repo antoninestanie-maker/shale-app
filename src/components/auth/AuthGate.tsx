@@ -278,6 +278,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <VoileEntree
           phase={entree.phase}
           origine={origine}
+          mode={entree.mode}
           gererAnimation={entree.gererAnimation}
           // À froid, aucun formulaire : le voile n'est que le fond de l'app,
           // et la copie de la marque joue par-dessus.

@@ -2513,4 +2513,17 @@ export const EN: Record<string, string> = {
   "Refaire l'accueil du premier démarrage": "Redo the first-launch welcome",
   "Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.":
     "Sets your wake-up, bedtime and work hours again. Your data is untouched.",
+  // Réglages → Apparence → Animation d'entrée
+  "animation d'entrée": "entry animation",
+  "Ce que Shale montre pendant qu'elle s'ouvre. Elle n'attend jamais pour faire joli : si tout est prêt avant la fin, elle abrège.":
+    "What Shale shows while it opens. It never waits just to look good: if everything is ready before the end, it cuts short.",
+  "Complète": "Full",
+  "Courte": "Short",
+  "Aucune": "None",
+  "La marque grandit, ses strates se décollent, et on la traverse.":
+    "The mark grows, its strata pull apart, and you pass through it.",
+  "L'ouverture seule, sans l'approche. Environ trois fois plus court.":
+    "The opening alone, without the approach. About three times shorter.",
+  "Rien du tout : l'app apparaît dès qu'elle est prête.":
+    "Nothing at all: the app appears as soon as it is ready.",
 };

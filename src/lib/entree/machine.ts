@@ -28,6 +28,9 @@
  */
 export type EtatEntree = "idle" | "poser" | "approche" | "traversee" | "done";
 
+/** Ce que l'utilisateur a choisi de voir (`Réglages → Apparence`). */
+export type ModeEntree = "complete" | "courte" | "aucune";
+
 export type EvenementEntree =
   /** L'authentification a réussi (ou l'ouverture à froid commence). */
   | { type: "demarrer" }
@@ -54,17 +57,21 @@ export interface ModeleEntree {
   readonly animationFinie: boolean;
   /** `prefers-reduced-motion` : un fondu, aucun mouvement. */
   readonly reduit: boolean;
+  /** Le choix de l'utilisateur. `aucune` doit vraiment ne rien montrer. */
+  readonly mode: ModeEntree;
 }
 
 export function modeleInitial(options: {
   reduit: boolean;
   appPrete?: boolean;
+  mode?: ModeEntree;
 }): ModeleEntree {
   return {
     etat: "idle",
     appPrete: options.appPrete ?? false,
     animationFinie: false,
     reduit: options.reduit,
+    mode: options.mode ?? "complete",
   };
 }
 
@@ -79,12 +86,18 @@ export function reduire(m: ModeleEntree, e: EvenementEntree): ModeleEntree {
   if (m.etat === "done") return m;
 
   switch (e.type) {
-    case "demarrer":
+    case "demarrer": {
       if (m.etat !== "idle") return m;
-      // ⚠️ Sous `prefers-reduced-motion`, on ne joue NI `poser` NI `approche` :
-      // ce sont les deux temps qui bougent. On entre directement dans la
-      // traversée, qui se réduit alors à un fondu.
-      return { ...m, etat: m.reduit ? "traversee" : "poser" };
+      // « Aucune » veut dire AUCUNE : on ne monte même pas le voile. Sortir
+      // directement en `done` est ce qui rend le réglage honnête.
+      if (m.mode === "aucune") return { ...m, etat: "done", animationFinie: true };
+      // ⚠️ Sous `prefers-reduced-motion` — ou en mode « Courte » — on ne joue
+      // NI `poser` NI `approche` : ce sont les deux temps qui bougent. On entre
+      // directement dans la traversée. Sous `reduced-motion` elle se réduit à
+      // un fondu ; en « Courte » elle garde son ouverture, sans l'approche.
+      const court = m.reduit || m.mode === "courte";
+      return { ...m, etat: court ? "traversee" : "poser" };
+    }
 
     case "finAnimation": {
       // Un `animationend` d'un autre temps que celui en cours est du bruit.

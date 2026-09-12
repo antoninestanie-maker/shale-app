@@ -17,6 +17,7 @@ import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
 import { useScreenTime } from "./lib/mentalLoad";
+import { chargerAnimationEntree } from "./lib/entree/reglage";
 import { signalerAppPrete } from "./lib/entree/signal";
 import { loadTheme } from "./lib/theme";
 import { applyZoom, useUiConfig } from "./lib/uiConfig";
@@ -282,6 +283,9 @@ function App() {
   useEffect(() => {
     refresh();
     loadTheme();
+    // Rafraîchit le miroir du réglage d'entrée depuis SQLite — il a pu
+    // changer sur un autre appareil et arriver par la synchronisation.
+    void chargerAnimationEntree();
     // Copie datée de la base, au plus une par jour. AU LANCEMENT et non à la
     // fermeture : une app qu'on force à quitter ne sauvegarderait jamais.
     // ⚠️ PLUS DE SAUVEGARDE ICI — elle est déclenchée par `main.tsx`, HORS

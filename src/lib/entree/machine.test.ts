@@ -160,6 +160,33 @@ describe("machine de la transition d'entrée", () => {
     ).toBe(false);
   });
 
+  it("« Aucune » ne montre RIEN : on sort avant d'avoir monté le voile", () => {
+    // Le réglage doit être honnête. Passer par `poser` puis sauter serait
+    // encore une image de voile, c'est-à-dire ce que l'utilisateur refuse.
+    const m = reduire(modeleInitial({ reduit: false, mode: "aucune" }), {
+      type: "demarrer",
+    });
+    expect(m.etat).toBe("done");
+  });
+
+  it("« Courte » garde la traversée et laisse tomber les deux temps qui bougent", () => {
+    let m = reduire(modeleInitial({ reduit: false, mode: "courte" }), {
+      type: "demarrer",
+    });
+    expect(m.etat).toBe("traversee");
+    m = jouer(m, { type: "appPrete" }, fin("traversee"));
+    expect(m.etat).toBe("done");
+  });
+
+  it("⚠️ prefers-reduced-motion l'emporte sur « Complète »", () => {
+    // L'accessibilité passe avant le choix esthétique — mais pas avant
+    // « Aucune », qui montre déjà moins.
+    const m = reduire(modeleInitial({ reduit: true, mode: "complete" }), {
+      type: "demarrer",
+    });
+    expect(m.etat).toBe("traversee");
+  });
+
   it("ne mute jamais le modèle qu'on lui donne", () => {
     const m = modeleInitial({ reduit: false });
     const copie = { ...m };

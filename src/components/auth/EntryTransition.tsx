@@ -4,8 +4,10 @@ import {
   modeleInitial,
   reduire,
   type EtatEntree,
+  type ModeEntree,
 } from "../../lib/entree/machine";
 import { reperesEntree, variablesEntree } from "../../lib/entree/geometrie";
+import { animationEntreeAuDemarrage } from "../../lib/entree/reglage";
 import { appEstPrete, rectMarque, rectParDefaut, surAppPrete } from "../../lib/entree/signal";
 
 /**
@@ -68,6 +70,8 @@ function prefereMoinsDeMouvement(): boolean {
 export interface Entree {
   readonly phase: EtatEntree;
   readonly active: boolean;
+  /** Le choix de l'utilisateur, lu avant le premier rendu. */
+  readonly mode: ModeEntree;
   /** À poser sur le mur ET sur l'enveloppe de l'app : les deux portent des animations. */
   readonly gererAnimation: (e: { animationName: string }) => void;
   readonly demarrer: () => void;
@@ -79,9 +83,13 @@ export interface Entree {
  */
 export function useEntree(): Entree {
   const reduit = useMemo(prefereMoinsDeMouvement, []);
+  // ⚠️ Lu au MIROIR, pas à SQLite : la transition décide avant que la base ait
+  // parlé. Sans ça, « Aucune » laisserait passer une image de voile — soit
+  // exactement ce que l'utilisateur vient de refuser.
+  const mode = useMemo(animationEntreeAuDemarrage, []);
   const [modele, envoyer] = useReducer(
     reduire,
-    { reduit, appPrete: appEstPrete() },
+    { reduit, mode, appPrete: appEstPrete() },
     modeleInitial,
   );
   const phase = modele.etat;
@@ -153,7 +161,7 @@ export function useEntree(): Entree {
     };
   }, [active]);
 
-  return { phase, active, gererAnimation, demarrer };
+  return { phase, active, mode, gererAnimation, demarrer };
 }
 
 /**
@@ -166,12 +174,14 @@ export function useEntree(): Entree {
 export function VoileEntree({
   phase,
   origine,
+  mode,
   gererAnimation,
   enfants,
 }: {
   phase: EtatEntree;
   /** D'où l'on vient : après connexion il y a un formulaire à effacer, à froid non. */
   origine: "connexion" | "froid";
+  mode: ModeEntree;
   gererAnimation: (e: { animationName: string }) => void;
   enfants: React.ReactNode;
 }) {
@@ -194,7 +204,13 @@ export function VoileEntree({
       >
         {enfants}
       </div>
-      {actif && (
+      {/* ⚠️ En mode « Courte », la marque n'est PAS rendue. On entre dans
+          `traversee` sans être passé par l'approche : la copie surgirait à
+          l'échelle 4,5, d'un coup, ce qui est un à-coup et non une entrée.
+          L'ouverture circulaire part quand même du centre de la marque —
+          c'est elle qui reste la signature. Son horloge, elle, est portée par
+          l'enveloppe de l'app (`entree-ouvrir`). */}
+      {actif && mode !== "courte" && (
         <div
           className="entree-copie"
           data-phase={phase}

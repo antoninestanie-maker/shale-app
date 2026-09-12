@@ -12,6 +12,11 @@ import {
 } from "../lib/repo";
 import { captureShortcutLabel, IS_IOS, kbd } from "../lib/platform";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
+import {
+  chargerAnimationEntree,
+  enregistrerAnimationEntree,
+  type AnimationEntree,
+} from "../lib/entree/reglage";
 import { getLang, setLangPref, useLangPref, type LangPref } from "../lib/i18n";
 import {
   loadMentalLoadConfig,
@@ -167,6 +172,7 @@ export default function SettingsView() {
   /** Trousseau disponible ? `null` tant que la sonde n'a pas répondu. */
   const [keychain, setKeychain] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<ThemePref>("system");
+  const [entree, setEntree] = useState<AnimationEntree>("complete");
   const langPref = useLangPref();
   // Tracker live (workflow "Trader" → dénouement)
   const [tracker, setTracker] = useState<TrackerSettings>(TRACKER_DEFAULTS);
@@ -264,6 +270,7 @@ export default function SettingsView() {
       setProvider(v === "gemini" || v === "groq" ? v : "auto"),
     );
     loadTheme().then(setTheme);
+    void chargerAnimationEntree().then(setEntree);
     fetchTrackerSettings().then(setTracker);
     loadMentalLoadConfig().then((c) => {
       setEnergyStart(String(c.startEnergy));
@@ -391,6 +398,11 @@ export default function SettingsView() {
   const changeTheme = async (pref: ThemePref) => {
     setTheme(pref);
     await saveTheme(pref);
+  };
+
+  const changeEntree = async (v: AnimationEntree) => {
+    setEntree(v);
+    await enregistrerAnimationEntree(v);
   };
 
   const saveMarketKeys = async () => {
@@ -614,6 +626,41 @@ export default function SettingsView() {
                 theme === it.id
                   ? "bg-overlay-2 text-text"
                   : "text-text-dim hover:text-text"
+              }`}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+
+        <h3 className="hud-label mt-6">{t("animation d'entrée")}</h3>
+        <p className="mt-2 text-sm text-text-dim">
+          {t(
+            "Ce que Shale montre pendant qu'elle s'ouvre. Elle n'attend jamais pour faire joli : si tout est prêt avant la fin, elle abrège.",
+          )}
+        </p>
+        <div className="pill mt-3 inline-flex flex-wrap items-center gap-0.5 border border-border bg-surface-2 p-1">
+          {(
+            [
+              { id: "complete", label: t("Complète") },
+              { id: "courte", label: t("Courte") },
+              { id: "aucune", label: t("Aucune") },
+            ] as { id: AnimationEntree; label: string }[]
+          ).map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => changeEntree(it.id)}
+              data-tip={it.label}
+              data-tip-sub={
+                it.id === "complete"
+                  ? t("La marque grandit, ses strates se décollent, et on la traverse.")
+                  : it.id === "courte"
+                    ? t("L'ouverture seule, sans l'approche. Environ trois fois plus court.")
+                    : t("Rien du tout : l'app apparaît dès qu'elle est prête.")
+              }
+              className={`pill px-4 py-1.5 text-xs font-medium transition-colors ${
+                entree === it.id ? "bg-overlay-2 text-text" : "text-text-dim hover:text-text"
               }`}
             >
               {it.label}
