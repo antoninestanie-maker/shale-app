@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconExternal } from "../icons";
 import { ACCOUNT_PAGES } from "../../lib/auth/config";
 import type { Subscription } from "../../lib/auth/supabase";
@@ -6,6 +6,7 @@ import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
 import { IS_IOS } from "../../lib/platform";
 import ShaleMark from "./ShaleMark";
+import { mesurerMarque } from "../../lib/entree/signal";
 
 import { t } from "../../lib/i18n";
 interface Props {
@@ -31,6 +32,17 @@ export default function SubscriptionRequired({
   onRecheck,
   onSignOut,
 }: Props) {
+  /**
+   * Le mur de l'abonnement est une porte comme les autres : s'abonner puis
+   * cliquer « Revérifier » fait passer `noSub → ready`, donc entre dans l'app.
+   * On relève la place de la marque pour que la traversée reparte d'ici, et
+   * pas du centre de l'écran.
+   */
+  const marque = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    mesurerMarque(marque.current);
+  });
+
   const texts = useAppTexts();
   const [busy, setBusy] = useState(false);
 
@@ -51,7 +63,7 @@ export default function SubscriptionRequired({
   return (
     <div className="flex h-screen items-center justify-center bg-bg px-6">
       <div className="w-full max-w-md text-center">
-        <div className="mb-6 flex flex-col items-center">
+        <div ref={marque} className="mb-6 flex flex-col items-center">
           <ShaleMark size={48} />
           <h1 className="mt-4 text-xl font-bold tracking-tight text-text">
             {expired ? t("Ton essai est terminé") : t("Abonnement requis")}

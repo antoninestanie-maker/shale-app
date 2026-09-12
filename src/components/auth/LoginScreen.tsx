@@ -76,6 +76,18 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
     }
     setBusy(true);
     try {
+      // ⚠️ AVANT LES DEUX CHEMINS, et pas seulement avant la connexion.
+      //
+      // Créer un compte ouvre la porte exactement comme se connecter : quand
+      // le compte n'a pas besoin d'être confirmé par e-mail, la session
+      // s'ouvre dans la foulée et la transition d'entrée part. Sans cette
+      // mesure, elle repartait du CENTRE de l'écran au lieu de la vraie place
+      // de la marque — soit le saut que tout le FLIP existe pour éviter, et
+      // précisément sur la toute première entrée de quelqu'un dans Shale.
+      //
+      // Si le compte demande une confirmation, la mesure ne sert à rien et ne
+      // coûte rien : l'écran ne bouge pas, la marque est toujours là.
+      mesurerMarque(marque.current);
       if (signingUp) {
         const { needsConfirmation } = await onSignUp(email, password, remember);
         // Compte créé mais pas encore ouvert : sans ce message, l'écran ne
@@ -88,8 +100,6 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
           );
         }
       } else {
-        // Dernier instant où la marque est encore à l'écran, à sa vraie place.
-        mesurerMarque(marque.current);
         await onSignIn(email, password, remember);
       }
     } catch (err) {

@@ -146,11 +146,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   /**
    * La transition démarre quand la porte s'OUVRE, jamais au montage.
    *
-   * Deux chemins y mènent, et ils ne se ressemblent qu'à moitié :
-   *   - `signedOut → ready` : on vient de se connecter. Il y a un formulaire à
-   *     effacer, et la marque part de sa place sur l'écran de connexion.
-   *   - `loading → ready` : ouverture à froid, session déjà là. Il n'y a rien à
+   * TROIS chemins y mènent, parce qu'il y a trois murs et qu'ils tombent tous
+   * sur la même porte :
+   *   - `signedOut → ready` : connexion OU création de compte. Il y a un
+   *     formulaire à effacer, et la marque part de sa place sur l'écran.
+   *   - `loading → ready` : ouverture à froid, session déjà là. Rien à
    *     effacer ; la marque part de là où le `Splash` la faisait pulser.
+   *   - `noSub → ready` : on vient de s'abonner et de cliquer « Revérifier ».
+   *     ⚠️ Celui-ci manquait, et c'était une RÉGRESSION : `BootScreen` couvrait
+   *     ce passage avant d'être supprimé. Sans lui, l'app apparaissait d'un
+   *     coup, sans rien pour habiller la revérification côté serveur.
    *
    * ⚠️ En `StrictMode`, cet effet est joué deux fois en développement. Ce n'est
    * pas un problème : `demarrer` ne quitte que l'état `idle`, donc le second
@@ -175,9 +180,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
    * rendu-ci, que la transition va commencer.
    */
   const venaitDuMur = statutPrecedent.current === "signedOut";
-  const venaitDuChargement = statutPrecedent.current === "loading";
+  const venaitDUnAutreMur =
+    statutPrecedent.current === "loading" || statutPrecedent.current === "noSub";
   const deverrouilleMaintenant = auth.status === "ready" || auth.status === "offlineGrace";
-  const demarrageImminent = (venaitDuMur || venaitDuChargement) && deverrouilleMaintenant;
+  const demarrageImminent = (venaitDuMur || venaitDUnAutreMur) && deverrouilleMaintenant;
   const origine = demarrageImminent
     ? venaitDuMur
       ? "connexion"
@@ -197,7 +203,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const avant = statutPrecedent.current;
     statutPrecedent.current = auth.status;
-    if (avant !== "signedOut" && avant !== "loading") return;
+    if (avant !== "signedOut" && avant !== "loading" && avant !== "noSub") return;
     if (auth.status !== "ready" && auth.status !== "offlineGrace") return;
     setOrigine(avant === "signedOut" ? "connexion" : "froid");
     demarrer();
