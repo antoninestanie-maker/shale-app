@@ -5107,3 +5107,74 @@ trajet.
 
 Le reste a été vu à l'écran en mode démo, en français **et en anglais**, en
 1024 px et en 375 px.
+
+## 2026-09-12 — La grille de la semaine se lit maintenant de GAUCHE À DROITE
+
+Demande d'Antonin : « plus intuitif visuellement et plus épuré ». Seul
+`src/components/onboarding/GrilleSemaine.tsx` change ; la logique
+(`lib/onboarding/grille.ts`) n'est pas touchée, et les 168 cases restent 168.
+
+### Ce qui n'allait pas, et ce n'était pas du goût
+
+Trois défauts, tous du même genre — le dessin faisait travailler l'œil au lieu
+de travailler pour lui :
+
+- **les interstices découpaient les blocs.** Un pixel de gouttière entre chacune
+  des 168 cases : huit heures de sommeil d'affilée s'affichaient en huit
+  briques. Or une nuit n'est pas huit heures, c'est UNE nuit ;
+- **le temps descendait.** En colonnes, la nuit se coupait en deux moitiés —
+  23 h en bas de la colonne, 0 h – 7 h en haut — sans que rien ne dise qu'elles
+  se suivent. En ligne, elle occupe les deux bouts de la barre, ce qu'une nuit
+  fait réellement ;
+- **trop de traits.** Interstices, bordures de case et filets toutes les trois
+  heures se disputaient le regard avec les couleurs.
+
+### Le dessin retenu
+
+Sept barres horizontales, une par journée, le temps de gauche à droite. C'est
+l'idiome de la frise et du suivi de sommeil, et c'est exactement ce que l'écran
+raconte. Quatre repères d'axe (un par quart de journée), aucune ligne interne.
+
+⭐ **Les 168 cases sont TOUJOURS dans le DOM.** La fusion des heures voisines en
+un seul bloc est un effet de **style** — l'arrondi n'est posé que du côté où le
+bloc commence ou finit (`debutDeBloc` / `finDeBloc`) — pas une agrégation. Le
+cahier des charges demande la grille heure par heure ; un dessin par blocs
+calculés aurait rendu invérifiable ce que la grille montre. `[data-categorie]`
+en rend exactement 168, et c'est ce qu'on mesure.
+
+⚠️ **Le temps libre n'a pas de couleur** : c'est la gouttière du fond qui
+apparaît. Le teindre en vert l'aurait désigné comme « le bon temps », donc le
+travail et le sommeil comme le moins bon — or cette grille ne juge rien. Un
+creux se lit mieux qu'une couleur de plus.
+
+⚠️ **Les trois saturations ne sont pas égales, et c'est voulu.** Le sommeil est
+le plus gros bloc de la semaine : à saturation égale il écrasait tout, donc il
+est le plus doux (40 %). Les trajets sont les plus fins — souvent une heure —
+donc les plus francs (62 %), sans quoi on ne les voit pas.
+
+### ⚠️⚠️ Le défaut que seul le téléphone a montré : un axe qui MENT
+
+La première rédaction mettait l'axe des heures dans **sa propre grille**, avec
+sa colonne de gauche en `auto`. Celle des journées était large de l'étiquette
+« lun. » ; celle de l'axe était **vide**, donc large de zéro. Les deux ne
+s'alignaient pas : **43 px d'écart, soit deux heures et demie**, et « 06:00 »
+tombait au-dessus de 4 h.
+
+Un axe décalé ne décore pas mal — il **mente**, et c'est la seule partie de ce
+composant qui prétend dire *quand*. Corrigé en fondant l'axe et les sept
+journées dans **une seule grille** : une colonne `auto`, une largeur, alignement
+garanti par construction plutôt que par coïncidence.
+
+⭐ La leçon est réutilisable : **deux grilles CSS qui doivent s'aligner ne
+doivent pas être deux grilles.** Une colonne `auto` se dimensionne sur SON
+contenu ; deux contenus différents donnent deux largeurs, et rien ne le signale.
+
+### Ce qui a été vérifié
+
+À l'écran, en mode démo : **français et anglais** (l'axe rend « 12:00 AM /
+6:00 AM / 12:00 PM / 6:00 PM » par `formatHeure`), **thème sombre et clair**
+(les `color-mix` tiennent des deux côtés), **1024 px et 375 × 812**. Sur
+téléphone le dessin horizontal rend une centaine de pixels de hauteur — 158 px
+contre 259 — parce qu'il dépense de la largeur, ce qu'un téléphone a justement
+en trop quand on lui demande sept colonnes. Détail des mesures dans `MOBILE.md`
+§ 19, dont les chiffres d'avant sont marqués périmés plutôt qu'effacés.

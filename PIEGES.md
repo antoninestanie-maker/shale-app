@@ -1844,3 +1844,34 @@ minutes d'enquête, et surtout le risque d'écrire « installé et prouvé » po
 geste qu'on n'a pas fait. Le dépôt a déjà une entrée sur un build qui n'emportait
 pas ce qu'on croyait (§ 7.5 bis) ; celle-ci est la symétrique — une installation
 qu'on n'a pas faite et qu'on aurait pu s'attribuer.
+
+## 10.7 ⭐ Deux grilles CSS qui doivent s'aligner ne doivent pas être deux grilles
+
+**Symptôme.** Un graphique en barres avec son axe au-dessus. Les étiquettes sont
+décalées par rapport aux barres — chez nous **43 px, soit deux heures et demie
+sur un axe de 24 h** : « 06:00 » se retrouvait au-dessus de 4 h. À l'œil, sur un
+grand écran, ça passe presque.
+
+**Cause.** L'axe et les barres vivaient dans **deux `display: grid` distincts**,
+chacun en `grid-template-columns: auto 1fr`. Or `auto` se dimensionne sur SON
+contenu : la colonne de gauche des barres portait l'étiquette du jour
+(« lun. », ~33 px), celle de l'axe était **vide** (0 px). Deux contenus
+différents, deux largeurs, et la colonne `1fr` qui suit ne commence donc pas au
+même endroit. **Rien ne le signale** — les deux grilles sont valides.
+
+**Parade.** **Une seule grille**, et l'axe devient sa première rangée. Une
+colonne `auto`, une largeur, alignement garanti par construction et non par
+coïncidence. Si la séparation est inévitable, donner à la colonne partagée une
+largeur EXPLICITE dans les deux grilles — jamais `auto` des deux côtés.
+
+⚠️ Le contrôle qui tranche, et il tient en une ligne :
+`axe.getBoundingClientRect().left === barre.getBoundingClientRect().left`.
+Le faire, plutôt que regarder.
+
+⚠️ Et la raison pour laquelle ça compte plus qu'un défaut d'alignement
+ordinaire : **un axe décalé ne décore pas mal, il MENT.** C'est la seule partie
+d'un graphique qui prétend dire *quand* ou *combien*.
+
+**Comment on l'a payée.** Refonte de la grille de la semaine, 2026-09-12. Vu
+seulement en passant l'aperçu en 375 px — sur écran large, l'écart de 43 px se
+lisait comme une marge.

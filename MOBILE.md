@@ -2589,16 +2589,37 @@ Le cahier des charges l'exigeait explicitement : « la grille de 168 cases doit
 rester lisible sur écran étroit, **ne la remplace pas par un résumé chiffré**,
 la grille est le cœur de l'écran ». Elle n'a donc **pas** de variante mobile.
 
-Mesuré à 375 × 812 : la grille occupe **293 px de large** et 259 px de haut,
-`document.scrollWidth === clientWidth` (aucun débordement horizontal), et le
-DOM contient bien **200 enfants** = 1 coin + 7 en-têtes de jour + 24 × (1
-étiquette d'heure + 7 cases) = **168 cases**.
+> ⚠️ **LES MESURES CI-DESSOUS SONT PÉRIMÉES DEPUIS LE 2026-09-12.** Elles
+> décrivaient la première grille — 24 lignes de 7 colonnes, le temps qui
+> descend. Antonin a demandé « plus intuitif visuellement et plus épuré », et
+> le dessin est passé à **sept journées horizontales**. Conservées ici parce
+> qu'elles disent ce qui a été vérifié à l'époque, et sur quoi.
+>
+> *Ancien texte :* « la grille occupe 293 px de large et 259 px de haut, et le
+> DOM contient 200 enfants = 1 coin + 7 en-têtes de jour + 24 × (1 étiquette
+> d'heure + 7 cases) = 168 cases. L'axe porte un repère toutes les trois
+> heures ; la case passe de 13 px à 9 px de haut. »
 
-Ce qui rétrécit, et rien d'autre :
+**Mesures à jour, 2026-09-12, à 375 × 812** — sept barres horizontales, une par
+journée, le temps de gauche à droite :
 
-- l'axe des heures porte **un repère toutes les trois heures**, pas vingt-quatre
-  étiquettes — au-delà, l'axe devient illisible avant la grille ;
-- la case passe de 13 px à **9 px** de haut (`compact`).
+- la barre d'une journée fait **260 px de large**, soit **10,8 px par heure** ;
+- l'ensemble fait **158 px de haut** (contre 259 avant) : le dessin horizontal
+  rend au téléphone une centaine de pixels, parce qu'il dépense de la LARGEUR,
+  qui est justement ce qu'un écran de téléphone a en trop quand on lui demande
+  sept colonnes ;
+- `document.scrollWidth === clientWidth` — aucun débordement horizontal ;
+- **168 cases toujours dans le DOM**, une par heure : `[data-categorie]` en
+  rend exactement 168. La fusion des heures voisines en blocs est un effet de
+  STYLE (arrondis calculés par case), pas une agrégation.
+
+⚠️ **Un défaut que seul le téléphone a rendu visible, et qui valait le
+détour** : l'axe des heures était dans SA propre grille, dont la première
+colonne — vide — mesurait zéro, là où celle des journées mesurait la largeur de
+« lun. ». Les deux ne s'alignaient pas : **43 px d'écart, soit deux heures et
+demie**, et « 06:00 » se retrouvait au-dessus de 4 h. Corrigé en fondant l'axe
+et les journées dans une SEULE grille. Un axe décalé ne décore pas mal, il
+mente — c'est la seule partie du composant qui prétend dire *quand*.
 
 ⚠️ **Aucune unité de viewport** dans ce composant (`GrilleSemaine.tsx`) : tout
 est en `fr` et en pixels, donc le zoom de l'app s'applique sans avoir à
