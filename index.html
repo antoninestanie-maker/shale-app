@@ -12,6 +12,53 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
     />
     <title>Shale</title>
+    <script>
+      /* ⭐ LE THÈME EST POSÉ ICI, AVANT LE PREMIER PAINT.
+         C'est la seule raison d'être de ce script, et il doit rester le premier
+         exécutable de la page.
+
+         Le thème vit dans `settings` en SQLite (clé `ui.theme`), donc il est lu
+         APRÈS le montage de React — et sur l'écran de connexion il n'est pas lu
+         du tout : rien ne touche la base avant l'authentification (voir
+         `ChassisFactice.tsx`). Sans ce script, quelqu'un qui a choisi « Clair »
+         traversait tout le mur de connexion en sombre, puis basculait.
+
+         Le miroir `shale.theme.resolved` est écrit par `applyTheme()`
+         (`src/lib/theme.ts`) ; SQLite reste la source de vérité.
+
+         ⚠️ Le miroir est ABSENT quand le réglage vaut « Système », exprès :
+         rejouer « la dernière fois, le système était sombre » serait faux dès
+         que macOS a changé d'apparence entre deux lancements. `prefers-color-scheme`,
+         lui, est lu en direct.
+
+         ⚠️ Le fond en ligne posé ci-dessous n'est qu'un CALAGE, pour la fenêtre
+         où la feuille de style n'est pas encore appliquée (en mode démo, Vite
+         l'injecte par JS : la première frame est celle du HTML nu, donc blanche).
+         `main.tsx` le retire juste après l'import du CSS et rend la main à la
+         feuille de style — sans quoi un style en ligne gagnerait pour toujours
+         sur `@layer base`, et le thème « Système » cesserait de suivre macOS en
+         direct.
+
+         ⚠️ Les deux couleurs sont recopiées de `--color-bg` (`src/index.css`).
+         `src/lib/theme.premier-paint.test.ts` échoue si une copie dérive. */
+      (function () {
+        var FONDS = { dark: "#07090d", light: "#f4f5f7" };
+        var choix = null;
+        try {
+          choix = localStorage.getItem("shale.theme.resolved");
+        } catch (e) {
+          /* Navigation privée ou stockage refusé : le système décidera. */
+        }
+        var racine = document.documentElement;
+        var explicite = choix === "dark" || choix === "light";
+        if (explicite) racine.setAttribute("data-theme", choix);
+        var clair =
+          !explicite &&
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches;
+        racine.style.backgroundColor = FONDS[explicite ? choix : clair ? "light" : "dark"];
+      })();
+    </script>
   </head>
 
   <body>

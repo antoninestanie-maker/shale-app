@@ -5,6 +5,7 @@ import AuthGate from "./components/auth/AuthGate";
 import CapturePane from "./CapturePane";
 import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
+import { peindreLaFenetre, themeAuDemarrage } from "./lib/theme";
 import "./index.css";
 
 /** La fenêtre Tauri "capture" (et /?pane=capture en navigateur) rend la barre de capture. */
@@ -34,6 +35,31 @@ function LangRoot({ children }: { children: React.ReactNode }) {
   const lang = useLang();
   return <React.Fragment key={lang}>{children}</React.Fragment>;
 }
+
+/**
+ * Rend le fond de `<html>` à la feuille de style.
+ *
+ * Le script en ligne d'`index.html` pose un `background-color` EN LIGNE avant le
+ * premier paint, faute de CSS appliqué à cet instant (en mode démo, Vite injecte
+ * la feuille par JS : la première frame serait blanche). Les imports ES sont
+ * évalués avant ce corps de module, donc `index.css` est appliqué ici : le
+ * calage a fait son travail.
+ *
+ * ⚠️ Et il doit partir. Un style en ligne bat `@layer base` pour toujours : le
+ * garder figerait le fond, et le réglage « Système » cesserait de suivre macOS
+ * en direct — la media query ne repeindrait plus rien.
+ */
+document.documentElement.style.removeProperty("background-color");
+
+/**
+ * Le fond de la FENÊTRE, sous la webview, dès le démarrage.
+ *
+ * `tauri.conf.json` ne porte qu'une couleur fixe ; elle ne sait pas suivre
+ * l'apparence. Sans cet appel, un thème clair laisse voir le liseré sombre de la
+ * config à l'ouverture et au redimensionnement. On passe par le miroir du thème,
+ * jamais par SQLite : rien ne doit ouvrir la base avant l'authentification.
+ */
+void peindreLaFenetre(themeAuDemarrage());
 
 applyLangAttribute();
 
