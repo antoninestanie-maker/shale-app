@@ -1844,3 +1844,155 @@ minutes d'enquête, et surtout le risque d'écrire « installé et prouvé » po
 geste qu'on n'a pas fait. Le dépôt a déjà une entrée sur un build qui n'emportait
 pas ce qu'on croyait (§ 7.5 bis) ; celle-ci est la symétrique — une installation
 qu'on n'a pas faite et qu'on aurait pu s'attribuer.
+
+---
+
+# 11. Chantier « icône iOS et transition d'entrée » (2026-09-11 / 12)
+
+## 11.1 ⚠️⚠️ Un commentaire XML qui contient `--` casse le build iOS, et le message est enterré
+
+**Le fait.** J'ai écrit le nom du token de fond du design system, avec ses deux
+tirets, dans un commentaire de `gen/apple/LaunchScreen.storyboard`. XML interdit
+le double tiret dans un commentaire. `ibtool` refuse, `xcodebuild` rend 65, et
+le build iOS échoue.
+
+**Pourquoi ça coûte cher.** Le message utile —
+`error: Line 33: Comment must not contain '--' (double-hyphen)` — arrive **au
+bout d'un build complet**, noyé sous une page de lignes de commande `actool` et
+`swiftc`. Et **rien d'autre ne l'attrape** : ni `tsc`, ni `npm test`, ni
+`cargo check`, ni `i18n:check`. Le pipeline est vert et le build est mort.
+
+**Parade.** Après toute modification d'un `.storyboard` ou d'un `.xib`, compiler
+le fichier SEUL avant de lancer le build complet — c'est deux secondes :
+
+```
+xcrun ibtool --errors --warnings --notices --output-format human-readable-text \
+  --compile /tmp/sb-out/LaunchScreen.storyboardc \
+  src-tauri/gen/apple/LaunchScreen.storyboard
+```
+
+Et, en écrivant le commentaire, nommer les tokens sans leurs tirets
+(« le token `color-bg` » plutôt que la forme CSS complète).
+
+## 11.2 ⚠️⚠️ `tauri icon` ne touche PAS le catalogue d'assets iOS
+
+**Le fait.** Mesuré dans un worktree jetable le 2026-09-10 :
+`npm run tauri icon` régénère les 18 PNG de `src-tauri/icons/ios/` et ne modifie
+**pas un octet** de `src-tauri/gen/apple/Assets.xcassets/`. Or c'est le catalogue
+que le build compile, et lui seul qu'iOS lit.
+
+On peut donc « régénérer l'icône », voir 18 fichiers réécrits, committer, et
+n'avoir rien changé du tout à l'écran d'accueil.
+
+**Deuxième moitié du piège.** La commande écrase AUSSI macOS, Windows et
+Android. Et ce qui est juste pour iOS est FAUX pour macOS : iOS applique son
+propre masque et veut une source pleine cadre, macOS n'en applique aucun et
+attend que l'icône dessine sa plaque et sa marge. Une source unique pour les
+deux est une erreur de conception, pas un raccourci.
+
+**Parade.** Les icônes iOS ne passent plus par `tauri icon`. `tools/icone-ios.mjs`
+écrit les trois variantes directement dans le catalogue, et ne touche à rien
+d'autre. `src-tauri/icons/` reste la source du bureau.
+
+## 11.3 ⚠️ Sur iOS 26, l'icône ne suit PAS l'apparence du système
+
+**Le fait.** Vérifié sur simulateur : téléphone en apparence **sombre**, style
+d'icônes « Par défaut » → c'est la variante CLAIRE qui s'affiche. Les icônes
+d'Apple elles-mêmes ne basculent pas.
+
+L'icône suit le **style d'icônes choisi par l'utilisateur** — Écran d'accueil →
+maintien long → `+` → **Personnaliser** → « Par défaut / Sombre / Transparent /
+Teinté ». La variante sombre n'apparaît qu'avec le style « Sombre », qui a
+lui-même un sous-choix « Toujours / Automatique » ; c'est ce dernier, et lui
+seul, qui suit l'apparence système.
+
+⚠️ Corollaire pour les captures : `xcrun simctl ui <udid> appearance dark` ne
+suffit pas à photographier la variante sombre. Il faut passer par ce menu.
+Et il n'y a **pas** de réglage correspondant dans les Réglages du simulateur
+(pas de section « Affichage et luminosité »).
+
+## 11.4 ⚠️⚠️ Un `animationend` ne remonte qu'à ses ANCÊTRES — un gestionnaire sur un frère n'entend rien
+
+**Le fait.** La copie animée de la marque est la **sœur** du voile, et non son
+enfant : il le faut, sinon le `z-index: 200` du voile l'enfermerait dans son
+contexte d'empilement et elle passerait sous l'app. Le `onAnimationEnd` posé sur
+le voile ne recevait donc jamais les `animationend` de la copie.
+
+**Le symptôme est trompeur** : la machine à états reste dans son premier temps
+et n'en sort qu'au minuteur de sécurité. À l'écran, ça ressemble à « l'animation
+ne joue pas », alors qu'elle joue très bien — c'est l'ÉCOUTE qui manque.
+
+**Parade.** Chaque élément qui porte une animation dont la machine dépend porte
+aussi son propre gestionnaire. Et le dire dans le code, parce que ça ressemble à
+une redondance.
+
+## 11.5 ⭐⭐ Un temps animé sur un élément CONDITIONNEL est une machine qui se bloque
+
+**Le fait.** Le premier temps de la transition d'entrée n'était animé que sur
+`.entree-part`, c'est-à-dire sur le formulaire de connexion. À l'ouverture **à
+froid**, il n'y a pas de formulaire : aucun élément ne portait l'animation,
+`animationend` n'arrivait jamais, la machine restait bloquée 2 515 ms — jusqu'au
+minuteur de sécurité.
+
+Relevé dans l'app : `2936 poser` → `5451 done`, pour une animation de 200 ms.
+
+**La règle.** Une machine à états pilotée par `animationend` doit poser son
+horloge sur un élément qui existe dans **tous** les cas de figure. Si le temps ne
+doit rien changer visuellement, une animation qui ne change rien fait très bien
+l'affaire — son seul travail est de FINIR.
+
+**Pourquoi les tests de la machine ne l'attrapent pas.** La machine était juste.
+C'est le CÂBLAGE entre le CSS et elle qui était faux. Il faut un test de
+CONCORDANCE, qui lit le CSS et le composant et vérifie que chaque temps a une
+horloge : `src/lib/entree/temps.test.ts`.
+
+## 11.6 ⚠️ Le panneau navigateur caché ne rend AUCUNE animation, et son viewport vaut 0×0
+
+**Le fait.** Quand le panneau (`mcp__Claude_Browser__*`) n'est pas affiché —
+son état normal pendant qu'on travaille dans le terminal :
+
+- `document.hidden === true` ;
+- **zéro `requestAnimationFrame` en 300 ms** ;
+- les animations CSS restent `playState: "running"` avec un `currentTime`
+  bloqué à **0**, indéfiniment, et n'émettent jamais `animationend` ;
+- `window.innerWidth` et `innerHeight` valent **0** — donc tout
+  `getBoundingClientRect` lu est du bruit (relevé : une marque à `y = -1711`).
+
+`tabs_select` ne corrige rien : il met un onglet au premier plan **dans** le
+panneau, il n'ouvre pas le panneau.
+
+**Parade.** Pour vérifier une animation, utiliser le **simulateur iOS**, qui
+rend pour de vrai : rafale de `xcrun simctl io <udid> screenshot` (≈ 280 ms par
+image) puis diff image par image sur une vignette pour trouver où ça bouge.
+
+⚠️ Et pour lire l'état interne côté iOS, où il n'y a pas de console
+(MOBILE.md § 14.1) : écrire un journal dans `localStorage`, puis le relire hors
+de l'app dans
+`…/Devices/<UDID>/data/Containers/Data/Application/*/Library/WebKit/com.atnfx.shale/WebsiteData/Default/*/*/LocalStorage/localstorage.sqlite3`.
+Les valeurs y sont en **UTF-16 LE** : `sqlite3` en ligne de commande n'en montre
+qu'un caractère sur deux, il faut décoder en Python.
+
+## 11.7 ⚠️ `git rm` laisse ses suppressions DANS L'INDEX, et le commit suivant les emporte
+
+**Le fait.** J'ai supprimé les 18 anciennes icônes avec `git rm` pendant la
+phase A, puis committé la phase B avec `git add <fichiers de B>` suivi de
+`git commit`. `git commit` sans `-a` valide **l'index**, qui contenait encore
+les 18 suppressions : le commit de la phase B a emporté du travail de la phase A.
+
+Pire que le mélange : le dépôt passait par un état où `Contents.json` citait des
+fichiers supprimés — **un commit qui ne construit pas**.
+
+**Parade.** Avant tout commit partiel, lire `git diff --cached --stat` et
+vérifier que la liste est exactement celle qu'on croit. `git status --short`
+seul ne suffit pas : une suppression déjà indexée n'y saute pas aux yeux.
+
+## 11.8 ⭐ `transform-box: fill-box` fait grossir chaque forme SVG autour de SON centre
+
+**Le fait.** Pour que les quatre strates de la marque se décollent, elles doivent
+grossir autour d'un centre **commun**. Avec `transform-box: fill-box` (ou par
+défaut sur certaines formes), chacune grossit autour du sien : elles
+s'épaississent sur place, la parallaxe disparaît, et le rendu reste plausible —
+donc le défaut passe la revue.
+
+**Parade.** `transform-box: view-box` avec `transform-origin: center` : l'origine
+devient le centre du `viewBox`, partagé par toutes les formes.
