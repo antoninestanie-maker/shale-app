@@ -21,6 +21,7 @@ que ce profil est absent, expiré, altéré ou illisible.
 | Migration serveur | `shale-site/supabase/migrations/005_licence_profils.sql` — ⛔ **pas encore jouée** sur le projet Supabase |
 | Clé de signature | paire n° 1, générée le 2026-09-13. Privée : `~/Desktop/Shale-projet/administratif/licence-profils/cle-privee.jwk` (600, hors dépôt). Publique : `src/lib/licence/cles.ts` |
 | Profils émis en production | **aucun** |
+| App installée | **reconstruite le 2026-09-13 à 16:33**, binaire `f3dc06ac…`, commit `87268bf` — porte aussi les sept commits du chantier « icône et transition d'entrée ». Base passée en **version 25** : integrity ok, 0 violation de clé étrangère, 13 notes / 51 266 octets, 2 tâches, 6 fiches, 4 sujets, identiques à `shale-backups/avant-licence-profils-20260913-1631/`. ⚠️ Fenêtre de trousseau à valider par Antonin |
 | Code | `src/lib/licence/` (catalogue, payload, signature, resoudre, transport, useProfil, cles), `resolveEntitlements()` dans `src/lib/entitlements.ts`, `tools/licence-profil.mjs` |
 
 ### Ligne de base après ce chantier
