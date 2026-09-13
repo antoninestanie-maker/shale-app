@@ -53,7 +53,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { isTauri } from "../repo";
-import type { Session } from "./supabase";
+import type { Session, SubStatus, Tier } from "./supabase";
 
 /** Clés de rangement. Distinctes de l'ancienne `shale.session`, effacée au passage. */
 const CLE_REFRESH = "auth.refresh_token";
@@ -80,6 +80,27 @@ export interface MetaSession {
    * contre un trou dans le mur, c'est le bon échange.
    */
   activated?: boolean;
+  /**
+   * Le palier que le serveur a confirmé à la dernière vérification.
+   *
+   * Ajouté le 2026-09-13. Sans lui, le mode hors ligne ouvrait l'app avec un
+   * abonnement NUL, que `entitlementsOf` lit comme l'offre de base : un abonné
+   * Shale Trade perdait ses modules trading pendant toute la coupure, et un
+   * profil de licence (émis pour un palier précis) ne pouvait plus s'appliquer.
+   *
+   * ⚠️ Ce n'est PAS un droit d'entrée : il ne sert qu'une fois l'app ouverte
+   * par `activated` et le délai de grâce. Un palier bricolé sur le disque ne
+   * rouvre donc aucune porte — il ne peut qu'afficher des modules qui ne
+   * protègent aucune donnée (cf. l'en-tête de `entitlements.ts`), et seulement
+   * jusqu'au prochain retour en ligne.
+   */
+  palier?: PalierMemorise;
+}
+
+export interface PalierMemorise {
+  status: SubStatus;
+  tier: Tier;
+  hasTrading: boolean;
 }
 
 let trousseauOk: boolean | null = null;
@@ -113,11 +134,18 @@ export async function memoriser(
   lastVerifiedAt: number,
   activated: boolean,
 ): Promise<void> {
+  // Le palier survit à une réécriture de la méta pour le MÊME compte — sinon le
+  // renouvellement horaire du jeton l'effacerait, et le prochain démarrage hors
+  // ligne retomberait sur l'offre de base. Jamais d'un compte à l'autre.
+  const precedente = lireMeta();
+  const palier =
+    precedente?.userId === session.user.id ? precedente.palier : undefined;
   const meta: MetaSession = {
     userId: session.user.id,
     email: session.user.email,
     lastVerifiedAt,
     activated,
+    ...(palier ? { palier } : {}),
   };
   try {
     localStorage.setItem(CLE_META, JSON.stringify(meta));
@@ -156,12 +184,15 @@ export async function memoriser(
  * sur le disque dit « non activé », et le mode hors ligne refuse. Le sens de
  * l'erreur est le bon.
  */
-export function marquerActive(): void {
+export function marquerActive(palier?: PalierMemorise): void {
   try {
     const brut = localStorage.getItem(CLE_META);
     if (!brut) return;
     const m = JSON.parse(brut) as MetaSession;
-    localStorage.setItem(CLE_META, JSON.stringify({ ...m, activated: true }));
+    localStorage.setItem(
+      CLE_META,
+      JSON.stringify({ ...m, activated: true, ...(palier ? { palier } : {}) }),
+    );
   } catch {
     /* stockage indisponible : le mode hors ligne redemandera une connexion */
   }

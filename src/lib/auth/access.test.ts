@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it } from "vitest";
 
-import { estActive, hasAccess } from "./access";
+import { abonnementHorsLigne, estActive, hasAccess, palierDe } from "./access";
 import { STRIPE_ENABLED } from "./config";
 import type { Subscription } from "./supabase";
 
@@ -74,5 +74,29 @@ describe("hasAccess", () => {
     expect(hasAccess(expire)).toBe(!STRIPE_ENABLED);
     // Un compte activé ET en règle entre dans les deux configurations.
     expect(hasAccess(sub({ status: "active", is_active: true, activated: true }))).toBe(true);
+  });
+});
+
+describe("le palier, hors ligne (2026-09-13)", () => {
+  it("retient le palier confirmé par le serveur", () => {
+    expect(palierDe(sub({ status: "active", tier: "shale_trade", has_trading: true }))).toEqual({
+      status: "active",
+      tier: "shale_trade",
+      hasTrading: true,
+    });
+    // Base antérieure à `has_trading` : même règle que `entitlementsOf`.
+    expect(palierDe(sub({ status: "trialing", tier: "shale" })).hasTrading).toBe(true);
+    expect(palierDe(sub({ status: "active", tier: null })).tier).toBe("shale");
+  });
+
+  it("sans palier retenu, rien n'est inventé", () => {
+    expect(abonnementHorsLigne(undefined)).toBeNull();
+  });
+
+  it("refait l'abonnement retenu, sans compte à rebours inventé", () => {
+    const s = abonnementHorsLigne({ status: "trialing", tier: "shale", hasTrading: true })!;
+    expect(s).toMatchObject({ status: "trialing", tier: "shale", has_trading: true });
+    expect(s.trial_days_left).toBeNull();
+    expect(s.current_period_end).toBeNull();
   });
 });

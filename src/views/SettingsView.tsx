@@ -49,6 +49,7 @@ import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
 import { demoTier, setDemoTier } from "../lib/auth/useAuth";
+import { choisirProfilDemo, profilDemoChoisi, type ProfilDemo } from "../lib/demo";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
@@ -549,6 +550,41 @@ export default function SettingsView() {
                   }}
                   className={`pill border px-4 py-1.5 text-sm transition-colors ${
                     demoTier() === value
+                      ? "border-blue/50 bg-blue/10 text-blue"
+                      : "border-border text-text-dim hover:text-text"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Profil de licence simulé (chantier du 2026-09-13). « Cabinet » est
+                le profil réaliste ; les trois suivants doivent tous rendre
+                l'app EXACTEMENT comme « aucun » — c'est la dégradation
+                silencieuse vers le palier nu, et c'est ce qu'on vient vérifier. */}
+            <label className="hud-label mt-4 block">{t("profil de licence simulé (démo)")}</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  ["aucun", t("aucun")],
+                  ["conseil", t("cabinet de conseil")],
+                  ["vide", t("profil vide")],
+                  ["expire", t("profil expiré")],
+                  ["signature", t("signature altérée")],
+                ] as [ProfilDemo, string][]
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    choisirProfilDemo(value);
+                    // Le cache démo est fabriqué à la première lecture : recharger
+                    // repart d'une mémoire vide, donc du profil choisi.
+                    window.location.reload();
+                  }}
+                  className={`pill border px-4 py-1.5 text-sm transition-colors ${
+                    profilDemoChoisi() === value
                       ? "border-blue/50 bg-blue/10 text-blue"
                       : "border-border text-text-dim hover:text-text"
                   }`}

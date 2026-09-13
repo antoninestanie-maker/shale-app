@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
@@ -12,6 +12,7 @@ import TooltipLayer from "./components/Tooltip";
 import UpgradeModal from "./components/UpgradeModal";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
+import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
 import { deposerDemande, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
@@ -31,7 +32,7 @@ import {
 } from "./lib/repo";
 import type { AppData } from "./lib/types";
 
-import { t } from "./lib/i18n";
+import { getLang, t } from "./lib/i18n";
 // Vues chargées à la demande (code-splitting) : sortent recharts et le code de chaque
 // vue du bundle de démarrage. Chaque vue devient son propre chunk, chargé au 1er affichage.
 const TodayView = lazy(() => import("./views/TodayView"));
@@ -177,7 +178,7 @@ function App() {
   }, [data, erreurDonnees]);
 
   const { isAdmin } = useSession();
-  const { hasTrading } = useEntitlements();
+  const { hasTrading, profil } = useEntitlements();
 
   // ── Garde de navigation ───────────────────────────────────────────────────
   // Le gating N'EST PAS qu'un masquage de la sidebar : `navigate` est le seul
@@ -189,13 +190,17 @@ function App() {
 
   const navigate = useCallback(
     (v: View) => {
+      // Un module masqué par le profil de licence n'est pas une porte fermée à
+      // vendre : il n'existe pas pour ce compte. Pas de paywall, pas de
+      // message — la demande (poignée ↗, action ⌘K, mention) est ignorée.
+      if (!moduleVisible(profil, v)) return;
       if (!hasTrading && isTradingView(v)) {
         setPaywallFor(v);
         return;
       }
       setView(v);
     },
-    [hasTrading],
+    [hasTrading, profil],
   );
 
   /**
@@ -233,9 +238,31 @@ function App() {
     if (!hasTrading && isTradingView(view)) setView("today");
   }, [hasTrading, view]);
 
+  // Même filet pour le profil de licence : il peut arriver (ou changer) PENDANT
+  // la session — téléchargé après le cache, renouvelé au retour au premier
+  // plan. Si la vue ouverte vient d'être masquée, on retombe sur l'accueil, que
+  // le profil ne peut pas masquer (`MODULE_NON_MASQUABLE`).
+  useEffect(() => {
+    if (!moduleVisible(profil, view)) setView("today");
+  }, [profil, view]);
+
   const focus = useFocus(refresh);
   const market = useMarketBrain();
   const ui = useUiConfig();
+
+  // La configuration AFFICHÉE : celle de Personnaliser, bornée par le profil de
+  // licence (modules masqués retirés, ordre imposé en tête, libellés imposés,
+  // nom de marque). ⚠️ Jamais sauvegardée : `AdminView` reçoit la configuration
+  // BRUTE, sinon le premier réglage enregistré figerait les libellés du client
+  // dans les préférences de l'utilisateur, où ils survivraient à la licence.
+  const configAffichee = useMemo(
+    () => ({
+      ...ui.config,
+      modules: appliquerAuxModules(ui.config.modules, profil, getLang(), (id) => MODULE_LABELS[id]),
+      brandTitle: (profil.actif && profil.nomAffiche) || ui.config.brandTitle,
+    }),
+    [ui.config, profil],
+  );
   const isPhone = useIsPhone();
   useScreenTime(); // accumule le temps d'écran du jour (jauge de charge mentale)
   const windowSized = useRef(false);
@@ -438,7 +465,11 @@ function App() {
           l'attribut `data-tip` posé sur n'importe quel bouton/onglet). */}
       <TooltipLayer />
       {data && erreurDonnees && <BandeauLecturePerimee onRetry={refresh} />}
-      <CommandPalette ctx={{ navigate, refresh, data, focus }} hasTrading={hasTrading} />
+      <CommandPalette
+        ctx={{ navigate, refresh, data, focus }}
+        hasTrading={hasTrading}
+        masques={profil.masques}
+      />
       {/* Barre latérale sur bureau et tablette, barre d'onglets sur téléphone.
           L'une OU l'autre, jamais les deux : `useIsPhone()` exige un écran
           étroit ET un pointeur grossier, donc un Mac en Split View garde sa
@@ -449,7 +480,8 @@ function App() {
           onNavigate={navigate}
           isAdmin={isAdmin}
           badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
-          config={ui.config}
+          config={configAffichee}
+          profil={profil}
           hasTrading={hasTrading}
           onLocked={setPaywallFor}
         />
@@ -460,14 +492,17 @@ function App() {
           demoMode={!isTauri}
           isAdmin={isAdmin}
           badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
-          config={ui.config}
+          config={configAffichee}
+          profil={profil}
           hasTrading={hasTrading}
           onLocked={setPaywallFor}
         />
       )}
       {paywallFor && (
         <UpgradeModal
-          moduleLabel={MODULE_LABELS[paywallFor]}
+          moduleLabel={
+            libelleProfil(profil, MODULE_LABELS[paywallFor], getLang()) ?? MODULE_LABELS[paywallFor]
+          }
           onClose={() => setPaywallFor(null)}
         />
       )}
@@ -575,7 +610,7 @@ function App() {
           ) : view === "sizing" ? (
             <SizingView navigate={navigate} />
           ) : view === "admin" ? (
-            <AdminView config={ui.config} save={ui.save} />
+            <AdminView config={ui.config} save={ui.save} profil={profil} />
           ) : view === "console" ? (
             <ConsoleView />
           ) : (

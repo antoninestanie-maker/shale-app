@@ -10,6 +10,7 @@
 // compte dispose-t-il une fois entré ? »
 // ─────────────────────────────────────────────────────────────────────────────
 import { STRIPE_ENABLED } from "./config";
+import type { PalierMemorise } from "./stockage";
 import { isActive, type Subscription } from "./supabase";
 
 /**
@@ -80,4 +81,47 @@ export function hasAccess(sub: Subscription | null | undefined): boolean {
   // mail. Séquence obligatoire : clés Stripe LIVE → `STRIPE_ENABLED = true`
   // des deux côtés → build → publication du `.dmg`. Jamais l'inverse.
   return isActive(sub?.status);
+}
+
+// ── Le palier, hors ligne ───────────────────────────────────────────────────
+//
+// Ajouté le 2026-09-13 (chantier « profils de licence »). Deux fonctions pures,
+// et elles vont ensemble : ce qu'on retient du serveur, et ce qu'on en refait
+// quand il ne répond pas.
+
+/** Ce qui mérite d'être retenu d'un abonnement confirmé par le serveur. */
+export function palierDe(sub: Subscription): PalierMemorise {
+  return {
+    status: sub.status,
+    tier: sub.tier === "shale_trade" ? "shale_trade" : "shale",
+    hasTrading:
+      typeof sub.has_trading === "boolean"
+        ? sub.has_trading
+        : sub.tier === "shale_trade" || sub.status === "trialing",
+  };
+}
+
+/**
+ * L'abonnement que l'app suppose pendant le délai de grâce hors ligne.
+ *
+ * `null` sans palier retenu (méta d'avant le 2026-09-13) : c'est le
+ * comportement d'avant, l'offre de base. ⚠️ `trial_days_left` reste nul : on
+ * ne sait pas combien de jours d'essai il reste, et un bandeau qui inventerait
+ * un compte à rebours serait pire qu'aucun.
+ *
+ * ⚠️ Cet objet ne passe JAMAIS par `hasAccess` : l'entrée hors ligne a déjà
+ * été décidée par `activated` et le délai de grâce. Il ne sert qu'à dire DE
+ * QUOI le compte dispose une fois entré.
+ */
+export function abonnementHorsLigne(palier: PalierMemorise | undefined): Subscription | null {
+  if (!palier) return null;
+  return {
+    status: palier.status,
+    tier: palier.tier,
+    has_trading: palier.hasTrading,
+    current_period_end: null,
+    plan: null,
+    trial_days_left: null,
+    activated: true,
+  };
 }

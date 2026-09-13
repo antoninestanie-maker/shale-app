@@ -25,7 +25,8 @@
 import { useEffect, useState } from "react";
 
 import { isTradingView } from "../lib/features";
-import { t } from "../lib/i18n";
+import { libelleProfil, moduleVisible, type ProfilEffectif } from "../lib/licence/resoudre";
+import { getLang, t } from "../lib/i18n";
 import type { UiConfig } from "../lib/uiConfig";
 import { BY_ID, CATEGORIES, CATEGORY_OF, ITEMS_PIED, type View } from "./Sidebar";
 
@@ -38,6 +39,8 @@ interface Props {
   isAdmin: boolean;
   badges: { market?: boolean; trading?: boolean };
   config: UiConfig;
+  /** Profil de licence résolu — `config` arrive déjà borné par lui (cf. `Sidebar`). */
+  profil?: ProfilEffectif;
   hasTrading?: boolean;
   onLocked: (v: View) => void;
 }
@@ -67,6 +70,7 @@ export default function MobileNav({
   isAdmin,
   badges,
   config,
+  profil,
   hasTrading = true,
   onLocked,
 }: Props) {
@@ -118,7 +122,9 @@ export default function MobileNav({
 
   const libelle = (id: View) => {
     const perso = config.modules.find((m) => m.id === id)?.label;
-    return perso ? perso : t(dansLeCatalogue(id)?.label ?? id);
+    if (perso) return perso;
+    const cle = dansLeCatalogue(id)?.label;
+    return (cle && profil && libelleProfil(profil, cle, getLang())) || t(cle ?? id);
   };
 
   const badgeDe = (id: View) =>
@@ -210,7 +216,9 @@ export default function MobileNav({
                       intertitres de cette liste : le vocabulaire de Shale est
                       conservé là où il porte du sens, et absent de la barre
                       d'onglets où il coûterait un niveau de navigation. */}
-                  <h2 className="hud-label px-3 pb-1">{t(cat.label)}</h2>
+                  <h2 className="hud-label px-3 pb-1">
+                    {(profil && libelleProfil(profil, cat.label, getLang())) || t(cat.label)}
+                  </h2>
                   {membres.map((m) => ligne(m.id))}
                 </section>
               );
@@ -247,7 +255,9 @@ export default function MobileNav({
           paddingRight: "calc(env(safe-area-inset-right) + 0.25rem)",
         }}
       >
-        {ONGLETS.map(onglet)}
+        {/* Un onglet dont le module est masqué par le profil de licence
+            disparaît : la barre garde ses autres onglets et « Plus ». */}
+        {ONGLETS.filter((id) => !profil || moduleVisible(profil, id)).map(onglet)}
         {onglet("plus")}
       </nav>
     </>

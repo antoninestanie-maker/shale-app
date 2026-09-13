@@ -418,6 +418,12 @@ pub fn run() {
             sql: include_str!("../migrations/024_onboarding_exemples.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 25,
+            description: "licence_profil",
+            sql: include_str!("../migrations/025_licence_profil.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

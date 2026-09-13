@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
-import { estActive, hasAccess } from "./access";
+import { abonnementHorsLigne, estActive, hasAccess, palierDe } from "./access";
 import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
 import {
@@ -360,7 +360,7 @@ export function useAuth(): AuthState {
       const entre = hasAccess(sub);
       if (entre) {
         activeRef.current = true;
-        marquerActive();
+        marquerActive(palierDe(sub));
       }
       setStatus(entre ? "ready" : "noSub");
       return null;
@@ -430,7 +430,10 @@ export function useAuth(): AuthState {
             expires_at: 0,
             user: { id: meta.userId, email: meta.email },
           });
-          setSubscription(null);
+          // Le palier retenu à la dernière vérification, s'il y en a un — sans
+          // lui, un abonné Shale Trade perdait ses modules trading pendant
+          // toute la coupure (constaté à l'audit du 2026-09-13).
+          setSubscription(abonnementHorsLigne(meta.palier));
           setStatus("offlineGrace");
           return;
         }

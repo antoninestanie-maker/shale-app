@@ -14,9 +14,13 @@
 // ce qui part vers le serveur (synchronisation) y arrive déjà chiffré de bout en
 // bout, illisible pour lui. Il n'y a donc rien à garder derrière ce verrou.
 // ─────────────────────────────────────────────────────────────────────────────
+import { useMemo } from "react";
 import { useSession } from "../components/auth/AuthGate";
 import { STRIPE_ENABLED } from "./auth/config";
 import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
+import { resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
+import type { LigneProfil } from "./licence/signature";
+import { useEtatProfil } from "./licence/useProfil";
 
 export interface Entitlements {
   /** Offre souscrite. Repli sur `shale` si la base ne connaît pas encore le tier. */
@@ -68,9 +72,48 @@ export function entitlementsOf(sub: Subscription | null | undefined): Entitlemen
   };
 }
 
+// ── Palier PUIS profil — le point d'entrée unique ──────────────────────────
+//
+// Ajouté le 2026-09-13 (chantier « profils de licence sur devis »). Tout ce qui
+// décide de l'affichage lit `useEntitlements()`, donc passe ici.
+//
+//   1. le palier fait foi sur ce qui est ACCESSIBLE — `entitlementsOf` le
+//      calcule seul, sans voir le profil ;
+//   2. le profil ne peut que restreindre l'affichage, réordonner et renommer.
+//      Il est résolu APRÈS, avec le palier en entrée, et ne rend aucun droit :
+//      `profil` n'a ni `tier` ni `hasTrading`, donc rien à écraser ;
+//   3. absent, expiré, mal signé, illisible → `profil.actif` faux, et l'app se
+//      comporte exactement comme avant ce chantier.
+
+export interface EntitlementsResolus extends Entitlements {
+  profil: ProfilEffectif;
+}
+
+export interface EntreeProfil {
+  ligne: LigneProfil | null;
+  signatureOk: boolean;
+  userId: string | null;
+  maintenant: number;
+}
+
+export function resolveEntitlements(
+  sub: Subscription | null | undefined,
+  entree: EntreeProfil,
+): EntitlementsResolus {
+  const palier = entitlementsOf(sub);
+  const profil = resoudreProfil({ ...entree, tier: palier.tier });
+  return { ...palier, profil };
+}
+
 /** Droits de l'utilisateur connecté. À n'appeler que sous `<AuthGate>`. */
-export function useEntitlements(): Entitlements {
-  return entitlementsOf(useSession().subscription);
+export function useEntitlements(): EntitlementsResolus {
+  const { subscription, session } = useSession();
+  const { ligne, signatureOk, maintenant } = useEtatProfil();
+  const userId = session?.user.id ?? null;
+  return useMemo(
+    () => resolveEntitlements(subscription, { ligne, signatureOk, userId, maintenant }),
+    [subscription, ligne, signatureOk, userId, maintenant],
+  );
 }
 
 /** Libellé commercial d'une offre (traduit à l'affichage, jamais ici). */

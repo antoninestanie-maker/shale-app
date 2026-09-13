@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UiConfig } from "../lib/uiConfig";
 import { getSetting, setSetting } from "../lib/repo";
 import { isTradingView } from "../lib/features";
+import { libelleProfil, type ProfilEffectif } from "../lib/licence/resoudre";
 import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
 import SessionIndicator from "./SessionIndicator";
 import SyncIndicator from "./SyncIndicator";
 import { IconLock, IconSliders } from "./icons";
 
-import { t } from "../lib/i18n";
+import { getLang, t } from "../lib/i18n";
 export type View =
   | "today"
   | "tasks"
@@ -34,6 +35,13 @@ interface Props {
   isAdmin?: boolean;
   badges?: Partial<Record<View, boolean>>;
   config: UiConfig;
+  /**
+   * Profil de licence résolu. `config` arrive DÉJÀ borné par lui (modules,
+   * ordre, libellés, marque — cf. `configAffichee` dans `App.tsx`) ; il ne sert
+   * ici qu'aux deux libellés que `config` ne porte pas : les catégories, et le
+   * nom canonique de la bulle.
+   */
+  profil?: ProfilEffectif;
   /** Offre Shale Trade (ou essai en cours). Faux ⇒ modules trading verrouillés. */
   hasTrading?: boolean;
   /** Clic sur un module verrouillé — ouvre le paywall. */
@@ -311,9 +319,12 @@ export default function Sidebar({
   isAdmin,
   badges,
   config,
+  profil,
   hasTrading = true,
   onLocked,
 }: Props) {
+  /** Libellé d'une clé i18n : celui du profil de licence s'il en impose un. */
+  const libelle = (cle: string) => (profil && libelleProfil(profil, cle, getLang())) || t(cle);
   /** Verrouillé = module trading sur une offre qui ne l'inclut pas. */
   const isLocked = (id: View) => !hasTrading && isTradingView(id);
   // — État replié/déplié des catégories (persisté) —
@@ -394,7 +405,7 @@ export default function Sidebar({
     // n'avaient alors AUCUN nom accessible.
     const locked = isLocked(id);
     const active = view === id && !locked;
-    const canonical = t(BY_ID.get(id)?.label ?? label);
+    const canonical = BY_ID.get(id) ? libelle(BY_ID.get(id)!.label) : t(label);
     return (
       <button
         key={id}
@@ -514,8 +525,8 @@ export default function Sidebar({
                       // Même trou que les onglets : le nom de catégorie est
                       // `hidden lg:block`, donc replié le bouton ne contient
                       // plus qu'un chevron.
-                      aria-label={t(cat.label)}
-                      data-tip={t(cat.label)}
+                      aria-label={libelle(cat.label)}
+                      data-tip={libelle(cat.label)}
                       data-tip-sub={
                         allLocked
                           ? t("Inclus dans Shale Trade")
@@ -533,7 +544,7 @@ export default function Sidebar({
                           allLocked ? "opacity-55" : ""
                         }`}
                       >
-                        {t(cat.label)}
+                        {libelle(cat.label)}
                       </span>
                       {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
                       {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-green" />}

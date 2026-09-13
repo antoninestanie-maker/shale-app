@@ -6,6 +6,13 @@ import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
 import { plainText } from "./richtext";
+import { poserCleDemo } from "./licence/cles";
+import {
+  genererPaire,
+  signerLigne,
+  type ClePubliqueJwk,
+  type LigneProfil,
+} from "./licence/signature";
 import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
@@ -1158,6 +1165,103 @@ const links: ObjectLink[] = [
   },
 ];
 
+// ── Profils de licence de démonstration ───────────────────────────────────
+//
+// Activables depuis Réglages → compte → « profil simulé » (mode démo seulement),
+// valeur rangée sous `shale.demo.profil`. Un rechargement de la fenêtre les
+// applique, comme l'offre simulée.
+//
+// ⭐ La verticale est un CABINET DE CONSEIL, pas la restauration du cadrage :
+// les briques métier de restauration relèvent d'une mission dont la propriété
+// n'est pas vérifiée (`AUDIT-LICENCE-PROFILS.md`, écart n° 3). Rien ici n'est
+// réutilisable sur ce terrain.
+//
+// ⚠️ Les profils sont SIGNÉS pour de vrai, par une clé ÉPHÉMÈRE tirée au
+// premier besoin et jamais écrite nulle part. Sa clé publique n'est acceptée
+// qu'en mode démo (`clesAcceptees()`). La démo exerce donc le même chemin de
+// vérification que l'app native — une démo qui contournerait la signature ne
+// prouverait rien.
+
+export type ProfilDemo = "aucun" | "conseil" | "vide" | "expire" | "signature";
+export const PROFILS_DEMO: readonly ProfilDemo[] = ["aucun", "conseil", "vide", "expire", "signature"];
+const CLE_PROFIL_DEMO = "shale.demo.profil";
+
+export function profilDemoChoisi(): ProfilDemo {
+  try {
+    const v = localStorage.getItem(CLE_PROFIL_DEMO);
+    if (v && (PROFILS_DEMO as readonly string[]).includes(v)) return v as ProfilDemo;
+  } catch {
+    /* stockage indisponible */
+  }
+  return "aucun";
+}
+
+export function choisirProfilDemo(v: ProfilDemo): void {
+  try {
+    localStorage.setItem(CLE_PROFIL_DEMO, v);
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
+/** Le profil réaliste : un cabinet de conseil qui ne trade pas. */
+export const PAYLOAD_CONSEIL = {
+  modules: {
+    hidden: ["trading", "market", "sizing", "performance"],
+    order: ["today", "calendar", "tasks", "notes", "knowledge", "timer", "finance"],
+  },
+  labels: {
+    "Tâches": { fr: "Missions", en: "Engagements" },
+    "Timer": { fr: "Temps passé", en: "Time spent" },
+    "Savoir": { fr: "Base documentaire", en: "Knowledge base" },
+    "Finance": { fr: "Honoraires", en: "Fees" },
+    "Productivité": { fr: "Cabinet", en: "Practice" },
+  },
+  branding: { display_name: "Atelier Conseil" },
+};
+
+const profilsLicence = new Map<string, LigneProfil>();
+let paireDemo: Promise<{ privee: CryptoKey; publique: ClePubliqueJwk }> | null = null;
+
+/** Palier simulé, tel que `entitlementsOf` le rendra (l'essai porte `shale`). */
+function palierDemo(): string {
+  try {
+    return localStorage.getItem("shale.demo.tier") === "shale" ||
+      localStorage.getItem("shale.demo.tier") === "trialing"
+      ? "shale"
+      : "shale_trade";
+  } catch {
+    return "shale_trade";
+  }
+}
+
+async function profilDemo(uid: string): Promise<LigneProfil | null> {
+  const choix = profilDemoChoisi();
+  if (choix === "aucun" || typeof globalThis.crypto?.subtle !== "object") return null;
+  paireDemo ??= genererPaire().then((p) => {
+    poserCleDemo(p.publique);
+    return p;
+  });
+  const { privee } = await paireDemo;
+  const jour = 24 * 60 * 60 * 1000;
+  const ligne = await signerLigne(
+    {
+      uid,
+      tier: palierDemo(),
+      profile_version: 1,
+      issued_at: new Date(Date.now() - 30 * jour).toISOString(),
+      expires_at: new Date(Date.now() + (choix === "expire" ? -jour : 335 * jour)).toISOString(),
+      payload: JSON.stringify(choix === "vide" ? {} : PAYLOAD_CONSEIL),
+    },
+    privee,
+  );
+  // « signature » : un profil complet dont UN caractère du payload a changé
+  // après signature — ce qu'un poste ferait en éditant son cache à la main.
+  return choix === "signature"
+    ? { ...ligne, payload: ligne.payload.replace("Missions", "Missionz") }
+    : ligne;
+}
+
 export const demo = {
   async fetchAll(): Promise<AppData> {
     return {
@@ -1572,6 +1676,26 @@ export const demo = {
 
   async setSetting(key: string, value: string): Promise<void> {
     settings.set(key, value);
+  },
+
+  // ── Profil de licence (migration 025) ─────────────────────────────────────
+  // Même sémantique que le natif : une ligne par compte, écrite telle quelle,
+  // effacée sur demande. La démo la PRÉ-REMPLIT avec le profil choisi dans
+  // Réglages → compte → « profil simulé » (voir `PROFILS_DEMO` plus bas).
+  async lireProfilLicence(uid: string): Promise<LigneProfil | null> {
+    if (!profilsLicence.has(uid)) {
+      const fabrique = await profilDemo(uid);
+      if (fabrique) profilsLicence.set(uid, fabrique);
+    }
+    return profilsLicence.get(uid) ?? null;
+  },
+
+  async ecrireProfilLicence(l: LigneProfil): Promise<void> {
+    profilsLicence.set(l.uid, { ...l });
+  },
+
+  async effacerProfilLicence(uid: string): Promise<void> {
+    profilsLicence.delete(uid);
   },
 
   async addMetric(name: string, unit: string | null): Promise<void> {

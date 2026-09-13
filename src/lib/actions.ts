@@ -322,8 +322,19 @@ export const ACTIONS: AppAction[] = [
  * navigation les intercepterait de toute façon (elle ouvrirait le paywall),
  * mais les lister ferait promettre à la palette ce qu'elle ne peut pas tenir.
  */
-export function searchActions(query: string, hasTrading = true): AppAction[] {
-  const pool = hasTrading ? ACTIONS : ACTIONS.filter((a) => a.requires !== "trading");
+export function searchActions(
+  query: string,
+  hasTrading = true,
+  masques?: ReadonlySet<string>,
+): AppAction[] {
+  // `masques` : modules retirés par le profil de licence. Seules les actions de
+  // NAVIGATION (`nav.<module>`) sont écartées ; une action qui navigue en
+  // passant (« nouvelle note ») reste, et la garde de `navigate` l'arrête.
+  const pool = ACTIONS.filter(
+    (a) =>
+      (hasTrading || a.requires !== "trading") &&
+      !(masques?.size && a.id.startsWith("nav.") && masques.has(a.id.slice(4))),
+  );
   const q = norm(query.trim());
   if (!q) return pool;
   return pool.map((a) => {
