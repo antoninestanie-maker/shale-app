@@ -16,6 +16,7 @@ import { useEntree, VoileEntree } from "./EntryTransition";
 import { mesurerMarque } from "../../lib/entree/signal";
 import { openExternal } from "../../lib/auth/external";
 import { ACCOUNT_PAGES, STRIPE_ENABLED } from "../../lib/auth/config";
+import { ProfilProvider } from "../../lib/licence/useProfil";
 
 import { t, tp } from "../../lib/i18n";
 // Contexte d'auth exposé à l'app déverrouillée (déconnexion, e-mail, abonnement).
@@ -297,7 +298,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           >
             {auth.status === "offlineGrace" && <BandeauHorsLigne onRetry={auth.recheck} />}
             {trialDays !== null && <TrialBanner days={trialDays} />}
-            {children}
+            {/* Le profil de licence du compte : cache local d'abord, serveur
+                ensuite. Monté ICI, derrière le mur — un profil n'a de sens que
+                pour un compte entré. `enLigne` n'est vrai qu'en `ready` : en
+                `offlineGrace` il n'y a pas de jeton, et le cache fait foi. */}
+            <ProfilProvider
+              userId={auth.session?.user.id ?? null}
+              jetonFrais={auth.jetonFrais}
+              enLigne={auth.status === "ready"}
+            >
+              {children}
+            </ProfilProvider>
           </div>
         </AuthContext.Provider>
       ) : null}

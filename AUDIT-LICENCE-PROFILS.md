@@ -255,3 +255,17 @@ un profil, où qu'il soit rangé.
 **Décisions qui reviennent à Antonin** : (a) valider le découplage du point 1 ;
 (b) la verticale de démonstration ; (c) monolingue ou bilingue pour les
 libellés client. Le reste suit la recommandation.
+
+---
+
+## 9. Ajouté le 2026-09-13 — ce qui a été décidé
+
+« go » d'Antonin le 2026-09-13 : les recommandations du § 8 sont prises telles
+quelles. (a) profil découplé du nom d'offre ; (b) démo sur un **cabinet de
+conseil** ; (c) libellé client **chaîne (les deux langues) ou `{ fr, en }`**.
+Le chantier est livré : voir `PASSATION-LICENCE-PROFILS.md`.
+
+Deux écarts de plus sont apparus en construisant, et sont consignés là-bas et
+dans `PIEGES.md` § 12 : le contenu d'un module vit aussi hors de sa vue (tuile
+« trading 7 j » restée sur l'accueil), et le filtre de la palette par préfixe
+`nav.` laissait passer `sizing.open`.

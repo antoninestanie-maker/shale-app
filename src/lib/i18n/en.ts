@@ -2526,4 +2526,15 @@ export const EN: Record<string, string> = {
     "The opening alone, without the approach. About three times shorter.",
   "Rien du tout : l'app apparaît dès qu'elle est prête.":
     "Nothing at all: the app appears as soon as it is ready.",
+
+  // ── Profils de licence (2026-09-13) ─────────────────────────────────────
+  "Certains modules et libellés sont fixés par la licence de ton organisation.":
+    "Some modules and labels are set by your organization's licence.",
+  "Libellé fixé par la licence": "Label set by the licence",
+  "profil de licence simulé (démo)": "simulated licence profile (demo)",
+  "aucun": "none",
+  "cabinet de conseil": "consulting firm",
+  "profil vide": "empty profile",
+  "profil expiré": "expired profile",
+  "signature altérée": "tampered signature",
 };

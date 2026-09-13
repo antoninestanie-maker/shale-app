@@ -49,6 +49,7 @@ import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
 import { demoTier, setDemoTier } from "../lib/auth/useAuth";
+import { choisirProfilDemo, profilDemoChoisi, type ProfilDemo } from "../lib/demo";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
@@ -156,7 +157,11 @@ function NumberField({
 
 export default function SettingsView() {
   const { session, subscription, signOut, changePassword } = useSession();
-  const { tier, isTrialing, hasTrading, billingPeriod } = useEntitlements();
+  const { tier, isTrialing, hasTrading, billingPeriod, afficheModule } = useEntitlements();
+  // Palier ET profil de licence : les réglages d'un module masqué disparaissent
+  // avec lui, et le rappel de briefing ne se programme plus.
+  const afficheMarche = afficheModule("market");
+  const afficheTracker = afficheModule("trading");
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
   const [accueilMsg, setAccueilMsg] = useState<string | null>(null);
   // Changement de mot de passe (replié par défaut)
@@ -279,7 +284,7 @@ export default function SettingsView() {
     });
     fetchPrefs().then(setNotif).catch(() => {});
     fetchStatus().then(setNotifStatus).catch(() => {});
-    planNotifications(hasTrading).then(setPlan).catch(() => {});
+    planNotifications(afficheMarche).then(setPlan).catch(() => {});
   }, []);
 
   /**
@@ -303,7 +308,7 @@ export default function SettingsView() {
     }
     // Que l'autorisation soit accordée ou non, on reprojette : le plan sert
     // aussi de diagnostic, et sans autorisation il dit « rien déposé ».
-    setPlan(await planNotifications(hasTrading).catch(() => null));
+    setPlan(await planNotifications(afficheMarche).catch(() => null));
   };
 
   const patchRule = async (id: string, patch: RulePrefsPatch) => {
@@ -331,7 +336,7 @@ export default function SettingsView() {
       // il annonce donc « 0 déposé », ce qui était vrai à ce moment-là et ne
       // l'est plus. Sans ce rappel, l'utilisateur autorise et voit toujours
       // zéro — le diagnostic accuserait le dépôt d'un échec qui n'a pas eu lieu.
-      setPlan(await planNotifications(hasTrading).catch(() => null));
+      setPlan(await planNotifications(afficheMarche).catch(() => null));
     }
     const entry = await sendTest();
     setTestMsg(
@@ -349,7 +354,7 @@ export default function SettingsView() {
     // L'évaluation est asynchrone côté Rust : on relit l'état juste après.
     window.setTimeout(() => {
       fetchStatus().then(setNotifStatus).catch(() => {});
-      planNotifications(hasTrading).then(setPlan).catch(() => {});
+      planNotifications(afficheMarche).then(setPlan).catch(() => {});
     }, 800);
   };
 
@@ -549,6 +554,41 @@ export default function SettingsView() {
                   }}
                   className={`pill border px-4 py-1.5 text-sm transition-colors ${
                     demoTier() === value
+                      ? "border-blue/50 bg-blue/10 text-blue"
+                      : "border-border text-text-dim hover:text-text"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Profil de licence simulé (chantier du 2026-09-13). « Cabinet » est
+                le profil réaliste ; les trois suivants doivent tous rendre
+                l'app EXACTEMENT comme « aucun » — c'est la dégradation
+                silencieuse vers le palier nu, et c'est ce qu'on vient vérifier. */}
+            <label className="hud-label mt-4 block">{t("profil de licence simulé (démo)")}</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  ["aucun", t("aucun")],
+                  ["conseil", t("cabinet de conseil")],
+                  ["vide", t("profil vide")],
+                  ["expire", t("profil expiré")],
+                  ["signature", t("signature altérée")],
+                ] as [ProfilDemo, string][]
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    choisirProfilDemo(value);
+                    // Le cache démo est fabriqué à la première lecture : recharger
+                    // repart d'une mémoire vide, donc du profil choisi.
+                    window.location.reload();
+                  }}
+                  className={`pill border px-4 py-1.5 text-sm transition-colors ${
+                    profilDemoChoisi() === value
                       ? "border-blue/50 bg-blue/10 text-blue"
                       : "border-border text-text-dim hover:text-text"
                   }`}
@@ -779,7 +819,7 @@ export default function SettingsView() {
                 condition à évaluer. Réservé à Shale Trade parce que Market
                 Brain l'est — annoncer un briefing qui ouvrirait un paywall
                 serait une publicité déguisée en rappel. */}
-            {hasTrading && (
+            {afficheMarche && (
               <>
                 <h3 className="hud-label mt-6">{t("briefing de marché")}</h3>
                 <div className="mt-2 rounded-[10px] border border-border p-1">
@@ -875,7 +915,7 @@ export default function SettingsView() {
       {/* Clés IA + tracker : les deux ne servent qu'aux modules trading, donc
           réservés à Shale Trade. Rendu conditionnel plutôt que masquage, pour
           les mêmes raisons que les panneaux de Performance. */}
-      {hasTrading && (
+      {afficheMarche && (
       <ResizablePanel id="settings-market" defaultW={12}>
       <section className="card p-5">
         <h2 className="hud-label">{t("market-brain — clés IA")}</h2>
@@ -969,7 +1009,7 @@ export default function SettingsView() {
       </ResizablePanel>
       )}
 
-      {hasTrading && (
+      {afficheTracker && (
       <ResizablePanel id="settings-tracker" defaultW={12}>
       <section className="card p-5">
         <h2 className="hud-label">{t("tracker live trading — workflow « trader »")}</h2>

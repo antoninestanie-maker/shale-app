@@ -9,6 +9,7 @@ import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
 import type { Report } from "./taches";
+import type { LigneProfil } from "./licence/signature";
 import type {
   AppData,
   CalendarEvent,
@@ -1005,6 +1006,43 @@ export async function setSetting(key: string, value: string): Promise<void> {
     "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2",
     [key, value],
   );
+}
+
+// ── Profil de licence — cache local (migration 025) ────────────────────────
+//
+// ⚠️ Textes écrits TELS QUE REÇUS : la signature porte sur leurs octets exacts
+// (`lib/licence/signature.ts`). Aucune normalisation de date, aucun
+// `JSON.stringify` du payload à l'écriture.
+// ⚠️ Hors synchronisation, et c'est pour ça qu'aucun trigger ne réagit ici
+// (`sync/scope.ts`, `TABLES_HORS_SYNC`).
+
+export async function lireProfilLicence(uid: string): Promise<LigneProfil | null> {
+  if (!isTauri) return demo.lireProfilLicence(uid);
+  const db = await getDb();
+  const rows = await db.select<LigneProfil[]>(
+    "SELECT uid, tier, profile_version, issued_at, expires_at, payload, signature FROM license_profile WHERE uid = $1",
+    [uid],
+  );
+  return rows[0] ?? null;
+}
+
+export async function ecrireProfilLicence(l: LigneProfil): Promise<void> {
+  if (!isTauri) return demo.ecrireProfilLicence(l);
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO license_profile (uid, tier, profile_version, issued_at, expires_at, payload, signature, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+     ON CONFLICT(uid) DO UPDATE SET
+       tier = $2, profile_version = $3, issued_at = $4, expires_at = $5,
+       payload = $6, signature = $7, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+    [l.uid, l.tier, l.profile_version, l.issued_at, l.expires_at, l.payload, l.signature],
+  );
+}
+
+export async function effacerProfilLicence(uid: string): Promise<void> {
+  if (!isTauri) return demo.effacerProfilLicence(uid);
+  const db = await getDb();
+  await db.execute("DELETE FROM license_profile WHERE uid = $1", [uid]);
 }
 
 /**

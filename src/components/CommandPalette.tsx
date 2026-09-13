@@ -15,10 +15,12 @@ interface Props {
   ctx: ActionContext;
   /** Faux ⇒ les actions réservées à Shale Trade sortent de la liste. */
   hasTrading?: boolean;
+  /** Modules masqués par le profil de licence : leurs actions de navigation disparaissent. */
+  masques?: ReadonlySet<string>;
 }
 
 /** Palette de commandes ⌘K : recherche d'actions, argument optionnel, toast. */
-export default function CommandPalette({ ctx, hasTrading = true }: Props) {
+export default function CommandPalette({ ctx, hasTrading = true, masques }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -28,7 +30,7 @@ export default function CommandPalette({ ctx, hasTrading = true }: Props) {
   const toastTimer = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = searchActions(query, hasTrading);
+  const results = searchActions(query, hasTrading, masques);
 
   /**
    * ⭐ La palette trouve désormais des CHOSES, pas seulement des actions.

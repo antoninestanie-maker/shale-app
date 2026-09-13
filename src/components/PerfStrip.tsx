@@ -29,7 +29,9 @@ function focusTodayMin(data: AppData, today: string): number {
 
 export default function PerfStrip({ data, week, streak }: Props) {
   const today = todayStr();
-  const { hasTrading } = useEntitlements();
+  const { afficheModule } = useEntitlements();
+  // Palier ET profil de licence : la tuile suit le module Trading.
+  const hasTrading = afficheModule("trading");
   const [goalMin, setGoalMin] = useState(120);
 
   useEffect(() => {

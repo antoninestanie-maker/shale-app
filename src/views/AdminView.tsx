@@ -25,10 +25,19 @@ import {
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import { loadTexts, saveTexts, type AppTexts } from "../lib/appTexts";
 
-import { t } from "../lib/i18n";
+import { getLang, t } from "../lib/i18n";
+import { libelleProfil, moduleVisible, type ProfilEffectif } from "../lib/licence/resoudre";
 interface Props {
   config: UiConfig;
   save: (c: UiConfig) => Promise<void>;
+  /**
+   * Profil de licence résolu. Personnaliser reste l'outil de l'utilisateur,
+   * mais DANS les bornes de la licence : un module masqué par le profil n'est
+   * pas listé (le réafficher déferait la licence), et un libellé imposé se lit
+   * sans se modifier. ⚠️ `config` reste la configuration BRUTE — c'est elle
+   * qu'on sauvegarde, jamais la version bornée.
+   */
+  profil?: ProfilEffectif;
 }
 
 /** Déplace l'élément i d'une liste vers le haut (-1) ou le bas (+1). */
@@ -139,7 +148,7 @@ function WidgetList({
   );
 }
 
-export default function AdminView({ config, save }: Props) {
+export default function AdminView({ config, save, profil }: Props) {
   const [sizeMsg, setSizeMsg] = useState<string | null>(null);
   const [texts, setTexts] = useState<AppTexts>(loadTexts);
   // Lu au rendu, pas mémorisé : revenir sur cette page après avoir changé la
@@ -413,8 +422,16 @@ export default function AdminView({ config, save }: Props) {
         <p className="mt-2 text-xs text-text-dim">
           {t("Ordre, visibilité et libellé de chaque module. « Aujourd'hui » reste toujours accessible ; Personnaliser et Réglages sont fixes en bas.")}
         </p>
+        {profil?.actif && (
+          <p className="mt-2 text-xs text-text-dim">
+            {t("Certains modules et libellés sont fixés par la licence de ton organisation.")}
+          </p>
+        )}
         <div className="mt-3 flex flex-col gap-1">
-          {config.modules.map((m, i) => (
+          {config.modules.map((m, i) => {
+            if (profil && !moduleVisible(profil, m.id)) return null;
+            const impose = profil ? libelleProfil(profil, MODULE_LABELS[m.id], getLang()) : null;
+            return (
             <div
               key={m.id}
               className={`flex items-center gap-2 rounded-xl border border-border px-3 py-2 ${
@@ -433,7 +450,9 @@ export default function AdminView({ config, save }: Props) {
                 }
               />
               <input
-                value={m.label ?? ""}
+                value={impose ?? m.label ?? ""}
+                disabled={impose !== null}
+                title={impose !== null ? t("Libellé fixé par la licence") : undefined}
                 placeholder={t(MODULE_LABELS[m.id])}
                 onChange={(e) =>
                   set({
@@ -455,7 +474,8 @@ export default function AdminView({ config, save }: Props) {
                 disabled={i === config.modules.length - 1}
               />
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

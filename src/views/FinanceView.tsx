@@ -47,7 +47,8 @@ interface Props {
 
 export default function FinanceView({ data }: Props) {
   const f = useFinance();
-  const { hasTrading } = useEntitlements();
+  // Palier ET profil de licence : le panneau suit le module Trading.
+  const hasTrading = useEntitlements().afficheModule("trading");
 
   // Signaux d'ouverture envoyés par le parcours de démarrage aux panneaux, qui
   // possèdent leurs formulaires. Un compteur plutôt qu'un booléen : redemander

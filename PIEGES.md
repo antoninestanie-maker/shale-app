@@ -1996,3 +1996,109 @@ donc le défaut passe la revue.
 
 **Parade.** `transform-box: view-box` avec `transform-origin: center` : l'origine
 devient le centre du `viewBox`, partagé par toutes les formes.
+
+---
+
+# 12. Chantier « profils de licence sur devis » (2026-09-13)
+
+## 12.1 ⭐⭐ DÉCISION DE PORTÉE — le cache du profil est HORS synchronisation
+
+Le cadrage demandait de consigner ce choix ici, et il mérite de l'être : c'est
+l'exception à la règle « toute nouvelle table se synchronise ».
+
+**Le fait.** `license_profile` (migration 025) figure dans `TABLES_HORS_SYNC`,
+et aucun trigger d'outbox ne la surveille. `outbox.test.ts` aurait échoué sans
+ce classement — la règle « une table non classée disparaît en silence de la
+sauvegarde » est tenue par un test, pas par la mémoire.
+
+**Pourquoi.** Un profil n'est pas une donnée de l'utilisateur, c'est un droit
+commercial délivré par le serveur. Le synchroniser, c'est le confier au canal
+dont l'utilisateur détient la clé : il pourrait y figer une version périmée.
+Chaque appareil le redemande donc au serveur (`public.license_profiles`) et
+n'en garde qu'une copie **vérifiée à chaque lecture**.
+
+**⚠️ Ce qui protège vraiment, c'est la signature, pas la portée.** Même hors
+sync, le cache vit dans la base de l'utilisateur, qui peut l'éditer. Un profil
+modifié à la main tombe sur `signatureValide` et l'app repasse au palier nu.
+Ne jamais « optimiser » la vérification en ne la faisant qu'au téléchargement.
+
+## 12.2 ⚠️⚠️ Un filtre écrit sur un MOTIF DE NOMMAGE a le trou exact des noms qui n'ont pas suivi
+
+**Symptôme.** Profil « cabinet de conseil », module Position masqué : la
+palette ⌘K propose encore « Calculateur de taille de position ». Tests verts.
+
+**Cause.** Le filtre retirait les actions dont l'identifiant commence par
+`nav.` ; celle-ci s'appelle `sizing.open`. C'est le même défaut de famille que
+§ 7.2 ter (une règle écrite en énumérant des familles), pris par un autre bout.
+
+**Parade.** Chaque action DÉCLARE son module (`module: View`), et
+`licence/actions.test.ts` vérifie que toute action qui appelle
+`ctx.navigate("x")` déclare `module: "x"`. Filtrer sur la propriété visée, pas
+sur la forme d'un nom.
+
+**Payée.** Vue à l'écran en mode démo, pas par les 1 119 tests.
+
+## 12.3 ⚠️ Le contenu d'un module vit AUSSI hors de sa vue
+
+**Symptôme.** Le trading est retiré de la barre latérale, mais l'accueil montre
+« TRADING 7 J · +5R », Performance et Finance leurs panneaux trading, Réglages
+le Market-Brain.
+
+**Cause.** Ces surfaces n'étaient gatées que sur `hasTrading` — l'offre. Masquer
+un module ne retire que son entrée de navigation.
+
+**Parade.** `useEntitlements().afficheModule(m)` (palier ET profil) pour tout
+contenu montré hors de la vue du module ; `MODULE_DU_WIDGET` pour les widgets
+du tableau de bord. ⚠️ Ne PAS « simplifier » en réécrivant `hasTrading` avec le
+profil : ce serait laisser un profil agir sur un droit (règle 1 du résolveur).
+
+## 12.4 ⚠️⚠️ Un texte signé ne se normalise JAMAIS — ni `jsonb`, ni `timestamptz`, ni `JSON.stringify`
+
+**Le fait.** La signature d'un profil porte sur les octets exacts de
+`issued_at`, `expires_at` et `payload`. Postgres réécrit un `timestamptz` dans
+son format et un `jsonb` réordonne les clés ; `JSON.parse` puis `stringify`
+retire les espaces ; SQLite `datetime()` change le séparateur.
+
+**Conséquence si on se trompe.** Toutes les signatures deviennent invalides, et
+comme la dégradation est **silencieuse par contrat**, l'app repasse au palier nu
+chez le client qui a payé, sans un message. Rien ne crie.
+
+**Parade.** Colonnes `text` des deux côtés, écriture telle que reçue.
+`serveur.sql.test.ts` et `cache.sql.test.ts` vérifient le rendu à l'octet près,
+avec une apostrophe, des accents, des espaces et des millisecondes.
+
+## 12.5 ⚠️ En mode hors ligne, l'abonnement était `null` — donc l'offre de BASE
+
+**Symptôme.** Un abonné Shale Trade qui démarre sans réseau ne voit plus ses
+modules trading, pendant toute la coupure.
+
+**Cause.** `useAuth` passait `setSubscription(null)` en `offlineGrace`, et
+`entitlementsOf(null)` rend `tier: "shale"`. Le palier n'était retenu nulle
+part. Trouvé à l'audit, pas par un utilisateur.
+
+**Parade.** `MetaSession.palier` (écrit par `marquerActive(palierDe(sub))`,
+préservé par `memoriser` pour le même compte) et `abonnementHorsLigne()`.
+⚠️ Ce palier n'ouvre aucune porte : l'entrée hors ligne reste décidée par
+`activated` et le délai de grâce.
+
+## 12.6 ⚠️ « Le téléchargement a échoué » ne veut PAS dire « pas de profil »
+
+**Le piège.** La rédaction naturelle (`catch → effacer le cache`) efface la
+licence d'un client à chaque coupure Wi-Fi, chaque 401 de jeton périmé, et pour
+toujours si la migration serveur n'a pas été jouée (404).
+
+**Parade.** `telechargerProfil` rend trois réponses distinctes — `profil`,
+`aucun` (tableau vide : le serveur a répondu « rien pour toi »), `inconnu` (tout
+le reste) — et seule `aucun` efface. Un profil reçu mais mal signé ne remplace
+pas non plus un cache valide. Tenu par `transport.test.ts` et vérifié par
+mutation (§ 12.7).
+
+## 12.7 ⭐ Des tests verts du premier coup se vérifient en cassant le code
+
+**Le fait.** Les 81 tests du chantier sont passés au premier lancement. Cinq
+mutations ont ensuite été appliquées une par une — retirer la vérification de
+signature, le test d'expiration, la distinction « inconnu / aucun », le filtre
+des clés i18n, la protection de l'accueil — et **chacune** a fait tomber au
+moins un test. Sans ce contrôle, « tout est vert » ne distinguait pas un banc
+qui mord d'un banc vacant (cf. le test de traduction de `type_id`, section « Les thèmes et les objets
+n'en font plus qu'un » de `CLAUDE.md`, écrit vacant la première fois).

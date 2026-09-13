@@ -105,6 +105,8 @@ export const TABLES_HORS_SYNC: Readonly<Record<string, string>> = {
     "Donnée publique reconstructible, pas de valeur privée : le cours d'une action n'est le secret de personne, et le redemander à Yahoo coûte moins cher que de le chiffrer et le transporter. ⚠️ La LISTE des symboles suivis, elle, est privée — elle vit dans `finance_holdings`, qui est synchronisé. Ne jamais déplacer d'information utilisateur ici.",
   finance_fx_cache:
     "Donnée publique reconstructible, pas de valeur privée : même raisonnement que `finance_quotes_cache`, pour les taux de change.",
+  license_profile:
+    "Cache du profil de licence (migration 025, décision du 2026-09-13). Un profil est un DROIT COMMERCIAL délivré et signé par le serveur, pas une donnée de l'utilisateur : le faire passer par la synchronisation, dont l'utilisateur détient la clé, lui permettrait d'y figer une version périmée. Chaque appareil le redemande au serveur et n'en garde qu'une copie vérifiée à chaque lecture. Voir `PIEGES.md` § 12.",
   sync_outbox: "Plomberie de la synchronisation.",
   sync_state: "Plomberie de la synchronisation.",
   sync_meta: "Plomberie de la synchronisation.",

@@ -24,6 +24,7 @@ import m21 from "../../../src-tauri/migrations/021_evenements_multi_jours.sql?ra
 import m22 from "../../../src-tauri/migrations/022_fusion_sujets.sql?raw";
 import m23 from "../../../src-tauri/migrations/023_facturation.sql?raw";
 import m24 from "../../../src-tauri/migrations/024_onboarding_exemples.sql?raw";
+import m25 from "../../../src-tauri/migrations/025_licence_profil.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -35,7 +36,7 @@ import m24 from "../../../src-tauri/migrations/024_onboarding_exemples.sql?raw";
  */
 export const MIGRATIONS: readonly string[] = [
   m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m12, m13, m14, m15, m16, m17, m18,
-  m19, m20, m21, m22, m23, m24,
+  m19, m20, m21, m22, m23, m24, m25,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

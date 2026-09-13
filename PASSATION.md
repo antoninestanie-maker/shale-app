@@ -3,7 +3,10 @@
 *Écrit pour une session qui n'a AUCUN contexte. Ce document se suffit : où on
 en est, ce qu'il ne faut pas refaire, ce qui reste, et qui décide.*
 
-**§ 1 (l'état) est tenu à jour — dernière révision le 2026-09-07.** Les sections
+**§ 1 (l'état) est tenu à jour — dernière révision le 2026-09-07** ; ⚠️ le
+2026-09-13, seul le bandeau « Dernier chantier livré » ci-dessous a été ajouté.
+Pour la base et l'app installée, **ce bandeau et `PASSATION-LICENCE-PROFILS.md`
+priment** sur le tableau du § 1. Les sections
 suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 **Il y a beaucoup de `.md` à la racine.** Ordre de lecture :
@@ -22,6 +25,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 3 bis | `PASSATION-SOCLE.md`, `-CALENDRIER.md`, `-LIAISONS.md`, `-IOS.md` | le détail chantier par chantier de cette série |
 | 3 ter | ⭐ **`PASSATION-NOTES.md`** | **le chantier H du 2026-09-05/06 — la perte de données des Notes.** Ce qui est corrigé, ce qui ne l'est pas, et les deux choses qui restent ouvertes (build natif, synchro iPhone) |
 | 3 quater | ⭐ **`PASSATION-ONBOARDING.md`** | **le chantier du 2026-09-10** — l'accueil du premier démarrage, la grille de la semaine et le contenu de départ. ✅ Livré, fusionné, installé ; migration **024** appliquée. Ce qui reste tient en un clic de trousseau |
+| 3 quinquies | ⭐ **`PASSATION-LICENCE-PROFILS.md`** | **le chantier du 2026-09-13** — profils de licence sur devis, migration **025**. ⛔ Contient un geste d'Antonin : jouer `005_licence_profils.sql` dans Supabase Studio |
 | 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
 | 5 | `MOBILE.md` | si tu touches à iOS |
 | 6 | `PASSATION-UI.md`, `AUDIT-I18N-2026-08.md` | le chantier UI/UX d'août et les chaînes affichées |
@@ -30,7 +34,24 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 ---
 
-## ⭐ Dernier chantier livré — la FACTURATION (2026-09-10)
+## ⭐ Dernier chantier livré — les PROFILS DE LICENCE (2026-09-13)
+
+Un compte peut recevoir un profil signé qui masque, réordonne et renomme ses
+modules, sans jamais rien déverrouiller. **Lire `PASSATION-LICENCE-PROFILS.md`**.
+
+⚠️ **Le cadrage supposait une offre « Business » qui n'existe pas** : l'app ne
+connaît aucun nom d'offre, et la règle commerciale vit au serveur qui délivre
+(`CLAUDE.md`, section du 2026-09-13).
+
+⛔ **Deux gestes pour Antonin** : jouer `shale-site/supabase/migrations/
+005_licence_profils.sql` dans Supabase Studio, et mettre en lieu sûr la clé
+privée de `administratif/licence-profils/`. **Aucun profil n'est émis** : pour
+l'instant, rien ne change à l'écran.
+
+⚠️ **Au passage, un défaut corrigé** : hors ligne, un abonné Shale Trade perdait
+ses modules trading (`PIEGES.md` § 12.5).
+
+## ⭐ Chantier précédent — la FACTURATION (2026-09-10)
 
 Finance sait émettre des factures. **Lire `PASSATION-FACTURATION.md`** : il se
 suffit — état, ligne de base, ce qui est prouvé, ce qui ne l'est pas, ce qui

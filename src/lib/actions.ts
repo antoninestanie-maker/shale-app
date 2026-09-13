@@ -38,6 +38,17 @@ export interface AppAction {
    * ligne et évite qu'un futur cas du même genre soit verrouillé par accident.
    */
   requires?: "trading";
+  /**
+   * Le module auquel l'action appartient. Un profil de licence qui masque ce
+   * module retire l'action de la palette.
+   *
+   * ⚠️ Déclaré sur CHAQUE action, et tenu par `actions.test.ts`. La première
+   * version filtrait sur le préfixe `nav.` : vu à l'écran le 2026-09-13, la
+   * palette d'un profil sans module Position proposait encore « Calculateur de
+   * taille de position », dont l'identifiant est `sizing.open`. Une règle
+   * écrite sur un motif de nommage a le trou exact des noms qui n'ont pas suivi.
+   */
+  module: View;
   /** Si présent, l'action attend un argument texte (2e étape dans la palette). */
   input?: { placeholder: string };
   run: (ctx: ActionContext, arg?: string) => Promise<string | void> | string | void;
@@ -60,6 +71,7 @@ export const ACTIONS: AppAction[] = [
   // — Navigation
   {
     id: "nav.today",
+    module: "today",
     title: "Aller à Aujourd'hui",
     category: "navigation",
     keywords: ["dashboard", "accueil", "home"],
@@ -67,6 +79,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.tasks",
+    module: "tasks",
     title: "Aller aux Tâches",
     category: "navigation",
     keywords: ["taches", "todo"],
@@ -74,6 +87,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.calendar",
+    module: "calendar",
     title: "Aller au Calendrier",
     category: "navigation",
     keywords: ["calendrier", "agenda", "planning", "semaine", "mois", "jour"],
@@ -81,6 +95,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.timer",
+    module: "timer",
     title: "Aller au Timer",
     category: "navigation",
     keywords: ["chrono", "pomodoro", "focus", "minuteur"],
@@ -88,6 +103,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.goals",
+    module: "goals",
     title: "Aller aux Objectifs",
     category: "navigation",
     keywords: ["goals"],
@@ -95,6 +111,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.performance",
+    module: "performance",
     title: "Aller à Performance",
     category: "navigation",
     keywords: ["stats", "graphiques"],
@@ -102,6 +119,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.finance",
+    module: "finance",
     title: "Aller à Finance",
     category: "navigation",
     keywords: ["finance", "runway", "tresorerie", "patrimoine", "burn", "argent"],
@@ -109,6 +127,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.notes",
+    module: "notes",
     title: "Aller aux Notes",
     category: "navigation",
     keywords: ["note", "wiki"],
@@ -116,6 +135,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.knowledge",
+    module: "knowledge",
     title: "Aller au Savoir",
     category: "navigation",
     keywords: ["savoir", "connaissances", "base", "croquis", "wiki"],
@@ -123,6 +143,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "nav.journal",
+    module: "journal",
     title: "Aller au Journal",
     category: "navigation",
     keywords: ["habitudes", "humeur", "revue"],
@@ -130,6 +151,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "trade.new",
+    module: "trading",
     title: "Logger un trade",
     category: "trading",
     requires: "trading",
@@ -141,6 +163,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "sizing.open",
+    module: "sizing",
     title: "Calculateur de taille de position",
     category: "trading",
     requires: "trading",
@@ -149,6 +172,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "note.quick",
+    module: "notes",
     title: "Note rapide",
     category: "notes",
     keywords: ["capture", "idee", "retenir"],
@@ -164,6 +188,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "note.new",
+    module: "notes",
     title: "Nouvelle note (éditeur)",
     category: "notes",
     keywords: ["creer", "rediger", "raccourci", "cmd shift n"],
@@ -181,6 +206,7 @@ export const ACTIONS: AppAction[] = [
   // — Tâches
   {
     id: "task.quickadd",
+    module: "tasks",
     title: "Ajouter une tâche",
     category: "tâches",
     keywords: ["nouvelle", "creer", "add"],
@@ -201,6 +227,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "task.new",
+    module: "tasks",
     title: "Nouvelle tâche (formulaire complet)",
     category: "tâches",
     keywords: ["recurrence", "priorite", "tag"],
@@ -212,6 +239,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "task.complete",
+    module: "tasks",
     title: "Cocher une tâche du jour",
     category: "tâches",
     keywords: ["terminer", "fait", "done", "check"],
@@ -236,6 +264,7 @@ export const ACTIONS: AppAction[] = [
   // — Focus
   {
     id: "focus.start",
+    module: "timer",
     title: "Lancer un focus (25 min)",
     category: "focus",
     keywords: ["pomodoro", "session", "timer", "concentration"],
@@ -262,6 +291,7 @@ export const ACTIONS: AppAction[] = [
   },
   {
     id: "focus.stop",
+    module: "timer",
     title: "Arrêter le focus en cours",
     category: "focus",
     keywords: ["stop", "terminer", "session"],
@@ -275,6 +305,7 @@ export const ACTIONS: AppAction[] = [
   // — Objectifs
   {
     id: "goal.new",
+    module: "goals",
     title: "Nouvel objectif",
     category: "objectifs",
     keywords: ["goal", "creer"],
@@ -287,6 +318,7 @@ export const ACTIONS: AppAction[] = [
   // — Métriques
   {
     id: "metric.plus",
+    module: "performance",
     title: "+1 sur une métrique",
     category: "métriques",
     keywords: ["compteur", "incrementer", "metrique"],
@@ -322,8 +354,19 @@ export const ACTIONS: AppAction[] = [
  * navigation les intercepterait de toute façon (elle ouvrirait le paywall),
  * mais les lister ferait promettre à la palette ce qu'elle ne peut pas tenir.
  */
-export function searchActions(query: string, hasTrading = true): AppAction[] {
-  const pool = hasTrading ? ACTIONS : ACTIONS.filter((a) => a.requires !== "trading");
+export function searchActions(
+  query: string,
+  hasTrading = true,
+  masques?: ReadonlySet<string>,
+): AppAction[] {
+  // `masques` : modules retirés par le profil de licence. Toute action du module
+  // disparaît — y compris celles qui écrivent sans naviguer (« Ajouter une
+  // tâche ») : un module masqué ne doit pas se remplir par la palette.
+  const pool = ACTIONS.filter(
+    (a) =>
+      (hasTrading || a.requires !== "trading") &&
+      !masques?.has(a.module),
+  );
   const q = norm(query.trim());
   if (!q) return pool;
   return pool.map((a) => {
