@@ -8,6 +8,23 @@
 > **Toute session qui fait promettre à l'app quelque chose que le site ne dit pas
 > ajoute son entrée ici** — voir `DOCUMENTATION.md`.
 
+## Profils de licence sur devis (2026-09-13)
+
+**Rien à répercuter aujourd'hui, et c'est vérifié.** Le chantier ne crée ni
+offre, ni prix, ni module, ni promesse publique : aucun profil n'est émis, et
+l'app n'annonce nulle part la personnalisation sur devis. `SPECS` de
+`vitrine/src/lib/modules.ts` reste exact.
+
+▶️ **Le jour où l'offre sur devis sera vendue** (page « Sur devis », formulaire —
+hors périmètre du chantier), le site devra dire exactement ce que l'app sait
+faire, et pas plus : masquer des modules, en imposer l'ordre, renommer les
+**libellés de modules et de catégories** (en français, en anglais ou les deux),
+poser un nom de marque. **Pas** de champs personnalisés, pas de connecteurs, pas
+de renommage des autres textes, pas de réglages imposés — rien de cela n'existe
+(`CLAUDE.md`, 2026-09-13, « Ce qui n'est PAS fait »).
+
+---
+
 ## Chantiers Calendrier & Liaisons (2026-09-02)
 
 Le site est **hors périmètre** de ces quatre chantiers : Antonin mène sa refonte

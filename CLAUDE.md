@@ -5185,3 +5185,117 @@ CONCORDANCE.
   aller-retour React entre chaque temps, sur un build DEBUG de simulateur. Les
   durées nominales (200/400/300) n'ont pas été raccourcies pour faire tomber un
   chiffre mesuré sur le mauvais build.
+
+## 2026-09-13 — ⭐ Profils de licence sur devis : un profil signé borne l'affichage, jamais les droits
+
+Cadrage `PROMPT-LICENCE-PROFILS.md` (dossier « Prompt en attente »), audit
+`AUDIT-LICENCE-PROFILS.md`, état du chantier `PASSATION-LICENCE-PROFILS.md`,
+pièges `PIEGES.md` § 12. Migration **025**.
+
+### Ce que c'est
+
+Une surcouche de personnalisation vendue sur devis : un **profil de licence**,
+objet de configuration délivré par le serveur et appliqué **par-dessus** le
+palier. Il peut masquer des modules, en imposer l'ordre, renommer les libellés
+de modules et de catégories, et poser un nom de marque. **Il ne déverrouille
+rien et ne fait rien que le code ne sache déjà faire.** Aucun fork, aucune
+branche client, aucun `if (client === …)` : tout passe par des données.
+
+### ⭐⭐ Le cadrage supposait une offre qui n'existe pas
+
+Il réservait les profils aux « licences Business » (`shale_business`), à côté
+d'une offre `shale_pro`. **Aucune des deux n'existe** : l'app, Supabase et
+Stripe ne connaissent que `shale` et `shale_trade` (« Shale Pro » est l'ancien
+nom de Shale Trade). Décision d'Antonin, le 2026-09-13, sur recommandation :
+
+> **L'app ne connaît aucun nom d'offre.** Elle vérifie une signature et applique
+> le profil. La règle commerciale « réservé aux licences sur devis » vit **au
+> seul endroit qui délivre** : le serveur ne signe un profil que pour un compte
+> éligible. Créer une offre Business (Stripe, `CHECK` Postgres, site) est un
+> chantier commercial séparé, qui ne bloque pas celui-ci.
+
+### Les trois règles de préséance, et comment elles tiennent
+
+`resolveEntitlements()` (`src/lib/entitlements.ts`) est le point d'entrée
+unique ; `useEntitlements()` y passe, donc chaque surface gatée aussi.
+
+1. **Le palier fait foi sur l'accessible.** `entitlementsOf` calcule le palier
+   sans voir le profil. Le profil est résolu APRÈS et `ProfilEffectif` n'a ni
+   `tier` ni `hasTrading` : **l'impossibilité est dans le type**.
+2. **Le profil ne peut que restreindre, réordonner, renommer.**
+3. **Absent, expiré, mal signé, illisible, émis pour un autre compte ou un autre
+   palier → palier nu**, en silence. Le motif est conservé pour le diagnostic,
+   jamais affiché comme une erreur.
+
+### Décisions, et leur pourquoi
+
+- **Signature ECDSA P-256 par WebCrypto**, sans dépendance. Ed25519 est plus
+  récent dans WebKit, et une vérification qui échoue sur un moteur ne se voit
+  pas. Le message signé est le **texte exact** stocké, pas un JSON re-sérialisé
+  (`PIEGES.md` § 12.4). Plusieurs clés publiques acceptées, pour une rotation.
+- **La clé privée vit hors de tout dépôt** :
+  `~/Desktop/Shale-projet/administratif/licence-profils/cle-privee.jwk` (600).
+  La publique est compilée dans `src/lib/licence/cles.ts`.
+- **Payload FERMÉ** (`lib/licence/payload.ts`) : tout champ inconnu est ignoré,
+  une valeur mal formée retire ce champ et pas le profil entier. Seules **14
+  clés de libellé** sont surchargeables — les modules et les catégories, qui ont
+  déjà un point d'injection. **Pas de surcharge générale de `t()`** : elle
+  toucherait chaque phrase de l'app. `settings` est lu mais **aucun réglage n'y
+  est encore accepté** (liste vide tant qu'aucun écran n'en consomme).
+- **Un libellé client est une chaîne (les deux langues) ou `{ fr, en }`.** Un
+  libellé à une seule langue ne s'impose que dans cette langue : l'app anglaise
+  ne se met pas à afficher du français.
+- **Le profil gagne sur la visibilité, l'utilisateur garde la main dans le
+  reste.** Un module masqué disparaît de Personnaliser (sinon un clic déferait
+  la licence) ; un libellé imposé s'y lit sans se modifier ; l'ordre imposé passe
+  en tête. ⚠️ `AdminView` reçoit la configuration **brute** : lui passer la
+  version bornée ferait sauvegarder les libellés du client dans les préférences
+  de l'utilisateur, où ils survivraient à la licence.
+- **L'accueil ne se masque pas** : c'est la vue de repli de toute la navigation.
+- **Masquer, c'est ne plus exister pour ce compte** : entrée de navigation,
+  onglet iPhone, actions ⌘K du module (déclarées une par une, `PIEGES.md`
+  § 12.2), et le contenu affiché ailleurs — widgets, panneaux, sections de
+  Réglages, rappel de briefing (`afficheModule`, § 12.3). La garde de
+  `navigate` ignore la demande en silence (pas de paywall : il n'y a rien à
+  vendre), et le filet retombe sur l'accueil si la vue ouverte disparaît.
+- **Catégories : pas de champ de catégorie.** Le cadrage demandait « la
+  catégorie issue du résolveur » sans prévoir de champ dans le payload. Les
+  catégories restent statiques ; seul leur **libellé** est surchargeable.
+- **Le nom de marque remplace le couple titre/sous-titre** : « Atelier Conseil /
+  trading os » annonçait un produit de trading à un cabinet qui l'a retiré.
+
+### Cache, serveur, hors ligne
+
+- **Serveur** : `public.license_profiles` (`shale-site/supabase/migrations/
+  005_licence_profils.sql`), une ligne par compte, lecture par le seul
+  propriétaire, **aucune politique d'écriture**. Le SQL d'émission est produit
+  par `tools/licence-profil.mjs emettre` et se colle dans Supabase Studio.
+- **Cache** : `license_profile` (migration 025), **hors synchronisation** —
+  décision consignée dans `PIEGES.md` § 12.1.
+- **Rafraîchissement** : cache au montage, téléchargement dès que la session est
+  en ligne, au retour au premier plan (≥ 10 min) et toutes les 6 h ; un minuteur
+  réveille la résolution **à l'instant** de l'expiration. Seule la réponse « tu
+  n'as pas de profil » efface le cache (§ 12.6).
+- **Le palier est désormais retenu pour le mode hors ligne** (`MetaSession.palier`).
+  Avant, l'abonnement valait `null` hors ligne, donc l'offre de base (§ 12.5).
+
+### Mode démo
+
+Réglages → compte → « profil de licence simulé » : aucun · **cabinet de
+conseil** · profil vide · profil expiré · signature altérée. Les quatre derniers
+sont **signés pour de vrai** par une clé éphémère, acceptée seulement sans Tauri
+ni authentification. ⚠️ **La verticale est un cabinet de conseil, pas la
+restauration** du cadrage : les briques de restauration relèvent d'une mission
+dont la propriété contractuelle n'est pas vérifiée.
+
+### Ce qui n'est PAS fait, et reste hors périmètre ou à décider
+
+- une offre `shale_business` (Stripe, base, site) ;
+- une surcharge générale des phrases de l'app, et les titres d'actions ⌘K
+  (« Aller aux Tâches » ne devient pas « Aller aux Missions ») ;
+- des réglages imposés (`settings` : mécanisme prêt, liste vide) ;
+- l'indicateur de session de marché du pied de la barre latérale, qui n'a
+  jamais été gaté et reste visible sans Market-Brain ;
+- un écran d'administration pour émettre un profil (c'est un outil en ligne de
+  commande, lancé par une session Claude) ;
+- la gestion multi-sièges, la page « Sur devis » du site, les connecteurs.
