@@ -47,6 +47,21 @@ export function estModuleProfil(v: unknown): v is ModuleProfil {
 export const MODULE_NON_MASQUABLE: ModuleProfil = "today";
 
 /**
+ * Le module dont chaque widget du tableau de bord montre le contenu. Un widget
+ * dont le module est masqué par le profil sort de la grille avec lui. Les
+ * widgets absents de cette table (discipline, énergie, graphique 7 jours,
+ * liens rapides) agrègent plusieurs modules et restent.
+ * ⚠️ Tenu par `catalogue.test.ts` contre `WIDGET_LABELS` de `uiConfig.ts`.
+ */
+export const MODULE_DU_WIDGET: Readonly<Record<string, ModuleProfil>> = {
+  timer: "timer",
+  tasks: "tasks",
+  goals: "goals",
+  calendar: "calendar",
+  position: "sizing",
+};
+
+/**
  * Clés i18n qu'un profil peut surcharger : les libellés de modules et de
  * catégories, c'est-à-dire exactement ce qui a déjà un point d'injection à
  * l'écran (la barre latérale et la barre d'onglets). La clé EST la phrase

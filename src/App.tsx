@@ -178,7 +178,8 @@ function App() {
   }, [data, erreurDonnees]);
 
   const { isAdmin } = useSession();
-  const { hasTrading, profil } = useEntitlements();
+  const { hasTrading, profil, afficheModule } = useEntitlements();
+  const briefingActif = afficheModule("market");
 
   // ── Garde de navigation ───────────────────────────────────────────────────
   // Le gating N'EST PAS qu'un masquage de la sidebar : `navigate` est le seul
@@ -260,6 +261,10 @@ function App() {
       ...ui.config,
       modules: appliquerAuxModules(ui.config.modules, profil, getLang(), (id) => MODULE_LABELS[id]),
       brandTitle: (profil.actif && profil.nomAffiche) || ui.config.brandTitle,
+      // Le nom du client remplace le COUPLE titre/sous-titre : « Atelier
+      // Conseil / trading os » (vu à l'écran) annonçait un produit de trading à
+      // un cabinet qui l'a retiré.
+      brandSubtitle: profil.actif && profil.nomAffiche ? "" : ui.config.brandSubtitle,
     }),
     [ui.config, profil],
   );
@@ -290,11 +295,12 @@ function App() {
   // de la page — trop tard, et pas garanti si le système tue l'app.
   // On garde quand même `pagehide` en second filet, il ne coûte rien.
   //
-  // `hasTrading` en dépendance : le rappel de briefing de marché n'a de sens
-  // qu'avec l'offre Trade, et un compte rétrogradé doit voir ses échéances
+  // `briefingActif` en dépendance : le rappel de briefing de marché n'a de sens
+  // qu'avec l'offre Trade ET un module Market-Brain que le profil de licence
+  // n'a pas masqué, et un compte rétrogradé doit voir ses échéances
   // partir au dépôt suivant plutôt qu'au prochain lancement.
   useEffect(() => {
-    const replanifier = () => void planNotifications(hasTrading).catch(() => null);
+    const replanifier = () => void planNotifications(briefingActif).catch(() => null);
     replanifier(); // au démarrage : purge les échéances devenues fausses
     const surVisibilite = () => {
       if (document.visibilityState === "hidden") replanifier();
@@ -305,7 +311,7 @@ function App() {
       document.removeEventListener("visibilitychange", surVisibilite);
       window.removeEventListener("pagehide", replanifier);
     };
-  }, [hasTrading]);
+  }, [briefingActif]);
 
   useEffect(() => {
     refresh();
@@ -479,7 +485,7 @@ function App() {
           view={view}
           onNavigate={navigate}
           isAdmin={isAdmin}
-          badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
+          badges={{ market: briefingActif && market.badge, trading: afficheModule("trading") && liveOpenCount > 0 }}
           config={configAffichee}
           profil={profil}
           hasTrading={hasTrading}
@@ -491,7 +497,7 @@ function App() {
           onNavigate={navigate}
           demoMode={!isTauri}
           isAdmin={isAdmin}
-          badges={{ market: hasTrading && market.badge, trading: hasTrading && liveOpenCount > 0 }}
+          badges={{ market: briefingActif && market.badge, trading: afficheModule("trading") && liveOpenCount > 0 }}
           config={configAffichee}
           profil={profil}
           hasTrading={hasTrading}

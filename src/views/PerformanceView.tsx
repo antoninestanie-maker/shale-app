@@ -75,7 +75,8 @@ function fmtMinutes(min: number): string {
 }
 
 export default function PerformanceView({ data, refresh }: Props) {
-  const { hasTrading } = useEntitlements();
+  // Palier ET profil de licence : le panneau suit le module Trading.
+  const hasTrading = useEntitlements().afficheModule("trading");
   const today = todayStr();
   const { tasks, completions, goals, metrics, metricEntries, goalLog } = data;
 

@@ -18,7 +18,9 @@ import { useMemo } from "react";
 import { useSession } from "../components/auth/AuthGate";
 import { STRIPE_ENABLED } from "./auth/config";
 import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
-import { resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
+import type { ModuleProfil } from "./licence/catalogue";
+import { moduleVisible, resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
+import { isTradingView } from "./features";
 import type { LigneProfil } from "./licence/signature";
 import { useEtatProfil } from "./licence/useProfil";
 
@@ -87,6 +89,16 @@ export function entitlementsOf(sub: Subscription | null | undefined): Entitlemen
 
 export interface EntitlementsResolus extends Entitlements {
   profil: ProfilEffectif;
+  /**
+   * Le CONTENU de ce module s'affiche-t-il ailleurs que dans sa vue — tuile du
+   * tableau de bord, panneau d'une autre vue, section de Réglages, rappel ?
+   *
+   * Vrai seulement si le palier l'autorise ET que le profil ne masque pas le
+   * module. Sans cette seconde moitié, un cabinet qui a retiré le trading de sa
+   * barre voyait encore « TRADING 7 J » sur son accueil (vu à l'écran le
+   * 2026-09-13). ⚠️ Ce n'est pas un droit : `hasTrading` reste celui du palier.
+   */
+  afficheModule: (module: ModuleProfil) => boolean;
 }
 
 export interface EntreeProfil {
@@ -102,7 +114,9 @@ export function resolveEntitlements(
 ): EntitlementsResolus {
   const palier = entitlementsOf(sub);
   const profil = resoudreProfil({ ...entree, tier: palier.tier });
-  return { ...palier, profil };
+  const afficheModule = (m: ModuleProfil) =>
+    moduleVisible(profil, m) && (palier.hasTrading || !isTradingView(m));
+  return { ...palier, profil, afficheModule };
 }
 
 /** Droits de l'utilisateur connecté. À n'appeler que sous `<AuthGate>`. */

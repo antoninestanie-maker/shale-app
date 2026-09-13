@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { CLES_LIBELLES_PROFIL, MODULES_PROFIL, REGLAGES_PROFIL } from "./catalogue";
+import { CLES_LIBELLES_PROFIL, MODULE_DU_WIDGET, MODULES_PROFIL, REGLAGES_PROFIL } from "./catalogue";
 
 const RACINE = resolve(__dirname, "../../..");
 const lire = (f: string) => readFileSync(resolve(RACINE, f), "utf-8");
@@ -24,6 +24,17 @@ describe("catalogue des profils — concordance avec l'app", () => {
     const categories = ["prod", "trading"].map(libelleDe);
     expect(modules.every(Boolean)).toBe(true);
     expect(new Set([...modules, ...categories])).toEqual(new Set(CLES_LIBELLES_PROFIL));
+  });
+
+  it("chaque widget relié à un module existe dans WIDGET_LABELS, et vise un vrai module", () => {
+    const src = lire("src/lib/uiConfig.ts");
+    const bloc = /export const WIDGET_LABELS[^=]*= \{([\s\S]*?)\};/.exec(src)?.[1] ?? "";
+    const widgets = new Set([...bloc.matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1]));
+    expect(widgets.size).toBeGreaterThan(5);
+    for (const [w, m] of Object.entries(MODULE_DU_WIDGET)) {
+      expect(widgets.has(w), w).toBe(true);
+      expect(MODULES_PROFIL).toContain(m);
+    }
   });
 
   it("aucun réglage n'est surchargeable tant qu'aucun écran n'en consomme", () => {

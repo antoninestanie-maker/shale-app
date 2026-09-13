@@ -25,6 +25,7 @@ import type { View } from "../components/Sidebar";
 import { WIDGET_LABELS, type UiConfig, type WidgetConfig } from "../lib/uiConfig";
 import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
+import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
 
 import { localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
@@ -100,7 +101,7 @@ interface Props {
 
 export default function TodayView({ data, refresh, focus, navigate, config }: Props) {
   const today = todayStr();
-  const { hasTrading } = useEntitlements();
+  const { hasTrading, afficheModule } = useEntitlements();
 
   const derived = useMemo(() => {
     const list = todayTasks(data.tasks, data.completions, today);
@@ -214,7 +215,13 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   // de l'écran : un panneau simplement masqué réapparaîtrait dans les chips
   // « + <titre> » sous la grille, avec un bouton pour le restaurer.
   const visible = (list: WidgetConfig[]) =>
-    list.filter((w) => w.visible && (hasTrading || !isTradingWidget(w.id)));
+    list.filter(
+      (w) =>
+        w.visible &&
+        (hasTrading || !isTradingWidget(w.id)) &&
+        // Profil de licence : le widget suit le module dont il montre le contenu.
+        (!MODULE_DU_WIDGET[w.id] || afficheModule(MODULE_DU_WIDGET[w.id])),
+    );
   const ordered: WidgetConfig[] = [
     ...visible(config.dashTop),
     ...interleave(visible(config.dashLeft), visible(config.dashRight)),
