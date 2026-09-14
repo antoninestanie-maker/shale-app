@@ -2102,3 +2102,40 @@ des clés i18n, la protection de l'accueil — et **chacune** a fait tomber au
 moins un test. Sans ce contrôle, « tout est vert » ne distinguait pas un banc
 qui mord d'un banc vacant (cf. le test de traduction de `type_id`, section « Les thèmes et les objets
 n'en font plus qu'un » de `CLAUDE.md`, écrit vacant la première fois).
+
+## 13.1 ⚠️⚠️ Une politique RLS ne peut pas lire `auth.users`
+
+**Symptôme.** `permission denied for table users` sur un simple
+`select * from public.business_members` — y compris pour le propriétaire, dont
+la politique n'avait pourtant rien à voir avec `auth.users`.
+
+**Cause.** Postgres évalue TOUTES les politiques `select` d'une table (elles se
+combinent en OU). Une seule politique qui fait `(select email from auth.users …)`
+suffit à faire échouer chaque lecture : le rôle `authenticated` n'a aucun droit
+sur `auth.users`, ni en production Supabase ni sur le banc.
+
+**Parade.** Passer par une fonction `security definer` qui ne rend que l'adresse
+du compte courant (`public.current_user_email()`, migration 006 du site).
+
+**Payé.** Trouvé sur le banc PGlite (`shale-site/supabase/outils/verifier-006.mjs`)
+le 2026-09-14, avant tout déploiement.
+
+## 13.2 ⚠️ Révoquer `execute` à `anon` sur une fonction appelée par une vue lisible par `anon` casse la vue
+
+**Symptôme.** `permission denied for function business_seat_for` en lisant
+`my_subscription` sans session — alors que la RLS ne rendait de toute façon
+aucune ligne.
+
+**Cause.** Le droit d'exécuter une fonction se vérifie à l'initialisation de la
+requête, AVANT le filtrage des lignes. Le réflexe « révoquer `anon` par
+prudence » (appris sur `is_admin()`, cf. `shale-site/CLAUDE.md`) est faux dès que
+la fonction entre dans une vue que `anon` peut lire.
+
+**Parade.** Laisser `execute` à `anon` et rendre la fonction muette sans session
+(`where p_user = auth.uid()`). Le banc vérifie les deux : pas d'erreur, aucune
+ligne.
+
+⚠️ **Le banc PGlite doit accorder à `anon` et `authenticated` les privilèges par
+défaut de Supabase** (`grant select … to anon, authenticated`) : sans eux, la
+lecture échoue sur la table avant d'atteindre la fonction, et ce piège-ci reste
+invisible.
