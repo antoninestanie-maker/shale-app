@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import { useSession } from "../components/auth/AuthGate";
 import { STRIPE_ENABLED } from "./auth/config";
 import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
+import { normaliserTier } from "./auth/supabase";
 import type { ModuleProfil } from "./licence/catalogue";
 import { moduleVisible, resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
 import { isTradingView } from "./features";
@@ -58,7 +59,7 @@ export function entitlementsOf(sub: Subscription | null | undefined): Entitlemen
     };
 
   const isTrialing = sub?.status === "trialing";
-  const tier: Tier = sub?.tier === "shale_trade" ? "shale_trade" : "shale";
+  const tier: Tier = normaliserTier(sub?.tier);
 
   return {
     tier,
@@ -132,5 +133,10 @@ export function useEntitlements(): EntitlementsResolus {
 
 /** Libellé commercial d'une offre (traduit à l'affichage, jamais ici). */
 export function tierLabel(tier: Tier): string {
-  return tier === "shale_trade" ? "Shale Trade" : "Shale";
+  switch (tier) {
+    case "shale_trade": return "Shale Trade";
+    case "shale_pro": return "Shale Pro";
+    case "shale_business": return "Shale Business";
+    default: return "Shale";
+  }
 }

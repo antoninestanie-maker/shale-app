@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { STRIPE_ENABLED } from "./config";
 import type { PalierMemorise } from "./stockage";
-import { isActive, type Subscription } from "./supabase";
+import { isActive, normaliserTier, type Subscription } from "./supabase";
 
 /**
  * Le compte est-il ACTIVÉ ?
@@ -93,7 +93,7 @@ export function hasAccess(sub: Subscription | null | undefined): boolean {
 export function palierDe(sub: Subscription): PalierMemorise {
   return {
     status: sub.status,
-    tier: sub.tier === "shale_trade" ? "shale_trade" : "shale",
+    tier: normaliserTier(sub.tier),
     hasTrading:
       typeof sub.has_trading === "boolean"
         ? sub.has_trading

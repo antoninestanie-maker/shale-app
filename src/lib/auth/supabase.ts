@@ -21,7 +21,17 @@ export type SubStatus =
   | "none";
 
 /** Offre souscrite. Voir `lib/features.ts` pour la frontière fonctionnelle. */
-export type Tier = "shale" | "shale_trade";
+export type Tier = "shale" | "shale_trade" | "shale_pro" | "shale_business";
+
+/**
+ * Les offres que l'app connaît (migration 006 du site, 2026-09-14). Une valeur
+ * inconnue retombe sur `shale` : jamais sur une offre plus large par accident.
+ */
+export const TIERS: readonly Tier[] = ["shale", "shale_trade", "shale_pro", "shale_business"];
+
+export function normaliserTier(t: unknown): Tier {
+  return (TIERS as readonly unknown[]).includes(t) ? (t as Tier) : "shale";
+}
 
 /** Périodicité de facturation. */
 export type BillingPeriod = "monthly" | "annual";
