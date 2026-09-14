@@ -18,7 +18,7 @@ que ce profil est absent, expiré, altéré ou illisible.
 |---|---|
 | Branche | `chantier/licence-profils`, fusionnée dans `mobile-ios` (voir § 6) |
 | Migration app | **025** `license_profile` — cache local, **hors synchronisation** |
-| Migration serveur | `shale-site/supabase/migrations/005_licence_profils.sql` — ⛔ **pas encore jouée** sur le projet Supabase |
+| Migration serveur | `shale-site/supabase/migrations/005_licence_profils.sql` — ✅ **jouée par Antonin**, constaté le 2026-09-14 en `curl` avec la clé anon : `license_profiles` répond **200 `[]`** (une table absente répond 404, vérifié à côté), et un `POST` anonyme est refusé en **401**. *(Le 2026-09-13 : « pas encore jouée ».)* |
 | Clé de signature | paire n° 1, générée le 2026-09-13. Privée : `~/Desktop/Shale-projet/administratif/licence-profils/cle-privee.jwk` (600, hors dépôt). Publique : `src/lib/licence/cles.ts` |
 | Profils émis en production | **aucun** |
 | App installée | **reconstruite le 2026-09-13 à 16:33**, binaire `f3dc06ac…`, commit `87268bf` — porte aussi les sept commits du chantier « icône et transition d'entrée ». Base passée en **version 25** : integrity ok, 0 violation de clé étrangère, 13 notes / 51 266 octets, 2 tâches, 6 fiches, 4 sujets, identiques à `shale-backups/avant-licence-profils-20260913-1631/`. ⚠️ Fenêtre de trousseau à valider par Antonin |
@@ -61,8 +61,9 @@ cargo check --target aarch64-apple-ios        # ✅
 
 ## 4. Ce qui n'est PAS prouvé — ne pas le lire comme conforme
 
-- ⛔ **Le trajet réel serveur → app.** La migration 005 n'est pas jouée : aucun
-  profil n'a jamais été téléchargé depuis le vrai Supabase. Le transport est
+- ⛔ **Le trajet réel serveur → app.** La table existe depuis le 2026-09-14,
+  mais aucun profil n'y a été émis : aucun profil n'a jamais été téléchargé
+  depuis le vrai Supabase. Le transport est
   testé contre un `fetch` simulé et la table contre PGlite.
 - **L'app installée avec un profil.** La migration 025 tourne au build natif,
   mais aucun profil n'existe pour le compte d'Antonin : ce qui est vérifiable
@@ -103,7 +104,7 @@ cache au prochain téléchargement, et hors ligne le profil vit jusqu'à
 
 | Sujet | État | Qui |
 |---|---|---|
-| **Jouer `005_licence_profils.sql`** sur le projet Supabase | ⛔ à faire — geste d'Antonin dans Studio, SQL prêt | **Antonin** |
+| ~~**Jouer `005_licence_profils.sql`** sur le projet Supabase~~ | ✅ **fait**, constaté le 2026-09-14 (§ 2) | — |
 | **Sauvegarder la clé privée** sur un support hors ligne | recommandé — la perdre empêche tout renouvellement avant un nouveau build | **Antonin** |
 | Premier vrai profil de bout en bout (dont vérification ECDSA dans WebKit) | à faire après le point 1 | session suivante |
 | Offre `shale_business` (Stripe, `CHECK` Postgres, site) | hors périmètre, chantier commercial | **Antonin** |

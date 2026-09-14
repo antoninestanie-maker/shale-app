@@ -43,9 +43,9 @@ modules, sans jamais rien déverrouiller. **Lire `PASSATION-LICENCE-PROFILS.md`*
 connaît aucun nom d'offre, et la règle commerciale vit au serveur qui délivre
 (`CLAUDE.md`, section du 2026-09-13).
 
-⛔ **Deux gestes pour Antonin** : jouer `shale-site/supabase/migrations/
-005_licence_profils.sql` dans Supabase Studio, et mettre en lieu sûr la clé
-privée de `administratif/licence-profils/`. **Aucun profil n'est émis** : pour
+⛔ **Un geste pour Antonin** : mettre en lieu sûr la clé privée de
+`administratif/licence-profils/`. ✅ *Le SQL `005_licence_profils.sql` est joué
+(constaté le 2026-09-14 en `curl`).* **Aucun profil n'est émis** : pour
 l'instant, rien ne change à l'écran.
 
 ⚠️ **Au passage, un défaut corrigé** : hors ligne, un abonné Shale Trade perdait
