@@ -2139,3 +2139,56 @@ ligne.
 défaut de Supabase** (`grant select … to anon, authenticated`) : sans eux, la
 lecture échoue sur la table avant d'atteindre la fonction, et ce piège-ci reste
 invisible.
+
+## 14.1 ⚠️⚠️ Un menu en `absolute` dans une carte de grille est RONGÉ sous la dernière ligne
+
+**Symptôme.** Le menu « ⋯ » de la dernière étape d'une feuille de route s'ouvre,
+se voit à moitié, et le clic sur une entrée du bas ne fait rien. Aucune erreur.
+Mesuré : `getBoundingClientRect().top` à 1 025 px dans une fenêtre de 1 000,
+même après `scrollIntoView` — et `elementFromPoint` rendait autre chose.
+
+**Cause.** Le wrap de `ResizablePanel` porte `overflow: clip` (anti-superposition,
+2026-07-12). Tout ce qui déborde de la carte est coupé ET hors de portée du
+défilement de la page : il n'y a rien sous la carte à faire défiler.
+
+**Parade.** Un menu flottant sort dans un PORTAIL (`createPortal(…, document.body)`)
+en `position: fixed`, mesuré avant la peinture, retourné vers le haut s'il ne
+tient pas en dessous, divisé par `zoomFactor()` comme `Tooltip`, et qui SUIT le
+défilement plutôt que de se refermer. Une liste de suggestions, elle, peut
+simplement rester DANS le flux (`RattacherElement`).
+
+**Payé.** Chantier feuille de route, 2026-09-15 — vu en pilotant Chrome, pas en
+relisant le code. Le même défaut vaut pour toute liste déroulante posée en
+`absolute` près du bas d'un panneau de grille.
+
+## 14.2 ⚠️ Un test qui appelle `t()` passe ou casse selon la langue de la machine
+
+**Symptôme.** `expected '3/7 items' to be '3/7 éléments'`. Le test est juste, le
+code aussi.
+
+**Cause.** `lib/i18n` fixe la langue À L'IMPORT, depuis `navigator.language`. La
+suite hérite de la langue du runner.
+
+**Parade.** Poser `navigator` AVANT d'importer le module testé : `vi.resetModules()`,
+`vi.stubGlobal("navigator", { language: "fr-FR", … })`, puis `await import(…)`
+dans un `beforeAll` — le montage de `notifications.test.ts`, repris dans
+`objectifs/libelles.test.ts`. `setLangPref()` ne convient pas : il touche au
+`document`, absent en `environment: "node"`.
+
+**Payé.** Chantier feuille de route, 2026-09-15.
+
+## 14.3 ⚠️ Un script de navigateur en mode démo est interrompu par l'accueil au bout de 8 s
+
+**Symptôme.** Un parcours piloté par puppeteer tape dans le vide à mi-chemin ;
+la capture montre « Bienvenue dans Shale » par-dessus la vue.
+
+**Cause.** `useAccueil()` attend le premier cycle de synchronisation, ou HUIT
+secondes. En démo il n'y en a pas : l'accueil s'ouvre au bout du délai, au milieu
+du scénario.
+
+**Parade.** Poser `localStorage.setItem("shale.onboarded", "1")` dans
+`evaluateOnNewDocument`, avant le chargement — c'est la clé de l'ancien accueil,
+que `accueilNecessaire()` reprend comme « déjà vu ».
+
+**Payé.** Chantier feuille de route, 2026-09-15 : un premier comptage de gestes
+faux (« aucune tâche rattachée ») avant d'avoir regardé la capture.
