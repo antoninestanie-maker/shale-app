@@ -1,6 +1,7 @@
 
 import { localeTag } from "./i18n";
 import { sansExemples } from "./onboarding/exemples";
+import { mesurer, type ContexteProgression } from "./objectifs/progression";
 import type {
   Completion,
   DayStat,
@@ -260,39 +261,40 @@ export function isOneOffDone(task: Task, completions: Completion[]): boolean {
 }
 
 /**
- * Progression effective d'un objectif : son % si manuelle, sinon la moyenne
- * des sous-objectifs (progression effective) et des tâches ponctuelles liées
- * (100 si faite, 0 sinon). Les tâches récurrentes ne comptent pas (elles ne
- * se "terminent" jamais). Sans enfant ni tâche liée, retombe sur le % stocké.
+ * Progression effective d'un objectif, 0–100 — le point d'entrée des écrans qui
+ * ne veulent qu'un NOMBRE (carte d'Aujourd'hui, relevé quotidien, péril).
+ *
+ * ⭐ La règle ne vit plus ici : elle vit dans `lib/objectifs/progression.ts`
+ * (chantier « feuille de route », migration 026), et ce qui suit n'en est que
+ * la traduction en nombre. Aucun écran ne recalcule un pourcentage dans son
+ * coin — celui qui doit dire d'où vient le chiffre appelle `mesurer()`.
+ *
+ * ⚠️ UN OBJECTIF VIDE rend son % stocké. Un nombre ne sait pas dire « rien à
+ * mesurer » ; et un objectif sans aucune étape ni élément est exactement celui
+ * pour lequel la barre manuelle survit. C'était déjà le comportement d'avant :
+ * aucun chiffre existant ne bouge pour lui.
  */
 export function effectiveProgress(
   goal: Goal,
-  goals: Goal[],
-  tasks: Task[],
-  completions: Completion[],
-  seen: Set<number> = new Set(),
+  goals: readonly Goal[],
+  tasks: readonly Task[],
+  completions: readonly Completion[],
+  contexte: Partial<ContexteProgression> = {},
 ): number {
-  if (goal.manual_progress) return goal.progress_pct;
-  if (seen.has(goal.id)) return 0; // garde-fou anti-cycle
-  seen.add(goal.id);
+  const m = mesurer(goal, {
+    goals,
+    tasks,
+    completions,
+    ...contexte,
+    maintenant: contexte.maintenant ?? maintenantLocal(),
+  });
+  return m.pct ?? goal.progress_pct ?? 0;
+}
 
-  const parts: number[] = [];
-  for (const child of goals.filter((g) => g.parent_goal_id === goal.id)) {
-    parts.push(effectiveProgress(child, goals, tasks, completions, seen));
-  }
-  // ⚠️ `sansExemples` ici aussi : une tâche d'exemple rattachée à un objectif
-  // ferait plafonner sa progression à 50 % sans que rien ne l'explique. Le
-  // contenu de départ ne rattache aucune tâche à un objectif aujourd'hui — mais
-  // rien n'empêche un exemple futur de le faire, et le défaut serait silencieux.
-  for (const t of sansExemples(tasks).filter(
-    (t) =>
-      t.goal_id === goal.id && (!t.recurrence || t.recurrence === "none"),
-  )) {
-    parts.push(isOneOffDone(t, completions) ? 100 : 0);
-  }
-
-  if (parts.length === 0) return goal.progress_pct ?? 0;
-  return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+/** 'YYYY-MM-DD HH:MM' local — la logique « jour » de l'app ne compare que du local. */
+function maintenantLocal(): string {
+  const d = new Date();
+  return `${toDateStr(d)} ${d.toTimeString().slice(0, 5)}`;
 }
 
 /** Descendants d'un objectif (pour interdire les cycles dans le choix du parent). */

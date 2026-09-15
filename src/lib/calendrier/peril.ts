@@ -1,4 +1,5 @@
 import { effectiveProgress } from "../logic";
+import type { ContexteProgression } from "../objectifs/progression";
 import { joursEntre } from "./agenda";
 import type { Completion, Goal, Task } from "../types";
 
@@ -51,13 +52,15 @@ export function objectifsEnPeril(
   tasks: readonly Task[],
   completions: readonly Completion[],
   aujourdhui: string,
+  /** Habitudes et coches : une cible chiffrée peut en dépendre (migration 026). */
+  contexte: Partial<ContexteProgression> = {},
 ): ObjectifEnPeril[] {
   const enPeril: ObjectifEnPeril[] = [];
 
   for (const g of goals) {
     if (!g.deadline) continue;
 
-    const progression = effectiveProgress(g, [...goals], [...tasks], [...completions]);
+    const progression = effectiveProgress(g, goals, tasks, completions, contexte);
     if (progression >= 100) continue;
 
     const joursRestants = ecartEnJours(aujourdhui, g.deadline);
@@ -65,7 +68,7 @@ export function objectifsEnPeril(
 
     const enfants = goals.filter((x) => x.parent_goal_id === g.id);
     const jalonsRestants = enfants.filter(
-      (x) => effectiveProgress(x, [...goals], [...tasks], [...completions]) < 100,
+      (x) => effectiveProgress(x, goals, tasks, completions, contexte) < 100,
     ).length;
     const rattachees = tasks.filter(
       (t) => t.goal_id === g.id && (!t.recurrence || t.recurrence === "none"),

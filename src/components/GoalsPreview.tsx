@@ -13,7 +13,10 @@ export default function GoalsPreview({ data }: { data: AppData }) {
   const { goals, tasks, completions } = data;
   const withPct = goals.map((g) => ({
     goal: g,
-    pct: effectiveProgress(g, goals, tasks, completions),
+    pct: effectiveProgress(g, goals, tasks, completions, {
+      habits: data.habits,
+      habitChecks: data.habitChecks,
+    }),
   }));
 
   // Plus de `.slice(0, 4)` : la liste défile dans la carte (`.panel-scroll`) —

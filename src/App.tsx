@@ -435,13 +435,13 @@ function App() {
   useEffect(() => {
     if (!data || snapshotDone.current) return;
     snapshotDone.current = true;
-    const { goals, tasks, completions } = data;
+    const { goals, tasks, completions, habits, habitChecks } = data;
     if (goals.length === 0) return;
     snapshotGoals(
       todayStr(),
       goals.map((g) => ({
         goal_id: g.id,
-        pct: effectiveProgress(g, goals, tasks, completions),
+        pct: effectiveProgress(g, goals, tasks, completions, { habits, habitChecks }),
       })),
     ).then(refresh);
   }, [data, refresh]);

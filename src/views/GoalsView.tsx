@@ -100,7 +100,10 @@ export default function GoalsView({ data, refresh }: Props) {
   };
 
   const renderGoal = (goal: Goal, depth: number) => {
-    const pct = effectiveProgress(goal, goals, tasks, completions);
+    const pct = effectiveProgress(goal, goals, tasks, completions, {
+      habits: data.habits,
+      habitChecks: data.habitChecks,
+    });
     const auto = !goal.manual_progress;
     const linkedCount = tasks.filter((t) => t.goal_id === goal.id).length;
     const dl = deadlineInfo(goal.deadline);

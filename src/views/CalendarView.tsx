@@ -241,8 +241,12 @@ export default function CalendarView({ data, refresh }: Props) {
   const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
   const surcharges = useMemo(() => joursSurcharges(parJour, profil), [parJour, profil]);
   const peril = useMemo(
-    () => objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui),
-    [data.goals, data.tasks, data.completions, aujourdhui],
+    () =>
+      objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui, {
+        habits: data.habits,
+        habitChecks: data.habitChecks,
+      }),
+    [data.goals, data.tasks, data.completions, data.habits, data.habitChecks, aujourdhui],
   );
 
   /** Tâches qui ont assez glissé pour qu'on cesse de les reporter en silence. */
