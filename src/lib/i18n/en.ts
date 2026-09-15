@@ -2617,10 +2617,10 @@ export const EN: Record<string, string> = {
   "récurrent, non compté": "recurring, not counted",
   "note, ne compte pas": "note, doesn’t count",
   "fiche, ne compte pas": "card, doesn’t count",
-  "Rattacher une tâche, une note, un événement… ou créer une tâche": "Attach a task, a note, an event… or create a task",
   "Rattacher un élément à « {titre} »": "Attach an item to “{titre}”",
   "Fiche": "Card",
   "(étape de « {titre} »)": "(step of “{titre}”)",
   "{n} étape ou tâche restante.": "{n} step or task left.",
   "{n} étapes ou tâches restantes.": "{n} steps or tasks left.",
+  "Rattacher ou créer un élément…": "Attach or create an item…",
 };

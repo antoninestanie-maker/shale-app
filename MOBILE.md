@@ -2750,3 +2750,24 @@ webview BLANCHE ~1 s   ← le fond propre de WKWebView, avant que le HTML existe
 Ce blanc-là n'est atteignable ni par `index.html`, ni par `tauri.conf.json` :
 il précède le chargement du document. Le corriger demande de toucher au natif
 (`gen/apple`). **Non fait, et non décidé.**
+
+---
+
+# 22. La feuille de route des objectifs sur iPhone (2026-09-15)
+
+*Chantier « feuille de route », phase G. Même code React que le bureau ; ce qui suit dit ce qui a été adapté et ce qui est prouvé.*
+
+## 22.1 Ce qui a changé pour le doigt
+- **Aucune action au survol.** Toutes les commandes d'une étape passent par le menu « ⋯ », visible en permanence. Les actions d'une ligne d'objectif (ajouter, modifier, supprimer) étaient en `opacity-0 group-hover` depuis toujours, donc **invisibles sur iPhone** : elles s'affichent sous `pointer: coarse` et au focus clavier.
+- **La ligne d'étape se replie ENTRE deux blocs**, jamais dedans : poignée + chevron + titre ensemble, barre + menu dessous. Avec un seul `flex-wrap`, la poignée et le chevron restaient seuls sur une ligne.
+- **Retraits réduits sous `sm`** (feuille de route `ml-2 pl-2`, étapes imbriquées `ml-5`) : trois niveaux d'indentation de bureau mangeaient un tiers de l'écran.
+- **Réordonner au doigt** : la poignée porte `touch-action: none` ; le reste de la ligne défile normalement. Pas d'appui long : contrairement à la grille du calendrier, la poignée est une cible DÉDIÉE, un doigt posé dessus ne peut pas vouloir défiler. Doublé de « Monter / Descendre » dans le menu.
+- **Le menu « ⋯ » vit dans un portail**, positionné sur la fenêtre et retourné vers le haut s'il ne tient pas : dans la carte, il était rogné sous la dernière étape (`PIEGES.md` § 14.1).
+
+## 22.2 Ce qui est prouvé, et comment
+Chrome piloté par puppeteer, `KnownDevices["iPhone 13"]` (`pointer: coarse` vrai), mode démo :
+- 390 px, aucun débordement horizontal, aucun bouton hors écran ;
+- poignée, chevron et titre sur la même ligne visuelle ;
+- **un vrai glisser au doigt** (`page.touchscreen.touchStart/move/end`) fait passer la troisième étape en tête.
+
+⚠️ **RIEN N'A ÉTÉ VU SUR LE SIMULATEUR NI SUR L'APPAREIL.** L'émulation tactile de Chrome ne reproduit ni l'inertie, ni la paume, ni WebKit. Le Dynamic Type n'a pas été poussé à grande taille sur ces écrans : ils reposent sur le `zoom` d'`applyZoom()` comme le reste de l'app (§ « Densité, Dynamic Type », `CLAUDE.md`).

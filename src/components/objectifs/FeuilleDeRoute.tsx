@@ -69,7 +69,7 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
     rattachementsDe(uidDeLigne("goal", racine), p.contexte).length;
 
   return (
-    <div className="ml-4 border-l border-border pb-1 pl-3">
+    <div className="ml-2 border-l border-border pb-1 pl-2 sm:ml-4 sm:pl-3">
       {!!racine.manual_progress && etapes.length > 0 && (
         <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-surface-2 px-3 py-2 text-xs text-text-dim">
           <span className="min-w-0 flex-1 basis-[14rem]">
@@ -234,94 +234,104 @@ function LigneEtape(p: PropsLigne) {
       className={`rounded-[10px] ${p.enGlissement != null ? "relative z-10 bg-surface-2 shadow-lg" : ""}`}
       style={p.enGlissement != null ? { transform: `translateY(${p.enGlissement}px)` } : undefined}
     >
+      {/* ⭐ Deux blocs, et le repli se fait ENTRE eux, jamais dedans : poignée,
+          chevron et titre restent ensemble ; la barre et le menu passent dessous
+          quand la place manque. Vu sur iPhone émulé le 2026-09-15 : avec un seul
+          `flex-wrap`, la poignée et le chevron restaient seuls sur une ligne,
+          le titre tombait en dessous (PIEGES § base flex, 2026-07-26). */}
       <div className="group flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[10px] px-1 py-1.5 hover:bg-surface-2">
-        <button
-          type="button"
-          onPointerDown={p.onSaisir}
-          className="cible-tactile flex h-7 w-5 shrink-0 cursor-grab items-center justify-center text-text-dim [touch-action:none] active:cursor-grabbing"
-          aria-label={t("Déplacer « {titre} »", { titre: etape.title })}
-          data-tip={t("Glisser pour réordonner")}
-        >
-          <svg viewBox="0 0 10 16" className="h-3.5 w-2.5" fill="currentColor" aria-hidden>
-            {[3, 8, 13].map((y) => (
-              <g key={y}>
-                <circle cx="2.5" cy={y} r="1.3" />
-                <circle cx="7.5" cy={y} r="1.3" />
-              </g>
-            ))}
-          </svg>
-        </button>
+        <div className="flex min-w-0 flex-1 basis-[13rem] items-center gap-x-1">
+          <button
+            type="button"
+            onPointerDown={p.onSaisir}
+            className="cible-tactile flex h-7 w-5 shrink-0 cursor-grab items-center justify-center text-text-dim [touch-action:none] active:cursor-grabbing"
+            aria-label={t("Déplacer « {titre} »", { titre: etape.title })}
+            data-tip={t("Glisser pour réordonner")}
+          >
+            <svg viewBox="0 0 10 16" className="h-3.5 w-2.5" fill="currentColor" aria-hidden>
+              {[3, 8, 13].map((y) => (
+                <g key={y}>
+                  <circle cx="2.5" cy={y} r="1.3" />
+                  <circle cx="7.5" cy={y} r="1.3" />
+                </g>
+              ))}
+            </svg>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => onReplier(cle, !ouvert)}
-          className="cible-tactile flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:text-text"
-          aria-expanded={ouvert}
-          aria-label={ouvert ? t("Replier « {titre} »", { titre: etape.title }) : t("Déplier « {titre} »", { titre: etape.title })}
-        >
-          {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
-        </button>
+          <button
+            type="button"
+            onClick={() => onReplier(cle, !ouvert)}
+            className="cible-tactile flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:text-text"
+            aria-expanded={ouvert}
+            aria-label={ouvert ? t("Replier « {titre} »", { titre: etape.title }) : t("Déplier « {titre} »", { titre: etape.title })}
+          >
+            {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
+          </button>
 
-        <div className="flex min-w-0 flex-1 basis-[12rem] flex-wrap items-center gap-x-2 gap-y-0.5">
-          {renommer ? (
-            <ChampLigne
-              valeurInitiale={etape.title}
-              placeholder={t("Titre de l’étape")}
-              onValider={async (titre) => {
-                setRenommer(false);
-                if (titre && titre !== etape.title) {
-                  await updateGoal(etape.id, { ...ficheDe(etape), title: titre });
-                  await refresh();
-                }
-              }}
-              onAnnuler={() => setRenommer(false)}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => onReplier(cle, !ouvert)}
-              onDoubleClick={() => setRenommer(true)}
-              className={`truncate truncate-souris text-left text-sm ${termine ? "text-text-dim" : "text-text"}`}
-              title={etape.title}
-            >
-              {etape.title}
-            </button>
-          )}
-          {estJalon && (
-            <span className="pill shrink-0 bg-violet/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet">
-              {t("jalon")}
-            </span>
-          )}
-          {etape.deadline && (
-            <span className="pill shrink-0 bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-dim">
-              {formaterJour(etape.deadline)}
-            </span>
-          )}
-          {m && (
-            <span className={`w-full truncate text-[11px] ${m.pct == null ? "italic text-text-dim" : "text-text-dim"}`}>
-              {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
-              {origineEnClair(m, estJalon)}
-            </span>
-          )}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+            {renommer ? (
+              <ChampLigne
+                valeurInitiale={etape.title}
+                placeholder={t("Titre de l’étape")}
+                onValider={async (titre) => {
+                  setRenommer(false);
+                  if (titre && titre !== etape.title) {
+                    await updateGoal(etape.id, { ...ficheDe(etape), title: titre });
+                    await refresh();
+                  }
+                }}
+                onAnnuler={() => setRenommer(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => onReplier(cle, !ouvert)}
+                onDoubleClick={() => setRenommer(true)}
+                className={`truncate truncate-souris text-left text-sm ${termine ? "text-text-dim" : "text-text"}`}
+                title={etape.title}
+              >
+                {etape.title}
+              </button>
+            )}
+            {estJalon && (
+              <span className="pill shrink-0 bg-violet/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet">
+                {t("jalon")}
+              </span>
+            )}
+            {etape.deadline && (
+              <span className="pill shrink-0 bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-dim">
+                {formaterJour(etape.deadline)}
+              </span>
+            )}
+            {m && (
+              <span className={`w-full truncate text-[11px] ${m.pct == null ? "italic text-text-dim" : "text-text-dim"}`}>
+                {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
+                {origineEnClair(m, estJalon)}
+              </span>
+            )}
         </div>
 
-        <BarreMesure pct={pct} acheve={termine} />
+        </div>
 
-        <MenuEtape
-          etape={etape}
-          goals={data.goals}
-          index={p.index}
-          nbFreres={freres.length}
-          onRenommer={() => setRenommer(true)}
-          onModifier={() => p.onModifier(etape)}
-          onDeplacer={p.onDeplacer}
-          refresh={refresh}
-        />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <BarreMesure pct={pct} acheve={termine} />
+
+          <MenuEtape
+            etape={etape}
+            goals={data.goals}
+            index={p.index}
+            nbFreres={freres.length}
+            onRenommer={() => setRenommer(true)}
+            onModifier={() => p.onModifier(etape)}
+            onDeplacer={p.onDeplacer}
+            refresh={refresh}
+          />
+        </div>
       </div>
 
       {ouvert && (
         <div
-          className="ml-12 pb-2"
+          className="ml-5 pb-2 sm:ml-12"
           /* ⚠️ Toucher à une étape ouverte D'OFFICE fige son ouverture. Sans ça,
              rattacher l'élément qui la termine la replie sous les doigts, champ
              de saisie compris — vu à l'écran le 2026-09-15 : on tapait dans un

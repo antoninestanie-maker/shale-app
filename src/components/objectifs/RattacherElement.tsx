@@ -125,7 +125,7 @@ export default function RattacherElement(props: {
             setRequete("");
           }
         }}
-        placeholder={t("Rattacher une tâche, une note, un événement… ou créer une tâche")}
+        placeholder={t("Rattacher ou créer un élément…")}
         aria-label={t("Rattacher un élément à « {titre} »", { titre: goal.title })}
         aria-autocomplete="list"
         className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
