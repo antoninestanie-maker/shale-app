@@ -17,6 +17,7 @@ import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
+import { assemblerContexte, type ContexteObjectifs } from "./objectifs/contexte";
 import type {
   CalendarEventInput,
   FeuilleDeRoutePatch,
@@ -2194,6 +2195,16 @@ export const demo = {
       origin: arete.origin,
       created_at: now,
     });
+  },
+
+  async fetchContexteObjectifs(): Promise<ContexteObjectifs> {
+    const bruts = links.filter((l) => l.from_kind === "goal" || l.to_kind === "goal");
+    return assemblerContexte(
+      bruts,
+      notes.map((n) => ({ uid: uidDemo("note", n.id), title: n.title })),
+      knowledgeEntries.map((e) => ({ uid: uidDemo("knowledge", e.id), title: e.title })),
+      calendarEvents.map((e) => ({ ...e, uid: uidDemo("event", e.id) })),
+    );
   },
 
   async deleteLink(id: number): Promise<void> {

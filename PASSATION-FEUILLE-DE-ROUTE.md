@@ -1,6 +1,6 @@
 # Passation — chantier « feuille de route des objectifs »
 
-*Ouvert le 2026-09-14. Mis à jour le 2026-09-15, à l'ARRÊT N°2 bis (phase C montrée, en attente de validation).*
+*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phase D livrée.*
 *Cadrage : `~/Desktop/Prompt en attente/prompt/PROMPT-FEUILLE-DE-ROUTE.md`. Audit : `~/Desktop/Shale-chantiers/RAPPORT-PHASE0-FEUILLE-DE-ROUTE.md`.*
 
 ---
@@ -11,11 +11,11 @@
 |---|---|
 | Branche | `chantier/feuille-de-route`, dans le dossier principal `~/Desktop/Shale-projet/Shale` |
 | Base de départ | `mobile-ios` @ `f48d037` |
-| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C |
+| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · phase D (ce commit) |
 | Migration | **026** `feuille_de_route` — enregistrée dans `lib.rs` et `schema.testutil.ts`. **Jamais jouée sur la vraie base** : aucun build natif n'a été fait |
 | Poussé | **non** |
-| Tests | vitest **1128 → 1191** · cargo test 133 (inchangé) · i18n 0 manquante (1929 entrées) |
-| ⛔ Prochaine étape | **ARRÊT N°2 bis** : Antonin valide la démonstration de la phase C avant la phase D |
+| Tests | vitest **1128 → 1195** · cargo test 133 (inchangé) · i18n 0 manquante (1935 entrées) |
+| ▶️ Prochaine étape | **phase E** (cibles, sources tâche/habitude à vérifier à l'écran), puis **F** |
 
 ⚠️ **Une session voisine travaille dans le même dossier** : le 2026-09-15, `CLAUDE.md`
 y portait une modification non commitée (adresse `www.shaleapp.com`) qui n'est pas
@@ -42,6 +42,7 @@ de ce chantier. Ne jamais faire `git add -A` ici ; ajouter ses fichiers par nom.
 |---|---|---|
 | A | `026_feuille_de_route.sql`, `types.ts`, `repo.ts`, `demo.ts` | dix colonnes, zéro table, zéro CHECK ; `majFeuilleDeRoute` (liste fermée de colonnes, repose `count_since`), `reordonnerObjectifs`, `rattacherTache` ; test de sync à deux appareils |
 | B | `lib/objectifs/progression.ts`, `structure.ts`, `logic.ts` | `mesurer()` rend le chiffre ET son origine ; `effectiveProgress` délègue ; règle des trois niveaux à la saisie seulement ; mutation-testé |
+| D | `lib/objectifs/contexte.ts`, `repo.ts` (`fetchContexteObjectifs`), `RattacherElement.tsx` | notes, fiches et événements se rattachent par une arête `object_links` d'origine `manual` ; le champ cherche ces quatre familles ; une ressource s'ouvre d'un clic et son panneau « Mentionné dans » cite l'étape |
 | C | `components/objectifs/FeuilleDeRoute.tsx`, `RattacherElement.tsx`, `lib/objectifs/libelles.ts`, `GoalsView.tsx`, `GoalModal.tsx` | la vue ; libellés et repliement purs et testés |
 
 **Constat des chiffres (phase B).** La vraie base contient 2 objectifs, manuels, sans
@@ -71,9 +72,16 @@ Captures envoyées à Antonin le 2026-09-15.
 
 ## 5. Ce qui reste — à reprendre dans cet ordre
 
-- **D — rattacher** les notes, fiches et événements par `object_links` (le champ ne
-  cherche aujourd'hui que des tâches ; `mesurer()` sait déjà lire les arêtes). Charger
-  les arêtes des objectifs et les événements cités : ils ne sont pas dans `AppData`.
+- ✅ **D — rattacher** : fait le 2026-09-15. Vu dans Chrome en démo : deux événements
+  (un passé, un futur) → « 1/2 éléments » ; une note et une fiche → listées, ne
+  comptent pas ; déjà rattaché → plus proposé ; clic sur la note → Notes, qui cite
+  l'étape dans « Mentionné dans ».
+  ⚠️ **Décision de conception prise en chemin** : toucher une étape ouverte D'OFFICE
+  fige son ouverture. Sans ça, rattacher l'élément qui la termine la repliait sous les
+  doigts, champ de saisie compris. Le repliement automatique ne vaut qu'à l'ouverture
+  de la vue.
+  ⚠️ **Non vérifié** : le rendu natif (les arêtes voyagent déjà par la sync, testé
+  depuis le chantier Liaisons, mais pas vu entre deux vrais appareils).
 - **E — cibles** : fait pour l'essentiel en phase C (cible, unité, source, compte lu).
   Reste à vérifier les sources tâche/habitude à l'écran.
 - **F — intégrations.**

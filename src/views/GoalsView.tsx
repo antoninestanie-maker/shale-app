@@ -5,7 +5,9 @@ import { IconChevronDown, IconChevronRight } from "../components/icons";
 import { todayStr } from "../lib/logic";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
-import { deleteGoal, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
+import { CONTEXTE_VIDE, rattachementsDe, type ContexteObjectifs } from "../lib/objectifs/contexte";
+import { uidDeLigne } from "../lib/objectifs/progression";
+import { deleteGoal, fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
 import type { AppData, Goal } from "../lib/types";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
@@ -87,6 +89,21 @@ export default function GoalsView({ data, refresh }: Props) {
 
   const { goals, tasks, completions } = data;
 
+  /**
+   * Les arêtes, événements et titres cités par les objectifs — HORS d'`AppData`,
+   * donc relus à chaque rafraîchissement : rattacher une note ne change aucune
+   * table d'`AppData`, mais `refresh()` rend un nouvel objet `data`, et c'est ce
+   * qui relance cette lecture (PIEGES § 10.3).
+   */
+  const [contexte, setContexte] = useState<ContexteObjectifs>(CONTEXTE_VIDE);
+  useEffect(() => {
+    let vivant = true;
+    fetchContexteObjectifs().then((c) => vivant && setContexte(c));
+    return () => {
+      vivant = false;
+    };
+  }, [data]);
+
   // ⭐ UNE mesure par objectif, calculée une fois par rendu, par la règle
   // unique (`lib/objectifs/progression.ts`). Aucune ligne ne recalcule dans son coin.
   const sources = useMemo<SourcesProgression>(
@@ -96,9 +113,11 @@ export default function GoalsView({ data, refresh }: Props) {
       completions,
       habits: data.habits,
       habitChecks: data.habitChecks,
+      liens: contexte.liens,
+      evenements: contexte.evenements,
       maintenant: `${todayStr()} ${new Date().toTimeString().slice(0, 5)}`,
     }),
-    [goals, tasks, completions, data.habits, data.habitChecks],
+    [goals, tasks, completions, data.habits, data.habitChecks, contexte],
   );
   const mesures = useMemo(() => {
     const m = new Map<number, Mesure>();
@@ -143,7 +162,8 @@ export default function GoalsView({ data, refresh }: Props) {
   const renderGoal = (goal: Goal) => {
     const m = mesures.get(goal.id)!;
     const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
-    const aDesTaches = tasks.some((x) => x.goal_id === goal.id);
+    const aDesTaches =
+      tasks.some((x) => x.goal_id === goal.id) || rattachementsDe(uidDeLigne("goal", goal), contexte).length > 0;
     const avecFeuille = aDesEtapes || aDesTaches || ajoutPour === goal.id;
     const cle = `g${goal.id}`;
     // Déplié d'office s'il a une feuille de route : c'est ce que montrait la vue
@@ -317,6 +337,7 @@ export default function GoalsView({ data, refresh }: Props) {
           <FeuilleDeRoute
             racine={goal}
             data={data}
+            contexte={contexte}
             sources={sources}
             mesures={mesures}
             replis={replis}

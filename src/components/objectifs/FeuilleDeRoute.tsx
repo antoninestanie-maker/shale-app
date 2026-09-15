@@ -5,6 +5,7 @@ import { todayStr } from "../../lib/logic";
 import {
   createGoal,
   deleteGoal,
+  deleteLink,
   majFeuilleDeRoute,
   rattacherTache,
   reordonnerObjectifs,
@@ -20,12 +21,14 @@ import {
   pourquoiVide,
   type Replis,
 } from "../../lib/objectifs/libelles";
-import { compterSource, debutDuCompte, estAcheve, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
+import { compterSource, debutDuCompte, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
 import { peutAjouterEtape, peutPromouvoir, peutRetrograder, type GenreEtape } from "../../lib/objectifs/structure";
 import { estRecurrente } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal } from "../../lib/types";
-import { IconCheck, IconChevronDown, IconChevronRight, IconPlus, IconX } from "../icons";
+import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
+import { ouvrirObjet } from "../../lib/naviguer";
+import { IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
 import RattacherElement from "./RattacherElement";
 
 /**
@@ -46,6 +49,7 @@ import RattacherElement from "./RattacherElement";
 export interface PropsFeuille {
   racine: Goal;
   data: AppData;
+  contexte: ContexteObjectifs;
   sources: SourcesProgression;
   mesures: ReadonlyMap<number, Mesure>;
   replis: Replis;
@@ -60,7 +64,9 @@ export interface PropsFeuille {
 export default function FeuilleDeRoute(p: PropsFeuille) {
   const { racine, data, refresh } = p;
   const etapes = freresTries(racine.id, data.goals);
-  const elementsDirects = data.tasks.filter((x) => x.goal_id === racine.id);
+  const elementsDirects =
+    data.tasks.filter((x) => x.goal_id === racine.id).length +
+    rattachementsDe(uidDeLigne("goal", racine), p.contexte).length;
 
   return (
     <div className="ml-4 border-l border-border pb-1 pl-3">
@@ -84,10 +90,10 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
 
       <ListeEtapes {...p} parent={racine} etapes={etapes} />
 
-      {elementsDirects.length > 0 && (
+      {elementsDirects > 0 && (
         <div className="px-2 py-1">
           <p className="hud-label mb-1">{t("Rattaché directement")}</p>
-          <ListeElements goal={racine} data={data} refresh={refresh} />
+          <ListeElements goal={racine} data={data} contexte={p.contexte} maintenant={p.sources.maintenant} refresh={refresh} />
         </div>
       )}
 
@@ -314,7 +320,17 @@ function LigneEtape(p: PropsLigne) {
       </div>
 
       {ouvert && (
-        <div className="ml-12 pb-2">
+        <div
+          className="ml-12 pb-2"
+          /* ⚠️ Toucher à une étape ouverte D'OFFICE fige son ouverture. Sans ça,
+             rattacher l'élément qui la termine la replie sous les doigts, champ
+             de saisie compris — vu à l'écran le 2026-09-15 : on tapait dans un
+             champ qui venait de disparaître. Le repliement automatique ne vaut
+             qu'à l'ouverture de la vue, jamais au milieu d'un geste. */
+          onFocusCapture={() => {
+            if (replis[cle] === undefined) onReplier(cle, true);
+          }}
+        >
           {m && m.pct == null && (
             <p className="px-1 pb-1 text-xs text-text-dim">{pourquoiVide(m, estJalon)}</p>
           )}
@@ -718,7 +734,7 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal; parent: Goal | null }
       </div>
 
       {mode === "elements" ? (
-        <ListeElements goal={goal} data={data} refresh={refresh} avecRattachement />
+        <ListeElements goal={goal} data={data} contexte={props.contexte} maintenant={sources.maintenant} refresh={refresh} avecRattachement />
       ) : (
         <ReglageCible goal={goal} data={data} sources={sources} refresh={refresh} />
       )}
@@ -751,28 +767,34 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal; parent: Goal | null }
   );
 }
 
-function ListeElements(props: { goal: Goal; data: AppData; refresh: () => Promise<void>; avecRattachement?: boolean }) {
-  const { goal, data, refresh } = props;
+function ListeElements(props: {
+  goal: Goal;
+  data: AppData;
+  contexte: ContexteObjectifs;
+  maintenant: string;
+  refresh: () => Promise<void>;
+  avecRattachement?: boolean;
+}) {
+  const { goal, data, contexte, refresh } = props;
   const faites = useMemo(() => new Set(data.completions.filter((c) => c.done).map((c) => c.task_id)), [data.completions]);
   const taches = data.tasks.filter((x) => x.goal_id === goal.id);
+  const rattaches = rattachementsDe(uidDeLigne("goal", goal), contexte);
+  const vide = taches.length === 0 && rattaches.length === 0;
+
+  const bouton = "cible-tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text";
 
   return (
     <div>
-      {taches.length === 0 && props.avecRattachement && (
-        <p className="px-1 pb-1 text-xs text-text-dim">{t("Aucune tâche rattachée.")}</p>
+      {vide && props.avecRattachement && (
+        <p className="px-1 pb-1 text-xs text-text-dim">{t("Rien de rattaché pour l’instant.")}</p>
       )}
       <ul>
         {taches.map((tache) => {
           const recurrente = estRecurrente(tache);
           const faite = !recurrente && faites.has(tache.id);
           return (
-            <li key={tache.id} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
-              <span
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${faite ? "border-green bg-green/20 text-green" : "border-border"}`}
-                aria-label={faite ? t("faite") : t("à faire")}
-              >
-                {faite && <IconCheck className="h-3 w-3" />}
-              </span>
+            <li key={`t${tache.id}`} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+              <Coche faite={faite} />
               <span className={`min-w-0 flex-1 truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
                 {tache.label}
               </span>
@@ -787,7 +809,7 @@ function ListeElements(props: { goal: Goal; data: AppData; refresh: () => Promis
               )}
               <button
                 type="button"
-                className="cible-tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text"
+                className={bouton}
                 aria-label={t("Détacher « {titre} »", { titre: tache.label })}
                 onClick={async () => {
                   await rattacherTache(tache.id, null);
@@ -799,9 +821,73 @@ function ListeElements(props: { goal: Goal; data: AppData; refresh: () => Promis
             </li>
           );
         })}
+        {rattaches.map((r) => {
+          const evenement = r.kind === "event" ? contexte.evenements.find((e) => e.uid === r.uid) : undefined;
+          const recurrent = !!evenement?.recurrence && evenement.recurrence !== "none";
+          const passe = !!evenement && !recurrent && evenementPasse(evenement, props.maintenant);
+          return (
+            <li key={`${r.kind}:${r.uid}`} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+              {r.kind === "event" ? (
+                <Coche faite={passe} />
+              ) : (
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center text-text-dim" aria-hidden>
+                  <IconNote className="h-3.5 w-3.5" />
+                </span>
+              )}
+              {/* Une ressource s'OUVRE : c'est tout ce qu'elle apporte à l'objectif. */}
+              <button
+                type="button"
+                onClick={() => void ouvrirObjet(r.kind, r.uid)}
+                className={`min-w-0 flex-1 truncate truncate-souris text-left hover:underline ${passe ? "text-text-dim line-through" : "text-text"}`}
+                title={r.titre}
+              >
+                {r.titre || t("Sans titre")}
+              </button>
+              <span
+                className="shrink-0 text-[10px] text-text-dim"
+                data-tip={r.kind === "event" ? undefined : t("Écrire n’est pas avancer")}
+                data-tip-sub={
+                  r.kind === "event" ? undefined : t("Une note ou une fiche éclaire l’objectif, elle ne le fait pas progresser.")
+                }
+              >
+                {r.kind === "event"
+                  ? recurrent
+                    ? t("récurrent, non compté")
+                    : evenement
+                      ? formaterJour(evenement.date)
+                      : ""
+                  : r.kind === "note"
+                    ? t("note, ne compte pas")
+                    : t("fiche, ne compte pas")}
+              </span>
+              <button
+                type="button"
+                className={bouton}
+                aria-label={t("Détacher « {titre} »", { titre: r.titre })}
+                onClick={async () => {
+                  await deleteLink(r.lien.id);
+                  await refresh();
+                }}
+              >
+                <IconX className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          );
+        })}
       </ul>
-      {props.avecRattachement && <RattacherElement goal={goal} data={data} refresh={refresh} />}
+      {props.avecRattachement && <RattacherElement goal={goal} data={data} contexte={contexte} refresh={refresh} />}
     </div>
+  );
+}
+
+function Coche({ faite }: { faite: boolean }) {
+  return (
+    <span
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${faite ? "border-green bg-green/20 text-green" : "border-border"}`}
+      aria-label={faite ? t("faite") : t("à faire")}
+    >
+      {faite && <IconCheck className="h-3 w-3" />}
+    </span>
   );
 }
 

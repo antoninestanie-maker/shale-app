@@ -5,6 +5,7 @@ import { todayStr, toDateStr } from "./logic";
 import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
+import { assemblerContexte, FAMILLES_RATTACHABLES, type ContexteObjectifs } from "./objectifs/contexte";
 import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
@@ -1957,6 +1958,29 @@ export async function createLink(arete: AreteVoulue): Promise<void> {
      ON CONFLICT(from_kind, from_uid, to_kind, to_uid) DO NOTHING`,
     [arete.from_kind, arete.from_uid, arete.to_kind, arete.to_uid, arete.origin, localNow()],
   );
+}
+
+/** Ce que la feuille de route lit hors d'`AppData` — voir `lib/objectifs/contexte.ts`. */
+export async function fetchContexteObjectifs(): Promise<ContexteObjectifs> {
+  if (!isTauri) return demo.fetchContexteObjectifs();
+  const db = await getDb();
+  const bruts = await db.select<ObjectLink[]>(
+    "SELECT * FROM object_links WHERE from_kind = 'goal' OR to_kind = 'goal' ORDER BY created_at",
+  );
+  const cibles: Record<string, string[]> = { note: [], knowledge: [], event: [] };
+  for (const l of bruts) {
+    const autre = l.from_kind === "goal" ? { kind: l.to_kind, uid: l.to_uid } : { kind: l.from_kind, uid: l.from_uid };
+    if (FAMILLES_RATTACHABLES.includes(autre.kind)) cibles[autre.kind].push(autre.uid);
+  }
+  const lire = async <T,>(table: string, uids: string[], colonnes: string): Promise<T[]> => {
+    if (uids.length === 0) return [];
+    const places = uids.map((_, i) => `$${i + 1}`).join(", ");
+    return db.select<T[]>(`SELECT ${colonnes} FROM ${table} WHERE uid IN (${places})`, uids);
+  };
+  const notes = await lire<{ uid: string; title: string }>("notes", cibles.note, "uid, title");
+  const fiches = await lire<{ uid: string; title: string }>("knowledge_entries", cibles.knowledge, "uid, title");
+  const evenements = await lire<CalendarEvent & { uid: string }>("calendar_events", cibles.event, "*");
+  return assemblerContexte(bruts, notes, fiches, evenements);
 }
 
 export async function deleteLink(id: number): Promise<void> {
