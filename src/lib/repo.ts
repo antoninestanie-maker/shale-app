@@ -1180,6 +1180,29 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
   await adopter("tasks", id);
 }
 
+/**
+ * Rattache une tâche à un objectif (ou l'en détache avec `null`), et RIEN
+ * d'autre.
+ *
+ * ⚠️ Surtout pas `updateTask` avec une tâche reconstituée : il réécrit
+ * `due_date`, `start_at` et `end_at` sans condition, et un champ oublié en
+ * chemin effacerait la date d'une tâche posée au calendrier — le défaut
+ * « renommer une tâche effaçait sa date » (PIEGES § 6.2), pris par un autre bout.
+ *
+ * `tasks.goal_id` reste le SEUL chemin qui fasse compter une tâche (audit de la
+ * feuille de route, 2026-09-14) : on n'invente pas d'arête pour elle.
+ */
+export async function rattacherTache(taskId: number, goalId: number | null): Promise<void> {
+  if (!isTauri) {
+    await demo.rattacherTache(taskId, goalId);
+    await adopter("tasks", taskId);
+    return;
+  }
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET goal_id = $1 WHERE id = $2 AND goal_id IS NOT $1", [goalId, taskId]);
+  await adopter("tasks", taskId);
+}
+
 export async function deleteTask(id: number): Promise<void> {
   if (!isTauri) return demo.deleteTask(id);
   const db = await getDb();

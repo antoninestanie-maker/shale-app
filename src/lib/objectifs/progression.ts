@@ -106,6 +106,15 @@ export interface Mesure {
   origine: OrigineMesure;
   /** Étapes enfants DIRECTES exclues parce que vides. */
   vides: number;
+  /**
+   * Étapes vides dans TOUTE la descendance (les directes comprises).
+   *
+   * ⚠️ C'est elle qui dit si un objectif est ACHEVÉ. Quatre jalons finis et deux
+   * jalons vides font 100 % — la règle exclut les vides du dénominateur — mais
+   * l'objectif n'est pas terminé : il reste deux jalons à remplir. Vu à l'écran
+   * le 2026-09-15, un titre rayé en vert au-dessus de deux jalons vides.
+   */
+  videsProfonds: number;
   /** Notes et fiches rattachées : affichées, jamais comptées. */
   ressources: ElementRattache[];
   /** Récurrentes rattachées comme élément : visibles, non comptées en binaire. */
@@ -162,13 +171,21 @@ export function evenementPasse(e: Pick<CalendarEvent, "date" | "end_date" | "end
 // ─── La mesure ──────────────────────────────────────────────────────────────
 
 /** Mesure un objectif, à n'importe quel niveau de sa feuille de route. */
+/**
+ * Un objectif est ACHEVÉ quand il est à 100 % ET qu'aucune de ses étapes n'est
+ * vide. Le pourcentage seul ne suffit pas : voir `Mesure.videsProfonds`.
+ */
+export function estAcheve(m: Pick<Mesure, "pct" | "videsProfonds">): boolean {
+  return m.pct === 100 && m.videsProfonds === 0;
+}
+
 export function mesurer(goal: Goal, sources: SourcesProgression): Mesure {
   return mesurerAvecGarde(goal, sources, new Set());
 }
 
 function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): Mesure {
   const { ressources, nonComptes, comptables } = elementsDe(goal, s);
-  const base = { vides: 0, ressources, nonComptes };
+  const base = { vides: 0, videsProfonds: 0, ressources, nonComptes };
 
   if (goal.manual_progress) {
     const pct = borner(goal.progress_pct);
@@ -186,11 +203,14 @@ function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): 
   let poids = 0;
   let etapesComptees = 0;
   let vides = 0;
+  let videsProfonds = 0;
 
   for (const enfant of enfantsDe(goal, s.goals)) {
     const m = mesurerAvecGarde(enfant, s, vus);
+    videsProfonds += m.videsProfonds;
     if (m.fraction == null) {
       vides++;
+      videsProfonds++;
       continue;
     }
     const w = poidsDe(enfant);
@@ -207,13 +227,14 @@ function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): 
 
   if (poids === 0) {
     const raison: RaisonVide = vides > 0 ? "etapes-vides" : "rien-a-mesurer";
-    return { ...base, vides, pct: null, fraction: null, origine: { type: "vide", raison } };
+    return { ...base, vides, videsProfonds, pct: null, fraction: null, origine: { type: "vide", raison } };
   }
 
   const fraction = somme / poids;
   return {
     ...base,
     vides,
+    videsProfonds,
     pct: Math.round(fraction * 100),
     fraction,
     origine: { type: "feuille", elementsFaits, elementsTotal: comptables.length, etapesComptees },

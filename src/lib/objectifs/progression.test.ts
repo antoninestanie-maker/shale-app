@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { effectiveProgress } from "../logic";
 import type { CalendarEvent, Completion, Goal, Habit, HabitCheck, ObjectLink, Task } from "../types";
 import { objectif } from "./objectif.testutil";
-import { evenementPasse, mesurer, uidDeLigne, type SourcesProgression } from "./progression";
+import { estAcheve, evenementPasse, mesurer, uidDeLigne, type SourcesProgression } from "./progression";
 import { niveauDe, peutAjouterEtape, peutPromouvoir, peutRetrograder } from "./structure";
 
 // ─── Fabriques ──────────────────────────────────────────────────────────────
@@ -333,6 +333,29 @@ describe("les vides sortent du dénominateur, et se signalent", () => {
     const g = racine({ progress_pct: 35 });
     expect(mesurer(g, sources({ goals: [g] })).origine).toEqual({ type: "vide", raison: "rien-a-mesurer" });
     expect(effectiveProgress(g, [g], [], [], { maintenant: MAINTENANT })).toBe(35);
+  });
+
+  it("4 jalons finis et 2 vides font 100 %, mais l'objectif n'est PAS achevé", () => {
+    const g = racine();
+    const finis = [2, 3, 4, 5].map((id) => etape(id, 1, { is_milestone: 1, target_count: 1, manual_count: 1 }));
+    const vides = [6, 7].map((id) => etape(id, 1, { is_milestone: 1 }));
+    const m = mesurer(g, sources({ goals: [g, ...finis, ...vides] }));
+    expect(m.pct).toBe(100);
+    expect(m.videsProfonds).toBe(2);
+    expect(estAcheve(m)).toBe(false);
+  });
+
+  it("une étape vide ENFOUIE sous un jalon empêche aussi l'achèvement de la racine", () => {
+    const g = racine();
+    const jalon = etape(2, 1, { is_milestone: 1 });
+    const fini = etape(3, 2, { target_count: 1, manual_count: 1 });
+    const vide = etape(4, 2);
+    const m = mesurer(g, sources({ goals: [g, jalon, fini, vide] }));
+    expect(m.pct).toBe(100);
+    expect(m.vides).toBe(0);
+    expect(m.videsProfonds).toBe(1);
+    expect(estAcheve(m)).toBe(false);
+    expect(estAcheve(mesurer(g, sources({ goals: [g, jalon, fini] })))).toBe(true);
   });
 
   it("une étape d'exemple n'entre pas dans le calcul", () => {

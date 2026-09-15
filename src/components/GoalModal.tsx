@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { descendantIds } from "../lib/logic";
+import { niveauDe } from "../lib/objectifs/structure";
 import { createGoal, updateGoal, type GoalInput } from "../lib/repo";
 import type { Goal } from "../lib/types";
 
@@ -43,7 +44,11 @@ export default function GoalModal({
     ),
   ).sort((a, b) => a.localeCompare(b));
   const [deadline, setDeadline] = useState(goal?.deadline ?? "");
-  const [manual, setManual] = useState((goal?.manual_progress ?? 1) === 1);
+  // ⭐ Un objectif NEUF naît mesuré (décision d'Antonin, 2026-09-14) : la barre
+  // manuelle cesse d'être le défaut. Un objectif existant garde son réglage —
+  // aucun chiffre ne bouge sans un geste. Et la base garde son DEFAULT 1 de la
+  // 001 : c'est l'app qui écrit la colonne, toujours.
+  const [manual, setManual] = useState((goal?.manual_progress ?? 0) === 1);
   const [progress, setProgress] = useState(goal?.progress_pct ?? 0);
   const [saving, setSaving] = useState(false);
 
@@ -67,7 +72,15 @@ export default function GoalModal({
   // parents interdits : soi-même et ses descendants (cycles)
   const forbidden = goal ? descendantIds(goal.id, goals) : new Set<number>();
   if (goal) forbidden.add(goal.id);
-  const parentOptions = goals.filter((g) => !forbidden.has(g.id));
+  // Trois niveaux au plus (`lib/objectifs/structure.ts`) : un parent possible
+  // est une racine ou un jalon. Le parent ACTUEL reste proposé même s'il ne
+  // l'est plus — une arborescence d'avant la 026 ne doit pas perdre son lien
+  // parce qu'on corrige un titre.
+  const parentOptions = goals.filter(
+    (g) =>
+      !forbidden.has(g.id) &&
+      (g.id === goal?.parent_goal_id || niveauDe(g, goals) === 0 || (!!g.is_milestone && niveauDe(g, goals) === 1)),
+  );
 
   const canSave = title.trim().length > 0 && !saving;
 
@@ -224,7 +237,7 @@ export default function GoalModal({
                     : "border-blue bg-blue/15 text-blue"
                 }`}
               >
-                {manual ? t("manuelle") : t("auto (sous-objectifs + tâches)")}
+                {manual ? t("saisie à la main") : t("mesurée")}
               </button>
             </div>
             {manual ? (
@@ -244,7 +257,7 @@ export default function GoalModal({
               </div>
             ) : (
               <p className="text-xs text-text-dim">
-                {t("Calculée depuis les sous-objectifs et les tâches ponctuelles liées.")}
+                {t("Mesurée sur ce qui est fait : ses étapes, ses tâches, ses nombres à atteindre.")}
               </p>
             )}
           </div>

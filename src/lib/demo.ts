@@ -1760,6 +1760,11 @@ export const demo = {
     if (task) Object.assign(task, input);
   },
 
+  async rattacherTache(taskId: number, goalId: number | null): Promise<void> {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) task.goal_id = goalId;
+  },
+
   async deleteTask(id: number): Promise<void> {
     const i = tasks.findIndex((t) => t.id === id);
     if (i >= 0) tasks.splice(i, 1);

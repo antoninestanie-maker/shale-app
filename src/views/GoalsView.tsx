@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GoalModal from "../components/GoalModal";
-import { effectiveProgress, todayStr } from "../lib/logic";
-import { deleteGoal } from "../lib/repo";
+import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
+import { IconChevronDown, IconChevronRight } from "../components/icons";
+import { todayStr } from "../lib/logic";
+import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
+import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
+import { deleteGoal, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
 import type { AppData, Goal } from "../lib/types";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { pick, t, tp } from "../lib/i18n";
+import { pick, t } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -28,6 +32,9 @@ const SCOPE_ORDER: Record<Goal["scope"], number> = {
   short: 2,
 };
 
+/** Les choix de repliement de la vue — géométrie d'écran, hors synchronisation. */
+const CLE_REPLIS = "layout.goals.replis";
+
 function deadlineInfo(deadline: string | null): {
   label: string;
   urgent: boolean;
@@ -49,6 +56,27 @@ export default function GoalsView({ data, refresh }: Props) {
   const [parentForNew, setParentForNew] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const deleteTimer = useRef<number | undefined>(undefined);
+  /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par son bouton. */
+  const [ajoutPour, setAjoutPour] = useState<number | null>(null);
+
+  /**
+   * ⭐ Le repliement a une MÉMOIRE : seuls les choix explicites sont rangés,
+   * sous `layout.goals.replis`. Le préfixe `layout.` est exclu de la
+   * synchronisation (`sync/scope.ts`) : c'est de la géométrie d'écran, et les
+   * clés sont des `id` LOCAUX, qui désigneraient autre chose sur un autre
+   * appareil.
+   */
+  const [replis, setReplis] = useState<Replis>({});
+  useEffect(() => {
+    getSetting(CLE_REPLIS).then((v) => setReplis(lireReplis(v)));
+  }, []);
+  const onReplier = useCallback((cle: string, ouvert: boolean) => {
+    setReplis((r) => {
+      const suivant = { ...r, [cle]: ouvert };
+      void setSetting(CLE_REPLIS, JSON.stringify(suivant));
+      return suivant;
+    });
+  }, []);
 
   // action palette "Nouvel objectif" → ouvre le formulaire
   useEffect(() => {
@@ -58,6 +86,26 @@ export default function GoalsView({ data, refresh }: Props) {
   }, []);
 
   const { goals, tasks, completions } = data;
+
+  // ⭐ UNE mesure par objectif, calculée une fois par rendu, par la règle
+  // unique (`lib/objectifs/progression.ts`). Aucune ligne ne recalcule dans son coin.
+  const sources = useMemo<SourcesProgression>(
+    () => ({
+      goals,
+      tasks,
+      completions,
+      habits: data.habits,
+      habitChecks: data.habitChecks,
+      maintenant: `${todayStr()} ${new Date().toTimeString().slice(0, 5)}`,
+    }),
+    [goals, tasks, completions, data.habits, data.habitChecks],
+  );
+  const mesures = useMemo(() => {
+    const m = new Map<number, Mesure>();
+    for (const g of goals) m.set(g.id, mesurer(g, sources));
+    return m;
+  }, [goals, sources]);
+
   const roots = goals
     .filter((g) => g.parent_goal_id === null)
     .sort(
@@ -79,13 +127,6 @@ export default function GoalsView({ data, refresh }: Props) {
     return a.localeCompare(b);
   });
 
-  const childrenOf = (id: number) =>
-    goals
-      .filter((g) => g.parent_goal_id === id)
-      .sort((a, b) =>
-        (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"),
-      );
-
   const handleDelete = async (goal: Goal) => {
     if (deletingId !== goal.id) {
       setDeletingId(goal.id);
@@ -99,24 +140,43 @@ export default function GoalsView({ data, refresh }: Props) {
     await refresh();
   };
 
-  const renderGoal = (goal: Goal, depth: number) => {
-    const pct = effectiveProgress(goal, goals, tasks, completions, {
-      habits: data.habits,
-      habitChecks: data.habitChecks,
-    });
-    const auto = !goal.manual_progress;
-    const linkedCount = tasks.filter((t) => t.goal_id === goal.id).length;
+  const renderGoal = (goal: Goal) => {
+    const m = mesures.get(goal.id)!;
+    const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
+    const aDesTaches = tasks.some((x) => x.goal_id === goal.id);
+    const avecFeuille = aDesEtapes || aDesTaches || ajoutPour === goal.id;
+    const cle = `g${goal.id}`;
+    // Déplié d'office s'il a une feuille de route : c'est ce que montrait la vue
+    // d'avant, qui imbriquait toujours les sous-objectifs. Un objectif qui n'a
+    // que des tâches rattachées reste replié — elles se lisent dans « 1/2
+    // éléments », et les déplier chez tout le monde au premier lancement ne
+    // serait que du bruit.
+    const ouvert = replis[cle] ?? (aDesEtapes || ajoutPour === goal.id);
     const dl = deadlineInfo(goal.deadline);
-    const kids = childrenOf(goal.id);
+    // ⭐ Un objectif MESURÉ qui n'a encore rien à mesurer n'affiche pas un faux
+    // 0 % : il propose l'action. C'est l'état vide qui parle.
+    const sansMesure = m.pct == null && !goal.manual_progress && !aDesEtapes;
+    const pct = m.pct;
 
     return (
       <div key={goal.id}>
-        <div
-          className="group flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-3 hover:bg-surface-2"
-          style={{ marginLeft: depth * 28 }}
-        >
-          {depth > 0 && (
-            <span className="h-6 w-px shrink-0 bg-border" aria-hidden />
+        <div className="group flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-3 hover:bg-surface-2">
+          {avecFeuille && !(ajoutPour === goal.id && !aDesEtapes && !aDesTaches) ? (
+            <button
+              type="button"
+              onClick={() => onReplier(cle, !ouvert)}
+              className="cible-tactile -ml-1 flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:text-text"
+              aria-expanded={ouvert}
+              aria-label={
+                ouvert
+                  ? t("Replier la feuille de route de « {titre} »", { titre: goal.title })
+                  : t("Déplier la feuille de route de « {titre} »", { titre: goal.title })
+              }
+            >
+              {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <span className="-ml-1 w-6 shrink-0" aria-hidden />
           )}
 
           {/* basis-[14rem] : base flex qui déclenche le repli. En fenêtre
@@ -126,7 +186,7 @@ export default function GoalsView({ data, refresh }: Props) {
           <div className="min-w-0 flex-1 basis-[14rem]">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`truncate text-sm ${pct >= 100 ? "text-text-dim line-through" : "text-text"}`}
+                className={`truncate text-sm ${estAcheve(m) ? "text-text-dim line-through" : "text-text"}`}
               >
                 {goal.title}
               </span>
@@ -142,47 +202,74 @@ export default function GoalsView({ data, refresh }: Props) {
                   {dl.label}
                 </span>
               )}
-              {linkedCount > 0 && (
-                <span className="shrink-0 text-[10px] text-text-dim">
-                  {tp(linkedCount, "{n} tâche", "{n} tâches")}
-                </span>
-              )}
             </div>
             {goal.description && (
               <p className="mt-0.5 truncate text-xs text-text-dim">
                 {goal.description}
               </p>
             )}
-          </div>
-
-          <div className="flex w-44 shrink-0 items-center gap-2">
-            <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
-              <div
-                className={`pill h-full transition-[width] duration-500 ${pct >= 100 ? "bg-green" : "bg-blue"}`}
-                style={{ width: `${Math.min(pct, 100)}%` }}
-              />
-            </div>
-            <span className="w-12 text-right font-display text-sm font-bold text-text">
-              {pct}%
-            </span>
-            {auto && (
-              <span
-                className="pill shrink-0 bg-blue/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-blue"
-                data-tip={t("Progression calculée (sous-objectifs + tâches liées)")}
-              >
-                auto
-              </span>
+            {!sansMesure && (
+              <p className="mt-0.5 truncate text-[11px] text-text-dim">{origineEnClair(m)}</p>
             )}
           </div>
 
-          <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          {sansMesure ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
+              {ajoutPour !== goal.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAjoutPour(goal.id);
+                    onReplier(cle, true);
+                  }}
+                  className="cible-tactile pill border border-border px-2.5 py-1 font-medium text-text hover:bg-surface"
+                >
+                  {t("+ Ajouter une étape")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  await majFeuilleDeRoute(goal.id, { manual_progress: 1 });
+                  await refresh();
+                }}
+                className="cible-tactile px-1 text-text-dim hover:text-text hover:underline"
+                data-tip={t("Suivre à la main")}
+                data-tip-sub={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
+              >
+                {t("ou suivre à la main")}
+              </button>
+            </div>
+          ) : (
+            <div className="flex w-44 shrink-0 items-center gap-2">
+              <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
+                {pct != null && (
+                  <div
+                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-green" : "bg-blue"}`}
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                )}
+              </div>
+              {/* Une feuille de route encore vide affiche « — », jamais un faux 0 %. */}
+              <span className="w-12 text-right font-display text-sm font-bold text-text">
+                {pct == null ? "—" : `${pct}%`}
+              </span>
+            </div>
+          )}
+
+          {/* ⚠️ Visibles au focus clavier et en permanence au doigt : aucune
+              action ne doit exister uniquement au survol. */}
+          <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <button
               type="button"
-              onClick={() => setParentForNew(goal.id)}
-              className="rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
-              aria-label={t("Ajouter un sous-objectif à {title}", { title: goal.title })}
-              data-tip={t("Ajouter un sous-objectif")}
-              data-tip-sub={t("La progression du parent se calcule à partir de ses enfants.")}
+              onClick={() => {
+                setAjoutPour(goal.id);
+                onReplier(cle, true);
+              }}
+              className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
+              aria-label={t("Ajouter une étape à {title}", { title: goal.title })}
+              data-tip={t("Ajouter une étape")}
+              data-tip-sub={t("Un jalon ou un sous-objectif, en une ligne. Entrée pour enchaîner.")}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
@@ -191,7 +278,7 @@ export default function GoalsView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => setEditing(goal)}
-              className="rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
+              className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
               aria-label={t("Modifier {title}", { title: goal.title })}
               data-tip={t("Modifier l’objectif")}
             >
@@ -202,7 +289,7 @@ export default function GoalsView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => handleDelete(goal)}
-              className={`rounded-md p-1.5 transition-colors ${
+              className={`cible-tactile rounded-md p-1.5 transition-colors ${
                 deletingId === goal.id
                   ? "bg-red/20 text-red"
                   : "text-text-dim hover:bg-surface hover:text-red"
@@ -226,7 +313,20 @@ export default function GoalsView({ data, refresh }: Props) {
           </span>
         </div>
 
-        {kids.map((k) => renderGoal(k, depth + 1))}
+        {avecFeuille && ouvert && (
+          <FeuilleDeRoute
+            racine={goal}
+            data={data}
+            sources={sources}
+            mesures={mesures}
+            replis={replis}
+            onReplier={onReplier}
+            ajoutOuvert={ajoutPour === goal.id}
+            onFermerAjout={() => setAjoutPour((a) => (a === goal.id ? null : a))}
+            onModifier={setEditing}
+            refresh={refresh}
+          />
+        )}
       </div>
     );
   };
@@ -239,7 +339,7 @@ export default function GoalsView({ data, refresh }: Props) {
           type="button"
           onClick={() => setCreating(true)}
           data-tip={t("Nouvel objectif")}
-          data-tip-sub={t("Horizon, catégorie, deadline et progression manuelle ou calculée.")}
+          data-tip-sub={t("Un titre suffit. La feuille de route viendra quand tu en auras besoin.")}
           className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
           {t("+ Nouvel objectif")}
@@ -252,7 +352,7 @@ export default function GoalsView({ data, refresh }: Props) {
         <section className="card p-3">
           <p className="py-10 text-center text-sm text-text-dim">
             {t(
-              "Aucun objectif. Commence par le long terme, puis découpe en sous-objectifs. Range-les par catégorie (Trading, Formation…).",
+              "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).",
             )}
           </p>
         </section>
@@ -277,7 +377,7 @@ export default function GoalsView({ data, refresh }: Props) {
                       {list.length}
                     </span>
                   </div>
-                  {list.map((g) => renderGoal(g, 0))}
+                  {list.map((g) => renderGoal(g))}
                 </section>
               </ResizablePanel>
             );
