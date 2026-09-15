@@ -1,6 +1,6 @@
 # Passation — chantier « feuille de route des objectifs »
 
-*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phases D, E et F livrées.*
+*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phases D à G livrées ; ⛔ ARRÊT N°3 (maquette de l'accueil proposée, en attente).*
 *Cadrage : `~/Desktop/Prompt en attente/prompt/PROMPT-FEUILLE-DE-ROUTE.md`. Audit : `~/Desktop/Shale-chantiers/RAPPORT-PHASE0-FEUILLE-DE-ROUTE.md`.*
 
 ---
@@ -11,11 +11,11 @@
 |---|---|
 | Branche | `chantier/feuille-de-route`, dans le dossier principal `~/Desktop/Shale-projet/Shale` |
 | Base de départ | `mobile-ios` @ `f48d037` |
-| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · `cd6f0e5` phase D · phase E+F (ce commit) |
+| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · `cd6f0e5` phase D · `6f5f433` phases E+F · `db3cca0` phase G |
 | Migration | **026** `feuille_de_route` — enregistrée dans `lib.rs` et `schema.testutil.ts`. **Jamais jouée sur la vraie base** : aucun build natif n'a été fait |
 | Poussé | **non** |
 | Tests | vitest **1128 → 1197** · cargo test 133 (inchangé) · i18n 0 manquante (1936 entrées) |
-| ▶️ Prochaine étape | **phase G** (iPhone), puis ⛔ **arrêt n°3** avant la phase H |
+| ⛔ Prochaine étape | **ARRÊT N°3** : Antonin choisit entre les options de la maquette d'accueil (§ 5, phase H) |
 
 ⚠️ **Une session voisine travaille dans le même dossier** : le 2026-09-15, `CLAUDE.md`
 y portait une modification non commitée (adresse `www.shaleapp.com`) qui n'est pas
@@ -101,10 +101,13 @@ Captures envoyées à Antonin le 2026-09-15.
   ⚠️ **Question pour Antonin, non tranchée** : un objectif en péril ET ses jalons en
   péril font plusieurs alertes ; le plafond les tient à deux lignes, mais on pourrait
   n'afficher que le plus précis.
-- **G — iPhone.** Rien ne déborde à 390 px et les actions sont visibles au doigt, mais
-  **la ligne d'étape se replie mal** : poignée et chevron restent seuls sur une ligne.
-  Le réordonnancement au doigt n'a pas été essayé.
-- **H — accueil** : ⛔ arrêt n°3, maquette à faire valider.
+- ✅ **G — iPhone** (2026-09-15) : voir `MOBILE.md` § 22. Émulation Chrome seulement.
+- ⛔ **H — accueil** : maquette proposée le 2026-09-15, en attente. En résumé :
+  un écran « Et ces heures, pour quoi faire ? » après le curseur (un objectif +
+  jusqu'à trois jalons TAPÉS, jamais suggérés : les gabarits sont hors chantier), puis
+  la première tâche rattachée au premier jalon. Question ouverte : l'objectif planté
+  REMPLACE-t-il celui du curseur (recommandé : oui, si l'écran est rempli ; le chiffre
+  du curseur passe dans sa description) ou S'AJOUTE-t-il ?
 - **I — clôture** : site (`modules.ts:197-206`), section datée de `CLAUDE.md`,
   `SHALE.md`, build natif + réinstallation (la migration 026 l'impose).
 
