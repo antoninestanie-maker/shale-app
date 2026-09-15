@@ -19,6 +19,7 @@ import {
   type SourcesAgenda,
 } from "./agenda";
 import type { CalendarEvent, Completion, Goal, Task } from "../types";
+import { objectif as objectifDeBase } from "../objectifs/objectif.testutil";
 
 /** Chantier B — ce qui occupe une journée. */
 
@@ -34,11 +35,8 @@ const evenement = (p: Partial<CalendarEvent> = {}): CalendarEvent => ({
   created_at: "2026-08-01 09:00:00", updated_at: "2026-08-01 09:00:00", ...p,
 });
 
-const objectif = (p: Partial<Goal> = {}): Goal => ({
-  id: 1, title: "objectif", description: null, scope: "short", category: null,
-  parent_goal_id: null, deadline: null, progress_pct: 0, manual_progress: 1,
-  created_at: "2026-08-01 09:00:00", ...p,
-});
+const objectif = (p: Partial<Goal> = {}): Goal =>
+  objectifDeBase({ title: "objectif", scope: "short", manual_progress: 1, created_at: "2026-08-01 09:00:00", ...p });
 
 const sources = (p: Partial<SourcesAgenda> = {}): SourcesAgenda => ({
   events: [], tasks: [], completions: [], goals: [], ...p,

@@ -122,6 +122,58 @@ describe("clés étrangères traduites", () => {
   });
 });
 
+describe("feuille de route des objectifs (migration 026)", () => {
+  it("un jalon et sa cible chiffrée traversent intacts, uid de la source compris", async () => {
+    // Des numéros locaux DÉCALÉS : sans eux, `parent_goal_id` tomberait juste
+    // par coïncidence et le test ne prouverait rien de la traduction.
+    for (let i = 0; i < 3; i++) b.ecrire("INSERT INTO goals (title, scope) VALUES (?, 'short')", `bourrage ${i}`);
+
+    const habitId = a.ecrire("INSERT INTO habits (name) VALUES ('backtest')").lastInsertRowid;
+    const uidHabitude = a.lire<{ uid: string }>("SELECT uid FROM habits WHERE id = ?", habitId)[0].uid;
+    const racine = a.ecrire("INSERT INTO goals (title, scope) VALUES ('Passer prop firm', 'long')").lastInsertRowid;
+    const jalon = a.ecrire(
+      "INSERT INTO goals (title, scope, parent_goal_id, is_milestone, position, weight) VALUES ('Valider la stratégie', 'medium', ?, 1, 2, 3)",
+      racine,
+    ).lastInsertRowid;
+    a.ecrire(
+      `INSERT INTO goals (title, scope, parent_goal_id, target_count, target_unit, count_source, manual_count, count_ref_uid, count_since, is_example)
+       VALUES ('50 backtests', 'short', ?, 50, 'backtests', 'habit', 7, ?, '2026-09-14', 0)`,
+      jalon,
+      uidHabitude,
+    );
+    await converger();
+
+    const chezB = b.lire<Record<string, unknown>>(
+      `SELECT s.title AS sous, j.title AS jalon, r.title AS racine,
+              j.is_milestone, j.position, j.weight,
+              s.target_count, s.target_unit, s.count_source, s.manual_count, s.count_ref_uid, s.count_since, s.is_example
+         FROM goals s JOIN goals j ON j.id = s.parent_goal_id JOIN goals r ON r.id = j.parent_goal_id`,
+    );
+    expect(chezB).toEqual([
+      {
+        sous: "50 backtests",
+        jalon: "Valider la stratégie",
+        racine: "Passer prop firm",
+        is_milestone: 1,
+        position: 2,
+        weight: 3,
+        target_count: 50,
+        target_unit: "backtests",
+        count_source: "habit",
+        manual_count: 7,
+        count_ref_uid: uidHabitude,
+        count_since: "2026-09-14",
+        is_example: 0,
+      },
+    ]);
+    // ⭐ L'uid désigne la MÊME habitude sur B — c'est tout le motif de stocker
+    // un uid plutôt qu'un id local.
+    expect(b.lire<{ name: string }>("SELECT name FROM habits WHERE uid = ?", uidHabitude)).toEqual([
+      { name: "backtest" },
+    ]);
+  });
+});
+
 describe("hors ligne, puis reconnexion", () => {
   it("les modifications s'accumulent et partent toutes au retour du réseau", async () => {
     serveur.horsLigne = true;

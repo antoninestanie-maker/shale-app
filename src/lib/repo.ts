@@ -1,7 +1,7 @@
 import { getDb } from "./db";
 import { demo } from "./demo";
 import { theoreticalRR } from "./liveTracker";
-import { toDateStr } from "./logic";
+import { todayStr, toDateStr } from "./logic";
 import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
@@ -1214,13 +1214,37 @@ export interface GoalInput {
   deadline: string | null;
   progress_pct: number;
   manual_progress: number; // 0 | 1
+  /**
+   * Feuille de route (migration 026) — lus À LA CRÉATION seulement. Une étape
+   * naît jalon ou non, à sa place ; le reste se règle ensuite par
+   * `majFeuilleDeRoute`, pour que `updateGoal` (la fiche) n'écrase jamais une
+   * cible ou un poids qu'il ne connaît pas.
+   */
+  is_milestone?: number;
+  position?: number;
+  is_example?: number;
 }
 
-export async function createGoal(input: GoalInput): Promise<void> {
+/** Les champs de feuille de route modifiables après coup (migration 026). */
+export type FeuilleDeRoutePatch = Partial<
+  Pick<
+    Goal,
+    | "is_milestone"
+    | "weight"
+    | "target_count"
+    | "target_unit"
+    | "count_source"
+    | "manual_count"
+    | "count_ref_uid"
+    | "manual_progress"
+  >
+>;
+
+export async function createGoal(input: GoalInput): Promise<number> {
   if (!isTauri) return demo.createGoal(input);
   const db = await getDb();
-  await db.execute(
-    "INSERT INTO goals (title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+  const res = await db.execute(
+    "INSERT INTO goals (title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress, created_at, is_milestone, position, is_example) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
     [
       input.title,
       input.description,
@@ -1231,8 +1255,62 @@ export async function createGoal(input: GoalInput): Promise<void> {
       input.progress_pct,
       input.manual_progress,
       localNow(),
+      input.is_milestone ?? 0,
+      input.position ?? 0,
+      input.is_example ?? 0,
     ],
   );
+  return res.lastInsertId ?? 0;
+}
+
+/**
+ * Modifie la feuille de route d'un objectif, champ par champ.
+ *
+ * ⭐ « DEPUIS LE RATTACHEMENT » : dès que la source du compte ou l'élément cité
+ * change, `count_since` repart d'aujourd'hui. Sans quoi choisir une habitude
+ * tenue depuis deux ans remplirait la cible le jour même (migration 026).
+ */
+const CHAMPS_FEUILLE_DE_ROUTE = [
+  "is_milestone",
+  "weight",
+  "target_count",
+  "target_unit",
+  "count_source",
+  "manual_count",
+  "count_ref_uid",
+  "manual_progress",
+] as const satisfies readonly (keyof FeuilleDeRoutePatch)[];
+
+export async function majFeuilleDeRoute(id: number, patch: FeuilleDeRoutePatch): Promise<void> {
+  // Liste FERMÉE : les noms de colonnes entrent dans le SQL, jamais une clé
+  // venue d'ailleurs.
+  const champs: Record<string, unknown> = {};
+  for (const c of CHAMPS_FEUILLE_DE_ROUTE) if (c in patch) champs[c] = patch[c];
+  if ("count_source" in patch || "count_ref_uid" in patch) champs.count_since = todayStr();
+  if (!isTauri) return demo.majFeuilleDeRoute(id, champs);
+  const colonnes = Object.keys(champs);
+  if (colonnes.length === 0) return;
+  const db = await getDb();
+  await db.execute(
+    `UPDATE goals SET ${colonnes.map((c, i) => `${c} = $${i + 1}`).join(", ")} WHERE id = $${colonnes.length + 1}`,
+    [...colonnes.map((c) => champs[c]), id],
+  );
+}
+
+/**
+ * Pose l'ordre des frères : `ids` dans l'ordre voulu reçoivent 0, 1, 2…
+ * Seules les lignes dont la position change sont réécrites — une écriture qui
+ * ne change rien ne doit pas produire de trafic de synchronisation.
+ */
+export async function reordonnerObjectifs(ids: readonly number[]): Promise<void> {
+  if (!isTauri) return demo.reordonnerObjectifs(ids);
+  const db = await getDb();
+  for (const [position, id] of ids.entries()) {
+    await db.execute("UPDATE goals SET position = $1 WHERE id = $2 AND position <> $1", [
+      position,
+      id,
+    ]);
+  }
 }
 
 export async function updateGoal(id: number, input: GoalInput): Promise<void> {

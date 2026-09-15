@@ -12,6 +12,11 @@ export interface Task {
   goal_id: number | null;
   created_at: string;
   /**
+   * Identité de synchronisation (migration 015). Absente en démo, où
+   * `uidDeLigne()` (`lib/objectifs/progression.ts`) la reconstitue.
+   */
+  uid?: string;
+  /**
    * Jour où la tâche est due, 'YYYY-MM-DD' local. NULL = tâche sans date.
    *
    * ⚠️ Une tâche RÉCURRENTE n'a pas de `due_date` : ses occurrences se
@@ -63,9 +68,40 @@ export interface Goal {
   parent_goal_id: number | null;
   deadline: string | null;
   progress_pct: number;
+  /**
+   * 1 = le % saisi (`progress_pct`) fait foi, feuille de route ou pas.
+   * ⭐ Souverain — décision d'Antonin du 2026-09-14 : voir la migration 026.
+   */
   manual_progress: number;
   created_at: string;
+  /** Identité de synchronisation (migration 015). Absente en démo. */
+  uid?: string;
+
+  // ── Feuille de route (migration 026) ──────────────────────────────────────
+  /** 1 = jalon : niveau 2, entre l'objectif racine et ses sous-objectifs. */
+  is_milestone: number; // SQLite: 0 | 1
+  /** Ordre croissant entre frères ; à égalité, échéance puis id. */
+  position: number;
+  /** Poids dans la moyenne du parent. ≤ 0 se lit comme 1. */
+  weight: number;
+  /** Cible chiffrée, ENTIÈRE. `null` = le sous-objectif avance par ses éléments. */
+  target_count: number | null;
+  /** Unité libre, texte de l'utilisateur, jamais traduite. */
+  target_unit: string | null;
+  /** D'où vient le compte d'une cible. Une valeur inconnue se lit `'manual'`. */
+  count_source: CountSource | string;
+  /** Compteur saisi, lu seulement si `count_source = 'manual'`. */
+  manual_count: number;
+  /** ⚠️ `uid` (jamais `id`) de la tâche ou de l'habitude qui compte. */
+  count_ref_uid: string | null;
+  /** 'YYYY-MM-DD' local, inclus : la source ne compte qu'à partir de ce jour. */
+  count_since: string | null;
+  /** 1 = suggéré par l'accueil (même règle que la migration 024). */
+  is_example: number; // SQLite: 0 | 1
 }
+
+/** Les trois sources d'une cible chiffrée (migration 026). */
+export type CountSource = "manual" | "task" | "habit";
 
 export interface Tag {
   id: number;
@@ -151,6 +187,8 @@ export interface Habit {
   name: string;
   color: string;
   archived: number;
+  /** Identité de synchronisation (migration 015). Absente en démo. */
+  uid?: string;
   /**
    * ⭐ 1 = contenu de DÉPART créé par l'app au premier lancement, pas par
    * l'utilisateur (migration 024).

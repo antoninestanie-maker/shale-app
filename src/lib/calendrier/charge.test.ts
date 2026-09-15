@@ -5,6 +5,7 @@ import { profilDisponibilite, REPLI_DEBUT, REPLI_FIN, SESSIONS_MINIMUM } from ".
 import { objectifsEnPeril, ecartEnJours, HORIZON_JOURS } from "./peril";
 import type { EntreeAgenda } from "./agenda";
 import type { Completion, FocusSession, Goal, Task } from "../types";
+import { objectif as objectifDeBase } from "../objectifs/objectif.testutil";
 
 /** Chantier B — la journée surchargée, et l'objectif en péril. */
 
@@ -150,11 +151,8 @@ describe("la charge d'une journée", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const objectif = (p: Partial<Goal> = {}): Goal => ({
-  id: 1, title: "objectif", description: null, scope: "short", category: null,
-  parent_goal_id: null, deadline: null, progress_pct: 0, manual_progress: 1,
-  created_at: "2026-08-01 09:00:00", ...p,
-});
+const objectif = (p: Partial<Goal> = {}): Goal =>
+  objectifDeBase({ title: "objectif", scope: "short", manual_progress: 1, created_at: "2026-08-01 09:00:00", ...p });
 
 const tache = (p: Partial<Task> = {}): Task => ({
   id: 1, label: "t", tag: null, priority: "medium", recurrence: "none",

@@ -15,7 +15,8 @@ import {
   pctOfList,
   weekStats,
 } from "../logic";
-import type { Completion, Goal, Task, TodayTask } from "../types";
+import type { Completion, Task, TodayTask } from "../types";
+import { objectif } from "../objectifs/objectif.testutil";
 
 /** Chantier L — le contenu de départ, et son exclusion des compteurs. */
 
@@ -43,19 +44,7 @@ const fait = (task_id: number, date: string, done = 1): Completion => ({
   done,
 });
 
-const objectif = (p: Partial<Goal> = {}): Goal => ({
-  id: 1,
-  title: "livrer",
-  description: null,
-  scope: "medium",
-  category: null,
-  parent_goal_id: null,
-  deadline: null,
-  progress_pct: 0,
-  manual_progress: 0,
-  created_at: "2026-09-01 09:00:00",
-  ...p,
-});
+
 
 const JOUR = "2026-09-02"; // un mercredi
 

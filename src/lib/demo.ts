@@ -17,7 +17,14 @@ import type { Document as DocumentRecherche } from "./recherche";
 // ⚠️ `TaskInput` était RECOPIÉ ici, et la copie a divergé dès que `repo.ts` a
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
-import type { CalendarEventInput, ObjectTypeInput, SujetPatch, TaskInput } from "./repo";
+import type {
+  CalendarEventInput,
+  FeuilleDeRoutePatch,
+  GoalInput,
+  ObjectTypeInput,
+  SujetPatch,
+  TaskInput,
+} from "./repo";
 import type {
   Trade,
   AppData,
@@ -124,12 +131,30 @@ const tasks: Task[] = [
   { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
 ];
 
+/**
+ * Valeurs par défaut de la feuille de route (migration 026) : ce que SQLite
+ * pose sur une ligne qui ne les écrit pas. Les objectifs de démo naissent donc
+ * sans étape, exactement comme les objectifs existants d'une vraie base.
+ */
+const FEUILLE_VIDE = {
+  is_milestone: 0,
+  position: 0,
+  weight: 1,
+  target_count: null,
+  target_unit: null,
+  count_source: "manual",
+  manual_count: 0,
+  count_ref_uid: null,
+  count_since: null,
+  is_example: 0,
+} as const satisfies Partial<Goal>;
+
 const goals: Goal[] = [
-  { id: 1, title: t("Passer trader full-time"), description: t("Transition complète en septembre"), scope: "long", category: t("Trading"), parent_goal_id: null, deadline: "2026-09-01", progress_pct: 45, manual_progress: 1, created_at: created },
-  { id: 2, title: t("10k abonnés ChartCore.fx"), description: null, scope: "medium", category: t("Contenu"), parent_goal_id: null, deadline: "2026-12-31", progress_pct: 62, manual_progress: 1, created_at: created },
-  { id: 3, title: t("Valider le semestre BTS"), description: null, scope: "short", category: t("Formation"), parent_goal_id: 1, deadline: "2026-07-30", progress_pct: 80, manual_progress: 1, created_at: created },
+  { id: 1, title: t("Passer trader full-time"), description: t("Transition complète en septembre"), scope: "long", category: t("Trading"), parent_goal_id: null, deadline: "2026-09-01", progress_pct: 45, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
+  { id: 2, title: t("10k abonnés ChartCore.fx"), description: null, scope: "medium", category: t("Contenu"), parent_goal_id: null, deadline: "2026-12-31", progress_pct: 62, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
+  { id: 3, title: t("Valider le semestre BTS"), description: null, scope: "short", category: t("Formation"), parent_goal_id: 1, deadline: "2026-07-30", progress_pct: 80, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
   // progression auto : moyenne des tâches liées (id 6 faite, id 7 non → 50%)
-  { id: 4, title: t("Préparer le passage full-time"), description: null, scope: "medium", category: t("Trading"), parent_goal_id: 1, deadline: "2026-08-15", progress_pct: 0, manual_progress: 0, created_at: created },
+  { id: 4, title: t("Préparer le passage full-time"), description: null, scope: "medium", category: t("Trading"), parent_goal_id: 1, deadline: "2026-08-15", progress_pct: 0, manual_progress: 0, created_at: created, ...FEUILLE_VIDE },
 ];
 
 const tags: Tag[] = [
@@ -197,16 +222,6 @@ let nextTaskId = tasks.length + 1;
 let nextTagId = tags.length + 1;
 let nextGoalId = goals.length + 1;
 
-interface GoalInput {
-  title: string;
-  description: string | null;
-  scope: Goal["scope"];
-  category: string | null;
-  parent_goal_id: number | null;
-  deadline: string | null;
-  progress_pct: number;
-  manual_progress: number;
-}
 
 let nextMetricId = metrics.length + 1;
 
@@ -1767,13 +1782,40 @@ export const demo = {
       });
   },
 
-  async createGoal(input: GoalInput): Promise<void> {
-    goals.push({ id: nextGoalId++, ...input, created_at: todayStr() });
+  async createGoal(input: GoalInput): Promise<number> {
+    const id = nextGoalId++;
+    goals.push({
+      ...FEUILLE_VIDE,
+      ...input,
+      is_milestone: input.is_milestone ?? 0,
+      position: input.position ?? 0,
+      is_example: input.is_example ?? 0,
+      id,
+      created_at: todayStr(),
+    });
+    return id;
   },
 
   async updateGoal(id: number, input: GoalInput): Promise<void> {
     const goal = goals.find((g) => g.id === id);
-    if (goal) Object.assign(goal, input);
+    if (!goal) return;
+    // Même sémantique que le natif : `updateGoal` n'écrit QUE la fiche. Un
+    // `Object.assign(goal, input)` recopierait `is_milestone`/`position` s'ils
+    // traînent dans l'objet passé, là où le natif les ignore (PIEGES § 6.2).
+    const { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress } = input;
+    Object.assign(goal, { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress });
+  },
+
+  async majFeuilleDeRoute(id: number, champs: FeuilleDeRoutePatch & { count_since?: string }): Promise<void> {
+    const goal = goals.find((g) => g.id === id);
+    if (goal) Object.assign(goal, champs);
+  },
+
+  async reordonnerObjectifs(ids: readonly number[]): Promise<void> {
+    ids.forEach((id, position) => {
+      const goal = goals.find((g) => g.id === id);
+      if (goal) goal.position = position;
+    });
   },
 
   async deleteGoal(goal: Goal): Promise<void> {
