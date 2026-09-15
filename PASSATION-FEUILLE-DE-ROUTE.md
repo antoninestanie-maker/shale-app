@@ -1,6 +1,6 @@
 # Passation — chantier « feuille de route des objectifs »
 
-*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phase D livrée.*
+*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phases D, E et F livrées.*
 *Cadrage : `~/Desktop/Prompt en attente/prompt/PROMPT-FEUILLE-DE-ROUTE.md`. Audit : `~/Desktop/Shale-chantiers/RAPPORT-PHASE0-FEUILLE-DE-ROUTE.md`.*
 
 ---
@@ -11,11 +11,11 @@
 |---|---|
 | Branche | `chantier/feuille-de-route`, dans le dossier principal `~/Desktop/Shale-projet/Shale` |
 | Base de départ | `mobile-ios` @ `f48d037` |
-| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · phase D (ce commit) |
+| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · `cd6f0e5` phase D · phase E+F (ce commit) |
 | Migration | **026** `feuille_de_route` — enregistrée dans `lib.rs` et `schema.testutil.ts`. **Jamais jouée sur la vraie base** : aucun build natif n'a été fait |
 | Poussé | **non** |
-| Tests | vitest **1128 → 1195** · cargo test 133 (inchangé) · i18n 0 manquante (1935 entrées) |
-| ▶️ Prochaine étape | **phase E** (cibles, sources tâche/habitude à vérifier à l'écran), puis **F** |
+| Tests | vitest **1128 → 1197** · cargo test 133 (inchangé) · i18n 0 manquante (1936 entrées) |
+| ▶️ Prochaine étape | **phase G** (iPhone), puis ⛔ **arrêt n°3** avant la phase H |
 
 ⚠️ **Une session voisine travaille dans le même dossier** : le 2026-09-15, `CLAUDE.md`
 y portait une modification non commitée (adresse `www.shaleapp.com`) qui n'est pas
@@ -82,13 +82,25 @@ Captures envoyées à Antonin le 2026-09-15.
   de la vue.
   ⚠️ **Non vérifié** : le rendu natif (les arêtes voyagent déjà par la sync, testé
   depuis le chantier Liaisons, mais pas vu entre deux vrais appareils).
-- **E — cibles** : fait pour l'essentiel en phase C (cible, unité, source, compte lu).
-  Reste à vérifier les sources tâche/habitude à l'écran.
-- **F — intégrations.**
-  ⚠️ **`peril.ts` saute tout objectif à 100 %** : un objectif à étapes vides (100 %
-  mais pas achevé) échappe donc aux alertes. Utiliser `estAcheve()`.
-  ⚠️ Libérer le mot « jalon » dans `peril.ts` et ses deux clés `en.ts`.
-  Vérifier le plafond `MAX_ALERTES` avec six jalons datés.
+- ✅ **E — cibles** : construit en phase C, vérifié à l'écran le 2026-09-15 sans code
+  nouveau. L'habitude « Méditation » (trois mois de coches en démo) rend
+  « 1 compté depuis le 15 septembre » ; source tâche ou habitude → plus aucun bouton
+  +/−, le compte est LU.
+- ✅ **F — intégrations** (2026-09-15) :
+  - `peril.ts` mesure par `mesurer()` et saute un objectif ACHEVÉ, plus « à 100 % » ;
+    un pourcentage gonflé par des étapes vides ne rassure plus (`rythme-insuffisant`) ;
+  - `jalonsRestants` → `etapesRestantes`, texte « {n} étapes ou tâches restantes. »
+    (l'ancien disait « jalons » en comptant aussi des tâches) ;
+  - un jalon daté entre dans le péril et l'alerte nomme son objectif
+    (« (étape de « Passer prop firm ») ») ;
+  - carte Objectifs d'Aujourd'hui : « en cours » = pas achevé ;
+  - `snapshotGoals` enregistre déjà la progression dérivée (phase B) ;
+  - Rust inchangé : `data.rs` ne lit que `title, deadline`, un jalon daté y entre seul.
+  ⚠️ **Plafond `MAX_ALERTES`** : prouvé par le code (`peril.slice(0, 2)` puis
+  « + n autres »), pas vu à l'écran avec six jalons datés.
+  ⚠️ **Question pour Antonin, non tranchée** : un objectif en péril ET ses jalons en
+  péril font plusieurs alertes ; le plafond les tient à deux lignes, mais on pourrait
+  n'afficher que le plus précis.
 - **G — iPhone.** Rien ne déborde à 390 px et les actions sont visibles au doigt, mais
   **la ligne d'étape se replie mal** : poignée et chevron restent seuls sur une ligne.
   Le réordonnancement au doigt n'a pas été essayé.

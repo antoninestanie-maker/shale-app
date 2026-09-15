@@ -635,16 +635,19 @@ function BandeauIntelligence({
       {peril.slice(0, MAX_ALERTES).map((p) => (
         <Alerte key={p.goal.id} couleur="red">
           <strong>{p.goal.title}</strong>{" "}
+          {p.racine && (
+            <span className="text-text-dim">{t("(étape de « {titre} »)", { titre: p.racine.title })} </span>
+          )}
           {p.joursRestants < 0
             ? tp(-p.joursRestants, "échéance dépassée d'{n} jour.", "échéance dépassée de {n} jours.")
             : tp(p.joursRestants, "{n} jour restant, {pct} % fait.", "{n} jours restants, {pct} % fait.", {
                 pct: p.progression,
               })}{" "}
-          {p.jalonsRestants + p.tachesRestantes > 0 &&
+          {p.etapesRestantes + p.tachesRestantes > 0 &&
             tp(
-              p.jalonsRestants + p.tachesRestantes,
-              "{n} jalon non terminé.",
-              "{n} jalons non terminés.",
+              p.etapesRestantes + p.tachesRestantes,
+              "{n} étape ou tâche restante.",
+              "{n} étapes ou tâches restantes.",
             )}{" "}
           {p.declaratif && (
             <span className="text-text-dim">

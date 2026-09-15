@@ -1951,7 +1951,6 @@ export const EN: Record<string, string> = {
 
   "échéance dépassée de {n} jours.": "deadline missed by {n} days.",
   "{n} jours restants, {pct} % fait.": "{n} days left, {pct}% done.",
-  "{n} jalons non terminés.": "{n} milestones unfinished.",
   "(progression déclarée à la main, pas mesurée)": "(progress entered by hand, not measured)",
 
   "prévue le {date}, repoussée {n} fois.": "due on {date}, pushed back {n} times.",
@@ -1996,7 +1995,6 @@ export const EN: Record<string, string> = {
     "Plus {n} task with no time, which is not counted.",
   "{n} tâche sans horaire — non comptée, faute de durée connue.":
     "{n} task with no time — not counted, since its length is unknown.",
-  "{n} jalon non terminé.": "{n} milestone unfinished.",
   "{n} jour restant, {pct} % fait.": "{n} day left, {pct}% done.",
   "échéance dépassée d'{n} jour.": "deadline missed by {n} day.",
 
@@ -2622,4 +2620,7 @@ export const EN: Record<string, string> = {
   "Rattacher une tâche, une note, un événement… ou créer une tâche": "Attach a task, a note, an event… or create a task",
   "Rattacher un élément à « {titre} »": "Attach an item to “{titre}”",
   "Fiche": "Card",
+  "(étape de « {titre} »)": "(step of “{titre}”)",
+  "{n} étape ou tâche restante.": "{n} step or task left.",
+  "{n} étapes ou tâches restantes.": "{n} steps or tasks left.",
 };

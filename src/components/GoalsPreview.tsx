@@ -1,4 +1,5 @@
-import { effectiveProgress } from "../lib/logic";
+import { effectiveProgress, todayStr } from "../lib/logic";
+import { estAcheve, mesurer } from "../lib/objectifs/progression";
 import type { AppData, Goal } from "../lib/types";
 
 import { t } from "../lib/i18n";
@@ -11,18 +12,20 @@ const SCOPE_LABEL: Record<Goal["scope"], string> = {
 
 export default function GoalsPreview({ data }: { data: AppData }) {
   const { goals, tasks, completions } = data;
+  const contexte = { habits: data.habits, habitChecks: data.habitChecks };
+  const sources = { goals, tasks, completions, ...contexte, maintenant: `${todayStr()} ${new Date().toTimeString().slice(0, 5)}` };
   const withPct = goals.map((g) => ({
     goal: g,
-    pct: effectiveProgress(g, goals, tasks, completions, {
-      habits: data.habits,
-      habitChecks: data.habitChecks,
-    }),
+    pct: effectiveProgress(g, goals, tasks, completions, contexte),
+    // ⚠️ « En cours » = pas ACHEVÉ, pas « sous 100 % » : un objectif à 100 %
+    // dont des étapes sont vides n'est pas fini (feuille de route, 2026-09-15).
+    acheve: estAcheve(mesurer(g, sources)),
   }));
 
   // Plus de `.slice(0, 4)` : la liste défile dans la carte (`.panel-scroll`) —
   // agrandir le widget montre RÉELLEMENT plus d'objectifs.
   const active = withPct
-    .filter(({ pct }) => pct < 100)
+    .filter(({ acheve }) => !acheve)
     .sort((a, b) =>
       (a.goal.deadline ?? "9999") < (b.goal.deadline ?? "9999") ? -1 : 1,
     );

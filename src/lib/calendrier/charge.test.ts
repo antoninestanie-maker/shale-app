@@ -196,7 +196,30 @@ describe("les objectifs en péril", () => {
     const jalons = [2, 3, 4].map((id) => objectif({ id, parent_goal_id: 1, progress_pct: 0 }));
     const [p] = objectifsEnPeril([parent, ...jalons], [], [], "2026-09-01");
     expect(p.raison).toBe("trop-peu-de-jours");
-    expect(p.jalonsRestants).toBe(3);
+    expect(p.etapesRestantes).toBe(3);
+  });
+
+  it("⭐ signale un objectif à 100 % dont des étapes sont VIDES — il n'est pas achevé", () => {
+    // Quatre jalons finis, deux jalons jamais remplis : 100 % par la règle
+    // (les vides sortent du dénominateur), mais pas terminé.
+    const parent = objectif({ id: 1, deadline: "2026-09-03", manual_progress: 0 });
+    const finis = [2, 3, 4, 5].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1, target_count: 1, manual_count: 1 }));
+    const vides = [6, 7].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1 }));
+    const [p] = objectifsEnPeril([parent, ...finis, ...vides], [], [], "2026-09-01");
+    expect(p.progression).toBe(100);
+    expect(p.etapesRestantes).toBe(2);
+    // Deux étapes en deux jours tiennent au rythme d'une par jour : c'est le
+    // pourcentage gonflé qui ne doit plus rassurer.
+    expect(p.raison).toBe("rythme-insuffisant");
+  });
+
+  it("un jalon daté entre dans le péril, et l'alerte nomme son objectif", () => {
+    const racine = objectif({ id: 1, title: "Passer prop firm", manual_progress: 0 });
+    const jalon = objectif({ id: 2, title: "Passer le challenge", parent_goal_id: 1, is_milestone: 1, deadline: "2026-09-03", manual_progress: 0, target_count: 10, manual_count: 2 });
+    const [p] = objectifsEnPeril([racine, jalon], [], [], "2026-09-01");
+    expect(p.goal.title).toBe("Passer le challenge");
+    expect(p.racine?.title).toBe("Passer prop firm");
+    expect(p.progression).toBe(20);
   });
 
   it("⚠️ DIT quand la progression est déclarée et non mesurée", () => {
