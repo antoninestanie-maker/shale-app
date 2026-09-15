@@ -165,7 +165,7 @@ entrée la première fois.
   maintenue par le webhook Stripe) est ce que l'app interroge pour déverrouiller.
 - **À faire pour vendre** : ~~renseigner `src/lib/auth/config.ts`~~ (fait le
   2026-08-10), ~~déployer le site~~ (fait le 2026-08-10 :
-  **<https://shale-six.vercel.app>**, espace compte sous `/compte/`), rebrancher
+  **<https://shale-six.vercel.app>**, aujourd’hui **<https://www.shaleapp.com>** (corrigé le 2026-09-15), espace compte sous `/compte/`), rebrancher
   Stripe (`STRIPE_ENABLED`, cf. fin de fichier), **notariser l'app** (voir plus
   bas), remplacer l'icône (`npm run tauri icon <png>`), rebuild natif.
 - Données **écrites en local** (SQLite) et utilisables hors ligne. ⚠️ Elles ne
@@ -2115,7 +2115,7 @@ Côté app, cela ajoute **`ACCOUNT_URL`** dans `auth/config.ts` :
 // l'onboarding sur une page d'erreur. Corrigé le 2026-08-10.
 // ⚠️ Existe en DEUX exemplaires : ici (branche `windows-build`) et dans
 // ~/Desktop/Shale (branche `sync-chiffree`). Deux fichiers, deux modifications.
-export const WEBSITE_URL = "https://shale-six.vercel.app";  // vitrine seule
+export const WEBSITE_URL = "https://www.shaleapp.com";  // vitrine seule (valeur à jour le 2026-09-15)
 export const ACCOUNT_URL = `${WEBSITE_URL}/compte`;    // inscription, login, compte
 ```
 

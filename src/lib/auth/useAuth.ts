@@ -183,7 +183,7 @@ function demoSession(email: string): Session {
     access_token: "demo",
     refresh_token: "demo",
     expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { id: "demo-user", email: email || "demo@shale.app" },
+    user: { id: "demo-user", email: email || "demo@shaleapp.com" },
   };
 }
 

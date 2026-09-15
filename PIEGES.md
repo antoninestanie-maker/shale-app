@@ -2192,3 +2192,43 @@ que `accueilNecessaire()` reprend comme « déjà vu ».
 
 **Payé.** Chantier feuille de route, 2026-09-15 : un premier comptage de gestes
 faux (« aucune tâche rattachée ») avant d'avoir regardé la capture.
+
+## 15.1 ⚠️⚠️ Un `opacity: 0` EN LIGNE sur un bloc `[data-reveal]` le rend invisible pour toujours
+
+**Symptôme.** Une page du site montre ses titres mais pas ses cartes, même avec
+JavaScript et après défilement.
+
+**Cause.** Le style en ligne l'emporte sur `[data-reveal].in { opacity: 1 }`.
+Les maquettes Claude Design écrivent l'état de départ de l'animation dans
+l'attribut `style` ; le script ajoute bien la classe `.in`, sans effet.
+
+**Parade.** Ne jamais porter `opacity`/`transform` initiaux en ligne sur un
+`[data-reveal]` : `global.css` s'en charge. `node tools/dev/nojs-check.mjs` le
+détecte (« bloc(s) invisibles »), `check.mjs` non.
+
+**Payé.** Refonte du site, 2026-09-15 : quatre pages Fonctionnalités vides.
+
+## 15.2 ⚠️⚠️ `npx astro build` saute le `prebuild` que Vercel, lui, exécute
+
+**Symptôme.** Build local vert, push fait, et le site en ligne reste l'ancien —
+sans aucun message côté dépôt.
+
+**Cause.** Vercel lance `npm run build`, donc `prebuild` (`tools/dev/assets-check.mjs`).
+`npx astro build` ne le lance pas. Ici, l'outil lisait `/shots/v2/dark-X.webp`
+dans un COMMENTAIRE et refusait le build pour une image « manquante ».
+
+**Parade.** Avant de pousser : `npm run build` (jamais `npx astro build`), idéalement
+dans un clone propre. Vérifier ensuite que la page en ligne a changé.
+
+## 15.3 ⚠️ `curl` sur www.shaleapp.com répond 403 (« Vercel Security Checkpoint »)
+
+**Cause.** La protection anti-robots de Vercel défie les clients sans navigateur.
+Ce n'est pas une panne. **Parade.** Vérifier la prod avec puppeteer (Chrome réel,
+User-Agent normal) : 200 et le vrai contenu.
+
+## 15.4 ⚠️ `i18n-check.mjs` ignore les mots isolés et les fragments comme « /mois »
+
+**Symptôme.** « 0 sans traduction », et `/en/pricing` affiche « /siège /mois ».
+**Cause.** Le contrôle écarte les chaînes ASCII d'un seul mot et celles qui
+commencent par `/`. **Parade.** Relire ces clés à la main (ou chercher les `_("…")`
+absents de `en.ts` sans filtre) après tout portage de pages.
