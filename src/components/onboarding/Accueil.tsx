@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useAppTexts } from "../../lib/appTexts";
 import { t } from "../../lib/i18n";
@@ -9,8 +9,10 @@ import {
   type BlocContraint,
   type ReglagesHoraires,
 } from "../../lib/onboarding/reglages";
+import { NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
 import {
   creerObjectifDuCurseur,
+  creerObjectifPlanifie,
   creerPremiereTache,
   enregistrerReglages,
   marquerAccueilFait,
@@ -57,9 +59,15 @@ import GrilleSemaine from "./GrilleSemaine";
  *     coucher, jamais de durée.
  */
 
-/** Les étapes, dans l'ordre. Trois questions, la grille, la première action. */
-type Etape = "heures" | "travail" | "contraints" | "grille" | "action";
-const ETAPES: readonly Etape[] = ["heures", "travail", "contraints", "grille", "action"];
+/**
+ * Les étapes, dans l'ordre. Trois questions, la grille, l'objectif, la première
+ * action.
+ *
+ * ⭐ `objectif` est arrivé avec la feuille de route (2026-09-16) : il demande à
+ * quoi vont servir les heures du curseur, et plante l'objectif AVEC ses jalons.
+ */
+type Etape = "heures" | "travail" | "contraints" | "grille" | "objectif" | "action";
+const ETAPES: readonly Etape[] = ["heures", "travail", "contraints", "grille", "objectif", "action"];
 
 /** Au-delà, l'écran devient un formulaire — et la question était optionnelle. */
 const MAX_CONTRAINTS = 3;
@@ -70,6 +78,8 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   const [reglages, setReglages] = useState<ReglagesHoraires>(REGLAGES_PAR_DEFAUT);
   const [heuresVoulues, setHeuresVoulues] = useState<number | null>(null);
   const [premiereTache, setPremiereTache] = useState("");
+  const [titreObjectif, setTitreObjectif] = useState("");
+  const [jalons, setJalons] = useState<string[]>(Array(NB_JALONS_MAX).fill(""));
   const [enCours, setEnCours] = useState(false);
 
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
@@ -98,10 +108,22 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
     setEnCours(true);
     try {
       await enregistrerReglages(reglages);
-      if (options.avecObjectif && heuresVoulues != null && heuresVoulues > 0) {
+      /**
+       * ⭐ L'objectif PLANTÉ remplace celui du curseur (décision d'Antonin,
+       * 2026-09-16) : deux objectifs au premier lancement, dont un que l'app ne
+       * sait pas mesurer, seraient un mauvais accueil. Le chiffre du curseur
+       * n'est pas perdu — il devient la description de l'objectif planté.
+       */
+      let jalonPourLaTache: number | null = null;
+      if (options.avecObjectif && planRempli(titreObjectif)) {
+        const plante = await creerObjectifPlanifie(titreObjectif, jalons, heuresVoulues ?? 0);
+        jalonPourLaTache = plante.premierJalonId;
+      } else if (options.avecObjectif && heuresVoulues != null && heuresVoulues > 0) {
         await creerObjectifDuCurseur(heuresVoulues);
       }
-      if (options.avecTache) await creerPremiereTache(premiereTache);
+      // Rattachée au premier jalon : la feuille de route affiche « 0/1 élément »
+      // dès le premier jour, ce qui est la seule façon de montrer à quoi elle sert.
+      if (options.avecTache) await creerPremiereTache(premiereTache, jalonPourLaTache);
       await semerExemples();
       await marquerAccueilFait();
       onDone(options.avecTache && premiereTache.trim().length > 0);
@@ -147,8 +169,21 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
             onCurseur={setHeuresVoulues}
           />
         )}
+        {etape === "objectif" && (
+          <EtapeObjectif
+            heures={heuresVoulues}
+            titre={titreObjectif}
+            onTitre={setTitreObjectif}
+            jalons={jalons}
+            onJalons={setJalons}
+          />
+        )}
         {etape === "action" && (
-          <EtapeAction valeur={premiereTache} onChange={setPremiereTache} />
+          <EtapeAction
+            valeur={premiereTache}
+            onChange={setPremiereTache}
+            pourObjectif={planRempli(titreObjectif) ? titreObjectif.trim() : null}
+          />
         )}
 
         {/* ── Pied : progression, suivant, passer ─────────────────────────── */}
@@ -184,7 +219,11 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
           <button
             type="button"
             disabled={enCours}
-            onClick={() => void terminer({ avecObjectif: etape === "action", avecTache: false })}
+            /* ⚠️ « La réponse crée un objectif » : dès que le curseur a été vu,
+               passer les écrans suivants n'annule pas la réponse donnée. */
+            onClick={() =>
+              void terminer({ avecObjectif: etape === "objectif" || etape === "action", avecTache: false })
+            }
             className="cible-tactile-ligne text-xs text-text-dim transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             {t("Passer")}
@@ -455,19 +494,108 @@ function EtapeGrille({
   );
 }
 
-// ─── Écran 5 — une première action, en une étape ─────────────────────────────
+/**
+ * ⭐ Écran 5 — à quoi vont servir ces heures.
+ *
+ * Aucun jalon SUGGÉRÉ : les gabarits de feuille de route sont hors chantier, et
+ * proposer des étapes à quelqu'un dont on ignore l'objectif serait un modèle
+ * déguisé. Tout vient de l'utilisateur, donc rien n'est marqué comme exemple.
+ *
+ * `Entrée` passe à la ligne suivante — le même geste que la feuille de route
+ * elle-même, pour que ce soit déjà appris en y arrivant.
+ */
+function EtapeObjectif({
+  heures,
+  titre,
+  onTitre,
+  jalons,
+  onJalons,
+}: {
+  /** `null` = le curseur n'a pas été posé : on n'annonce alors AUCUN chiffre. */
+  heures: number | null;
+  titre: string;
+  onTitre: (v: string) => void;
+  jalons: string[];
+  onJalons: (v: string[]) => void;
+}) {
+  const champs = useRef<(HTMLInputElement | null)[]>([]);
+  const champ =
+    "cible-tactile w-full rounded-lg border border-border bg-overlay px-3 py-2.5 text-sm text-text outline-none placeholder:text-text-dim focus:border-border-strong";
+  const suivant = (i: number) => champs.current[i]?.focus();
+
+  return (
+    <Bloc
+      titre={
+        heures != null && heures > 0
+          ? t("Et ces {n} h, pour quoi faire ?", { n: heures })
+          : t("Et ce temps, pour quoi faire ?")
+      }
+      aide={t("Un objectif à toi. Tu pourras le découper en étapes maintenant, ou plus tard.")}
+    >
+      <input
+        autoFocus
+        value={titre}
+        onChange={(e) => onTitre(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            suivant(0);
+          }
+        }}
+        placeholder={t("Ce que je veux atteindre…")}
+        className={champ}
+      />
+      <p className="mt-4 text-xs font-medium uppercase tracking-wide text-text-dim">
+        {t("Ses grandes étapes (facultatif)")}
+      </p>
+      <div className="mt-2 flex flex-col gap-2">
+        {jalons.map((valeur, i) => (
+          <input
+            key={i}
+            ref={(el) => {
+              champs.current[i] = el;
+            }}
+            value={valeur}
+            onChange={(e) => onJalons(jalons.map((x, k) => (k === i ? e.target.value : x)))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                suivant(i + 1);
+              }
+            }}
+            placeholder={i === 0 ? t("Première étape…") : t("Étape suivante…")}
+            className={champ}
+            disabled={!titre.trim()}
+          />
+        ))}
+      </div>
+    </Bloc>
+  );
+}
+
+// ─── Écran 6 — une première action, en une étape ─────────────────────────────
 
 function EtapeAction({
   valeur,
   onChange,
+  pourObjectif,
 }: {
   valeur: string;
   onChange: (v: string) => void;
+  pourObjectif: string | null;
 }) {
   return (
     <Bloc
-      titre={t("Une première tâche, pour commencer")}
-      aide={t("Quelque chose que tu dois vraiment faire. Elle t'attendra dans Tâches.")}
+      titre={
+        pourObjectif
+          ? t("La première chose à faire pour « {titre} »", { titre: pourObjectif })
+          : t("Une première tâche, pour commencer")
+      }
+      aide={
+        pourObjectif
+          ? t("Elle t'attendra dans Tâches, et comptera dans ta première étape.")
+          : t("Quelque chose que tu dois vraiment faire. Elle t'attendra dans Tâches.")
+      }
     >
       <input
         autoFocus

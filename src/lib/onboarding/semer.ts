@@ -16,6 +16,7 @@ import {
   uidDe,
 } from "../repo";
 import { contenuExemples } from "./exemples";
+import { planDuPremierObjectif } from "./planification";
 import {
   CLE_ACCUEIL_FAIT,
   CLE_EXEMPLES_CREES,
@@ -180,8 +181,40 @@ export async function creerObjectifDuCurseur(heures: number): Promise<void> {
   });
 }
 
-/** La première tâche, saisie sur le dernier écran. Une étape, pas un écran de fin. */
-export async function creerPremiereTache(label: string): Promise<void> {
+/**
+ * ⭐ L'objectif planté par l'accueil, avec sa feuille de route (migration 026).
+ *
+ * Il REMPLACE celui du curseur quand l'écran est rempli (décision d'Antonin du
+ * 2026-09-16) : deux objectifs au premier lancement, dont un que l'app ne sait
+ * pas mesurer, seraient un mauvais accueil. Le chiffre du curseur devient sa
+ * description, il n'est donc pas perdu.
+ *
+ * Rend l'id du PREMIER JALON, pour que la première tâche y arrive rattachée —
+ * la feuille de route affiche alors « 0/1 élément » dès le premier jour, ce qui
+ * est la seule façon de montrer à quoi elle sert.
+ */
+export async function creerObjectifPlanifie(
+  titre: string,
+  jalons: readonly string[],
+  heures: number,
+): Promise<{ racineId: number; premierJalonId: number | null }> {
+  const plan = planDuPremierObjectif(titre, jalons, heures);
+  const racineId = await createGoal(plan.racine);
+  let premierJalonId: number | null = null;
+  for (const jalon of plan.jalons) {
+    const id = await createGoal({ ...jalon, parent_goal_id: racineId });
+    if (premierJalonId === null) premierJalonId = id;
+  }
+  return { racineId, premierJalonId };
+}
+
+/**
+ * La première tâche, saisie sur le dernier écran. Une étape, pas un écran de fin.
+ *
+ * `goalId` la fait naître rattachée au premier jalon quand l'accueil a planté
+ * un objectif ; `null` reproduit le comportement d'avant.
+ */
+export async function creerPremiereTache(label: string, goalId: number | null = null): Promise<void> {
   const propre = label.trim();
   if (!propre) return;
   await createTask({
@@ -189,7 +222,7 @@ export async function creerPremiereTache(label: string): Promise<void> {
     tag: null,
     priority: "medium",
     recurrence: "none",
-    goal_id: null,
+    goal_id: goalId,
   });
 }
 

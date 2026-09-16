@@ -2623,4 +2623,16 @@ export const EN: Record<string, string> = {
   "{n} étape ou tâche restante.": "{n} step or task left.",
   "{n} étapes ou tâches restantes.": "{n} steps or tasks left.",
   "Rattacher ou créer un élément…": "Attach or create an item…",
+
+  // ── Accueil : le premier objectif et ses jalons (2026-09-16) ───────────
+  "Et ces {n} h, pour quoi faire ?": "And these {n} h — what for?",
+  "Un objectif à toi. Tu pourras le découper en étapes maintenant, ou plus tard.": "A goal of your own. You can break it into steps now, or later.",
+  "Ce que je veux atteindre…": "What I want to reach…",
+  "Ses grandes étapes (facultatif)": "Its main steps (optional)",
+  "Première étape…": "First step…",
+  "Étape suivante…": "Next step…",
+  "La première chose à faire pour « {titre} »": "The first thing to do for “{titre}”",
+  "Elle t'attendra dans Tâches, et comptera dans ta première étape.": "It will wait for you in Tasks, and count towards your first step.",
+  "{n} h par semaine libérées pour ça.": "{n} h a week freed up for this.",
+  "Et ce temps, pour quoi faire ?": "And this time — what for?",
 };
