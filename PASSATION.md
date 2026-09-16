@@ -26,6 +26,7 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 | 3 ter | ⭐ **`PASSATION-NOTES.md`** | **le chantier H du 2026-09-05/06 — la perte de données des Notes.** Ce qui est corrigé, ce qui ne l'est pas, et les deux choses qui restent ouvertes (build natif, synchro iPhone) |
 | 3 quater | ⭐ **`PASSATION-ONBOARDING.md`** | **le chantier du 2026-09-10** — l'accueil du premier démarrage, la grille de la semaine et le contenu de départ. ✅ Livré, fusionné, installé ; migration **024** appliquée. Ce qui reste tient en un clic de trousseau |
 | 3 quinquies | ⭐ **`PASSATION-LICENCE-PROFILS.md`** | **le chantier du 2026-09-13** — profils de licence sur devis, migration **025**. ⛔ Contient un geste d'Antonin : jouer `005_licence_profils.sql` dans Supabase Studio |
+| 3 sexies | ⭐⭐ **`PASSATION-FEUILLE-DE-ROUTE.md`** | **le chantier du 2026-09-14/16** — les objectifs se découpent en jalons et leur avancement se DÉDUIT, migration **026**. ⛔ Contient l'état du build natif |
 | 4 | `DETTE-SITE.md` | **avant de toucher au site**, ou dès que l'app promet quelque chose de neuf |
 | 5 | `MOBILE.md` | si tu touches à iOS |
 | 6 | `PASSATION-UI.md`, `AUDIT-I18N-2026-08.md` | le chantier UI/UX d'août et les chaînes affichées |
@@ -34,7 +35,15 @@ suivantes sont le récit du 2026-08-28 et restent valables comme telles.
 
 ---
 
-## ⭐ Dernier chantier livré — les PROFILS DE LICENCE (2026-09-13)
+## ⭐ Dernier chantier livré — la FEUILLE DE ROUTE DES OBJECTIFS (2026-09-16)
+
+Le pourcentage d'un objectif n'est plus saisi : il se déduit de ce qui est fait.
+Jalons ordonnés, cibles chiffrées, rattachement de tâches, notes, fiches et
+événements, et l'accueil qui plante le premier objectif. Migration **026**.
+**Lire `PASSATION-FEUILLE-DE-ROUTE.md`** — il dit aussi si la 026 a tourné sur la
+vraie base.
+
+## Chantier précédent — les PROFILS DE LICENCE (2026-09-13)
 
 Un compte peut recevoir un profil signé qui masque, réordonne et renomme ses
 modules, sans jamais rien déverrouiller. **Lire `PASSATION-LICENCE-PROFILS.md`**.

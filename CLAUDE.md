@@ -5299,3 +5299,176 @@ dont la propriété contractuelle n'est pas vérifiée.
 - un écran d'administration pour émettre un profil (c'est un outil en ligne de
   commande, lancé par une session Claude) ;
 - la gestion multi-sièges, la page « Sur devis » du site, les connecteurs.
+
+## 2026-09-16 — ⭐ La feuille de route des objectifs : le pourcentage cesse d'être une déclaration
+
+Migration **026**. Cadrage `~/Desktop/Prompt en attente/prompt/PROMPT-FEUILLE-DE-ROUTE.md`,
+audit `~/Desktop/Shale-chantiers/RAPPORT-PHASE0-FEUILLE-DE-ROUTE.md`, état
+`PASSATION-FEUILLE-DE-ROUTE.md`, pièges `PIEGES.md` § 14.
+
+### La thèse
+
+Un objectif se décompose en **jalons** ordonnés, chaque jalon en
+**sous-objectifs**, chaque étape en **éléments réels**. Le pourcentage affiché
+n'est plus saisi : il est **calculé à la lecture**, sur ce qui est coché, tenu ou
+compté. La barre manuelle survit pour un objectif qui n'a pas de feuille de
+route — elle cesse d'être le défaut.
+
+### ⭐⭐ ZÉRO TABLE NOUVELLE — un jalon EST un objectif
+
+La rédaction naturelle (`goal_milestones`) coûtait trois choses que
+l'arborescence existante donne gratuitement : une entrée de plus dans
+`sync/scope.ts`, une traduction de clé étrangère **cyclique** dans `sync/fk.ts`
+(un sous-objectif citerait son jalon, et `goals.milestone_id` pointerait en
+avant), et une **extrémité d'arête impossible** — un jalon n'étant pas dans le
+`CHECK` d'`object_links`, rien ne pourrait s'y rattacher.
+
+Un jalon est donc une ligne de `goals`, `parent_goal_id` sur la racine,
+`is_milestone = 1` : déjà synchronisée, déjà traduite, déjà citable.
+
+La 026 n'ajoute que des colonnes : `is_milestone`, `position`, `weight`,
+`target_count`, `target_unit`, `count_source`, `manual_count`, `count_ref_uid`,
+`count_since`, `is_example`. **Aucun `CHECK`** (PIEGES § 3.4) : une ligne
+distante qui violerait une contrainte de profondeur ou de source arrêterait la
+synchronisation, alors que ce ne sont que des règles de SAISIE — elles vivent
+dans `lib/objectifs/structure.ts`, et la lecture tolère l'inattendu (source
+inconnue → `manual`, poids ≤ 0 → 1, arborescence plus profonde → lue sans
+erreur).
+
+⭐ **`count_ref_uid` stocke un `uid`, jamais un `id`** — même raison
+qu'`object_links`. Et comme la colonne ne finit pas par `_id`, elle n'entre pas
+dans `fk.ts` ; vérifié qu'`appliquerLigne` ne l'écarte pas (il trie sur les clés
+DÉCLARÉES depuis la 020, pas sur le suffixe `_uid` — c'est le bogue qui avait
+vidé les arêtes).
+
+### ⚠️ Le numéro annoncé par le cadrage était PRIS
+
+Le prompt disait « migration 025 » ; la 025 était partie la veille avec les
+profils de licence. **L'audit de phase 0 a aussi démonté trois autres prémisses**
+du cadrage : `goals` n'a ni `parent_id` ni « horizon » (`parent_goal_id`,
+`scope`), `goals` n'avait **pas** de colonne `is_example` (la 024 ne l'avait
+ajoutée qu'aux tâches, habitudes, notes et fiches), et **aucun test** ne
+verrouillait l'objectif du curseur de l'accueil — seul un commentaire le
+protégeait. Lire le schéma avant d'écrire a coûté une heure et évité une
+migration jouée pour rien.
+
+### ⭐ Les quatre décisions d'Antonin (2026-09-14, puis 2026-09-16)
+
+1. **Migration 026.**
+2. **Le manuel reste SOUVERAIN.** `manual_progress` vaut 1 par défaut depuis la
+   001 : la plupart des objectifs existants sont manuels, y compris ceux qui ont
+   des enfants. Ignorer le manuel dès qu'une feuille de route existe aurait
+   changé leur chiffre au premier lancement, **sans un geste**. Donc : le % saisi
+   fait foi tant que la case est cochée, ajouter une étape PROPOSE de passer en
+   mesuré, et les objectifs NEUFS naissent mesurés. Aucune valeur n'est effacée :
+   repasser en manuel rend le % d'avant.
+3. **`count_since`** borne le compte « depuis le rattachement ». Sans elle,
+   choisir une habitude tenue depuis deux ans remplissait la cible le jour même.
+4. **L'objectif planté par l'accueil REMPLACE celui du curseur** quand l'écran
+   est rempli : deux objectifs au premier lancement, dont un que l'app ne sait
+   pas mesurer, seraient un mauvais accueil. Le chiffre du curseur devient la
+   description de l'objectif planté.
+
+### ⭐⭐ ÉCRIRE N'EST PAS AVANCER — la règle, et ce qu'elle refuse
+
+`lib/objectifs/progression.ts` est le SEUL endroit où une progression se
+calcule ; `effectiveProgress` (`lib/logic.ts`) délègue et reste le point d'entrée
+des écrans qui ne veulent qu'un nombre ; `mesurer()` rend en plus l'ORIGINE du
+chiffre, que la vue affiche.
+
+| Élément rattaché | Compte comme | Motif |
+|---|---|---|
+| tâche non récurrente | 1 unité, faite ou non | binaire honnête |
+| **tâche récurrente** | jamais une unité — n'alimente qu'une cible | une récurrente n'est jamais « finie » : en binaire, l'objectif serait bloqué à jamais |
+| événement | 1 unité, faite une fois **passée** (sa FIN) | un rendez-vous tenu est un fait daté |
+| habitude | jamais une unité — jours tenus dans une cible | idem récurrente |
+| **note, fiche Savoir** | **rien** : une ressource, affichée, jamais comptée | sinon écrire une note ferait avancer un objectif — la barre déclarative qu'on supprime |
+
+Le calcul : manuel → le % saisi ; cible → `min(1, compte / cible)` ; sinon
+moyenne **pondérée** des parts, chaque étape pesant son `weight` et chaque
+élément comptable pesant 1. Tous les poids à 1, cette formule rend **exactement**
+l'ancienne `effectiveProgress` — un test le garde.
+
+⭐ **Les vides sortent du dénominateur, et se signalent.** Les compter à 0
+afficherait un objectif à 30 % dont la moitié de la feuille de route n'a jamais
+été remplie ; à 100 %, pire.
+
+### ⭐ « 100 % » ne veut pas dire « terminé » — trouvé à l'écran
+
+Quatre jalons finis et deux jalons vides font **100 %** (les vides sont exclus du
+dénominateur) — et la vue rayait le titre en vert. D'où `Mesure.videsProfonds` et
+`estAcheve()` : l'achèvement exige 100 % **et** aucune étape vide dans toute la
+descendance. Trois écrans en dépendent : le titre rayé, le repliement par défaut
+d'un jalon, et **le péril du calendrier**, qui sautait tout objectif à 100 % —
+donc précisément celui qu'il fallait signaler. Un pourcentage gonflé par des
+étapes vides ne rassure plus (`rythme-insuffisant`).
+
+⚠️ Au passage, `ObjectifEnPeril.jalonsRestants` devient `etapesRestantes`, et le
+texte « {n} jalons non terminés » — qui comptait aussi des **tâches** — devient
+« {n} étapes ou tâches restantes ». « Jalon » désigne maintenant un niveau
+précis : le laisser là aurait annoncé des jalons pour des sous-objectifs.
+
+### La vue : la structure est FACULTATIVE, et se révèle par un geste
+
+Le critère qui primait sur tous les autres : **un objectif simple doit rester
+aussi rapide à créer qu'avant**. Mesuré dans Chrome, en démo : 1 clic, le titre,
+`Entrée` — identique. Trois jalons coûtent 1 clic et 4 touches de plus ; deux
+tâches rattachées et une créée, 1 clic et 3 touches.
+
+- une étape se crée **en une ligne** (`Entrée` valide et rouvre la suivante,
+  `Échap` referme), jamais dans une fenêtre ;
+- les **poids sont masqués** dans un repli « Avancé », et disent en toutes
+  lettres ce qu'ils changent ;
+- **chaque ligne dit d'où vient son pourcentage** (« 1/3 éléments », « 12/50
+  backtests », « jalon vide, non compté ») — c'est ce qui rend l'absence de barre
+  manuelle acceptable ;
+- le **rattachement** réutilise `rechercherPartout` (le moteur de ⌘K et de `@`) et
+  propose de créer la tâche, qui naît rattachée ;
+- **aucune action n'existe uniquement au survol** : tout passe par un menu « ⋯ »
+  visible en permanence. Au passage, les actions d'une ligne d'objectif étaient
+  en `opacity-0 group-hover` depuis toujours, donc **invisibles sur iPhone**.
+
+⚠️ **Deux défauts d'interface que seul l'écran a montrés**, tous deux dans
+`PIEGES.md` § 14.1 et dans la passation : le menu de la dernière étape était
+**rogné par le panneau de grille** (clic hors d'atteinte, aucune erreur) — il vit
+désormais dans un portail qui suit le défilement ; et rattacher l'élément qui
+termine une étape la **repliait sous les doigts**, champ de saisie compris. Une
+étape qu'on touche fige son ouverture : le repliement automatique ne vaut qu'à
+l'ouverture de la vue.
+
+### Deux chemins de rattachement, qui ne se mélangent pas
+
+Une **tâche** passe par `tasks.goal_id`, le seul chemin qui la fasse compter
+(donc un seul objectif par tâche, et la ligne le dit avant de valider). Une
+**note**, une **fiche** ou un **événement** passe par une arête `object_links`
+d'origine `manual`, qui survit à la réécriture d'un texte. `habit` n'étant pas
+dans le `CHECK` de la 020, une habitude n'entre QUE comme source de compte — ce
+qui suffit, puisqu'elle ne compte jamais en binaire.
+
+Effet gratuit, vérifié à l'écran : la note rattachée affiche l'étape dans son
+panneau « Mentionné dans ».
+
+### L'accueil plante le premier objectif
+
+Un écran après le curseur : « Et ces {n} h, pour quoi faire ? » — un titre, puis
+**trois étapes au plus, TAPÉES**. ⚠️ **Aucun jalon suggéré** : les gabarits de
+feuille de route sont hors chantier, et proposer des étapes à quelqu'un dont on
+ignore l'objectif serait un modèle déguisé. Tout vient de l'utilisateur, donc
+`is_example` reste à 0 et le bouton « supprimer les exemples » n'y touche pas.
+La première tâche naît rattachée au premier jalon : la feuille de route affiche
+« 0/1 élément » dès le premier jour.
+
+Les interdits hérités du chantier accueil sont tenus par
+`lib/onboarding/planification.ts` (pur) et ses tests : **aucune échéance** (sinon
+« objectif en péril » une semaine après l'installation, sur la première chose que
+l'utilisateur ait dite à l'app), aucune projection de gain, aucune formulation en
+perte, et sans curseur posé la question ne cite **aucun chiffre**. Passer l'écran
+rend exactement l'accueil d'avant.
+
+### Ligne de base
+
+vitest **1128 → 1206** · cargo test 133 (inchangé) · `i18n:check` 0 manquante
+(1946 entrées) · `tsc`, `test:types`, `build`, `cargo check` verts.
+Site mis à jour le même jour (`DETTE-SITE.md` § M) — la capture
+`shots/v2/dark-objectifs.webp` reste périmée, faute de générateur pour cette
+famille.

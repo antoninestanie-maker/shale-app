@@ -414,3 +414,35 @@ démonstration actuelles.
 Le compte de modules reste **treize**. Plateformes, stockage, hors-ligne, clés
 d'API, sauvegarde, langue, licence, gating : **inchangés**. Rien à corriger dans
 `SPECS` sur ces lignes.
+
+---
+
+## M — Feuille de route des objectifs (app, 2026-09-16, migration 026)
+
+### M.1 — Textes du site : ✅ FAIT le 2026-09-16
+`vitrine/src/views/refonte/Fonctionsavancer.astro` et `Modules.astro` disent
+désormais ce que fait l'app : un objectif se découpe en **jalons** puis en
+sous-objectifs, et son avancement **se déduit** de ce qui est fait (tâches
+cochées, rendez-vous tenus, nombres atteints). Traductions anglaises ajoutées.
+Commit du dépôt site : « Objectifs : le site décrit la feuille de route ».
+
+⚠️ `vitrine/src/lib/modules.ts` n'existe plus (refonte du site) : l'audit de ce
+chantier le citait encore. La description vit dans les vues `refonte/`.
+
+### M.2 — ⛔ RESTE : la capture montre l'ANCIENNE vue
+`vitrine/public/shots/v2/dark-objectifs.webp` (1800 × 1125) date d'avant le
+chantier : ni jalons, ni cibles chiffrées, ni la phrase qui dit d'où vient le
+pourcentage. **Il n'existe aucun générateur pour cette famille `v2`** —
+`tools/shoot.mjs` produit les familles `card-*`, `step-*` et `full-*` de la
+version précédente du site, avec sa propre mise en scène (libellés publiables,
+horloge figée au mercredi matin). Refaire la capture demande donc de reconstituer
+cette mise en scène pour le nouveau format, ou d'accepter une image qui ne
+ressemble pas aux neuf autres.
+
+**Ce qu'il faudrait** : une passe « captures v2 » qui les régénère TOUTES d'un
+coup, avec le même cadrage et la même mise en scène — c'est un chantier de site,
+pas une retouche.
+
+### M.3 — Aucun changement de promesse
+Le compte de modules reste **treize**. Plateformes, stockage, hors-ligne, clés
+d'API, sauvegarde, langue, licence, gating : inchangés.
