@@ -1,6 +1,6 @@
 # Passation — chantier « feuille de route des objectifs »
 
-*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), phases D à G livrées ; ⛔ ARRÊT N°3 (maquette de l'accueil proposée, en attente).*
+*Ouvert le 2026-09-14. Mis à jour le 2026-09-15 : arrêt n°2 bis validé (« on enchaîne »), toutes les phases livrées, fusionné sur `mobile-ios`, build natif en cours.*
 *Cadrage : `~/Desktop/Prompt en attente/prompt/PROMPT-FEUILLE-DE-ROUTE.md`. Audit : `~/Desktop/Shale-chantiers/RAPPORT-PHASE0-FEUILLE-DE-ROUTE.md`.*
 
 ---
@@ -9,13 +9,13 @@
 
 | | |
 |---|---|
-| Branche | `chantier/feuille-de-route`, dans le dossier principal `~/Desktop/Shale-projet/Shale` |
+| Branche | **fusionné sur `mobile-ios`** (avance rapide) le 2026-09-16 ; `chantier/feuille-de-route` pointe au même endroit |
 | Base de départ | `mobile-ios` @ `f48d037` |
-| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · `cd6f0e5` phase D · `6f5f433` phases E+F · `db3cca0` phase G |
+| Commits | `481b9d0` phase A · `4fb57ff` phase B · `2fd5349` phase C · `cd6f0e5` phase D · `6f5f433` phases E+F · `db3cca0` phase G · `552b2dd` phase H · `d57ebc8` documentation |
 | Migration | **026** `feuille_de_route` — enregistrée dans `lib.rs` et `schema.testutil.ts`. **Jamais jouée sur la vraie base** : aucun build natif n'a été fait |
 | Poussé | **non** |
-| Tests | vitest **1128 → 1197** · cargo test 133 (inchangé) · i18n 0 manquante (1936 entrées) |
-| ⛔ Prochaine étape | **ARRÊT N°3** : Antonin choisit entre les options de la maquette d'accueil (§ 5, phase H) |
+| Tests | vitest **1128 → 1206** · cargo test 133 (inchangé) · i18n 0 manquante (1946 entrées) |
+| ▶️ Prochaine étape | vérifier l'app installée après le build (§ 7), puis pousser |
 
 ⚠️ **Une session voisine travaille dans le même dossier** : le 2026-09-15, `CLAUDE.md`
 y portait une modification non commitée (adresse `www.shaleapp.com`) qui n'est pas
@@ -102,14 +102,17 @@ Captures envoyées à Antonin le 2026-09-15.
   péril font plusieurs alertes ; le plafond les tient à deux lignes, mais on pourrait
   n'afficher que le plus précis.
 - ✅ **G — iPhone** (2026-09-15) : voir `MOBILE.md` § 22. Émulation Chrome seulement.
-- ⛔ **H — accueil** : maquette proposée le 2026-09-15, en attente. En résumé :
-  un écran « Et ces heures, pour quoi faire ? » après le curseur (un objectif +
-  jusqu'à trois jalons TAPÉS, jamais suggérés : les gabarits sont hors chantier), puis
-  la première tâche rattachée au premier jalon. Question ouverte : l'objectif planté
-  REMPLACE-t-il celui du curseur (recommandé : oui, si l'écran est rempli ; le chiffre
-  du curseur passe dans sa description) ou S'AJOUTE-t-il ?
-- **I — clôture** : site (`modules.ts:197-206`), section datée de `CLAUDE.md`,
-  `SHALE.md`, build natif + réinstallation (la migration 026 l'impose).
+- ✅ **H — accueil** (2026-09-16, « fais comme tu le sens ») : un écran après le
+  curseur, « Et ces {n} h, pour quoi faire ? », un titre + trois étapes TAPÉES au
+  plus. L'objectif planté REMPLACE celui du curseur quand l'écran est rempli ; le
+  chiffre du curseur devient sa description. Aucun jalon suggéré (les gabarits sont
+  hors chantier), donc `is_example` reste à 0 partout. Les interdits sont tenus par
+  `lib/onboarding/planification.ts` et ses tests. Trois chemins vus à l'écran.
+- ✅ **I — clôture** (2026-09-16) : site à jour (dépôt site, commit « Objectifs : le
+  site décrit la feuille de route »), section datée de `CLAUDE.md`, `SHALE.md` § 10 bis,
+  `DETTE-SITE.md` § M, `PIEGES.md` § 14, `MOBILE.md` § 22, `PASSATION.md`.
+  ⚠️ **Reste la capture du site** (`shots/v2/dark-objectifs.webp`), périmée : aucun
+  générateur n'existe pour cette famille.
 
 ---
 
@@ -125,3 +128,37 @@ cd src-tauri && cargo check --lib --tests --bins && cargo test --lib
 ```
 
 ⚠️ Restaurer le mode démo avant : `grep -r AUDIT-TEMP src/` doit rendre zéro.
+
+---
+
+## 7. Le build natif du 2026-09-16 — la migration 026 sur la vraie base
+
+**Sauvegarde AVANT**, par `sqlite3 .backup` (jamais `cp` : la base est en WAL) :
+`shale-backups/avant-migration-026-20260916-1037/` — intégrité `ok`, base en
+version **25**, 2 objectifs, 2 tâches, 13 notes.
+
+**Chaîne d'horodatage** : commit `d57ebc8` 10:37:18 → `dist/assets` 10:38:01 →
+binaire 10:38:54. Arbre propre au moment de la copie (seule la passation, un
+document, restait à écrire).
+
+**Témoins dans le front construit** (des CHAÎNES, jamais des noms de fonction —
+PIEGES § 7.5 bis) : « Mesurer depuis la feuille de route » 2, « jalon vide, non
+compté » 2, « Ses grandes étapes (facultatif) » 1, « étapes ou tâches
+restantes » 2. Côté Rust, `strings` trouve `feuille_de_route` dans le binaire :
+la migration 026 y est embarquée. ⚠️ Les chaînes du front NE se trouvent PAS dans
+le binaire (les assets y sont compressés) : c'est `dist/assets` qui fait foi.
+
+**Empreintes** : installée avant `f3dc06ac252f8148` → neuve `235cb492ac549e57`,
+et l'installée APRÈS `ditto` vaut `235cb492ac549e57`. Une seule `Shale.app`
+lançable (`/Applications`), aucune image disque restée montée, bundles de sortie
+supprimés.
+
+**Après relance** : base en version **26**, `integrity_check` **ok**,
+`foreign_key_check` **0 violation**, `sync_outbox` **vide**. Données identiques à
+la sauvegarde : 2 objectifs, 2 tâches, 13 notes, 6 fiches. Les deux objectifs
+gardent leur `progress_pct` (0 et 50) et leur `manual_progress = 1` — **aucun
+chiffre n'a bougé**, ce qui était la décision n° 2.
+
+⚠️ **Antonin devra cliquer « Toujours autoriser » dans la fenêtre du trousseau** :
+le binaire change, donc macOS redemande l'accès à `com.atnfx.shale`. Aucune
+session ne peut le faire à sa place.
