@@ -2232,3 +2232,49 @@ User-Agent normal) : 200 et le vrai contenu.
 **Cause.** Le contrôle écarte les chaînes ASCII d'un seul mot et celles qui
 commencent par `/`. **Parade.** Relire ces clés à la main (ou chercher les `_("…")`
 absents de `en.ts` sans filtre) après tout portage de pages.
+
+## 15.5 ⚠️⚠️ Un audit piloté par puppeteer ne descend pas si la page verrouille le défilement
+
+**Symptôme.** Les audits du site passent au vert, et pourtant une capture du bas
+de page ne s'affiche pas chez un visiteur. Ou l'inverse : l'audit signale une
+image « qui ne charge pas » alors qu'elle s'affiche parfaitement.
+
+**Cause.** L'accueil bloque le défilement pendant l'animation du héros
+(`accueil.ts`, `lockScroll` : un écouteur `scroll` qui repose la page à `y`).
+Un `window.scrollTo` d'audit est annulé à chaque pas — l'outil mesure toujours
+le haut de la page, et les images `loading="lazy"` restent à `naturalWidth = 0`.
+
+**Parade.** Émuler le réglage qui désactive le verrou :
+`await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }])`.
+C'est fait dans `check.mjs`, `audit.mjs`, `narrow-audit.mjs` et `wrap-check.mjs`.
+`behaviour.mjs`, lui, ne doit PAS l'émuler : il teste le vrai comportement.
+
+**Payé.** Vérification du site, 2026-09-16 : une journée de mesures faites sur le
+seul premier écran, et un faux « image manquante » classé sans suite la veille.
+
+## 15.6 ⚠️ Un champ d'éditeur qui n'est plus lu par personne ment en silence
+
+**Symptôme.** On modifie un texte dans /edit, la page affiche « Modifié ✓ », on
+publie — et le site ne change pas. Aucune erreur.
+
+**Cause.** Les pages ont changé de source (ici : les textes sont passés dans le
+dictionnaire i18n), mais `content.json` gardait ses clés. L'éditeur les liste,
+les enregistre et les publie : tout fonctionne, sauf l'effet.
+
+**Parade.** Après un changement de source de contenu, retirer les clés
+orphelines. Le test tient en une ligne : lister les clés de `content.json` et
+chercher chacune dans `src/` — celles qui n'apparaissent nulle part sont mortes.
+Et dire dans l'éditeur, par section, si la valeur agit tout de suite ou au
+prochain déploiement.
+
+**Payé.** 154 champs morts sur 191 dans /edit, découverts le 2026-09-16.
+
+## 15.7 ⚠️ `@astrojs/sitemap` 3.7 casse silencieusement sur Astro 4
+
+**Symptôme.** `npm run build` s'arrête sur « Cannot read properties of undefined
+(reading 'reduce') » dans `@astrojs/sitemap/dist/index.js`, sans autre indice.
+
+**Cause.** La 3.7 lit les routes par l'API d'Astro 5. Sur Astro 4.16, l'argument
+est absent. **Parade.** Épingler `@astrojs/sitemap@3.2.1` tant que le site est en
+Astro 4. Et ne pas passer l'option `i18n` : elle attend un préfixe de langue sur
+toutes les adresses, or le français n'en a pas.
