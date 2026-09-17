@@ -487,6 +487,7 @@ attend une décision d'Antonin, un achat, ou une machine.
 | **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
 | **Achat réel Pro / Business** | le tunnel est en ligne, **aucun achat de bout en bout n'a été fait** sur ces deux offres | un vrai paiement, remboursé ensuite |
 | **Ménage du DerivedData Xcode** | proposé, **sans réponse**. Quatre bundles iOS traînent. Les effacer force une reconstruction complète | un mot |
+| ⚠️ **Il ne reste que 8 Go de libre sur le disque** ✅ *(mesuré le 2026-09-18)* | `src-tauri/target/` pèse **10 Go** à lui seul : `debug` 4,6 Go et les deux cibles iOS 4,3 Go **datent du 2026-09-12** ; seul `release` (1,4 Go) sert au build macOS. Un `npm run tauri build` peut manquer de place | un mot. `rm -rf src-tauri/target/aarch64-apple-ios*` rend 4,3 Go et ne coûte qu'une recompilation iOS ; `cargo clean` rend les 10 Go et coûte tout |
 
 ### 12.2 Les décisions ouvertes, techniques
 
