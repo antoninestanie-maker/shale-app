@@ -127,9 +127,9 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 
 | | |
 |---|---|
-| Branche de travail | ✅ **`mobile-ios`**, à `c312ce0`. `main` est **249 commits en arrière** et n'est plus le tronc depuis longtemps |
+| Branche de travail | ✅ **`mobile-ios`**, à `98dc4c8`. `main` est **249 commits en arrière** et n'est plus le tronc depuis longtemps |
 | Arbre | ✅ **propre** |
-| Poussé ? | ⚠️ **Non — 1 commit d'avance sur `origin/mobile-ios`** (`c312ce0`, les pièges du site). Double-cliquer `Envoyer sur GitHub.command` |
+| Poussé ? | ✅ **oui**, `origin/mobile-ios` à jour au 2026-09-18 (le dépôt du site aussi). Pour pousser sans Terminal : double-cliquer `Envoyer sur GitHub.command` |
 | App installée | ✅ `/Applications/Shale.app`, binaire du **2026-09-16 à 10:38**, 21,2 Mo. C'est la version qui porte la feuille de route des objectifs |
 | App en fonctionnement | ✅ **elle tourne** (processus `shale`, vue le 2026-09-18) |
 | Base de données | ✅ **version 26** (`_sqlx_migrations`, 026 `feuille_de_route` jouée le 2026-09-16 à 10:40), 47 tables |
