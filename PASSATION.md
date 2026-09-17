@@ -162,8 +162,8 @@ connue derrière laquelle se cacher.
 ```
 npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
-npm test                                      ✅   1206 tests, 87 fichiers, 56 s
-npm run i18n:check                            ✅   0 clé manquante, 1946 entrées dans en.ts
+npm test                                      ✅   1237 tests, 88 fichiers, 44 s
+npm run i18n:check                            ✅   0 clé manquante, 1975 entrées dans en.ts
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
 cd src-tauri
@@ -469,6 +469,20 @@ Les six choses à savoir sans lire le code :
 deux vrais appareils. Et une **question non tranchée** : un objectif en péril ET
 ses jalons en péril produisent plusieurs alertes ; le plafond les tient à deux
 lignes, mais on pourrait n'afficher que la plus précise.
+
+---
+
+### 11.x Le 2026-09-18 — champ de date unique, et la tâche depuis l'objectif
+
+| Date | Chantier |
+|---|---|
+| 09-18 | ⭐ **`ChampDate` remplace les treize `<input type="date">` de l'app** (calendrier en portail, à la Apple, clavier conservé) · **« ＋ Tâche »** visible dans la feuille de route, avec son échéance · l'échéance s'affiche sur la ligne d'une tâche, en rouge si elle est passée |
+
+**Aucune migration, aucun Rust, aucune dépendance npm.** ⚠️ Mais **un rebuild
+natif reste dû** : l'app installée date du 2026-09-16 et ne porte pas ce
+chantier. Le pourquoi est dans la section datée du 2026-09-18 de `CLAUDE.md`,
+les pièges dans `PIEGES.md` § 16, l'iPhone dans `MOBILE.md` § 23, le site dans
+`DETTE-SITE.md` § N.
 
 ---
 

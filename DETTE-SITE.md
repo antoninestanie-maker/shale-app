@@ -454,3 +454,32 @@ pas une retouche.
 ### M.3 — Aucun changement de promesse
 Le compte de modules reste **treize**. Plateformes, stockage, hors-ligne, clés
 d'API, sauvegarde, langue, licence, gating : inchangés.
+
+## N — Champ de date à la Apple + tâche depuis l'objectif (app, 2026-09-18)
+
+### N.1 — Aucune promesse ne change, vérifié
+Le compte de modules reste **treize**. Aucun nom de module, aucune entrée de
+barre latérale, aucune ligne de `SPECS` (plateformes, stockage, hors-ligne, clés
+d'API, sauvegarde, langue, licence, gating), aucun raccourci clavier : rien de ce
+que le site annonce n'est touché. Aucun token de design nouveau, donc rien à
+répercuter dans `vitrine/src/styles/global.css`.
+
+C'est un chantier d'**interface**, et l'interface n'est décrite par le site que
+par ses captures.
+
+### N.2 — ⛔ RESTE : toute capture montrant un formulaire montre l'ANCIEN champ
+Les treize `<input type="date">` de l'app ont disparu au profit d'un champ maison
+(bouton + calendrier en portail). Partout où une capture du site montre un
+formulaire daté — tâche, événement, facture, flux, filtre d'échéance — elle
+montre encore le rectangle gris natif.
+
+⚠️ **C'est la MÊME dette que § M.2, pas une nouvelle** : il n'existe aucun
+générateur pour la famille `v2`, et la réponse reste une passe « captures v2 »
+qui les régénère toutes d'un coup, avec le même cadrage. Rien ne se retouche
+image par image sans faire dépareiller les autres.
+
+### N.3 — Ce qu'on POURRAIT dire, et qui n'a pas été écrit
+Le site ne parle nulle part de la saisie d'une date, et il n'y a pas de raison
+de commencer : « nos champs de date sont jolis » n'est pas un argument, et
+l'annoncer obligerait à le montrer — donc à refaire les captures d'abord. À
+rouvrir seulement si la passe « captures v2 » a lieu.

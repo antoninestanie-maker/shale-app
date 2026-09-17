@@ -381,9 +381,11 @@ export const IconSearch = (p: IconProps) => (
   </Icon>
 );
 
-/** Calendrier — filtre par échéance.
- *  ⚠️ Rend le contrôle IDENTIFIABLE au doigt : un `<input type="date">` VIDE
- *  n'affiche rien du tout sur iOS, pas même le gabarit `jj/mm/aaaa` du bureau. */
+/** Calendrier — toute saisie de date.
+ *  Elle vit désormais DANS `ChampDate` (2026-09-18), où elle annonce que le
+ *  bouton s'ouvre. Elle était née pour compenser un défaut du champ natif : un
+ *  `<input type="date">` VIDE n'affichait rien du tout sur iOS, pas même le
+ *  gabarit `jj/mm/aaaa` du bureau. Ce champ n'existe plus dans l'app. */
 export const IconCalendar = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="5" width="18" height="16" rx="2.5" />

@@ -2779,3 +2779,60 @@ Chrome piloté par puppeteer, `KnownDevices["iPhone 13"]` (`pointer: coarse` vra
 - **un vrai glisser au doigt** (`page.touchscreen.touchStart/move/end`) fait passer la troisième étape en tête.
 
 ⚠️ **RIEN N'A ÉTÉ VU SUR LE SIMULATEUR NI SUR L'APPAREIL.** L'émulation tactile de Chrome ne reproduit ni l'inertie, ni la paume, ni WebKit. Le Dynamic Type n'a pas été poussé à grande taille sur ces écrans : ils reposent sur le `zoom` d'`applyZoom()` comme le reste de l'app (§ « Densité, Dynamic Type », `CLAUDE.md`).
+
+# 23. Le champ de date sur iPhone (2026-09-18)
+
+## 23.1 ⭐ Le natif était le plus mauvais des trois côtés — et VIDE, il ne montrait rien
+
+`<input type="date">` a disparu des treize endroits où l'app le posait. Sur
+iPhone, c'est la plateforme où il coûtait le plus cher :
+
+- iOS ouvre son **propre** panneau, **toujours en clair**, par-dessus une app
+  sombre. Ce n'est PAS une affaire de `color-scheme` : vérifié le 2026-08-27 en
+  ouvrant un `<select>` voisin, iOS rend son panneau natif en clair même sous un
+  `color-scheme: dark` figé ;
+- ⚠️ **vide, il n'affichait RIEN** — pas même le gabarit `jj/mm/aaaa` que rend le
+  bureau. Un rectangle gris muet, dont rien ne disait ce qu'il était (vu sur
+  iPhone 17 le 2026-08-27). Trois endroits de l'app portaient une étiquette et
+  une icône POUR COMPENSER. `ChampDate` écrit sa valeur — et son vide — en clair.
+
+## 23.2 Ce qui a été fait pour le doigt
+
+- les cellules du calendrier portent `.cible-tactile` : **44 pt mesurés** sous
+  `pointer: coarse` (28 px à la souris — la densité du bureau est un choix) ;
+- le champ de frappe est en `inputMode="numeric"` : le pavé de chiffres, pas
+  l'alphabet ;
+- le panneau fait 17,5 rem, donc il tient sur 390 pt **avec ses marges** ;
+- la croix qui retire une date vit DANS le bouton : l'aller-retour par le
+  panneau rendait le geste trois fois plus long.
+
+⚠️ **Deux replis corrigés dans la feuille de route**, tous deux vus à 390 pt et
+non déduits (`PIEGES.md` § 16.3) : le titre d'une tâche se cassait au milieu d'un
+mot à côté de sa nouvelle colonne d'échéance, et la croix du composeur se
+retrouvait **seule sur une troisième ligne**, loin de tout.
+
+## 23.3 ⛔ Ce qui n'est PAS prouvé
+
+Tout ci-dessus a été vu en **iPhone émulé dans Chrome** (390 × 844, `hasTouch`,
+`isMobile`, un vrai `touchscreen.tap` sur une cellule du calendrier) — **jamais
+sur le simulateur, jamais sur l'appareil**. Même réserve qu'au § 22.2, et pour la
+même raison : le simulateur est déconnecté depuis le 2026-09-02 et seul un geste
+d'Antonin le rouvre (`PASSATION.md` § 5.1).
+
+⭐ **Le clavier logiciel est traité, pas laissé de côté.** Le panneau porte un
+champ de frappe : le toucher ouvre le clavier, et sur iPhone cela ne change PAS
+`innerHeight` — la fenêtre garde sa taille, le clavier se pose par-dessus. Un
+panneau placé d'après `innerHeight` se retrouverait dessous, invisible et
+inatteignable. `ChampDate` mesure donc `visualViewport` (hauteur, `offsetTop` et
+largeur), **et écoute son `resize`/`scroll`** : `window.resize` ne se déclenche
+pas à l'ouverture du clavier, donc sans ces deux écouteurs le calcul resterait
+fondé sur une hauteur qui n'existe plus. Même parade que `MentionPicker`
+(§ 13.4), et c'est l'une des rares choses de ce chantier qui ne pouvait pas être
+vérifiée en émulation — Chrome émule le doigt, pas le clavier d'iOS.
+
+Ce que l'émulation ne peut PAS dire, et qu'il faudra regarder un jour :
+- que ce calcul `visualViewport` donne bien le bon résultat **sur l'appareil**,
+  clavier ouvert, sur un champ situé bas dans une page longue ;
+- le rendu du panneau sous la Dynamic Island quand l'ancre est tout en haut :
+  le bornage du § 16.2 le garde dans le viewport visuel, **pas** hors de la zone
+  sûre — `env(safe-area-inset-top)` n'entre pas dans le calcul.

@@ -21,6 +21,7 @@ import { createInvoicePayment, deleteInvoicePayment, setInvoiceStatut } from "..
 import { statutCalcule } from "../../lib/finance/facturation/statuts";
 import type { FinanceAccount, Invoice, InvoicePayment } from "../../lib/types";
 import { formatDate, t } from "../../lib/i18n";
+import ChampDate from "../ChampDate";
 
 /** Moyens proposés. Valeurs FRANÇAISES stockées, traduites à l'affichage. */
 const MOYENS = ["Virement", "Carte", "Chèque", "Espèces", "Prélèvement"] as const;
@@ -120,12 +121,7 @@ export default function FormulaireEncaissement({
             autoFocus
           />
           <Champ label={t("Date")}>
-            <input
-              type="date"
-              className={inputCls}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <ChampDate valeur={date} onChange={setDate} aria={t("Date")} effacable={false} />
           </Champ>
         </div>
 

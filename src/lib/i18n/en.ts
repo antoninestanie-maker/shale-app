@@ -2635,4 +2635,47 @@ export const EN: Record<string, string> = {
   "Elle t'attendra dans Tâches, et comptera dans ta première étape.": "It will wait for you in Tasks, and count towards your first step.",
   "{n} h par semaine libérées pour ça.": "{n} h a week freed up for this.",
   "Et ce temps, pour quoi faire ?": "And this time — what for?",
+
+  // ── Champ de date : calendrier à la Apple (2026-09-18) ────────────────────
+  // ⚠️ Le gabarit de saisie est TRADUIT, pas recopié : `en-US` écrit le mois
+  // d'abord, et « jj/mm/aaaa » sous un champ qui attend « 09/24/2026 » donnerait
+  // un ordre faux à l'utilisateur anglais.
+  "jj": "dd",
+  "mm": "mm",
+  "aaaa": "yyyy",
+  "Demain": "Tomorrow",
+  "Hier": "Yesterday",
+  "Lundi prochain": "Next Monday",
+  "Choisir une date": "Pick a date",
+  "Retirer la date": "Remove date",
+  "Revenir au mois en cours": "Back to this month",
+  "Mois précédent": "Previous month",
+  "Mois suivant": "Next month",
+  "Effacer": "Clear",
+  "Taper une date": "Type a date",
+  "Date illisible": "Can’t read that date",
+  "Date hors des bornes": "Date out of range",
+  // Les champs que le calendrier remplace, et le mot qui dit leur vide.
+  // ⚠️ « toutes » et « Sans échéance » sont en MINUSCULES et le restent : le
+  // design system met en majuscules en CSS (`.hud-label`).
+  "Deadline": "Deadline",
+  "Sans date": "No date",
+  "Sans échéance": "No due date",
+  "Toujours actif": "Always active",
+  // ⚠️ Minuscule : c'est le contenu d'un champ, pas la pastille « Toutes »
+  // (celle-ci vaut « All »). Le dictionnaire distingue la casse.
+  "toutes dates": "any date",
+  // Deux libellés de filtre qui s'affichaient EN FRANÇAIS dans l'app anglaise
+  // jusqu'au 2026-09-18 : ils vivaient en dur dans un tableau de `TasksView`.
+  "Toutes": "All",
+  "Faites": "Done",
+
+  // ── Objectifs : ajouter une tâche depuis la feuille de route (2026-09-18) ─
+  "Rattacher": "Link",
+  "Une tâche neuve, déjà rattachée à cette étape": "A new task, already linked to this step",
+  "Rattacher quelque chose qui existe déjà": "Link something that already exists",
+  "Une tâche, une note, une fiche du Savoir ou un événement.": "A task, a note, a knowledge card or an event.",
+  "Chercher une tâche, une note, une fiche…": "Search a task, a note, a card…",
+  "À faire pour cette étape…": "To do for this step…",
+  "Nouvelle tâche pour « {titre} »": "New task for “{titre}”",
 };

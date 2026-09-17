@@ -13,6 +13,7 @@ import type { CalendarEvent } from "../../lib/types";
 import { IconTrash } from "../icons";
 import RouletteHeure from "./RouletteHeure";
 import { t } from "../../lib/i18n";
+import ChampDate from "../ChampDate";
 
 /**
  * Créer ou modifier un événement.
@@ -84,11 +85,15 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
    * ⭐ Le multi-jours passe par une CASE À COCHER, pas par un champ de date
    * laissé vide.
    *
-   * ⚠️ Un `<input type="date">` VIDE n'affiche RIEN sur iOS — pas même le
+   * ⚠️ Un `<input type="date">` VIDE n'affichait RIEN sur iOS — pas même le
    * gabarit `jj/mm/aaaa` que rend le bureau (vu à l'écran le 2026-08-27, cf.
-   * `TasksView`). Un second champ de date optionnel serait donc, sur téléphone,
-   * un rectangle gris muet dont rien ne dirait ce qu'il est. La case l'annonce
-   * et ne le montre que quand il sert.
+   * `TasksView`). Un second champ de date optionnel aurait donc été, sur
+   * téléphone, un rectangle gris muet dont rien ne dirait ce qu'il est.
+   *
+   * ⭐ 2026-09-18 : ce motif-là est tombé — `ChampDate` écrit sa valeur, et son
+   * absence, en clair. La case RESTE pour la raison qui, elle, n'a pas bougé :
+   * elle dit qu'un événement PEUT durer plusieurs jours, ce qu'un champ de date
+   * de plus, même lisible, n'annonce pas.
    */
   const [plusieurs, setPlusieurs] = useState(
     !!event?.end_date && event.end_date > event.date,
@@ -217,11 +222,13 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
             <label className="block text-xs font-medium uppercase tracking-wide text-text-dim">
               {t("Date")}
             </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+            {/* Un événement a forcément lieu un jour : sa date ne s'efface pas. */}
+            <ChampDate
+              valeur={date}
+              onChange={setDate}
+              aria={t("Date")}
+              effacable={false}
+              className="cible-tactile mt-1.5 flex w-full items-center gap-2 rounded-lg border border-border bg-overlay px-3 py-2 text-left text-sm text-text outline-none transition-colors hover:border-border-strong focus:border-border-strong"
             />
           </div>
           <label className="flex items-end gap-2 pb-2 text-sm text-text-dim">
@@ -255,13 +262,18 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               <span className="text-xs uppercase tracking-wide text-text-dim">
                 {t("jusqu'au")}
               </span>
-              <input
-                type="date"
-                value={finJour}
-                min={date}
-                onChange={(e) => setFinJour(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
-              />
+              <div className="flex-1">
+                {/* ⚠️ `min` conservé : une fin avant le début rendrait
+                    l'événement invalide, et c'est le champ lui-même qui le
+                    refuse — au clic comme à la frappe. */}
+                <ChampDate
+                  valeur={finJour}
+                  onChange={setFinJour}
+                  min={date}
+                  aria={t("jusqu'au")}
+                  className="cible-tactile flex w-full items-center gap-2 rounded-lg border border-border bg-overlay px-3 py-2 text-left text-sm text-text outline-none transition-colors hover:border-border-strong focus:border-border-strong"
+                />
+              </div>
             </div>
           )}
         </div>

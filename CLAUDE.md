@@ -5491,3 +5491,150 @@ vitest **1128 → 1206** · cargo test 133 (inchangé) · `i18n:check` 0 manquan
 Site mis à jour le même jour (`DETTE-SITE.md` § M) — la capture
 `shots/v2/dark-objectifs.webp` reste périmée, faute de générateur pour cette
 famille.
+
+## 2026-09-18 — ⭐ Un seul champ de date dans toute l'app, et une tâche s'ajoute depuis l'objectif
+
+Demande d'Antonin, en une phrase et deux moitiés : « j'aimerais qu'on puisse
+directement ajouter des tâches liées aux objectifs dans l'onglet objectif, et
+change l'interface du calendrier de deadline notamment dans toute l'app pour
+quelque chose de plus qualitatif dans le style d'Apple ». Les deux moitiés se
+rejoignent : la tâche qu'on ajoute depuis une étape a besoin d'une échéance, et
+c'est le champ de date qui la porte. Pièges dans `PIEGES.md` § 16.
+
+### ⭐⭐ `src/components/ChampDate.tsx` remplace `<input type="date">` PARTOUT
+
+Treize champs natifs, dans neuf fichiers : objectif, tâche, trade, événement
+(× 2, dont la borne du multi-jours), facture (émission et échéance), flux
+récurrent (× 2), encaissement, export comptable (× 2) et le filtre de Tâches.
+**Il n'en reste aucun** (`grep 'type="date"' src` ne rend plus que des
+commentaires).
+
+Le natif avait trois défauts, et le troisième était un vrai bogue :
+- sur le bureau, un rectangle gris dont le gabarit `jj/mm/aaaa` n'annonce rien
+  et qui ignore le thème de l'app ;
+- au doigt, iOS ouvre son propre panneau **toujours en clair** par-dessus une app
+  sombre — et ce n'est PAS une affaire de `color-scheme` (vérifié le 2026-08-27) ;
+- ⚠️ **VIDE, il n'affichait RIEN du tout sur iOS**, pas même le gabarit. Trois
+  endroits portaient une étiquette et une icône POUR COMPENSER (`TasksView`,
+  `EventModal`, le commentaire d'`IconCalendar`) : leurs commentaires sont
+  **datés, pas effacés**, et disent maintenant pourquoi l'étiquette reste (elle
+  dit ce que la date FILTRE) alors que le motif d'origine est tombé.
+
+### ⭐ Le clavier reste le chemin rapide — la leçon de `RouletteHeure`, reprise
+
+`RouletteHeure` (2026-09-06) l'a laissée écrite noir sur blanc : « taper 1437 au
+clavier est plus rapide que faire tourner deux molettes », et lui retirer le
+clavier aurait défait le chantier de la veille. Un calendrier qui ne se pointe
+qu'à la souris demanderait six clics de flèche là où trois frappes suffisent.
+
+D'où, dans le panneau : les **flèches** déplacent un curseur (le mois suit),
+`PageUp/PageDown` changent de mois, `Entrée` valide, `Échap` referme — **et** un
+petit champ où l'on tape « 24/09 ». Ce champ **écrit ce qu'il a lu** avant qu'on
+valide (« jeudi 24 décembre 2026 », ou « Date illisible ») : c'est ce qui a
+permis de voir le § 16.1.
+
+⚠️ **Un seul arrêt de tabulation dans la grille**, celui du curseur.
+Quarante-deux cellules tabulables auraient rendu la sortie du panneau
+interminable au clavier.
+
+### Ce que la logique pure porte, et ce qu'elle NE réécrit pas
+
+`src/lib/calendrier/champDate.ts` (31 tests, `environment: "node"`) :
+l'ordre des champs selon la langue, la lecture d'une frappe, les libellés, le
+décalage de mois, les raccourcis. Le composant ne garde que le placement et les
+gestes — partage `mentions.ts` / `mentionsDom.ts`.
+
+⚠️ **La grille du mois n'est PAS réécrite** : `grilleDuMois` d'`agenda.ts`
+existe, elle est testée, et elle rend toujours six semaines du lundi au
+dimanche — exactement ce qu'un sélecteur demande. Une seconde grille aurait fini
+par décaler d'un jour par rapport au calendrier de l'app.
+
+⚠️ **L'ordre des champs est demandé à `Intl`, jamais recopié** : `en-US` écrit le
+MOIS d'abord, donc « 09/24 » y est le 24 septembre et le gabarit affiché est
+`mm/dd/yyyy`. Une table à deux entrées serait fausse dès la troisième langue, et
+les deux outils i18n resteraient au vert devant elle (§ 5.2 bis). Le test rejoue
+le module **sous les deux langues**, variables séparées.
+
+⚠️ **Un jour impossible est refusé, il ne roule pas.** `new Date(2026, 1, 31)`
+rend le 3 mars sans rien dire : accepter `31/02` déplacerait l'échéance en
+silence, et une date qu'on croit avoir posée est pire qu'un champ vide. Même
+exigence pour une saisie contenant une lettre (§ 16.1).
+
+### Les bornes `min` / `max` ferment les DEUX chemins
+
+Reprises de l'attribut `min` du champ natif (la fin d'un événement multi-jours,
+l'échéance d'une facture après son émission, les deux bornes de l'export).
+Une borne qui ne grise que les cellules laisserait taper la date interdite, et
+l'événement naîtrait avec une fin avant son début : la grille ET la frappe sont
+fermées, et une date lue mais hors bornes le DIT au lieu d'être ignorée.
+
+### ⚠️ Le panneau vit dans un portail — et il sait se refermer
+
+`createPortal` + `position: fixed` + division par `zoomFactor()` + retournement
+vers le haut : la recette du § 14.1, parce que plusieurs de ces champs vivent
+dans des panneaux de grille que l'`overflow: clip` rogne (le filtre de Tâches,
+les bornes de Flux, celles de Factures). Vérifié à l'écran : `elementFromPoint`
+rend bien une cellule du panneau, pas autre chose.
+
+⭐ **Deux nouveautés par rapport au § 14.1 :**
+- suivre le défilement sans borne, c'est suivre DEHORS. Ancre entièrement hors
+  écran → on referme (la recaler la détacherait du champ qu'elle modifie) ;
+  ancre à demi visible → on borne des deux côtés (§ 16.2) ;
+- ⚠️ **tout se mesure sur `visualViewport`, pas sur `innerHeight`.** Ce panneau
+  porte un champ de frappe : sur iPhone, ouvrir le clavier ne change pas
+  `innerHeight` (la fenêtre garde sa taille, le clavier se pose par-dessus), donc
+  un panneau placé d'après la fenêtre se retrouverait SOUS le clavier. Et il faut
+  écouter `visualViewport.resize` — `window.resize` ne se déclenche pas à
+  l'ouverture du clavier. Même parade que `MentionPicker` (`MOBILE.md` § 13.4),
+  et c'est la seule pièce du chantier que l'émulation Chrome ne peut pas
+  vérifier.
+
+### ⭐ Ajouter une tâche depuis une étape : la capacité existait, et c'était le problème
+
+`RattacherElement` proposait déjà « Créer la tâche « q » » — mais il fallait
+taper dans un champ intitulé « Rattacher ou créer un élément… », puis constater
+qu'une dernière ligne proposait de créer. **Une capacité qu'on ne découvre qu'en
+se trompant n'existe pas.** Et la tâche ainsi créée naissait **sans échéance**,
+donc invisible dans le calendrier et dans « Aujourd'hui » : elle comptait dans
+l'objectif et nulle part ailleurs.
+
+`BarreAjout` pose donc **deux boutons visibles en permanence** — « ＋ Tâche » et
+« 🔗 Rattacher » — et n'ouvre qu'un panneau à la fois (deux champs de saisie
+ouverts sous une même liste ne disent plus lequel reçoit la frappe). Le coût en
+gestes ne bouge pas : il fallait déjà cliquer dans le champ pour le remplir.
+
+Le composeur tient une ligne : le nom, l'échéance, « Ajouter ».
+- ⚠️ **PAS de priorité, PAS de créneau, PAS de récurrence.** Ce n'est pas un
+  formulaire réduit, c'est le geste de la feuille de route : nommer ce qu'il
+  reste à faire. Recopier les cinq contrôles de `TaskModal` rendrait une carte de
+  grille illisible et ferait diverger deux écrans de saisie pour la même table.
+- ⚠️ **La planification passe par `planificationDeSaisie`**, jamais par une
+  écriture directe de `due_date` : la frontière datée / récurrente est tenue à un
+  seul endroit (`lib/taches.ts`).
+- ⭐ **`Entrée` crée et garde l'échéance**, en vidant le nom : découper une étape
+  donne souvent trois tâches pour la même date, et la redemander à chaque fois
+  transformerait un geste en corvée.
+
+**L'échéance s'AFFICHE ensuite sur la ligne de la tâche** — en rouge, et avec
+« En retard », si le jour est passé ET la tâche non faite (une tâche cochée hier
+n'est pas en retard, elle est faite). Sans cet affichage, on posait une date sans
+jamais la relire.
+
+### Vérifié à l'écran, dans Chrome piloté — pas dans le panneau
+
+Bureau 1280 × 900 (français **et** anglais) et iPhone 390 × 844 avec un vrai
+glissement au doigt, en mode démo (§ 13.2 de `PASSATION.md`). Mesuré, pas
+regardé : le panneau tient dans la fenêtre et sa cellule répond à
+`elementFromPoint` dans les treize champs ; les cellules font 44 pt sous
+`pointer: coarse` ; aucun débordement horizontal de page ; zéro erreur console.
+La boucle complète a été jouée : tâche créée avec son échéance → l'étape passe
+de « 1/2 éléments · 50 % » à « 1/3 éléments · 33 % ».
+
+### Ligne de base
+
+vitest **1206 → 1237** · cargo test 133 (inchangé) · `i18n:check` 0 manquante
+(1975 entrées) · `i18n:durs` 0 chaîne sûrement française · `tsc`, `test:types`,
+`build`, `cargo check --all-targets` verts.
+
+⚠️ **Aucune migration, aucun Rust, aucune dépendance npm** — mais un **rebuild
+natif reste nécessaire** pour qu'Antonin voie ce chantier dans l'app installée.

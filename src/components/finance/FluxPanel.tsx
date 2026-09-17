@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { IconAlert, IconPencil, IconPlus, IconTrash } from "../icons";
-import { BoutonDiscret, Champ, ChampMontant, inputCls, Montant } from "./champs";
+import { BoutonDiscret, Champ, ChampMontant, dateCls, inputCls, Montant } from "./champs";
 import { Dialogue } from "./ComptesPanel";
 import { estActif, mensualiser, type Burn } from "../../lib/finance/burn";
 import {
@@ -23,6 +23,7 @@ import type {
   FinanceRecurring,
 } from "../../lib/types";
 import { formatDate, t } from "../../lib/i18n";
+import ChampDate from "../ChampDate";
 
 const FREQUENCES: { id: FinanceFrequency; label: string }[] = [
   { id: "hebdo", label: "par semaine" },
@@ -368,19 +369,25 @@ export function FormulaireFlux({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Champ label={t("Actif depuis")}>
-            <input
-              type="date"
-              className={inputCls}
-              value={form.active_from}
-              onChange={(e) => setForm((f) => ({ ...f, active_from: e.target.value }))}
+            <ChampDate
+              valeur={form.active_from}
+              onChange={(j) => setForm((f) => ({ ...f, active_from: j }))}
+              effacable={false}
+              aria={t("Actif depuis")}
+              className={dateCls}
             />
           </Champ>
           <Champ label={t("Jusqu'au (vide = toujours actif)")}>
-            <input
-              type="date"
-              className={inputCls}
-              value={form.active_to ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, active_to: e.target.value || null }))}
+            {/* ⭐ Vide = toujours actif : c'est l'un des rares champs de date de
+                l'app dont l'absence PORTE un sens. Le champ natif n'affichait
+                alors rien du tout sur iPhone ; ici on lit « Toujours actif ». */}
+            <ChampDate
+              valeur={form.active_to ?? ""}
+              onChange={(j) => setForm((f) => ({ ...f, active_to: j || null }))}
+              min={form.active_from || undefined}
+              placeholder={t("Toujours actif")}
+              aria={t("Jusqu'au (vide = toujours actif)")}
+              className={dateCls}
             />
           </Champ>
         </div>

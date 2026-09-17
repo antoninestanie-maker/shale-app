@@ -16,6 +16,13 @@ const enTexte = (cents: number | null) =>
 
 export const inputCls =
   "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
+/**
+ * Même forme qu'`inputCls`, SANS `font-mono` : ce champ n'affiche pas un
+ * montant mais une date écrite en clair (« jeu. 24 sept. »), que la police à
+ * chasse fixe rendrait à la fois plus large et moins lisible.
+ */
+export const dateCls =
+  "cible-tactile flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none disabled:opacity-40";
 export const labelCls = "mb-1.5 block text-xs font-medium text-text-dim";
 
 export function Champ({ label, children }: { label: string; children: ReactNode }) {

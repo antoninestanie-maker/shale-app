@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatDate, t, tp } from "../../lib/i18n";
+import { formaterChamp } from "../../lib/calendrier/champDate";
 import { todayStr } from "../../lib/logic";
 import {
   createGoal,
@@ -29,7 +30,7 @@ import type { AppData, Goal } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
 import { IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
-import RattacherElement from "./RattacherElement";
+import { BarreAjout } from "./RattacherElement";
 
 /**
  * ⭐ La feuille de route d'un objectif — révélée par un geste, jamais imposée.
@@ -803,12 +804,21 @@ function ListeElements(props: {
           const recurrente = estRecurrente(tache);
           const faite = !recurrente && faites.has(tache.id);
           return (
-            <li key={`t${tache.id}`} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+            /* ⚠️ `flex-wrap` ET une base flex sur le titre. Sous
+               `pointer: coarse`, `.truncate-souris` REND LE RETOUR À LA LIGNE
+               (au doigt il n'y a pas de survol, donc un titre coupé l'est sans
+               recours) : le titre a alors besoin de toute la largeur, sinon il
+               se casse lettre par lettre à côté de sa date. Vu à l'écran sur
+               iPhone 390 pt le 2026-09-18 : « Backtesti / ng 1h ».
+               Une base flex, jamais `min-w-0` seul : ce dernier ne déclenche
+               pas le repli, il comprime (règle du 2026-07-26). */
+            <li key={`t${tache.id}`} className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
               <Coche faite={faite} />
-              <span className={`min-w-0 flex-1 truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
+              <span className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
                 {tache.label}
               </span>
-              {recurrente && (
+              <span className="ml-auto flex shrink-0 items-center gap-2">
+              {recurrente ? (
                 <span
                   className="shrink-0 text-[10px] text-text-dim"
                   data-tip={t("Une tâche récurrente n’est jamais « finie »")}
@@ -816,6 +826,25 @@ function ListeElements(props: {
                 >
                   {t("récurrente, non comptée")}
                 </span>
+              ) : (
+                tache.due_date && (
+                  /* ⭐ L'échéance s'AFFICHE. Sans elle, on posait une date au
+                     composeur sans jamais la relire — et une date qu'on ne
+                     relit pas ne sert à personne.
+
+                     ⚠️ « En retard » ne se dit que si la tâche n'est PAS faite :
+                     une tâche cochée hier n'est pas en retard, elle est faite.
+                     Et la comparaison porte sur le JOUR local (`maintenant` est
+                     du local, PIEGES § 4.1), jamais sur un horodatage. */
+                  <span
+                    className={`shrink-0 text-[10px] tabular-nums ${
+                      !faite && tache.due_date < props.maintenant.slice(0, 10) ? "text-red" : "text-text-dim"
+                    }`}
+                    data-tip={!faite && tache.due_date < props.maintenant.slice(0, 10) ? t("En retard") : undefined}
+                  >
+                    {formaterChamp(tache.due_date, props.maintenant.slice(0, 10))}
+                  </span>
+                )
               )}
               <button
                 type="button"
@@ -828,6 +857,7 @@ function ListeElements(props: {
               >
                 <IconX className="h-3.5 w-3.5" />
               </button>
+              </span>
             </li>
           );
         })}
@@ -836,7 +866,9 @@ function ListeElements(props: {
           const recurrent = !!evenement?.recurrence && evenement.recurrence !== "none";
           const passe = !!evenement && !recurrent && evenementPasse(evenement, props.maintenant);
           return (
-            <li key={`${r.kind}:${r.uid}`} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+            /* Même repli que la ligne de tâche, et pour la même raison : son
+               libellé de droite (« note, ne compte pas ») est plus long encore. */
+            <li key={`${r.kind}:${r.uid}`} className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
               {r.kind === "event" ? (
                 <Coche faite={passe} />
               ) : (
@@ -848,11 +880,12 @@ function ListeElements(props: {
               <button
                 type="button"
                 onClick={() => void ouvrirObjet(r.kind, r.uid)}
-                className={`min-w-0 flex-1 truncate truncate-souris text-left hover:underline ${passe ? "text-text-dim line-through" : "text-text"}`}
+                className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris text-left hover:underline ${passe ? "text-text-dim line-through" : "text-text"}`}
                 title={r.titre}
               >
                 {r.titre || t("Sans titre")}
               </button>
+              <span className="ml-auto flex shrink-0 items-center gap-2">
               <span
                 className="shrink-0 text-[10px] text-text-dim"
                 data-tip={r.kind === "event" ? undefined : t("Écrire n’est pas avancer")}
@@ -881,11 +914,12 @@ function ListeElements(props: {
               >
                 <IconX className="h-3.5 w-3.5" />
               </button>
+              </span>
             </li>
           );
         })}
       </ul>
-      {props.avecRattachement && <RattacherElement goal={goal} data={data} contexte={contexte} refresh={refresh} />}
+      {props.avecRattachement && <BarreAjout goal={goal} data={data} contexte={contexte} refresh={refresh} />}
     </div>
   );
 }

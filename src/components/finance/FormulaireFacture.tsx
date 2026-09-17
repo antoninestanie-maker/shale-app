@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import { IconAlert, IconPlus, IconTrash } from "../icons";
 import ApercuFacture from "./ApercuFacture";
 import { Dialogue } from "./ComptesPanel";
-import { BoutonDiscret, Champ, ChampMontant, Montant, inputCls, labelCls } from "./champs";
+import { BoutonDiscret, Champ, ChampMontant, Montant, dateCls, inputCls, labelCls } from "./champs";
 import { MENTION_FRANCHISE, TAUX_TVA_USUELS, formaterTaux, totalLigneHtCents, totauxFacture } from "../../lib/finance/facturation/totaux";
 import { empechementsEmission, numeroSuivant } from "../../lib/finance/facturation/numerotation";
 import { factureDepuisDevis, factureDuDevis } from "../../lib/finance/facturation/devis";
@@ -39,6 +39,7 @@ import type {
   InvoiceType,
 } from "../../lib/types";
 import { formatDate, localeTag, t } from "../../lib/i18n";
+import ChampDate from "../ChampDate";
 
 /** Une ligne en cours d'édition : la quantité reste du TEXTE tant qu'on tape. */
 interface LigneEditee {
@@ -400,21 +401,28 @@ export default function FormulaireFacture({
             </select>
           </Champ>
           <Champ label={t("Date d'émission")}>
-            <input
-              type="date"
-              className={inputCls}
+            {/* Une facture porte forcément une date d'émission et une échéance :
+                ni l'une ni l'autre ne s'efface. */}
+            <ChampDate
+              valeur={dateEmission}
+              onChange={setDateEmission}
               disabled={lectureSeule}
-              value={dateEmission}
-              onChange={(e) => setDateEmission(e.target.value)}
+              effacable={false}
+              aria={t("Date d'émission")}
+              className={dateCls}
             />
           </Champ>
           <Champ label={t("Échéance")}>
-            <input
-              type="date"
-              className={inputCls}
+            {/* ⚠️ `min` : une échéance avant l'émission n'a pas de sens, et le
+                délai de paiement se compte À PARTIR de l'émission. */}
+            <ChampDate
+              valeur={dateEcheance}
+              onChange={setDateEcheance}
               disabled={lectureSeule}
-              value={dateEcheance}
-              onChange={(e) => setDateEcheance(e.target.value)}
+              effacable={false}
+              min={dateEmission || undefined}
+              aria={t("Échéance")}
+              className={dateCls}
             />
           </Champ>
         </div>

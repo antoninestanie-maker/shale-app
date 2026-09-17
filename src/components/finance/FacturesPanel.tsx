@@ -33,6 +33,7 @@ import type {
   InvoiceStatut,
 } from "../../lib/types";
 import { formatDate, t, tp } from "../../lib/i18n";
+import ChampDate from "../ChampDate";
 
 /** Filtres de la liste. `tous` n'est pas une valeur stockée, c'est l'absence de filtre. */
 type FiltreStatut = "tous" | "a-encaisser" | "en-retard" | "brouillon" | "encaissee";
@@ -77,6 +78,10 @@ export interface FactureAffichee {
   etat: EtatFacture;
   tiers: InvoiceParty | null;
 }
+
+/** Les deux bornes de l'export : compactes, elles vivent dans une barre d'outils. */
+const borneCls =
+  "cible-tactile-ligne flex min-w-0 items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-left text-xs text-text transition-colors hover:border-border-strong";
 
 export default function FacturesPanel({
   factures,
@@ -247,19 +252,24 @@ export default function FacturesPanel({
       {sens === "vente" && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
           <span className="text-[11px] text-text-dim">{t("Export comptable")}</span>
-          <input
-            type="date"
-            aria-label={t("Du")}
-            className="cible-tactile-ligne min-w-0 rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-xs text-text"
-            value={periode.du ?? ""}
-            onChange={(e) => setPeriode((p) => ({ ...p, du: e.target.value || null }))}
+          {/* Deux bornes facultatives : vide veut dire « sans limite de ce
+              côté », et le bouton le dit maintenant en clair — le champ natif
+              n'affichait rien du tout, sur iPhone comme dans une barre étroite. */}
+          <ChampDate
+            valeur={periode.du ?? ""}
+            onChange={(j) => setPeriode((p) => ({ ...p, du: j || null }))}
+            max={periode.au ?? undefined}
+            aria={t("Du")}
+            placeholder={t("Du")}
+            className={borneCls}
           />
-          <input
-            type="date"
-            aria-label={t("Au")}
-            className="cible-tactile-ligne min-w-0 rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-xs text-text"
-            value={periode.au ?? ""}
-            onChange={(e) => setPeriode((p) => ({ ...p, au: e.target.value || null }))}
+          <ChampDate
+            valeur={periode.au ?? ""}
+            onChange={(j) => setPeriode((p) => ({ ...p, au: j || null }))}
+            min={periode.du ?? undefined}
+            aria={t("Au")}
+            placeholder={t("Au")}
+            className={borneCls}
           />
           <BoutonDiscret onClick={() => void exporter("factures")} tip={t("Une ligne par facture")}>
             {t("Factures")}

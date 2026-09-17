@@ -479,3 +479,39 @@ mouvement), mais pas sur « Aucune », qui montre déjà moins.
 Un visiteur n'a pas de session à ouvrir : la traversée n'y habillerait aucun
 travail réel, elle ne serait qu'une seconde d'attente avant de pouvoir toucher
 quoi que ce soit. C'est la règle « elle couvre du travail réel », appliquée.
+
+## Saisir une date — `ChampDate`, et rien d'autre (2026-09-18)
+
+**Il n'y a plus aucun `<input type="date">` dans l'app.** Toute date passe par
+`src/components/ChampDate.tsx`. Un contrôle natif par formulaire, c'était treize
+rectangles gris qui ignoraient le thème et, sur iOS, un panneau système toujours
+en clair par-dessus une app sombre.
+
+**La forme.** Un bouton qui a l'allure d'un champ (`--radius-field`, `bg-surface-2`,
+bordure `--color-border`, `hover:border-border-strong`), portant l'icône de
+calendrier et **la valeur écrite en clair** — « Demain », « jeu. 24 sept. », ou
+son placeholder quand rien n'est posé. C'est cette valeur qui rend le contrôle
+identifiable : le natif, vide, n'affichait rien du tout au doigt.
+
+**Le panneau.** `.card .card-solid rounded-2xl` — l'aplat opaque, parce qu'il
+flotte au-dessus du reste (règle du dégradé de `.card` sous un `backdrop-filter`).
+Dedans : le mois en titre (cliquable pour revenir au mois courant), deux
+chevrons, la grille de six semaines **du lundi au dimanche** comme partout dans
+l'app, les trois raccourcis, et le champ de frappe.
+
+**Les états d'une cellule**, et ils ne se confondent pas :
+- **choisie** : aplat `--color-blue`, texte blanc, semi-gras ;
+- **aujourd'hui** : texte bleu semi-gras, jamais d'aplat — sinon on ne
+  distinguerait plus « le jour où l'on est » de « le jour qu'on a choisi » ;
+- **curseur clavier** : un anneau `--color-border-strong` d'un pixel ;
+- **hors du mois** : `text-text-dim/55` ;
+- **hors bornes** : `disabled`, sans survol.
+
+**Densité et doigt.** Les cellules portent `.cible-tactile` : 36 × 28 px à la
+souris, **44 pt sous `pointer: coarse`** (mesuré). Le panneau fait 17,5 rem de
+large, donc il tient sur un écran de 390 pt avec ses marges.
+
+⚠️ **Il garde le clavier**, et c'est une règle de conception, pas un détail
+d'accessibilité : flèches, `PageUp/PageDown`, `Entrée`, `Échap`, plus un champ
+où l'on tape « 24/09 ». Même arbitrage que `RouletteHeure` — la molette
+S'AJOUTE au champ de texte, elle ne le remplace pas, parce que taper bat viser.

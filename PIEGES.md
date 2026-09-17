@@ -2278,3 +2278,91 @@ prochain déploiement.
 est absent. **Parade.** Épingler `@astrojs/sitemap@3.2.1` tant que le site est en
 Astro 4. Et ne pas passer l'option `i18n` : elle attend un préfixe de langue sur
 toutes les adresses, or le français n'en a pas.
+
+# 16. Chantier « champ de date à la Apple » (2026-09-18)
+
+## 16.1 ⚠️⚠️ Un analyseur de date qui DEVINE déplace l'échéance en silence
+
+**Symptôme.** Le panneau du champ de date annonçait « jeudi 24 décembre 2026 »
+sur une saisie qui contenait un caractère parasite (`24/12x`). Et « 12 mars »
+était lu comme le 12 du mois AFFICHÉ — un mois faux, sur une saisie que
+l'utilisateur croyait explicite.
+
+**Cause.** Découper sur « tout ce qui n'est pas un chiffre » traite les lettres
+comme des séparateurs. `"12 mars".split(/[^\d]+/)` rend `["12"]`, donc « le 12 »,
+donc le mois courant.
+
+**Parade.** Une lettre suffit à REFUSER : `if (/\p{L}/u.test(brut)) return null`.
+C'est la même exigence que le jour impossible — `new Date(2026, 1, 31)` rend le
+3 mars sans rien dire, donc `31/02` est refusé et ne roule pas. Ce qu'on ne sait
+pas lire entièrement, on ne le devine pas.
+
+⭐ **Ce qui a permis de le voir** : le panneau ÉCRIT ce qu'il a lu avant qu'on
+valide. Sans cette ligne, la mauvaise lecture n'aurait été visible qu'une fois
+la date posée. Un champ qui interprète doit rendre son interprétation.
+
+**Payé.** Vu en pilotant Chrome, 2026-09-18.
+
+## 16.2 ⚠️ Un panneau flottant qui SUIT le défilement sort de l'écran avec son ancre
+
+**Symptôme.** `top: 1606px` dans une fenêtre de 900 : le calendrier de l'export
+comptable de Finance, ouvert alors que son champ était hors écran, était placé
+hors écran lui aussi — visible, ouvert, et invisible.
+
+**Cause.** La parade du § 14.1 dit qu'un panneau doit SUIVRE le défilement
+plutôt que se refermer (un défilement involontaire ne doit rien coûter). Mais
+« suivre » sans borne, c'est suivre dehors.
+
+**Parade.** Deux règles, et l'ordre compte :
+- l'ancre entièrement hors écran (`bottom < 0 || top > innerHeight`) → on
+  REFERME. La recaler de force poserait un calendrier au milieu de l'écran,
+  détaché du champ qu'il modifie : il ne dirait plus ce qu'il change ;
+- l'ancre à demi visible → on borne le `top` des DEUX côtés, la marge haute
+  gagnant si la fenêtre est trop courte pour le panneau.
+
+⚠️ **Et la mesure elle-même était le piège** : un clic programmé sur une ancre
+hors écran ne prouve rien de l'usage réel. Un script d'audit doit amener le
+contrôle sous les yeux (`scrollIntoView`) avant de cliquer, comme un utilisateur.
+
+**Payé.** 2026-09-18, en auditant les treize champs de date un par un.
+
+## 16.3 ⚠️⚠️ `.truncate-souris` REND le retour à la ligne — le voisin doit pouvoir se replier
+
+**Symptôme.** Sur iPhone 390 pt, le titre d'une tâche de la feuille de route se
+cassait au milieu d'un mot : « Backtesti / ng 1h ». Trois mots sur trois lignes.
+
+**Cause.** `.truncate-souris` annule `truncate` sous `pointer: coarse` — et
+c'est voulu : au doigt il n'y a pas de survol, donc un titre coupé l'est sans
+recours. Mais un titre qui a le droit de revenir à la ligne a besoin de la
+LARGEUR ; à côté d'une date et d'une croix en `shrink-0`, il ne reçoit que
+quelques dizaines de pixels et se replie lettre par lettre.
+
+**Parade.** La règle du 2026-07-26, appliquée à la ligne d'élément :
+`flex-wrap` sur la rangée, une BASE flex (`basis-[9rem]`) sur le titre, et les
+métadonnées groupées dans un seul bloc `ml-auto shrink-0` qui passe à la ligne
+d'un coup. `min-w-0` seul ne déclenche jamais le repli — il comprime.
+
+⭐ **La leçon qui dépasse ce cas** : ajouter une colonne à une ligne de liste
+(ici l'échéance) suffit à réveiller ce défaut sur une ligne qui allait bien.
+Toute colonne ajoutée à une rangée se vérifie à 390 pt, pas seulement en large.
+
+**Payé.** 2026-09-18, en émulant l'iPhone dans Chrome.
+
+## 16.4 ⚠️ Deux libellés de filtre en dur dans un tableau : les DEUX outils i18n au vert
+
+**Symptôme.** Dans l'app anglaise, la barre de Tâches affichait
+« **Toutes** · To do · **Faites** » — un libellé traduit entre deux qui ne
+l'étaient pas.
+
+**Cause.** Le § 5.2 bis, pris par un troisième bout. `i18n:check` ne voit que les
+clés ÉCRITES dans un `t()` : une chaîne nue lui est invisible. Et `i18n:durs`
+« ne suit pas la donnée » : ces trois libellés vivent dans un tableau
+(`[["all", "Toutes", …], …]`), donc il les range en « entrées de table » et ne
+dit pas si elles sont traduites.
+
+**Parade.** La preuve reste **l'app basculée en anglais**, regardée. Et le motif
+à chercher n'est pas l'oubli complet mais la MOITIÉ : dans une table de
+libellés, vérifier que les entrées voisines passent toutes par `t()`.
+
+**Payé.** Défaut antérieur au chantier, trouvé en relisant la capture anglaise
+du filtre d'échéance voisin, 2026-09-18.

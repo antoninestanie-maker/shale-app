@@ -8,12 +8,13 @@ import {
   setTaskDone,
 } from "../lib/repo";
 import type { AppData, Tag, Task } from "../lib/types";
-import { IconCalendar, IconX } from "../components/icons";
+import { IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
+import ChampDate from "../components/ChampDate";
 
 interface Props {
   data: AppData;
@@ -157,9 +158,16 @@ export default function TasksView({ data, refresh }: Props) {
         <div className="flex flex-wrap gap-1.5">
           {(
             [
-              ["all", "Toutes", t("Toutes les tâches du jour, faites ou non.")],
+              /* ⚠️ Les TROIS passent par `t()`. Deux ne le faisaient pas —
+                 « Toutes » et « Faites » s'affichaient en français dans l'app
+                 anglaise, à côté d'un « To do » traduit. Vu à l'écran le
+                 2026-09-18, et invisible pour les deux outils : `i18n:check` ne
+                 voit que les clés ÉCRITES, et `i18n:durs` « ne suit pas la
+                 donnée » — ces libellés vivent dans un tableau, donc il les
+                 range en « entrées de table » (PIEGES § 5.2 bis). */
+              ["all", t("Toutes"), t("Toutes les tâches du jour, faites ou non.")],
               ["todo", t("À faire"), t("Uniquement celles qui restent à faire.")],
-              ["done", "Faites", t("Uniquement celles déjà cochées.")],
+              ["done", t("Faites"), t("Uniquement celles déjà cochées.")],
             ] as [StatusFilter, string, string][]
           ).map(([value, label, hint]) => (
             <button
@@ -215,7 +223,7 @@ export default function TasksView({ data, refresh }: Props) {
         <span className="mx-1 h-4 w-px bg-border" />
 
         {/* ⚠️ Le libellé « échéance » n'est pas décoratif, il rend le contrôle
-            IDENTIFIABLE. Un `<input type="date">` VIDE n'affiche rien du tout
+            IDENTIFIABLE. Un `<input type="date">` VIDE n'affichait rien du tout
             sur iOS — pas même le gabarit `jj/mm/aaaa` que rend le bureau. Vu à
             l'écran sur iPhone 17 le 2026-08-27 : un rectangle gris muet au
             milieu des filtres, dont rien ne disait ce qu'il était.
@@ -223,21 +231,27 @@ export default function TasksView({ data, refresh }: Props) {
             ⚠️ Et ce n'était PAS une affaire de `color-scheme`, contrairement à
             ce que la première hypothèse disait : vérifié en ouvrant un
             `<select>` voisin, iOS rend son panneau natif en clair même sous un
-            `color-scheme: dark` figé. */}
-        <label className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1 focus-within:border-blue">
-          {/* L'icône complète le libellé : elle dit que ça s'OUVRE. Le libellé
-              seul nommait le contrôle sans annoncer qu'on peut le toucher —
-              au doigt, un rectangle vide et muet ne se tente pas. */}
-          <IconCalendar className="h-3.5 w-3.5 shrink-0 text-text-dim" />
+            `color-scheme: dark` figé.
+
+            ⭐ 2026-09-18 : le champ natif a disparu de toute l'app au profit de
+            `ChampDate`, qui écrit sa valeur en clair — donc le défaut du
+            rectangle muet n'existe plus. Le libellé reste pour une AUTRE
+            raison : dire ce que la date filtre. */}
+        {/* ⭐ Le libellé « échéance » RESTE, même si le bouton n'est plus muet :
+            dans une rangée de filtres, il dit ce que la date filtre — et non
+            simplement qu'une date se choisit ici. `ChampDate` porte déjà
+            l'icône de calendrier, donc elle n'est plus doublée. */}
+        <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1 focus-within:border-blue">
           <span className="hud-label shrink-0">{t("échéance")}</span>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            data-tip={t("Tâches dues à cette date")}
-            className="min-w-[6.5rem] bg-transparent text-xs text-text outline-none"
+          <ChampDate
+            valeur={dateFilter}
+            onChange={setDateFilter}
+            aria={t("échéance")}
+            placeholder={t("toutes dates")}
+            tip={t("Tâches dues à cette date")}
+            className="cible-tactile-ligne flex min-w-0 items-center gap-1.5 bg-transparent text-xs text-text outline-none"
           />
-        </label>
+        </span>
         {dateFilter && (
           <button
             type="button"

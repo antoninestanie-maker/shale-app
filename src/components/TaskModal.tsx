@@ -13,6 +13,7 @@ import RouletteHeure from "./calendrier/RouletteHeure";
 import type { Goal, Priority, Tag, Task } from "../lib/types";
 
 import { t } from "../lib/i18n";
+import ChampDate from "./ChampDate";
 interface Props {
   task: Task | null; // null = création
   tags: Tag[];
@@ -225,11 +226,11 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
           {recMode === "none" ? (
             <div>
               <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Échéance")}</p>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+              <ChampDate
+                valeur={dueDate}
+                onChange={setDueDate}
+                aria={t("Échéance")}
+                placeholder={t("Sans échéance")}
               />
               {/* Le créneau n'a de sens qu'une fois la journée choisie : une
                   heure sans date ne se pose nulle part dans le calendrier. */}

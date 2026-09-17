@@ -5,6 +5,7 @@ import { createGoal, updateGoal, type GoalInput } from "../lib/repo";
 import type { Goal } from "../lib/types";
 
 import { t } from "../lib/i18n";
+import ChampDate from "./ChampDate";
 interface Props {
   goal: Goal | null; // null = création
   goals: Goal[];
@@ -216,11 +217,11 @@ export default function GoalModal({
               <p className="mb-1.5 text-xs font-medium text-text-dim">
                 Deadline
               </p>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-blue focus:outline-none"
+              <ChampDate
+                valeur={deadline}
+                onChange={setDeadline}
+                aria={t("Deadline")}
+                placeholder={t("Sans date")}
               />
             </div>
           </div>
