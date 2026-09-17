@@ -501,7 +501,9 @@ attend une décision d'Antonin, un achat, ou une machine.
 | **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
 | **Achat réel Pro / Business** | le tunnel est en ligne, **aucun achat de bout en bout n'a été fait** sur ces deux offres | un vrai paiement, remboursé ensuite |
 | **Ménage du DerivedData Xcode** | proposé, **sans réponse**. Quatre bundles iOS traînent. Les effacer force une reconstruction complète | un mot |
-| ⚠️ **Il ne reste que 8 Go de libre sur le disque** ✅ *(mesuré le 2026-09-18)* | `src-tauri/target/` pèse **10 Go** à lui seul : `debug` 4,6 Go et les deux cibles iOS 4,3 Go **datent du 2026-09-12** ; seul `release` (1,4 Go) sert au build macOS. Un `npm run tauri build` peut manquer de place | un mot. `rm -rf src-tauri/target/aarch64-apple-ios*` rend 4,3 Go et ne coûte qu'une recompilation iOS ; `cargo clean` rend les 10 Go et coûte tout |
+| ~~**Le disque est plein**~~ | ✅ **RÉGLÉ le 2026-09-18** : le disque est passé de **8,2 Go à 28 Go de libre** (67 % → 37 % d'occupation). Voir § 13.6 pour ce qui a été supprimé et ce que ça coûte de le refaire | — |
+| **L'ancien projet `~/Desktop/appli claude`** | c'est **Second Brain**, l'ancêtre dont Shale est le fork. Sa source (150 Mo) est là, **hors de tout dépôt git** — donc elle n'existe qu'ici. Son cache de compilation (9,7 Go) a été supprimé le 2026-09-18 | **Antonin** : garder la source, l'archiver sur le disque externe, ou s'en défaire |
+| **`Second Brain.app`** dans `/Applications` (2026-07-26) et ses données | 182 Mo, dont un modèle de reconnaissance vocale de 181 Mo (`ggml-small-q5_1.bin`) pour une fonction **purgée de Shale depuis le 2026-07-26**. ⚠️ Sa base `second-brain.db` (856 Ko) contient des données d'avant le fork | **Antonin** : rien n'a été supprimé, c'est de la donnée personnelle |
 
 ### 12.2 Les décisions ouvertes, techniques
 
@@ -536,7 +538,7 @@ attend une décision d'Antonin, un achat, ou une machine.
 
 ---
 
-## 13. Les procédures — les cinq gestes qui reviennent
+## 13. Les procédures — les six gestes qui reviennent
 
 ### 13.1 Reconstruire et installer l'app macOS
 
@@ -604,7 +606,44 @@ dans `administratif/licence-profils/`, **hors git**, et ne doit jamais y entrer.
 Double-cliquer **`Envoyer sur GitHub.command`** à la racine du dossier. Il pousse
 les deux dépôts, ne commite rien, et dit ce qui reste non commité.
 
-### 13.5 Les commandes du site
+### 13.5 Faire de la place sur le disque — ce qui est jetable, ce qui ne l'est pas
+
+*Fait le 2026-09-18 : de 8,2 Go à **28 Go** de libre. Le tout s'est reconstruit
+en **2 minutes**, `cargo check --all-targets` compris — le coût est très
+inférieur à ce que la taille des dossiers laisse croire.*
+
+**Jetable sans réfléchir** — tout se reconstruit, rien n'est suivi par git :
+
+```
+rm -rf src-tauri/target/debug                    # 4,6 Go
+rm -rf src-tauri/target/aarch64-apple-ios-sim    # 3,7 Go
+rm -rf src-tauri/target/aarch64-apple-ios        # 624 Mo
+rm -rf src-tauri/gen/apple/Externals             # 465 Mo
+rm -rf src-tauri/gen/apple/build                 # 109 Mo
+rm -rf ~/Library/Developer/Xcode/DerivedData/*   # 198 Mo
+npm cache clean --force && rm -rf ~/.npm/_npx    # 2,7 Go
+git gc --prune=now                               # dans les deux dépôts
+```
+
+⚠️ **`gen/apple` n'est PAS jetable en entier.** Seuls `Externals/` et `build/`
+le sont : les **20 autres fichiers sont suivis par git et édités à la main** —
+`project.yml`, `Info.plist`, les entitlements, le `LaunchScreen.storyboard`, et
+surtout `Assets.xcassets`, que `tauri icon` ne régénère pas (`PIEGES.md` § 11.2).
+Un `rm -rf gen/apple` ferait perdre le travail d'icône du 2026-09-12.
+
+**À garder** :
+- `src-tauri/target/release` (1,4 Go) — c'est lui qui rend le prochain
+  `tauri build` rapide, et le prochain build est celui qui part chez Antonin ;
+- `~/.cargo/registry` (336 Mo) — c'est ce qui permet de tout recompiler sans
+  rien retélécharger ;
+- `dist/` — c'est `dist/assets` qui fait foi pour vérifier ce qu'un bundle
+  contient (§ 13.1).
+
+**Jamais** : `shale-backups/`, `shale-backups.ancien-mac/`, `administratif/`,
+et la base `second-brain.db` de l'ancien projet. Ce sont des données, pas des
+caches.
+
+### 13.6 Les commandes du site
 ```
 cd ~/Desktop/shale-site/vitrine
 npm run dev                      # port 4321, /compte/ inclus

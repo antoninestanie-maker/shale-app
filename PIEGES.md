@@ -2366,3 +2366,55 @@ libellés, vérifier que les entrées voisines passent toutes par `t()`.
 
 **Payé.** Défaut antérieur au chantier, trouvé en relisant la capture anglaise
 du filtre d'échéance voisin, 2026-09-18.
+
+## 17.1 ⚠️⚠️ `gen/apple` ressemble à un dossier généré : 20 de ses fichiers sont suivis et écrits à la main
+
+**Symptôme.** On cherche de la place, on voit `src-tauri/gen/` peser 575 Mo, et
+le nom du dossier (`gen` = *generated*) dit qu'il se régénère. Un `rm -rf
+gen/apple` paraît sans risque.
+
+**Cause.** Il est généré **une fois**, puis **édité**. `git ls-files
+src-tauri/gen` rend **20 fichiers** : `project.yml`, `Info.plist`,
+`shale_iOS.entitlements`, `LaunchScreen.storyboard`, `ExportOptions.plist`,
+`Podfile`, les sources Swift de la capture rapide — et
+**`Assets.xcassets/AppIcon.appiconset/`**, que `tauri icon` ne touche PAS
+(§ 11.2) et qui porte le travail d'icône du 2026-09-12 : les trois variantes
+`any` / `dark` / `tinted` et la correction du halo blanc (§ 21.1 de `MOBILE.md`).
+Les 574 Mo sont dans **deux sous-dossiers seulement**, non suivis :
+`Externals/` (465 Mo, les bibliothèques Rust pour iOS) et `build/` (109 Mo).
+
+**Parade.** Ne jamais supprimer `gen/apple` en bloc. Supprimer
+`gen/apple/Externals` et `gen/apple/build`, puis **vérifier que git ne voit
+aucune suppression** :
+
+```
+git status --porcelain src-tauri/gen     # doit rendre ZÉRO ligne
+```
+
+La même vérification vaut pour n'importe quel dossier qu'on croit jetable :
+**c'est git qui répond, pas le nom du dossier.**
+
+**Ce que ça aurait coûté.** Le chantier d'icône du 2026-09-12 en entier — trois
+variantes, un catalogue d'assets que l'outil de Tauri ne sait pas reconstruire,
+et la découverte que l'icône ne suit pas l'apparence système sur iOS 26.
+
+## 17.2 ⭐ Un cache de compilation de 10 Go se reconstruit en 2 minutes
+
+**Symptôme.** `src-tauri/target/` pèse 10 Go, le disque est plein, et on
+n'ose pas y toucher : « il va falloir tout recompiler ».
+
+**Cause.** La peur porte sur la mauvaise quantité. Ce qui coûte du temps, ce
+n'est pas la taille du cache, c'est le **téléchargement** des dépendances — et
+il vit ailleurs, dans `~/.cargo/registry` (336 Mo). Tant que le registre est
+là, `cargo check --all-targets` reconstruit les 4,6 Go de `debug` en **2 min
+04 s** (mesuré le 2026-09-18, après suppression complète).
+
+**Parade.** Supprimer `target/debug` et les cibles iOS sans hésiter quand la
+place manque ; **garder `target/release`** (le prochain `tauri build` est celui
+qui part chez Antonin) et **garder `~/.cargo/registry`**, qui est ce qui rend la
+reconstruction rapide. Supprimer le registre est l'erreur inverse : on gagne
+336 Mo et on paie un retéléchargement complet.
+
+**Ce que ça a rapporté.** 20 Go, sur un disque qui n'avait plus que 8,2 Go de
+libre — dont 9,7 Go dans le cache de l'ANCIEN projet (`~/Desktop/appli claude`),
+que plus rien ne compile depuis le fork.
