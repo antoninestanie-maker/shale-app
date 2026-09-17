@@ -1,5 +1,13 @@
 # Dette côté site — ce que l'app promet et que le site ne dit pas encore
 
+> ## ⚠️ 2026-09-18 — les `PASSATION-*.md` cités plus bas n'existent plus
+>
+> Les vingt-trois documents de chantier ont été repliés dans **`PASSATION.md`**,
+> le fichier unique de l'app ; son § 16 donne le tableau de correspondance, et
+> `git show c312ce0:<nom>.md` les rend tels qu'ils étaient. Les phrases
+> ci-dessous n'ont pas été réécrites une par une : elles restent justes sur le
+> fond, seule leur référence se traduit.
+
 > **Ce fichier a déménagé le 2026-09-04.** Il vivait dans
 > `~/Desktop/Shale-chantiers/`, dossier non versionné qui disparaîtra au premier
 > ménage ; la dette, elle, survit aux worktrees. Il est désormais **dans le dépôt**,

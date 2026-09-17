@@ -1,5 +1,13 @@
 # Shale sur iPhone — audit, puis journal de portage
 
+> ## ⚠️ 2026-09-18 — les `PASSATION-*.md` cités plus bas n'existent plus
+>
+> Les vingt-trois documents de chantier ont été repliés dans **`PASSATION.md`**,
+> le fichier unique de l'app ; son § 16 donne le tableau de correspondance, et
+> `git show c312ce0:<nom>.md` les rend tels qu'ils étaient. Les phrases
+> ci-dessous n'ont pas été réécrites une par une : elles restent justes sur le
+> fond, seule leur référence se traduit.
+
 > ## ⚠️ « iPhone » dans ce document = LE SIMULATEUR
 >
 > Tout ce qui est décrit ici a été mesuré sur un **iPhone 17 virtuel** tournant

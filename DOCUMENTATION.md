@@ -32,14 +32,22 @@ fichier revient presque à ne rien écrire : personne n'ira chercher là.
 |---|---|---|
 | **Une décision** et son *pourquoi* (« on a choisi X plutôt que Y, parce que ») | `CLAUDE.md`, en **section datée à la fin** | prose, au passé, avec les ⚠️ des pièges de conception |
 | **Une erreur qui peut se reproduire** (environnement, API qui ment, test qui échoue pour une raison qui n'est pas la sienne) | `PIEGES.md` | les 4 lignes du format : symptôme · cause · parade · comment on l'a payée |
-| **L'état d'un chantier** : ce qui est prouvé, ce qui ne l'est pas, ce qui reste | `PASSATION-<chantier>.md` | tableau d'état + ligne de base des commandes |
-| **Où en est le projet, en entier** | `PASSATION.md` — c'est le « COMMENCER ICI » | mis à jour, pas empilé |
+| **L'état d'un chantier** : ce qui est prouvé, ce qui ne l'est pas, ce qui reste | `PASSATION.md`, dans la section du sujet | ⚠️ **changé le 2026-09-18** — plus de `PASSATION-<chantier>.md` : un chantier peut ouvrir un fichier temporaire, il se replie dans `PASSATION.md` à la livraison et disparaît |
+| **Où en est le projet, en entier** | `PASSATION.md` — **le fichier unique de l'app** | mis à jour, pas empilé |
 | **Ce qui a changé dans l'app et devra être répercuté sur le site** | `DETTE-SITE.md` | app → fichier exact du site → ce qu'il doit dire |
 
 Trois fichiers thématiques prennent le relais quand le sujet est le leur :
 `MOBILE.md` (iOS), `DESIGN.md` (le système visuel), `AMELIORATIONS-UI.md` (le
 chiffrage UI). Un sujet iOS s'écrit **dans `MOBILE.md`**, pas dans une section
 datée de `CLAUDE.md`.
+
+> ### ⭐ Ce qui a changé le 2026-09-18 — un seul fichier pour l'état
+> Il y avait quinze `PASSATION-*.md`, et ils se contredisaient sur l'état du
+> projet : chacun était juste le jour de sa livraison, et aucun ne savait ce que
+> les autres avaient livré depuis. **Ils sont repliés dans `PASSATION.md`**
+> (son § 16 dit lesquels). La règle en découle : **on n'ouvre plus un fichier de
+> passation par chantier.** L'état va dans `PASSATION.md`, le pourquoi dans
+> `CLAUDE.md`, l'erreur dans `PIEGES.md`. Trois destinations, plus quinze.
 
 ### La règle qui départage `CLAUDE.md` et `PIEGES.md`
 `CLAUDE.md` porte **ce qu'on a décidé**. `PIEGES.md` porte **ce qu'on s'est pris
@@ -141,9 +149,10 @@ détail de style.
 
 ## 8. L'ordre de lecture, pour une session qui commence
 
-1. `PASSATION.md` — où on en est
+1. `PASSATION.md` — **le fichier unique** : ce qu'est l'app, où on en est, ce
+   qui reste. Il se suffit
 2. `PIEGES.md` — ce qu'il ne faut pas refaire
-3. `CLAUDE.md` — la référence, et ce qui fait foi
+3. `CLAUDE.md` — la référence, et ce qui fait foi sur une intention
 4. **cette page** — comment laisser le projet dans le même état pour la suivante
 
 *Les fichiers de cette page sont dans `~/Desktop/Shale-projet/Shale/`.*

@@ -2,8 +2,27 @@
 
 **Fork commercial de Second Brain** (déclinaison vendue). App de productivité + trading.
 **Desktop macOS : Tauri v2 (Rust) + React 19 + TypeScript + Tailwind v4 + Vite 7.**
-Specs : `SPEC.md` (V1) et `SPEC-V2.md` (V2 Jarvis, phases A→F faites, G "polish"
-restante).
+Specs d'origine : `SPEC.md` (V1) et `SPEC-V2.md` (V2 Jarvis) — ⚠️ **supprimés le
+2026-09-18**, repliés dans `PASSATION.md` § 11.0 ; git les conserve.
+
+> ## ⭐ 2026-09-18 — L'ÉTAT DU PROJET VIT DANS `PASSATION.md`, ET NULLE PART AILLEURS
+>
+> À la demande d'Antonin, **vingt-trois documents de chantier ont été repliés
+> dans `PASSATION.md`** : les treize `PASSATION-<chantier>.md`, les trois
+> `AUDIT-*.md`, `BILAN-CALENDRIER-LIAISONS.md`, `CHECKUP-2026-09-07.md`, les
+> deux specs, `STRATEGIE-V3.md` et les deux vieux `PROMPT_ETAPE*.md`.
+> **Leur tableau de correspondance est au § 16 de `PASSATION.md`**, et
+> `git show c312ce0:<nom>.md` les rend tels qu'ils étaient.
+>
+> **Ce fichier-ci ne change pas de rôle** : il porte les **décisions et leur
+> pourquoi**, par ordre chronologique, et il fait foi sur une intention. Ce
+> qu'il ne porte plus, c'est l'**état** — celui-ci se met à jour dans
+> `PASSATION.md`.
+>
+> ⚠️ **Les sections datées ci-dessous citent encore des fichiers disparus.**
+> Elles n'ont pas été réécrites : corriger deux cents phrases de prose au passé
+> aurait fait plus de dégâts que de bien. Une citation qui ne résout pas se
+> traduit par le § 16 de `PASSATION.md`.
 
 > ## ✅ `git push` FONCTIONNE d'ici — depuis le 2026-08-25
 >
