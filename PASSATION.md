@@ -154,7 +154,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 
 ---
 
-## 4. La ligne de base — rejouée ENTIÈREMENT le 2026-09-18
+## 4. La ligne de base — rejouée ENTIÈREMENT le 2026-09-20
 
 Tout est vert. **Un échec est donc un vrai échec** : il n'y a aucune dette
 connue derrière laquelle se cacher.
@@ -162,8 +162,8 @@ connue derrière laquelle se cacher.
 ```
 npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
-npm test                                      ✅   1237 tests, 88 fichiers, 44 s
-npm run i18n:check                            ✅   0 clé manquante, 1975 entrées dans en.ts
+npm test                                      ✅   1271 tests, 90 fichiers, 67 s
+npm run i18n:check                            ✅   0 clé manquante, 0 doublon, 2021 entrées
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
 cd src-tauri
@@ -749,3 +749,37 @@ cents phrases de prose au passé aurait fait plus de dégâts que de bien.
 *Dernière vérification complète de ce fichier : **2026-09-18**. Tout ce qui est
 marqué ✅ a été mesuré ce jour-là. Quand tu modifieras le projet, c'est ICI que
 l'état se met à jour — et dans `CLAUDE.md` que le pourquoi se consigne.*
+
+### 11.y Le 2026-09-20 — la feuille de route lisible, et la carte mentale dans les deux sens
+
+Quatre demandes d'Antonin en une phrase : l'ergonomie de la feuille de route, des
+tâches dès la création d'un objectif, la carte mentale dans les deux sens, et le
+mot « jalon » remis en question.
+
+**Ce qui a changé à l'écran.**
+- « jalon » → **« phase »**, avec sa phrase d'explication au moment du choix. La
+  colonne `is_milestone` et le type `GenreEtape` n'ont pas bougé : c'est du
+  texte qui change, pas une donnée.
+- un **en-tête** sur la feuille de route (« FEUILLE DE ROUTE · 3 étapes ») et un
+  bouton **« Carte »** ;
+- l'**échéance d'une étape** se pose dans l'étape, plus dans une fenêtre ;
+- **« Par quoi commencer »** dans la fenêtre de création : premières étapes,
+  premières tâches (avec leur date). Facultatif, plafonné à cinq lignes, absent
+  de la fenêtre de modification ;
+- la **carte mentale d'un objectif**, en lecture seule (`EditeurCarte lecture`) ;
+- **« En faire un objectif »** depuis n'importe quelle carte mentale, avec un
+  panneau qui annonce les comptes avant d'écrire.
+
+**Fichiers neufs.** `lib/objectifs/carte.ts` (+ tests),
+`lib/objectifs/creation.ts` (+ tests), `lib/objectifs/creerDepuisCarte.ts`,
+`components/objectifs/CarteObjectif.tsx`, `components/objectifs/DepuisCarte.tsx`.
+
+**Trois défauts trouvés à l'écran** (détail dans `PIEGES.md` § 18) : la carte des
+objectifs était **inerte** (portail manquant), l'objectif créé depuis une carte
+**n'apparaissait pas** (aucun canal de rafraîchissement hors-vue), et la clé
+i18n `« Carte »` **écrasait** celle de Finance (« Card »). Plus deux au doigt :
+le bouton « Créer » sous la barre d'onglets, et la carte cadrée à 25 %.
+
+⚠️ **Ce qui n'est PAS prouvé** : l'iPhone n'a été vu qu'en **émulation Chrome**
+(390 × 844, appuis tactiles réels) — ni simulateur, ni appareil. Ce que
+l'émulation ne peut pas dire reste écrit dans `MOBILE.md` § 24.

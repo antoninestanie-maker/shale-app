@@ -48,6 +48,43 @@ export function racineDe(goal: Goal, goals: readonly Goal[]): Goal {
   return courant;
 }
 
+/**
+ * Les étapes DIRECTES d'un objectif, dans l'ordre d'affichage — exemples
+ * compris : un exemple doit se voir.
+ *
+ * ⚠️ UN SEUL TRI POUR TOUT LE DÉPÔT. Il vivait dans `FeuilleDeRoute.tsx` ; la
+ * carte mentale (`objectifs/carte.ts`) doit dessiner les branches dans l'ordre
+ * EXACT où la feuille de route les empile, sinon les deux formes du même
+ * objectif ne se superposent plus dans la tête de qui les regarde.
+ */
+export function etapesTriees(parentId: number, goals: readonly Goal[]): Goal[] {
+  return goals
+    .filter((g) => g.parent_goal_id === parentId)
+    .sort(
+      (a, b) =>
+        (a.position ?? 0) - (b.position ?? 0) ||
+        (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") ||
+        a.id - b.id,
+    );
+}
+
+/**
+ * ⚠️ LES IDENTIFIANTS RESTENT `"jalon"`, LE MOT AFFICHÉ EST « PHASE ».
+ *
+ * Antonin, 2026-09-20 : « le nom de jalon n'est peut-être pas assez parlant,
+ * réfléchis-y, sinon laisse-le. » Il ne l'était pas : un jalon, dans la langue
+ * courante, est un REPÈRE qu'on franchit — un point sur une ligne. Ici, c'est un
+ * CONTENANT : le niveau qui regroupe plusieurs sous-objectifs. Le mot promettait
+ * une date, il livrait un dossier.
+ *
+ * « Phase » dit exactement cela, en un mot court, dans les deux langues, et sans
+ * entrer en collision avec « étape » (le mot générique de la feuille de route,
+ * qui désigne les deux genres) ni avec « sous-objectif ».
+ *
+ * Ce qui NE change pas : la colonne `goals.is_milestone` (aucune migration pour
+ * un mot), ni ces identifiants de code, qui sont des clés et non du texte. Le
+ * mot affiché se lit dans `libelles.ts` (`nomDeGenre`), donc à un seul endroit.
+ */
 export type GenreEtape = "jalon" | "sous-objectif";
 
 /**

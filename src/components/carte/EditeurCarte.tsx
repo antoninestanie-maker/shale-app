@@ -30,6 +30,7 @@ import { zoomFactor } from "../../lib/uiConfig";
 import type { Trouvaille } from "../../lib/recherche";
 import type { LinkKind } from "../../lib/types";
 import MentionPicker from "../liens/MentionPicker";
+import DepuisCarte from "../objectifs/DepuisCarte";
 import {
   IconArobase,
   IconCheck,
@@ -42,6 +43,7 @@ import {
   IconPlier,
   IconReset,
   IconSave,
+  IconTarget,
   IconTrash,
   IconX,
   IconZoomMoins,
@@ -72,8 +74,24 @@ interface Props {
   /**
    * Appelé à chaque enregistrement automatique ET à la fermeture.
    * ⚠️ L'appelant écrit dans le corps de la note : il doit être idempotent.
+   * Absent en LECTURE : il n'y a alors rien à enregistrer.
    */
-  onEnregistrer: (carte: Carte) => void;
+  onEnregistrer?: (carte: Carte) => void;
+  /**
+   * ⭐ LECTURE SEULE — la carte se regarde, elle ne s'écrit pas ici.
+   *
+   * C'est le mode de la feuille de route d'un objectif
+   * (`components/objectifs/CarteObjectif.tsx`) : la carte y est DÉRIVÉE des
+   * objectifs et des tâches, donc son seul auteur légitime est la feuille de
+   * route. Laisser les gestes d'édition actifs aurait produit exactement le
+   * pire écran possible — on tape, ça se dessine, et rien n'est gardé.
+   *
+   * Ce que la lecture garde : le zoom, le panoramique, « tout voir », les
+   * flèches, le repli (une vue, pas une donnée), l'export, et le clic qui OUVRE
+   * l'objet du nœud. Ce qu'elle retire : créer, renommer, citer, supprimer,
+   * déplacer, changer de côté, annuler.
+   */
+  lecture?: boolean;
   onFermer: () => void;
   /** Clic sur un nœud-référence. Sans elle, le nœud n'ouvre rien. */
   onOuvrirRef?: (kind: LinkKind, uid: string) => void;
@@ -158,7 +176,7 @@ function Outil({
   );
 }
 
-export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFermer, onOuvrirRef }: Props) {
+export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef }: Props) {
   const ouvrirCible = (kind: LinkKind, uid: string) => {
     onOuvrirRef?.(kind, uid);
     onFermer();
@@ -171,6 +189,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
   const [vue, setVue] = useState({ x: 0, y: 0, z: 1 });
   const [glisse, setGlisse] = useState<{ id: string; cible: string | null } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  /** Le panneau « En faire un objectif » — jamais en lecture (rien à convertir deux fois). */
+  const [versObjectif, setVersObjectif] = useState(false);
 
   const scene = useRef<HTMLDivElement>(null);
   const champ = useRef<HTMLInputElement>(null);
@@ -201,11 +221,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
       premierRendu.current = false;
       return;
     }
+    // ⚠️ En lecture, la file reste VIDE : c'est elle que le flush de démontage
+    // relit, donc rien ne peut partir — pas même le repli d'une branche.
+    if (lecture || !enregistrerRef.current) return;
     aEnregistrer.current = courante;
     const minuteur = window.setTimeout(() => {
       const p = aEnregistrer.current;
       aEnregistrer.current = null;
-      if (p) enregistrerRef.current(p);
+      if (p) enregistrerRef.current?.(p);
     }, 600);
     return () => window.clearTimeout(minuteur);
   }, [courante]);
@@ -217,7 +240,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
     () => () => {
       const p = aEnregistrer.current;
       aEnregistrer.current = null;
-      if (p) enregistrerRef.current(p);
+      if (p) enregistrerRef.current?.(p);
     },
     [],
   );
@@ -444,6 +467,32 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
       const n = noeudDe(courante, selection);
       if (!n) return;
 
+      /**
+       * ⚠️ LA LECTURE SE FILTRE ICI, EN UN SEUL ENDROIT — pas en dispersant un
+       * `if (lecture)` dans chacun des dix gestes plus bas. Une règle écrite
+       * par ÉNUMÉRATION finit par avoir un trou de la taille exacte de ce
+       * qu'elle prétend tenir (PIEGES § 7.2 ter) : ici, le trou serait un geste
+       * qui modifie une carte que personne n'enregistrera.
+       *
+       * On garde les flèches et l'espace (déplacer le regard, replier une
+       * branche — de la vue, pas de la donnée) et on rend Entrée utile : elle
+       * OUVRE l'objet du nœud, puisque tout nœud en lecture en désigne un.
+       */
+      if (lecture) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (n.ref && !n.mort) ouvrirCible(n.ref.kind, n.ref.uid);
+          return;
+        }
+        const vue = e.key === " " || e.key.startsWith("Arrow");
+        if (!vue || e.altKey) {
+          if (vue || e.key === "Tab" || e.key === "Backspace" || e.key === "Delete" || e.key === "F2") {
+            e.preventDefault();
+          }
+          return;
+        }
+      }
+
       // ⭐ ENTRÉE N'AJOUTE PLUS DE FRÈRE — décision d'Antonin, 2026-09-07.
       // Hors édition il n'y a rien à valider : Entrée ouvre donc le nœud, ce
       // qui est l'autre moitié du même geste (on entre, on tape, on valide par
@@ -519,12 +568,25 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
-  const toutVoir = useCallback(() => {
+  /**
+   * `plancher` sert au CADRAGE INITIAL sur un écran de téléphone, et à lui seul.
+   *
+   * ⭐ Mesuré sur iPhone 390 × 844 le 2026-09-20 : une feuille de route de huit
+   * nœuds tient dans une scène de 324 px à **25 %** — tout est à l'écran, et
+   * plus rien n'est lisible. Or le doigt n'a pas de solution de repli : le
+   * pincement ne zoome pas (la scène porte `touch-action: none`, indispensable
+   * au glissement), il ne reste que les deux loupes.
+   *
+   * Le bouton « Tout voir », lui, garde son plancher habituel : il PROMET de
+   * tout montrer, et un bouton qui ne tient pas son nom est pire qu'un bouton
+   * qui montre petit.
+   */
+  const toutVoir = useCallback((plancher = ZOOM_MIN) => {
     const boite = scene.current?.getBoundingClientRect();
     if (!boite) return;
     const z = Math.min(
       ZOOM_MAX,
-      Math.max(ZOOM_MIN, Math.min(boite.width / agencement.largeur, boite.height / agencement.hauteur, 1)),
+      Math.max(plancher, Math.min(boite.width / agencement.largeur, boite.height / agencement.hauteur, 1)),
     );
     setVue({
       x: (boite.width - agencement.largeur * z) / 2,
@@ -536,7 +598,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
   // Au montage seulement : recadrer à chaque modification ferait sauter la carte
   // sous le curseur à chaque nœud ajouté.
   useEffect(() => {
-    toutVoir();
+    // `pointer: coarse` et non une largeur : c'est l'absence de pincement qui
+    // justifie le plancher, pas la taille de l'écran (règle du 2026-09-02).
+    const tactile =
+      typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+    toutVoir(tactile ? 0.5 : ZOOM_MIN);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -643,6 +709,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
     }
 
     const armerGlisse = () => {
+      // En lecture, il n'y a pas de reparentage : le glissement reste un
+      // panoramique, comme sur le fond de la scène.
+      if (lecture) return;
       if (!id || id === courante.noeuds.find((n) => n.parent === null)?.id) return;
       mode = "glisse";
       setGlisse({ id, cible: null });
@@ -698,7 +767,10 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
       const bouge2 = Math.hypot(ev.clientX - depart.x, ev.clientY - depart.y);
       if (!id || bouge2 >= SEUIL_GLISSE) return;
       const n = noeudDe(courante, id);
-      if (n?.ref && !n.mort && (ev.metaKey || ev.ctrlKey)) {
+      // ⭐ En lecture, un SIMPLE clic ouvre : il n'y a rien d'autre à faire d'un
+      // nœud, et exiger ⌘ reviendrait à cacher la seule action de l'écran.
+      // En édition, ⌘ reste nécessaire — un clic nu y sélectionne pour éditer.
+      if (n?.ref && !n.mort && (lecture || ev.metaKey || ev.ctrlKey)) {
         ouvrirCible(n.ref.kind, n.ref.uid);
       }
     };
@@ -792,6 +864,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             {titre || t("Carte mentale")}
           </h3>
           {message && <span className="text-xs text-green">{message}</span>}
+          {lecture && (
+            /* ⭐ Dit ce que l'écran EST, avant qu'on cherche pourquoi on ne peut
+               pas y écrire. Un écran silencieux sur sa propre nature se lit
+               comme un écran cassé. */
+            <span
+              className="pill shrink-0 border border-border px-2 py-0.5 text-[11px] text-text-dim"
+              data-tip={t("La carte se lit")}
+              data-tip-sub={t("Elle est dessinée depuis la feuille de route : c'est là qu'on la modifie.")}
+            >
+              {t("lecture")}
+            </span>
+          )}
+          {!lecture && (
+          <>
           <button
             type="button"
             onClick={() => setHistoire(annuler)}
@@ -812,7 +898,25 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           >
             <IconReset className="h-3.5 w-3.5" />
           </button>
+          </>
+          )}
           <span className="mx-0.5 h-5 w-px bg-border" />
+          {!lecture && (
+            /* ⭐ LE PONT VERS LES OBJECTIFS EST ICI, dans l'éditeur, et pas dans
+               chacune des deux vues qui l'hébergent (Notes et Savoir) : posé
+               chez les hôtes, il aurait fallu l'écrire deux fois, et la
+               deuxième copie aurait fini par diverger. Le panneau, lui, est
+               autonome (`components/objectifs/DepuisCarte.tsx`). */
+            <button
+              type="button"
+              onClick={() => setVersObjectif(true)}
+              data-tip={t("En faire un objectif")}
+              data-tip-sub={t("Le centre devient l'objectif, les branches sa feuille de route. La carte, elle, ne bouge pas.")}
+              className={outil}
+            >
+              <IconTarget className="h-3.5 w-3.5" /> {t("Objectif")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void exporter("png")}
@@ -834,21 +938,27 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           <button
             type="button"
             onClick={onFermer}
-            data-tip={t("Terminé")}
-            data-tip-sub={t("La carte est déjà enregistrée.")}
-            aria-label={t("Terminé")}
+            data-tip={lecture ? t("Fermer") : t("Terminé")}
+            data-tip-sub={lecture ? undefined : t("La carte est déjà enregistrée.")}
+            aria-label={lecture ? t("Fermer") : t("Terminé")}
             className="pill ml-1 inline-flex h-8 items-center gap-1.5 bg-blue px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
           >
-            <IconCheck className="h-3.5 w-3.5" /> {t("Terminé")}
+            <IconCheck className="h-3.5 w-3.5" /> {lecture ? t("Fermer") : t("Terminé")}
           </button>
-          <button
-            type="button"
-            onClick={onFermer}
-            aria-label={t("Fermer")}
-            className="rounded-md p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
-          >
-            <IconX className="h-4 w-4" />
-          </button>
+          {/* ⚠️ Pas de croix en LECTURE : le bouton bleu dit déjà « Fermer », et
+              deux fois le même mot dans la même barre ne se lit plus comme un
+              choix mais comme une hésitation. En édition les deux cohabitent
+              depuis le 2026-09-07 — « Terminé » y valide, la croix quitte. */}
+          {!lecture && (
+            <button
+              type="button"
+              onClick={onFermer}
+              aria-label={t("Fermer")}
+              className="rounded-md p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
+            >
+              <IconX className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/*
@@ -866,6 +976,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           liste indifférenciée où l'on cherche à chaque fois.
         */}
         <div className="mt-3 flex shrink-0 flex-wrap items-center gap-1 rounded-[var(--radius-field)] border border-border bg-surface-2 px-1.5 py-1">
+          {!lecture && (
+          <>
           <Outil
             libelle={t("Sous-nœud")}
             aide={t("Une idée qui découle de celle sélectionnée.")}
@@ -953,6 +1065,39 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           >
             <IconTrash className="h-3.5 w-3.5" />
           </Outil>
+          </>
+          )}
+
+          {lecture && (
+            <>
+              <Outil
+                libelle={noeudSel?.plie ? t("Déplier") : t("Replier")}
+                aide={
+                  aDesEnfants
+                    ? t("Cacher ou remontrer ce qui pend sous ce nœud.")
+                    : t("Ce nœud n'a rien en dessous à cacher.")
+                }
+                raccourci={t("Espace")}
+                disabled={!aDesEnfants}
+                onClick={() => modifier((c) => basculerPli(c, selection))}
+              >
+                <IconPlier className="h-3.5 w-3.5" />
+              </Outil>
+              <Outil
+                libelle={t("Ouvrir")}
+                aide={
+                  noeudSel?.mort
+                    ? t("La cible de ce nœud n'existe plus.")
+                    : t("Ouvrir l'étape ou la tâche que ce nœud désigne.")
+                }
+                raccourci={t("Entrée")}
+                disabled={!noeudSel?.ref || !!noeudSel?.mort}
+                onClick={() => noeudSel?.ref && ouvrirCible(noeudSel.ref.kind, noeudSel.ref.uid)}
+              >
+                <IconExternal className="h-3.5 w-3.5" />
+              </Outil>
+            </>
+          )}
 
           <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
 
@@ -990,6 +1135,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
           onPointerDown={surAppui}
           onWheel={surMolette}
           onDoubleClick={(e) => {
+            if (lecture) return;
             const cible = (e.target as HTMLElement).closest?.("[data-noeud]") as HTMLElement | null;
             const id = cible?.dataset.noeud;
             if (id) ouvrirEdition(id, noeudDe(courante, id)?.texte ?? "", true);
@@ -1102,6 +1248,39 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
 
         {/* Le pied d'aide : les raccourcis ne servent que si on les connaît. */}
         <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
+          {lecture ? (
+            /* ⚠️ DEUX PIEDS, choisis par le POINTEUR et non par la largeur.
+               « Clic » et « molette » ne veulent rien dire au doigt, et le
+               pincement ne zoome pas ici (la scène porte `touch-action: none`,
+               sans quoi le glissement serait un défilement) : les deux loupes
+               sont la seule façon de zoomer, autant le dire. Le choix se fait
+               en CSS — un `matchMedia` en JS ne suivrait pas une rotation sans
+               écouteur, et ce pied n'est que du texte. */
+            <>
+              <span className="[@media(pointer:coarse)]:hidden">
+                <b className="text-text">{t("Clic")}</b> {t("ouvrir")}
+              </span>
+              <span className="hidden [@media(pointer:coarse)]:inline">
+                <b className="text-text">{t("Appui")}</b> {t("ouvrir")}
+              </span>
+              <span className="[@media(pointer:coarse)]:hidden">
+                <b className="text-text">{t("Flèches")}</b> {t("se déplacer")}
+              </span>
+              <span className="hidden [@media(pointer:coarse)]:inline">
+                <b className="text-text">{t("Glisser")}</b> {t("se déplacer")}
+              </span>
+              <span className="[@media(pointer:coarse)]:hidden">
+                <b className="text-text">{t("Espace")}</b> {t("replier")}
+              </span>
+              <span className="text-text-dim/70 [@media(pointer:coarse)]:hidden">
+                {t("molette : déplacer · ⌘molette : zoomer")}
+              </span>
+              <span className="hidden text-text-dim/70 [@media(pointer:coarse)]:inline">
+                {t("les loupes zooment")}
+              </span>
+            </>
+          ) : (
+          <>
           <span>
             <b className="text-text">{t("Entrée")}</b> {t("valider")}
           </span>
@@ -1124,6 +1303,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
             <b className="text-text">{kbd("⌘Z")}</b> {t("annuler")}
           </span>
           <span className="text-text-dim/70">{t("molette : déplacer · ⌘molette : zoomer")}</span>
+          </>
+          )}
           {noeudSel?.ref && !noeudSel.mort && (
             <button
               type="button"
@@ -1156,6 +1337,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, onFe
         carte zoomée au lieu de la fenêtre. Ce voile-ci, lui, couvre exactement
         la fenêtre, donc les deux repères coïncident.
       */}
+      {versObjectif && !lecture && (
+        <DepuisCarte
+          carte={courante}
+          onFermer={() => setVersObjectif(false)}
+          onQuitterCarte={onFermer}
+        />
+      )}
+
       {mention && (
         <MentionPicker
           resultats={mention.resultats}

@@ -94,7 +94,15 @@ export function consommerDemande(kind: LinkKind): number | null {
   return id;
 }
 
-async function idDepuisUid(kind: LinkKind, uid: string): Promise<number | null> {
+/**
+ * Le numéro LOCAL d'un objet, depuis son identité de synchronisation.
+ *
+ * ⭐ Exporté depuis le 2026-09-20 : c'est l'inverse exact de `repo.uidDe`, et
+ * tout ce qui reçoit un `uid` d'ailleurs (une arête, un nœud de carte mentale)
+ * a besoin de retrouver la ligne locale avant d'écrire. Le recopier ailleurs
+ * ferait diverger le cas du mode démo, où les identités sont synthétiques.
+ */
+export async function idDepuisUid(kind: LinkKind, uid: string): Promise<number | null> {
   if (!isTauri) {
     // Mode démo : les identités sont synthétiques et STABLES (`demo:note:3`),
     // donc le numéro se relit directement — voir `demo.ts`.

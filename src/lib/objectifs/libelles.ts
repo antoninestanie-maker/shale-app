@@ -1,6 +1,7 @@
 import { formatNumber, t, tp } from "../i18n";
 import type { Goal } from "../types";
 import type { Mesure } from "./progression";
+import type { GenreEtape } from "./structure";
 
 /**
  * Ce que la vue Objectifs DIT de chaque ligne — logique pure, sans DOM.
@@ -14,7 +15,26 @@ import type { Mesure } from "./progression";
  * la langue de démarrage (PIEGES § 5.2).
  */
 
-/** « 3/7 tâches », « 12/50 backtests », « saisi à la main », « jalon vide, non compté ». */
+/**
+ * ⭐ LE MOT D'UN GENRE D'ÉTAPE — à un seul endroit.
+ *
+ * Le pourquoi du mot « phase » (et l'abandon de « jalon ») est écrit en entier
+ * au-dessus de `GenreEtape`, dans `structure.ts`. Ici, on se contente de dire le
+ * mot — et de l'expliquer à qui découvre l'écran, parce qu'une étiquette sans
+ * explication ne fait que déplacer la question.
+ */
+export function nomDeGenre(genre: GenreEtape): string {
+  return genre === "jalon" ? t("Phase") : t("Sous-objectif");
+}
+
+/** La phrase qui dit à quoi sert ce genre-là, sous le champ de saisie. */
+export function aideDeGenre(genre: GenreEtape): string {
+  return genre === "jalon"
+    ? t("Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».")
+    : t("Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.");
+}
+
+/** « 3/7 tâches », « 12/50 backtests », « saisi à la main », « phase vide, non comptée ». */
 export function origineEnClair(m: Mesure, estJalon = false): string {
   const o = m.origine;
   switch (o.type) {
@@ -40,9 +60,9 @@ export function origineEnClair(m: Mesure, estJalon = false): string {
         case "source-introuvable":
           return t("source introuvable, non comptée");
         case "etapes-vides":
-          return estJalon ? t("jalon aux étapes vides, non compté") : t("étapes vides, non comptées");
+          return estJalon ? t("phase aux étapes vides, non comptée") : t("étapes vides, non comptées");
         default:
-          return estJalon ? t("jalon vide, non compté") : t("vide, non compté");
+          return estJalon ? t("phase vide, non comptée") : t("vide, non compté");
       }
   }
 }
@@ -62,7 +82,7 @@ export function pourquoiVide(m: Mesure, estJalon: boolean): string | null {
       return t("Aucune de ses étapes n’a encore de quoi se mesurer.");
     default:
       return estJalon
-        ? t("Ce jalon ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.")
+        ? t("Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.")
         : t("Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.");
   }
 }
@@ -80,10 +100,10 @@ export function effetDuPoids(poids: number, parent: Pick<Goal, "title"> | null):
 /**
  * Le dépliage PAR DÉFAUT d'une étape, avant tout geste de l'utilisateur.
  *
- * ⭐ Une feuille de route de six jalons tout ouverts remplit l'écran d'un
- * objectif unique. Donc : le jalon EN COURS (le premier, dans l'ordre, qui
- * n'est pas terminé) est déplié ; les terminés et ceux d'après sont repliés et
- * se résument en une ligne. Un sous-objectif ne déplie jamais son détail seul.
+ * ⭐ Une feuille de route de six phases toutes ouvertes remplit l'écran d'un
+ * objectif unique. Donc : la phase EN COURS (la première, dans l'ordre, qui
+ * n'est pas terminée) est dépliée ; les terminées et celles d'après sont
+ * repliées et se résument en une ligne. Un sous-objectif ne déplie jamais son détail seul.
  */
 export function deplieParDefaut(
   etape: Pick<Goal, "id" | "is_milestone">,

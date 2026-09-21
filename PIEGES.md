@@ -2418,3 +2418,117 @@ reconstruction rapide. Supprimer le registre est l'erreur inverse : on gagne
 **Ce que ça a rapporté.** 20 Go, sur un disque qui n'avait plus que 8,2 Go de
 libre — dont 9,7 Go dans le cache de l'ANCIEN projet (`~/Desktop/appli claude`),
 que plus rien ne compile depuis le fork.
+
+## 18.1 ⚠️⚠️ Un composant qui pose `inert` sur `#root` DOIT être porté sur `document.body` — sinon il s'éteint lui-même
+
+**Symptôme.** La carte mentale d'un objectif s'affichait parfaitement, le
+clavier la pilotait (flèches, Espace, Échap), et **aucun clic ne faisait rien** :
+ni un nœud, ni les boutons de la barre d'outils. Aucune erreur, aucun
+avertissement.
+
+**Cause.** `EditeurCarte` pose `inert` sur `#root` le temps de sa vie, pour que
+la tabulation n'atteigne pas ce qui est derrière lui. Rendu dans l'arbre d'une
+vue, il **est lui-même un descendant de `#root`** : l'attribut l'englobait. Un
+sous-arbre `inert` n'est pas seulement non-tabulable, il n'est **plus
+hit-testable** — d'où le symptôme trompeur : le clavier marchait, parce que son
+écouteur est posé sur `window`, c'est-à-dire hors de l'arbre.
+
+**Comment ça s'est vu.** Pas à l'œil — en mesurant
+`document.elementFromPoint()` au centre d'un nœud : il rendait `BODY`. Et
+attention au piège de méthode qui va avec : un script qui clique par
+`element.click()` **court-circuite le test de survol** et voit donc un bouton
+« fonctionnel » qu'un doigt ou une souris n'atteindraient jamais. Pour ce genre
+de contrôle, cliquer aux **coordonnées** (`page.mouse.click`,
+`page.touchscreen.tap`), jamais par `.click()`.
+
+**Parade.** `createPortal(…, document.body)`. Les deux hôtes historiques de
+l'éditeur (Notes, Savoir) le faisaient déjà — pour une **autre** raison (le
+`transform` d'un ancêtre animé devient le bloc conteneur d'un `position: fixed`).
+Deux raisons différentes, une seule parade : une couche modale se monte sur
+`document.body`, jamais dans la vue qui l'ouvre.
+
+## 18.2 ⚠️ Une écriture faite loin de la vue qui l'affiche ne se voit pas
+
+**Symptôme.** Le panneau « En faire un objectif » (dans l'éditeur de carte d'une
+note) annonçait « l'objectif est créé » — et la vue Objectifs restait vide. Les
+lignes existaient vraiment en base.
+
+**Cause.** Les vues lisent `data`, relu par le seul `refresh()` d'`App.tsx`, qui
+descend en prop. Un composant situé cinq niveaux plus bas dans un AUTRE module ne
+l'a pas. Il existait bien un canal `sb:data-changed`, mais côté **Tauri
+uniquement** (la fenêtre de capture rapide) : rien, côté front, ne permettait de
+dire « j'ai écrit ».
+
+**Parade.** `App.tsx` écoute désormais le même nom d'événement sur `window`, et
+tout écrivain hors-vue le déclenche. **Le même nom pour les deux canaux** : un
+second nom finirait par n'être écouté qu'à moitié.
+
+**Généralisation.** Toute fonctionnalité qui écrit une table depuis un module qui
+ne l'affiche pas doit émettre ce signal. Le symptôme, sinon, est le pire
+possible : une confirmation sincère devant un écran qui semble ne rien avoir fait.
+
+## 18.3 ⚠️ Une clé i18n EN DOUBLE écrase la précédente — et `« Carte »` voulait déjà dire « Card »
+
+**Symptôme.** Aucun, à la lecture du diff. `npm run i18n:check` l'a dit :
+« 1 clé(s) EN DOUBLE dans en.ts — la seconde écrase la première ».
+
+**Cause.** Le bouton de la feuille de route s'appelle « Carte » (au sens carte
+mentale). La clé `"Carte"` existait depuis Finance, où elle traduit la **carte
+bancaire** (`"Carte": "Card"`). Ajouter la seconde aurait fait parler Finance de
+cartes mentales dans toute l'app anglaise.
+
+**Parade.** Le discriminant de contexte, déjà en usage dans le dépôt :
+`t("Carte|carte mentale")`, avec la clé `"Carte|carte mentale"` dans `en.ts`.
+Tout ce qui suit la barre est retiré du repli français.
+
+**Ce qu'il faut en retenir.** `i18n:check` ne sert pas qu'à trouver les
+manquantes : c'est lui qui voit les collisions, et une collision est **muette**
+en français (le repli rend la clé) — elle ne se voit que dans l'autre langue,
+sur un écran qu'on n'avait pas de raison de rouvrir.
+
+## 18.4 ⚠️ Une fenêtre modale centrée passe SOUS la barre d'onglets du téléphone
+
+**Symptôme.** Sur iPhone 390 × 844, le pied de la fenêtre « Nouvel objectif » —
+donc le bouton **« Créer »** — tombait derrière la barre d'onglets. Le contrôle
+existait, il était « dans la fenêtre » au sens de `getBoundingClientRect`, et il
+était intouchable.
+
+**Cause.** `MobileNav` est en `position: fixed` PAR-DESSUS le contenu (~80 px).
+Une modale plafonnée à `90vh` et centrée verticalement dépasse donc par le bas.
+
+**Parade.** Au doigt, plafonner à **78vh** :
+`[@media(pointer:coarse)]:max-h-[calc(78vh*var(--zoom-inv))]`. C'est exactement
+la valeur que `MobileNav` applique déjà à sa propre feuille, pour cette raison.
+⚠️ Et toujours `* var(--zoom-inv)` : le `zoom` CSS de la densité multiplie aussi
+les unités de viewport (règle du 2026-08-28).
+
+**Portée.** Les autres modales de l'app (tâche, événement, trade) n'ont AUCUN
+plafond de hauteur : le défaut est latent chez elles dès que leur contenu
+grandit. Corrigé ici sur la seule fenêtre de ce chantier, consigné pour la
+prochaine qu'on touche.
+
+## 18.5 ⚠️ « Tout voir » sur un téléphone montre tout et ne laisse rien lire
+
+**Symptôme.** La carte mentale d'un objectif s'ouvrait à **25 %** sur un écran de
+390 pt : les huit nœuds étaient à l'écran, illisibles.
+
+**Cause.** Le cadrage initial est un « fit » : il prend le plus petit des deux
+rapports. Une carte mentale est LARGE (elle pend des deux côtés du centre), une
+fenêtre de téléphone est étroite — le rapport de largeur gagne toujours, et très
+bas.
+
+⚠️ Et il n'y a **aucun repli au doigt** : la scène porte `touch-action: none`
+(indispensable au glissement, § 7.4 ter), donc **le pincement ne zoome pas**. Il
+ne reste que les deux loupes, que personne ne va chercher devant un écran qu'il
+croit simplement raté.
+
+**Parade.** Un **plancher de zoom au cadrage initial seulement**
+(`toutVoir(0.5)` sous `pointer: coarse`) : on montre le centre, lisible, et on
+laisse glisser. Le bouton « Tout voir », lui, garde son plancher habituel — il
+PROMET de tout montrer, et un bouton qui ne tient pas son nom est pire qu'un
+bouton qui montre petit.
+
+**Au passage.** Le pied d'aide disait « Clic ouvrir · molette : déplacer » sur un
+appareil qui n'a ni clic ni molette. Deux pieds, choisis par `pointer: coarse`
+en CSS — pas par un `matchMedia` en JS, qui ne suivrait pas une rotation sans
+écouteur.

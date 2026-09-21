@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GoalModal from "../components/GoalModal";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
+import CarteObjectif from "../components/objectifs/CarteObjectif";
 import { IconChevronDown, IconChevronRight } from "../components/icons";
 import { todayStr } from "../lib/logic";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
@@ -60,6 +61,8 @@ export default function GoalsView({ data, refresh }: Props) {
   const deleteTimer = useRef<number | undefined>(undefined);
   /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par son bouton. */
   const [ajoutPour, setAjoutPour] = useState<number | null>(null);
+  /** L'objectif regardé en carte mentale (lecture) — un seul à la fois, plein écran. */
+  const [enCarte, setEnCarte] = useState<Goal | null>(null);
 
   /**
    * ⭐ Le repliement a une MÉMOIRE : seuls les choix explicites sont rangés,
@@ -289,7 +292,7 @@ export default function GoalsView({ data, refresh }: Props) {
               className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
               aria-label={t("Ajouter une étape à {title}", { title: goal.title })}
               data-tip={t("Ajouter une étape")}
-              data-tip-sub={t("Un jalon ou un sous-objectif, en une ligne. Entrée pour enchaîner.")}
+              data-tip-sub={t("Une phase ou un sous-objectif, en une ligne. Entrée pour enchaîner.")}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
@@ -345,6 +348,7 @@ export default function GoalsView({ data, refresh }: Props) {
             ajoutOuvert={ajoutPour === goal.id}
             onFermerAjout={() => setAjoutPour((a) => (a === goal.id ? null : a))}
             onModifier={setEditing}
+            onCarte={setEnCarte}
             refresh={refresh}
           />
         )}
@@ -404,6 +408,19 @@ export default function GoalsView({ data, refresh }: Props) {
             );
           })}
         </ResizableGrid>
+      )}
+
+      {enCarte && (
+        <CarteObjectif
+          /* ⚠️ On relit l'objectif dans `data` plutôt que de garder la copie
+             capturée au clic : rattacher une tâche depuis la carte refermerait
+             sur un objet périmé, et le dessin ne bougerait pas. */
+          racine={goals.find((g) => g.id === enCarte.id) ?? enCarte}
+          data={data}
+          contexte={contexte}
+          mesures={mesures}
+          onFermer={() => setEnCarte(null)}
+        />
       )}
 
       {(creating || editing || parentForNew !== null) && (

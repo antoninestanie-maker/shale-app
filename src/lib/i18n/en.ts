@@ -2538,17 +2538,13 @@ export const EN: Record<string, string> = {
   "Replier « {titre} »": "Collapse “{titre}”",
   "Déplier « {titre} »": "Expand “{titre}”",
   "Titre de l’étape": "Step title",
-  "jalon": "milestone",
   "Actions sur « {titre} »": "Actions for “{titre}”",
   "Échéance et description…": "Deadline and description…",
-  "En faire un jalon": "Make it a milestone",
   "Redevenir un sous-objectif": "Turn back into a sub-goal",
   "Supprimer l’étape": "Delete step",
   "Ses sous-objectifs remontent d’un niveau, ses tâches sont déliées.": "Its sub-goals move up one level, its tasks are unlinked.",
   "Genre de l’étape": "Kind of step",
-  "Jalon": "Milestone",
   "Sous-objectif": "Sub-goal",
-  "Nom du jalon — Entrée pour valider et continuer": "Milestone name — Enter to confirm and continue",
   "Nom du sous-objectif — Entrée pour valider et continuer": "Sub-goal name — Enter to confirm and continue",
   "Cette étape est suivie à la main.": "This step is tracked by hand.",
   "La mesurer": "Measure it",
@@ -2583,14 +2579,11 @@ export const EN: Record<string, string> = {
   "saisi à la main": "set by hand",
   "cible à zéro, non comptée": "zero target, not counted",
   "source introuvable, non comptée": "source not found, not counted",
-  "jalon aux étapes vides, non compté": "milestone with empty steps, not counted",
   "étapes vides, non comptées": "empty steps, not counted",
-  "jalon vide, non compté": "empty milestone, not counted",
   "vide, non compté": "empty, not counted",
   "Une cible de zéro ne se mesure pas. Donne-lui un nombre à atteindre.": "A target of zero can’t be measured. Give it a number to reach.",
   "L’élément qui comptait a été supprimé. Choisis une autre source, ou compte à la main.": "The item that was counting has been deleted. Choose another source, or count by hand.",
   "Aucune de ses étapes n’a encore de quoi se mesurer.": "None of its steps has anything to measure yet.",
-  "Ce jalon ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.": "This milestone doesn’t count yet. Add a sub-goal, attach a task or set a number to reach.",
   "Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.": "Nothing to measure yet. Attach a task or set a number to reach.",
   "l’objectif": "the goal",
   "Poids 1 : cette étape pèse autant que ses sœurs dans « {titre} ».": "Weight 1: this step weighs as much as its siblings in “{titre}”.",
@@ -2608,7 +2601,6 @@ export const EN: Record<string, string> = {
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
   "ou suivre à la main": "or track by hand",
   "Ajouter une étape à {title}": "Add a step to {title}",
-  "Un jalon ou un sous-objectif, en une ligne. Entrée pour enchaîner.": "A milestone or a sub-goal, in one line. Enter to keep going.",
   "Un titre suffit. La feuille de route viendra quand tu en auras besoin.": "A title is enough. The roadmap will come when you need it.",
   "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).": "No goals yet. Start with the long term, then break it into steps when you need to. Sort them by category (Trading, Training…).",
   "Rien de rattaché pour l’instant.": "Nothing attached yet.",
@@ -2678,4 +2670,91 @@ export const EN: Record<string, string> = {
   "Chercher une tâche, une note, une fiche…": "Search a task, a note, a card…",
   "À faire pour cette étape…": "To do for this step…",
   "Nouvelle tâche pour « {titre} »": "New task for “{titre}”",
+  // ── Objectifs : le vocabulaire, le premier jet, et la carte (2026-09-20) ──
+  //
+  // ⚠️ « Phase » remplace « Jalon » : le mot AFFICHÉ change, la clé de code
+  // (`GenreEtape = "jalon" | …`) et la colonne `is_milestone` ne bougent pas.
+  // Les anciennes clés « jalon » ont été retirées de ce dictionnaire le même
+  // jour — les garder aurait invité une session future à ressusciter le mot.
+  "Phase": "Phase",
+  "En faire une phase": "Make it a phase",
+  "Nom de la phase — Entrée pour valider et continuer": "Phase name — Enter to confirm and continue",
+  "Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».":
+    "A phase groups several sub-goals: “Prepare”, “Test”, “Launch”.",
+  "Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.":
+    "A sub-goal is something to reach, measured by its tasks or by a number.",
+  "phase aux étapes vides, non comptée": "phase with empty steps, not counted",
+  "phase vide, non comptée": "empty phase, not counted",
+  "Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.":
+    "This phase doesn’t count yet. Add a sub-goal, attach a task or set a number to reach.",
+  "Une phase ou un sous-objectif, en une ligne. Entrée pour enchaîner.":
+    "A phase or a sub-goal, in one line. Enter to keep going.",
+
+  // L'en-tête du bloc, et l'échéance qui se pose sur place.
+  "Feuille de route": "Roadmap",
+  "Échéance de « {titre} »": "Due date for “{titre}”",
+
+  // Le premier jet, dans la fenêtre de création (jamais en modification).
+  "Par quoi commencer": "Where to start",
+  "Facultatif : tout se complète ensuite dans la feuille de route.":
+    "Optional: everything else goes in the roadmap later.",
+  "Premières étapes": "First steps",
+  "ex. Préparer le plan de trading": "e.g. Prepare the trading plan",
+  "Étape {n}": "Step {n}",
+  "Premières tâches": "First tasks",
+  "ex. Backtester 1 h": "e.g. Backtest for 1 h",
+  "Tâche suivante…": "Next task…",
+  "Tâche {n}": "Task {n}",
+  "Échéance de la tâche {n}": "Due date for task {n}",
+  "Les tâches naissent rattachées à l’objectif : elles comptent dans son avancement, et leur échéance les fait apparaître dans le calendrier.":
+    "Tasks are born linked to the goal: they count towards its progress, and their due date puts them on the calendar.",
+
+  // La feuille de route regardée en carte mentale (lecture seule).
+  "Voir en carte mentale": "View as a mind map",
+  // ⚠️ « Carte » EXISTE DÉJÀ (ligne ~2356) et veut dire « Card » : c'est la
+  // carte bancaire de Finance. Sans le discriminant, la seconde clé écrasait la
+  // première et Finance se mettait à parler de cartes mentales — signalé par
+  // `i18n:check`, qui dénonce les clés en double.
+  "Carte|carte mentale": "Map",
+  "Toute la feuille de route d’un coup d’œil. Un clic sur un nœud ouvre l’étape ou la tâche.":
+    "The whole roadmap at a glance. Clicking a node opens the step or the task.",
+  "La carte se lit": "This map is read-only",
+  "Elle est dessinée depuis la feuille de route : c'est là qu'on la modifie.":
+    "It is drawn from the roadmap: that’s where you change it.",
+  "lecture": "read-only",
+  "Ouvrir l'étape ou la tâche que ce nœud désigne.": "Open the step or task this node points to.",
+  "Clic": "Click",
+  "ouvrir": "open",
+  // Le même pied, au doigt : ni clic, ni molette.
+  "Appui": "Tap",
+  "Glisser": "Drag",
+  "les loupes zooment": "the magnifiers zoom",
+
+  // Et l'inverse : une carte mentale devenue objectif.
+  "En faire un objectif": "Turn it into a goal",
+  "Le centre devient l'objectif, les branches sa feuille de route. La carte, elle, ne bouge pas.":
+    "The centre becomes the goal, the branches its roadmap. The map itself doesn’t change.",
+  // Le même mot dans les deux langues — la clé existe quand même, sinon
+  // `i18n:check` signale un trou à chaque passage (cf. « Deadline »).
+  "Horizon": "Horizon",
+  "Ce qui va être créé": "What will be created",
+  "Un objectif seul : la carte n’a encore aucune branche à découper.":
+    "A goal on its own: the map has no branches to break down yet.",
+  "Au-delà du deuxième niveau, les nœuds deviennent des tâches de l’étape qui les porte.":
+    "Past the second level, nodes become tasks of the step that holds them.",
+  "Créer l’objectif": "Create the goal",
+  "L’objectif est créé, avec sa feuille de route.": "The goal is created, with its roadmap.",
+  "La carte reste dans cette note : elle n’est pas liée à l’objectif, et la reconvertir en créerait un second.":
+    "The map stays in this note: it isn’t linked to the goal, and converting it again would create a second one.",
+  "Voir l’objectif": "View the goal",
+  "dont {n} phase": "including {n} phase",
+  "dont {n} phases": "including {n} phases",
+  "{n} tâche créée": "{n} task created",
+  "{n} tâches créées": "{n} tasks created",
+  "{n} tâche existante rattachée": "{n} existing task linked",
+  "{n} tâches existantes rattachées": "{n} existing tasks linked",
+  "{n} élément cité rattaché": "{n} cited item linked",
+  "{n} éléments cités rattachés": "{n} cited items linked",
+  "{n} nœud vide écarté": "{n} empty node skipped",
+  "{n} nœuds vides écartés": "{n} empty nodes skipped",
 };

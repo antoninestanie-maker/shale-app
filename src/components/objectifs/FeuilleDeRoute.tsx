@@ -14,22 +14,31 @@ import {
   type GoalInput,
 } from "../../lib/repo";
 import {
+  aideDeGenre,
   deplacer,
   deplieParDefaut,
   effetDuPoids,
   indexDInsertion,
+  nomDeGenre,
   origineEnClair,
   pourquoiVide,
   type Replis,
 } from "../../lib/objectifs/libelles";
 import { compterSource, debutDuCompte, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
-import { peutAjouterEtape, peutPromouvoir, peutRetrograder, type GenreEtape } from "../../lib/objectifs/structure";
+import {
+  etapesTriees,
+  peutAjouterEtape,
+  peutPromouvoir,
+  peutRetrograder,
+  type GenreEtape,
+} from "../../lib/objectifs/structure";
 import { estRecurrente } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
-import { IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
+import { IconCarte, IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
+import ChampDate from "../ChampDate";
 import { BarreAjout } from "./RattacherElement";
 
 /**
@@ -59,18 +68,44 @@ export interface PropsFeuille {
   ajoutOuvert: boolean;
   onFermerAjout: () => void;
   onModifier: (goal: Goal) => void;
+  /** Ouvre la feuille de route en carte mentale (lecture). */
+  onCarte: (goal: Goal) => void;
   refresh: () => Promise<void>;
 }
 
 export default function FeuilleDeRoute(p: PropsFeuille) {
   const { racine, data, refresh } = p;
-  const etapes = freresTries(racine.id, data.goals);
+  const etapes = etapesTriees(racine.id, data.goals);
   const elementsDirects =
     data.tasks.filter((x) => x.goal_id === racine.id).length +
     rattachementsDe(uidDeLigne("goal", racine), p.contexte).length;
 
   return (
     <div className="ml-2 border-l border-border pb-1 pl-2 sm:ml-4 sm:pl-3">
+      {/* ⭐ Le bloc dit SON NOM. Sans cet en-tête, la zone indentée sous un
+          objectif était un empilement d'étapes sans titre : on ne savait pas
+          qu'on regardait « la feuille de route », donc on ne savait pas
+          davantage ce qu'on pouvait y ajouter. Le compte tient le même rôle
+          qu'ailleurs dans l'app (une pastille de nombre par catégorie). */}
+      {etapes.length > 0 && (
+        <div className="mb-1 flex flex-wrap items-center gap-2 px-1">
+          <h3 className="hud-label">{t("Feuille de route")}</h3>
+          <span className="pill bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
+            {tp(etapes.length, "{n} étape", "{n} étapes")}
+          </span>
+          <button
+            type="button"
+            onClick={() => p.onCarte(racine)}
+            className="cible-tactile-ligne ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
+            data-tip={t("Voir en carte mentale")}
+            data-tip-sub={t("Toute la feuille de route d’un coup d’œil. Un clic sur un nœud ouvre l’étape ou la tâche.")}
+          >
+            <IconCarte className="h-3.5 w-3.5" />
+            {t("Carte|carte mentale")}
+          </button>
+        </div>
+      )}
+
       {!!racine.manual_progress && etapes.length > 0 && (
         <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-surface-2 px-3 py-2 text-xs text-text-dim">
           <span className="min-w-0 flex-1 basis-[14rem]">
@@ -217,7 +252,7 @@ function LigneEtape(p: PropsLigne) {
   const { etape, freres, data, mesures, replis, onReplier, refresh } = p;
   const m = mesures.get(etape.id);
   const estJalon = !!etape.is_milestone;
-  const enfants = freresTries(etape.id, data.goals);
+  const enfants = etapesTriees(etape.id, data.goals);
   const cle = `g${etape.id}`;
   const ouvert =
     replis[cle] ?? deplieParDefaut(etape, freres, (id) => {
@@ -295,8 +330,12 @@ function LigneEtape(p: PropsLigne) {
               </button>
             )}
             {estJalon && (
-              <span className="pill shrink-0 bg-violet/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet">
-                {t("jalon")}
+              <span
+                className="pill shrink-0 bg-violet/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet"
+                data-tip={t("Phase")}
+                data-tip-sub={aideDeGenre("jalon")}
+              >
+                {nomDeGenre("jalon")}
               </span>
             )}
             {etape.deadline && (
@@ -355,6 +394,7 @@ function LigneEtape(p: PropsLigne) {
               libelle={t("Ajouter un sous-objectif")}
             />
           )}
+          <EcheanceEtape etape={etape} maintenant={p.sources.maintenant} refresh={refresh} />
           <PanneauMesure goal={etape} parent={data.goals.find((g) => g.id === etape.parent_goal_id) ?? null} {...p} />
         </div>
       )}
@@ -513,7 +553,7 @@ function MenuEtape(props: {
                 await refresh();
               })}
             >
-              {t("En faire un jalon")}
+              {t("En faire une phase")}
             </button>
           )}
           {peutRetrograder(etape, goals) && (
@@ -598,7 +638,8 @@ function AjoutEtape(props: {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-1 py-1">
+    <div className="px-1 py-1">
+      <div className="flex flex-wrap items-center gap-2">
       {genresPossibles.length > 1 && (
         <div className="flex shrink-0 overflow-hidden rounded-[8px] border border-border text-[11px]" role="radiogroup" aria-label={t("Genre de l’étape")}>
           {genresPossibles.map((g) => (
@@ -613,7 +654,7 @@ function AjoutEtape(props: {
               onClick={() => setGenre(g)}
               className={`cible-tactile px-2 py-1 font-medium ${genreActif === g ? "bg-blue/15 text-blue" : "text-text-dim hover:text-text"}`}
             >
-              {g === "jalon" ? t("Jalon") : t("Sous-objectif")}
+              {nomDeGenre(g)}
             </button>
           ))}
         </div>
@@ -622,7 +663,7 @@ function AjoutEtape(props: {
         key={cle}
         placeholder={
           genreActif === "jalon"
-            ? t("Nom du jalon — Entrée pour valider et continuer")
+            ? t("Nom de la phase — Entrée pour valider et continuer")
             : t("Nom du sous-objectif — Entrée pour valider et continuer")
         }
         onValider={async (titre) => {
@@ -639,12 +680,17 @@ function AjoutEtape(props: {
             is_milestone: genreActif === "jalon" ? 1 : 0,
             position: soeurs.reduce((mx, s) => Math.max(mx, (s.position ?? 0) + 1), soeurs.length),
           });
-          // La ligne suivante s'ouvre, vide : cinq jalons se tapent d'affilée.
+          // La ligne suivante s'ouvre, vide : cinq phases se tapent d'affilée.
           setCle((c) => c + 1);
           await refresh();
         }}
         onAnnuler={fermer}
       />
+      </div>
+      {/* ⭐ Le mot seul ne suffit pas. « Phase » et « Sous-objectif » côte à
+          côte posent une question à qui ouvre l'écran pour la première fois ;
+          une phrase sous le champ y répond, et disparaît avec lui. */}
+      <p className="mt-1 text-[11px] text-text-dim">{aideDeGenre(genreActif)}</p>
     </div>
   );
 }
@@ -687,6 +733,42 @@ function ChampLigne(props: {
       placeholder={props.placeholder}
       className="min-w-0 flex-1 basis-[14rem] rounded-[8px] border border-blue bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:outline-none"
     />
+  );
+}
+
+/**
+ * ⭐ L'ÉCHÉANCE D'UNE ÉTAPE SE POSE SUR PLACE.
+ *
+ * Elle n'existait que dans la fenêtre « Échéance et description… » du menu
+ * « ⋯ » : trois gestes et un changement de contexte pour une date, sur l'objet
+ * même dont la date fait le sens (une feuille de route sans dates est une liste
+ * de souhaits, et c'est elle que `calendrier/peril.ts` lit pour signaler un
+ * objectif en péril). La fenêtre reste, pour la description.
+ *
+ * ⚠️ On écrit par `updateGoal` et la fiche complète (`ficheDe`), jamais par
+ * `majFeuilleDeRoute` : `deadline` appartient à la fiche, et la liste fermée de
+ * l'autre ne la connaît pas.
+ */
+function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => Promise<void> }) {
+  const { etape } = props;
+  const jour = props.maintenant.slice(0, 10);
+  const enRetard = !!etape.deadline && etape.deadline < jour;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 px-1 text-xs text-text-dim">
+      <span className="shrink-0">{t("Échéance")}</span>
+      <ChampDate
+        valeur={etape.deadline ?? ""}
+        onChange={async (v) => {
+          if ((v || null) === (etape.deadline ?? null)) return;
+          await updateGoal(etape.id, { ...ficheDe(etape), deadline: v || null });
+          await props.refresh();
+        }}
+        aria={t("Échéance de « {titre} »", { titre: etape.title })}
+        placeholder={t("Sans échéance")}
+        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
+      />
+      {enRetard && <span className="shrink-0 font-medium text-red">{t("En retard")}</span>}
+    </div>
   );
 }
 
@@ -1054,18 +1136,6 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
 }
 
 // ─── Utilitaires ────────────────────────────────────────────────────────────
-
-/** Les étapes directes, dans l'ordre d'affichage — exemples compris : un exemple doit se voir. */
-function freresTries(parentId: number, goals: readonly Goal[]): Goal[] {
-  return goals
-    .filter((g) => g.parent_goal_id === parentId)
-    .sort(
-      (a, b) =>
-        (a.position ?? 0) - (b.position ?? 0) ||
-        (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") ||
-        a.id - b.id,
-    );
-}
 
 /** Les champs de la fiche, pour `updateGoal` — qui n'écrit que ceux-là. */
 export function ficheDe(g: Goal): GoalInput {

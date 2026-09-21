@@ -419,6 +419,26 @@ function App() {
     };
   }, [ouvrirNoteRapide]);
 
+  /**
+   * ⭐ UNE ÉCRITURE FAITE LOIN DE LA VUE QUI L'AFFICHE DOIT SE VOIR.
+   *
+   * Vu à l'écran le 2026-09-20 : le panneau « En faire un objectif » (dans
+   * l'éditeur de carte mentale d'une note) créait bien l'objectif, ses étapes
+   * et ses tâches — et la vue Objectifs restait vide. Elle lit `data`, qui n'est
+   * relu que par `refresh()`, or ce panneau vit cinq niveaux plus bas dans
+   * Notes : il ne l'a pas.
+   *
+   * Le canal existait déjà pour la fenêtre de capture rapide, mais côté TAURI
+   * seulement (juste en dessous) : un composant du front n'avait aucun moyen de
+   * dire « j'ai écrit ». Le même nom d'événement sert donc aux deux — un second
+   * nom finirait par n'être écouté qu'à moitié.
+   */
+  useEffect(() => {
+    const surChangement = () => void refresh();
+    window.addEventListener("sb:data-changed", surChangement);
+    return () => window.removeEventListener("sb:data-changed", surChangement);
+  }, [refresh]);
+
   // La quick capture (fenêtre séparée) signale ses ajouts via un événement Tauri
   useEffect(() => {
     if (!isTauri) return;

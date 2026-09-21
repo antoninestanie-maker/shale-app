@@ -483,3 +483,45 @@ Le site ne parle nulle part de la saisie d'une date, et il n'y a pas de raison
 de commencer : « nos champs de date sont jolis » n'est pas un argument, et
 l'annoncer obligerait à le montrer — donc à refaire les captures d'abord. À
 rouvrir seulement si la passe « captures v2 » a lieu.
+
+## O — Feuille de route lisible + carte mentale des objectifs (app, 2026-09-20)
+
+Le chantier a changé le **vocabulaire** de la feuille de route (« jalon » →
+« phase »), ajouté un en-tête et un bouton « Carte » à chaque objectif, mis
+l'échéance d'une étape sur place, garni la fenêtre de création (« Par quoi
+commencer »), et branché la carte mentale **dans les deux sens**.
+
+### O.1 — ⛔ RESTE : le mot « jalon » sur le site, s'il y est
+À vérifier dans `vitrine/src/lib/modules.ts` et `content.json` : si la fiche du
+module Objectifs ou une FAQ emploie « jalon », le mot ne correspond plus à ce que
+l'app affiche. **Un mot, pas une capture** : c'est la seule partie de cette dette
+qui se corrige en cinq minutes.
+
+```
+grep -rn "jalon" ~/Desktop/Shale-projet/shale-site/vitrine/src | cat
+```
+
+### O.2 — ⛔ RESTE : la fiche du module Objectifs ne parle pas de carte mentale
+`modules.ly.ts`/`modules.ts` décrit Objectifs par « objectifs décomposés en
+sous-objectifs ; l'avancement se lit sur ce qui est fait ». C'est toujours vrai,
+et **incomplet depuis ce chantier** : un objectif se regarde aussi en carte
+mentale, et une carte mentale devient un objectif. C'est une capacité vendable —
+la seule du chantier qui mérite d'être annoncée.
+
+⚠️ **Mais l'annoncer oblige à la montrer**, donc à produire une capture de la
+carte d'un objectif. Même verrou que §§ M.2 et N.2 : pas de générateur pour la
+famille `v2`. **Ne rien écrire avant la passe « captures v2 ».**
+
+### O.3 — La MÊME dette de captures, une troisième fois
+`shots/v2/dark-objectifs.webp` montre toujours la vue d'avant la feuille de
+route (§ M.2), et toute capture de formulaire montre l'ancien champ de date
+(§ N.2). Ce chantier ajoute un en-tête et un bouton à la vue Objectifs : la
+capture est donc périmée **pour la troisième raison**, ce qui ne change rien à la
+réponse — une passe unique qui régénère la famille `v2` avec le même cadrage.
+
+### O.4 — Ce qui n'a RIEN à changer, vérifié
+Aucun module ajouté ou retiré (**treize**, toujours), aucun renommage dans
+`Sidebar.tsx`, aucun raccourci clavier nouveau, aucun token de design, aucune
+promesse de `SPECS` touchée (plateformes, stockage, hors-ligne, clés d'API,
+sauvegarde, langue, licence). `Demo.astro` ne joue ni Objectifs ni Notes : sa
+barre latérale et son compte « 3 MODULES SUR 12 » ne bougent pas.

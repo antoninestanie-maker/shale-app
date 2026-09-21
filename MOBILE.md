@@ -2836,3 +2836,35 @@ Ce que l'émulation ne peut PAS dire, et qu'il faudra regarder un jour :
 - le rendu du panneau sous la Dynamic Island quand l'ancre est tout en haut :
   le bornage du § 16.2 le garde dans le viewport visuel, **pas** hors de la zone
   sûre — `env(safe-area-inset-top)` n'entre pas dans le calcul.
+
+## 24.1 La feuille de route au doigt — ce qui a été mesuré le 2026-09-20
+
+Émulation Chrome, iPhone 390 × 844, appuis et glissements **tactiles réels**
+(`touchscreen.tap` / `touchStart`+`touchMove`), mode démo.
+
+| Mesure | Résultat |
+|---|---|
+| Débordement horizontal de page, vue Objectifs | aucun (`scrollWidth == clientWidth == 390`) |
+| Bouton « Carte » de l'en-tête | 44 pt de haut, dans la fenêtre, atteignable (`elementFromPoint`) |
+| Carte ouverte au doigt | 8 nœuds, racine visible et **hit-testable**, aucun débordement |
+| Glissement de la carte | la racine passe de 141 px à 1 px — la scène suit le doigt |
+| Fenêtre « Nouvel objectif » | tient dans l'écran, défile, **« Créer » au-dessus de la barre d'onglets** |
+| Rangée de tâche (nom + date) | se replie sur deux lignes, rien ne sort |
+| Panneau de `ChampDate` | dans la fenêtre, cellules de **44 pt**, cliquables |
+
+Deux défauts corrigés grâce à ces mesures — le bouton « Créer » qui passait sous
+la barre d'onglets (`PIEGES.md` § 18.4) et le cadrage de carte à 25 %, illisible
+et sans repli puisque le pincement ne zoome pas sur cette scène (§ 18.5).
+
+## 24.2 ⛔ Ce que l'émulation ne peut PAS dire
+
+- **Le pincement.** La scène de la carte porte `touch-action: none` : sur un
+  vrai iPhone, le geste de zoom du système est donc neutralisé, et seules les
+  deux loupes zooment. C'est ce que dit maintenant le pied d'aide, mais le
+  comportement exact d'iOS n'a pas été vu sur appareil.
+- **`env(safe-area-inset-*)`.** Le panneau de la carte et la fenêtre de création
+  ne réservent rien pour la Dynamic Island : en émulation, il n'y en a pas.
+- **Le clavier logiciel** sous le panneau de date (le calcul passe par
+  `visualViewport`, § 16 de `PIEGES.md`) — invérifiable hors appareil.
+- Le simulateur reste **déconnecté** depuis le 2026-09-02 : seul un geste
+  d'Antonin le rouvre (`PASSATION.md` § 5.1).

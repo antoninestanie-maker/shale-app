@@ -515,3 +515,88 @@ large, donc il tient sur un écran de 390 pt avec ses marges.
 d'accessibilité : flèches, `PageUp/PageDown`, `Entrée`, `Échap`, plus un champ
 où l'on tape « 24/09 ». Même arbitrage que `RouletteHeure` — la molette
 S'AJOUTE au champ de texte, elle ne le remplace pas, parce que taper bat viser.
+
+## La feuille de route : le vocabulaire, et la carte qui la montre (2026-09-20)
+
+### « Phase », et plus « jalon »
+
+Antonin : « le nom de jalon n'est peut-être pas assez parlant, réfléchis-y,
+sinon laisse-le. » Il ne l'était pas, et pour une raison précise : dans la langue
+courante, un **jalon** est un REPÈRE qu'on franchit — un point sur une ligne.
+Ici, c'est un CONTENANT : le niveau qui regroupe plusieurs sous-objectifs. Le mot
+promettait une date, il livrait un dossier.
+
+    objectif
+    ├── PHASE  (niveau 1, regroupe)          ← s'appelait « jalon »
+    │    └── sous-objectif (niveau 2)
+    └── sous-objectif direct (niveau 1)
+
+« Phase » dit exactement cela, en un mot court, identique dans les deux langues,
+et sans entrer en collision avec **étape** — le mot générique qui désigne les
+deux genres — ni avec **sous-objectif**.
+
+⚠️ **Le mot affiché change, les identifiants ne bougent pas** : la colonne
+`goals.is_milestone` reste (aucune migration pour un mot), et le type
+`GenreEtape = "jalon" | "sous-objectif"` reste, parce que c'est une clé et non du
+texte. Le mot vit à un seul endroit, `nomDeGenre()` dans
+`lib/objectifs/libelles.ts`, avec sa phrase d'explication (`aideDeGenre()`)
+affichée sous le champ de saisie : **une étiquette sans explication ne fait que
+déplacer la question.**
+
+### Ce que la feuille de route a gagné
+
+- **un en-tête qui dit son nom** — « FEUILLE DE ROUTE · 3 étapes ». Sans lui, la
+  zone indentée sous un objectif était un empilement d'étapes sans titre : on ne
+  savait pas ce qu'on regardait, donc pas davantage ce qu'on pouvait y ajouter ;
+- **l'échéance d'une étape se pose SUR PLACE** (`ChampDate` dans le panneau de
+  l'étape ouverte), au lieu d'exiger la fenêtre « Échéance et description… » du
+  menu « ⋯ ». C'est la donnée dont dépend l'alerte « objectif en péril » : elle
+  ne peut pas coûter trois gestes et un changement de contexte ;
+- **un objectif naît garni** — voir ci-dessous.
+
+### « Par quoi commencer » : des étapes et des tâches à la création
+
+Dans la fenêtre de **création** seulement (`GoalModal`), deux listes de lignes
+qui poussent d'elles-mêmes (`Entrée` descend d'un champ), plafonnées à cinq :
+les premières étapes, et les premières tâches — chacune avec son `ChampDate`.
+
+⚠️ **Jamais en modification** : sur un objectif existant, ces listes feraient un
+second chemin d'ajout à côté de la feuille de route, qui le fait déjà mieux
+(elle enchaîne à l'infini, elle sait promouvoir une phase, elle rattache
+l'existant). Deux chemins pour une même écriture finissent par diverger.
+
+⚠️ **Et tout reste facultatif** : un titre et `Entrée` créent un objectif nu, au
+même coût qu'avant. Les étapes naissent **sous-objectifs** (pas phases : une
+phase vide afficherait « phase vide, non comptée » sur chaque ligne qu'on vient
+de taper), **mesurées**, **sans échéance**. Les tâches se rattachent à
+l'objectif, jamais à une étape devinée.
+
+### La carte mentale, dans les deux sens
+
+**Un objectif SE REGARDE en carte** — bouton « Carte » de l'en-tête. C'est
+`EditeurCarte` en mode **lecture** : zoom, panoramique, « tout voir », repli,
+export PNG/SVG, et un clic qui OUVRE l'étape ou la tâche du nœud. Aucun geste
+d'écriture, parce que la carte est **dérivée** : la feuille de route est l'unique
+auteur de ces nœuds, et un dessin que personne ne relira serait un piège.
+
+**Une carte mentale DEVIENT un objectif** — bouton « Objectif » de l'éditeur de
+carte, dans une note ou une fiche. La correspondance est fixe et dite à
+l'écran :
+
+    centre                → l'objectif
+    niveau 1 AVEC enfants → une PHASE
+    niveau 1 SANS enfant  → un sous-objectif direct
+    niveau 2              → un sous-objectif de la phase
+    niveau 3 et au-delà   → des TÂCHES du sous-objectif qui les porte
+
+Le panneau **annonce les comptes avant d'écrire** (« 3 étapes · dont 1 phase »,
+« 1 tâche créée ») : une carte de quarante nœuds crée une dizaine d'objectifs
+d'un seul clic, et personne ne doit le découvrir après. Un nœud qui **cite déjà**
+une tâche la rattache au lieu de la recopier ; une note ou une fiche citée est
+rattachée par une arête.
+
+⚠️ **Les deux formes ne sont PAS synchronisées**, et c'est écrit à l'écran : la
+carte reste dans sa note, la reconvertir créerait un second objectif. Une carte
+branchée sur les objectifs devrait répondre à « que se passe-t-il quand on
+supprime un nœud ? », et la seule réponse honnête serait « on supprime
+l'objectif » — un geste destructeur derrière un geste de dessin.

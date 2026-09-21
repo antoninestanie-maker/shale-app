@@ -5638,3 +5638,159 @@ vitest **1206 → 1237** · cargo test 133 (inchangé) · `i18n:check` 0 manquan
 
 ⚠️ **Aucune migration, aucun Rust, aucune dépendance npm** — mais un **rebuild
 natif reste nécessaire** pour qu'Antonin voie ce chantier dans l'app installée.
+
+## 2026-09-20 — ⭐ La feuille de route devient lisible : « phase », un objectif garni dès sa naissance, et la carte mentale dans les deux sens
+
+Demande d'Antonin, en une phrase et quatre morceaux : « j'aimerais que tu
+améliores l'ergonomie et l'intuitivité de tout le principe de feuille de route.
+Je voudrais aussi la possibilité d'ajouter des tâches directement à la création
+de l'objectif. Ce serait aussi bon que ce système d'objectifs puisse apparaître
+sous forme de carte mentale et inversement, en créant une carte mentale, de
+pouvoir en faire un objectif avec sous-objectif etc. Le nom de jalon n'est
+peut-être pas assez parlant, réfléchis-y, sinon laisse-le. »
+
+Pièges dans `PIEGES.md` § 18. Vocabulaire et écrans dans `DESIGN.md`.
+**Aucune migration, aucun Rust, aucune dépendance npm, aucun hôte réseau.**
+
+### ⭐ « Jalon » devient « PHASE » — le mot affiché, et lui seul
+
+Le mot n'était pas parlant, et la raison se dit en une ligne : **un jalon est un
+REPÈRE qu'on franchit, un point sur une ligne** ; ce niveau-là est un
+**CONTENANT**, celui qui regroupe des sous-objectifs. Le mot promettait une date,
+il livrait un dossier. « Phase » dit la chose, en un mot court, dans les deux
+langues, sans collision avec **étape** (le mot générique des deux genres) ni avec
+**sous-objectif**.
+
+⚠️ **Ce qui NE change pas** : la colonne `goals.is_milestone` (aucune migration
+pour un mot) et le type `GenreEtape = "jalon" | "sous-objectif"` — c'est une
+clé, pas du texte. Le mot vit à un seul endroit (`nomDeGenre()` dans
+`lib/objectifs/libelles.ts`) et **ne s'affiche jamais sans sa phrase
+d'explication** (`aideDeGenre()`, sous le champ de saisie) : une étiquette sans
+explication ne fait que déplacer la question. Les huit clés anglaises « jalon »
+ont été RETIRÉES de `en.ts` le même jour — les garder aurait invité une session
+future à ressusciter le mot.
+
+### Les trois gains d'ergonomie, et ce qu'ils réparent
+
+1. **La feuille de route dit son nom** (« FEUILLE DE ROUTE · 3 étapes » +
+   bouton « Carte »). La zone indentée sous un objectif n'avait aucun titre : on
+   ne savait pas ce qu'on regardait, donc pas ce qu'on pouvait y ajouter.
+2. **L'échéance d'une étape se pose sur place.** Elle n'existait que dans la
+   fenêtre « Échéance et description… » du menu « ⋯ » — trois gestes et un
+   changement de contexte pour la donnée dont dépend l'alerte « objectif en
+   péril » (`calendrier/peril.ts`). ⚠️ Elle est posée **hors** de
+   `PanneauMesure` : celui-ci disparaît pour une étape suivie à la main, et
+   l'échéance, elle, vaut dans les deux cas.
+3. **Les deux genres s'expliquent** au moment du choix, au lieu de deux mots
+   côte à côte.
+
+### ⭐ « Par quoi commencer » — un objectif naît garni (demande n°2)
+
+Dans la fenêtre de **création** seulement : deux listes de lignes qui poussent
+d'elles-mêmes (`Entrée` descend d'un champ, plafond de cinq), les premières
+**étapes** et les premières **tâches** — chacune avec son `ChampDate`.
+
+⚠️ **Jamais en modification.** Sur un objectif existant, ces listes seraient un
+second chemin d'ajout à côté de la feuille de route, qui le fait déjà mieux
+(elle enchaîne à l'infini, elle sait promouvoir une phase, elle rattache
+l'existant). Deux chemins pour une même écriture finissent par diverger.
+
+⚠️ **Rien n'est imposé** : un titre et `Entrée` créent un objectif nu, au coût
+d'avant (règle tenue depuis le 2026-09-16). Les étapes naissent
+**sous-objectifs**, pas phases — une phase vide afficherait « phase vide, non
+comptée » sur chacune des trois lignes qu'on vient de taper, donc « — » juste
+après avoir rempli l'objectif. Elles naissent **mesurées** et **sans échéance**
+(une date inventée ferait crier « objectif en péril » sur une feuille de route
+qui vient de naître). Les tâches se rattachent à **l'objectif**, jamais à une
+étape devinée : la feuille de route compte les éléments de sa racine exactement
+comme ceux d'une étape (« Rattaché directement »).
+
+⭐ La traduction « ce qui est tapé » → « ce qui est écrit en base » vit dans
+`lib/objectifs/creation.ts`, **pure et testée** : aucun test de ce dépôt ne
+prouve un formulaire (§ 7.1 de `PIEGES.md`), donc tout ce qui peut sortir du JSX
+en sort.
+
+### ⭐⭐ La carte mentale, dans les deux sens — et AUCUNE synchronisation
+
+`lib/objectifs/carte.ts` (pur, 18 tests) porte les deux traductions.
+
+**Sens 1 — l'objectif SE REGARDE.** `carteDObjectif()` dessine la feuille de
+route : le centre est l'objectif, les branches ses étapes dans **l'ordre exact**
+de la vue (d'où `etapesTriees()`, remonté de `FeuilleDeRoute.tsx` dans
+`structure.ts` — deux tris auraient fini par ne plus se superposer), les feuilles
+ses tâches et ses ressources. Chaque nœud porte une `ref`, donc un clic OUVRE
+l'objet. Les pourcentages sont **repris** de la vue, jamais recalculés, et passent
+par `Intl` (en français l'espace avant `%` est insécable).
+
+L'écran est `EditeurCarte` en mode **lecture** (nouvelle prop `lecture`) :
+zoom, panoramique, « tout voir », repli, export PNG/SVG, clic pour ouvrir. Zéro
+geste d'écriture — la carte est DÉRIVÉE, la feuille de route est l'unique auteur
+de ces nœuds, et un dessin que personne ne relira serait un piège. ⚠️ Le filtre
+de lecture est posé **en un seul endroit** du gestionnaire de clavier, pas
+dispersé dans les dix gestes : une règle écrite par énumération a toujours un
+trou de la taille de ce qu'elle prétend tenir (§ 7.2 ter).
+
+**Sens 2 — une carte DEVIENT un objectif.** `planDeCarte()` + le panneau
+`components/objectifs/DepuisCarte.tsx`, ouvert par un bouton de la barre de
+l'éditeur (donc disponible dans Notes ET dans le Savoir sans rien écrire deux
+fois). La correspondance est fixe :
+
+    centre                → l'objectif
+    niveau 1 AVEC enfants → une PHASE
+    niveau 1 SANS enfant  → un sous-objectif direct
+    niveau 2              → un sous-objectif de la phase
+    niveau 3 et au-delà   → des TÂCHES du sous-objectif qui les porte
+
+⭐ Le dernier point est le cœur de la traduction : **au fond d'une carte, on
+n'écrit plus des intentions, on écrit ce qu'il y a à faire.** Les transformer en
+sous-objectifs aurait demandé un quatrième niveau à la feuille de route ; les
+jeter aurait fait disparaître du travail déjà pensé.
+
+⚠️ **Le panneau ANNONCE avant d'écrire** (« 3 étapes · dont 1 phase », « 1 tâche
+créée », « 2 nœuds vides écartés ») : une carte de quarante nœuds crée une
+dizaine d'objectifs d'un clic. Un nœud qui **cite** une tâche la RATTACHE au lieu
+de la recopier ; une note, une fiche ou un événement cité est rattaché par une
+arête `manual` (l'origine reste `manual` : le `CHECK` de la 020 est une liste
+fermée, § 3.4).
+
+⚠️ **Les deux formes ne sont pas branchées l'une sur l'autre**, et c'est dit à
+l'écran : la carte reste dans sa note, la reconvertir crée un SECOND objectif.
+Une carte synchronisée devrait répondre à « que se passe-t-il quand on supprime
+un nœud ? », et la seule réponse honnête serait « on supprime l'objectif » : un
+geste destructeur derrière un geste de dessin.
+
+### Trois défauts que seule la mise à l'écran a montrés
+
+1. ⚠️⚠️ **La carte des objectifs était inerte.** Rendue dans l'arbre de la vue,
+   elle tombait sous le `inert` que `EditeurCarte` pose sur `#root` : les clics
+   ne faisaient RIEN (le clavier, lui, marchait — son écouteur est sur
+   `window`). Trouvé en mesurant `elementFromPoint` au centre d'un nœud, qui
+   rendait `BODY`. Parade : `createPortal(…, document.body)`, comme les deux
+   hôtes historiques le faisaient déjà pour une autre raison. `PIEGES.md` § 18.1
+   — **et la leçon de méthode : un script qui clique par `element.click()`
+   court-circuite le test de survol et voit « fonctionnel » ce qu'aucun doigt
+   n'atteindrait.**
+2. ⚠️ **L'objectif créé depuis une carte n'apparaissait pas.** Le panneau vit
+   cinq niveaux sous Notes : il n'a pas le `refresh()` de l'app. `App.tsx`
+   écoute désormais `sb:data-changed` **sur `window`** aussi (le canal existait,
+   côté Tauri seulement). § 18.2.
+3. ⚠️ **`« Carte »` voulait déjà dire « Card »** dans `en.ts` (la carte bancaire
+   de Finance) : la nouvelle clé l'écrasait. Dénoncé par `i18n:check`, corrigé
+   par le discriminant `t("Carte|carte mentale")`. § 18.3.
+
+Et deux au doigt (iPhone 390 × 844) : le bouton « Créer » de la fenêtre passait
+**sous la barre d'onglets** (§ 18.4, plafond à 78vh comme `MobileNav`), et la
+carte s'ouvrait à **25 %** — tout à l'écran, rien de lisible, sans repli puisque
+le pincement ne zoome pas sur cette scène (§ 18.5, plancher de cadrage à 50 %
+sous `pointer: coarse`, et un pied d'aide qui ne parle plus de clic ni de
+molette).
+
+### Ligne de base
+
+vitest **1237 → 1271** · cargo test 133 (inchangé) · `i18n:check` 0 manquante,
+0 doublon (**2021 entrées**) · `i18n:durs` 0 chaîne sûrement française ·
+`tsc`, `test:types`, `build`, `cargo check --all-targets` verts.
+
+⚠️ **Machine calme pour `npm test`** : la même suite a rendu 6 échecs et
+65 minutes pendant que Chrome piloté tournait, et **1271/1271 en 67 s** ensuite.
+C'est le § 9.11, confirmé une fois de plus — pas une régression.

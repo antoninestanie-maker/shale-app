@@ -4,6 +4,8 @@ import { objectif } from "./objectif.testutil";
 import type { Mesure } from "./progression";
 
 type Libelles = typeof import("./libelles");
+let aideDeGenre: Libelles["aideDeGenre"];
+let nomDeGenre: Libelles["nomDeGenre"];
 let deplacer: Libelles["deplacer"];
 let deplieParDefaut: Libelles["deplieParDefaut"];
 let effetDuPoids: Libelles["effetDuPoids"];
@@ -21,7 +23,7 @@ let pourquoiVide: Libelles["pourquoiVide"];
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ deplacer, deplieParDefaut, effetDuPoids, indexDInsertion, lireReplis, origineEnClair, pourquoiVide } =
+  ({ aideDeGenre, deplacer, deplieParDefaut, effetDuPoids, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiVide } =
     await import("./libelles"));
 });
 
@@ -62,9 +64,9 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
     expect(origineEnClair(mesure({ pct: 45, origine: { type: "manuel" } }))).toBe("saisi à la main");
   });
 
-  it("un jalon vide dit qu'il ne compte pas — et pourquoi", () => {
+  it("une phase vide dit qu'elle ne compte pas — et pourquoi", () => {
     const m = mesure({});
-    expect(origineEnClair(m, true)).toBe("jalon vide, non compté");
+    expect(origineEnClair(m, true)).toBe("phase vide, non comptée");
     expect(pourquoiVide(m, true)).toMatch(/Ajoute-lui un sous-objectif/);
     expect(pourquoiVide(m, false)).toMatch(/Rattache une tâche/);
   });
@@ -82,6 +84,29 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
   });
 });
 
+/**
+ * ⭐ LE MOT « JALON » A ÉTÉ REMPLACÉ PAR « PHASE » LE 2026-09-20 (demande
+ * d'Antonin : « le nom de jalon n'est peut-être pas assez parlant »). Le
+ * pourquoi est au-dessus de `GenreEtape`, dans `structure.ts`.
+ *
+ * Ce test verrouille les deux choses qui comptent : que l'identifiant de code
+ * n'ait PAS bougé (il est une clé, pas du texte — et la colonne `is_milestone`
+ * encore moins), et que le mot affiché soit accompagné de son explication.
+ * Une étiquette sans explication ne fait que déplacer la question.
+ */
+describe("le vocabulaire d'une étape", () => {
+  it("« jalon » s'affiche « Phase », et le sous-objectif garde son nom", () => {
+    expect(nomDeGenre("jalon")).toBe("Phase");
+    expect(nomDeGenre("sous-objectif")).toBe("Sous-objectif");
+  });
+
+  it("chaque genre dit à quoi il sert", () => {
+    expect(aideDeGenre("jalon")).toMatch(/regroupe/);
+    expect(aideDeGenre("sous-objectif")).toMatch(/atteindre/);
+    expect(aideDeGenre("jalon")).not.toBe(aideDeGenre("sous-objectif"));
+  });
+});
+
 describe("le poids dit ce qu'il change, en toutes lettres", () => {
   it("poids 1, poids 3, poids absurde", () => {
     const parent = objectif({ title: "Passer prop firm" });
@@ -91,11 +116,11 @@ describe("le poids dit ce qu'il change, en toutes lettres", () => {
   });
 });
 
-describe("repliement par défaut : le jalon en cours seul est ouvert", () => {
+describe("repliement par défaut : la phase en cours seule est ouverte", () => {
   const jalons = [1, 2, 3, 4, 5, 6].map((id) => objectif({ id, is_milestone: 1 }));
   const acheve = (id: number) => id <= 4;
 
-  it("six jalons dont quatre finis : seul le cinquième est déplié", () => {
+  it("six phases dont quatre finies : seule la cinquième est dépliée", () => {
     expect(jalons.map((j) => deplieParDefaut(j, jalons, acheve))).toEqual([false, false, false, false, true, false]);
   });
 
