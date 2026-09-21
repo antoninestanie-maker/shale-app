@@ -76,6 +76,15 @@ export const EN: Record<string, string> = {
   "Déplacer": "Move",
   "Insérer": "Insert",
   "Renommer": "Rename",
+
+  // ── Menus contextuels (chantier 2026-09-21) ─────────────────────────────
+  "Actions": "Actions",
+  "Dupliquer": "Duplicate",
+  "Copier": "Copy",
+  "Le titre": "The title",
+  "Le texte": "The text",
+  "Cette note est vide.": "This note is empty.",
+  "{titre} (copie)": "{titre} (copy)",
   "Épingler": "Pin",
   "Désépingler": "Unpin",
   "Épinglés": "Pinned",

@@ -434,3 +434,49 @@ affichées. À instruire comme un chantier à part.
    accessibles pour ~40 lignes dans un seul fichier.
 3. **Trancher le paysage** (§ 4) — c'est le seul G1 encore ouvert, et une des
    deux voies coûte une ligne.
+
+---
+
+## Relevé pendant le chantier « menus contextuels » (2026-09-21)
+
+*Rien de cette section n'est mis en œuvre. Chaque point a été vu en chemin et
+laissé de côté, avec son motif.*
+
+### A. ⚠️ Le menu « ⋯ » des objectifs suit le défilement sans borne — REPORTÉ, pas refusé
+
+`MenuEtape` (`src/components/objectifs/FeuilleDeRoute.tsx`) recale de force son
+menu au bord de l'écran quand son bouton en sort, au lieu de se refermer.
+C'est exactement `PIEGES.md` § 16.2 (« visible, ouvert, et invisible »), et le
+nouveau composant de menu, lui, en est protégé (`lib/menu/placement.ts`,
+`ancrePerdue`).
+
+**Antonin a accepté la correction** à l'arrêt 1 (règle 23, « corriger large »).
+**Elle n'est pas faite, pour une raison qui n'est pas de périmètre** : le
+2026-09-21, `FeuilleDeRoute.tsx` était modifié et NON COMMITÉ par une session
+voisine (chantier « objectif depuis une carte mentale »). Y toucher aurait
+fabriqué un conflit sur un travail en cours. **À faire dès que ce fichier est
+commité**, en réutilisant `ancrePerdue()` plutôt qu'en recopiant la règle.
+
+### B. Les contrôles d'un widget d'Aujourd'hui n'existent qu'au survol — et pas du tout au doigt
+
+`ResizableGrid.tsx:1073` et `:1157` : `opacity-0 group-hover/panel:opacity-100`
+**et** `[@media(pointer:coarse)]:hidden`. C'est précisément ce que la règle 17
+du chantier interdit (« aucune action n'existe uniquement au survol »). La
+Phase 4d, qui pose un menu sur les widgets, est l'occasion naturelle de le
+régler — c'est donc là qu'il sera traité, pas avant.
+
+### C. Les notes ne s'épinglent pas et ne portent pas de tag
+
+Le catalogue du chantier demandait « Épingler » et « Ajouter un tag » sur une
+note. **Ni l'un ni l'autre n'existe** : `notes` n'a ni colonne `pinned` ni
+colonne de tags (ce sont les FICHES du Savoir, `knowledge_entries`, qui les
+ont). Les ajouter demande une migration : c'est une fonctionnalité, pas une
+entrée de menu. Le menu d'une note propose donc Ouvrir, Renommer (F2),
+Dupliquer, Copier ▸ — rien de ce qu'il affiche n'est faux.
+
+### D. « Dupliquer » fige « (copie) » dans la langue du jour
+
+Le titre d'une note dupliquée reçoit le suffixe traduit AU MOMENT de la
+duplication. Basculer ensuite l'app en anglais ne le retraduit pas. Assumé : un
+titre est une donnée saisie, et le retraduire demanderait une colonne « ceci est
+une copie » — une migration pour un suffixe qu'Antonin renommera dans la minute.

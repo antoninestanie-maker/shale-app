@@ -2750,3 +2750,112 @@ en base ; les événements, types et branches de carte enregistrent le nom
 **Parade.** Un NOUVEAU token pour le nouveau sens (`--color-success`), et
 `--color-green` garde son nom. `src/lib/theme.encre.test.ts` échoue si
 `--color-green` disparaît d'un des trois blocs de thème.
+
+# 19. Chantier « menus contextuels et corbeille » (2026-09-21)
+
+*Cinq pièges payés pendant la Phase 1 (le socle du menu). Les quatre premiers
+étaient de VRAIS défauts ; les quatre ont passé `tsc`, les tests et le build au
+vert, et les quatre n'ont été trouvés qu'en pilotant le navigateur. Le
+cinquième est un piège de l'OUTIL de pilotage, pas de l'app — il est ici parce
+que la prochaine session tombera dedans.*
+
+## 19.1 ⚠️⚠️ Un vrai clic droit de souris arrive avec `detail: 0`
+
+**Symptôme.** Le menu contextuel s'ouvre, il est joli, il est **au mauvais
+endroit** : sous la ligne entière, au lieu d'être sous le curseur. Aucune
+capture d'écran ne le trahit — un menu sous sa ligne a l'air parfaitement
+normal. On ne le voit qu'en comparant le coin du menu au point cliqué.
+
+**Cause.** La première version demandait « est-ce venu du clavier ? » avec
+`e.detail === 0 || (clientX === 0 && clientY === 0)`, et se servait de la
+réponse POUR DEUX QUESTIONS : où poser le menu, et faut-il surligner la
+première entrée. Or, mesuré sur l'événement réel : `isTrusted: true`,
+`button: 2`, `clientX: 404`, **`detail: 0`**. Chromium met `detail` à 0 sur un
+`contextmenu` de souris. Tous les clics droits passaient donc pour du clavier.
+
+**Parade.** Deux questions, deux règles (`components/menu/useMenuContextuel.ts`) :
+- **où** poser le menu → on ne regarde QUE les coordonnées (`sansPoint`) ;
+- **faut-il** surligner la première entrée → on regarde le bouton (`sansSouris`,
+  `button !== 2`).
+
+Se tromper sur la seconde coûte une ligne surlignée ; se tromper sur la première
+coûtait un menu mal placé. Deux erreurs de prix différent n'ont pas à partager
+le même test. Verrouillé par `useMenuContextuel.test.ts`, **vu rouge** en
+remettant l'ancienne règle (3 tests tombent).
+
+**Payé.** Phase 1, 2026-09-21.
+
+## 19.2 ⚠️⚠️ Maj+F10 n'ouvre RIEN sur macOS : aucun `contextmenu` n'est émis
+
+**Symptôme.** Le cahier des charges demande l'ouverture au clavier par « Maj+F10
+/ touche Menu ». Rien ne s'ouvre. Pas d'erreur.
+
+**Cause.** Mesuré dans le moteur de l'app : `keydown:F10+shift`,
+`keyup:F10+shift`… et **aucun `contextmenu`**. Maj+F10 est une convention
+WINDOWS, que le navigateur traduit là-bas en `contextmenu`. macOS ne la connaît
+pas, et un Mac n'a pas de touche Menu. Compter sur le navigateur, c'était livrer
+une ouverture au clavier **qui ne marche jamais sur la machine d'Antonin**.
+
+**Parade.** Écouter la touche soi-même (`toucheDuMenu()` + `ouvrirAuClavier()`)
+et appeler `preventDefault()` : sous Windows, cela empêche aussi le navigateur
+d'envoyer son propre `contextmenu` derrière — sans quoi le menu s'ouvrirait deux
+fois.
+
+**Payé.** Phase 1, 2026-09-21. La séquence clavier entière avait été jouée sur
+un menu FERMÉ avant qu'on s'en aperçoive : chaque étape « passait », puisqu'il
+n'y avait rien pour échouer. ⭐ **Vérifier que le menu est ouvert AVANT de lire
+la moindre étape suivante.**
+
+## 19.3 ⚠️⚠️ Un sous-menu dans son propre portail passe pour « l'extérieur »
+
+**Symptôme.** On survole « Copier », le sous-menu s'ouvre, on clique « Le
+titre ». Le menu se ferme. **Rien n'est copié.** Aucune erreur.
+
+**Cause.** La fermeture au clic extérieur testait `panneau.contains(cible)`.
+Mais le sous-menu vit dans SON PROPRE portail : il n'est pas un descendant du
+panneau dans le DOM — il ne l'est que dans l'arbre React. Le `pointerdown` sur
+« Le titre » était donc vu comme extérieur, le menu se fermait, et le `click`
+n'arrivait jamais. Mesuré : presse-papier `null`.
+
+**Parade.** Marquer les deux panneaux d'un même attribut (`data-menu-contextuel`)
+et tester `cible.closest("[data-menu-contextuel]")`. ⚠️ Vaut pour TOUT panneau
+flottant qui ouvre un second portail : `contains` ne traverse pas les portails.
+
+**Payé.** Phase 1, 2026-09-21. Le survol marchait, la capture était belle, le
+défaut ne se voyait qu'en CLIQUANT et en regardant ce qui en sortait.
+
+## 19.4 ⚠️ Un élément en `visibility: hidden` ne peut pas prendre le focus
+
+**Symptôme.** Au clavier, → ouvre le sous-menu, et ↓ mène bien à « Le texte »
+— l'état interne est juste. Mais le **focus** reste sur « Copier ». Un lecteur
+d'écran annonce la mauvaise entrée. Rien ne se voit.
+
+**Cause.** Un panneau flottant naît en `visibility: hidden`, le temps d'être
+mesuré (`PIEGES` § 14.1). Et `focus()` sur un élément invisible **échoue en
+silence**. Le parent posait le focus dans son effet, AVANT que le sous-menu ait
+reçu sa place et soit devenu visible.
+
+**Parade.** Le panneau pose le focus LUI-MÊME, dans un effet qui dépend de sa
+place (`useEffect(…, [place, rang])`) : il attend d'être visible. Et en test,
+**attendre avant de lire le focus** — la première lecture, faite trop tôt,
+ressemblait à une course et masquait le vrai défaut.
+
+**Payé.** Phase 1, 2026-09-21.
+
+## 19.5 ⚠️ Outil de pilotage : la touche « Down » envoie `e.key === ""`
+
+**Symptôme.** Au clavier piloté, ↓ et → ne font rien dans le menu, alors que
+Début, Fin et Échap marchent. On croit le menu cassé.
+
+**Cause.** L'OUTIL, pas l'app. Mesuré : le nom `Down` produit `e.key === ""`
+(et `e.code` vide) ; le nom `ArrowDown` produit bien `"ArrowDown"`. Idem pour
+`Right`/`ArrowRight`, `Left`/`ArrowLeft`. Un vrai clavier envoie TOUJOURS les
+noms longs.
+
+**Parade.** Dans un script de pilotage, écrire `ArrowDown`, `ArrowUp`,
+`ArrowLeft`, `ArrowRight` — jamais `Down`, `Up`, `Left`, `Right`. Et ne PAS
+« corriger » l'app pour accepter `""` : ce serait coder contre un défaut qui
+n'existe que dans l'outil.
+
+**Payé.** Phase 1, 2026-09-21 — plusieurs essais à chercher un défaut dans le
+code avant de mesurer ce qui arrivait vraiment.

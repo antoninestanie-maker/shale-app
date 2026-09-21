@@ -14,6 +14,7 @@ import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
 import { deposerDemande, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import { installerMenuNatif } from "./lib/menu/natif";
 import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
@@ -176,6 +177,18 @@ function App() {
   useEffect(() => {
     if (data || erreurDonnees) signalerAppPrete();
   }, [data, erreurDonnees]);
+
+  /**
+   * Le menu natif du WebView disparaît — EN PRODUCTION SEULEMENT.
+   *
+   * Un clic droit sur le fond de l'app ouvrait « Recharger / Inspecter
+   * l'élément / Retour » : trois mots qui disent que Shale est une page web
+   * dans une fenêtre. Ils restent en développement, où « Inspecter l'élément »
+   * est l'outil de travail du dépôt, et ils restent partout où l'on écrit du
+   * texte, où le correcteur orthographique de macOS n'a pas de remplaçant.
+   * Voir `lib/menu/natif.ts`.
+   */
+  useEffect(() => installerMenuNatif(), []);
 
   const { isAdmin } = useSession();
   const { hasTrading, profil, afficheModule } = useEntitlements();

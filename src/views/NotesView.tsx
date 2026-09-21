@@ -5,6 +5,9 @@ import { useLiens } from "../components/liens/useLiens";
 import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
 import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
+import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { entreesNote } from "../components/menu/catalogue/note";
 import {
   ecritureAcceptable,
   graineDeNote,
@@ -46,6 +49,8 @@ export default function NotesView({ data, refresh }: Props) {
   const [deleting, setDeleting] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const deleteTimer = useRef<number | undefined>(undefined);
+  const champTitre = useRef<HTMLInputElement>(null);
+  const menu = useMenuContextuel<Note>();
 
   const list = results ?? data.notes;
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
@@ -212,6 +217,43 @@ export default function NotesView({ data, refresh }: Props) {
     setSelectedId(id);
   };
 
+  // ─── Les gestes que le menu contextuel appelle ────────────────────────────
+  //
+  // ⚠️ AUCUN NE RÉIMPLÉMENTE SON JUMEAU (règle 18). « Ouvrir » fait ce que fait
+  // le clic sur la ligne ; « Renommer » pose le curseur DANS le champ du titre,
+  // celui-là même que l'utilisateur cliquerait, et c'est donc `scheduleSave` —
+  // le chemin d'écriture normal — qui enregistrera.
+  //
+  // ⭐ ET SURTOUT : « Renommer » NE PASSE PAS par `updateNote` avec une note
+  // reconstituée. `updateNote` réécrit `title` ET `body` sans condition ; un
+  // corps oublié en chemin viderait la note. C'est le § 6.2 de `PIEGES.md`
+  // (« renommer une tâche effaçait sa date ») transposé aux notes, et la
+  // parade est la même : ne pas écrire ce qu'on ne voulait pas changer.
+  const ouvrirNote = (note: Note) => setSelectedId(note.id);
+
+  const renommerNote = (note: Note) => {
+    setSelectedId(note.id);
+    // Après la peinture : le champ n'existe pas encore si la note vient d'être
+    // sélectionnée, et sur téléphone la liste doit d'abord céder la place.
+    requestAnimationFrame(() => {
+      champTitre.current?.focus();
+      champTitre.current?.select();
+    });
+  };
+
+  const dupliquerNote = async (note: Note) => {
+    // ⚠️ Le suffixe est FIGÉ DANS LA LANGUE DU JOUR, et c'est assumé : un titre
+    // est une donnée saisie, pas un libellé d'interface. Le traduire après coup
+    // demanderait une colonne « ceci est une copie » — une migration pour un
+    // suffixe, alors qu'Antonin renommera la copie dans la minute.
+    const id = await createNote(t("{titre} (copie)", { titre: note.title }), note.body);
+    await refresh();
+    setQuery("");
+    setSelectedId(id);
+  };
+
+  const gestesNote = { ouvrir: ouvrirNote, renommer: renommerNote, dupliquer: dupliquerNote };
+
   const handleDelete = async () => {
     if (!selected) return;
     if (!deleting) {
@@ -285,11 +327,28 @@ export default function NotesView({ data, refresh }: Props) {
             </li>
           )}
           {list.map((note) => (
-            <li key={note.id}>
+            /* ⚠️ Le clic droit est posé sur la LIGNE ENTIÈRE, pas sur le bouton :
+               le bouton « ⋯ » en fait partie, et un clic droit dessus doit
+               ouvrir le même menu plutôt que rien. */
+            <li
+              key={note.id}
+              className="group/ligne relative flex items-center gap-1"
+              onContextMenu={(e) => menu.ouvrirAuPoint(e, note)}
+              /* Les raccourcis de LIGNE vivent sur le <li> : ils marchent donc
+                 que le focus soit sur le titre ou sur le bouton « ⋯ ».
+                 ⚠️ RÈGLE 18 : F2 est affiché dans le menu, il doit exister pour
+                 de vrai — c'est déjà ce que fait F2 sur un nœud de carte. */
+              onKeyDown={(e) => {
+                if (menu.ouvrirAuClavier(e, note)) return;
+                if (e.key !== "F2" || e.defaultPrevented) return;
+                e.preventDefault();
+                renommerNote(note);
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setSelectedId(note.id)}
-                className={`w-full rounded-[10px] px-3 py-2 text-left transition-colors ${
+                className={`min-w-0 flex-1 rounded-[10px] px-3 py-2 text-left transition-colors ${
                   note.id === selectedId
                     ? "bg-surface-2 text-text"
                     : "text-text-dim hover:bg-surface-2/50 hover:text-text"
@@ -301,6 +360,14 @@ export default function NotesView({ data, refresh }: Props) {
                   {estExemple(note) && <BadgeExemple />}
                 </p>
               </button>
+              {/* RÈGLE 17 : aucune action n'existe uniquement au clic droit.
+                  Ce bouton est l'autre moitié du contrat — visible au survol,
+                  TOUJOURS visible au doigt et au focus clavier. */}
+              <BoutonMenu
+                onOuvrir={(e) => menu.ouvrirSousLeBouton(e, note)}
+                ouvert={menu.ouvert && menu.cible?.id === note.id}
+                libelle={t("Actions sur « {titre} »", { titre: note.title })}
+              />
             </li>
           ))}
         </ul>
@@ -325,6 +392,7 @@ export default function NotesView({ data, refresh }: Props) {
           )}
           <div className="flex items-center gap-3">
             <input
+              ref={champTitre}
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
@@ -410,6 +478,21 @@ export default function NotesView({ data, refresh }: Props) {
           </div>
         )
       )}
+
+      {/* ⭐ UN SEUL menu pour toute la liste, pas un par ligne : trois cents
+          notes n'instancient ni trois cents portails ni trois cents écouteurs
+          de clavier. Les entrées sont recalculées depuis `data.notes` — donc
+          si la synchronisation efface la note pendant que le menu est ouvert,
+          le tableau devient vide et le menu se ferme de lui-même. */}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.title ?? "" })}
+        entrees={
+          menu.cible && data.notes.some((n) => n.id === menu.cible!.id)
+            ? entreesNote(menu.cible, gestesNote)
+            : []
+        }
+      />
     </div>
   );
 }
