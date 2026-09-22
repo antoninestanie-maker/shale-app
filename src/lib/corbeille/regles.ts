@@ -50,7 +50,10 @@ export const TABLE_DE: Readonly<Record<KindCorbeille, TableCorbeille>> = {
   // Les SUJETS du Savoir : la table a gardé son nom de 2026-07 (migration 022).
   object: { table: "knowledge_topics", titre: "name" },
   knowledge: { table: "knowledge_entries", titre: "title" },
-  invoice: { table: "invoices", titre: "numero" },
+  // ⚠️ Pas `numero` : seul un BROUILLON va en corbeille (une facture émise
+  // s'annule par un avoir), et un brouillon n'a pas encore de numéro. La vue
+  // aurait affiché une ligne vide. L'objet du document, à défaut le numéro.
+  invoice: { table: "invoices", titre: "COALESCE(objet, numero)" },
   journal: { table: "journal_entries", titre: "date" },
   metric: { table: "custom_metrics", titre: "name" },
   habit: { table: "habits", titre: "name" },

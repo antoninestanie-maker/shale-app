@@ -55,7 +55,12 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
         .format("%Y-%m-%d")
         .to_string();
 
-    let habits = sqlx::query_as::<_, (i64, String)>("SELECT id, name FROM habits WHERE archived = 0")
+    let f_hab = filtre_vivant(&mut conn, "habits", "").await;
+    let f_hab_j = filtre_vivant(&mut conn, "habits", "h").await;
+    let f_tache = filtre_vivant(&mut conn, "tasks", "").await;
+    let f_tache_j = filtre_vivant(&mut conn, "tasks", "t").await;
+
+    let habits = sqlx::query_as::<_, (i64, String)>(&format!("SELECT id, name FROM habits WHERE archived = 0{f_hab}"))
         .fetch_all(&mut conn)
         .await
         .map(|rows| rows.into_iter().map(|(id, name)| Habit { id, name }).collect())
@@ -64,9 +69,12 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
             Vec::new()
         });
 
-    let habit_checks = sqlx::query_as::<_, (i64, String)>(
-        "SELECT habit_id, date FROM habit_checks WHERE date >= ?1",
-    )
+    // Les cases d'une habitude en corbeille sont écartées PAR ELLE (`LEFT JOIN` :
+    // une case orpheline reste lue, comme avant la 027).
+    let habit_checks = sqlx::query_as::<_, (i64, String)>(&format!(
+        "SELECT c.habit_id, c.date FROM habit_checks c LEFT JOIN habits h ON h.id = c.habit_id \
+         WHERE c.date >= ?1{f_hab_j}"
+    ))
     .bind(&since)
     .fetch_all(&mut conn)
     .await
@@ -82,9 +90,9 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
 
     // `recurrence` et `created_at` sont déclarées sans NOT NULL : d'où les
     // `Option`, plutôt qu'un `unwrap` qui ferait tomber toute l'évaluation.
-    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>)>(
-        "SELECT id, recurrence, created_at FROM tasks",
-    )
+    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>)>(&format!(
+        "SELECT id, recurrence, created_at FROM tasks WHERE 1 = 1{f_tache}"
+    ))
     .fetch_all(&mut conn)
     .await
     .map(|rows| {
@@ -97,9 +105,10 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
         Vec::new()
     });
 
-    let completions = sqlx::query_as::<_, (i64, String, Option<i64>)>(
-        "SELECT task_id, date, done FROM task_completions WHERE date >= ?1",
-    )
+    let completions = sqlx::query_as::<_, (i64, String, Option<i64>)>(&format!(
+        "SELECT c.task_id, c.date, c.done FROM task_completions c LEFT JOIN tasks t ON t.id = c.task_id \
+         WHERE c.date >= ?1{f_tache_j}"
+    ))
     .bind(&since)
     .fetch_all(&mut conn)
     .await
@@ -127,6 +136,32 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     Ok(Snapshot { habits, habit_checks, tasks, completions, knowledge_last_viewed, calendar })
 }
 
+/// Le filtre de la corbeille (migration 027) pour une table — ou RIEN si la
+/// table ne porte pas encore la colonne.
+///
+/// ⚠️⚠️ POURQUOI PAS UN FILTRE EN DUR. Ce lecteur est tolérant par
+/// construction : une requête qui ÉCHOUE rend une liste vide. Un
+/// `deleted_at IS NULL` posé en aveugle échouerait donc sur une base pas
+/// encore migrée (le planificateur peut tourner avant que le front ait joué
+/// les migrations) — et éteindrait TOUTES les notifications, sans une erreur
+/// visible. Sans la colonne, rien ne peut être en corbeille : ne pas filtrer
+/// est alors EXACT, pas une approximation. Voir `PIEGES.md` § 19.
+///
+/// `alias` : `""` pour la table elle-même, `"h"` pour `h.deleted_at` dans une
+/// jointure.
+async fn filtre_vivant(conn: &mut SqliteConnection, table: &str, alias: &str) -> String {
+    let colonnes = sqlx::query_as::<_, (String,)>(&format!("SELECT name FROM pragma_table_info('{table}')"))
+        .fetch_all(&mut *conn)
+        .await
+        .unwrap_or_default();
+    if colonnes.iter().any(|(nom,)| nom == "deleted_at") {
+        let prefixe = if alias.is_empty() { String::new() } else { format!("{alias}.") };
+        format!(" AND {prefixe}deleted_at IS NULL")
+    } else {
+        String::new()
+    }
+}
+
 /// Ce qui est daté dans les jours qui viennent : événements, tâches datées,
 /// échéances d'objectifs.
 ///
@@ -138,6 +173,9 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
 /// pour une table absente.
 async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<CalendarItem> {
     let mut items = Vec::new();
+    let f_evt = filtre_vivant(conn, "calendar_events", "").await;
+    let f_tache = filtre_vivant(conn, "tasks", "").await;
+    let f_obj = filtre_vivant(conn, "goals", "").await;
 
     // Les événements ponctuels des jours qui viennent. Les récurrents sont
     // volontairement écartés : leur date est celle de la PREMIÈRE occurrence,
@@ -145,10 +183,10 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
     // qui vit déjà dans `lib/logic.ts`. Une habitude n'a de toute façon pas
     // besoin d'un rappel « imminent » — c'est ce que fait déjà la règle des
     // habitudes.
-    let events = sqlx::query_as::<_, (String, String, Option<String>)>(
+    let events = sqlx::query_as::<_, (String, String, Option<String>)>(&format!(
         "SELECT title, date, start_at FROM calendar_events \
-         WHERE date >= ?1 AND (recurrence IS NULL OR recurrence = 'none') AND all_day = 0",
-    )
+         WHERE date >= ?1 AND (recurrence IS NULL OR recurrence = 'none') AND all_day = 0{f_evt}"
+    ))
     .bind(today)
     .fetch_all(&mut *conn)
     .await
@@ -160,10 +198,10 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
         items.push(CalendarItem { title, date, start_at, kind: "event" });
     }
 
-    let dated = sqlx::query_as::<_, (String, String, Option<String>)>(
+    let dated = sqlx::query_as::<_, (String, String, Option<String>)>(&format!(
         "SELECT label, due_date, start_at FROM tasks \
-         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none')",
-    )
+         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none'){f_tache}"
+    ))
     .bind(today)
     .fetch_all(&mut *conn)
     .await
@@ -177,9 +215,9 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
 
     // Les échéances d'objectifs n'ont pas d'heure : elles pèsent sur la journée
     // entière, et c'est la veille qu'il faut le savoir, pas quinze minutes avant.
-    let deadlines = sqlx::query_as::<_, (String, String)>(
-        "SELECT title, deadline FROM goals WHERE deadline >= ?1",
-    )
+    let deadlines = sqlx::query_as::<_, (String, String)>(&format!(
+        "SELECT title, deadline FROM goals WHERE deadline >= ?1{f_obj}"
+    ))
     .bind(today)
     .fetch_all(&mut *conn)
     .await
@@ -210,7 +248,10 @@ async fn read_knowledge_last_viewed(conn: &mut SqliteConnection) -> Option<Naive
         return stored;
     }
 
-    sqlx::query_as::<_, (Option<String>,)>("SELECT MAX(updated_at) FROM knowledge_entries")
+    // Une fiche en corbeille n'est plus « la dernière modifiée » : le repli
+    // mesure le Savoir que l'utilisateur voit.
+    let f_fiche = filtre_vivant(conn, "knowledge_entries", "").await;
+    sqlx::query_as::<_, (Option<String>,)>(&format!("SELECT MAX(updated_at) FROM knowledge_entries WHERE 1 = 1{f_fiche}"))
         .fetch_optional(&mut *conn)
         .await
         .unwrap_or_default()
@@ -384,6 +425,85 @@ mod tests {
         // `done` est un BOOLEAN SQLite, donc un entier : 1 → vrai, 0 → faux.
         assert!(snap.completions.iter().find(|c| c.task_id == 1).unwrap().done);
         assert!(!snap.completions.iter().find(|c| c.task_id == 2).unwrap().done);
+    }
+
+    /// ⭐ Corbeille (migration 027) : rien de ce qui est en corbeille ne sonne.
+    ///
+    /// Le schéma de `seed()` date d'avant la 027 : on lui ajoute ici la colonne
+    /// `deleted_at` et les tables du calendrier, comme la 020 et la 027 le font
+    /// dans l'app. Chaque famille porte un VIVANT et un JETÉ.
+    #[tokio::test]
+    async fn la_corbeille_ne_sonne_pas() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE habits ADD COLUMN deleted_at TEXT;
+            ALTER TABLE tasks ADD COLUMN deleted_at TEXT;
+            ALTER TABLE tasks ADD COLUMN due_date TEXT;
+            ALTER TABLE tasks ADD COLUMN start_at TEXT;
+            ALTER TABLE knowledge_entries ADD COLUMN deleted_at TEXT;
+            CREATE TABLE calendar_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, date TEXT NOT NULL,
+              start_at TEXT, all_day INTEGER NOT NULL DEFAULT 0, recurrence TEXT NOT NULL DEFAULT 'none',
+              deleted_at TEXT
+            );
+            CREATE TABLE goals (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, deadline TEXT, deleted_at TEXT
+            );
+            INSERT INTO habits (id, name, deleted_at) VALUES (1, 'vivante', NULL), (2, 'jetée', '2026-07-27T08:00:00.000Z');
+            INSERT INTO habit_checks (habit_id, date) VALUES (1, '2026-07-27'), (2, '2026-07-27');
+            INSERT INTO tasks (id, label, recurrence, due_date, start_at, deleted_at) VALUES
+              (1, 'vivante', 'none', '2026-07-28', '10:00', NULL),
+              (2, 'jetée',   'none', '2026-07-28', '10:00', '2026-07-27T08:00:00.000Z');
+            INSERT INTO task_completions (task_id, date, done) VALUES (1, '2026-07-26', 1), (2, '2026-07-26', 1);
+            INSERT INTO calendar_events (title, date, start_at, deleted_at) VALUES
+              ('vivant', '2026-07-28', '09:00', NULL),
+              ('jeté',   '2026-07-28', '09:00', '2026-07-27T08:00:00.000Z');
+            INSERT INTO goals (title, deadline, deleted_at) VALUES
+              ('vivant', '2026-07-30', NULL),
+              ('jeté',   '2026-07-30', '2026-07-27T08:00:00.000Z');
+            "#,
+        )
+        .await;
+
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        assert_eq!(snap.habits.iter().map(|h| h.id).collect::<Vec<_>>(), vec![1], "habitude jetée");
+        assert_eq!(snap.habit_checks.iter().map(|c| c.habit_id).collect::<Vec<_>>(), vec![1], "case d'une habitude jetée");
+        assert_eq!(snap.tasks.iter().map(|t| t.id).collect::<Vec<_>>(), vec![1], "tâche jetée");
+        assert_eq!(snap.completions.iter().map(|c| c.task_id).collect::<Vec<_>>(), vec![1], "coche d'une tâche jetée");
+        let titres: Vec<_> = snap.calendar.iter().map(|c| format!("{}:{}", c.kind, c.title)).collect();
+        assert!(titres.iter().all(|t| !t.contains("jet")), "rien de jeté dans le calendrier : {titres:?}");
+        assert_eq!(titres.len(), 3, "l'événement, la tâche datée et l'échéance vivants : {titres:?}");
+    }
+
+    /// ⭐⭐ Et une base SANS la colonne (antérieure à la 027) continue de sonner.
+    ///
+    /// Ce lecteur est TOLÉRANT par construction : une requête qui échoue rend
+    /// une liste vide. Un filtre `deleted_at IS NULL` posé en aveugle ferait
+    /// donc ÉCHOUER la requête sur une base non migrée — et éteindrait toutes
+    /// les notifications, sans une erreur visible. Sans colonne, rien ne peut
+    /// être en corbeille : ne pas filtrer est alors exact.
+    #[tokio::test]
+    async fn une_base_sans_corbeille_sonne_toujours() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            INSERT INTO habits (id, name) VALUES (1, 'Sport');
+            INSERT INTO habit_checks (habit_id, date) VALUES (1, '2026-07-27');
+            INSERT INTO tasks (id, label, recurrence) VALUES (1, 'Sport', 'daily');
+            INSERT INTO task_completions (task_id, date, done) VALUES (1, '2026-07-26', 1);
+            "#,
+        )
+        .await;
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        assert_eq!(snap.habits.len(), 1);
+        assert_eq!(snap.habit_checks.len(), 1);
+        assert_eq!(snap.tasks.len(), 1);
+        assert_eq!(snap.completions.len(), 1);
     }
 
     #[tokio::test]

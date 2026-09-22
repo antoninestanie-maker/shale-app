@@ -63,6 +63,9 @@ import type {
   Trade,
 } from "./types";
 
+import { TABLES_CORBEILLE, VIVANT, vivant } from "./corbeille/regles";
+import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
+
 /** Hors Tauri (preview navigateur), on bascule sur des données démo en mémoire. */
 export const isTauri =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -91,19 +94,38 @@ export function localNow(): string {
   return `${toDateStr(now)} ${now.toTimeString().slice(0, 8)}`;
 }
 
+/**
+ * ⭐ LE FILTRE DE LA CORBEILLE EST POSÉ ICI, AU FOND (migration 027).
+ *
+ * Tout ce qui découle de `AppData` — `dayStat`, `pctOfList`,
+ * `effectiveProgress`, `weekStats`, `computeStreak`, `streakHistory`, les
+ * widgets d'Aujourd'hui, l'agrégateur du Calendrier, les compteurs — lit ces
+ * tableaux et rien d'autre. Filtrer ici les met tous en règle d'un geste, et
+ * met en règle tout appelant FUTUR : c'est la leçon du filtre `is_example`.
+ *
+ * Les FEUILLES (coches, relevés, cases d'habitude) n'ont pas de `deleted_at` :
+ * elles sont écartées PAR LEUR PARENT, d'une jointure. ⚠️ `LEFT JOIN` et non
+ * `JOIN` : une coche orpheline (parent disparu par une synchronisation
+ * interrompue) était rendue avant la 027 ; elle l'est encore. On n'a changé
+ * QUE le sort des lignes en corbeille.
+ *
+ * Éprouvé par `lib/corbeille/lectures.test.ts`, sur le vrai SQL.
+ */
 export async function fetchAll(sinceDate: string): Promise<AppData> {
   if (!isTauri) return demo.fetchAll();
   const db = await getDb();
-  const tasks = await db.select<Task[]>("SELECT * FROM tasks");
+  const tasksBruts = await db.select<Task[]>(`SELECT * FROM tasks WHERE ${VIVANT}`);
   const completions = await db.select<Completion[]>(
-    "SELECT * FROM task_completions WHERE date >= $1",
+    `SELECT c.* FROM task_completions c LEFT JOIN tasks t ON t.id = c.task_id
+      WHERE c.date >= $1 AND ${vivant("t")}`,
     [sinceDate],
   );
-  const goals = await db.select<Goal[]>("SELECT * FROM goals");
+  const goalsBruts = await db.select<Goal[]>(`SELECT * FROM goals WHERE ${VIVANT}`);
   const tags = await db.select<Tag[]>("SELECT * FROM tags");
-  const metrics = await db.select<CustomMetric[]>("SELECT * FROM custom_metrics");
+  const metrics = await db.select<CustomMetric[]>(`SELECT * FROM custom_metrics WHERE ${VIVANT}`);
   const metricEntries = await db.select<MetricEntry[]>(
-    "SELECT * FROM metric_entries WHERE date >= $1",
+    `SELECT e.* FROM metric_entries e LEFT JOIN custom_metrics m ON m.id = e.metric_id
+      WHERE e.date >= $1 AND ${vivant("m")}`,
     [sinceDate],
   );
   const goalLog = await db.select<GoalProgressPoint[]>(
@@ -118,23 +140,30 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
     [sinceDate],
   );
   const notes = await db.select<Note[]>(
-    "SELECT * FROM notes ORDER BY updated_at DESC",
+    `SELECT * FROM notes WHERE ${VIVANT} ORDER BY updated_at DESC`,
   );
   const journal = await db.select<JournalEntry[]>(
-    "SELECT * FROM journal_entries WHERE date >= $1",
+    `SELECT * FROM journal_entries WHERE date >= $1 AND ${VIVANT}`,
     [sinceDate],
   );
   const habits = await db.select<Habit[]>(
-    "SELECT * FROM habits WHERE archived = 0",
+    `SELECT * FROM habits WHERE archived = 0 AND ${VIVANT}`,
   );
+  // ⚠️ Les cases d'une habitude ARCHIVÉE restent rendues, comme avant la 027 :
+  // le filtre ne regarde que la corbeille, pas `archived`. On ne change pas ici
+  // une règle qui n'est pas celle de ce chantier.
   const habitChecks = await db.select<HabitCheck[]>(
-    "SELECT * FROM habit_checks WHERE date >= $1",
+    `SELECT c.* FROM habit_checks c LEFT JOIN habits h ON h.id = c.habit_id
+      WHERE c.date >= $1 AND ${vivant("h")}`,
     [sinceDate],
   );
   const trades = await db.select<Trade[]>(
     "SELECT * FROM trades WHERE date >= $1 ORDER BY date DESC, id DESC",
     [sinceDate],
   );
+  // Une tâche ou un sous-objectif vivants dont la cible est en corbeille se
+  // lisent détachés — sans toucher à la base (voir `corbeille/orphelins.ts`).
+  const { taches: tasks, objectifs: goals } = detacherDesJetes(tasksBruts, goalsBruts);
   return {
     tasks,
     completions,
@@ -631,15 +660,22 @@ export async function searchNotes(query: string): Promise<Note[]> {
   if (!isTauri) return demo.searchNotes(query);
   const db = await getDb();
   const q = query.trim();
-  if (!q) return db.select<Note[]>("SELECT * FROM notes ORDER BY updated_at DESC");
+  if (!q) return db.select<Note[]>(`SELECT * FROM notes WHERE ${VIVANT} ORDER BY updated_at DESC`);
   try {
+    // ⚠️ L'index FTS5 GARDE les notes en corbeille : son trigger n'écoute que
+    // `title` et `body`, pas `deleted_at`. C'est donc la JOINTURE qui filtre —
+    // et c'est voulu : restaurer une note la rend cherchable à l'instant, sans
+    // réindexer quoi que ce soit.
     return await db.select<Note[]>(
-      "SELECT n.* FROM notes_fts f JOIN notes n ON n.id = f.rowid WHERE notes_fts MATCH $1 ORDER BY rank",
+      `SELECT n.* FROM notes_fts f JOIN notes n ON n.id = f.rowid
+        WHERE notes_fts MATCH $1 AND ${vivant("n")} ORDER BY rank`,
       [q.replace(/[^\p{L}\p{N} ]/gu, " ") + "*"],
     );
   } catch {
+    // Le repli, lui aussi : c'est le chemin qu'on oublie, parce qu'il ne sert
+    // que quand FTS5 échoue — donc jamais pendant qu'on écrit le code.
     return db.select<Note[]>(
-      "SELECT * FROM notes WHERE title LIKE $1 OR body LIKE $1 ORDER BY updated_at DESC",
+      `SELECT * FROM notes WHERE (title LIKE $1 OR body LIKE $1) AND ${VIVANT} ORDER BY updated_at DESC`,
       [`%${q}%`],
     );
   }
@@ -687,12 +723,15 @@ export async function fetchKnowledge(): Promise<{
   // par `fetchSujet()`.
   const topics = await db.select<Sujet[]>(
     `SELECT id, uid, name, color, position, type_id, NULL AS body, field_values, created_at, updated_at
-       FROM knowledge_topics ORDER BY position, id`,
+       FROM knowledge_topics WHERE ${VIVANT} ORDER BY position, id`,
   );
   const entries = await db.select<KnowledgeEntryLite[]>(
-    `SELECT ${LITE_COLUMNS} FROM knowledge_entries ORDER BY pinned DESC, updated_at DESC, id DESC`,
+    `SELECT ${LITE_COLUMNS} FROM knowledge_entries WHERE ${VIVANT} ORDER BY pinned DESC, updated_at DESC, id DESC`,
   );
-  return { topics, entries };
+  // Une fiche dont le SUJET est en corbeille se lit « Sans thème » (§ 5.5 :
+  // les fiches ne partent jamais avec leur sujet). Son `topic_id` reste en
+  // base, pour que la restauration du sujet la lui rende.
+  return { topics, entries: sansSujetJete(entries, topics) };
 }
 
 /** Fiche complète (média inclus) — pour le lecteur immersif. */
@@ -701,8 +740,10 @@ export async function fetchKnowledgeEntry(
 ): Promise<KnowledgeEntry | null> {
   if (!isTauri) return demo.fetchKnowledgeEntry(id);
   const db = await getDb();
+  // Une fiche en corbeille ne s'ouvre plus par son id — une mention `@` ou un
+  // lien vers elle se comporte comme vers une fiche supprimée.
   const rows = await db.select<KnowledgeEntry[]>(
-    "SELECT * FROM knowledge_entries WHERE id = $1",
+    `SELECT * FROM knowledge_entries WHERE id = $1 AND ${VIVANT}`,
     [id],
   );
   return rows[0] ?? null;
@@ -712,7 +753,7 @@ export async function fetchKnowledgeEntry(
 export async function fetchSujet(id: number): Promise<Sujet | null> {
   if (!isTauri) return demo.fetchSujet(id);
   const db = await getDb();
-  const rows = await db.select<Sujet[]>("SELECT * FROM knowledge_topics WHERE id = $1", [id]);
+  const rows = await db.select<Sujet[]>(`SELECT * FROM knowledge_topics WHERE id = $1 AND ${VIVANT}`, [id]);
   return rows[0] ?? null;
 }
 
@@ -1766,7 +1807,7 @@ export async function fetchCalendarEvents(from: string, to: string): Promise<Cal
   // deux semaines, c'est-à-dire trop tard.
   return db.select<CalendarEvent[]>(
     `SELECT * FROM calendar_events
-      WHERE date <= $2 AND coalesce(end_date, date) >= $1
+      WHERE date <= $2 AND coalesce(end_date, date) >= $1 AND ${VIVANT}
       ORDER BY date, start_at`,
     [from, to],
   );
@@ -1782,7 +1823,7 @@ export async function fetchRecurringEvents(): Promise<CalendarEvent[]> {
   if (!isTauri) return demo.fetchRecurringEvents();
   const db = await getDb();
   return db.select<CalendarEvent[]>(
-    "SELECT * FROM calendar_events WHERE recurrence IS NOT NULL AND recurrence <> 'none' ORDER BY date",
+    `SELECT * FROM calendar_events WHERE recurrence IS NOT NULL AND recurrence <> 'none' AND ${VIVANT} ORDER BY date`,
   );
 }
 
@@ -1847,7 +1888,7 @@ export async function fetchDatedTasks(from: string, to: string): Promise<Task[]>
   if (!isTauri) return demo.fetchDatedTasks(from, to);
   const db = await getDb();
   return db.select<Task[]>(
-    "SELECT * FROM tasks WHERE due_date >= $1 AND due_date <= $2 ORDER BY due_date, start_at",
+    `SELECT * FROM tasks WHERE due_date >= $1 AND due_date <= $2 AND ${VIVANT} ORDER BY due_date, start_at`,
     [from, to],
   );
 }
@@ -2007,7 +2048,9 @@ export async function fetchContexteObjectifs(): Promise<ContexteObjectifs> {
   const lire = async <T,>(table: string, uids: string[], colonnes: string): Promise<T[]> => {
     if (uids.length === 0) return [];
     const places = uids.map((_, i) => `$${i + 1}`).join(", ");
-    return db.select<T[]>(`SELECT ${colonnes} FROM ${table} WHERE uid IN (${places})`, uids);
+    // ⚠️ Nom de table construit À LA VOLÉE — la seconde lecture ratée par une
+    // recherche de « FROM notes ». Les trois tables lues ici ont une corbeille.
+    return db.select<T[]>(`SELECT ${colonnes} FROM ${table} WHERE uid IN (${places}) AND ${VIVANT}`, uids);
   };
   const notes = await lire<{ uid: string; title: string }>("notes", cibles.note, "uid, title");
   const fiches = await lire<{ uid: string; title: string }>("knowledge_entries", cibles.knowledge, "uid, title");
@@ -2096,8 +2139,8 @@ async function corpusPour(
   if (veut("knowledge")) {
     const rows = await db.select<{ id: number; uid: string; title: string; text: string }[]>(
       q
-        ? "SELECT id, uid, title, text FROM knowledge_entries WHERE title LIKE $1 OR text LIKE $1 ORDER BY updated_at DESC LIMIT 40"
-        : "SELECT id, uid, title, text FROM knowledge_entries ORDER BY updated_at DESC LIMIT 40",
+        ? `SELECT id, uid, title, text FROM knowledge_entries WHERE (title LIKE $1 OR text LIKE $1) AND ${VIVANT} ORDER BY updated_at DESC LIMIT 40`
+        : `SELECT id, uid, title, text FROM knowledge_entries WHERE ${VIVANT} ORDER BY updated_at DESC LIMIT 40`,
       q ? [like] : [],
     );
     for (const r of rows) docs.push({ kind: "knowledge", id: r.id, uid: r.uid, titre: r.title, corps: r.text });
@@ -2108,8 +2151,8 @@ async function corpusPour(
     // et c'est voulu : « Trading » n'a pas besoin d'être sous-titré.
     const rows = await db.select<{ id: number; uid: string; name: string; nom: string | null }[]>(
       q
-        ? "SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id WHERE s.name LIKE $1 ORDER BY s.position, s.id LIMIT 40"
-        : "SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id ORDER BY s.position, s.id LIMIT 40",
+        ? `SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id WHERE s.name LIKE $1 AND ${vivant("s")} ORDER BY s.position, s.id LIMIT 40`
+        : `SELECT s.id, s.uid, s.name, t.name AS nom FROM knowledge_topics s LEFT JOIN object_types t ON t.id = s.type_id WHERE ${vivant("s")} ORDER BY s.position, s.id LIMIT 40`,
       q ? [like] : [],
     );
     for (const r of rows)
@@ -2117,14 +2160,18 @@ async function corpusPour(
   }
   if (veut("goal")) {
     const rows = await db.select<{ id: number; uid: string; title: string }[]>(
-      q ? "SELECT id, uid, title FROM goals WHERE title LIKE $1 LIMIT 40" : "SELECT id, uid, title FROM goals LIMIT 40",
+      q
+        ? `SELECT id, uid, title FROM goals WHERE title LIKE $1 AND ${VIVANT} LIMIT 40`
+        : `SELECT id, uid, title FROM goals WHERE ${VIVANT} LIMIT 40`,
       q ? [like] : [],
     );
     for (const r of rows) docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title });
   }
   if (veut("task")) {
     const rows = await db.select<{ id: number; uid: string; label: string }[]>(
-      q ? "SELECT id, uid, label FROM tasks WHERE label LIKE $1 LIMIT 40" : "SELECT id, uid, label FROM tasks LIMIT 40",
+      q
+        ? `SELECT id, uid, label FROM tasks WHERE label LIKE $1 AND ${VIVANT} LIMIT 40`
+        : `SELECT id, uid, label FROM tasks WHERE ${VIVANT} LIMIT 40`,
       q ? [like] : [],
     );
     for (const r of rows) docs.push({ kind: "task", id: r.id, uid: r.uid, titre: r.label });
@@ -2132,8 +2179,8 @@ async function corpusPour(
   if (veut("event")) {
     const rows = await db.select<{ id: number; uid: string; title: string; date: string }[]>(
       q
-        ? "SELECT id, uid, title, date FROM calendar_events WHERE title LIKE $1 ORDER BY date DESC LIMIT 40"
-        : "SELECT id, uid, title, date FROM calendar_events ORDER BY date DESC LIMIT 40",
+        ? `SELECT id, uid, title, date FROM calendar_events WHERE title LIKE $1 AND ${VIVANT} ORDER BY date DESC LIMIT 40`
+        : `SELECT id, uid, title, date FROM calendar_events WHERE ${VIVANT} ORDER BY date DESC LIMIT 40`,
       q ? [like] : [],
     );
     for (const r of rows) docs.push({ kind: "event", id: r.id, uid: r.uid, titre: r.title, contexte: r.date });
@@ -2195,7 +2242,13 @@ export async function titresDesMentions(
     const { table, titre } = COLONNE[kind];
     const jokers = uids.map((_, i) => `$${i + 1}`).join(", ");
     const rows = await db.select<{ uid: string; titre: string }[]>(
-      `SELECT uid, ${titre} AS titre FROM ${table} WHERE uid IN (${jokers})`,
+      // ⚠️ Nom de table construit À LA VOLÉE : l'une des deux lectures qu'une
+      // recherche de « FROM notes » avait ratées à l'audit. Un objet en
+      // corbeille n'a plus de titre à rafraîchir — sa mention se comporte comme
+      // vers un objet supprimé. `trades` n'a pas de corbeille : filtre à part.
+      `SELECT uid, ${titre} AS titre FROM ${table} WHERE uid IN (${jokers})${
+        TABLES_CORBEILLE.includes(table) ? ` AND ${VIVANT}` : ""
+      }`,
       uids,
     );
     for (const r of rows) out.set(`${kind}:${r.uid}`, r.titre ?? "");
@@ -2243,10 +2296,18 @@ export async function fetchFacturation(): Promise<FacturationData> {
     db.select<InvoiceParty[]>("SELECT * FROM invoice_parties ORDER BY archived, nom"),
     db.select<InvoiceSeries[]>("SELECT * FROM invoice_series ORDER BY code"),
     db.select<Invoice[]>(
-      "SELECT * FROM invoices ORDER BY COALESCE(date_emission, date(created_at)) DESC, id DESC",
+      `SELECT * FROM invoices WHERE ${VIVANT} ORDER BY COALESCE(date_emission, date(created_at)) DESC, id DESC`,
     ),
-    db.select<InvoiceLine[]>("SELECT * FROM invoice_lines ORDER BY invoice_id, position"),
-    db.select<InvoicePayment[]>("SELECT * FROM invoice_payments ORDER BY date, id"),
+    // Les lignes et paiements d'un brouillon en corbeille sont écartés PAR LEUR
+    // FACTURE (`LEFT JOIN` : une ligne orpheline reste rendue, comme avant).
+    db.select<InvoiceLine[]>(
+      `SELECT l.* FROM invoice_lines l LEFT JOIN invoices i ON i.id = l.invoice_id
+        WHERE ${vivant("i")} ORDER BY l.invoice_id, l.position`,
+    ),
+    db.select<InvoicePayment[]>(
+      `SELECT p.* FROM invoice_payments p LEFT JOIN invoices i ON i.id = p.invoice_id
+        WHERE ${vivant("i")} ORDER BY p.date, p.id`,
+    ),
     db.select<InvoiceIssuer[]>("SELECT * FROM invoice_issuer LIMIT 1"),
   ]);
   return { tiers, series, factures, lignes, paiements, emetteur: emetteurs[0] ?? null };
@@ -2693,7 +2754,9 @@ export async function compterExemples(): Promise<number> {
   let total = 0;
   for (const table of TABLES_EXEMPLE) {
     const rows = await db.select<{ n: number }[]>(
-      `SELECT COUNT(*) AS n FROM ${table} WHERE is_example = 1`,
+      // Un exemple déjà jeté n'est plus à annoncer : « supprimer les 4 exemples »
+      // n'en supprimerait que 3, et le bouton mentirait.
+      `SELECT COUNT(*) AS n FROM ${table} WHERE is_example = 1 AND ${VIVANT}`,
     );
     total += rows[0]?.n ?? 0;
   }
