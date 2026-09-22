@@ -1,61 +1,117 @@
-# Design system V6 — « Obsidian & Jade »
+# Design system V7 — « Ink & Azure »
 
 Source de vérité : les tokens CSS de `src/index.css` (`@theme` = sombre par défaut,
 surcharges `:root[data-theme="light"]` + media query pour le mode système).
 Ce fichier documente les valeurs, les règles d'usage et les justifications.
-(V6 remplace V5 « Onyx & Émeraude » le 2026-07-21 — refonte « Apple-grade »
-demandée : fond quasi-OLED, vraie hiérarchie d'élévation, accents désaturés,
-physique de mouvement unifiée.)
+(V7 remplace V6 « Obsidian & Jade » le 2026-09-22 — décidée par Antonin le
+2026-09-20 sur maquette interactive : « même famille, en plus claquant ». La V6
+avait remplacé la V5 le 2026-07-21 ; son détail est dans *Historique*.)
 
 ## Intention
 
 App mixte **productivité + trading** utilisée plusieurs heures d'affilée :
 
-- fond **quasi-OLED** (`#07090d`) : chaque cran de luminosité gagné réduit
-  l'éblouissement en session prolongée. Jamais de noir pur — les ombres
-  restent lisibles et le scroll ne « clignote » pas ;
+- **le fond reste une encre presque neutre** (`#07080b`, teinte ~220°). La force
+  vient de ce qu'on pose dessus, pas d'un fond coloré. Trois variantes plus
+  douces ont été comparées côte à côte sur maquette et écartées ;
+- **un accent qui claque : `#0088ff`, le bleu de Shazam exact**, pour le texte,
+  les icônes, le focus, les états actifs et les liserés de sélection ;
+- **un dégradé de marque bleu → cyan, avec une seule règle : il signale une
+  FONCTION, il ne décore jamais un contenant au repos.** Cinq emplois, pas un
+  de plus : l'**action** (bouton primaire), la **progression** (jauges
+  linéaires, anneau de discipline, courbe du patrimoine en Finance), la
+  **sélection** (soulignement d'onglet actif — il n'en existe aucun dans l'app
+  aujourd'hui), et l'**interaction** (filet de survol d'une carte, invisible
+  au repos). **Aucun liseré coloré permanent sur une carte** : c'est le tic
+  visuel des interfaces « IA » ;
 - **trois plans distincts** (fond → surface → surface-2), chacun avec son
-  ombre et son liseré interne : c'est cette hiérarchie d'élévation qui donne
-  la profondeur « matériau » d'une app Apple, au lieu d'aplats juxtaposés ;
-- **un seul accent** (bleu azur `#4d8dff`) pour l'interactif ;
-- couleurs vives **réservées aux signaux de trading** : vert jade =
-  achat/win/long, rouge corail = vente/loss/short, ambre = alerte,
-  indigo = sessions & segments ;
-- sobriété Apple : typographie, espace, hairlines — zéro glow décoratif ;
-- la famille neutre (fond/surfaces/texte/hairlines) partage la même teinte
-  ardoise (hue ~220°) pour un rendu homogène « premium ».
+  ombre et son liseré interne neutre : c'est la hiérarchie d'élévation qui donne
+  la profondeur « matériau » ;
+- couleurs vives **réservées aux signaux de trading**, plus saturées qu'en V6
+  mais lisibles en session longue (le néon a été écarté) : vert = achat/win/long,
+  rouge = vente/loss/short, ambre = alerte, indigo = sessions & segments ;
+- sobriété : typographie, espace, hairlines — zéro glow décoratif, **sauf
+  l'ombre teintée du bouton primaire** (`--btn-primary-shadow`) ;
+- **un peu de mouvement, à deux endroits précis** : le filet de survol des
+  cartes et l'entrée en cascade des panneaux (§ « Physique du mouvement »).
+
+⚠️ **Testé et écarté, ne pas implémenter** : un dégradé sur les chiffres héros
+(texte blanc → azur par `background-clip: text`). Antonin l'a essayé sur
+maquette, a hésité, puis a tranché contre (2026-09-20).
+
+**Honnêteté sur ce que la V7 change** : les neutres restent proches de la V6,
+c'est voulu. Le gain vient de l'accent, des dégradés et des signaux.
 
 ## Couleurs
 
-| Token | Sombre « Obsidian » | Clair « Alabaster » | Usage |
+| Token | Sombre « Ink » | Clair | Usage |
 |---|---|---|---|
-| `--color-bg` | `#07090d` | `#f4f5f7` | fond de fenêtre |
-| `--color-surface` | `#12151c` | `#ffffff` | cartes, sidebar |
-| `--color-surface-2` | `#1c202a` | `#ebedf1` | inputs, boutons secondaires, pistes |
-| `--color-text` | `#eef1f6` | `#0b0d12` | texte principal |
-| `--color-text-dim` | `#8b94a6` | `#5c6474` | texte secondaire, labels |
-| `--color-blue` | `#4d8dff` | `#1b62e5` | accent unique : actions, liens, focus, sélection |
-| `--color-green` | `#14c8a0` | `#06825f` | sémantique : achat / win / long / go |
-| `--color-red` | `#ff5666` | `#d22b3c` | sémantique : vente / loss / short / stop |
-| `--color-yellow` | `#f0b341` | `#96650b` | alertes, avertissements, risque engagé |
-| `--color-violet` | `#8e8bff` | `#4b45d6` | sessions de trading, catégories |
-| `--color-border` | ardoise 11 % | encre 9 % | hairlines |
+| `--color-bg` | `#07080b` | `#f5f6f8` | fond de fenêtre |
+| `--color-surface` | `#111318` | `#ffffff` | cartes, sidebar |
+| `--color-surface-2` | `#1a1d24` | `#ebedf1` | inputs, boutons secondaires, pistes |
+| `--color-text` | `#f4f6fa` | `#0a0c12` | texte principal |
+| `--color-text-dim` | `#9aa1b2` | `#5a6272` | texte secondaire, labels |
+| `--color-blue` | `#0088ff` | `#0060dc` | accent unique : texte, icônes, focus, états actifs. **Ne porte pas de blanc** |
+| `--color-blue-solid` | `#0070f0` | `#0070f0` | **aplat bleu qui porte du texte** (jour choisi, compteur, pastille sélectionnée) |
+| `--color-on-blue` | `#ffffff` | `#ffffff` | texte sur `--color-blue-solid` / `.fill-primary` |
+| `--color-green` | `#10d9a0` | `#00764f` | sémantique : achat / win / long / go |
+| `--color-red` | `#ff4d5e` | `#c8122b` | sémantique : vente / loss / short / stop |
+| `--color-yellow` | `#ffc23a` | `#8f5300` | alertes, avertissements, risque engagé |
+| `--color-violet` | `#9a8cff` | `#4b40e0` | sessions de trading, catégories |
+| `--color-border` | ardoise `rgb(160 170 190)` 13 % | encre `rgb(10 12 18)` 9 % | hairlines |
 | `--color-border-strong` | ardoise 20 % | encre 16 % | séparateurs appuyés |
 | `--color-overlay` / `-2` | ardoise 6/12 % | encre 4.5/8.5 % | hover / sélection |
-| `--color-on-green` | `#04150f` | `#ffffff` | texte sur aplat vert |
+| `--color-on-green` | `#03130d` | `#ffffff` | texte sur aplat vert |
+
+### ⭐ Pourquoi deux bleus
+
+`#0088ff` se lit en texte sur fond sombre (5,3:1 sur la surface) mais **du blanc
+posé dessus ne donne que 3,5:1**, sous le seuil AA de 4,5. `#0070f0`, à peine plus
+profond, porte le blanc à **4,6:1** et reste un bleu franc. Donc : texte et icônes
+prennent le bleu Shazam exact ; tout aplat bleu qui porte du texte prend
+`--color-blue-solid` ; le bouton primaire prend `--gradient-primary`, dont les deux
+arrêts portent le blanc (4,6 et 5,6). **Ne pas remplacer `#0088ff` « pour le
+contraste »** : le compromis est déjà fait par ces deux tokens.
+
+### Dégradés et ombre du bouton (hors Tailwind)
+
+| Token | Sombre | Clair | Emploi — et AUCUN autre |
+|---|---|---|---|
+| `--gradient-primary` | `linear-gradient(180deg, #0070f0, #0062dc)` | identique | fond du bouton primaire, via `.fill-primary` seulement |
+| `--gradient-brand` | `linear-gradient(90deg, #0088ff, #00c2ff)` | `… #0060dc, #0082e6` | jauges linéaires (état en cours ; « atteint » reste vert), soulignement d'onglet actif, filet de survol |
+| `--gradient-brand-from` / `-to` | `#0088ff` / `#00c2ff` | `#0060dc` / `#0082e6` | les deux arrêts bruts, pour les `<linearGradient>` SVG (anneau de discipline, courbe du patrimoine) — un `stop-color` n'accepte pas un raccourci `background` |
+| `--btn-primary-shadow` | ombre bleue 55 % + reflet interne | ombre `--color-blue-solid` 50 % | bouton primaire seulement |
+
+**`.fill-primary`** (`index.css`, à côté de `.glass`) : `--gradient-primary` +
+`--color-on-blue` + `--btn-primary-shadow`. **Au survol il s'assombrit
+(`brightness(.92)`, blanc à 5,3:1), jamais il ne s'éclaircit** — éclaircir ferait
+retomber le blanc sous 4,5. Sa transition reprend `transform`, sans quoi elle
+écraserait celle de `button` et l'appui (`scale(.975)`) sauterait.
+
+Dans un SVG : un `id` de dégradé **par montage** (`useId()`), jamais un id fixe —
+le premier `<linearGradient>` du document gagnerait si le composant était monté
+deux fois.
 
 ### Matériaux & élévation (hors Tailwind)
 
 | Token | Rôle |
 |---|---|
-| `--card-bg` | **dégradé vertical court** en sombre (`#171b24` → `#12151c`) : simule une source de lumière haute. Aplat blanc en clair. |
-| `--card-shadow` / `--card-shadow-hover` | ombre à deux étages (contact + ambiante) + liseré interne clair |
+| `--card-bg` | **dégradé vertical court** en sombre (`#161920` → `#111318`) : simule une source de lumière haute. Aplat blanc en clair. |
+| `--card-shadow` / `--card-shadow-hover` | ombre à deux étages (contact + ambiante, noir neutre) + liseré interne clair `rgb(255 255 255 / .05)` — un reflet neutre, sans couleur : c'est la substance du bord, pas un ornement |
 | `--card-border-hover` | hairline au survol |
 | `--lift-shadow` | panneau soulevé pendant un drag / resize |
-| `--glass-bg` + `--glass-blur` | matériau verre (`.glass`) : sidebar, barres d'outils flottantes |
+| `--glass-bg` + `--glass-blur` | matériau verre (`.glass`) : la surface à 72 % (sombre) / blanc à 78 % (clair) |
 | `.card-solid` | aplat opaque pour une carte posée AU-DESSUS d'un `backdrop-filter` (modale, lecteur) : le dégradé `--card-bg` y laisserait transparaître la vue floutée |
-| `--ambient` | halo bleu unique, très doux, en haut de fenêtre |
+| `--ambient` | halo unique, très doux, en haut de fenêtre : `#0088ff` à 12 % (sombre) / 7 % (clair). Pas plus fort : un halo appuyé a été écarté |
 | `--scrollbar-thumb(-hover)` | scrollbars fines translucides |
+
+⚠️ **Les `rgb(… / a)` dérivés ne suivent pas les tokens tout seuls** : verre,
+bulle, voiles et ombres sont écrits avec leurs propres canaux. Toute retouche d'une
+couleur de base les oblige à être recalculés à la main.
+
+⚠️ **Le thème clair est écrit DEUX fois** (`[data-theme="light"]` et le media
+query du mode Système). `theme.premier-paint.test.ts` échoue si les deux blocs
+diffèrent d'une ligne.
 
 ### Info-bulle (« hover hint »)
 
@@ -77,23 +133,66 @@ l'élément au lieu d'apparaître de nulle part. Fondu 120 ms, ressort 190 ms.
 (`cubic-bezier(.32,.72,0,1)`), `--dur-fast` 120 ms, `--dur-base` 200 ms,
 `--dur-slow` 320 ms. **Toutes** les micro-interactions les utilisent, ce qui
 donne à l'app une signature de mouvement unique. `prefers-reduced-motion`
-est respecté globalement (animations et transitions neutralisées).
+est respecté globalement : durée des animations et des transitions **et, depuis
+la V7, délai des animations** (sans quoi un élément à délai restait invisible le
+temps de son délai, puis surgissait).
 
-### Contrastes (WCAG 2.1)
+Le mouvement est **gelé**, à deux exceptions nommées (V7) :
 
-Sur le fond `#07090d` :
+**Le filet de survol d'une carte.** Invisible au repos. Au survol à la souris
+(`@media (hover: hover) and (pointer: fine)` — iOS simule un survol collant), la
+carte se soulève de 2 px (`translate`, `--dur-base`) et un filet d'1 px apparaît
+en haut, dans le rayon (14 px de retrait), dégradé
+`transparent → from → to → transparent`. Jamais un contour complet, jamais un
+halo. Écrit une fois, sur `.card`. Trois exclusions, chacune pour une raison :
+- `.card-solid` (modales, lecteur) : toujours sous la souris, ils garderaient le
+  filet allumé en permanence ;
+- une carte qui contient un `.fixed` : le `translate` ferait d'elle le bloc
+  conteneur d'une modale rendue à l'intérieur (PIEGES § 9.5) ;
+- **dans la grille, c'est le panneau (`[data-pid]`) qui se soulève**, pas la
+  carte : le panneau porte `overflow: clip`, qui rognerait les 2 px du haut et
+  le filet avec. Par `translate`, indépendant du `transform` du FLIP.
 
-- texte principal `#eef1f6` : ~17:1 — AAA ; sur surface `#12151c` : ~15:1 ;
-- `--color-text-dim` `#8b94a6` : ~6.2:1 — AA (AA large partout) ;
-- `--color-blue` `#4d8dff` : ~6.4:1 — AA même en corps de texte
-  (contre 4.9:1 en V5 : gain net de lisibilité) ;
-- `--color-green` `#14c8a0` : ~9.6:1 — AAA ;
-- `--color-red` `#ff5666` : ~6.6:1 — AA ;
-- `--color-yellow` `#f0b341` : ~11:1 — AAA ;
-- en clair, tous les accents sont ≥ 5:1 sur blanc.
-- vert et rouge diffèrent aussi en **luminosité** (pas seulement en teinte)
-  → différenciables en cas de daltonisme rouge-vert ; les montants gardent
-  toujours leur signe (`+5R` / `−2R`) en plus de la couleur.
+**L'entrée en cascade des panneaux** — la seule animation d'entrée du système,
+avec le fondu de vue qui existait déjà (`animate-fade-up` sur le conteneur de
+vue). Au montage d'une grille (`ResizableGrid`, donc à chaque changement de vue) :
+`opacity 0→1`, `translate 0 10px → 0`, 420 ms, `--ease-out-quint`.
+**Délai = 55 ms × (rang − 1), plafonné à 440 ms dès le 9e panneau**, en CSS pur
+(`:nth-of-type`). `fill-mode: backwards`, pas `both` : une fois jouée,
+l'animation ne tient plus rien. La classe `.rgrid-entree` ne vit qu'une seconde
+(un minuteur la retire, il ne calcule rien) : React **déplace** les nœuds quand on
+réordonne, et une animation se rejoue sur un nœud réinséré.
+
+### Contrastes (WCAG 2.1) — mesurés le 2026-09-22 sur les valeurs écrites
+
+| | fond | surface | surface-2 |
+|---|---|---|---|
+| **Sombre** | | | |
+| texte `#f4f6fa` | 18,51 | 17,17 | 15,59 |
+| texte atténué `#9aa1b2` | 7,74 | 7,18 | 6,52 |
+| bleu `#0088ff` | 5,69 | 5,28 | 4,79 |
+| vert `#10d9a0` | 10,92 | 10,14 | 9,20 |
+| rouge `#ff4d5e` | 6,18 | 5,73 | 5,20 |
+| ambre `#ffc23a` | 12,43 | 11,53 | 10,46 |
+| indigo `#9a8cff` | 7,22 | 6,70 | 6,08 |
+| **Clair** | | | |
+| texte `#0a0c12` | 18,08 | 19,55 | 16,68 |
+| texte atténué `#5a6272` | 5,67 | 6,13 | 5,23 |
+| bleu `#0060dc` | 5,24 | 5,67 | 4,83 |
+| vert `#00764f` | 5,24 | 5,67 | 4,84 |
+| rouge `#c8122b` | 5,43 | 5,87 | 5,01 |
+| ambre `#8f5300` | 5,70 | 6,17 | 5,26 |
+| indigo `#4b40e0` | 6,25 | 6,75 | 5,76 |
+
+Et : blanc sur `#0070f0` **4,59** · sur `#0062dc` 5,55 · sur `#0070f0` assombri
+(`brightness(.92)`) 5,27 · blanc sur `#0088ff` **3,52** (d'où les deux bleus) ·
+`--color-on-green` sombre sur vert 10,39 · blanc sur vert clair 5,67 · fin du
+dégradé de jauge clair (`#0082e6`) sur surface-2 3,36 (élément non textuel,
+seuil 3) · bouton « Perdante » (blanc sur rouge sombre) **3,24** — 3,1 en V6, pas
+de régression, accepté tel quel.
+
+Vert et rouge diffèrent aussi en **luminosité** → différenciables en cas de
+daltonisme rouge-vert ; les montants gardent toujours leur signe (`+5R` / `−2R`).
 
 ## Typographie
 
@@ -371,7 +470,7 @@ d'unités avec le site. Le passage doit toujours être décidé **pour les deux
 surfaces ou pour aucune** — mais l'argument est désormais l'homogénéité, pas
 Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
 
-## Règles impératives (inchangées depuis V3)
+## Règles impératives (depuis V3 ; bouton primaire et dégradé revus en V7)
 
 - **Jamais** de couleur codée en dur ni de voile `bg-white/x`/`bg-black/x`
   (exception : backdrops de modales `bg-black/60`). Tokens partout ; dans les
@@ -381,11 +480,21 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
   est un token `var(...)` (fond transparent silencieux) — utiliser `color-mix`.
 - Un seul accent (bleu). Vert/rouge = sémantique uniquement — dans le tracker
   live : bouton plein vert « Gagnante » (`text-on-green`), plein rouge
-  « Perdante » (`text-white`). Zéro glow décoratif.
+  « Perdante » (`text-white`). Zéro glow décoratif — *(nuance V7, 2026-09-22)*
+  sauf l'ombre teintée du bouton primaire (`--btn-primary-shadow`) ; et le
+  dégradé de marque (`--gradient-brand`, `--gradient-primary`) ne sert que cinq
+  emplois nommés — l'action, la progression (jauges, anneau de discipline,
+  graphique Finance) et la sélection — plus un filet de survol de carte,
+  invisible au repos, jamais à décorer un contenant en permanence.
+- **Aplat bleu qui porte du texte** : `bg-blue-solid text-on-blue`, jamais
+  `bg-blue text-white` (3,5:1). `bg-blue` seul reste pour ce qui n'écrit rien
+  (pastilles, interrupteurs, points).
 - `.card` = matériau + hairline + ombre à deux étages. `.hud-label` pour tout
   micro-label. `.glass` pour la sidebar et les barres d'outils flottantes.
-- Bouton primaire : `pill bg-blue text-white font-semibold` ; secondaire :
-  `pill border border-border bg-surface-2`.
+- Bouton primaire : `pill fill-primary font-semibold` *(V7 ; c'était
+  `pill bg-blue text-white font-semibold` jusqu'au 2026-09-22)* — pas de
+  `hover:opacity-*` ni de `transition-opacity` : la classe porte son survol ;
+  secondaire : `pill border border-border bg-surface-2`.
 - Icônes : bibliothèque maison `src/components/icons.tsx`, jamais d'emoji.
 - **Toute action non triviale porte une info-bulle** : `data-tip` (+ `data-tip-sub`
   pour la conséquence, `data-tip-kbd` pour le raccourci). Une action évidente
@@ -400,6 +509,13 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
 
 ### Historique
 
+- **V6 « Obsidian & Jade »** (2026-07-21 → 2026-09-20, remplacée dans le code le
+  2026-09-22) : bg #07090d, surface #12151c, surface-2 #1c202a, texte #eef1f6,
+  dim #8b94a6, bleu #4d8dff, vert #14c8a0, rouge #ff5666, ambre #f0b341,
+  indigo #8e8bff ; clair bg #f4f5f7, texte #0b0d12, bleu #1b62e5, vert #06825f,
+  rouge #d22b3c, ambre #96650b, indigo #4b45d6. Jugée « un peu fade » : accent
+  désaturé, signaux adoucis, aucun élément de marque. Contrastes V6 : texte ~17:1,
+  dim ~6.2:1, bleu ~6.4:1, vert ~9.6:1, rouge ~6.6:1, ambre ~11:1.
 - **V5 « Onyx & Émeraude »** (2026-07-13 → 2026-07-21) : bg #0b0e14, surface
   #1a202c, bleu #3b82f6, vert #00c896, rouge #f23645. Remplacée par V6.
 - **V4 « Graphite & Signal »** (2026-07-12) : bg #0c0f14, bleu #2e7ff2.

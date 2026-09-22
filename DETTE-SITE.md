@@ -525,3 +525,32 @@ Aucun module ajouté ou retiré (**treize**, toujours), aucun renommage dans
 promesse de `SPECS` touchée (plateformes, stockage, hors-ligne, clés d'API,
 sauvegarde, langue, licence). `Demo.astro` ne joue ni Objectifs ni Notes : sa
 barre latérale et son compte « 3 MODULES SUR 12 » ne bougent pas.
+
+---
+
+## Q — Design system V7 « Ink & Azure » (app, entrée datée du 2026-09-20, livrée le 2026-09-22)
+
+L'app a quitté la palette V6 : accent bleu de Shazam `#0088ff` (clair `#0060dc`),
+dégradé de marque bleu → cyan (`#0088ff → #00c2ff`), fonds `#07080b` / `#f5f6f8`,
+signaux plus saturés. Détail : `DESIGN.md`. **Le site ne suit pas, et c'est
+volontaire pour ce chantier** : Antonin mène lui-même la refonte du site.
+
+1. **`shale-site/vitrine`** a son propre système de tokens — accent cyan
+   `oklch(0.72 0.13 225)` en sombre / `oklch(0.528 0.15 235)` en clair, fonds de
+   la V6. Il ne suit pas la V7. Le dégradé bleu → cyan de la V7 s'y adapterait
+   naturellement (le cyan du site en est très proche de l'arrêt final).
+   → fichier : `vitrine/src/styles/global.css` (tokens `accent`, fonds).
+2. **La démo jouable** (`vitrine/src/components/Demo.astro`) reproduit l'UI de
+   l'app : elle montre l'ancienne palette (accent `#4d8dff`, bouton plein sans
+   dégradé, anneau bleu → vert) tant que le site n'est pas aligné.
+3. **L'icône du bundle macOS et les icônes iOS** portent l'accent cyan du site
+   (`MOBILE.md` § 21.2) et les fonds V6. Après la V7, l'icône du Dock est cyan et
+   l'app est azur. Les régénérer est un chantier à part : `tauri icon` ne touche
+   pas le catalogue iOS (`MOBILE.md` § 21.3, `PIEGES.md` § 11.2).
+   `icone-ios.test.ts` tolère désormais 8 unités par canal entre l'icône et les
+   jetons (l'écart V6/V7 est de 1 à 6) : un nouveau glissement de la palette le
+   fera tomber, comme il doit.
+4. `CLAUDE.md` disait que la parité de marque exigerait **un token de marque
+   dédié**. La V7 ne le crée pas : elle fait de `--color-blue` le bleu de marque
+   de l'app, et laisse au chantier « site + icônes » le soin d'aligner l'autre
+   côté.

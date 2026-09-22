@@ -359,6 +359,10 @@ FXStreet/InvestingLive répondent 200 ✓, UI démo complète sans erreur consol
   repliées dans un <details>. Le contrat `MarketBrainState` n'a pas changé.
 
 ## Design system V6 "Obsidian & Jade" (refonte 2026-07-21) — voir DESIGN.md
+> ⚠️ **Remplacé par la V7 « Ink & Azure » le 2026-09-22** — voir la section
+> datée en fin de fichier et `DESIGN.md`. Les valeurs ci-dessous sont
+> l'historique de la V6, plus l'état du code.
+
 Refonte « Apple-grade » de la palette V5. Palette sombre quasi-OLED
 (bg #07090d, surface #12151c, surface-2 #1c202a, texte #eef1f6, dim #8b94a6,
 bleu #4d8dff, vert jade #14c8a0, rouge corail #ff5666, ambre #f0b341,
@@ -5823,3 +5827,55 @@ Aucune migration, aucun Rust. Vérifié dans Chrome headless (mode démo,
 clics souris réels) : bascule à 30 ms, décochage de « Ouvrir le compte prop
 firm » (cochée il y a 3 jours dans la démo) tenu après relecture de la base.
 ⛔ Rebuild natif non fait : à grouper avec les chantiers voisins (V7, menus).
+
+## 2026-09-22 — ⭐ Design system V7 « Ink & Azure »
+
+Cadrage `PROMPT-DA-V7.md`, décidé par Antonin le 2026-09-20 en deux tours :
+quatre directions comparées (B « Ink & Azure » retenue), puis une maquette
+interactive cliquable. Rapport de phase 0 :
+`~/Desktop/Shale-chantiers/RAPPORT-PHASE0-DA-V7.md`. Valeurs et règles :
+`DESIGN.md`. La règle « design system gelé » a été levée pour ce chantier seul ;
+**elle vaut désormais pour la V7**.
+
+**Pourquoi, choix par choix :**
+- **Le bleu de Shazam (`#0088ff`)** : la V6 était « un peu fade » (accent
+  `#4d8dff` désaturé). Antonin voulait la même famille, en plus vif, et une
+  couleur qui ait une identité. Le fond, lui, ne bouge presque pas : trois fonds
+  plus doux ont été essayés et écartés, le « claquant » vient de l'accent.
+- **Deux bleus.** `#0088ff` ne porte pas de blanc (3,5:1). Plutôt que de
+  sacrifier la teinte, `--color-blue-solid` (`#0070f0`, 4,6:1) prend tout aplat
+  écrit, et le bouton primaire a son propre dégradé (`--gradient-primary`).
+  Ne JAMAIS « corriger » `#0088ff` pour le contraste.
+- **Le dégradé bleu → cyan ne sert que cinq emplois nommés** (action,
+  progression, sélection, interaction). Un dégradé partout n'est plus un signal.
+- **Liseré coloré permanent sur une carte : refusé** — c'est le tic visuel des
+  sites « IA ». **Accepté comme micro-interaction** : un filet d'1 px qui
+  n'existe qu'au survol.
+- **Entrée en cascade en CSS pur** (`:nth-of-type`, 55 ms, plafond 440 ms) : des
+  délais calculés en JS auraient été plus fragiles pour rien. Un minuteur
+  retire seulement la classe après une seconde — parce que React déplace les
+  nœuds quand on réordonne, et qu'une animation se rejoue sur un nœud réinséré.
+- **Dégradé sur les chiffres héros : testé sur maquette, écarté** par Antonin
+  après hésitation. Ne pas le proposer de nouveau.
+- **Directions écartées** : A « Radiance » (fond marine — le fond coloré fatigue
+  en session longue), C « Riviera » (terracotta et beige, d'après une capture
+  d'Antonin — elle quittait la famille et le monde du trading), D « Volt » (noir
+  pur, néon, halos, liseré sur les cartes — criard et daté).
+
+**Ce que la phase 0 a trouvé de faux dans le cadrage** (consigné, pas
+contourné en silence) : la piste de l'anneau était `--color-border`, pas
+`surface-2` (gardée) ; le graphique « Solde » s'appelle « patrimoine » ; aucun
+onglet souligné n'existe (rien créé) ; l'entrée de vue existait déjà à moitié
+(`animate-fade-up`) ; et `prefers-reduced-motion` ne neutralisait PAS les
+délais d'animation — la règle globale reçoit désormais `animation-delay: 0s`.
+
+⚠️ **Pièges de conception rencontrés** (détail dans `PIEGES.md` § 21) :
+- un `dot` en fonction sur une `<Area>` recharts 3 fige son animation d'entrée ;
+- soulever une carte (`translate`) en fait le bloc conteneur de ses `fixed` ;
+- le FLIP de `ResizableGrid` laissait `transition: none` en ligne ;
+- `PALETTE_EXPORT` (cartes mentales) promettait un test qui n'existait pas.
+
+**Non fait, volontairement** : `TAG_COLORS`, `HABIT_COLORS`, `TOPIC_COLORS`
+(données en base, décision PASSATION § 12.2) ; le site et les icônes (dette,
+`DETTE-SITE.md`) ; le `LaunchBackground` iOS (écart d'1/255 par canal,
+invisible — phase E non jouée) ; le rebuild natif (à grouper, voir PASSATION).

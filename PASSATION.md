@@ -140,6 +140,12 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : installée une fois le 2026-08-27, **profil expiré le 2026-09-03** — elle ne s'y lance plus (§ 10) |
 | Windows | code sur le tronc, **jamais compilé** (§ 12) |
 
+> ⚠️ **2026-09-22 — l'interface est passée au design system V7 « Ink & Azure »**
+> (§ 11.z). ⚠️ **L'app INSTALLÉE ne la porte PAS encore** : aucun build natif n'a
+> été fait, il est à grouper avec les chantiers voisins non installés (cases à
+> cocher `6e8b0c7`, menus contextuels + corbeille). Le reste du tableau
+> ci-dessus date du 2026-09-18.
+
 ### ⭐ Ce qui a changé par rapport à ce que disait la documentation
 1. **Le geste de trousseau est fait.** Tous les documents d'avant le 2026-09-18
    le donnaient « en attente ». La synchronisation a tourné hier soir : il est
@@ -794,3 +800,49 @@ le bouton « Créer » sous la barre d'onglets, et la carte cadrée à 25 %.
 ⚠️ **Ce qui n'est PAS prouvé** : l'iPhone n'a été vu qu'en **émulation Chrome**
 (390 × 844, appuis tactiles réels) — ni simulateur, ni appareil. Ce que
 l'émulation ne peut pas dire reste écrit dans `MOBILE.md` § 24.
+
+### 11.z Le 2026-09-22 — design system V7 « Ink & Azure »
+
+Cadrage `PROMPT-DA-V7.md`. La V6 « Obsidian & Jade » était jugée fade ; la V7
+garde la structure et repeint : **accent bleu de Shazam `#0088ff`**, un second
+bleu `#0070f0` pour les aplats qui portent du blanc, un **dégradé bleu → cyan**
+réservé à cinq emplois (bouton primaire, jauges, anneau de discipline, courbe du
+patrimoine, filet de survol), signaux plus saturés. Plus deux mouvements : un
+filet d'1 px au survol des cartes (invisible au repos) et l'entrée en cascade
+des panneaux. Pourquoi : `CLAUDE.md` (section datée). Valeurs : `DESIGN.md`.
+
+**Commits** (branche `chantier/design-v7`, fusionnée dans `mobile-ios`) :
+tokens · bouton primaire / remplissages / jauges / état actif · graphique Finance,
+anneau, survol, cascade · couleurs codées en dur → tokens · documentation.
+
+**Ce qui est prouvé.**
+- ✅ Contrastes remesurés sur les valeurs écrites : tous au niveau du cadrage
+  (tableau dans `DESIGN.md`).
+- ✅ 13 modules + Réglages, en sombre et en clair (Système), + clair explicite,
+  sidebar repliée, modale, info-bulle, accueil : captures V6 / V7 dans Chrome
+  headless, mode démo.
+- ✅ Mesuré dans le DOM : filet à opacité 0 au repos sur les 13 cartes dans les
+  trois thèmes, 1 au survol ; délais de cascade 0 → 440 ms plafonnés ; sous
+  `prefers-reduced-motion`, délais 0 et durée 1e-6 s.
+- ✅ Ligne de base : 1276 tests, `tsc`, `test:types`, `i18n:check`, build,
+  `cargo check --all-targets`. Trois tests de concordance neufs (les deux blocs
+  du thème clair ; le fond de `tauri.conf.json` ; `PALETTE_EXPORT` des cartes
+  mentales), chacun vu échouer.
+
+**Ce qui ne l'est pas.**
+- ⚠️ **Pas d'app installée** : rebuild natif à grouper (voir l'encadré du § 3).
+- ⚠️ Le soulèvement au survol n'a été vu qu'en Chrome, pas dans WKWebView.
+- ⚠️ iOS non vu : `LaunchBackground` volontairement laissé en V6 (écart d'1/255
+  par canal, invisible ; phase E non jouée) ; le blanc de la WKWebView au
+  lancement reste non traité (`MOBILE.md` § 21.5).
+
+**Ce qui reste, et où c'est écrit.** Site, démo jouable et icônes : dette
+`DETTE-SITE.md` (entrée Q). `TAG_COLORS` / `HABIT_COLORS` / `TOPIC_COLORS` :
+couleurs de données, intactes. ⚠️ Mesuré : les six hex bruts de `TAG_COLORS` et
+`HABIT_COLORS` (`#fb8b4e`, `#ef6ba8`, `#3cc4de`, `#a78bfa`, `#fb923c`, `#f472b6`)
+donnent 6,5 à 9:1 sur la surface sombre, mais **seulement 2,1 à 2,9:1 sur le
+blanc du thème clair** — c'était déjà vrai en V6 (la surface claire n'a pas
+bougé), la V7 ne l'aggrave pas. Signalé, pas corrigé (décision § 12.2 : pas de
+palette mi-tokens mi-hex, pas de migration). Le cyan `#3cc4de` est en outre
+proche de la fin du dégradé de marque. Deux réglages proposés à Antonin
+et **non appliqués** : signaux encore plus saturés, halo du bouton primaire.

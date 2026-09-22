@@ -2564,3 +2564,107 @@ seconde écriture défait la première.
 bascule au clic, les écritures d'une même case s'enchaînent dans une file, et
 la surcharge tombe quand la dernière est finie — y compris en cas d'échec, où
 la case revient à ce que dit la base.
+
+---
+
+# 21. Design system V7 (2026-09-22)
+
+## 21.1 ⚠️⚠️ Un `dot` en FONCTION sur une `<Area>` recharts 3 fige la courbe sur son premier segment
+
+**Symptôme.** Après avoir ajouté un point sur la dernière valeur de la courbe du
+patrimoine, la courbe ne se dessine plus : à 3,5 s, seul le premier segment est
+visible, et le point final flotte seul à droite. Aucune erreur.
+
+**Cause.** Passer une fonction à `dot` sur l'`<Area>` bloque son animation
+d'entrée. `useCallback` n'y change rien (vu : pire encore, plus rien du tout) —
+ce n'est pas une question d'identité de la fonction.
+
+**Parade.** Porter le point par une série à part : `<Line dataKey="fin"
+stroke="none" isAnimationActive={false} legendType="none" tooltipType="none" />`
+sur une clé qui ne vaut quelque chose qu'au dernier point
+(`CourbePatrimoine.tsx`).
+
+**Payé.** V7, deux essais, vu sur capture — rien d'autre ne l'aurait montré.
+
+## 21.2 ⚠️⚠️ Soulever une carte au survol en fait le bloc conteneur de ses `position: fixed`
+
+**Symptôme (évité).** Une modale rendue DANS sa carte se replierait dans la carte
+dès qu'on la survole — et on la survole forcément, puisqu'on s'en sert.
+
+**Cause.** `translate`, comme `transform`, fait de l'élément le bloc conteneur de
+ses descendants `fixed` (le même mécanisme que § 9.5, par un autre chemin).
+
+**Parade.** Garder le soulèvement hors des cartes qui en contiennent :
+`.card:hover:not(:has(.fixed))`. Toute règle de survol qui déplace un conteneur
+doit porter la même garde.
+
+**Payé.** Repéré en phase 0 de la V7, avant d'écrire la règle.
+
+## 21.3 ⚠️ Le FLIP de `ResizableGrid` laissait `transition: none` EN LIGNE, pour toujours
+
+**Symptôme.** Une transition CSS posée sur les panneaux de la grille (le
+soulèvement V7) marche… jusqu'au premier réordonnancement ; ensuite elle saute.
+
+**Cause.** L'étape 1 du FLIP écrit `style.transition = "none"` sur TOUS les
+panneaux pour mesurer ; l'étape 4 ne réécrivait que les panneaux qui avaient
+bougé. Les autres gardaient `none` en ligne, qui écrase toute feuille de style.
+
+**Parade.** Rendre `style.transition = ""` aux panneaux immobiles (étape 4) et au
+panneau lâché (`finish`). Plus généralement : un style EN LIGNE posé
+temporairement doit être retiré, pas seulement écrasé quand ça arrange.
+
+**Payé.** V7, lu dans le code en phase 0.
+
+## 21.4 ⚠️ Un commentaire qui promet un test n'est pas un test
+
+**Symptôme.** `PALETTE_EXPORT` (export des cartes mentales) disait : « un test la
+compare au fichier de style ». Aucun test ne le faisait. Les jetons sont passés en
+V7, la copie serait restée en V6, sans que rien ne casse.
+
+**Parade.** Avant de croire un « c'est vérifié par un test », chercher le test
+(`grep -rn NOM src --include='*.test.ts'`). Écrit : `carte.palette.test.ts`.
+
+**Payé.** V7, trouvé au balayage des hex de la V6.
+
+## 21.5 ⚠️ `prefers-reduced-motion` de l'app neutralisait la DURÉE, pas le DÉLAI
+
+**Symptôme (évité).** Sous mouvement réduit, une carte à délai (entrée en
+cascade) resterait invisible pendant son délai (jusqu'à 440 ms), puis surgirait.
+
+**Cause.** La règle globale écrasait `animation-duration` et
+`transition-duration`. `animation-delay` est une troisième propriété (même
+famille d'oubli que `scroll-behavior`, § 6.3 bis).
+
+**Parade.** `animation-delay: 0s !important` ajouté à la règle existante —
+mesuré : délais 0 s, durée 1e-6 s. Aucune autre animation de l'app n'avait de
+délai.
+
+**Payé.** V7, phase 0.
+
+## 21.6 ⚠️ Un worktree dont `node_modules` est un LIEN fait refuser les polices par Vite
+
+**Symptôme.** Dans un worktree de `Shale-chantiers/`, l'app de démo s'affiche en
+police système. Le journal de Vite dit : « The request id …woff2 is outside of
+Vite serving allow list ». Les captures ont l'air justes — elles ne le sont pas.
+
+**Cause.** Le lien `node_modules → Shale-projet/Shale/node_modules` sort de la
+racine du worktree ; `server.fs.allow` ne l'autorise pas.
+
+**Parade.** Lancer Vite avec une config enveloppe qui étend `fs.allow`
+(`--config` vers un `.mjs` qui importe `vite.config.ts` et ajoute
+`server.fs.allow: ["/Users/antonin/Desktop"]`). Ne pas modifier la config du dépôt.
+
+**Payé.** V7 : une première série de 48 captures V6 à refaire.
+
+## 21.7 ⚠️ En démo, forcer `data-theme` à la main ne tient pas
+
+**Symptôme.** Un script pose `document.documentElement.dataset.theme = "light"`,
+et la capture sort en sombre.
+
+**Cause.** L'app réapplique son réglage de thème (« Système » en démo), qui
+retire l'attribut.
+
+**Parade.** Émuler `prefers-color-scheme` (`page.emulateMediaFeatures`) pour le
+mode Système, et cliquer « Clair » dans Réglages pour le choix explicite.
+
+**Payé.** V7, une série de captures « claires » qui étaient sombres.
