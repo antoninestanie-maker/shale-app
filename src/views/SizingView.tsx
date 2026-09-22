@@ -528,7 +528,7 @@ export default function SizingView({
                 disabled={!result.ok}
                 data-tip={t("Trader cette position")}
                 data-tip-sub={t("Envoie la position au tracker live : l’heure d’entrée exacte est capturée, il ne restera qu’à la clôturer en gagnante ou perdante.")}
-                className="pill mt-4 inline-flex w-full items-center justify-center gap-2 bg-blue px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="pill mt-4 inline-flex w-full items-center justify-center gap-2 fill-primary px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
               >
                 <IconSend className="h-4 w-4" /> {t("Trader cette position")}
               </button>
@@ -700,7 +700,7 @@ function SettingsPanel({
           onClick={save}
           data-tip={t("Enregistrer les réglages")}
           data-tip-sub={t("Capital, risque par défaut, seuils d’alerte et paires personnalisées.")}
-          className="pill bg-blue px-5 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="pill fill-primary px-5 py-2 text-sm font-semibold"
         >
           {t("Enregistrer les réglages")}
         </button>

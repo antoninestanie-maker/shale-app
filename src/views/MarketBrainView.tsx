@@ -295,7 +295,7 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
               type="button"
               onClick={market.regenerate}
               disabled={loading || closed}
-              className="pill bg-blue px-4 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="pill fill-primary px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
             >
               {loading ? t("génération…") : t("Régénérer")}
             </button>
@@ -424,7 +424,7 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
                 onClick={market.regenerate}
                 data-tip={t("Générer le briefing maintenant")}
                 data-tip-sub={t("Sans attendre l’heure de déclenchement automatique.")}
-                className="pill mt-4 bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                className="pill mt-4 fill-primary px-4 py-2 text-sm font-semibold"
               >
                 {t("Générer maintenant")}
               </button>

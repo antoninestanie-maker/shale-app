@@ -113,7 +113,7 @@ export default function NotificationBell({ onNavigate }: Props) {
       >
         <IconBell className="h-[17px] w-[17px]" />
         {notifs.unread > 0 && (
-          <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] bg-blue px-1 text-[10px] font-semibold leading-[15px] text-white">
+          <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] bg-blue-solid px-1 text-[10px] font-semibold leading-[15px] text-on-blue">
             {badge}
           </span>
         )}

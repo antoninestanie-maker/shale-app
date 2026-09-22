@@ -564,7 +564,7 @@ export default function FormulaireFacture({
                   type="button"
                   onClick={() => setConfirmeEmission(true)}
                   disabled={empechements.length > 0 || enCours}
-                  className="pill bg-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                  className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-40"
                 >
                   {t("Émettre")}
                 </button>
@@ -800,7 +800,7 @@ function ConfirmationEmission({
             type="button"
             onClick={onEmettre}
             disabled={enCours}
-            className="pill bg-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {t("Émettre")}
           </button>

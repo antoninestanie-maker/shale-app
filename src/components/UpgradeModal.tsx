@@ -103,7 +103,7 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
             <button
               type="button"
               onClick={() => openExternal(ACCOUNT_PAGES.home)}
-              className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 fill-primary py-2.5 text-sm font-semibold"
             >
               {t("Passer à Shale Trade")}
               <IconExternal className="h-4 w-4" />

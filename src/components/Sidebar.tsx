@@ -423,7 +423,8 @@ export default function Sidebar({
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
-              ? "bg-overlay-2 text-text"
+              ? // V7 : fond bleu 18 % + liseré intérieur 55 %. Pas de halo.
+                "bg-[color-mix(in_srgb,var(--color-blue)_18%,transparent)] text-text shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-blue)_55%,transparent)]"
               : "text-text-dim hover:bg-overlay hover:text-text"
         }`}
       >

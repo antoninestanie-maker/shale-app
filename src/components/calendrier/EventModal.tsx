@@ -447,7 +447,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               type="button"
               onClick={enregistrer}
               disabled={enCours}
-              className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >
               {t("Enregistrer")}
             </button>

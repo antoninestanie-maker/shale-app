@@ -319,7 +319,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
             onClick={save}
             data-tip={t("Enregistrer le croquis")}
             data-tip-sub={t("Le tracé reste modifiable : tu pourras le rouvrir et le compléter.")}
-            className="pill ml-auto inline-flex h-8 items-center gap-1.5 bg-blue px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            className="pill ml-auto inline-flex h-8 items-center gap-1.5 fill-primary px-4 text-xs font-semibold"
           >
             <IconCheck className="h-3.5 w-3.5" /> {t("Enregistrer")}
           </button>

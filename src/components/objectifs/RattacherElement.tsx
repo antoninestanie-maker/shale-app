@@ -338,7 +338,7 @@ function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFerm
           type="button"
           onClick={() => void creer()}
           disabled={!label.trim() || occupe}
-          className="pill cible-tactile-ligne bg-blue px-3 py-1.5 text-xs font-semibold text-white transition-opacity disabled:opacity-40"
+          className="pill cible-tactile-ligne fill-primary px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           {t("Ajouter")}
         </button>

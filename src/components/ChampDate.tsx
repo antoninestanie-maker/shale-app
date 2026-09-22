@@ -372,7 +372,7 @@ export default function ChampDate(props: {
                     onClick={() => choisir(jour)}
                     className={`${cellulePleine} disabled:cursor-not-allowed disabled:text-text-dim/30 disabled:hover:bg-transparent ${
                       choisi
-                        ? "bg-blue font-semibold text-white"
+                        ? "bg-blue-solid font-semibold text-on-blue"
                         : cejour
                           ? "font-semibold text-blue hover:bg-overlay"
                           : dehors

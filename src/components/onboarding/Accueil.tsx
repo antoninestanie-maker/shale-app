@@ -203,7 +203,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
             type="button"
             disabled={enCours}
             onClick={suivant}
-            className="pill cible-tactile w-full bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="pill cible-tactile w-full fill-primary py-2.5 text-sm font-semibold disabled:opacity-50"
           >
             {etape === "action" ? (
               <span className="inline-flex items-center gap-2">

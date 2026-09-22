@@ -267,7 +267,7 @@ export default function GrilleHoraire({
               </span>
               <span
                 className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm ${
-                  estAujourdhui ? "bg-blue font-semibold text-white" : "text-text"
+                  estAujourdhui ? "bg-blue-solid font-semibold text-on-blue" : "text-text"
                 }`}
               >
                 {Number(jour.slice(8))}
@@ -389,7 +389,7 @@ export default function GrilleHoraire({
           sans lui, `elementFromPoint` ne trouverait que le fantôme lui-même. */}
       {glissement?.actif && (
         <div
-          className="cal-fantome pointer-events-none fixed z-50 rounded-md bg-blue px-2 py-1 text-xs font-medium text-white shadow-lg"
+          className="cal-fantome pointer-events-none fixed z-50 rounded-md bg-blue-solid px-2 py-1 text-xs font-medium text-on-blue shadow-lg"
           style={{ left: glissement.x + 12, top: glissement.y - 8 }}
         >
           {glissement.entree.titre}

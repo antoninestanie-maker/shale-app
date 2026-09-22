@@ -136,7 +136,7 @@ export default function DepuisCarte(props: {
               <button
                 type="button"
                 onClick={voir}
-                className="pill cible-tactile-ligne bg-blue px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+                className="pill cible-tactile-ligne fill-primary px-4 py-1.5 text-sm font-semibold"
               >
                 {t("Voir l’objectif")}
               </button>
@@ -242,7 +242,7 @@ export default function DepuisCarte(props: {
                 type="button"
                 onClick={() => void creer()}
                 disabled={!titre.trim() || occupe}
-                className="pill cible-tactile-ligne bg-blue px-4 py-1.5 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+                className="pill cible-tactile-ligne fill-primary px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
               >
                 {t("Créer l’objectif")}
               </button>

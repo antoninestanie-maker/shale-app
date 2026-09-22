@@ -570,7 +570,7 @@ export default function NoteComposer({
                 <button
                   type="submit"
                   data-tip={t("Poser le lien")}
-                  className="pill bg-blue px-2.5 py-1 text-[11px] font-semibold text-white"
+                  className="pill fill-primary px-2.5 py-1 text-[11px] font-semibold"
                 >
                   OK
                 </button>

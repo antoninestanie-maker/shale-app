@@ -941,7 +941,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             data-tip={lecture ? t("Fermer") : t("Terminé")}
             data-tip-sub={lecture ? undefined : t("La carte est déjà enregistrée.")}
             aria-label={lecture ? t("Fermer") : t("Terminé")}
-            className="pill ml-1 inline-flex h-8 items-center gap-1.5 bg-blue px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            className="pill ml-1 inline-flex h-8 items-center gap-1.5 fill-primary px-4 text-xs font-semibold"
           >
             <IconCheck className="h-3.5 w-3.5" /> {lecture ? t("Fermer") : t("Terminé")}
           </button>

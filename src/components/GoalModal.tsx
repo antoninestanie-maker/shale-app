@@ -419,7 +419,7 @@ export default function GoalModal({
             <button
               type="submit"
               disabled={!canSave}
-              className="pill bg-blue px-5 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+              className="pill fill-primary px-5 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {goal ? t("Enregistrer") : t("Créer")}
             </button>

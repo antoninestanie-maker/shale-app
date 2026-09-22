@@ -372,7 +372,7 @@ export default function CalendarView({ data, refresh }: Props) {
           onClick={() => setModale({ event: null, jour: curseur, heure: null })}
           data-tip={t("Nouvel événement")}
           data-tip-sub={t("Un rendez-vous, un créneau bloqué, un anniversaire.")}
-          className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="pill fill-primary px-4 py-2 text-sm font-semibold"
         >
           {t("+ Nouvel événement")}
         </button>
@@ -828,7 +828,7 @@ function RangeeSemaine({
               <span className="flex items-center gap-1">
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full text-[0.7rem] ${
-                    jour === aujourdhui ? "bg-blue font-semibold text-white" : "text-text-dim"
+                    jour === aujourdhui ? "bg-blue-solid font-semibold text-on-blue" : "text-text-dim"
                   }`}
                 >
                   {Number(jour.slice(8))}

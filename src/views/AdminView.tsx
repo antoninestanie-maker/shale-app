@@ -333,7 +333,7 @@ export default function AdminView({ config, save, profil }: Props) {
               onClick={applySizeNow}
               data-tip={t("Appliquer maintenant")}
               data-tip-sub={t("Redimensionne la fenêtre à ces valeurs, sans attendre le prochain lancement.")}
-              className="pill bg-blue px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+              className="pill fill-primary px-4 py-2 text-xs font-semibold"
             >
               {t("Appliquer")}
             </button>

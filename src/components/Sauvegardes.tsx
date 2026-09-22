@@ -136,7 +136,7 @@ export default function Sauvegardes() {
                   setARedemarrer(true);
                 })
               }
-              className="pill bg-blue px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+              className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {t("Oui, restaurer")}
             </button>

@@ -540,7 +540,7 @@ export default function KnowledgeView() {
                 ? t("Elle sera classée dans « {nom} ».", { nom: scopeTopic.name })
                 : t("Texte, liens, images et croquis vivent tous dans la note.")
             }
-            className="pill inline-flex items-center gap-1.5 bg-blue px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            className="pill inline-flex items-center gap-1.5 fill-primary px-4 py-2 text-sm font-semibold"
           >
             <IconPlus className="h-4 w-4" /> {t("Nouvelle note")}
           </button>
@@ -1490,7 +1490,7 @@ function TopicForm({
         <button
           type="submit"
           disabled={!name.trim() || busy}
-          className="pill flex-1 bg-blue px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          className="pill flex-1 fill-primary px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           {initial ? t("Enregistrer") : t("Créer")}
         </button>
@@ -1608,7 +1608,7 @@ function ThemesEmptyState({
       <button
         type="button"
         onClick={onCreate}
-        className="pill mt-1 bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+        className="pill mt-1 fill-primary px-4 py-2 text-sm font-semibold"
       >
         {t("Créer mon premier sujet")}
       </button>
@@ -1802,7 +1802,7 @@ function Placeholder({
         <button
           type="button"
           onClick={action.onClick}
-          className="pill mt-1 bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="pill mt-1 fill-primary px-4 py-2 text-sm font-semibold"
         >
           {action.label}
         </button>
@@ -2216,7 +2216,7 @@ function Reader({
             <button
               type="button"
               onClick={() => void done()}
-              className="pill inline-flex shrink-0 items-center gap-2 whitespace-nowrap bg-blue px-4 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              className="pill inline-flex shrink-0 items-center gap-2 whitespace-nowrap fill-primary px-4 py-1.5 text-xs font-semibold"
             >
               {t("Terminé")}
               {/* ⚠️ Pas de raccourci affiché sur téléphone : il n'y a pas de

@@ -251,7 +251,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
           <button
             type="submit"
             disabled={busy}
-            className="pill mt-5 w-full bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="pill mt-5 w-full fill-primary py-2.5 text-sm font-semibold disabled:opacity-60"
           >
             {busy
               ? signingUp

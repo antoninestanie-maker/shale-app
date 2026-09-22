@@ -324,10 +324,18 @@
   ::selection {
     background: color-mix(in srgb, var(--color-blue) 30%, transparent);
   }
+  /* V7 : un anneau plein de 2 px, et un halo de 4 px AUTOUR de lui (l'ombre
+     part du bord de l'élément : 2 px de décalage + 2 px d'anneau + 4 px de
+     halo = 8). Le halo est réservé aux commandes : sur un champ de saisie,
+     `:focus-visible` s'allume aussi au clic, et un champ qui a choisi
+     `focus:outline-none` recevrait un halo sans anneau. */
   :focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-blue) 60%, transparent);
+    outline: 2px solid var(--color-blue);
     outline-offset: 2px;
     border-radius: 8px;
+  }
+  :is(button, a, summary, [role="button"], [role="tab"], [role="option"]):focus-visible {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-blue) 25%, transparent);
   }
 
   /* Feedback de pression sur tous les boutons */

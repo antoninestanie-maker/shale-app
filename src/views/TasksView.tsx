@@ -155,7 +155,7 @@ export default function TasksView({ data, refresh }: Props) {
           onClick={() => setCreating(true)}
           data-tip={t("Nouvelle tâche")}
           data-tip-sub={t("Libellé, tag, priorité, récurrence et objectif lié.")}
-          className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="pill fill-primary px-4 py-2 text-sm font-semibold"
         >
           {t("+ Nouvelle tâche")}
         </button>

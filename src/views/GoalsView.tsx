@@ -268,7 +268,7 @@ export default function GoalsView({ data, refresh }: Props) {
               <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
                 {pct != null && (
                   <div
-                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-green" : "bg-blue"}`}
+                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-green" : "bg-[image:var(--gradient-brand)]"}`}
                     style={{ width: `${Math.min(pct, 100)}%` }}
                   />
                 )}
@@ -365,7 +365,7 @@ export default function GoalsView({ data, refresh }: Props) {
           onClick={() => setCreating(true)}
           data-tip={t("Nouvel objectif")}
           data-tip-sub={t("Un titre suffit. La feuille de route viendra quand tu en auras besoin.")}
-          className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="pill fill-primary px-4 py-2 text-sm font-semibold"
         >
           {t("+ Nouvel objectif")}
         </button>

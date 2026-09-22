@@ -99,7 +99,7 @@ export default function SubscriptionRequired({
           ) : (
             <button
               onClick={() => openExternal(ACCOUNT_PAGES.home)}
-              className="pill mt-5 flex w-full items-center justify-center gap-2 bg-blue py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="pill mt-5 flex w-full items-center justify-center gap-2 fill-primary py-2.5 text-sm font-semibold"
             >
               {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
               <IconExternal className="h-4 w-4" />

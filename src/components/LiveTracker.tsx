@@ -480,7 +480,7 @@ function InlineForm({
         type="button"
         onClick={submit}
         disabled={!canSubmit}
-        className="pill bg-blue px-3.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+        className="pill fill-primary px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40"
       >
         {kind === "partial"
           ? t("Ajouter")

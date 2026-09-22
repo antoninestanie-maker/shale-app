@@ -744,7 +744,7 @@ function MetricCard({
         </button>
         <button
           type="submit"
-          className="pill shrink-0 bg-blue px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+          className="pill shrink-0 fill-primary px-3 py-1.5 text-sm font-semibold"
         >
           OK
         </button>

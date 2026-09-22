@@ -242,7 +242,7 @@ export default function FormulaireEncaissement({
             type="button"
             onClick={valider}
             disabled={refus !== null || enCours}
-            className="pill bg-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {t("Enregistrer")}
           </button>

@@ -296,7 +296,7 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
             <button
               type="button"
               onClick={enregistrer}
-              className="pill bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="pill fill-primary px-4 py-2 text-sm font-semibold"
             >
               {t("Enregistrer")}
             </button>

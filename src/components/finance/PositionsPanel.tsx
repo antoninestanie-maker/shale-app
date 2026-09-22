@@ -262,7 +262,7 @@ function FormulairePosition({
         <button
           type="button"
           onClick={() => void valider()}
-          className="rounded-[10px] bg-blue px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-[10px] fill-primary px-3 py-1.5 text-xs font-medium"
         >
           {t("Ajouter")}
         </button>

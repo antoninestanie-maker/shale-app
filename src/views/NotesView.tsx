@@ -273,7 +273,7 @@ export default function NotesView({ data, refresh }: Props) {
             onClick={handleNew}
             data-tip={t("Nouvelle note")}
             data-tip-kbd={kbd("⌘⇧N")}
-            className="pill shrink-0 bg-blue px-3 py-2 text-sm font-bold text-white hover:opacity-90"
+            className="pill shrink-0 fill-primary px-3 py-2 text-sm font-bold"
           >
             +
           </button>

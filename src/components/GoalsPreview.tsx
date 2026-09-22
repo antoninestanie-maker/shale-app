@@ -54,7 +54,7 @@ export default function GoalsPreview({ data }: { data: AppData }) {
           <div className="mt-1.5 flex items-center gap-2">
             <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
               <div
-                className="pill h-full bg-blue transition-[width] duration-500"
+                className="pill h-full bg-[image:var(--gradient-brand)] transition-[width] duration-500"
                 style={{ width: `${pct}%` }}
               />
             </div>

@@ -507,7 +507,7 @@ export default function SettingsView() {
                   <button
                     type="submit"
                     disabled={pwBusy}
-                    className="pill bg-blue px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                    className="pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-60"
                   >
                     {pwBusy ? t("Enregistrement…") : t("Enregistrer")}
                   </button>

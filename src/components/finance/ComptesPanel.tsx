@@ -131,7 +131,7 @@ export default function ComptesPanel({
           onClick={() => setReleveGroupe(true)}
           className={`mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] px-3 py-2.5 text-sm font-medium transition-colors ${
             aRelever
-              ? "bg-blue text-white hover:opacity-90"
+              ? "fill-primary"
               : "border border-border text-text-dim hover:bg-overlay hover:text-text"
           }`}
         >
@@ -425,7 +425,7 @@ function ReleveGroupe({
         <button
           type="button"
           onClick={() => void enregistrer()}
-          className="flex items-center gap-1.5 rounded-[10px] bg-blue px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-[10px] fill-primary px-3 py-1.5 text-xs font-medium"
         >
           <IconCheck className="h-3.5 w-3.5" />
           {t("Enregistrer")}
@@ -570,7 +570,7 @@ export function FormulaireCompte({
           <button
             type="button"
             onClick={() => void valider()}
-            className="rounded-[10px] bg-blue px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            className="rounded-[10px] fill-primary px-3 py-1.5 text-xs font-medium"
           >
             {t("Enregistrer")}
           </button>

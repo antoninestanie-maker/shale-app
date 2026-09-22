@@ -273,7 +273,7 @@ export default function TimerView({ data, focus }: Props) {
             <div className="pill mt-2 h-2 overflow-hidden bg-surface-2">
               <div
                 className={`pill h-full transition-[width] duration-500 ${
-                  stats.todayMin >= goalMin ? "bg-green" : "bg-blue"
+                  stats.todayMin >= goalMin ? "bg-green" : "bg-[image:var(--gradient-brand)]"
                 }`}
                 style={{
                   width: `${Math.min((stats.todayMin / goalMin) * 100, 100)}%`,

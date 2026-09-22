@@ -184,7 +184,7 @@ export default function SendToTrackerModal({
             type="button"
             onClick={send}
             disabled={sending}
-            className="pill inline-flex items-center gap-2 bg-blue px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="pill inline-flex items-center gap-2 fill-primary px-5 py-2 text-sm font-semibold disabled:opacity-40"
           >
             <IconSend className="h-4 w-4" /> {t("Envoyer au tracker")}
           </button>
