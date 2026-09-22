@@ -35,8 +35,8 @@ export const CLE_MIROIR = "shale.theme.resolved";
  * `src/lib/theme.premier-paint.test.ts` échoue si l'une des trois copies dérive.
  */
 export const FONDS: Record<ThemeResolu, string> = {
-  dark: "#07090d",
-  light: "#f4f5f7",
+  dark: "#07080b",
+  light: "#f5f6f8",
 };
 
 export function applyTheme(pref: ThemePref): void {

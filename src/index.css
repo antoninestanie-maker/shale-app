@@ -8,52 +8,60 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Design system V6 "Obsidian & Jade"            (voir DESIGN.md)
-   Refonte "Apple-grade" du V5 "Onyx & Émeraude".
+   Design system V7 "Ink & Azure"                (voir DESIGN.md)
+   Repeint la V6 "Obsidian & Jade" (2026-07-21 → 2026-09-20), jugée
+   « un peu fade », sans toucher à sa structure.
 
    Ce qui change, et pourquoi :
-   - Fond quasi-OLED (#07090d) : sur un écran de trading regardé
-     des heures, chaque cran de luminosité gagné réduit
-     l'éblouissement. Jamais de noir pur (#000) pour que les
-     ombres restent lisibles et que le scroll ne "clignote" pas.
-   - VRAIE hiérarchie d'élévation : le fond, les cartes et les
-     champs sont trois plans distincts (bg → surface → surface-2),
-     chacun avec son ombre et son liseré interne. C'est ce qui
-     donne la profondeur "matériau" d'une app Apple, au lieu
-     d'aplats posés côte à côte.
-   - Accents désaturés : bleu azur, vert jade, rouge corail —
-     lisibles en AA sans "crier". Un seul accent interactif
-     (bleu) ; vert/rouge STRICTEMENT réservés à la sémantique
-     de trading ; ambre = alerte ; indigo = sessions/segments.
-   - Échelle de rayons, d'ombres, de durées et de courbes
-     tokenisée : toutes les micro-interactions partagent la même
-     physique (`--ease-out-quint`, `--ease-spring`).
-   - Zéro glow décoratif : typographie, espace, hairlines.
+   - L'accent devient le bleu de Shazam exact (#0088ff) : c'est lui
+     qui fait « claquer » l'interface, pas le fond. Le fond reste une
+     encre presque neutre (#07080b), testée contre trois variantes
+     plus douces et gardée.
+   - DEUX bleus : #0088ff se lit en texte (5,3:1 sur la surface) mais
+     ne porte pas de blanc (3,5:1). `--color-blue-solid` (#0070f0),
+     un cran plus profond, porte le blanc à 4,6:1.
+   - Un dégradé de marque bleu → cyan, qui signale une FONCTION
+     (action, progression, sélection, interaction) et ne décore jamais
+     un contenant au repos. Pas de liseré coloré permanent sur une
+     carte : c'est le tic visuel des interfaces « IA ».
+   - Signaux de trading plus saturés, restés lisibles en session
+     longue. Vert = achat/win/long, rouge = vente/loss/short,
+     ambre = alerte, indigo = sessions/segments. Un seul accent.
+   - Ce qui ne change pas : les trois plans d'élévation (bg → surface
+     → surface-2), les rayons, la typographie, la physique du
+     mouvement. Zéro glow décoratif — sauf l'ombre teintée du bouton
+     primaire (`--btn-primary-shadow`).
    ============================================================ */
 
 @theme {
   --color-*: initial;
 
-  /* — Thème sombre "Obsidian" (défaut) — */
-  --color-bg: #07090d;
-  --color-surface: #12151c;
-  --color-surface-2: #1c202a;
-  --color-text: #eef1f6;
-  --color-text-dim: #8b94a6;
-  --color-blue: #4d8dff;
-  --color-green: #14c8a0;
-  --color-red: #ff5666;
-  --color-yellow: #f0b341;
-  --color-violet: #8e8bff;
+  /* — Thème sombre "Ink" (défaut) — */
+  --color-bg: #07080b;
+  --color-surface: #111318;
+  --color-surface-2: #1a1d24;
+  --color-text: #f4f6fa;
+  --color-text-dim: #9aa1b2;
+  /* Le bleu de Shazam, exact : texte, icônes, focus, états actifs. Il ne porte
+     PAS de texte blanc (3,5:1) — c'est le rôle de `--color-blue-solid`. */
+  --color-blue: #0088ff;
+  --color-green: #10d9a0;
+  --color-red: #ff4d5e;
+  --color-yellow: #ffc23a;
+  --color-violet: #9a8cff;
 
   /* Hairlines & voiles neutres, teintés ardoise (jamais de blanc pur) */
-  --color-border: rgba(160, 175, 200, 0.11);
-  --color-border-strong: rgba(160, 175, 200, 0.2);
-  --color-overlay: rgba(160, 175, 200, 0.06);
-  --color-overlay-2: rgba(160, 175, 200, 0.12);
+  --color-border: rgb(160 170 190 / 0.13);
+  --color-border-strong: rgb(160 170 190 / 0.2);
+  --color-overlay: rgb(160 170 190 / 0.06);
+  --color-overlay-2: rgb(160 170 190 / 0.12);
 
   /* Texte posé sur un aplat vert (bouton plein) */
-  --color-on-green: #04150f;
+  --color-on-green: #03130d;
+  /* Le même bleu, un cran plus profond : le seul qui PORTE du blanc (4,6:1).
+     Pastille sélectionnée, compteur, numéro du jour — tout aplat bleu écrit. */
+  --color-blue-solid: #0070f0;
+  --color-on-blue: #ffffff;
   --color-white: #ffffff;
   --color-black: #000000;
   --color-transparent: transparent;
@@ -80,16 +88,16 @@
 
   /* La carte n'est pas un aplat : un dégradé vertical très court
      simule une source de lumière haute (rendu "matériau"). */
-  --card-bg: linear-gradient(180deg, #171b24 0%, #12151c 100%);
+  --card-bg: linear-gradient(180deg, #161920 0%, #111318 100%);
   --card-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 1px 2px rgba(0, 0, 0, 0.4),
     0 16px 40px -14px rgba(0, 0, 0, 0.6);
   --card-shadow-hover:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 2px 4px rgba(0, 0, 0, 0.45),
     0 24px 56px -16px rgba(0, 0, 0, 0.7);
-  --card-border-hover: rgba(160, 175, 200, 0.22);
+  --card-border-hover: rgb(160 170 190 / 0.22);
 
   /* Panneau soulevé (drag / resize) */
   --lift-shadow:
@@ -98,13 +106,13 @@
     0 28px 64px -18px rgba(0, 0, 0, 0.75);
 
   /* Verre : sidebar, barres d'outils flottantes, poignées */
-  --glass-bg: rgba(18, 21, 28, 0.72);
+  --glass-bg: rgb(17 19 24 / 0.72);
   --glass-blur: saturate(160%) blur(22px);
 
   /* Info-bulle : verre plus dense que les panneaux (elle flotte au-dessus
      de TOUT, y compris d'une carte claire) + ombre portée courte */
-  --tip-bg: rgba(30, 35, 46, 0.9);
-  --tip-border: rgba(160, 175, 200, 0.16);
+  --tip-bg: rgb(17 19 24 / 0.9);
+  --tip-border: rgb(160 170 190 / 0.16);
   --tip-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 2px 6px rgba(0, 0, 0, 0.35),
@@ -113,12 +121,28 @@
   /* Halo ambiant unique, très doux, en haut de fenêtre */
   --ambient: radial-gradient(
     1200px 620px at 74% -14%,
-    rgba(77, 141, 255, 0.07),
+    rgb(0 136 255 / 0.12),
     transparent 64%
   );
 
-  --scrollbar-thumb: rgba(160, 175, 200, 0.18);
-  --scrollbar-thumb-hover: rgba(160, 175, 200, 0.34);
+  --scrollbar-thumb: rgb(160 170 190 / 0.18);
+  --scrollbar-thumb-hover: rgb(160 170 190 / 0.34);
+
+  /* ⭐ Dégradé de marque bleu → cyan. UNE règle : il signale une FONCTION
+     (l'action, la progression, la sélection, l'interaction), il ne décore
+     jamais un contenant au repos. Emplois autorisés, et aucun autre : bouton
+     primaire (`--gradient-primary`), jauges linéaires, anneau de discipline,
+     courbe du patrimoine (Finance), filet de survol d'une carte. */
+  --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
+  --gradient-brand: linear-gradient(90deg, #0088ff, #00c2ff);
+  /* Les deux arrêts en couleur brute : un <linearGradient> SVG prend des
+     `stop-color`, pas un raccourci `background`. */
+  --gradient-brand-from: #0088ff;
+  --gradient-brand-to: #00c2ff;
+  /* Seule ombre teintée du système : le bouton primaire, rien d'autre. */
+  --btn-primary-shadow:
+    0 6px 18px -8px color-mix(in srgb, var(--color-blue) 55%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
 
   /* Physique partagée par toutes les micro-interactions */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -131,97 +155,116 @@
 /* — Thème clair "Alabaster" (choix explicite) — */
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-bg: #f4f5f7;
+  --color-bg: #f5f6f8;
   --color-surface: #ffffff;
   --color-surface-2: #ebedf1;
-  --color-text: #0b0d12;
-  --color-text-dim: #5c6474;
-  --color-blue: #1b62e5;
-  --color-green: #06825f;
-  --color-red: #d22b3c;
-  --color-yellow: #96650b;
-  --color-violet: #4b45d6;
-  --color-border: rgba(11, 13, 18, 0.09);
-  --color-border-strong: rgba(11, 13, 18, 0.16);
-  --color-overlay: rgba(11, 13, 18, 0.045);
-  --color-overlay-2: rgba(11, 13, 18, 0.085);
+  --color-text: #0a0c12;
+  --color-text-dim: #5a6272;
+  --color-blue: #0060dc;
+  --color-green: #00764f;
+  --color-red: #c8122b;
+  --color-yellow: #8f5300;
+  --color-violet: #4b40e0;
+  --color-border: rgb(10 12 18 / 0.09);
+  --color-border-strong: rgb(10 12 18 / 0.16);
+  --color-overlay: rgb(10 12 18 / 0.045);
+  --color-overlay-2: rgb(10 12 18 / 0.085);
   --color-on-green: #ffffff;
+  --color-blue-solid: #0070f0;
+  --color-on-blue: #ffffff;
 
   --card-bg: #ffffff;
   --card-shadow:
-    0 1px 2px rgba(11, 13, 18, 0.05),
-    0 12px 32px -12px rgba(11, 13, 18, 0.12);
+    0 1px 2px rgb(10 12 18 / 0.05),
+    0 12px 32px -12px rgb(10 12 18 / 0.12);
   --card-shadow-hover:
-    0 2px 4px rgba(11, 13, 18, 0.07),
-    0 20px 44px -14px rgba(11, 13, 18, 0.18);
-  --card-border-hover: rgba(11, 13, 18, 0.16);
+    0 2px 4px rgb(10 12 18 / 0.07),
+    0 20px 44px -14px rgb(10 12 18 / 0.18);
+  --card-border-hover: rgb(10 12 18 / 0.16);
   --lift-shadow:
-    0 4px 10px -4px rgba(11, 13, 18, 0.12),
-    0 26px 56px -18px rgba(11, 13, 18, 0.26);
+    0 4px 10px -4px rgb(10 12 18 / 0.12),
+    0 26px 56px -18px rgb(10 12 18 / 0.26);
 
-  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg: rgb(255 255 255 / 0.78);
   --glass-blur: saturate(160%) blur(22px);
 
-  --tip-bg: rgba(255, 255, 255, 0.92);
-  --tip-border: rgba(11, 13, 18, 0.1);
+  --tip-bg: rgb(255 255 255 / 0.92);
+  --tip-border: rgb(10 12 18 / 0.1);
   --tip-shadow:
-    0 2px 6px rgba(11, 13, 18, 0.08),
-    0 14px 34px -12px rgba(11, 13, 18, 0.28);
+    0 2px 6px rgb(10 12 18 / 0.08),
+    0 14px 34px -12px rgb(10 12 18 / 0.28);
 
   --ambient: radial-gradient(
     1200px 620px at 74% -14%,
-    rgba(27, 98, 229, 0.06),
+    rgb(0 136 255 / 0.07),
     transparent 64%
   );
-  --scrollbar-thumb: rgba(11, 13, 18, 0.16);
-  --scrollbar-thumb-hover: rgba(11, 13, 18, 0.3);
+  --scrollbar-thumb: rgb(10 12 18 / 0.16);
+  --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
+
+  --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
+  --gradient-brand: linear-gradient(90deg, #0060dc, #0082e6);
+  --gradient-brand-from: #0060dc;
+  --gradient-brand-to: #0082e6;
+  --btn-primary-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-blue-solid) 50%, transparent);
 }
 
 /* — Thème système : suit macOS quand aucun choix explicite — */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]):not([data-theme="light"]) {
     color-scheme: light;
-    --color-bg: #f4f5f7;
+    --color-bg: #f5f6f8;
     --color-surface: #ffffff;
     --color-surface-2: #ebedf1;
-    --color-text: #0b0d12;
-    --color-text-dim: #5c6474;
-    --color-blue: #1b62e5;
-    --color-green: #06825f;
-    --color-red: #d22b3c;
-    --color-yellow: #96650b;
-    --color-violet: #4b45d6;
-    --color-border: rgba(11, 13, 18, 0.09);
-    --color-border-strong: rgba(11, 13, 18, 0.16);
-    --color-overlay: rgba(11, 13, 18, 0.045);
-    --color-overlay-2: rgba(11, 13, 18, 0.085);
+    --color-text: #0a0c12;
+    --color-text-dim: #5a6272;
+    --color-blue: #0060dc;
+    --color-green: #00764f;
+    --color-red: #c8122b;
+    --color-yellow: #8f5300;
+    --color-violet: #4b40e0;
+    --color-border: rgb(10 12 18 / 0.09);
+    --color-border-strong: rgb(10 12 18 / 0.16);
+    --color-overlay: rgb(10 12 18 / 0.045);
+    --color-overlay-2: rgb(10 12 18 / 0.085);
     --color-on-green: #ffffff;
+    --color-blue-solid: #0070f0;
+    --color-on-blue: #ffffff;
 
     --card-bg: #ffffff;
     --card-shadow:
-      0 1px 2px rgba(11, 13, 18, 0.05),
-      0 12px 32px -12px rgba(11, 13, 18, 0.12);
+      0 1px 2px rgb(10 12 18 / 0.05),
+      0 12px 32px -12px rgb(10 12 18 / 0.12);
     --card-shadow-hover:
-      0 2px 4px rgba(11, 13, 18, 0.07),
-      0 20px 44px -14px rgba(11, 13, 18, 0.18);
-    --card-border-hover: rgba(11, 13, 18, 0.16);
+      0 2px 4px rgb(10 12 18 / 0.07),
+      0 20px 44px -14px rgb(10 12 18 / 0.18);
+    --card-border-hover: rgb(10 12 18 / 0.16);
     --lift-shadow:
-      0 4px 10px -4px rgba(11, 13, 18, 0.12),
-      0 26px 56px -18px rgba(11, 13, 18, 0.26);
+      0 4px 10px -4px rgb(10 12 18 / 0.12),
+      0 26px 56px -18px rgb(10 12 18 / 0.26);
 
-    --glass-bg: rgba(255, 255, 255, 0.78);
-    --tip-bg: rgba(255, 255, 255, 0.92);
-    --tip-border: rgba(11, 13, 18, 0.1);
+    --glass-bg: rgb(255 255 255 / 0.78);
+    --glass-blur: saturate(160%) blur(22px);
+
+    --tip-bg: rgb(255 255 255 / 0.92);
+    --tip-border: rgb(10 12 18 / 0.1);
     --tip-shadow:
-      0 2px 6px rgba(11, 13, 18, 0.08),
-      0 14px 34px -12px rgba(11, 13, 18, 0.28);
+      0 2px 6px rgb(10 12 18 / 0.08),
+      0 14px 34px -12px rgb(10 12 18 / 0.28);
+
     --ambient: radial-gradient(
       1200px 620px at 74% -14%,
-      rgba(27, 98, 229, 0.06),
+      rgb(0 136 255 / 0.07),
       transparent 64%
     );
-    --scrollbar-thumb: rgba(11, 13, 18, 0.16);
-    --scrollbar-thumb-hover: rgba(11, 13, 18, 0.3);
+    --scrollbar-thumb: rgb(10 12 18 / 0.16);
+    --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
+
+    --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
+    --gradient-brand: linear-gradient(90deg, #0060dc, #0082e6);
+    --gradient-brand-from: #0060dc;
+    --gradient-brand-to: #0082e6;
+    --btn-primary-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-blue-solid) 50%, transparent);
   }
 }
 
@@ -377,6 +420,24 @@
     background: var(--glass-bg);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
+  }
+
+  /* Bouton primaire : le SEUL endroit où le dégradé d'action est écrit.
+     Au survol il s'ASSOMBRIT, jamais il ne s'éclaircit : éclaircir ferait
+     retomber le blanc sous 4,5:1 (`brightness(.92)` le porte à 5,3:1).
+     La transition reprend `transform` : sans cela, cette règle écraserait
+     celle de `button` en couche base et l'appui (`scale(.975)`) sauterait. */
+  .fill-primary {
+    background: var(--gradient-primary);
+    color: var(--color-on-blue);
+    box-shadow: var(--btn-primary-shadow);
+    transition:
+      filter var(--dur-fast) var(--ease-out-quint),
+      opacity var(--dur-fast) var(--ease-out-quint),
+      transform var(--dur-fast) var(--ease-out-quint);
+  }
+  .fill-primary:hover:not(:disabled) {
+    filter: brightness(0.92);
   }
 
   /* ==========================================================

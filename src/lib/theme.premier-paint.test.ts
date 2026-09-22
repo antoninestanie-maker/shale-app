@@ -68,6 +68,27 @@ describe("thème du premier paint", () => {
     expect(html.indexOf("<script>")).toBeLessThan(html.indexOf("/src/main.tsx"));
   });
 
+  it("le thème clair dit la même chose dans ses DEUX blocs d'index.css", () => {
+    // Le clair est écrit deux fois : choix explicite (`[data-theme="light"]`)
+    // et mode « Système » (`prefers-color-scheme`). Retoucher l'un et oublier
+    // l'autre donnerait deux apps différentes selon la façon dont on a choisi
+    // le clair — sans que rien ne casse ailleurs. Comparé ligne à ligne.
+    const bloc = (ouverture: string) => {
+      const debut = css.indexOf(ouverture);
+      expect(debut, `bloc « ${ouverture} » introuvable`).toBeGreaterThan(-1);
+      const corps = css.slice(debut + ouverture.length);
+      return corps
+        .slice(0, corps.search(/\n\s*\}/))
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+    };
+    const explicite = bloc(':root[data-theme="light"] {');
+    const systeme = bloc(':root:not([data-theme="dark"]):not([data-theme="light"]) {');
+    expect(explicite.length).toBeGreaterThan(20);
+    expect(systeme).toEqual(explicite);
+  });
+
   it("le miroir n'est jamais posé pour « système »", () => {
     // C'est la règle qui empêche de rejouer une apparence système périmée.
     expect(ts).toMatch(/pref === "system"\)\s*localStorage\.removeItem\(CLE_MIROIR\)/);
