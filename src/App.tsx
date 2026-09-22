@@ -29,6 +29,7 @@ import {
   fetchAll,
   fetchLivePositions,
   isTauri,
+  purgerCorbeille,
   snapshotGoals,
 } from "./lib/repo";
 import type { AppData } from "./lib/types";
@@ -140,6 +141,7 @@ function App() {
   const [data, setData] = useState<AppData | null>(null);
   const [erreurDonnees, setErreurDonnees] = useState<string | null>(null);
   const snapshotDone = useRef(false);
+  const purgeFaite = useRef(false);
 
   // ⚠️ Le `catch` n'est pas décoratif — il répare un défaut mesuré.
   // Sans lui, un rejet de `fetchAll` partait en rejet NON TRAITÉ et `data`
@@ -477,6 +479,27 @@ function App() {
         pct: effectiveProgress(g, goals, tasks, completions, { habits, habitChecks }),
       })),
     ).then(refresh);
+  }, [data, refresh]);
+
+  /**
+   * La purge de la corbeille : ce qui y dort depuis plus de 30 jours part pour
+   * de bon, UNE FOIS par lancement (migration 027, cahier des charges § 5).
+   *
+   * ⚠️ Après le premier chargement, pas avant : la base doit être ouverte — et
+   * ses migrations jouées — par le premier `fetchAll`. Et on ne rafraîchit que
+   * si quelque chose est effectivement parti, pour ne pas payer un second
+   * chargement complet à chaque démarrage pour rien.
+   *
+   * Un échec est dit à la console et n'arrête rien : la purge reprendra au
+   * prochain lancement, et une corbeille qui déborde de quelques jours ne
+   * coûte rien à personne.
+   */
+  useEffect(() => {
+    if (!data || purgeFaite.current) return;
+    purgeFaite.current = true;
+    purgerCorbeille()
+      .then((n) => (n > 0 ? refresh() : undefined))
+      .catch((e) => console.error("corbeille : purge au lancement", e));
   }, [data, refresh]);
 
   return (

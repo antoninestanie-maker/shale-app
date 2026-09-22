@@ -68,6 +68,14 @@ describe("mettre en corbeille", () => {
     expect(lireStamp("goals", a.p2)).toBe(T1); // il garde SON horodatage
   });
 
+  it("⭐ refuse une facture ÉMISE — elle s'annule par un avoir, jamais par la corbeille", async () => {
+    const emise = ins("INSERT INTO invoices (statut, numero) VALUES ('emise', 'F-2026-001')");
+    const brouillon = ins("INSERT INTO invoices (statut) VALUES ('brouillon')");
+    expect((await mettreEnCorbeilleDans(db, "invoice", emise, T1)).ids).toEqual([]);
+    expect(lireStamp("invoices", emise)).toBeNull();
+    expect((await mettreEnCorbeilleDans(db, "invoice", brouillon, T1)).ids).toEqual([brouillon]);
+  });
+
   it("n'emporte pas les tâches rattachées — elles ne sont pas des enfants", async () => {
     const a = arbre();
     const t = ins("INSERT INTO tasks (label, priority, recurrence, goal_id, created_at) VALUES ('t', 'low', 'none', ?, 'x')", a.p1);

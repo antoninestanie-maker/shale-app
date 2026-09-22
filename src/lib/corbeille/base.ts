@@ -7,14 +7,28 @@
  * une règle de données qu'on ne peut éprouver que dans l'app installée n'est
  * pas une règle, c'est un espoir.
  *
- * Ce module fait les écritures DOUCES (mettre en corbeille, restaurer) et les
- * LECTURES de la corbeille. Il ne fait AUCUN `DELETE` : la suppression
- * définitive passe par les fonctions `delete*` existantes de `repo.ts`, qui
- * connaissent déjà les cascades de chaque objet (règle 18 du chantier — une
- * seule fonction par geste, jamais une réimplémentation).
+ * ⭐ LA RÈGLE DES LOTS N'EST PAS ICI, elle est dans `lots.ts`, pure, partagée
+ * avec le mode démo. Ce module ne fait que LIRE les lignes, appeler cette
+ * règle, et ÉCRIRE par identifiants. Voir l'en-tête de `lots.ts`.
+ *
+ * Il ne fait AUCUN `DELETE` : la suppression définitive passe par les fonctions
+ * `delete*` existantes de `repo.ts`, qui connaissent déjà les cascades de
+ * chaque objet (règle 18 — une seule fonction par geste).
  */
 
 import { TABLE_DE, VIVANT, type KindCorbeille } from "./regles";
+import {
+  descendantsVivants,
+  lotObjectif,
+  ordreDePurge,
+  planObjectif,
+  planSimple,
+  racinesDeLot,
+  type LigneObjectif,
+  type PlanRestauration,
+} from "./lots";
+
+export type { EtapeRestauration, PlanRestauration } from "./lots";
 
 /** La forme de `Database` (`@tauri-apps/plugin-sql`) dont ce module a besoin. */
 export interface BaseCorbeille {
@@ -30,40 +44,15 @@ export interface Lot {
   ids: number[];
 }
 
-// ─── Mettre en corbeille ─────────────────────────────────────────────────────
-
-/*
- * ⚠️⚠️ `UNION`, JAMAIS `UNION ALL`, dans les deux requêtes récursives du module.
- *
- * LE DÉFAUT PAYÉ (2026-09-22, en test). Avec `UNION ALL`, une boucle dans
- * `parent_goal_id` (A parent de B, B parent de A) fait tourner la récursion à
- * l'infini : la mémoire monte, le processus MEURT. Une telle boucle ne devrait
- * pas exister, mais une synchronisation interrompue peut en fabriquer une — et
- * dans l'app, ouvrir la corbeille aurait figé Shale sans un mot. `UNION` écarte
- * les lignes déjà produites : sur un cycle, il n'en reste plus de neuve, et la
- * récursion s'arrête. Voir `PIEGES.md` § 19.
- */
-
-/**
- * Les `id` d'un objectif et de TOUS ses descendants VIVANTS.
- *
- * ⚠️ « Vivants » est le point important : un sous-objectif jeté la veille, pour
- * son compte, n'entre pas dans le lot de son parent. Il garde son propre
- * horodatage, et restaurer le parent ne le ramènera pas — ce qui est la seule
- * chose honnête : on ne ressuscite pas ce que l'utilisateur avait jeté exprès.
- */
-async function descendantsVivants(db: BaseCorbeille, racine: number): Promise<number[]> {
-  const rows = await db.select<{ id: number }[]>(
-    `WITH RECURSIVE lot(id) AS (
-       SELECT id FROM goals WHERE id = $1 AND ${VIVANT}
-       UNION
-       SELECT g.id FROM goals g JOIN lot ON g.parent_goal_id = lot.id WHERE g.${VIVANT}
-     )
-     SELECT id FROM lot`,
-    [racine],
-  );
-  return rows.map((r) => r.id);
+/** Tous les objectifs, réduits à ce qu'il faut pour raisonner sur les lots. */
+async function lignesObjectifs(db: BaseCorbeille): Promise<LigneObjectif[]> {
+  return db.select<LigneObjectif[]>("SELECT id, parent_goal_id, deleted_at FROM goals");
 }
+
+const jokersDes = (ids: readonly number[], depuis: number) =>
+  ids.map((_, i) => `$${i + depuis}`).join(", ");
+
+// ─── Mettre en corbeille ─────────────────────────────────────────────────────
 
 /**
  * Met un objet en corbeille, avec son lot.
@@ -74,6 +63,11 @@ async function descendantsVivants(db: BaseCorbeille, racine: number): Promise<nu
  *
  * Idempotent : un objet déjà en corbeille n'est pas re-daté — son lot d'origine
  * reste intact, et le décompte de ses 30 jours ne repart pas de zéro.
+ *
+ * ⚠️ UNE FACTURE ÉMISE N'ENTRE JAMAIS EN CORBEILLE (§ 5.6) : elle s'annule par un
+ * AVOIR, son numéro est parti chez un client. Le refus est ici, dans la règle
+ * de données, et pas seulement dans l'interface — un bouton peut être appelé
+ * par erreur, une règle de dépôt non. C'est la posture de `deleteInvoice`.
  */
 export async function mettreEnCorbeilleDans(
   db: BaseCorbeille,
@@ -82,16 +76,18 @@ export async function mettreEnCorbeilleDans(
   stamp: string,
 ): Promise<Lot> {
   const { table } = TABLE_DE[kind];
-  const ids =
-    kind === "goal"
-      ? await descendantsVivants(db, id)
-      : (await db.select<{ id: number }[]>(`SELECT id FROM ${table} WHERE id = $1 AND ${VIVANT}`, [id])).map(
-          (r) => r.id,
-        );
+  let ids: number[];
+  if (kind === "goal") {
+    ids = descendantsVivants(await lignesObjectifs(db), id);
+  } else {
+    const garde = kind === "invoice" ? " AND statut = 'brouillon'" : "";
+    ids = (
+      await db.select<{ id: number }[]>(`SELECT id FROM ${table} WHERE id = $1 AND ${VIVANT}${garde}`, [id])
+    ).map((r) => r.id);
+  }
   if (ids.length === 0) return { stamp, ids: [] };
 
-  const jokers = ids.map((_, i) => `$${i + 2}`).join(", ");
-  await db.execute(`UPDATE ${table} SET deleted_at = $1 WHERE id IN (${jokers}) AND ${VIVANT}`, [
+  await db.execute(`UPDATE ${table} SET deleted_at = $1 WHERE id IN (${jokersDes(ids, 2)}) AND ${VIVANT}`, [
     stamp,
     ...ids,
   ]);
@@ -99,48 +95,6 @@ export async function mettreEnCorbeilleDans(
 }
 
 // ─── Restaurer ───────────────────────────────────────────────────────────────
-
-interface LigneCorbeille {
-  id: number;
-  deleted_at: string | null;
-  parent_goal_id?: number | null;
-}
-
-/** Les `id` du lot auquel appartient cet objectif en corbeille, racine comprise. */
-async function lotObjectif(db: BaseCorbeille, racine: number, stamp: string): Promise<number[]> {
-  const rows = await db.select<{ id: number }[]>(
-    `WITH RECURSIVE lot(id) AS (
-       SELECT id FROM goals WHERE id = $1 AND deleted_at = $2
-       UNION
-       SELECT g.id FROM goals g JOIN lot ON g.parent_goal_id = lot.id WHERE g.deleted_at = $2
-     )
-     SELECT id FROM lot`,
-    [racine, stamp],
-  );
-  return rows.map((r) => r.id);
-}
-
-/** Une étape de restauration : un lot, désigné par sa racine et son horodatage. */
-export interface EtapeRestauration {
-  id: number;
-  stamp: string;
-  /** Combien d'objets ce lot ramène, racine comprise. */
-  taille: number;
-}
-
-export interface PlanRestauration {
-  kind: KindCorbeille;
-  /** Dans l'ordre d'exécution : les ancêtres d'abord, l'objet demandé en dernier. */
-  etapes: EtapeRestauration[];
-  /**
-   * VRAI si restaurer cet objet oblige à restaurer aussi un parent en
-   * corbeille. L'interface doit le DIRE avant d'agir (cahier des charges,
-   * § 5.4) : on ne ressuscite pas un objectif sans prévenir.
-   */
-  remonte: boolean;
-  /** Le total d'objets qui reviendront. */
-  total: number;
-}
 
 /**
  * Ce que restaurer cet objet ramènera — SANS rien écrire.
@@ -157,62 +111,22 @@ export async function planRestaurationDans(
   kind: KindCorbeille,
   id: number,
 ): Promise<PlanRestauration | null> {
+  if (kind === "goal") return planObjectif(await lignesObjectifs(db), id);
   const { table } = TABLE_DE[kind];
-  const colonnes = kind === "goal" ? "id, deleted_at, parent_goal_id" : "id, deleted_at";
-  const lire = async (x: number) =>
-    (await db.select<LigneCorbeille[]>(`SELECT ${colonnes} FROM ${table} WHERE id = $1`, [x]))[0];
-
-  const cible = await lire(id);
-  if (!cible?.deleted_at) return null;
-
-  if (kind !== "goal") {
-    return { kind, etapes: [{ id, stamp: cible.deleted_at, taille: 1 }], remonte: false, total: 1 };
-  }
-
-  // Remonter la chaîne des ancêtres EN CORBEILLE. Un parent vivant arrête la
-  // remontée : l'objectif revient sous lui, à sa place.
-  const chaine: LigneCorbeille[] = [cible];
-  const vus = new Set<number>([cible.id]);
-  let courant = cible;
-  while (courant.parent_goal_id != null) {
-    const parent = await lire(courant.parent_goal_id);
-    // ⚠️ Garde contre une boucle dans `parent_goal_id` : elle ne devrait pas
-    // exister, mais une synchronisation interrompue peut en fabriquer une, et
-    // une boucle ici bloquerait l'app sans un mot.
-    if (!parent?.deleted_at || vus.has(parent.id)) break;
-    chaine.push(parent);
-    vus.add(parent.id);
-    courant = parent;
-  }
-
-  // Les ancêtres d'abord (du plus haut au plus bas), puis l'objet — en
-  // sautant un lot déjà couvert par une étape précédente : un sous-objectif
-  // jeté AVEC son parent revient avec lui, pas une deuxième fois.
-  const etapes: EtapeRestauration[] = [];
-  const couverts = new Set<number>();
-  for (const maillon of chaine.reverse()) {
-    if (couverts.has(maillon.id)) continue;
-    const ids = await lotObjectif(db, maillon.id, maillon.deleted_at!);
-    ids.forEach((x) => couverts.add(x));
-    etapes.push({ id: maillon.id, stamp: maillon.deleted_at!, taille: ids.length });
-  }
-
-  return {
-    kind,
-    etapes,
-    remonte: chaine.length > 1,
-    total: etapes.reduce((s, e) => s + e.taille, 0),
-  };
+  const ligne = (
+    await db.select<{ deleted_at: string | null }[]>(`SELECT deleted_at FROM ${table} WHERE id = $1`, [id])
+  )[0];
+  return planSimple(kind, id, ligne?.deleted_at ?? null);
 }
 
 /**
  * Restaure un objet — et, pour un objectif, son lot et ses ancêtres en
  * corbeille. Rend le plan exécuté, ou `null` s'il n'y avait rien à faire.
  *
- * ⚠️ Chaque étape ne relève QUE les lignes portant l'horodatage de son lot
- * (`deleted_at = stamp`) : un enfant jeté pour son compte, à un autre instant,
- * reste en corbeille. C'est le cœur de la promesse « restaurer le lot, jamais
- * ce qui avait été jeté avant ».
+ * ⚠️⚠️ CHAQUE ÉCRITURE EXIGE ENCORE `deleted_at = stamp` : entre le plan et
+ * l'écriture, la synchronisation peut avoir RE-JETÉ l'objet depuis un autre
+ * appareil, avec un autre horodatage. Restaurer quand même effacerait ce geste
+ * plus récent sans que personne le voie. Un test provoque cette course.
  */
 export async function restaurerDans(
   db: BaseCorbeille,
@@ -222,13 +136,13 @@ export async function restaurerDans(
   const plan = await planRestaurationDans(db, kind, id);
   if (!plan) return null;
   const { table } = TABLE_DE[kind];
+  const lignes = kind === "goal" ? await lignesObjectifs(db) : [];
 
   for (const etape of plan.etapes) {
-    const ids = kind === "goal" ? await lotObjectif(db, etape.id, etape.stamp) : [etape.id];
+    const ids = kind === "goal" ? lotObjectif(lignes, etape.id, etape.stamp) : [etape.id];
     if (ids.length === 0) continue;
-    const jokers = ids.map((_, i) => `$${i + 2}`).join(", ");
     await db.execute(
-      `UPDATE ${table} SET deleted_at = NULL WHERE id IN (${jokers}) AND deleted_at = $1`,
+      `UPDATE ${table} SET deleted_at = NULL WHERE id IN (${jokersDes(ids, 2)}) AND deleted_at = $1`,
       [etape.stamp, ...ids],
     );
   }
@@ -242,7 +156,7 @@ export interface ElementCorbeille {
   kind: KindCorbeille;
   id: number;
   uid: string | null;
-  /** Brut, tel qu'en base. Peut être vide (un brouillon de facture n'a pas de numéro). */
+  /** Brut, tel qu'en base. Peut être vide (un brouillon sans objet). */
   titre: string | null;
   deleted_at: string;
   /**
@@ -252,38 +166,28 @@ export interface ElementCorbeille {
   taille: number;
 }
 
-/**
- * Tout ce qui est en corbeille, le plus récent d'abord.
- *
- * ⚠️ UN LOT S'AFFICHE PAR SA RACINE. Un sous-objectif jeté AVEC son objectif
- * n'apparaît pas à part : il est « dans » son parent, et le compte `taille` le
- * dit. Le montrer deux fois ferait croire qu'on peut le restaurer seul sans
- * conséquence — alors que le restaurer remonte au parent.
- */
+/** Tout ce qui est en corbeille, le plus récent d'abord ; un lot par sa racine. */
 export async function lireCorbeilleDans(db: BaseCorbeille): Promise<ElementCorbeille[]> {
   const out: ElementCorbeille[] = [];
   for (const kind of Object.keys(TABLE_DE) as KindCorbeille[]) {
     const { table, titre } = TABLE_DE[kind];
-    if (kind === "goal") {
-      const rows = await db.select<
-        { id: number; uid: string | null; titre: string | null; deleted_at: string; parent_goal_id: number | null; parent_stamp: string | null }[]
-      >(
-        `SELECT g.id, g.uid, g.title AS titre, g.deleted_at, g.parent_goal_id, p.deleted_at AS parent_stamp
-           FROM goals g LEFT JOIN goals p ON p.id = g.parent_goal_id
-          WHERE g.deleted_at IS NOT NULL`,
-      );
-      for (const r of rows) {
-        // Racine d'un lot = son parent n'est pas dans le MÊME lot.
-        if (r.parent_stamp != null && r.parent_stamp === r.deleted_at) continue;
-        const taille = (await lotObjectif(db, r.id, r.deleted_at)).length;
-        out.push({ kind, id: r.id, uid: r.uid, titre: r.titre, deleted_at: r.deleted_at, taille });
-      }
-      continue;
-    }
-    const rows = await db.select<{ id: number; uid: string | null; titre: string | null; deleted_at: string }[]>(
+    const rows = await db.select<{ id: number; uid: string | null; titre: unknown; deleted_at: string }[]>(
       `SELECT id, uid, ${titre} AS titre, deleted_at FROM ${table} WHERE deleted_at IS NOT NULL`,
     );
-    for (const r of rows) out.push({ kind, ...r, titre: r.titre == null ? null : String(r.titre), taille: 1 });
+    const tailles =
+      kind === "goal" ? new Map(racinesDeLot(await lignesObjectifs(db)).map((r) => [r.id, r.taille])) : null;
+    for (const r of rows) {
+      const taille = tailles ? tailles.get(r.id) : 1;
+      if (taille == null) continue; // dans le lot de son parent
+      out.push({
+        kind,
+        id: r.id,
+        uid: r.uid,
+        titre: r.titre == null ? null : String(r.titre),
+        deleted_at: r.deleted_at,
+        taille,
+      });
+    }
   }
   return out.sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : a.deleted_at > b.deleted_at ? -1 : 0));
 }
@@ -298,39 +202,18 @@ export interface APurger {
 
 /**
  * Tous les objets mis en corbeille AVANT `seuil`, dans l'ordre de suppression.
- *
- * ⚠️ L'ORDRE COMPTE POUR LES OBJECTIFS : les plus profonds d'abord. Supprimer
- * un parent avant ses enfants ferait remonter ceux-ci d'un niveau
- * (`deleteGoal` rattache les enfants au grand-parent) — ils deviendraient des
- * objectifs VIVANTS, surgis de nulle part, alors qu'ils devaient partir avec
- * lui. Les tables de feuilles (coches, relevés, lignes de facture) sont
- * vidées par les fonctions `delete*` elles-mêmes.
+ * Les objectifs, du plus profond au plus haut (voir `lots.ts`).
  */
 export async function aPurgerDans(db: BaseCorbeille, seuil: string): Promise<APurger[]> {
   const out: APurger[] = [];
   for (const kind of Object.keys(TABLE_DE) as KindCorbeille[]) {
     const { table } = TABLE_DE[kind];
     if (kind === "goal") {
-      const rows = await db.select<{ id: number; parent_goal_id: number | null }[]>(
-        `SELECT id, parent_goal_id FROM goals WHERE deleted_at IS NOT NULL AND deleted_at <= $1`,
+      const perimes = await db.select<LigneObjectif[]>(
+        "SELECT id, parent_goal_id, deleted_at FROM goals WHERE deleted_at IS NOT NULL AND deleted_at <= $1",
         [seuil],
       );
-      const parents = new Map(rows.map((r) => [r.id, r.parent_goal_id]));
-      const profondeur = (x: number): number => {
-        let d = 0;
-        const vus = new Set<number>();
-        let p = parents.get(x) ?? null;
-        while (p != null && parents.has(p) && !vus.has(p)) {
-          vus.add(p);
-          d++;
-          p = parents.get(p) ?? null;
-        }
-        return d;
-      };
-      rows
-        .map((r) => ({ id: r.id, d: profondeur(r.id) }))
-        .sort((a, b) => b.d - a.d)
-        .forEach((r) => out.push({ kind, id: r.id }));
+      ordreDePurge(perimes).forEach((id) => out.push({ kind, id }));
       continue;
     }
     const rows = await db.select<{ id: number }[]>(
@@ -343,9 +226,8 @@ export async function aPurgerDans(db: BaseCorbeille, seuil: string): Promise<APu
 }
 
 /**
- * Le lot d'un objet en corbeille, dans l'ordre de suppression définitive
- * (les plus profonds d'abord). Sert à « Supprimer définitivement » un élément
- * de la vue : on emporte tout ce qu'il contient.
+ * Le lot d'un objet en corbeille, dans l'ordre de suppression définitive.
+ * Sert à « Supprimer définitivement » un élément de la vue.
  */
 export async function lotAPurgerDans(
   db: BaseCorbeille,
@@ -362,7 +244,7 @@ export async function lotAPurgerDans(
   if (!ligne?.deleted_at) return [];
   if (kind !== "goal") return [{ kind, id }];
 
-  const ids = await lotObjectif(db, id, ligne.deleted_at);
-  // L'ordre de `WITH RECURSIVE` va du parent vers les enfants : on l'inverse.
-  return ids.reverse().map((x) => ({ kind, id: x }));
+  const lignes = await lignesObjectifs(db);
+  const lot = new Set(lotObjectif(lignes, id, ligne.deleted_at));
+  return ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }));
 }

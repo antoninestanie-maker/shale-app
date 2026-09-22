@@ -1,5 +1,17 @@
 // Mode démo : données en mémoire pour le preview navigateur (hors Tauri).
 // Même API que le repo SQL — la logique métier (logic.ts) est partagée.
+import { KINDS_CORBEILLE, TABLE_DE, type KindCorbeille } from "./corbeille/regles";
+import {
+  descendantsVivants,
+  lotObjectif,
+  ordreDePurge,
+  planObjectif,
+  planSimple,
+  racinesDeLot,
+  type LigneObjectif,
+} from "./corbeille/lots";
+import type { APurger, ElementCorbeille, Lot, PlanRestauration } from "./corbeille/base";
+import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
@@ -1278,22 +1290,133 @@ async function profilDemo(uid: string): Promise<LigneProfil | null> {
     : ligne;
 }
 
+// ─── Corbeille (migration 027) — la démo ─────────────────────────────────────
+//
+// ⭐ LES OBJETS JETÉS SONT RANGÉS À PART, hors de leur tableau. Tous les
+// lecteurs de la démo lisent ces tableaux : ils ne voient donc plus rien de ce
+// qui est en corbeille, PAR CONSTRUCTION, sans qu'on ait à en modifier un seul.
+// Le natif, lui, garde la ligne dans sa table et la filtre (`VIVANT`).
+//
+// ⭐ LA RÈGLE DES LOTS N'EST PAS RÉÉCRITE ICI : elle vient de `corbeille/lots.ts`,
+// la même que celle du natif. Deux implémentations auraient divergé, et les
+// captures d'écran des phases 3 et 4 — faites EN MODE DÉMO — auraient prouvé
+// un comportement que l'app n'a pas.
+//
+// ⚠️ Ce qui n'est PAS rangé à part : les FEUILLES (coches, relevés, cases,
+// lignes et paiements de facture). Elles restent dans leur tableau et sont
+// écartées PAR LEUR PARENT à la lecture — exactement la jointure du natif.
+
+type LigneJetee = { id: number; deleted_at: string } & Record<string, unknown>;
+const corbeilleDemo = new Map<KindCorbeille, LigneJetee[]>();
+
+/** Le tableau VIVANT de chaque famille. */
+function vivantsDe(kind: KindCorbeille): { id: number }[] {
+  switch (kind) {
+    case "note": return notes;
+    case "task": return tasks;
+    case "goal": return goals;
+    case "event": return calendarEvents;
+    case "object": return sujets;
+    case "knowledge": return knowledgeEntries;
+    case "invoice": return invoices;
+    case "journal": return journal;
+    case "metric": return metrics;
+    case "habit": return habits;
+  }
+}
+
+const jetesDe = (kind: KindCorbeille): LigneJetee[] => {
+  if (!corbeilleDemo.has(kind)) corbeilleDemo.set(kind, []);
+  return corbeilleDemo.get(kind)!;
+};
+
+/** Les `id` d'une famille actuellement en corbeille — pour écarter les feuilles. */
+const idsJetes = (kind: KindCorbeille): Set<number> => new Set(jetesDe(kind).map((l) => l.id));
+
+/** Tous les objectifs, vivants ET jetés, pour la règle des lots. */
+function lignesObjectifsDemo(): LigneObjectif[] {
+  return [
+    ...goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
+    ...jetesDe("goal").map((g) => ({
+      id: g.id,
+      parent_goal_id: (g.parent_goal_id as number | null) ?? null,
+      deleted_at: g.deleted_at,
+    })),
+  ];
+}
+
+/** Sort une ligne de son tableau et la range, datée, dans la corbeille. */
+function ranger(kind: KindCorbeille, id: number, stamp: string): boolean {
+  const tab = vivantsDe(kind) as unknown as LigneJetee[];
+  const i = tab.findIndex((x) => x.id === id);
+  if (i < 0) return false;
+  const [ligne] = tab.splice(i, 1);
+  jetesDe(kind).push({ ...ligne, deleted_at: stamp });
+  return true;
+}
+
+/**
+ * Remet une ligne de la corbeille dans son tableau — À SA PLACE, par `id`.
+ * `stamp` : ne la remet QUE si elle porte cet horodatage (la garde de course
+ * du natif, `deleted_at = $1`). `null` : sans condition (purge).
+ *
+ * ⚠️ Honnêtement : en démo, cette garde n'a AUCUN effet observable. La course
+ * qu'elle empêche (un autre appareil re-jette l'objet entre le plan et
+ * l'écriture) suppose une synchronisation, et la démo n'en a pas. Elle est là
+ * pour que la démo écrive ce que le natif écrit ; côté natif, la course est
+ * réelle et un test la provoque (`base.test.ts`). Aucun test de la démo ne
+ * peut la voir échouer — vérifié le 2026-09-22, et c'est attendu.
+ */
+function remettre(kind: KindCorbeille, id: number, stamp: string | null): boolean {
+  const jetes = jetesDe(kind);
+  const i = jetes.findIndex((x) => x.id === id && (stamp == null || x.deleted_at === stamp));
+  if (i < 0) return false;
+  const [ligne] = jetes.splice(i, 1);
+  const { deleted_at: _oublie, ...vivant } = ligne;
+  const tab = vivantsDe(kind) as unknown as { id: number }[];
+  const rang = tab.findIndex((x) => x.id > id);
+  if (rang < 0) tab.push(vivant as { id: number });
+  else tab.splice(rang, 0, vivant as { id: number });
+  return true;
+}
+
+/** L'uid qu'une ligne jetée porterait — celui des arêtes pour les familles liables. */
+function uidCorbeilleDemo(kind: KindCorbeille, id: number): string {
+  const liable: readonly string[] = ["note", "task", "goal", "event", "knowledge", "object"];
+  return liable.includes(kind) ? uidDemo(kind as LinkKind, id) : `demo:${kind}:${id}`;
+}
+
+/** Le titre montré par la vue — la même règle que `TABLE_DE` côté SQL. */
+function titreDemo(kind: KindCorbeille, l: LigneJetee): string | null {
+  const v = kind === "invoice" ? (l.objet ?? l.numero) : l[TABLE_DE[kind].titre];
+  return v == null ? null : String(v);
+}
+
 export const demo = {
   async fetchAll(): Promise<AppData> {
+    // Les objets jetés sont déjà hors de leurs tableaux ; restent les FEUILLES
+    // de ces objets, écartées par leur parent comme la jointure du natif.
+    const tachesJetees = idsJetes("task");
+    const metriquesJetees = idsJetes("metric");
+    const habitudesJetees = idsJetes("habit");
+    const { taches, objectifs } = detacherDesJetes(tasks, goals);
     return {
-      tasks: [...tasks],
-      completions: [...completions],
-      goals: [...goals],
+      tasks: taches,
+      completions: completions.filter((c) => !tachesJetees.has(c.task_id)),
+      goals: objectifs,
       tags: [...tags],
       metrics: [...metrics],
-      metricEntries: [...metricEntries],
+      metricEntries: metricEntries.filter((e) => !metriquesJetees.has(e.metric_id)),
       goalLog: [...goalLog],
       quickLinks: [...quickLinks],
       focusSessions: [...focusSessions],
       notes: [...notes].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
       journal: [...journal],
-      habits: [...habits],
-      habitChecks: [...habitChecks],
+      // ⚠️ `archived = 0`, comme le natif (`WHERE archived = 0`). La démo rendait
+      // TOUTES les habitudes avant le 2026-09-22 — une démo plus indulgente que
+      // l'app, qui masquait ce que l'app retire (PIEGES § 6.2 quater).
+      habits: habits.filter((h) => !h.archived),
+      habitChecks: habitChecks.filter((c) => !habitudesJetees.has(c.habit_id)),
       trades: [...trades].sort(
         (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
       ),
@@ -1475,6 +1598,11 @@ export const demo = {
   async deleteNote(id: number): Promise<void> {
     const i = notes.findIndex((n) => n.id === id);
     if (i >= 0) notes.splice(i, 1);
+    // ⚠️ La cascade du natif (trigger `notes_links_del`, migration 020). Elle
+    // manquait ici avant le 2026-09-22 : la démo gardait les arêtes d'une note
+    // supprimée, là où l'app les emporte (PIEGES § 6.2 quater). Corrigé en
+    // même temps que la corbeille, dont la purge passe par cette fonction.
+    retirerLiens("note", uidDemo("note", id));
   },
 
   async searchNotes(query: string): Promise<Note[]> {
@@ -1508,7 +1636,9 @@ export const demo = {
     const topics = [...sujets]
       .sort((a, b) => a.position - b.position || a.id - b.id)
       .map((s) => ({ ...s, body: null }));
-    return { topics, entries };
+    // Une fiche dont le sujet est en corbeille se lit « Sans thème », comme en
+    // natif (`sansSujetJete`, sans toucher à la fiche du magasin).
+    return { topics, entries: sansSujetJete(entries, topics) };
   },
 
   async fetchKnowledgeEntry(id: number): Promise<KnowledgeEntry | null> {
@@ -1615,12 +1745,17 @@ export const demo = {
   async deleteKnowledgeEntry(id: number): Promise<void> {
     const i = knowledgeEntries.findIndex((e) => e.id === id);
     if (i >= 0) knowledgeEntries.splice(i, 1);
+    retirerLiens("knowledge", uidDemo("knowledge", id)); // trigger `knowledge_entries_links_del`
   },
 
   async upsertJournal(
     date: string,
     entry: { mood: number | null; energy: number | null; body: string },
   ): Promise<void> {
+    // Réanimation par la clé naturelle, comme le natif (`ON CONFLICT(date) …
+    // deleted_at = NULL`) : l'entrée du jour J en corbeille revient, écrasée.
+    const jetee = jetesDe("journal").find((x) => x.date === date);
+    if (jetee) remettre("journal", jetee.id, null);
     const e = journal.find((x) => x.date === date);
     if (e) Object.assign(e, entry);
     else journal.push({ id: jId++, date, ...entry });
@@ -1772,6 +1907,7 @@ export const demo = {
     for (let j = completions.length - 1; j >= 0; j--) {
       if (completions[j].task_id === id) completions.splice(j, 1);
     }
+    retirerLiens("task", uidDemo("task", id)); // trigger `tasks_links_del`
   },
 
   async setTaskDone(taskId: number, date: string, done: boolean): Promise<void> {
@@ -1835,6 +1971,7 @@ export const demo = {
       if (g.parent_goal_id === goal.id) g.parent_goal_id = goal.parent_goal_id;
     }
     for (const t of tasks) if (t.goal_id === goal.id) t.goal_id = null;
+    retirerLiens("goal", uidDemo("goal", goal.id)); // trigger `goals_links_del`
   },
 
   async addTag(name: string, color: string): Promise<void> {
@@ -2297,8 +2434,8 @@ export const demo = {
       tiers: [...invoiceParties],
       series: [...invoiceSeries],
       factures: [...invoices],
-      lignes: [...invoiceLines],
-      paiements: [...invoicePayments],
+      lignes: invoiceLines.filter((l) => !idsJetes("invoice").has(l.invoice_id)),
+      paiements: invoicePayments.filter((x) => !idsJetes("invoice").has(x.invoice_id)),
       emetteur: { ...invoiceIssuer },
     };
   },
@@ -2553,4 +2690,97 @@ export const demo = {
     for (const id of fichesRetirees) retirerLiens("knowledge", uidDemo("knowledge", id));
   },
 
+  // ─── Corbeille ───────────────────────────────────────────────────────────
+
+  async mettreEnCorbeille(kind: KindCorbeille, id: number, stamp: string): Promise<Lot> {
+    let ids: number[];
+    if (kind === "goal") {
+      ids = descendantsVivants(lignesObjectifsDemo(), id);
+    } else if (kind === "invoice") {
+      // Une facture émise s'annule par un avoir, jamais par la corbeille (§ 5.6).
+      ids = invoices.some((f) => f.id === id && f.statut === "brouillon") ? [id] : [];
+    } else {
+      ids = vivantsDe(kind).some((x) => x.id === id) ? [id] : [];
+    }
+    ids = ids.filter((x) => ranger(kind, x, stamp));
+    return { stamp, ids };
+  },
+
+  async planRestauration(kind: KindCorbeille, id: number): Promise<PlanRestauration | null> {
+    if (kind === "goal") return planObjectif(lignesObjectifsDemo(), id);
+    return planSimple(kind, id, jetesDe(kind).find((x) => x.id === id)?.deleted_at ?? null);
+  },
+
+  async restaurer(kind: KindCorbeille, id: number): Promise<PlanRestauration | null> {
+    const plan = await demo.planRestauration(kind, id);
+    if (!plan) return null;
+    const lignes = kind === "goal" ? lignesObjectifsDemo() : [];
+    for (const etape of plan.etapes) {
+      const ids = kind === "goal" ? lotObjectif(lignes, etape.id, etape.stamp) : [etape.id];
+      for (const x of ids) remettre(kind, x, etape.stamp);
+    }
+    return plan;
+  },
+
+  async lireCorbeille(): Promise<ElementCorbeille[]> {
+    const out: ElementCorbeille[] = [];
+    for (const kind of KINDS_CORBEILLE) {
+      const tailles =
+        kind === "goal" ? new Map(racinesDeLot(lignesObjectifsDemo()).map((r) => [r.id, r.taille])) : null;
+      for (const l of jetesDe(kind)) {
+        const taille = tailles ? tailles.get(l.id) : 1;
+        if (taille == null) continue; // dans le lot de son parent
+        out.push({
+          kind,
+          id: l.id,
+          uid: uidCorbeilleDemo(kind, l.id),
+          titre: titreDemo(kind, l),
+          deleted_at: l.deleted_at,
+          taille,
+        });
+      }
+    }
+    return out.sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : a.deleted_at > b.deleted_at ? -1 : 0));
+  },
+
+  lotAPurger(kind: KindCorbeille, id: number): APurger[] {
+    const ligne = jetesDe(kind).find((x) => x.id === id);
+    if (!ligne) return []; // jamais un objet vivant
+    if (kind !== "goal") return [{ kind, id }];
+    const lignes = lignesObjectifsDemo();
+    const lot = new Set(lotObjectif(lignes, id, ligne.deleted_at));
+    return ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }));
+  },
+
+  aPurger(seuil: string): APurger[] {
+    const out: APurger[] = [];
+    for (const kind of KINDS_CORBEILLE) {
+      const perimes = jetesDe(kind).filter((l) => l.deleted_at <= seuil);
+      if (kind === "goal") {
+        const lignes = perimes.map((g) => ({
+          id: g.id,
+          parent_goal_id: (g.parent_goal_id as number | null) ?? null,
+          deleted_at: g.deleted_at,
+        }));
+        ordreDePurge(lignes).forEach((id) => out.push({ kind, id }));
+      } else perimes.forEach((l) => out.push({ kind, id: l.id }));
+    }
+    return out;
+  },
+
+  /** Avant une suppression définitive : la fonction `delete*` de la démo cherche la ligne dans son tableau. */
+  remettrePourPurge(kind: KindCorbeille, id: number): void {
+    remettre(kind, id, null);
+  },
+
+  objectifBrut(id: number): Goal | null {
+    return goals.find((g) => g.id === id) ?? null;
+  },
+
+  async deleteJournalEntry(id: number): Promise<void> {
+    const i = journal.findIndex((j) => j.id === id);
+    if (i >= 0) journal.splice(i, 1);
+    const k = jetesDe("journal").findIndex((j) => j.id === id);
+    if (k >= 0) jetesDe("journal").splice(k, 1);
+  },
 };

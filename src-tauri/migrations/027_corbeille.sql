@@ -34,13 +34,21 @@
 -- (`repo.ts`, `demo.ts`, `notifications/data.rs`), jamais chez les appelants,
 -- et un test qui interroge chaque fonction de lecture.
 --
--- ⚠️⚠️ ET LE RISQUE N° 1 : un appareil resté en version ≤ 026 ne connaît pas
--- cette colonne. `appliquerLigne()` écarte en silence les colonnes inconnues
--- (choix documenté, pour qu'un vieil appareil continue de se synchroniser) :
--- il continue donc d'AFFICHER l'objet en corbeille — et s'il y écrit, il le
--- renvoie SANS `deleted_at`, plus récent, et l'objet ressort de la corbeille
--- partout. Parade : que tous les appareils portent la 027 avant d'utiliser la
+-- ⚠️⚠️ ET LE RISQUE N° 1 — MESURÉ le 2026-09-22 (`sync/corbeille.test.ts`).
+-- Un appareil resté en version ≤ 026 ne connaît pas cette colonne ;
+-- `appliquerLigne()` écarte en silence les colonnes inconnues (choix
+-- documenté, pour qu'un vieil appareil continue de se synchroniser). Donc :
+--   • il continue d'AFFICHER l'objet en corbeille ;
+--   • s'il y écrit, les appareils qui ont DÉJÀ l'objet le gardent en
+--     corbeille (la réception ne met à jour que les colonnes reçues) ;
+--   • mais un appareil NEUF, qui reçoit l'objet pour la première fois,
+--     l'insère VIVANT à partir de la version sans colonne.
+-- Parade : que tous les appareils portent la 027 avant d'utiliser la
 -- corbeille. Voir `PIEGES.md` § 19.
+--
+-- ⚠️ NE PLUS MODIFIER CE FICHIER une fois qu'il a été joué sur une vraie
+-- base : le moteur de migrations en garde l'empreinte, et un fichier changé
+-- après coup empêche l'app de démarrer.
 --
 -- ─── Le format ───────────────────────────────────────────────────────────────
 --

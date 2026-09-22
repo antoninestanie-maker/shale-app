@@ -63,7 +63,26 @@ import type {
   Trade,
 } from "./types";
 
-import { TABLES_CORBEILLE, VIVANT, vivant } from "./corbeille/regles";
+import {
+  horodatageCorbeille,
+  seuilDePurge,
+  TABLES_CORBEILLE,
+  VIVANT,
+  vivant,
+  type KindCorbeille,
+} from "./corbeille/regles";
+import {
+  aPurgerDans,
+  lireCorbeilleDans,
+  lotAPurgerDans,
+  mettreEnCorbeilleDans,
+  planRestaurationDans,
+  restaurerDans,
+  type APurger,
+  type ElementCorbeille,
+  type Lot,
+  type PlanRestauration,
+} from "./corbeille/base";
 import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 
 /** Hors Tauri (preview navigateur), on bascule sur des données démo en mémoire. */
@@ -931,9 +950,27 @@ export async function upsertJournal(
   if (!isTauri) return demo.upsertJournal(date, entry);
   const db = await getDb();
   await db.execute(
-    "INSERT INTO journal_entries (date, mood, energy, body) VALUES ($1, $2, $3, $4) ON CONFLICT(date) DO UPDATE SET mood = $2, energy = $3, body = $4",
+    // ⚠️ `deleted_at = NULL` dans la mise à jour : `date` est UNIQUE. Écrire
+    // l'entrée du jour J alors que celle du jour J est en corbeille ne doit
+    // jamais échouer sur l'unicité — on RÉANIME la ligne et on l'écrase
+    // (cahier des charges, § 5.3). Elle garde son uid (`je:<date>`), donc la
+    // synchronisation voit une modification ordinaire.
+    "INSERT INTO journal_entries (date, mood, energy, body) VALUES ($1, $2, $3, $4) ON CONFLICT(date) DO UPDATE SET mood = $2, energy = $3, body = $4, deleted_at = NULL",
     [date, entry.mood, entry.energy, entry.body],
   );
+}
+
+/**
+ * Supprime POUR DE BON une entrée de journal.
+ *
+ * ⭐ N'existait pas avant la corbeille (2026-09-22) : le journal ne se
+ * supprimait pas du tout. Elle sert à la suppression définitive et à la purge
+ * des 30 jours ; l'interface, elle, met en corbeille.
+ */
+export async function deleteJournalEntry(id: number): Promise<void> {
+  if (!isTauri) return demo.deleteJournalEntry(id);
+  const db = await getDb();
+  await db.execute("DELETE FROM journal_entries WHERE id = $1", [id]);
 }
 
 // — Habitudes —
@@ -2805,4 +2842,113 @@ export async function supprimerExemples(): Promise<void> {
       WHERE is_example = 1
         AND NOT EXISTS (SELECT 1 FROM knowledge_entries WHERE topic_id = knowledge_topics.id)`,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Corbeille « Supprimés récemment » — migration 027 (2026-09-22)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// La règle vit dans `lib/corbeille/` : `lots.ts` (pure, partagée avec la démo),
+// `base.ts` (le SQL). Ici, seulement l'aiguillage natif / démo, et la
+// suppression définitive — qui passe par les fonctions `delete*` existantes,
+// pour que chaque objet parte avec SES cascades (coches, relevés, lignes de
+// facture, arêtes, fiches « non classées »), sans rien réinventer.
+
+/**
+ * Met un objet en corbeille — un objectif, avec ses phases et sous-objectifs.
+ * Rend le lot : son horodatage est ce qu'« Annuler » restaure.
+ */
+export async function mettreEnCorbeille(kind: KindCorbeille, id: number): Promise<Lot> {
+  const stamp = horodatageCorbeille();
+  if (!isTauri) return demo.mettreEnCorbeille(kind, id, stamp);
+  return mettreEnCorbeilleDans(await getDb(), kind, id, stamp);
+}
+
+/** Ce que restaurer ramènera, SANS rien écrire — pour l'annoncer d'abord. */
+export async function planRestauration(kind: KindCorbeille, id: number): Promise<PlanRestauration | null> {
+  if (!isTauri) return demo.planRestauration(kind, id);
+  return planRestaurationDans(await getDb(), kind, id);
+}
+
+/** Restaure un objet et son lot (et ses ancêtres en corbeille, pour un objectif). */
+export async function restaurer(kind: KindCorbeille, id: number): Promise<PlanRestauration | null> {
+  if (!isTauri) return demo.restaurer(kind, id);
+  return restaurerDans(await getDb(), kind, id);
+}
+
+/** Tout ce qui est en corbeille, le plus récent d'abord ; un lot par sa racine. */
+export async function lireCorbeille(): Promise<ElementCorbeille[]> {
+  if (!isTauri) return demo.lireCorbeille();
+  return lireCorbeilleDans(await getDb());
+}
+
+/**
+ * Supprime POUR DE BON un élément de la corbeille, avec tout son lot.
+ * Rend le nombre d'objets effacés. Un objet vivant n'est JAMAIS touché.
+ */
+export async function supprimerDefinitivement(kind: KindCorbeille, id: number): Promise<number> {
+  const liste = isTauri ? await lotAPurgerDans(await getDb(), kind, id) : demo.lotAPurger(kind, id);
+  for (const x of liste) await effacerPourDeBon(x);
+  return liste.length;
+}
+
+/**
+ * Efface ce qui est en corbeille depuis plus de 30 jours. À appeler au
+ * lancement. Rend le nombre d'objets effacés.
+ *
+ * ⚠️ Concurrence avec un autre appareil : si l'un RESTAURE au jour 29 pendant
+ * que l'autre PURGE au jour 30, les deux écritures (un UPDATE, un DELETE)
+ * portent chacune leur horodatage, et le trigger serveur `sync_rows_lww`
+ * garde la plus récente. Le résultat est déterministe — les deux appareils
+ * convergent vers le même vainqueur. Deux appareils qui purgent la même ligne :
+ * la seconde pierre tombale n'est pas plus récente, elle est ignorée sans
+ * erreur. Voir `RECETTE-SYNC.md`.
+ */
+export async function purgerCorbeille(maintenant: Date = new Date()): Promise<number> {
+  const seuil = seuilDePurge(maintenant);
+  const liste = isTauri ? await aPurgerDans(await getDb(), seuil) : demo.aPurger(seuil);
+  for (const x of liste) await effacerPourDeBon(x);
+  return liste.length;
+}
+
+/**
+ * L'aiguillage vers la fonction `delete*` de chaque famille.
+ *
+ * ⚠️ En démo, les objets jetés sont RANGÉS À PART (voir `demo.ts`) : on les
+ * remet d'abord à leur place, pour que la fonction `delete*` de la démo les y
+ * trouve et applique ses cascades. En natif, la ligne est déjà dans sa table.
+ */
+async function effacerPourDeBon({ kind, id }: APurger): Promise<void> {
+  if (!isTauri) demo.remettrePourPurge(kind, id);
+  switch (kind) {
+    case "note":
+      return deleteNote(id);
+    case "task":
+      return deleteTask(id);
+    case "goal": {
+      // `deleteGoal` veut l'objectif entier (pour rattacher ses enfants au
+      // grand-parent). Il est en corbeille : `fetchAll` ne le rend plus, on le
+      // lit donc directement, SANS le filtre.
+      const g = isTauri
+        ? (await (await getDb()).select<Goal[]>("SELECT * FROM goals WHERE id = $1", [id]))[0]
+        : demo.objectifBrut(id);
+      if (g) await deleteGoal(g);
+      return;
+    }
+    case "event":
+      return deleteCalendarEvent(id);
+    case "object":
+      return deleteSujet(id);
+    case "knowledge":
+      return deleteKnowledgeEntry(id);
+    case "invoice":
+      await deleteInvoice(id);
+      return;
+    case "journal":
+      return deleteJournalEntry(id);
+    case "metric":
+      return deleteMetric(id);
+    case "habit":
+      return deleteHabit(id);
+  }
 }

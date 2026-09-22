@@ -2859,3 +2859,102 @@ n'existe que dans l'outil.
 
 **Payé.** Phase 1, 2026-09-21 — plusieurs essais à chercher un défaut dans le
 code avant de mesurer ce qui arrivait vraiment.
+
+## 19.6 ⚠️⚠️ Une requête récursive en `UNION ALL` tourne à l'infini sur une boucle
+
+**Symptôme.** Le processus de test MEURT (« Channel closed », pile V8 native),
+sans un message qui accuse le code. Dans l'app : ouvrir la corbeille aurait
+figé Shale.
+
+**Cause.** `WITH RECURSIVE … UNION ALL` suit `parent_goal_id` de parent en
+enfant. Sur une boucle (A parent de B, B parent de A), il n'y a pas de fin : la
+mémoire monte jusqu'à la mort du processus. Une telle boucle ne devrait pas
+exister — mais une synchronisation interrompue peut en fabriquer une.
+
+**Parade.** `UNION` (qui écarte les lignes déjà produites) plutôt que
+`UNION ALL`. Puis, pour le mode démo qui n'a pas de SQL, la règle des lots a
+été sortie en fonctions PURES (`lib/corbeille/lots.ts`), chaque traversée
+gardant l'ensemble des nœuds VUS. Un test pose exprès une boucle.
+
+**Payé.** Phase 2, 2026-09-22 — trouvé parce qu'on avait écrit le test de la
+boucle AVANT d'en avoir besoin.
+
+## 19.7 ⚠️⚠️ Un filtre `deleted_at IS NULL` posé en aveugle éteint TOUTES les notifications
+
+**Symptôme.** Plus aucune notification. Aucune erreur visible.
+
+**Cause.** Le lecteur Rust des notifications (`notifications/data.rs`) est
+TOLÉRANT par construction : une requête qui échoue rend une liste vide, pour
+survivre à une base ancienne. Or le planificateur peut tourner sur une base
+PAS ENCORE MIGRÉE (avant que le front ait joué la 027) : là, la colonne
+n'existe pas, la requête filtrée échoue, la liste est vide — et toutes les
+règles se taisent.
+
+**Parade.** `filtre_vivant()` : ne filtrer QUE si la table porte la colonne
+(`pragma_table_info`). Sans la colonne, rien ne peut être en corbeille : ne pas
+filtrer est alors EXACT. Vu rouge : poser le filtre sans vérifier fait tomber
+6 tests.
+
+**Payé.** Phase 2, 2026-09-22 — trouvé en relisant le mot « tolérant » dans
+l'en-tête du fichier, avant d'écrire la ligne.
+
+## 19.8 ⚠️ Un essai de mutation qui n'affiche RIEN n'a pas tourné
+
+**Symptôme.** Neuf essais de mutation d'affilée, neuf lignes vides : ni rouge,
+ni vert. On est tenté de lire « rien n'a cassé ».
+
+**Cause.** `timeout` (GNU coreutils) N'EXISTE PAS sur macOS. La commande
+échouait avant de lancer quoi que ce soit ; le `grep` en aval ne trouvait
+rien à filtrer, et le fichier était restauré juste après — tout avait l'air
+propre.
+
+**Parade.** Un essai compte s'il affiche une ligne `Tests …`, rouge ou verte.
+Une sortie vide est un essai qui n'a pas eu lieu. Et sur ce Mac, pas de
+`timeout` : laisser l'outil de la session gérer la durée.
+
+**Payé.** Phase 2, 2026-09-22.
+
+## 19.9 ⚠️⚠️ Le risque « vieil appareil » était mal décrit — mesuré, il est plus étroit
+
+**Ce qui avait été écrit** (rapport de Phase 0, § 4 b) : un appareil resté en
+version 026 ignore `deleted_at` ; s'il écrit sur un objet jeté, il le renvoie
+sans la colonne, et l'objet « ressort de la corbeille PARTOUT ».
+
+**Ce qui est vrai, mesuré** (`sync/corbeille.test.ts`) :
+- `appliquerLigne()` écrit `ON CONFLICT … DO UPDATE SET` sur les SEULES colonnes
+  reçues. Un appareil qui a DÉJÀ l'objet le garde en corbeille ; seul le titre
+  change. La corbeille TIENT.
+- MAIS le vieil appareil continue d'AFFICHER l'objet jeté ;
+- ET un appareil NEUF (installation, réinstallation) qui reçoit l'objet pour la
+  première fois l'INSÈRE à partir de la version du vieil appareil — sans la
+  colonne, donc VIVANT.
+
+**Parade.** Inchangée : tous les appareils en 027 avant d'utiliser la
+corbeille. Aujourd'hui un seul appareil est actif (l'iPhone ne lance plus
+l'app depuis le 2026-09-03) : le risque est nul maintenant, réel dès que
+l'iPhone revient avec une vieille version.
+
+**La leçon générale.** Un risque décrit en lisant le code se VÉRIFIE en test
+avant d'être répété. Le premier constat était plausible, argumenté, et faux.
+Un test le fige désormais : si une parade est ajoutée un jour, il devra être
+changé EXPRÈS.
+
+**Payé.** Phase 2, 2026-09-22. Le rapport de Phase 0 porte une correction datée.
+
+## 19.10 ⚠️ La démo divergeait du natif sur trois points — tous dans la famille de la corbeille
+
+Relevés en écrivant la corbeille de la démo, et corrigés (règle « corriger
+large ») parce que sa purge passe par ces chemins :
+- `demo.fetchAll` rendait TOUTES les habitudes ; le natif écarte les archivées
+  (`WHERE archived = 0`) ;
+- `demo.deleteNote`, `deleteTask`, `deleteGoal`, `deleteKnowledgeEntry`
+  gardaient les arêtes de l'objet supprimé ; le natif les emporte par trigger ;
+- aucun test ne comparait les deux.
+
+**Parade.** `lib/corbeille/api.test.ts` joue le MÊME scénario deux fois, sur
+une vraie base puis en démo, par la seule API publique de `repo.ts`. C'est
+§ 6.2 quater (« un accès démo trop indulgent masque ce que le natif détruit »)
+transformé en test — et c'était nécessaire ici : les captures d'écran des
+phases 3 et 4 se font EN MODE DÉMO.
+
+**Payé.** Phase 2, 2026-09-22.

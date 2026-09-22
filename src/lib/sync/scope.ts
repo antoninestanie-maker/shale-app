@@ -75,6 +75,26 @@ export const TABLES_SYNC = [
 
 export type TableSync = (typeof TABLES_SYNC)[number];
 
+/*
+ * ─── La colonne `deleted_at` (migration 027, corbeille « Supprimés récemment ») ──
+ *
+ * DÉCISION DE PORTÉE, écrite ici parce que c'est ici qu'on décide : la colonne
+ * `deleted_at` SE SYNCHRONISE, sans exception et sans code dédié. Une mise en
+ * corbeille est un UPDATE ordinaire ; les triggers de la 016 la journalisent,
+ * le moteur la transporte, le last-write-wins l'arbitre. Rien n'est à exclure :
+ * une corbeille qui ne voyagerait pas ferait réapparaître sur l'iPhone ce
+ * qu'on vient de jeter sur le Mac.
+ *
+ * ⚠️ Deux gardes, dans `lib/corbeille/regles.test.ts` :
+ *   • toute table à corbeille (`TABLES_CORBEILLE`) doit figurer dans
+ *     `TABLES_SYNC` — sinon une restauration ne partirait jamais ;
+ *   • aucune AUTRE table ne doit porter `deleted_at` — sinon la purge l'oublierait.
+ *
+ * ⚠️ Et une limite, MESURÉE (`sync/corbeille.test.ts`) : un appareil resté en
+ * version ≤ 026 ignore la colonne. Il continue d'afficher l'objet jeté, et un
+ * appareil NEUF qui le reçoit de lui l'insère vivant. Voir `PIEGES.md` § 19.
+ */
+
 const ENSEMBLE_TABLES: ReadonlySet<string> = new Set(TABLES_SYNC);
 
 export function estTableSync(nom: string): nom is TableSync {
