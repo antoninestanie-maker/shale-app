@@ -41,6 +41,7 @@ import { ouvrirObjet } from "../../lib/naviguer";
 import { IconCarte, IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
+import { placer as placerMenu } from "../../lib/menu/placement";
 import { BarreAjout } from "./RattacherElement";
 
 /**
@@ -451,16 +452,24 @@ function MenuEtape(props: {
    * mesure AVANT la peinture, on le retourne vers le haut s'il ne tient pas en
    * dessous, et on divise par le zoom de densité comme le fait `Tooltip`.
    */
+  // ⚠️ Le calcul est celui du menu contextuel (`lib/menu/placement.ts`), et
+  // plus une copie locale : la version d'ici SUIVAIT le défilement sans borne
+  // et recalait de force le menu au bord quand le bouton sortait de l'écran —
+  // « visible, ouvert, et invisible » (PIEGES § 16.2). Corrigé le 2026-09-22,
+  // au titre de « corriger large » : le défaut n'avait pas encore mordu ici.
   const placer = () => {
     const bouton = racine.current?.getBoundingClientRect();
     const menu = panneau.current?.getBoundingClientRect();
     if (!bouton || !menu) return;
-    const z = zoomFactor();
-    const marge = 8;
-    const enDessous = bouton.bottom + 4 + menu.height <= window.innerHeight - marge;
-    const top = enDessous ? bouton.bottom + 4 : Math.max(marge, bouton.top - 4 - menu.height);
-    const left = Math.min(Math.max(marge, bouton.right - menu.width), window.innerWidth - menu.width - marge);
-    setPlace({ top: top / z, left: left / z });
+    const p = placerMenu(
+      bouton,
+      { width: menu.width, height: menu.height },
+      { width: window.innerWidth, height: window.innerHeight },
+      zoomFactor(),
+      "fin",
+    );
+    if (p === "fermer") return setOuvert(false);
+    setPlace(p);
   };
   useLayoutEffect(() => {
     if (!ouvert) return setPlace(null);

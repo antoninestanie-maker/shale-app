@@ -442,7 +442,7 @@ affichées. À instruire comme un chantier à part.
 *Rien de cette section n'est mis en œuvre. Chaque point a été vu en chemin et
 laissé de côté, avec son motif.*
 
-### A. ⚠️ Le menu « ⋯ » des objectifs suit le défilement sans borne — REPORTÉ, pas refusé
+### A. ✅ FAIT le 2026-09-22 — Le menu « ⋯ » des objectifs suivait le défilement sans borne
 
 `MenuEtape` (`src/components/objectifs/FeuilleDeRoute.tsx`) recale de force son
 menu au bord de l'écran quand son bouton en sort, au lieu de se refermer.
@@ -454,8 +454,11 @@ nouveau composant de menu, lui, en est protégé (`lib/menu/placement.ts`,
 **Elle n'est pas faite, pour une raison qui n'est pas de périmètre** : le
 2026-09-21, `FeuilleDeRoute.tsx` était modifié et NON COMMITÉ par une session
 voisine (chantier « objectif depuis une carte mentale »). Y toucher aurait
-fabriqué un conflit sur un travail en cours. **À faire dès que ce fichier est
-commité**, en réutilisant `ancrePerdue()` plutôt qu'en recopiant la règle.
+fabriqué un conflit sur un travail en cours. **Fait le 2026-09-22**, dès que ce fichier a été
+commité (`e57388a`) : `MenuEtape.placer()` appelle désormais le calcul partagé
+de `lib/menu/placement.ts` au lieu de sa copie locale. ⚠️ La règle est testée
+(`placement.test.ts`), le BRANCHEMENT ne l'est pas encore à l'écran — ce sera
+fait avec les menus des Objectifs (phase 4c).
 
 ### B. Les contrôles d'un widget d'Aujourd'hui n'existent qu'au survol — et pas du tout au doigt
 
