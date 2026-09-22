@@ -808,18 +808,21 @@ export function agencer(carte: Carte): Agencement {
  * ⚠️ Les valeurs ci-dessous sont la COPIE des jetons du thème CLAIR
  * (`src/index.css`, bloc `[data-theme="light"]`). Une copie diverge toujours :
  * un test la compare au fichier de style plutôt que de faire confiance à la
- * ressemblance.
+ * ressemblance. (⚠️ Ce test était promis ici sans exister : la copie avait
+ * gardé la V6. Écrit le 2026-09-22, avec la V7 — `carte.test.ts`.)
+ * `bord` n'a pas de jeton opaque : c'est l'aplat de `--color-border-strong`
+ * sur blanc, il reste à la main.
  */
 export const PALETTE_EXPORT = {
   fond: "#ffffff",
   surface: "#ffffff",
-  texte: "#0b0d12",
-  dim: "#5c6474",
+  texte: "#0a0c12",
+  dim: "#5a6272",
   bord: "#cfd3da",
-  blue: "#1b62e5",
-  violet: "#4b45d6",
-  yellow: "#96650b",
-  green: "#06825f",
+  blue: "#0060dc",
+  violet: "#4b40e0",
+  yellow: "#8f5300",
+  green: "#00764f",
 } as const;
 
 export interface OptionsRendu {

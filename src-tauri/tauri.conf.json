@@ -21,7 +21,7 @@
         "minHeight": 640,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#07090d"
+        "backgroundColor": "#07080b"
       },
       {
         "label": "capture",
