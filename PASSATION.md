@@ -162,7 +162,7 @@ connue derrière laquelle se cacher.
 ```
 npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
-npm test                                      ✅   1271 tests, 90 fichiers, 67 s
+npm test                                      ✅   1273 tests, 91 fichiers, 54 s  (2026-09-22)
 npm run i18n:check                            ✅   0 clé manquante, 0 doublon, 2021 entrées
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
@@ -469,6 +469,17 @@ Les six choses à savoir sans lire le code :
 deux vrais appareils. Et une **question non tranchée** : un objectif en péril ET
 ses jalons en péril produisent plusieurs alertes ; le plafond les tient à deux
 lignes, mais on pourrait n'afficher que la plus précise.
+
+---
+
+### 11.x Le 2026-09-22 — cocher / décocher
+
+| Date | Chantier |
+|---|---|
+| 09-22 | ⭐ **Une tâche ponctuelle cochée un autre jour se décoche enfin** (`basculerTache`) · case à cocher unique `CaseACocher` (Aujourd'hui, Tâches, habitudes, feuille de route), instantanée au clic, zone de clic élargie |
+
+Aucune migration, aucun Rust. ⛔ Rebuild natif dû, à grouper. Pourquoi :
+`CLAUDE.md` section du 2026-09-22 ; pièges : `PIEGES.md` § 20.
 
 ---
 

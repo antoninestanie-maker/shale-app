@@ -5794,3 +5794,32 @@ vitest **1237 → 1271** · cargo test 133 (inchangé) · `i18n:check` 0 manquan
 ⚠️ **Machine calme pour `npm test`** : la même suite a rendu 6 échecs et
 65 minutes pendant que Chrome piloté tournait, et **1271/1271 en 67 s** ensuite.
 C'est le § 9.11, confirmé une fois de plus — pas une régression.
+
+## 2026-09-22 — ⭐ Cocher / décocher : une seule case, instantanée, et qui se décoche vraiment
+
+Demande d'Antonin : « ajuster la possibilité de cocher/décocher dans l'appli,
+notamment les tâches ». Pièges dans `PIEGES.md` § 20.
+
+- ⚠️⚠️ **Le vrai défaut : une tâche ponctuelle cochée un autre jour ne se
+  décochait pas** dans la vue Tâches. Corrigé par `basculerTache()` (`repo.ts`),
+  qui efface toutes les coches d'une ponctuelle ; une récurrente reste jour par
+  jour. **Tout clic de case de tâche passe par elle**, jamais par `setTaskDone`.
+- **`components/CaseACocher.tsx`** remplace les trois copies de la case (widget
+  Aujourd'hui, vue Tâches, habitudes du Journal) : `role="checkbox"` +
+  `aria-checked`, zone de clic de 32 px par marge négative (la mise en page ne
+  bouge pas), 44 pt sous `pointer: coarse`, animation qui ne joue qu'au passage
+  à « cochée » (jamais au chargement d'une liste).
+- **La case bascule au clic** (`useCochesOptimistes`), avant la base. L'anneau
+  de discipline de l'accueil lit la même liste, donc il bouge avec elle. Les
+  écritures d'une même case sont mises en file : un double clic ne peut pas
+  arriver en base dans le désordre.
+- **La feuille de route des objectifs coche ses tâches ponctuelles** — elles
+  n'y étaient qu'affichées. Une récurrente y reste en lecture : elle ne compte
+  jamais comme une unité, la cocher là ne ferait rien bouger.
+- Les 14 cases d'historique des habitudes basculent aussi au clic et portent
+  enfin un `role="checkbox"`.
+
+Aucune migration, aucun Rust. Vérifié dans Chrome headless (mode démo,
+clics souris réels) : bascule à 30 ms, décochage de « Ouvrir le compte prop
+firm » (cochée il y a 3 jours dans la démo) tenu après relecture de la base.
+⛔ Rebuild natif non fait : à grouper avec les chantiers voisins (V7, menus).

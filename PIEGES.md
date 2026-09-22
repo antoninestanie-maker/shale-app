@@ -2532,3 +2532,35 @@ bouton qui montre petit.
 appareil qui n'a ni clic ni molette. Deux pieds, choisis par `pointer: coarse`
 en CSS — pas par un `matchMedia` en JS, qui ne suivrait pas une rotation sans
 écouteur.
+
+## 20.1 ⚠️⚠️ Une tâche PONCTUELLE cochée un autre jour ne se décochait plus
+
+**Symptôme.** Vue Tâches, sans filtre de date : une tâche ponctuelle cochée
+hier reste cochée quand on clique dessus. On clique encore, rien ne bouge.
+
+**Cause.** L'affichage et l'écriture ne parlaient pas du même jour. La vue dit
+« faite » dès qu'**une** complétion la dit faite, quel que soit le jour ; le
+clic écrivait `done = 0` pour **aujourd'hui** seulement. La coche d'hier restait
+en base, donc la case restait cochée. La feuille de route des objectifs lit la
+même règle (« faite un jour quelconque »).
+
+**Parade.** `basculerTache()` (`repo.ts` + `demo.ts`) : décocher une ponctuelle
+passe TOUTES ses complétions à `done = 0` (UPDATE, pas DELETE : le trigger
+d'outbox pousse la ligne). Une récurrente se décoche toujours jour par jour.
+Tout clic de case de tâche passe par elle, jamais par `setTaskDone` en direct.
+Test : `src/lib/basculerTache.test.ts`, vu échouer sur l'ancien comportement.
+
+**Comment on l'a payé.** Signalé par Antonin le 2026-09-22 comme « ajuster le
+cocher/décocher ». Le défaut existait depuis que la vue Tâches affiche les
+ponctuelles « faites un jour » — personne ne décochait une tâche de la veille.
+
+## 20.2 ⚠️ Une case qui attend la base avant de basculer fait défaire sa propre coche
+
+**Symptôme.** On clique une case, rien ne bouge pendant l'écriture + le
+`refresh()` complet (relecture de 400 jours de données) ; on reclique, et la
+seconde écriture défait la première.
+
+**Parade.** `useCochesOptimistes()` (`components/CaseACocher.tsx`) : la case
+bascule au clic, les écritures d'une même case s'enchaînent dans une file, et
+la surcharge tombe quand la dernière est finie — y compris en cas d'échec, où
+la case revient à ce que dit la base.

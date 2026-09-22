@@ -4,6 +4,7 @@ import { formatDate, t, tp } from "../../lib/i18n";
 import { formaterChamp } from "../../lib/calendrier/champDate";
 import { todayStr } from "../../lib/logic";
 import {
+  basculerTache,
   createGoal,
   deleteGoal,
   deleteLink,
@@ -39,6 +40,7 @@ import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/con
 import { ouvrirObjet } from "../../lib/naviguer";
 import { IconCarte, IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
 import ChampDate from "../ChampDate";
+import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { BarreAjout } from "./RattacherElement";
 
 /**
@@ -870,6 +872,7 @@ function ListeElements(props: {
 }) {
   const { goal, data, contexte, refresh } = props;
   const faites = useMemo(() => new Set(data.completions.filter((c) => c.done).map((c) => c.task_id)), [data.completions]);
+  const { etat, basculer } = useCochesOptimistes();
   const taches = data.tasks.filter((x) => x.goal_id === goal.id);
   const rattaches = rattachementsDe(uidDeLigne("goal", goal), contexte);
   const vide = taches.length === 0 && rattaches.length === 0;
@@ -884,7 +887,11 @@ function ListeElements(props: {
       <ul>
         {taches.map((tache) => {
           const recurrente = estRecurrente(tache);
-          const faite = !recurrente && faites.has(tache.id);
+          // Une ponctuelle se coche ICI aussi (2026-09-22) : c'est la feuille
+          // de route qui dit ce qu'il reste à faire, y aller la cocher dans
+          // Tâches était un détour. Une récurrente reste en lecture : elle ne
+          // compte jamais comme une unité, la cocher ici ne ferait rien bouger.
+          const faite = !recurrente && etat(`t${tache.id}`, faites.has(tache.id));
           return (
             /* ⚠️ `flex-wrap` ET une base flex sur le titre. Sous
                `pointer: coarse`, `.truncate-souris` REND LE RETOUR À LA LIGNE
@@ -895,7 +902,22 @@ function ListeElements(props: {
                Une base flex, jamais `min-w-0` seul : ce dernier ne déclenche
                pas le repli, il comprime (règle du 2026-07-26). */
             <li key={`t${tache.id}`} className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
-              <Coche faite={faite} />
+              {recurrente ? (
+                <Coche faite={false} />
+              ) : (
+                <CaseACocher
+                  taille="sm"
+                  cochee={faite}
+                  libelle={tache.label}
+                  tip={faite ? t("Marquer à faire") : t("Marquer faite")}
+                  onBascule={() =>
+                    void basculer(`t${tache.id}`, faite, async (fait) => {
+                      await basculerTache(tache, todayStr(), fait);
+                      await refresh();
+                    })
+                  }
+                />
+              )}
               <span className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
                 {tache.label}
               </span>

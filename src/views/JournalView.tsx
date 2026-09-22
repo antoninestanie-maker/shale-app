@@ -19,6 +19,7 @@ import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid"
 
 import { localeTag, t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
+import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import { estExemple, sansExemples } from "../lib/onboarding/exemples";
 
 interface Props {
@@ -94,6 +95,12 @@ function buildWeeklyReview(data: AppData): { title: string; body: string } {
 
 export default function JournalView({ data, refresh, navigate }: Props) {
   const today = todayStr();
+  const { etat: etatCoche, basculer } = useCochesOptimistes();
+  const basculerHabitude = (habitId: number, date: string, reel: boolean) =>
+    basculer(`h${habitId}:${date}`, reel, async (coche) => {
+      await setHabitCheck(habitId, date, coche);
+      await refresh();
+    });
   const entry = data.journal.find((j) => j.date === today);
   const [mood, setMood] = useState<number | null>(entry?.mood ?? null);
   const [energy, setEnergy] = useState<number | null>(entry?.energy ?? null);
@@ -373,32 +380,25 @@ export default function JournalView({ data, refresh, navigate }: Props) {
             </li>
           )}
           {data.habits.map((habit) => {
-            const checks = new Set(
+            const enBase = new Set(
               data.habitChecks
                 .filter((c) => c.habit_id === habit.id)
                 .map((c) => c.date),
             );
+            // L'état AFFICHÉ : ce qu'on vient de cliquer, en attendant la base.
+            const checks = {
+              has: (date: string) => etatCoche(`h${habit.id}:${date}`, enBase.has(date)),
+            };
             return (
               <li key={habit.id} className="group flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setHabitCheck(habit.id, today, !checks.has(today)).then(refresh)
-                  }
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                    checks.has(today) ? "border-transparent" : "border-text-dim/40"
-                  }`}
-                  style={checks.has(today) ? { backgroundColor: habit.color } : {}}
-                  aria-label={t("{nom} aujourd'hui", { nom: habit.name })}
-                  data-tip={habit.name}
-                  data-tip-sub={t("Cocher pour aujourd’hui.")}
-                >
-                  {checks.has(today) && (
-                    <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
-                      <path d="M2 6.5 4.5 9 10 3.5" stroke="var(--color-surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
+                <CaseACocher
+                  cochee={checks.has(today)}
+                  couleur={habit.color}
+                  onBascule={() => void basculerHabitude(habit.id, today, checks.has(today))}
+                  libelle={t("{nom} aujourd'hui", { nom: habit.name })}
+                  tip={habit.name}
+                  tipSub={t("Cocher pour aujourd’hui.")}
+                />
                 <span className="w-32 truncate text-sm text-text">{habit.name}</span>
                 {/* ⚠️ Pour un exemple, le badge REMPLACE la série. Le cahier des
                     charges interdit qu'une habitude d'exemple affiche 0 %, et
@@ -419,10 +419,11 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                       type="button"
                       data-tip={date}
                       data-tip-sub={t("Cocher ou décocher ce jour.")}
-                      onClick={() =>
-                        setHabitCheck(habit.id, date, !checks.has(date)).then(refresh)
-                      }
-                      className="h-3.5 w-3.5 rounded-[3px] transition-transform hover:scale-125"
+                      role="checkbox"
+                      aria-checked={checks.has(date)}
+                      aria-label={`${habit.name} · ${date}`}
+                      onClick={() => void basculerHabitude(habit.id, date, checks.has(date))}
+                      className="h-3.5 w-3.5 rounded-[3px] transition-[transform,background-color] duration-150 hover:scale-125"
                       style={{
                         backgroundColor: checks.has(date)
                           ? habit.color

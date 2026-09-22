@@ -1788,6 +1788,10 @@ export const demo = {
       });
   },
 
+  async decocherPartout(taskId: number): Promise<void> {
+    for (const c of completions) if (c.task_id === taskId) c.done = 0;
+  },
+
   async createGoal(input: GoalInput): Promise<number> {
     const id = nextGoalId++;
     goals.push({

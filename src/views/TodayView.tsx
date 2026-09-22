@@ -17,7 +17,8 @@ import {
   todayTasks,
   weekStats,
 } from "../lib/logic";
-import { createTask, setTaskDone } from "../lib/repo";
+import { basculerTache, createTask } from "../lib/repo";
+import { useCochesOptimistes } from "../components/CaseACocher";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData, TodayTask } from "../lib/types";
@@ -103,8 +104,15 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   const today = todayStr();
   const { hasTrading, afficheModule } = useEntitlements();
 
+  // La case bascule AU CLIC ; l'anneau de discipline suit la même liste, donc
+  // il bouge avec elle au lieu d'attendre la relecture de la base.
+  const { etat, basculer } = useCochesOptimistes();
+
   const derived = useMemo(() => {
-    const list = todayTasks(data.tasks, data.completions, today);
+    const list = todayTasks(data.tasks, data.completions, today).map((x) => ({
+      ...x,
+      done: etat(`t${x.id}`, x.done),
+    }));
     const pct = pctOfList(list);
     return {
       list,
@@ -112,14 +120,15 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
       streak: computeStreak(data.tasks, data.completions, today, pct),
       week: weekStats(data.tasks, data.completions, today, list),
     };
-  }, [data, today]);
+  }, [data, today, etat]);
 
   const handleToggle = useCallback(
-    async (task: TodayTask) => {
-      await setTaskDone(task.id, todayStr(), !task.done);
-      await refresh();
-    },
-    [refresh],
+    (task: TodayTask) =>
+      basculer(`t${task.id}`, task.done, async (fait) => {
+        await basculerTache(task, todayStr(), fait);
+        await refresh();
+      }),
+    [basculer, refresh],
   );
 
   const handleAdd = useCallback(

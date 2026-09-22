@@ -4,9 +4,10 @@ import { recurrenceLabel, todayStr, todayTasks } from "../lib/logic";
 import {
   addTag,
   deleteTag,
+  basculerTache,
   deleteTask,
-  setTaskDone,
 } from "../lib/repo";
+import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import type { AppData, Tag, Task } from "../lib/types";
 import { IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
@@ -63,6 +64,9 @@ export default function TasksView({ data, refresh }: Props) {
     return () => window.removeEventListener("sb:new-task", onNew);
   }, []);
 
+  const { etat, basculer } = useCochesOptimistes();
+  const jourCoche = dateFilter || today;
+
   // done affiché : récurrente → faite aujourd'hui ; ponctuelle → déjà faite un jour
   const rows = useMemo(() => {
     const base = dateFilter
@@ -78,6 +82,7 @@ export default function TasksView({ data, refresh }: Props) {
         });
 
     return base
+      .map((x) => ({ ...x, done: etat(`t${x.id}:${jourCoche}`, x.done) }))
       .filter((t) => {
         if (status === "todo" && t.done) return false;
         if (status === "done" && !t.done) return false;
@@ -90,7 +95,7 @@ export default function TasksView({ data, refresh }: Props) {
           return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         return b.id - a.id;
       });
-  }, [data, status, tagFilter, dateFilter, today]);
+  }, [data, status, tagFilter, dateFilter, today, etat, jourCoche]);
 
   const tagColor = (name: string | null) =>
     data.tags.find((t) => t.name === name)?.color ?? "var(--color-blue)";
@@ -98,11 +103,14 @@ export default function TasksView({ data, refresh }: Props) {
   const goalTitle = (goalId: number | null) =>
     goalId == null ? null : (data.goals.find((g) => g.id === goalId)?.title ?? null);
 
-  const handleToggle = async (task: Task & { done: boolean }) => {
-    // avec filtre date, on coche pour ce jour-là ; sinon pour aujourd'hui
-    await setTaskDone(task.id, dateFilter || today, !task.done);
-    await refresh();
-  };
+  // avec filtre date, on coche pour ce jour-là ; sinon pour aujourd'hui.
+  // ⚠️ Décocher une PONCTUELLE efface toutes ses coches (`basculerTache`) :
+  // sans filtre, elle s'affiche faite dès qu'un jour quelconque la dit faite.
+  const handleToggle = (task: Task & { done: boolean }) =>
+    basculer(`t${task.id}:${jourCoche}`, task.done, async (fait) => {
+      await basculerTache(task, jourCoche, fait);
+      await refresh();
+    });
 
   const handleDelete = async (id: number) => {
     if (deletingId !== id) {
@@ -279,30 +287,13 @@ export default function TasksView({ data, refresh }: Props) {
               key={task.id}
               className="group flex items-center gap-3 rounded-[10px] px-3 py-2.5 hover:bg-surface-2"
             >
-              <button
-                type="button"
-                onClick={() => handleToggle(task)}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                  task.done
-                    ? "border-green bg-green"
-                    : "border-text-dim/40 hover:border-text-dim"
-                }`}
-                aria-label={task.done ? t("Marquer à faire") : t("Marquer faite")}
-                data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
-                data-tip-sub={t("Compte dans la discipline du jour.")}
-              >
-                {task.done && (
-                  <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
-                    <path
-                      d="M2 6.5 4.5 9 10 3.5"
-                      stroke="var(--color-surface)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </button>
+              <CaseACocher
+                cochee={task.done}
+                onBascule={() => void handleToggle(task)}
+                libelle={task.label}
+                tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
+                tipSub={t("Compte dans la discipline du jour.")}
+              />
 
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full"

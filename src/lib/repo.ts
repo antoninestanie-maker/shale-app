@@ -1229,6 +1229,38 @@ export async function setTaskDone(
   await adopter("tasks", taskId);
 }
 
+/**
+ * ⭐ LA bascule d'une case de tâche — à préférer à `setTaskDone` partout où
+ * l'utilisateur coche ou décoche (2026-09-22).
+ *
+ * ⚠️ Une tâche PONCTUELLE est « faite » dès qu'UNE complétion la dit faite,
+ * quel que soit le jour (vue Tâches, feuille de route). La décocher en
+ * écrivant `done = 0` pour aujourd'hui laissait la coche d'hier intacte : la
+ * case restait cochée, impossible à défaire. On efface donc toutes ses coches.
+ * Une RÉCURRENTE, elle, se coche jour par jour : seul `date` bouge.
+ */
+export async function basculerTache(
+  task: Pick<Task, "id" | "recurrence">,
+  date: string,
+  done: boolean,
+): Promise<void> {
+  const ponctuelle = !task.recurrence || task.recurrence === "none";
+  if (done || !ponctuelle) return setTaskDone(task.id, date, done);
+  if (!isTauri) {
+    await demo.decocherPartout(task.id);
+    await adopter("tasks", task.id);
+    return;
+  }
+  const db = await getDb();
+  // UPDATE plutôt que DELETE : le déclencheur d'outbox (migration 016) pousse
+  // la ligne modifiée, et l'autre appareil reçoit bien « pas faite ».
+  await db.execute(
+    "UPDATE task_completions SET done = 0 WHERE task_id = $1 AND done = 1",
+    [task.id],
+  );
+  await adopter("tasks", task.id);
+}
+
 export interface GoalInput {
   title: string;
   description: string | null;

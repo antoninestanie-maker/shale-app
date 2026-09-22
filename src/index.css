@@ -1192,6 +1192,38 @@
   }
 }
 
+/* ─── Case à cocher (2026-09-22) — `components/CaseACocher.tsx` ──────────────
+   Ne joue qu'au PASSAGE à « cochée » (`data-anime`), jamais au chargement
+   d'une liste. La boîte fait un petit rebond, le trait se dessine. La règle
+   globale `prefers-reduced-motion` écrase `animation-duration` : rien à
+   ajouter ici. */
+.coche[data-anime="1"] {
+  animation: coche-rebond 220ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+.coche[data-anime="1"] .coche-trait {
+  stroke-dasharray: 14;
+  animation: coche-trait 200ms ease-out both;
+}
+@keyframes coche-rebond {
+  0% {
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes coche-trait {
+  from {
+    stroke-dashoffset: 14;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

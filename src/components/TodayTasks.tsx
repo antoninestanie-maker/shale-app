@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Goal, Tag, TodayTask } from "../lib/types";
+import { CocheVisuelle } from "./CaseACocher";
 
 import { t } from "../lib/i18n";
 interface Props {
@@ -63,30 +64,15 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
           <li key={task.id} className="group relative shrink-0">
             <button
               type="button"
+              role="checkbox"
+              aria-checked={task.done}
+              aria-label={task.label}
               onClick={() => onToggle(task)}
               data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
               data-tip-sub={t("Compte dans la discipline et le streak du jour.")}
               className="flex w-full min-w-0 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
             >
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                  task.done
-                    ? "border-green bg-green"
-                    : "border-text-dim/40 group-hover:border-text-dim"
-                }`}
-              >
-                {task.done && (
-                  <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
-                    <path
-                      d="M2 6.5 4.5 9 10 3.5"
-                      stroke="var(--color-surface)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </span>
+              <CocheVisuelle cochee={task.done} />
 
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full"
