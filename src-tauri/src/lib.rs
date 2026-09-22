@@ -430,6 +430,12 @@ pub fn run() {
             sql: include_str!("../migrations/026_feuille_de_route.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 27,
+            description: "corbeille",
+            sql: include_str!("../migrations/027_corbeille.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
