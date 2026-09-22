@@ -3,10 +3,12 @@
 // Deux séries et pas une : le TOTAL et le LIQUIDE. Les confondre est l'erreur
 // que ce module existe pour éviter — un patrimoine qui monte pendant que les
 // liquidités fondent est exactement la situation qu'on veut voir arriver.
+import { useId } from "react";
 import {
   Area,
   CartesianGrid,
   ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -53,11 +55,19 @@ export default function CourbePatrimoine({
   aujourdhui: string;
   devise: string;
 }) {
-  const points = serie.map((p) => ({
+  const points = serie.map((p, i) => ({
     label: moisCourt(p.date),
     total: p.totalCents / 100,
     liquide: p.liquideCents / 100,
+    // Le point final, seul : il est porté par sa propre série (voir `<Line>`).
+    fin: i === serie.length - 1 ? p.totalCents / 100 : undefined,
   }));
+
+  // Un id PAR MONTAGE : deux courbes montées ensemble se voleraient leurs
+  // dégradés avec un id fixe (le premier <linearGradient> trouvé gagne).
+  const uid = useId().replace(/:/g, "");
+  const idAire = `fin-aire-${uid}`;
+  const idTrait = `fin-trait-${uid}`;
 
   const horizons = projection(aujourdhui, patrimoineCents, burn, Math.max(...HORIZONS));
 
@@ -86,11 +96,18 @@ export default function CourbePatrimoine({
       ) : (
         <div className="panel-chart mt-3 min-h-[170px]">
           <ResponsiveContainer width="100%" height="100%" minHeight={170}>
-            <ComposedChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+            <ComposedChart data={points} margin={{ top: 8, right: 10, bottom: 0, left: -12 }}>
               <defs>
-                <linearGradient id="finTotalFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-blue)" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="var(--color-blue)" stopOpacity={0} />
+                {/* V7 : la courbe du patrimoine est l'un des cinq emplois du
+                    dégradé de marque (la « progression »). Aire verticale,
+                    trait horizontal. La série « liquide » reste verte. */}
+                <linearGradient id={idAire} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style={{ stopColor: "var(--gradient-brand-from)", stopOpacity: 0.34 }} />
+                  <stop offset="100%" style={{ stopColor: "var(--gradient-brand-from)", stopOpacity: 0 }} />
+                </linearGradient>
+                <linearGradient id={idTrait} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" style={{ stopColor: "var(--gradient-brand-from)" }} />
+                  <stop offset="100%" style={{ stopColor: "var(--gradient-brand-to)" }} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
@@ -125,10 +142,24 @@ export default function CourbePatrimoine({
               <Area
                 type="monotone"
                 dataKey="total"
-                stroke="var(--color-blue)"
+                stroke={`url(#${idTrait})`}
                 strokeWidth={2.5}
-                fill="url(#finTotalFill)"
-                activeDot={{ r: 4, fill: "var(--color-blue)" }}
+                fill={`url(#${idAire})`}
+                activeDot={{ r: 4, fill: "var(--gradient-brand-to)" }}
+              />
+              {/* Le point plein sur la DERNIÈRE valeur, avec un halo léger.
+                  ⚠️ Pas via `dot` de l'aire : une fonction `dot` y bloque
+                  l'animation d'entrée de recharts 3 (la courbe restait figée
+                  sur son premier segment, même mémorisée — vu à l'écran le
+                  2026-09-22). Une série à part, sans trait ni animation. */}
+              <Line
+                dataKey="fin"
+                stroke="none"
+                isAnimationActive={false}
+                legendType="none"
+                tooltipType="none"
+                activeDot={false}
+                dot={{ r: 3.5, strokeWidth: 8, style: { paintOrder: "stroke", fill: "var(--gradient-brand-to)", stroke: "color-mix(in srgb, var(--gradient-brand-to) 18%, transparent)" } }}
               />
               <Area
                 type="monotone"

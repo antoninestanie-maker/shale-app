@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { IconFlame } from "./icons";
 import { tp } from "../lib/i18n";
 
@@ -37,14 +38,19 @@ const TICKS = Array.from({ length: 60 }, (_, i) => {
  */
 export default function DisciplineRing({ pct, streak, done, total }: Props) {
   const p = (pct ?? 0) / 100;
+  // Id propre à l'instance : un id fixe collisionnerait si l'anneau était
+  // monté deux fois (le premier <linearGradient> du document gagne).
+  const idDegrade = `anneau-${useId().replace(/:/g, "")}`;
 
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[240px] min-w-0">
       <svg viewBox="0 0 220 220" className="h-full w-full">
         <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--color-blue)" />
-            <stop offset="100%" stopColor="var(--color-green)" />
+          {/* V7 : dégradé de marque (bleu → cyan), en diagonale. Il était
+              bleu → VERT en V6 : le vert est réservé au sens « gagné ». */}
+          <linearGradient id={idDegrade} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" style={{ stopColor: "var(--gradient-brand-from)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--gradient-brand-to)" }} />
           </linearGradient>
         </defs>
 
@@ -112,7 +118,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
             cy="110"
             r={R}
             fill="none"
-            stroke="url(#ringGrad)"
+            stroke={`url(#${idDegrade})`}
             strokeWidth="13"
             strokeLinecap="round"
             strokeDasharray={CIRC}

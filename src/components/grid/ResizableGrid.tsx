@@ -184,6 +184,15 @@ export function ResizableGrid({
   const [order, setOrder] = useState<string[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Entrée en cascade (V7, `index.css` § `.rgrid-entree`) : la classe ne vit
+  // que la première seconde. Les DÉLAIS sont en CSS ; ce minuteur ne fait que
+  // retirer la classe, pour qu'un panneau déplacé par React (réordonner) ne
+  // rejoue pas son entrée. 440 ms de délai max + 420 ms d'animation < 1 s.
+  const [entree, setEntree] = useState(true);
+  useEffect(() => {
+    const minuteur = window.setTimeout(() => setEntree(false), 1000);
+    return () => window.clearTimeout(minuteur);
+  }, []);
   // Largeur réelle de la grille : chaque panneau en déduit son plancher de
   // largeur en colonnes (responsive sans breakpoint de viewport).
   const [gridWidth, setGridWidth] = useState(0);
@@ -314,8 +323,15 @@ export function ResizableGrid({
     for (const el of kids) {
       const id = el.dataset.pid!;
       if (id === exclude) continue;
-      if (!el.style.transform) continue;
-      el.style.transition = `transform ${FLIP_SPRING.duration}ms ${FLIP_SPRING.easing}`;
+      // ⚠️ Un panneau immobile gardait le `transition: none` EN LIGNE de
+      // l'étape 1, pour toujours : il écrasait la transition du soulèvement
+      // au survol (V7), qui sautait alors sans glisser. On le rend à la
+      // feuille de style.
+      if (!el.style.transform) {
+        el.style.transition = "";
+        continue;
+      }
+      el.style.transition = `transform ${FLIP_SPRING.duration}ms ${FLIP_SPRING.easing}, translate var(--dur-base) var(--ease-out-quint)`;
       el.style.transform = "";
     }
   });
@@ -588,6 +604,7 @@ export function ResizableGrid({
         const cur = el.style.transform;
         el.style.transform = "";
         el.style.willChange = "";
+        el.style.transition = ""; // cf. l'étape 4 du FLIP : rendu à la feuille de style
         if (cur && cur !== "none") {
           const anim = el.animate([{ transform: cur }, { transform: "none" }], {
             duration: DROP_SPRING.duration,
@@ -643,7 +660,7 @@ export function ResizableGrid({
     <Ctx.Provider value={ctx}>
       <div
         ref={gridRef}
-        className={className}
+        className={`rgrid${entree ? " rgrid-entree" : ""} ${className}`}
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,

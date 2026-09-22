@@ -385,6 +385,9 @@
     *::before,
     *::after {
       animation-duration: 0.001ms !important;
+      /* Sans cette ligne, un élément à délai (l'entrée en cascade de la grille)
+         resterait invisible le temps de son délai, puis surgirait. */
+      animation-delay: 0s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.001ms !important;
     }
@@ -401,7 +404,8 @@
     box-shadow: var(--card-shadow);
     transition:
       border-color var(--dur-base) var(--ease-out-quint),
-      box-shadow var(--dur-base) var(--ease-out-quint);
+      box-shadow var(--dur-base) var(--ease-out-quint),
+      translate var(--dur-base) var(--ease-out-quint);
     /* Un enfant ne peut jamais baver hors du rayon de la carte */
     min-width: 0;
   }
@@ -409,6 +413,82 @@
     border-color: var(--card-border-hover);
     box-shadow: var(--card-shadow-hover);
   }
+
+  /* ⭐ V7 — le filet de survol. INVISIBLE AU REPOS : c'est une réponse au
+     geste, jamais un liseré permanent (écarté : le tic des interfaces « IA »).
+     Un filet d'1 px en haut, dans le rayon, et rien d'autre — pas de contour,
+     pas de halo. Écrit ICI seulement, jamais recopié par composant. */
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 14px;
+    right: 14px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--gradient-brand-from),
+      var(--gradient-brand-to),
+      transparent
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-out-quint);
+  }
+  /* Souris seulement : iOS simule un survol collant, qui allumerait le filet
+     à la première tape. Les panneaux flottants (`.card-solid` : modales,
+     lecteur) sont exclus — toujours sous la souris, ils le garderaient allumé.
+
+     ⚠️ Le soulèvement est un `translate`, donc il fait de la carte le bloc
+     conteneur de ses descendants `position: fixed` (PIEGES § 9.5). Une
+     modale rendue DANS sa carte s'y replierait au premier survol — d'où la
+     garde `:not(:has(.fixed))`.
+
+     ⚠️ DANS LA GRILLE, c'est le panneau (`[data-pid]`) qui se soulève, pas
+     la carte : le panneau porte `overflow: clip`, qui rognerait les 2 px du
+     haut — et le filet avec. Par `translate`, indépendant du `transform` que
+     pose le FLIP de `ResizableGrid`. */
+  @media (hover: hover) and (pointer: fine) {
+    .card:not(.card-solid):hover:not(:has(.fixed)) {
+      translate: 0 -2px;
+    }
+    .card:not(.card-solid):hover::before,
+    .group\/panel:hover > .rgrid-content > .card:not(.card-solid)::before {
+      opacity: 1;
+    }
+    .rgrid-content .card:hover {
+      translate: none;
+    }
+    .rgrid > .group\/panel:hover:not(:has(.fixed)) {
+      translate: 0 -2px;
+    }
+  }
+  .rgrid > .group\/panel {
+    transition: translate var(--dur-base) var(--ease-out-quint);
+  }
+
+  /* ⭐ V7 — l'entrée en cascade des panneaux, au changement de vue.
+     CSS pur : le délai vient du RANG (`:nth-of-type`), 55 ms par panneau,
+     plafonné à huit (440 ms). `backwards` et pas `both` : une fois jouée,
+     l'animation ne tient plus rien, et le `transform`/`translate` du FLIP et
+     du survol reprennent la main.
+     `.rgrid-entree` n'existe que pendant la première seconde de la grille
+     (`ResizableGrid`) : React DÉPLACE les nœuds quand on réordonne, et une
+     animation se rejoue sur un nœud réinséré — sans ce garde, chaque glisser
+     ferait réapparaître le panneau lâché.
+     `prefers-reduced-motion` : couvert par la règle globale (durée ET délai). */
+  .rgrid-entree > [data-pid] {
+    animation: panneau-entree 420ms var(--ease-out-quint) backwards;
+  }
+  .rgrid-entree > [data-pid]:nth-of-type(2) { animation-delay: 55ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(3) { animation-delay: 110ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(4) { animation-delay: 165ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(5) { animation-delay: 220ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(6) { animation-delay: 275ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(7) { animation-delay: 330ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(8) { animation-delay: 385ms; }
+  .rgrid-entree > [data-pid]:nth-of-type(n + 9) { animation-delay: 440ms; }
 
   /* Surface de modale : aplat strictement opaque. Le dégradé de `.card` est
      magnifique posé sur le fond de l'app, mais au-dessus d'un backdrop-filter
@@ -1290,6 +1370,17 @@
   }
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes panneau-entree {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
   }
 }
 
