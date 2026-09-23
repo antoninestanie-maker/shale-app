@@ -257,6 +257,26 @@ describe("⭐ le déterminisme de l'agencement", () => {
     expect(poserCote(c, "n1", 1)).toBe(c); // déjà de ce côté-là
   });
 
+  it("⭐ armer une suppression marque TOUT le sous-arbre, pas le seul nœud visé", () => {
+    // C'est la raison d'être du premier temps : supprimer « Risque » emporte
+    // aussi ses deux enfants, et rien à l'écran ne le disait.
+    const svg = rendreSvg(carteEssai(), { mode: "theme", peril: "n1" });
+    const bloc = (id: string) => svg.split(`data-noeud="${id}"`)[1].split("data-noeud=")[0];
+    for (const id of ["n1", "n4", "n5"]) expect(bloc(id)).toContain("var(--color-red)");
+    for (const id of ["n2", "n3", "r"]) expect(bloc(id)).not.toContain("var(--color-red)");
+  });
+
+  it("sans arme, le rendu est EXACTEMENT celui d'avant", () => {
+    // ⚠️ Ce que garde ce test : le bloc écrit dans la note et l'export ne
+    // passent jamais `peril`. Si le rouge pouvait fuir dans le rendu
+    // enregistré, une carte resterait alarmée pour toujours dans une note.
+    const c = carteEssai();
+    const nu = rendreSvg(c, { mode: "theme" });
+    expect(rendreSvg(c, { mode: "theme", peril: null })).toBe(nu);
+    expect(rendreSvg(c, { mode: "theme", peril: undefined })).toBe(nu);
+    expect(nu).not.toContain("var(--color-red)");
+  });
+
   it("un nœud replié ne pose PAS ses descendants", () => {
     const a = agencer(basculerPli(carteEssai(), "n1"));
     expect(a.boites.has("n1")).toBe(true);

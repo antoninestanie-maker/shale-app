@@ -846,3 +846,43 @@ bougé), la V7 ne l'aggrave pas. Signalé, pas corrigé (décision § 12.2 : pas
 palette mi-tokens mi-hex, pas de migration). Le cyan `#3cc4de` est en outre
 proche de la fin du dégradé de marque. Deux réglages proposés à Antonin
 et **non appliqués** : signaux encore plus saturés, halo du bouton primaire.
+
+
+### 11.z Le 2026-09-22 — la suppression d'un nœud de carte se fait en deux temps
+
+Une demande d'Antonin, en une phrase : « la suppression d'un nœud de carte
+mentale doit se faire en deux temps, pas instantanément ». Raisons et pièges :
+`CLAUDE.md`, section du 2026-09-22.
+
+**Ce qui a changé à l'écran.** Le premier ⌫ — ou le premier clic sur
+« Supprimer » — n'efface plus rien : il **arme**. Le nœud visé **et tout son
+sous-arbre** passent en rouge pointillé (arêtes comprises), le bouton devient
+rouge et dit « Confirmer », et le pied de la fenêtre remplace la légende des
+raccourcis par ce qui va partir, **avec le chiffre** et « Échap annuler ». Le
+second appui confirme.
+
+**Une exception assumée** : le ⌫ sur un nœud **vide ET sans descendance** reste
+instantané — c'est le geste qui annule le Tab qu'on vient de taper.
+
+| Fichier | Ce qui y est entré |
+|---|---|
+| `src/lib/carte.ts` | `OptionsRendu.peril` + le rendu du sous-arbre condamné. **Pur, 65 tests** |
+| `src/components/carte/EditeurCarte.tsx` | l'état `arme`, son invariant, le bouton rouge, le pied d'alerte |
+| `src/lib/i18n/en.ts` | 6 clés (2027 entrées) |
+
+**Ce qui est prouvé.** Deux tests neufs : armer marque tout le sous-arbre et rien
+d'autre ; **sans arme, le rendu est identique au caractère près** (le bloc écrit
+dans la note et l'export ne passent jamais `peril` — sans ce test, une carte
+pourrait rester alarmée en rouge pour toujours dans le corps d'une note). Et à
+l'écran en mode démo : armer, annuler par Échap, confirmer par un second ⌫.
+
+⚠️ **Ce qui n'est PAS prouvé** : le geste n'a pas été essayé **au doigt**, ni
+dans l'app native — la vérification est en mode démo, au navigateur. Et **aucun
+build natif** n'a été fait : ce qui précède n'est pas encore dans
+`/Applications/Shale.app`.
+
+⚠️ **Un défaut vu en passant, NON corrigé** : cliquer sur la racine d'une carte
+neuve puis taper immédiatement ne pose pas le texte — la racine reste vide. Vu
+deux fois, le 2026-09-08 et le 2026-09-22, toujours dans un enchaînement de
+frappes très rapide (donc peut-être un artefact du pilotage automatisé, pas un
+défaut de l'app). **À reproduire à la main avant d'y toucher.**

@@ -2123,6 +2123,16 @@ export const EN: Record<string, string> = {
   // ─── Le côté d'une branche (2026-09-08) ───────────────────────────────────
   "Une branche de plus. Elle naît du côté le moins chargé, pour équilibrer la carte.":
     "One more branch. It appears on the lighter side, to keep the map balanced.",
+  // ─── La suppression en deux temps (2026-09-22) ────────────────────────────
+  "Retire ce nœud et tout ce qui pend dessous. Un premier appui montre ce qui partirait.":
+    "Removes this node and everything hanging under it. A first press shows what would go.",
+  "Tout ce qui est en rouge disparaît : ce nœud et les {n} qui pendent dessous. Échap annule.":
+    "Everything in red goes: this node and the {n} hanging under it. Esc cancels.",
+  "Ce nœud disparaît. Échap annule.": "This node goes. Esc cancels.",
+  "Ce nœud et les {n} qui pendent dessous vont disparaître.":
+    "This node and the {n} hanging under it are about to go.",
+  "Ce nœud va disparaître.": "This node is about to go.",
+  "confirmer": "confirm",
   "Changer de côté": "Switch side",
   "Faire passer cette branche, et tout ce qui pend dessous, de l'autre côté du centre.":
     "Move this branch, and everything hanging under it, to the other side of the centre.",

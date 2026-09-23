@@ -126,6 +126,32 @@ méfier du raccourci inverse : on est tenté de « corriger » les deux erreurs.
 **Comment on l'a payée.** Calendrier V2, 2026-09-05 : quelques minutes à relire
 `useAuth.ts` avant de comprendre que c'était ma propre modification temporaire.
 
+### ⭐ Mise à jour du 2026-09-22 : il ne casse pas que `tsc`, il casse aussi DES TESTS
+
+`tsc` n'est que la moitié visible. La PREMIÈRE ligne du patch vide
+`SUPABASE_URL`, et **trois fichiers de tests s'appuient dessus** :
+
+| Fichier | Ce qu'il devient, patch monté |
+|---|---|
+| `src/lib/licence/transport.test.ts` | 2 tests rouges |
+| `src/lib/auth/activation.sql.test.ts` | ne se collecte même plus (`FAIL` d'entrée) |
+| `src/lib/auth/admin.sql.test.ts` | idem |
+
+**Vérifié dans les deux sens le 2026-09-22** : rouges avec le patch, `34 tests
+passed` sans, sans toucher à une ligne de code. Une session qui rejoue `npm
+test` en mode démo lit donc six fichiers en échec et part chercher une
+régression qui n'existe pas — d'autant que les **tests de synchro (PGlite)
+tombent en même temps**, mais pour une tout autre raison : ils durent 175 s
+chacun et expirent sous la charge du serveur de dév resté allumé (§ 9.11).
+
+**Parade, en un ordre.** ① Vérifier à l'écran avec le patch. ② **Le démonter.**
+③ **Arrêter le serveur de dév.** ④ Seulement alors, rejouer la ligne de base.
+Faire les quatre dans le désordre, c'est fabriquer six faux rouges.
+
+⚠️ Et **ne jamais lire un résultat de tests à travers `| tail`** : le code de
+sortie devient celui de `tail`, donc **toujours 0**. C'est ce qui a failli faire
+prendre une suite à six échecs pour une suite verte — deux fois de suite.
+
 ## 1.3 `timeout` n'existe pas sur cette machine
 
 **Symptôme.** `(eval):1: command not found: timeout`.
@@ -1482,6 +1508,29 @@ suite encore plus lente sans rien réparer, et masquerait le jour où le hook
 **Comment on l'a payée.** Checkup du 2026-09-07 : environ quarante minutes à
 soupçonner une régression de mes propres modifications, alors que la seule chose
 qui avait changé était la charge de la machine.
+
+### ⭐ Mise à jour du 2026-09-22 : la suite se charge elle-même, maintenant
+
+La suite est passée de **683 à 1278 tests** en quinze jours. Vitest lance les 92
+fichiers en parallèle — donc **plusieurs Postgres complets à la fois** — et c'est
+désormais la suite qui produit la contention, sans aucun simulateur, sans aucun
+panneau attaché. Mesuré le 2026-09-22, même code, même machine :
+
+| Comment | Durée | Résultat |
+|---|---|---|
+| Les trois fichiers de synchro **seuls** | 1 007 s | **58 / 58** |
+| Les mêmes **dans `npm test` complet** | 3 633 s pour `supabase.test.ts` seul | 10 échecs, **tous des expirations** |
+
+Un test à 30 s de plafond qui met **971 894 ms** au compteur ne dit rien sur le
+code : il dit que le processus n'a pas eu le processeur. ⚠️ Et **les tests qui
+tombent CHANGENT d'une exécution à l'autre** (`conflits` puis `volume` dans
+`engine.test.ts`, deux fois deux tests différents dans `supabase.test.ts`) —
+c'est la signature d'une contention, jamais celle d'une régression.
+
+**Parade, en plus des trois ci-dessus.** Quand les rouges sont **tous** dans
+`sync/` et **tous** des `timed out`, **rejouer ces fichiers SEULS** avant de
+soupçonner quoi que ce soit. S'ils passent, la suite est verte — le dire
+comme ça, plutôt que d'annoncer un faux rouge ou, pire, de le taire.
 
 ## 9.13 ⭐⭐ Déduire d'un RANG une propriété visible, c'est signer une réorganisation à chaque insertion
 

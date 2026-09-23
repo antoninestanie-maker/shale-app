@@ -5879,3 +5879,68 @@ délais d'animation — la règle globale reçoit désormais `animation-delay: 0
 (données en base, décision PASSATION § 12.2) ; le site et les icônes (dette,
 `DETTE-SITE.md`) ; le `LaunchBackground` iOS (écart d'1/255 par canal,
 invisible — phase E non jouée) ; le rebuild natif (à grouper, voir PASSATION).
+
+---
+
+## 2026-09-22 — La suppression d'un nœud se fait en deux temps
+
+**La demande d'Antonin.** « La suppression d'un nœud de carte mentale doit se
+faire en deux temps, pas instantanément. »
+
+**Ce qui la justifie, et qui va plus loin que la faute de frappe.** Supprimer un
+nœud emporte **tout son sous-arbre**, et c'est précisément ce que l'écran ne
+montrait pas : replier une branche suffit à cacher dix nœuds derrière un unique
+chiffre. Le ⌫ était donc un geste dont on ne pouvait pas connaître la portée
+avant de l'avoir fait. ⌘Z rattrapait la bévue — mais seulement pour qui sait que
+⌘Z existe, et seulement tant qu'on s'aperçoit de la perte. Une branche repliée
+effacée par erreur ne se remarque pas dans la seconde.
+
+**La décision : le premier temps MONTRE, il ne demande pas.** Une confirmation
+qui n'affiche rien n'ajoute qu'un clic. Le premier ⌫ (ou le premier clic sur
+« Supprimer ») arme :
+
+- **le sous-arbre entier passe en rouge pointillé** sur la carte, arêtes
+  comprises — l'arête qui mène à un condamné meurt avec lui, sans quoi le bloc
+  rouge resterait visuellement rattaché au reste et on ne verrait pas où la
+  coupure passe ;
+- **le bouton devient rouge et dit « Confirmer »** ;
+- **le pied de la fenêtre remplace la légende des raccourcis** par ce qui va
+  partir, avec le CHIFFRE (« ce nœud et les 2 qui pendent dessous ») et la porte
+  de sortie (« Échap annuler »).
+
+Le second appui confirme. ⚠️ **Le texte des nœuds condamnés reste lisible** : on
+annonce une perte, on ne la simule pas — c'est exactement l'instant où il faut
+pouvoir relire ce qu'on s'apprête à détruire.
+
+### Les trois pièges que ce geste a posés
+
+**① L'invariant, pas la liste de gestes.** Écrit d'abord comme « désarmer quand
+la sélection ou l'édition change », l'effet effaçait **l'arme qu'on venait de
+poser** : `setArme` et `setSelection` partant dans le même lot, l'effet voyait la
+sélection « changer » et rendait l'arme dans la foulée — le bouton rouge
+n'apparaissait jamais. Reformulé en invariant : *l'arme ne vaut que sur le nœud
+sélectionné, hors édition, tant qu'il existe*. Une règle écrite par énumération
+a toujours un trou de la taille exacte de ce qu'elle prétend tenir.
+
+**② `arme` est une DÉPENDANCE de l'écouteur clavier.** Sans elle, l'écouteur
+gardait la fermeture du rendu précédent, donc `arme` à `null` pour toujours, et
+le second ⌫ n'aurait **jamais** confirmé. C'est le § 9.1 de `PIEGES.md` repris à
+l'identique, dans le même fichier, deux semaines après.
+
+**③ Une exception, et une seule : le ⌫ sur un nœud VIDE ET SANS DESCENDANCE.**
+C'est le geste qui annule le Tab qu'on vient de taper ; il ne détruit rien qui
+ait jamais existé, et l'armer obligerait à confirmer l'effacement d'une case
+blanche. Dès qu'il y a quelque chose dessous, on repasse par les deux temps :
+**la case est vide, sa branche ne l'est pas.**
+
+### La preuve
+
+Deux tests neufs dans `carte.test.ts` (65 au total) : armer marque **tout le
+sous-arbre** et rien d'autre ; et sans arme **le rendu est identique au
+caractère près** — ce second test garde le vrai risque, qu'une carte reste
+alarmée en rouge pour toujours dans le corps d'une note, puisque le bloc
+enregistré et l'export ne passent jamais `peril`.
+
+Et à l'écran, en mode démo : ⌫ arme (rouge + « Confirmer » + le pied qui compte
+2), **Échap rend la carte intacte**, deux ⌫ suppriment bien la branche et son
+enfant.

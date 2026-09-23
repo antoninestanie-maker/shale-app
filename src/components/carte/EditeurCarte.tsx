@@ -17,6 +17,7 @@ import {
   rendreSvg,
   renommer,
   retablir,
+  sousArbre,
   supprimerNoeud,
   voisin,
   type Carte,
@@ -149,6 +150,7 @@ function Outil({
   onClick,
   disabled,
   iconeSeule,
+  danger,
   children,
 }: {
   libelle: string;
@@ -156,6 +158,8 @@ function Outil({
   raccourci?: string;
   onClick: () => void;
   disabled?: boolean;
+  /** Le bouton est ARMÉ : un second clic détruit. Rouge plein, et il garde son mot. */
+  danger?: boolean;
   /** Le zoom seulement : deux loupes se lisent sans légende, et la place manque. */
   iconeSeule?: boolean;
   children: ReactNode;
@@ -167,10 +171,19 @@ function Outil({
         onClick={onClick}
         disabled={disabled}
         aria-label={libelle}
-        className={iconeSeule ? `${OUTIL} px-2` : `${OUTIL} max-sm:px-2`}
+        className={
+          danger
+            ? `${OUTIL} bg-red px-3 text-white hover:bg-red hover:text-white`
+            : iconeSeule
+              ? `${OUTIL} px-2`
+              : `${OUTIL} max-sm:px-2`
+        }
       >
         {children}
-        {!iconeSeule && <span className="hidden sm:inline">{libelle}</span>}
+        {/* ⚠️ Armé, le mot RESTE même sur téléphone : c'est le seul bouton de la
+            barre dont le second appui détruit, et une icône rouge seule ne dit
+            pas qu'on est en train de confirmer quelque chose. */}
+        {(danger || !iconeSeule) && <span className={danger ? "" : "hidden sm:inline"}>{libelle}</span>}
       </button>
     </span>
   );
@@ -184,6 +197,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const [histoire, setHistoire] = useState(() => historiqueDe(carte));
   const courante = histoire.present;
   const [selection, setSelection] = useState<string>(courante.noeuds[0]?.id ?? "r");
+  /**
+   * ⭐ LA SUPPRESSION SE FAIT EN DEUX TEMPS — demande d'Antonin, 2026-09-22.
+   *
+   * Le premier ⌫ (ou le premier clic sur « Supprimer ») n'efface rien : il
+   * ARME, et tout ce qui va disparaître passe en rouge pointillé sur la carte.
+   * Le second confirme. C'est le sous-arbre entier que le geste emporte, et
+   * c'est exactement ce qu'on ne voyait pas : une branche repliée cache dix
+   * nœuds derrière un seul chiffre.
+   *
+   * ⚠️ ⌘Z rattrapait déjà la bévue — mais seulement pour qui sait que ⌘Z
+   * existe, et seulement tant qu'on s'aperçoit de la perte. Une branche
+   * repliée qu'on efface par erreur ne se remarque pas dans la seconde.
+   */
+  const [arme, setArme] = useState<string | null>(null);
   const [edition, setEdition] = useState<string | null>(null);
   const [brouillon, setBrouillon] = useState("");
   const [vue, setVue] = useState({ x: 0, y: 0, z: 1 });
@@ -197,9 +224,29 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const agencement = useMemo(() => agencer(courante), [courante]);
 
   const svg = useMemo(
-    () => rendreSvg(courante, { mode: "theme", selection: edition ? null : selection }),
-    [courante, selection, edition],
+    () => rendreSvg(courante, { mode: "theme", selection: edition ? null : selection, peril: arme }),
+    [courante, selection, edition, arme],
   );
+
+  /**
+   * ⭐ L'ARME SE REND DÈS QUE L'ATTENTION SE DÉPLACE.
+   *
+   * Changer de nœud ou ouvrir un champ dit que l'utilisateur est passé à autre
+   * chose. Laisser l'arme en place serait pire que l'absence de confirmation :
+   * un ⌫ tapé plus tard effacerait sans prévenir un nœud visé depuis pour une
+   * tout autre raison. ⚠️ Un état armé ne doit JAMAIS survivre à ce qui l'a
+   * motivé.
+   *
+   * ⚠️ FORMULÉ COMME UN INVARIANT, PAS COMME UNE LISTE DE GESTES : l'arme ne
+   * vaut que sur le nœud SÉLECTIONNÉ, hors édition, et tant qu'il existe. Écrit
+   * en énumérant les gestes qui doivent désarmer, cet effet effaçait aussi
+   * l'arme qu'on venait de poser — `setArme` et `setSelection` partant dans le
+   * même lot, l'effet voyait la sélection « changer » et rendait l'arme dans la
+   * foulée. Le bouton rouge n'apparaissait jamais.
+   */
+  useEffect(() => {
+    if (arme && (edition || arme !== selection || !noeudDe(courante, arme))) setArme(null);
+  }, [arme, selection, edition, courante]);
 
   /** Toute modification passe par ici : un seul point d'entrée pour l'historique. */
   const modifier = useCallback((f: (c: Carte) => Carte) => {
@@ -434,7 +481,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        if (mention) fermerMention();
+        // ⚠️ Désarmer passe AVANT tout le reste. Échap veut dire « laisse
+        // tomber ce que je viens de commencer » : fermer la carte entière parce
+        // qu'on renonce à une suppression serait la mauvaise réponse à la
+        // bonne touche.
+        if (arme) setArme(null);
+        else if (mention) fermerMention();
         else if (edition) fermerEdition(true);
         else onFermer();
         return;
@@ -519,10 +571,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       }
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
-        if (n.parent === null) return; // la racine ne se supprime pas
-        const parent = n.parent;
-        modifier((c) => supprimerNoeud(c, selection));
-        setSelection(parent);
+        supprimer(); // ⚠️ deux temps : le premier ⌫ arme, le second confirme
         return;
       }
       // ⌥ + flèche envoie la BRANCHE de ce côté, au lieu d'y déplacer la
@@ -564,7 +613,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     };
     window.addEventListener("keydown", surTouche, true);
     return () => window.removeEventListener("keydown", surTouche, true);
-  }, [courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, selection]);
+    // ⚠️ `arme` EST UNE DÉPENDANCE, et ce n'est pas du zèle : `supprimer` lit
+    // cet état pour savoir si le ⌫ arme ou confirme. Sans lui, l'écouteur
+    // garderait la fermeture du rendu précédent — donc `arme` à `null` pour
+    // toujours, et le second ⌫ ne confirmerait jamais. C'est le § 9.1 de
+    // `PIEGES.md`, repris à l'identique.
+  }, [arme, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, selection]);
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
@@ -814,10 +868,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     ouvrirEdition(selection, "@", false);
   };
 
+  /**
+   * ⭐ LES DEUX TEMPS, EN UN SEUL ENDROIT — le clavier et le bouton passent
+   * tous les deux par ici, sinon les deux chemins divergeraient et l'un des
+   * deux finirait par supprimer d'un coup.
+   */
   const supprimer = () => {
     const n = noeudDe(courante, selection);
     if (!n || n.parent === null) return; // la racine ne se supprime pas
+    if (arme !== selection) {
+      setArme(selection);
+      return;
+    }
     const parent = n.parent;
+    setArme(null);
     setEdition(null);
     modifier((c) => supprimerNoeud(c, selection));
     setSelection(parent);
@@ -849,6 +913,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   /** Une BRANCHE : un enfant direct de la racine. Elle seule porte un côté. */
   const estBranche = !!noeudSel && noeudSel.parent === racineDe(courante).id;
   const coteSel = coteEtProfondeur(courante, selection).cote;
+  /**
+   * Combien de nœuds PENDENT sous celui qu'on vise — ce que le geste emporte
+   * en plus de lui. ⚠️ `sousArbre` compte le nœud lui-même : on le retire.
+   */
+  const aEmporter = Math.max(0, sousArbre(courante, selection).length - 1);
+  const estArme = arme === selection && !estRacine;
   const outil = OUTIL;
 
   return (
@@ -1053,14 +1123,21 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             <IconCote className={`h-3.5 w-3.5 ${coteSel === -1 ? "-scale-x-100" : ""}`} />
           </Outil>
           <Outil
-            libelle={t("Supprimer")}
+            libelle={estArme ? t("Confirmer") : t("Supprimer")}
             aide={
               estRacine
                 ? t("Le nœud central ne se supprime pas : c'est la carte elle-même.")
-                : t("Retire ce nœud et tout ce qui pend dessous.")
+                : estArme
+                  ? aEmporter > 0
+                    ? t("Tout ce qui est en rouge disparaît : ce nœud et les {n} qui pendent dessous. Échap annule.", {
+                        n: aEmporter,
+                      })
+                    : t("Ce nœud disparaît. Échap annule.")
+                  : t("Retire ce nœud et tout ce qui pend dessous. Un premier appui montre ce qui partirait.")
             }
             raccourci="⌫"
             disabled={estRacine}
+            danger={estArme}
             onClick={supprimer}
           >
             <IconTrash className="h-3.5 w-3.5" />
@@ -1218,6 +1295,18 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                       const parent = n.parent;
                       const id = edition;
                       setEdition(null);
+                      // ⭐ ICI, ET SEULEMENT ICI, LE ⌫ RESTE INSTANTANÉ — mais
+                      // uniquement sur un nœud VIDE ET SANS DESCENDANCE. C'est
+                      // le geste qui annule le Tab qu'on vient de taper : il ne
+                      // détruit rien qui ait jamais existé, et l'armer
+                      // obligerait à confirmer l'effacement d'une case blanche.
+                      // Dès qu'il y a quelque chose dessous, on repasse par les
+                      // deux temps : la case est vide, sa branche ne l'est pas.
+                      if (enfantsDe(courante, id).length > 0) {
+                        setSelection(id);
+                        setArme(id);
+                        return;
+                      }
                       modifier((c) => supprimerNoeud(c, id));
                       setSelection(parent);
                     }
@@ -1248,7 +1337,29 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
         {/* Le pied d'aide : les raccourcis ne servent que si on les connaît. */}
         <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
-          {lecture ? (
+          {estArme ? (
+            /*
+              ⭐ ARMÉ, LE PIED DIT CE QUI VA PARTIR — et remplace la légende des
+              raccourcis, qui n'a plus aucune importance à cet instant précis.
+              Le rouge est déjà sur la carte ; ici on met le CHIFFRE, parce
+              qu'une branche repliée ne montre pas ce qu'elle cache, et le
+              moyen d'en sortir, parce qu'une confirmation sans porte de
+              sortie visible n'est pas une confirmation.
+            */
+            <>
+              <span className="font-semibold text-red">
+                {aEmporter > 0
+                  ? t("Ce nœud et les {n} qui pendent dessous vont disparaître.", { n: aEmporter })
+                  : t("Ce nœud va disparaître.")}
+              </span>
+              <span>
+                <b className="text-text">⌫</b> {t("confirmer")}
+              </span>
+              <span>
+                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+              </span>
+            </>
+          ) : lecture ? (
             /* ⚠️ DEUX PIEDS, choisis par le POINTEUR et non par la largeur.
                « Clic » et « molette » ne veulent rien dire au doigt, et le
                pincement ne zoome pas ici (la scène porte `touch-action: none`,

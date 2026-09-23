@@ -830,6 +830,21 @@ export interface OptionsRendu {
   mode: "theme" | "export";
   /** Le nœud entouré, en édition seulement. Jamais dans le rendu enregistré. */
   selection?: string | null;
+  /**
+   * ⭐ LE NŒUD DONT LA SUPPRESSION EST ARMÉE — lui ET tout son sous-arbre sont
+   * dessinés en rouge, en pointillé.
+   *
+   * Supprimer un nœud emporte tout ce qui pend dessous, et c'est justement ce
+   * que l'utilisateur ne voit pas quand il vise une seule boîte : replier une
+   * branche suffit à cacher dix nœuds derrière un unique chiffre. Le premier
+   * temps du geste sert donc à MONTRER l'étendue des dégâts, pas seulement à
+   * demander « es-tu sûr ». Une confirmation qui ne montre rien n'ajoute qu'un
+   * clic.
+   *
+   * ⚠️ Comme `selection` : jamais dans le rendu enregistré ni dans l'export —
+   * une carte rouge vif restée dans le corps d'une note serait indéchiffrable.
+   */
+  peril?: string | null;
 }
 
 const echapperTexte = (s: string) =>
@@ -844,6 +859,10 @@ function couleurs(mode: "theme" | "export") {
       dim: PALETTE_EXPORT.dim,
       bord: PALETTE_EXPORT.bord,
       de: (c: Couleur) => (c === "dim" ? PALETTE_EXPORT.dim : PALETTE_EXPORT[c]),
+      // ⚠️ Jamais servi en pratique — `peril` n'est passé qu'à l'écran. Présent
+      // pour que la fonction reste TOTALE : un mode qui ne rendrait pas toutes
+      // les couleurs casserait le jour où l'on exporterait une carte armée.
+      peril: "#b3261e",
     };
   }
   return {
@@ -853,6 +872,7 @@ function couleurs(mode: "theme" | "export") {
     dim: "var(--color-text-dim)",
     bord: "var(--color-border-strong)",
     de: (c: Couleur) => (c === "dim" ? "var(--color-text-dim)" : `var(--color-${c})`),
+    peril: "var(--color-red)",
   };
 }
 
@@ -874,6 +894,10 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
   const a = agencer(carte);
   const c = couleurs(options.mode);
   const morceaux: string[] = [];
+  // ⚠️ Le SOUS-ARBRE, pas le seul nœud visé : c'est tout ce que la suppression
+  // emporterait. Calculé une fois, et vide dès que rien n'est armé — le rendu
+  // enregistré ne passe jamais `peril`, il reste donc identique au caractère près.
+  const condamnes = options.peril ? new Set(sousArbre(carte, options.peril)) : null;
 
   morceaux.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${a.largeur} ${a.hauteur}" ` +
@@ -894,16 +918,22 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
     const xP = b.cote === 1 ? p.x + p.w : p.x;
     const xB = b.cote === 1 ? b.x : b.x + b.w;
     const dx = (xB - xP) / 2;
+    // L'arête qui MÈNE à un nœud condamné meurt avec lui : la laisser de la
+    // couleur de sa branche rattacherait visuellement le sous-arbre rouge au
+    // reste de la carte, et on ne verrait plus où la coupure passe.
+    const perdue = !!condamnes?.has(n.id);
     morceaux.push(
       `<path d="M${xP} ${yP} C${xP + dx} ${yP} ${xB - dx} ${yB} ${xB} ${yB}" fill="none" ` +
-        `stroke="${c.de(b.couleur)}" stroke-width="${b.profondeur === 1 ? 2.4 : 1.6}" stroke-linecap="round" opacity="0.75"/>`,
+        `stroke="${perdue ? c.peril : c.de(b.couleur)}" stroke-width="${b.profondeur === 1 ? 2.4 : 1.6}" ` +
+        `stroke-linecap="round"${perdue ? ' stroke-dasharray="5 4"' : ""} opacity="0.75"/>`,
     );
   }
 
   for (const n of carte.noeuds) {
     const b = a.boites.get(n.id);
     if (!b) continue;
-    const trait = c.de(b.couleur);
+    const condamne = !!condamnes?.has(n.id);
+    const trait = condamne ? c.peril : c.de(b.couleur);
     const racine = b.profondeur === 0;
     const enfantsCaches = n.plie ? comptePlie(carte, n.id) : 0;
     const selectionne = options.selection === n.id;
@@ -914,11 +944,15 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
     // est du balisage invalide, et c'est le PREMIER qui gagne à l'analyse — donc
     // la sélection n'aurait rien épaissi du tout.
     const epaisseur = selectionne ? 2.6 : racine ? 2 : 1.4;
+    // ⚠️ Un nœud condamné garde son texte LISIBLE : on annonce une perte, on ne
+    // la simule pas. Le rouge, le pointillé et le fond teinté suffisent à dire
+    // « ceci va partir » sans rendre illisible ce qu'on demande de relire avant
+    // de confirmer — c'est précisément le moment où il faut pouvoir le lire.
     morceaux.push(
       `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="9" ` +
-        `fill="${racine ? trait : c.surface}" fill-opacity="${racine ? 0.14 : 1}" ` +
-        `stroke="${n.mort ? c.dim : trait}" stroke-width="${epaisseur}" ` +
-        `${n.mort ? 'stroke-dasharray="4 3" ' : ""}/>`,
+        `fill="${racine || condamne ? trait : c.surface}" fill-opacity="${racine ? 0.14 : condamne ? 0.1 : 1}" ` +
+        `stroke="${n.mort && !condamne ? c.dim : trait}" stroke-width="${epaisseur}" ` +
+        `${n.mort || condamne ? 'stroke-dasharray="4 3" ' : ""}/>`,
     );
     if (selectionne) {
       morceaux.push(
