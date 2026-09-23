@@ -483,3 +483,27 @@ Le titre d'une note dupliquée reçoit le suffixe traduit AU MOMENT de la
 duplication. Basculer ensuite l'app en anglais ne le retraduit pas. Assumé : un
 titre est une donnée saisie, et le retraduire demanderait une colonne « ceci est
 une copie » — une migration pour un suffixe qu'Antonin renommera dans la minute.
+
+### E. Ce qui ne passe PAS par « Supprimés récemment » — déclaré, pas oublié
+
+La corbeille couvre les dix familles de la migration 027 : notes, tâches,
+objectifs (et leurs phases), événements, sujets et fiches du Savoir, brouillons
+de facture, entrée du journal, métriques, habitudes. Restent HORS corbeille, et
+c'est voulu ou à venir :
+
+| Ce qui se supprime | Où | Pourquoi hors corbeille |
+|---|---|---|
+| Comptes, tiers | Finance | **Archivés**, pas supprimés (Phase 0, validé) : l'archive EST leur corbeille. |
+| Facture ÉMISE | Finance | S'annule par un **avoir** : la numérotation légale ne supporte pas de trou. L'entrée « Supprimer » reste grisée, avec la raison. |
+| Flux récurrents, positions, encaissements | Finance | Suppression définitive : le flux après une confirmation en ligne, la position et l'encaissement **en un clic, sans confirmation ni « Annuler »**. Petites lignes qui se ressaisissent, mais c'est le prochain candidat à la corbeille ou au moins à un « Annuler ». |
+| Tags, liens entre objets, types d'objet | Savoir / Liaisons | Métadonnées : les jeter à part n'a pas de sens, ils suivent leur objet. |
+| Exemples de démarrage | Partout | « Retirer les exemples » est un geste de nettoyage, pas une perte. |
+| Trading, Market-Brain, Position | — | Hors périmètre du chantier (règle explicite). |
+
+### F. Menus non posés dans ce chantier
+
+- **Widgets d'Aujourd'hui** (voir B) : leurs contrôles restent au survol. Reporté
+  à un chantier dédié — c'est `ResizableGrid`, partagé par toutes les grilles.
+- **Nœuds de carte mentale** : ils ont DÉJÀ leur propre menu et leur F2 (le
+  modèle dont ce chantier s'est inspiré) ; les fondre dans `MenuContextuel`
+  est un refactor sans gain visible.

@@ -2958,3 +2958,61 @@ transformé en test — et c'était nécessaire ici : les captures d'écran des
 phases 3 et 4 se font EN MODE DÉMO.
 
 **Payé.** Phase 2, 2026-09-22.
+
+## 19.11 ⚠️⚠️ Masquer un lien À LA LECTURE + réécrire la ligne ENTIÈRE = lien perdu en base
+
+Première version de la corbeille : `fetchAll` rendait `goal_id = NULL` pour une
+tâche dont l'objectif était en corbeille (« détacher les jetés »). Or la
+fenêtre d'une tâche enregistre par `updateTask`, qui réécrit TOUTES les
+colonnes. Ouvrir la tâche, corriger une virgule, enregistrer : le `NULL` lu
+était écrit. Restaurer l'objectif ne ramenait plus sa tâche — et rien ne le
+disait, puisque le lien manquant ne se voit que de l'autre côté.
+
+**Parade.** Une tâche garde son `goal_id` tel quel ; seuls les OBJECTIFS dont
+le parent est jeté sont détachés à la lecture, et aucune écriture entière ne
+les relit. Test rouge d'abord, en natif ET en démo : « MODIFIER une tâche par
+sa fenêtre … ne coupe pas le lien » (`lib/corbeille/api.test.ts`). Règle
+générale : **ne jamais masquer à la lecture une colonne qu'un écrivain
+ligne-entière réécrit** — c'est § 6.2 vu par l'autre bout.
+
+**Payé.** 2026-09-23.
+
+## 19.12 ⚠️ `data-heure` du calendrier ne porte que l'HEURE (« 14 »), pas le créneau
+
+Le clic droit sur un créneau vide lisait `data-heure` : « Nouvel événement
+ici » tombait toujours à l'heure pile, même en visant 14 h 30. **Parade.**
+`creneauSous(e)` (exporté par `GrilleHoraire`) calcule le créneau depuis la
+position du pointeur, exactement comme le clic gauche. Les événements et les
+tâches posés dans la grille portent `data-entree` pour que le clic droit sache
+ce qu'il vise.
+
+**Payé.** 2026-09-23.
+
+## 19.13 ⚠️⚠️ Le panneau navigateur CACHÉ rend des captures périmées et un viewport de 0 × 0
+
+Pendant la vérification du chantier, les captures du panneau intégré
+montraient l'état d'AVANT le clic, et `innerWidth` valait 0 : un menu
+parfaitement placé paraissait hors écran. **Parade.** Vérifier dans un Chrome
+sans fenêtre piloté par le protocole DevTools, profil JETABLE (script sans
+dépendance : `Page.navigate`, `Input.dispatchMouseEvent`,
+`Page.captureScreenshot`). Émulation tactile par
+`Emulation.setTouchEmulationEnabled` + `setDeviceMetricsOverride({ mobile:
+true })` : `matchMedia("(pointer: coarse)")` y répond bien `true`.
+Corollaire : une bulle `data-tip` a un délai d'entrée — une capture prise
+700 ms après le survol ne la montre pas encore ; attendre ~1,5 s.
+
+**Payé.** 2026-09-23 (et mémoire « Vérifier avec Chrome, pas le panneau »).
+
+## 19.14 ⚠️ Le menu contextuel NATIF de la WebView était en anglais sur un Mac français
+
+Clic droit hors d'une zone de texte dans l'app installée : « Reload »,
+« Inspect Element »… en anglais, alors que macOS est en français. Cause : le
+paquet ne déclarait que l'anglais (`CFBundleDevelopmentRegion`, aucune
+`CFBundleLocalizations`), et WebKit choisit la langue de ses menus parmi
+celles que DÉCLARE l'app. **Parade.** `src-tauri/Info.plist` :
+`CFBundleLocalizations = [en, fr]` + `CFBundleAllowMixedLocalizations`. Et
+hors des zones de texte, `installerMenuNatif` remplace ce menu par celui de
+l'app (production seulement). Vérifier après build que la clé est bien dans
+`Shale.app/Contents/Info.plist` — Tauri FUSIONNE ce fichier, il ne le copie pas.
+
+**Payé.** 2026-09-23.
