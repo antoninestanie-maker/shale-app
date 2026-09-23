@@ -61,6 +61,11 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 0.1.0
         CFBundleVersion: "0.1.0"
+        # L'app parle français ET anglais : sans ces deux clés, iOS prend l'app
+        # pour anglophone et les menus système de la WebView (Copier, Coller,
+        # Rechercher…) sortent en anglais sur un iPhone français. PIEGES § 19.14.
+        CFBundleLocalizations: [en, fr]
+        CFBundleAllowMixedLocalizations: true
     entitlements:
       path: shale_iOS/shale_iOS.entitlements
     scheme:
