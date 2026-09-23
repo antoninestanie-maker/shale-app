@@ -327,7 +327,7 @@ function Ligne(props: {
               type="button"
               disabled={props.occupe}
               onClick={props.onConfirmerRestauration}
-              className={`${bouton} bg-blue font-semibold text-white hover:opacity-90`}
+              className={`${bouton} fill-primary font-semibold`}
             >
               {tp(confirmation.plan.total, "Restaurer", "Restaurer les {n}")}
             </button>
