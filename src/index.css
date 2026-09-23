@@ -463,16 +463,24 @@
      la carte : le panneau porte `overflow: clip`, qui rognerait les 2 px du
      haut — et le filet avec. Par `translate`, indépendant du `transform` que
      pose le FLIP de `ResizableGrid`. */
+  /* ⚠️⚠️ (2026-09-23) La carte d'une grille est EXCLUE du sélecteur, pas
+     « annulée » après coup. L'annulation `.rgrid-content .card:hover
+     { translate: none }` pesait (0,3,0) contre (0,4,0) : elle ne gagnait
+     JAMAIS. La carte montait de 2 px DANS son panneau (qui monte aussi), et
+     l'`overflow: clip` du panneau lui rognait le bord haut — coins aplatis,
+     filet invisible, tuiles d'Aujourd'hui tronquées. Vu par Antonin dans
+     l'app installée. PIEGES § 21.10.
+     Même exclusion pour une carte posée DIRECTEMENT dans un `overflow-hidden`
+     (repli animé, bandeau « Marché fermé » de Market-Brain) : elle y serait
+     rognée pareil. Une liste qui DÉFILE, elle, réserve 2 px en haut
+     (`pt-0.5`, grille des sujets de Savoir) — voir l'audit du § 21.10. */
   @media (hover: hover) and (pointer: fine) {
-    .card:not(.card-solid):hover:not(:has(.fixed)) {
+    .card:not(.card-solid):not(.rgrid-content .card):not(.overflow-hidden > .card):hover:not(:has(.fixed)) {
       translate: 0 -2px;
     }
     .card:not(.card-solid):hover::before,
     .group\/panel:hover > .rgrid-content > .card:not(.card-solid)::before {
       opacity: 1;
-    }
-    .rgrid-content .card:hover {
-      translate: none;
     }
     .rgrid > .group\/panel:hover:not(:has(.fixed)) {
       translate: 0 -2px;

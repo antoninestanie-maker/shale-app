@@ -824,6 +824,10 @@ anneau, survol, cascade · couleurs codées en dur → tokens · documentation.
 - ✅ Mesuré dans le DOM : filet à opacité 0 au repos sur les 13 cartes dans les
   trois thèmes, 1 au survol ; délais de cascade 0 → 440 ms plafonnés ; sous
   `prefers-reduced-motion`, délais 0 et durée 1e-6 s.
+  ⚠️ *Correction du 2026-09-23* : « 1 au survol » était mesuré en survol FORCÉ
+  du panneau seul, la carte n'étant pas survolée. En vrai survol, la carte
+  montait de 2 px dans son panneau et y perdait bord haut et filet — Antonin
+  l'a vu dans l'app installée. Corrigé, voir § 11.z du 2026-09-23 (survol).
 - ✅ Ligne de base : 1276 tests, `tsc`, `test:types`, `i18n:check`, build,
   `cargo check --all-targets`. Trois tests de concordance neufs (les deux blocs
   du thème clair ; le fond de `tauri.conf.json` ; `PALETTE_EXPORT` des cartes
@@ -909,3 +913,23 @@ blocs, `--color-green` toujours là — les deux gardes vus échouer.
 (`#4ade80` / `#287845`) : **ne jamais le supprimer ni le renommer** (données en
 base, PIEGES § 21.9). Le site et la démo jouable gardent l'ancien vert — même
 dette que la V7 (`DETTE-SITE.md`, entrée Q).
+
+### 11.z Le 2026-09-23 — le survol rognait le haut des cartes
+
+Antonin, dans l'app installée : « les onglets au survol s'affichent mal, et le
+trait en dégradé aussi ». Reproduit dans **WebKit** (le moteur de l'app), avec
+`tools/webkit-pilote.swift`, en vrai survol : la carte montait de 2 px DANS son
+panneau de grille, dont l'`overflow: clip` coupait le bord haut à plat — coins
+aplatis, filet invisible, tuiles d'Aujourd'hui tronquées. Cause : une règle
+d'annulation trop peu spécifique (PIEGES § 21.10). Même défaut trouvé par
+audit à deux autres endroits : la grille des sujets de **Savoir** (première
+rangée collée au bord d'une zone qui défile) et le bandeau « Marché fermé » de
+**Market-Brain**.
+
+**Ce qui est prouvé.** ✅ Vrai survol WebKit : panneau, tuile et carte de sujet
+gardent coins et filet. ✅ Audit des 14 écrans : aucune carte soulevée contre
+un bord qui rogne. ✅ `theme.survol.test.ts` (vu rouge sur l'ancienne règle).
+✅ Ligne de base : 1291 tests, `tsc`, `test:types`, `i18n:check`, build.
+
+**Ce qui ne l'est pas.** ⚠️ Pas encore dans l'app installée (build groupé).
+⚠️ L'audit ne couvre que le haut de chaque vue, dans les données de démo.

@@ -2750,3 +2750,41 @@ en base ; les événements, types et branches de carte enregistrent le nom
 **Parade.** Un NOUVEAU token pour le nouveau sens (`--color-success`), et
 `--color-green` garde son nom. `src/lib/theme.encre.test.ts` échoue si
 `--color-green` disparaît d'un des trois blocs de thème.
+
+## 21.10 ⚠️⚠️ Une règle qui « annule » un survol peut perdre en silence : la spécificité
+
+**Symptôme.** Au survol, le haut d'un panneau de grille est coupé à plat : coins
+arrondis disparus, filet dégradé invisible ; les tuiles du bandeau d'Aujourd'hui
+tronquées. Vu par Antonin dans l'app installée (2026-09-23).
+
+**Cause.** La V7 soulevait toute carte par
+`.card:not(.card-solid):hover:not(:has(.fixed))` — spécificité (0,4,0) — et
+croyait l'annuler dans la grille par `.rgrid-content .card:hover
+{ translate: none }` — (0,3,0). **L'annulation ne gagnait jamais.** La carte
+montait de 2 px à l'intérieur de son panneau (qui montait aussi), et
+l'`overflow: clip` du panneau rognait ses 2 px du haut.
+
+**Pourquoi personne ne l'a vu.** La vérification V7 a mesuré le panneau en
+survol FORCÉ, sans survoler la carte elle-même ; le défaut n'existe qu'en vrai
+survol. Il est identique dans Chrome : ce n'est pas un défaut WebKit.
+
+**Parade.** Exclure dans le sélecteur même (`:not(.rgrid-content .card)`,
+`:not(.overflow-hidden > .card)`) plutôt qu'annuler après coup. Et vérifier un
+survol en VRAI survol, en mesurant l'élément ET son parent qui rogne.
+`theme.survol.test.ts` interdit le retour de l'annulation.
+
+## 21.11 Vérifier un survol dans WebKit sans prendre le curseur d'Antonin
+
+**Symptôme.** Un WKWebView piloté par script ignore tous les mouvements de
+souris synthétiques : `:hover` ne s'allume jamais. Et la page capturée est vide.
+
+**Causes, et parades** (toutes dans `tools/webkit-pilote.swift`) :
+1. Fenêtre invisible → WebKit la croit cachée (`visibilityState: hidden`) et ne
+   peint plus : couper `_setWindowOcclusionDetectionEnabled:` (appel par IMP,
+   pas par KVC — KVC lève une exception).
+2. WebKit ignore la souris hors de la fenêtre active : sous-classer `NSWindow`
+   pour que `isKeyWindow` rende `true`. Pas besoin d'activer l'app, donc on ne
+   vole ni le focus ni le curseur.
+3. Passer par `_simulateMouseMove:` (la porte des tests de WebKit).
+Le repli « copier les règles `:hover` en classe » fonctionne pour la peinture,
+mais ne survole que les éléments marqués — c'est lui qui a caché le § 21.10.

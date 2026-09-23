@@ -658,7 +658,7 @@ export default function KnowledgeView() {
           </div>
         )}
 
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
+        <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pr-0.5 pt-0.5">
           {status === "loading" ? (
             <Placeholder title={t("Chargement…")} />
           ) : status === "error" ? (

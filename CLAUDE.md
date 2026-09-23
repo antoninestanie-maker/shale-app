@@ -6012,3 +6012,17 @@ couleurs choisies restent vertes.
 Aucune donnée, aucune migration, aucune dépendance. ⛔ Pas de build : il part
 avec celui de [P-menus] (fin de sa phase 4), un seul clic « Toujours
 autoriser » pour Antonin.
+
+## 2026-09-23 — Le survol rognait le haut des cartes
+
+Signalé par Antonin dans l'app installée. La V7 soulevait la carte ET son
+panneau ; l'annulation prévue pour la carte de grille était moins spécifique que
+la règle qu'elle annulait (PIEGES § 21.10). **Décision** : on exclut dans le
+sélecteur, on n'annule plus après coup ; et une liste qui défile réserve 2 px
+en haut plutôt que d'interdire le soulèvement à ses cartes — le geste reste
+identique partout où il a de la place.
+
+**Et une règle de méthode** : un survol se vérifie en VRAI survol, dans WebKit
+(`tools/webkit-pilote.swift`, PIEGES § 21.11), pas en survol forcé dans Chrome.
+La vérification V7 disait « filet à 1 au survol » — c'était vrai, et le filet
+était pourtant invisible.

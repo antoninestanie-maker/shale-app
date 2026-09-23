@@ -160,6 +160,15 @@ halo. Écrit une fois, sur `.card`. Trois exclusions, chacune pour une raison :
 - **dans la grille, c'est le panneau (`[data-pid]`) qui se soulève**, pas la
   carte : le panneau porte `overflow: clip`, qui rognerait les 2 px du haut et
   le filet avec. Par `translate`, indépendant du `transform` du FLIP.
+  ⚠️ *(2026-09-23)* La carte de grille est **exclue du sélecteur**
+  (`:not(.rgrid-content .card)`), pas « annulée » par une règle à part : la
+  première version l'annulait avec une spécificité trop faible, la carte
+  montait quand même DANS son panneau et y perdait son bord haut (PIEGES
+  § 21.10) ;
+- une carte posée **directement dans un `overflow-hidden`** (repli animé) ne se
+  soulève pas non plus, et une liste qui **défile** réserve 2 px en haut
+  (`pt-0.5`) pour que sa première rangée puisse monter. `theme.survol.test.ts`
+  garde les deux exclusions.
 
 **L'entrée en cascade des panneaux** — la seule animation d'entrée du système,
 avec le fondu de vue qui existait déjà (`animate-fade-up` sur le conteneur de
