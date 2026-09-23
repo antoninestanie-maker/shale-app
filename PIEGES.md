@@ -2761,12 +2761,23 @@ en base ; les événements, types et branches de carte enregistrent le nom
 `027_corbeille.sql` vivaient dans deux arbres différents, chacun enregistré
 sous `version: 27` dans son propre `lib.rs`. Les deux passaient leurs tests.
 
-**Ce qui serait arrivé.** `sqlx` enregistre une migration jouée dans
-`_sqlx_migrations` **par son numéro**. Le premier des deux à tourner sur la
-vraie base aurait marqué 27 comme fait ; le second n'aurait **jamais été joué**,
-en silence, et l'app aurait tourné en croyant son schéma complet. Le défaut ne
-se voit qu'à la première requête sur une table qui n'existe pas — c'est-à-dire
-chez Antonin, après un build.
+**Ce qui serait arrivé — et ce n'est PAS une hypothèse.** `sqlx` enregistre une
+migration jouée dans `_sqlx_migrations` **par son numéro**. Vérifié sur la vraie
+base d'Antonin le 2026-09-24, après coup :
+
+```
+$ sqlite3 "$HOME/Library/Application Support/com.atnfx.shale/shale.db" \
+    "SELECT version, description, success FROM _sqlx_migrations ORDER BY version DESC LIMIT 2;"
+27|corbeille|1
+26|feuille_de_route|1
+```
+
+**La 027 de la corbeille avait DÉJÀ tourné chez lui.** Une migration des pièces
+jointes restée numérotée 027 aurait donc été **sautée en silence** au premier
+build : `files` jamais créée, `CHECK` jamais retiré — et une arête citant un
+fichier refusée par ce `CHECK`, donc le cycle de synchronisation arrêté (§ 22.3).
+Aucune erreur au démarrage, aucun message : le défaut ne se serait vu qu'à la
+première pièce jointe, sur SA machine.
 
 **Comment il a été attrapé.** Pas par un test, pas par une relecture : par la
 phrase de `CLAUDE.md` qui dit « la 027 de [P-menus] n'est pas fusionnée », lue
