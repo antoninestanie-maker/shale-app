@@ -942,11 +942,15 @@ graphe** : il se cite, il porte des backlinks, il peut être un nœud de carte.
 
 **⛔ CE QUI RESTE, ET QUI EST IMPORTANT.**
 
-- **RIEN N'A ÉTÉ VU À L'ÉCRAN.** Chrome n'était pas connecté, et le panneau
-  intégré rendait un viewport **0×0**, racine non montée (mesuré). Toute
-  l'interface est raisonnée et typée, **jamais regardée**. C'est le premier
-  geste d'une session qui reprend : lancer le mode démo dans un vrai navigateur,
-  joindre un fichier, vérifier le jeton, le clic, et les trois états.
+- ⭐ **VU sur le vrai moteur** via `webkit-pilote.swift` (l'outil de
+  [P-menus]) : bouton présent, **trois états du jeton distincts en sombre et en
+  clair**, tokens CSS qui résolvent, aucun débordement. Captures :
+  `/tmp/pj-shots/sombre.png` et `clair.png` (temporaires).
+- ⛔ **PAS VU : le clic, et l'entrée du menu « Insérer » du Savoir.** Le pas
+  `{"clic"}` de l'outil ne produit aucun événement DOM (§ 22.8, établi par
+  contre-épreuve). Le hit-test, lui, est prouvé : le clic toucherait `.pj-nom`
+  et `closest()` remonte au bon jeton. **Premier geste de la reprise** : joindre
+  un vrai fichier et cliquer le jeton, dans l'app installée ou dans Chrome.
 - **Aucun build natif** : la 028 n'a jamais tourné sur la vraie base d'Antonin,
   et la commande Rust n'a jamais copié un octet. À grouper avec [P-menus] et
   [T-encre] — chaque build lui coûte une fenêtre de trousseau.

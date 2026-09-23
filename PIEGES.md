@@ -2893,3 +2893,32 @@ Rappel du piège déjà connu, confirmé ce jour-là faute de Chrome disponible 
 dans le panneau.** Une racine non montée et un viewport nul font passer une app
 parfaitement saine pour du code cassé.
 
+## 22.8 ⚠️ `webkit-pilote.swift` : le SURVOL marche, le CLIC non
+
+**Symptôme.** Un pas `{"clic":[x,y]}` ne produit aucun événement DOM : un
+écouteur `click` posé en capture ne voit rien, et le bouton visé ne réagit pas.
+
+**Ce qui l'établit, et c'est la partie qui compte.** Le doute porte toujours sur
+son propre code. La contre-épreuve consiste à cliquer un bouton LIVRÉ ET CONNU
+POUR MARCHER — ici « Carte mentale », dans la barre d'outils des Notes. Il ne
+s'ouvre pas davantage. Le défaut est donc dans l'outil, pas dans le code testé.
+
+**Cause probable.** `souris()` n'emprunte `_simulateMouseMove:` que pour
+`.mouseMoved` ; les boutons passent par `win.sendEvent`, qui ne remonte pas
+jusqu'à la `WKWebView` dans cette configuration (fenêtre `borderless`,
+`alphaValue 0.01`). L'outil a été écrit pour le SURVOL — c'est ce qu'annonce son
+en-tête — et il le fait très bien.
+
+**Ce qu'on peut vérifier malgré tout, et qui vaut presque autant :**
+```js
+document.elementFromPoint(x, y)            // ce qu'un vrai clic TOUCHERAIT
+  .closest("[data-fichier]")               // ce à quoi il remonterait
+```
+C'est ce qui a confirmé, sur le vrai moteur, que le clic sur une pièce jointe
+atterrit sur l'enfant `.pj-nom` et **jamais sur le jeton** — donc que le
+`closest()` de `pieceJointeCliquee` n'est pas une précaution mais la condition
+pour que le clic fonctionne (§ 18.1, cas réel et non hypothétique).
+
+▶️ **Ne pas conclure « le clic est vérifié » avec cet outil.** Le survol, la
+géométrie, les styles calculés et les captures : oui, et c'est beaucoup.
+

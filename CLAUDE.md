@@ -6151,10 +6151,25 @@ parallèle. C'est le § 9.11, confirmé dans les deux sens, pas une régression.
 
 ### ⛔ Ce qui n'est PAS vérifié, et que personne ne doit supposer
 
-- **Rien n'a été vu à l'écran.** Chrome n'était pas connecté à la session, et le
-  panneau intégré rendait un viewport **0×0** avec la racine non montée —
-  mesuré, pas supposé (`PIEGES.md` § 22.7). Toute l'interface (bouton, jeton,
-  trois états, clic d'ouverture) est **raisonnée et typée, jamais regardée**.
+- ⭐ **VU SUR LE VRAI MOTEUR, finalement** — pas dans Chrome (non connecté) ni
+  dans le panneau (viewport 0×0, racine non montée, mesuré — § 22.7), mais dans
+  un **WKWebView piloté** : `tools/webkit-pilote.swift`, l'outil du chantier
+  « menus contextuels ». Mode démo, viewport 1360×880, app réellement montée.
+  Constaté : le bouton « Fichier » présent et visible à côté de « Carte
+  mentale » ; les **trois états du jeton distincts au premier coup d'œil** en
+  sombre ET en clair (plein · tireté et estompé · barré) ; tous les tokens CSS
+  résolvent (fond `rgb(26,29,36)` en sombre, `rgb(235,237,241)` en clair — donc
+  aucun échec silencieux, § 6.3) ; aucun débordement horizontal.
+- ⚠️ **Ce qui n'a PAS pu être vu, et il faut le savoir** : le CLIC. Le pas
+  `{"clic"}` de cet outil ne produit aucun événement DOM — établi par
+  contre-épreuve sur un bouton livré (§ 22.8). Ce qui EST prouvé, c'est que le
+  clic atterrirait sur l'enfant `.pj-nom` et que `closest()` remonte au bon
+  jeton (`elementFromPoint`) : le hit-test est juste, le branchement React ne
+  l'est que par le typage et les 13 tests `happy-dom`.
+- ⚠️ **L'entrée « Fichier » du menu « Insérer » du Savoir n'a pas été
+  atteinte** à l'écran (navigation à l'aveugle dans un module à deux niveaux).
+  Elle passe par le même `menuItem` que l'image et le croquis, et elle est
+  typée — mais elle n'a pas été regardée.
 - **Aucun build natif.** La migration 028 n'a donc **pas** tourné sur la vraie
   base ; la commande Rust n'a jamais copié un octet. À grouper avec les
   chantiers voisins.
