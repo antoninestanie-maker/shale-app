@@ -504,6 +504,14 @@ Les cinq choses à savoir sans lire le code :
    champs de texte, et l'app se déclare en français (`Info.plist`,
    `CFBundleLocalizations`) : le menu des champs suit la langue du Mac.
 
+Même soir : **ce qui reste définitif demande une confirmation en ligne**
+(positions et encaissements de Finance, historique de Position —
+`ConfirmationEnLigne`). **iOS vérifié au simulateur** (« ⋯ » au doigt, écran de
+la corbeille par « Plus », base du simulateur migrée en 27 sans perte ;
+`CFBundleLocalizations` aussi dans `gen/apple`). Recette à deux appareils :
+`RECETTE-SYNC.md` scénarios 8 et 9 — **pas encore jouée sur de vraies
+machines**.
+
 Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
 `PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
 
