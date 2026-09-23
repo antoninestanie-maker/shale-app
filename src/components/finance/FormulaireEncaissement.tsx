@@ -18,6 +18,7 @@ import { Dialogue } from "./ComptesPanel";
 import { Champ, ChampMontant, Montant, inputCls } from "./champs";
 import { refusPaiement, resteDuCents } from "../../lib/finance/facturation/statuts";
 import { createInvoicePayment, deleteInvoicePayment, setInvoiceStatut } from "../../lib/repo";
+import ConfirmationEnLigne from "../ConfirmationEnLigne";
 import { statutCalcule } from "../../lib/finance/facturation/statuts";
 import type { FinanceAccount, Invoice, InvoicePayment } from "../../lib/types";
 import { formatDate, t } from "../../lib/i18n";
@@ -51,6 +52,8 @@ export default function FormulaireEncaissement({
     comptes.find((c) => c.is_liquid === 1 && c.archived === 0)?.id ?? null,
   );
   const [moyen, setMoyen] = useState<string>("Virement");
+  /** L'encaissement dont on demande le retrait — définitif, d'où la question. */
+  const [aRetirer, setARetirer] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [enCours, setEnCours] = useState(false);
 
@@ -217,13 +220,30 @@ export default function FormulaireEncaissement({
                     <Montant cents={p.montant_cents} devise={p.devise} className="text-xs" />
                     <button
                       type="button"
-                      onClick={() => void supprimer(p.id)}
+                      onClick={() => setARetirer(p.id)}
                       data-tip={t("Retirer cet encaissement")}
                       className="cible-tactile-ligne rounded-[8px] px-1.5 py-0.5 text-text-dim transition-colors hover:bg-overlay hover:text-red"
                     >
                       {t("Retirer")}
                     </button>
                   </span>
+                  {aRetirer === p.id && (
+                    <ConfirmationEnLigne
+                      className="basis-full"
+                      question={
+                        facture.sens === "achat"
+                          ? t("Retirer ce décaissement ? C'est définitif, et le statut de la facture sera recalculé.")
+                          : t("Retirer cet encaissement ? C'est définitif, et le statut de la facture sera recalculé.")
+                      }
+                      libelle={t("Retirer")}
+                      onRenoncer={() => setARetirer(null)}
+                      onConfirmer={async () => {
+                        const id = p.id;
+                        setARetirer(null);
+                        await supprimer(id);
+                      }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

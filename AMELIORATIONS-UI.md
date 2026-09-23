@@ -495,7 +495,8 @@ c'est voulu ou à venir :
 |---|---|---|
 | Comptes, tiers | Finance | **Archivés**, pas supprimés (Phase 0, validé) : l'archive EST leur corbeille. |
 | Facture ÉMISE | Finance | S'annule par un **avoir** : la numérotation légale ne supporte pas de trou. L'entrée « Supprimer » reste grisée, avec la raison. |
-| Flux récurrents, positions, encaissements | Finance | Suppression définitive : le flux après une confirmation en ligne, la position et l'encaissement **en un clic, sans confirmation ni « Annuler »**. Petites lignes qui se ressaisissent, mais c'est le prochain candidat à la corbeille ou au moins à un « Annuler ». |
+| Flux récurrents, positions, encaissements | Finance | Suppression définitive, **toujours après une confirmation en ligne** qui dit que c'est définitif (`ConfirmationEnLigne`, depuis le 2026-09-23 pour les positions et les encaissements — demande d'Antonin). |
+| Calculs de l'historique | Position | Idem : confirmation en ligne, définitif. |
 | Tags, liens entre objets, types d'objet | Savoir / Liaisons | Métadonnées : les jeter à part n'a pas de sens, ils suivent leur objet. |
 | Exemples de démarrage | Partout | « Retirer les exemples » est un geste de nettoyage, pas une perte. |
 | Trading, Market-Brain, Position | — | Hors périmètre du chantier (règle explicite). |

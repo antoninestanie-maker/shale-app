@@ -1,8 +1,13 @@
+import { Fragment, useState } from "react";
 import { theoreticalRR } from "../lib/liveTracker";
 import { fmtLots, fmtMoney, fmtPips } from "../lib/sizing";
 import type { PositionSizeCalc } from "../lib/types";
 
 import { localeTag, t } from "../lib/i18n";
+import ConfirmationEnLigne from "./ConfirmationEnLigne";
+
+/** Nombre de colonnes du tableau — la ligne de confirmation les couvre toutes. */
+const COLONNES = 9;
 interface Props {
   calcs: PositionSizeCalc[];
   onToggleUsed: (calc: PositionSizeCalc) => void;
@@ -31,6 +36,8 @@ export default function PositionSizeHistory({
   onReuse,
   onTrade,
 }: Props) {
+  /** Le calcul dont on demande la suppression — définitive, d'où la question. */
+  const [aSupprimer, setASupprimer] = useState<number | null>(null);
   if (calcs.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-text-dim">
@@ -70,7 +77,8 @@ export default function PositionSizeHistory({
               c.direction,
             );
             return (
-              <tr key={c.id} className="group border-t border-border">
+              <Fragment key={c.id}>
+              <tr className="group border-t border-border">
                 <td className="py-2.5 pl-1 font-mono text-xs text-text-dim">
                   {frDateTime(c.created_at)}
                 </td>
@@ -136,7 +144,7 @@ export default function PositionSizeHistory({
                       onClick={() => onReuse(c)}
                       data-tip={t("Recharger ce calcul")}
                       data-tip-sub={t("Repose ses valeurs dans le calculateur pour l’ajuster.")}
-                      className="rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-surface hover:text-text group-hover:opacity-100"
+                      className="rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-surface hover:text-text focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
                       aria-label={t("Recharger ce calcul")}
                     >
                       <svg
@@ -153,8 +161,10 @@ export default function PositionSizeHistory({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDelete(c.id)}
-                      className="rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-surface hover:text-red group-hover:opacity-100"
+                      onClick={() => setASupprimer(c.id)}
+                      className={`rounded-md p-1.5 text-text-dim transition-opacity hover:bg-surface hover:text-red focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100 ${
+                        aSupprimer === c.id ? "opacity-100" : "opacity-0"
+                      }`}
                       aria-label={t("Supprimer")}
                       data-tip={t("Supprimer de l’historique")}
                     >
@@ -173,6 +183,26 @@ export default function PositionSizeHistory({
                   </div>
                 </td>
               </tr>
+              {aSupprimer === c.id && (
+                <tr>
+                  <td colSpan={COLONNES} className="pb-2.5">
+                    <ConfirmationEnLigne
+                      question={t("Supprimer le calcul {paire} du {date} ? C'est définitif.", {
+                        paire: c.pair,
+                        date: frDateTime(c.created_at),
+                      })}
+                      libelle={t("Supprimer")}
+                      onRenoncer={() => setASupprimer(null)}
+                      onConfirmer={() => {
+                        const id = c.id;
+                        setASupprimer(null);
+                        onDelete(id);
+                      }}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

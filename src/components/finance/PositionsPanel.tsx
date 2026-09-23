@@ -10,6 +10,7 @@ import { useState } from "react";
 import { IconPlus, IconTrash } from "../icons";
 import { BoutonDiscret, Champ, ChampMontant, inputCls, Montant } from "./champs";
 import { Dialogue } from "./ComptesPanel";
+import ConfirmationEnLigne from "../ConfirmationEnLigne";
 import { formaterQuantite, parseQuantiteE8 } from "../../lib/finance/montants";
 import type { Valorisation } from "../../lib/finance/valorisation";
 import { deleteFinanceHolding, saveFinanceHolding } from "../../lib/repo";
@@ -34,6 +35,8 @@ export default function PositionsPanel({
   onChange: () => Promise<void> | void;
 }) {
   const [ajout, setAjout] = useState(false);
+  /** La position dont on demande le retrait — définitif, d'où la question. */
+  const [aRetirer, setARetirer] = useState<number | null>(null);
   const nomCompte = (id: number) => comptes.find((c) => c.id === id)?.label ?? t("compte inconnu");
 
   return (
@@ -60,7 +63,7 @@ export default function PositionsPanel({
         <>
           <ul className="mt-3 flex flex-col divide-y divide-border">
             {valorisation.lignes.map((l) => (
-              <li key={l.holding.id} className="group/pos flex items-center gap-3 py-2.5">
+              <li key={l.holding.id} className="group/pos flex flex-wrap items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate truncate-souris font-mono text-sm text-text"
@@ -105,17 +108,37 @@ export default function PositionsPanel({
                     </>
                   )}
                 </div>
+                {/* Visible au doigt et au clavier : au survol seulement, le
+                    retrait n'existait pas sur iPhone (règle 17). */}
                 <button
                   type="button"
-                  onClick={async () => {
-                    await deleteFinanceHolding(l.holding.id);
-                    await onChange();
-                  }}
+                  onClick={() => setARetirer(l.holding.id)}
+                  aria-label={t("Retirer {symbole}", { symbole: l.holding.symbol })}
                   data-tip={t("Retirer cette position")}
-                  className="shrink-0 rounded-[10px] p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-overlay hover:text-red group-hover/pos:opacity-100"
+                  className={`shrink-0 rounded-[10px] p-1.5 text-text-dim transition-opacity hover:bg-overlay hover:text-red focus-visible:opacity-100 group-hover/pos:opacity-100 [@media(pointer:coarse)]:opacity-100 ${
+                    aRetirer === l.holding.id ? "opacity-100" : "opacity-0"
+                  }`}
                 >
                   <IconTrash className="h-4 w-4" />
                 </button>
+                {aRetirer === l.holding.id && (
+                  <ConfirmationEnLigne
+                    className="basis-full"
+                    question={t("Retirer {symbole} de {compte} ? C'est définitif : la position ne passe pas par Supprimés récemment.", {
+                      symbole: l.holding.symbol,
+                      compte: nomCompte(l.holding.account_id),
+                    })}
+                    libelle={t("Retirer")}
+                    onRenoncer={() => setARetirer(null)}
+                    onConfirmer={async () => {
+                      // L'id est celui de CETTE ligne, fermé ici (règle 15).
+                      const id = l.holding.id;
+                      setARetirer(null);
+                      await deleteFinanceHolding(id);
+                      await onChange();
+                    }}
+                  />
+                )}
               </li>
             ))}
           </ul>

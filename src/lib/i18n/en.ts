@@ -163,6 +163,11 @@ export const EN: Record<string, string> = {
   "Elle part dans Supprimés récemment avec son historique de coches.": "It goes to Recently Deleted with its check history.",
   "Le sujet reste 30 jours dans Supprimés récemment. Le restaurer y range de nouveau ses notes.": "The topic stays in Recently Deleted for 30 days. Restoring it files its notes back under it.",
   "Elle part dans Supprimés récemment avec tout son historique.": "It goes to Recently Deleted with its full history.",
+  "Supprimer le calcul {paire} du {date} ? C'est définitif.": "Delete the {paire} calculation from {date}? This can't be undone.",
+  "Retirer ce décaissement ? C'est définitif, et le statut de la facture sera recalculé.": "Remove this outgoing payment? This can't be undone, and the invoice status will be recalculated.",
+  "Retirer cet encaissement ? C'est définitif, et le statut de la facture sera recalculé.": "Remove this payment? This can't be undone, and the invoice status will be recalculated.",
+  "Retirer {symbole}": "Remove {symbole}",
+  "Retirer {symbole} de {compte} ? C'est définitif : la position ne passe pas par Supprimés récemment.": "Remove {symbole} from {compte}? This can't be undone: holdings don't go to Recently Deleted.",
   // ── Menus contextuels (chantier 2026-09-21) ─────────────────────────────
   "Actions": "Actions",
   "Dupliquer": "Duplicate",

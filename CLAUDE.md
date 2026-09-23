@@ -6053,5 +6053,12 @@ corbeille elle-même.
 
 **Ce qui n'est PAS fait** : iOS (Phase 5, `CFBundleLocalizations` à poser
 aussi dans `gen/apple`), les widgets d'Aujourd'hui (leurs contrôles restent au
-survol), les positions et encaissements de Finance (toujours définitifs, sans
-confirmation). Liste complète : `AMELIORATIONS-UI.md` § E–F.
+survol). Liste complète : `AMELIORATIONS-UI.md` § E–F.
+
+**Même jour, demande d'Antonin : « pour Finance et Position on demande
+évidemment une confirmation ».** Ce qui reste DÉFINITIF (positions et
+encaissements de Finance, calculs de l'historique de Position) passe par
+`ConfirmationEnLigne` : la question est posée DANS la ligne, nomme ce qui part,
+dit que c'est définitif ; le focus va sur « Garder », Échap renonce sans fermer
+la fenêtre qui la contient. Les boutons, jusque-là au survol seulement, sont
+visibles au doigt.
