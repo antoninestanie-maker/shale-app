@@ -5944,3 +5944,30 @@ enregistré et l'export ne passent jamais `peril`.
 Et à l'écran, en mode démo : ⌫ arme (rouge + « Confirmer » + le pied qui compte
 2), **Échap rend la carte intacte**, deux ⌫ suppriment bien la branche et son
 enfant.
+
+### Le build du 2026-09-23 à 08:31 — ce qu'il porte
+
+`77f8a5ff…`, installé et prouvé. **Un seul build pour trois chantiers** : la
+suppression en deux temps (`0d183d9`), le **design system V7 « Ink & Azure »**
+([Q-V7], fusionné la veille à 19:38) et les **cases à cocher** (`6e8b0c7`).
+
+Chaîne d'horodatage : commit `0d183d9` 07:39:04 → `dist/assets` 08:00:21 →
+binaire 08:31:33. Arbre **propre et revérifié APRÈS la compilation**.
+
+Témoins dans le bundle consommé : `Ce nœud et les {n} qui pendent dessous vont
+disparaître.` 2, `Un premier appui montre ce qui partirait` 2, `peril` 9.
+Contre-épreuves à 0 : `condamnes` (const **locale**, donc minifiée) et une phrase
+jamais écrite. Empreintes : ancienne `5e843a55…` ≠ nouvelle `77f8a5ff…`,
+identiques après `ditto`.
+
+⚠️ **Aucune migration** : la base reste en **version 26**, `integrity_check` ok,
+0 violation de clé étrangère, **16 notes / 4 sujets / 6 fiches**. La **027 de
+[P-menus] n'est pas fusionnée** et ne part donc pas avec ce build — vérifié sur
+le binaire installé, où `027_` rend **0**.
+
+⚠️ **Le disque externe « Crucial X6 » n'était pas monté** : le lien
+`Shale-projet/shale-backups` est mort tant qu'il est débranché. Sauvegarde prise
+dans `Shale-projet/sauvegardes-locales/avant-deux-temps-20260923-0740`. Les
+sauvegardes AUTOMATIQUES de l'app, elles, ne passent pas par là (elles vivent
+dans `~/Library/Application Support/com.atnfx.shale/backups`) : la dernière
+datait du 2026-09-22 09:39, le filet fonctionne.
