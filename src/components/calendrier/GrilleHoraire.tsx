@@ -295,6 +295,7 @@ export default function GrilleHoraire({
             <button
               key={`${b.entree.kind}-${b.entree.id}-${b.colonne}`}
               type="button"
+              data-entree={`${b.entree.kind}:${b.entree.id}:${b.entree.date}`}
               onClick={() => onOuvrir(b.entree)}
               className="cible-tactile-ligne mx-1 truncate px-1.5 py-0.5 text-left text-[0.7rem]"
               style={{
@@ -431,8 +432,16 @@ function minutesSousLePoint(rect: DOMRect, y: number, heureBase: number): number
   return heureBase * 60 + Math.floor((part * 60) / PAS_MIN) * PAS_MIN;
 }
 
-/** Le créneau sous ce point de l'écran, ou `null`. */
-function creneauSous(x: number, y: number): { jour: string; heure: string } | null {
+/**
+ * Le créneau sous ce point de l'écran, ou `null`.
+ *
+ * Exporté le 2026-09-23 pour le clic droit du Calendrier : « Nouvel événement
+ * ici » doit poser l'heure EXACTEMENT comme le clic sur le créneau — à la
+ * minute près, arrondie au pas de la grille. La première version lisait
+ * `data-heure`, qui ne porte que le numéro de l'heure (« 14 ») : la tâche
+ * naissait avec une heure invalide, et le toast annonçait « ajoutée à 14 ».
+ */
+export function creneauSous(x: number, y: number): { jour: string; heure: string } | null {
   const el = document.elementFromPoint(x, y);
   const cellule = el?.closest<HTMLElement>("[data-jour][data-heure]");
   if (!cellule) return null;
@@ -513,6 +522,7 @@ function ColonneJour({
           <button
             key={`${e.kind}-${e.id}`}
             type="button"
+            data-entree={`${e.kind}:${e.id}:${e.date}`}
             onPointerDown={(ev) => {
               ev.stopPropagation();
               onSaisir(ev, e);
@@ -574,6 +584,9 @@ function Chip({
   return (
     <button
       type="button"
+      // Reconnue par le clic droit du Calendrier (`CalendarView`), qui pose UN
+      // écouteur sur le conteneur au lieu d'en brancher un dans chaque bloc.
+      data-entree={`${entree.kind}:${entree.id}:${entree.date}`}
       onPointerDown={onPointerDown}
       onClick={onClick}
       className="cible-tactile-ligne block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.7rem]"

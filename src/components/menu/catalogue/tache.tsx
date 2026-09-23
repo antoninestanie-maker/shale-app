@@ -46,6 +46,13 @@ export interface ContexteTache {
   faite: boolean;
   /** Les objectifs VIVANTS (ceux de `AppData`, déjà filtrés de la corbeille). */
   objectifs: readonly Goal[];
+  /**
+   * `false` là où l'on ne peut PAS renommer en place — un bloc du Calendrier,
+   * trop petit pour un champ. L'entrée est alors OMISE, pas grisée : le cahier
+   * des charges interdit de renommer dans une fenêtre, et une entrée morte
+   * affichée à chaque clic droit serait du bruit.
+   */
+  renommable?: boolean;
 }
 
 /** Le lundi STRICTEMENT après aujourd'hui — « lundi prochain », même un lundi. */
@@ -142,7 +149,7 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
       icone: ctx.faite ? <IconX /> : <IconCheck />,
       executer: () => gestes.basculer(task),
     },
-    {
+    ctx.renommable !== false && {
       id: "renommer",
       libelle: t("Renommer"),
       icone: <IconPencil />,

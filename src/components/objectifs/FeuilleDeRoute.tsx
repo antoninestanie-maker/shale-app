@@ -6,12 +6,12 @@ import { todayStr } from "../../lib/logic";
 import {
   basculerTache,
   createGoal,
-  deleteGoal,
   deleteLink,
   majFeuilleDeRoute,
   rattacherTache,
   reordonnerObjectifs,
-  updateGoal,
+  renommerObjectif,
+  daterObjectif,
   type GoalInput,
 } from "../../lib/repo";
 import {
@@ -42,6 +42,9 @@ import { IconCarte, IconCheck, IconChevronDown, IconChevronRight, IconNote, Icon
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { placer as placerMenu } from "../../lib/menu/placement";
+import { descendantsVivants } from "../../lib/corbeille/lots";
+import { jeter } from "../corbeille/geste";
+import { pointeurGrossier } from "../../lib/menu/tactile";
 import { BarreAjout } from "./RattacherElement";
 
 /**
@@ -278,7 +281,20 @@ function LigneEtape(p: PropsLigne) {
           quand la place manque. Vu sur iPhone émulé le 2026-09-15 : avec un seul
           `flex-wrap`, la poignée et le chevron restaient seuls sur une ligne,
           le titre tombait en dessous (PIEGES § base flex, 2026-07-26). */}
-      <div className="group flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[10px] px-1 py-1.5 hover:bg-surface-2">
+      <div
+        className="group flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[10px] px-1 py-1.5 hover:bg-surface-2"
+        // ⭐ Le clic droit ouvre le « ⋯ » DE CETTE ÉTAPE (`MenuEtape`) — le même
+        // menu, pas un second à tenir d'accord avec lui (règle 18). Au doigt, il
+        // ne fait rien : l'appui long n'est pas un clic droit (`lib/menu/tactile`).
+        onContextMenu={(e) => {
+          if (pointeurGrossier()) return;
+          const bouton = e.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]');
+          if (!bouton) return;
+          e.preventDefault();
+          e.stopPropagation();
+          bouton.click();
+        }}
+      >
         <div className="flex min-w-0 flex-1 basis-[13rem] items-center gap-x-1">
           <button
             type="button"
@@ -315,7 +331,8 @@ function LigneEtape(p: PropsLigne) {
                 onValider={async (titre) => {
                   setRenommer(false);
                   if (titre && titre !== etape.title) {
-                    await updateGoal(etape.id, { ...ficheDe(etape), title: titre });
+                    // UNE colonne, jamais la fiche entière (règle 16 du chantier).
+                    await renommerObjectif(etape.id, titre);
                     await refresh();
                   }
                 }}
@@ -438,6 +455,12 @@ function MenuEtape(props: {
   const { etape, goals, refresh } = props;
   const [ouvert, setOuvert] = useState(false);
   const [confirmer, setConfirmer] = useState(false);
+  /** Combien de sous-étapes partiraient AVEC elle — la règle même de la corbeille. */
+  const nSous =
+    descendantsVivants(
+      goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
+      etape.id,
+    ).length - 1;
   const racine = useRef<HTMLDivElement>(null);
   const panneau = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
@@ -586,17 +609,25 @@ function MenuEtape(props: {
             role="menuitem"
             className={`${entree} ${confirmer ? "bg-red/15 font-semibold text-red" : "text-red"}`}
             onClick={async () => {
-              if (!confirmer) return setConfirmer(true);
+              // Une étape SANS sous-étape part d'un clic : la corbeille et son
+              // « Annuler » suffisent. La confirmation reste pour le cas lourd,
+              // et dit combien.
+              if (!confirmer && nSous > 0) return setConfirmer(true);
               setOuvert(false);
-              await deleteGoal(etape);
-              await refresh();
+              await jeter("goal", etape.id, etape.title, refresh);
             }}
           >
             {confirmer ? t("Confirmer la suppression") : t("Supprimer l’étape")}
           </button>
           {confirmer && (
             <p className="px-3 pb-1 pt-0.5 text-[11px] text-text-dim">
-              {t("Ses sous-objectifs remontent d’un niveau, ses tâches sont déliées.")}
+              {/* Disait « ses sous-objectifs remontent d'un niveau » : faux
+                  depuis la corbeille (migration 027), ils partent avec elle. */}
+              {tp(
+                nSous,
+                "Elle part avec 1 sous-étape dans Supprimés récemment. Ses tâches restent.",
+                "Elle part avec ses {n} sous-étapes dans Supprimés récemment. Ses tâches restent.",
+              )}
             </p>
           )}
         </div>,
@@ -756,9 +787,12 @@ function ChampLigne(props: {
  * de souhaits, et c'est elle que `calendrier/peril.ts` lit pour signaler un
  * objectif en péril). La fenêtre reste, pour la description.
  *
- * ⚠️ On écrit par `updateGoal` et la fiche complète (`ficheDe`), jamais par
- * `majFeuilleDeRoute` : `deadline` appartient à la fiche, et la liste fermée de
- * l'autre ne la connaît pas.
+ * ⚠️ On écrit par `daterObjectif`, qui ne touche QUE `deadline` (2026-09-23).
+ * La version d'avant passait par `updateGoal` et la fiche complète (`ficheDe`),
+ * faute d'une écriture partielle qui connaisse l'échéance (la liste fermée de
+ * `majFeuilleDeRoute` ne l'a pas) — donc réécrivait huit colonnes pour une
+ * date. Avec la corbeille, un sous-objectif dont le parent est jeté se lit
+ * sans parent en mémoire : la fiche complète aurait coupé ce lien pour de bon.
  */
 function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => Promise<void> }) {
   const { etape } = props;
@@ -771,7 +805,7 @@ function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => 
         valeur={etape.deadline ?? ""}
         onChange={async (v) => {
           if ((v || null) === (etape.deadline ?? null)) return;
-          await updateGoal(etape.id, { ...ficheDe(etape), deadline: v || null });
+          await daterObjectif(etape.id, v || null);
           await props.refresh();
         }}
         aria={t("Échéance de « {titre} »", { titre: etape.title })}

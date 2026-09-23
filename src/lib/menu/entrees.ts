@@ -37,6 +37,17 @@ export interface EntreeMenu {
    * qui répète ce qu'on voit est du bruit.
    */
   desactive?: { raison?: string };
+  /**
+   * Une CONFIRMATION dans le menu même : le premier choix transforme l'entrée
+   * (son libellé devient `libelle`, `detail` s'affiche dessous), le second
+   * exécute. Réservé aux cas LOURDS — un objectif qui emporte ses étapes, un
+   * sujet et ses fiches — où le cahier des charges garde une confirmation qui
+   * DIT COMBIEN. Partout ailleurs, la corbeille et son « Annuler » suffisent.
+   *
+   * Le patron est celui du « ⋯ » des étapes de la feuille de route
+   * (`MenuEtape`), qui confirmait déjà ainsi.
+   */
+  confirmation?: { libelle: string; detail: string };
   /** Sous-menu. Une entrée qui en porte un n'a pas d'`executer`. */
   sousMenu?: EntreeMenu[];
   /**
@@ -46,7 +57,7 @@ export interface EntreeMenu {
    * correspondant (règle 18). Une entrée qui réimplémente l'action diverge de
    * son jumeau au premier correctif.
    */
-  executer?: () => void | Promise<void>;
+  executer?: () => void | Promise<unknown>;
 }
 
 /**

@@ -91,6 +91,7 @@ export default function VueAgenda({
                 <li key={`${e.kind}-${e.id}`}>
                   <button
                     type="button"
+                    data-entree={`${e.kind}:${e.id}:${e.date}`}
                     onClick={() => onOuvrir(e)}
                     className="cible-tactile-ligne flex w-full items-center gap-3 px-4 py-1.5 text-left"
                   >

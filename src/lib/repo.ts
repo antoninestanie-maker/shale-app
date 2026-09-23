@@ -1458,6 +1458,31 @@ export async function majFeuilleDeRoute(id: number, patch: FeuilleDeRoutePatch):
 }
 
 /**
+ * Renomme un objectif (ou une étape), et RIEN d'autre.
+ *
+ * ⚠️ La feuille de route renommait une étape par `updateGoal` avec une fiche
+ * reconstituée (`ficheDe`), qui réécrit HUIT colonnes — l'échéance, la
+ * description, la progression, le parent. C'est le piège de la règle 16 du
+ * chantier (« renommer une tâche effaçait sa date », PIEGES § 6.2). Et depuis
+ * la corbeille, pire : un sous-objectif dont le parent est jeté se lit sans
+ * parent en mémoire ; le réécrire en entier aurait coupé ce lien pour de bon.
+ */
+export async function renommerObjectif(goalId: number, titre: string): Promise<void> {
+  const net = titre.trim();
+  if (!net) return;
+  if (!isTauri) return demo.majObjectif(goalId, { title: net });
+  const db = await getDb();
+  await db.execute("UPDATE goals SET title = $1 WHERE id = $2 AND title IS NOT $1", [net, goalId]);
+}
+
+/** L'échéance d'un objectif, et rien d'autre — même raison que `renommerObjectif`. */
+export async function daterObjectif(goalId: number, echeance: string | null): Promise<void> {
+  if (!isTauri) return demo.majObjectif(goalId, { deadline: echeance });
+  const db = await getDb();
+  await db.execute("UPDATE goals SET deadline = $1 WHERE id = $2 AND deadline IS NOT $1", [echeance, goalId]);
+}
+
+/**
  * Pose l'ordre des frères : `ids` dans l'ordre voulu reçoivent 0, 1, 2…
  * Seules les lignes dont la position change sont réécrites — une écriture qui
  * ne change rien ne doit pas produire de trafic de synchronisation.

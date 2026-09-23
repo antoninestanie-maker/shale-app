@@ -69,6 +69,8 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
    * la même flèche.
    */
   const [rangSous, setRangSous] = useState(-1);
+  /** L'entrée qui attend sa confirmation (`EntreeMenu.confirmation`), par son id. */
+  const [aConfirmer, setAConfirmer] = useState<string | null>(null);
 
   // ── L'objet a disparu pendant que le menu était ouvert ────────────────────
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
       setRang(-1);
       setSousMenu(null);
       setRangSous(-1);
+      setAConfirmer(null);
       return;
     }
     // Ouvert au clavier : la première entrée activable prend le focus d'emblée.
@@ -172,6 +175,12 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
     (e: EntreeMenu) => {
       if (!activable(e)) return;
       if (e.sousMenu?.length) return;
+      // ⚠️ Premier choix d'une entrée à confirmer : on la TRANSFORME et le menu
+      // reste ouvert. Le second choix — souris ou Entrée — exécute.
+      if (e.confirmation && aConfirmer !== e.id) {
+        setAConfirmer(e.id);
+        return;
+      }
       // On ferme AVANT d'agir : l'action peut ouvrir une fenêtre, naviguer ou
       // rendre la main plus tard, et un menu qui resterait ouvert par-dessus
       // serait à la fois laid et faux.
@@ -186,7 +195,7 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
         }
       })();
     },
-    [fermer],
+    [fermer, aConfirmer],
   );
 
   // ── Clavier ───────────────────────────────────────────────────────────────
@@ -290,7 +299,10 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
         <div key={e.id}>
           {i === filet && <div className="my-1 h-px bg-border" role="separator" />}
           <Entree
-            entree={e}
+            entree={
+              aConfirmer === e.id && e.confirmation ? { ...e, libelle: e.confirmation.libelle } : e
+            }
+            confirmee={aConfirmer === e.id}
             surligne={i === rang}
             sousMenuOuvert={sousMenu === i}
             ref={(el) => {
@@ -303,6 +315,9 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
             }}
             onActiver={() => (e.sousMenu?.length ? setSousMenu(i) : lancer(e))}
           />
+          {aConfirmer === e.id && e.confirmation && (
+            <p className="px-2.5 pb-1.5 pt-0.5 text-[11px] leading-snug text-text-dim">{e.confirmation.detail}</p>
+          )}
           {sousMenu === i && e.sousMenu?.length && (
             <SousMenu
               entrees={e.sousMenu}
@@ -330,6 +345,8 @@ const LIGNE =
 
 function Entree(props: {
   entree: EntreeMenu;
+  /** L'entrée attend sa confirmation : elle se montre ARMÉE, fond rouge plein. */
+  confirmee?: boolean;
   surligne: boolean;
   sousMenuOuvert: boolean;
   onSurvol: () => void;
@@ -341,7 +358,13 @@ function Entree(props: {
   const grise = !!e.desactive;
 
   const couleur = grise ? "text-text-dim opacity-50" : e.danger ? "text-red" : "text-text";
-  const fond = surligne && !grise ? (e.danger ? "bg-red/15" : "bg-overlay") : "";
+  const fond = props.confirmee
+    ? "bg-red/15 font-semibold"
+    : surligne && !grise
+      ? e.danger
+        ? "bg-red/15"
+        : "bg-overlay"
+      : "";
 
   const bouton = (
     <button

@@ -75,7 +75,7 @@ describe.each([
   const titresObjectifs = async () =>
     (await repo.fetchAll("2000-01-01")).goals.map((g) => g.title).filter((x) => x.startsWith("Arbre"));
 
-  it("⭐ un objectif part AVEC ses phases, et sa tâche reste — détachée à la lecture", async () => {
+  it("⭐ un objectif part AVEC ses phases, et sa tâche reste — son lien dort", async () => {
     const a = await arbre();
     const lot = await repo.mettreEnCorbeille("goal", a.racine);
     expect([...lot.ids].sort()).toEqual([a.racine, a.p1, a.p2, a.s1].sort());
@@ -84,7 +84,9 @@ describe.each([
     expect(d.goals.some((g) => g.title.startsWith("Arbre"))).toBe(false);
     const tache = d.tasks.find((x) => x.id === a.t);
     expect(tache).toBeDefined();
-    expect(tache!.goal_id).toBeNull();
+    // Le rattachement DORT : l'objectif n'est plus dans `goals`, rien ne
+    // l'affiche, mais le lien est là — la restauration n'a rien à reconstruire.
+    expect(tache!.goal_id).toBe(a.p1);
 
     const c = await repo.lireCorbeille();
     expect(c.filter((x) => x.kind === "goal")).toEqual([
@@ -103,6 +105,31 @@ describe.each([
     const tache = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t);
     expect(tache!.goal_id).toBe(a.p1);
     expect(await repo.lireCorbeille()).toEqual([]);
+  });
+
+  it("⭐⭐ MODIFIER une tâche par sa fenêtre pendant que son objectif est jeté ne coupe pas le lien", async () => {
+    // Le défaut trouvé le 2026-09-23 : `updateTask` réécrit la ligne ENTIÈRE, à
+    // partir de ce que la fenêtre a LU. Si la lecture masquait l'objectif
+    // (`goal_id` à null), la modification écrivait ce null en base — et
+    // restaurer l'objectif ne lui rendait plus sa tâche.
+    const a = await arbre();
+    await repo.mettreEnCorbeille("goal", a.racine);
+    const lue = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t)!;
+    // Exactement ce qu'envoie `TaskModal` : tout, à partir de ce qu'elle a lu.
+    await repo.updateTask(a.t, {
+      label: "Arbre-tâche renommée",
+      tag: lue.tag,
+      priority: lue.priority,
+      recurrence: lue.recurrence ?? "none",
+      goal_id: lue.goal_id,
+      due_date: lue.due_date,
+      start_at: lue.start_at,
+      end_at: lue.end_at,
+    });
+    await repo.restaurer("goal", a.racine);
+    const apres = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t)!;
+    expect(apres.label).toBe("Arbre-tâche renommée");
+    expect(apres.goal_id).toBe(a.p1);
   });
 
   it("⭐ restaurer un sous-objectif remonte au parent — et le plan l'annonce sans rien écrire", async () => {

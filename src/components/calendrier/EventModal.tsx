@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent, type CalendarEventInput } from "../../lib/repo";
+import { createCalendarEvent, updateCalendarEvent, type CalendarEventInput } from "../../lib/repo";
+import { gestesCommunsEvenement } from "../menu/catalogue/evenement";
+import { IconDupliquer } from "../menu/icones";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../../lib/calendrier/agenda";
 import {
   ORDRE_SEMAINE,
@@ -185,11 +187,24 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
     onClose();
   }
 
+  /**
+   * Supprimer et dupliquer sont les gestes du menu contextuel de l'événement,
+   * écrits UNE fois (`catalogue/evenement.tsx`) : le bouton de la fenêtre et
+   * l'entrée du menu appellent la même fonction (règle 18). Supprimer passe
+   * par la corbeille, avec « Annuler » — cette fenêtre ne demandait AUCUNE
+   * confirmation avant la migration 027, pour un geste qui était irréversible.
+   */
   async function supprimer() {
     if (!event) return;
     setEnCours(true);
-    await deleteCalendarEvent(event.id);
-    await onSaved();
+    await gestesCommunsEvenement(onSaved).supprimer(event);
+    onClose();
+  }
+
+  async function dupliquer() {
+    if (!event) return;
+    setEnCours(true);
+    await gestesCommunsEvenement(onSaved).dupliquer(event);
     onClose();
   }
 
@@ -422,6 +437,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
 
         <div className="mt-6 flex items-center justify-between">
           {event ? (
+            <span className="flex items-center gap-1">
             <button
               type="button"
               onClick={supprimer}
@@ -432,6 +448,19 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
               <IconTrash className="h-4 w-4" />
               {t("Supprimer")}
             </button>
+            {/* Le jumeau VISIBLE de « Dupliquer » du menu contextuel (règle 17) :
+                sans lui, dupliquer un événement n'existerait qu'au clic droit. */}
+            <button
+              type="button"
+              onClick={dupliquer}
+              disabled={enCours}
+              data-tip={t("Dupliquer l'événement")}
+              className="pill flex items-center gap-1.5 px-3 py-2 text-sm text-text-dim hover:text-text"
+            >
+              <IconDupliquer className="h-4 w-4" />
+              {t("Dupliquer")}
+            </button>
+            </span>
           ) : (
             <span />
           )}

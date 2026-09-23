@@ -164,14 +164,15 @@ describe("fetchAll — le tableau de bord, les stats, les séries, tout ce qui e
     expect(d.habitChecks.map((c) => c.habit_id)).toEqual([ids.habVivante]);
   });
 
-  it("⭐ une tâche vivante rattachée à un objectif JETÉ se lit sans rattachement", async () => {
-    // Sans cela, l'écran chercherait un objectif absent de `goals` : au mieux
-    // un nom vide, au pire une exception. La base, elle, garde le lien intact
-    // pour la restauration.
+  it("⭐ une tâche vivante rattachée à un objectif JETÉ GARDE son rattachement — il dort", async () => {
+    // Changement du 2026-09-23 : on ne le masque plus en mémoire. La fenêtre
+    // d'une tâche réécrit la ligne ENTIÈRE (`updateTask`) ; un `null` lu en
+    // mémoire y aurait été réécrit en base, et la restauration de l'objectif
+    // n'aurait plus rendu sa tâche. Aucun lecteur n'a besoin du masquage : un
+    // objectif absent de `goals` n'affiche simplement rien.
     const d = await repo.fetchAll("2000-01-01");
-    expect(d.tasks.find((t) => t.id === ids.tacheVivante)?.goal_id).toBeNull();
-    const enBase = sqlite.prepare("SELECT goal_id FROM tasks WHERE id = ?").get(ids.tacheVivante) as { goal_id: number };
-    expect(enBase.goal_id).toBe(ids.objJete);
+    expect(d.tasks.find((t) => t.id === ids.tacheVivante)?.goal_id).toBe(ids.objJete);
+    expect(d.goals.some((g) => g.id === ids.objJete)).toBe(false);
   });
 
   it("⭐ un sous-objectif vivant sous un parent jeté se lit à la racine", async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EventModal from "../components/calendrier/EventModal";
-import GrilleHoraire from "../components/calendrier/GrilleHoraire";
+import GrilleHoraire, { creneauSous } from "../components/calendrier/GrilleHoraire";
 import VueAgenda from "../components/calendrier/VueAgenda";
 import { IconAlert, IconCalendar, IconChevronLeft, IconChevronRight } from "../components/icons";
 import {
@@ -29,7 +29,8 @@ import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
 import {
   appliquerReport,
-  deleteTask,
+  basculerTache,
+  createTask,
   fetchCalendarEvents,
   fetchFacturation,
   fetchRecurringEvents,
@@ -41,6 +42,29 @@ import { demandeUneDecision, replanifier, reporter } from "../lib/taches";
 import type { AppData, CalendarEvent, Task } from "../lib/types";
 import { formatHeure, localeTag, t, tp } from "../lib/i18n";
 import { estTelephone, useIsPhone } from "../lib/platform";
+import MenuContextuel from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import {
+  entreesCreneau,
+  entreesEvenement,
+  gestesCommunsEvenement,
+} from "../components/menu/catalogue/evenement";
+import { entreesTache, gestesCommunsTache } from "../components/menu/catalogue/tache";
+import { jeter } from "../components/corbeille/geste";
+import { ouvrirParId } from "../lib/naviguer";
+import { afficherToast } from "../lib/toast";
+import type { EntreePossible } from "../lib/menu/entrees";
+
+/**
+ * Ce sur quoi le menu du Calendrier est ouvert. Des IDENTIFIANTS, jamais des
+ * objets : les entrées sont recalculées depuis les données fraîches à chaque
+ * rendu, et un objet effacé entre-temps par la synchronisation ferme le menu
+ * au lieu d'agir sur un fantôme.
+ */
+type CibleCalendrier =
+  | { type: "event"; id: number }
+  | { type: "task"; id: number; date: string }
+  | { type: "creneau"; jour: string; heure: string };
 
 /**
  * Le 13ᵉ module — Calendrier.
@@ -320,6 +344,96 @@ export default function CalendarView({ data, refresh }: Props) {
     [events],
   );
 
+  // ─── Le menu contextuel ─────────────────────────────────────────────────────
+  const menu = useMenuContextuel<CibleCalendrier>();
+  const apresEvenement = useCallback(async () => {
+    await Promise.all([refresh(), chargerEvents()]);
+  }, [refresh, chargerEvents]);
+  const communsEvenement = gestesCommunsEvenement(apresEvenement);
+  const communsTache = gestesCommunsTache(apresEvenement);
+
+  /**
+   * ⭐ UN SEUL ÉCOUTEUR pour toute la grille, pas un par bloc : il reconnaît
+   * l'entrée à son `data-entree`, le créneau vide à son `data-jour` et son
+   * `data-heure`. Le code de glisser-déposer de `GrilleHoraire`, qui a déjà
+   * coûté plusieurs pièges, n'a pas été touché.
+   *
+   * Les échéances (objectifs, factures) n'ont pas de menu ici : elles
+   * appartiennent à leur module, où le leur existe.
+   */
+  const surClicDroit = (e: React.MouseEvent) => {
+    const cible = e.target as Element;
+    const bloc = cible.closest<HTMLElement>("[data-entree]");
+    if (bloc) {
+      const [kind, idTexte, date] = (bloc.dataset.entree ?? "").split(":");
+      const id = Number(idTexte);
+      if (kind === "event" && events.some((x) => x.id === id)) menu.ouvrirAuPoint(e, { type: "event", id });
+      else if ((kind === "task" || kind === "recurrence") && data.tasks.some((x) => x.id === id))
+        menu.ouvrirAuPoint(e, { type: "task", id, date });
+      return;
+    }
+    // Le MÊME calcul que le clic sur un créneau (`creneauSous`) : l'heure sous
+    // le pointeur, à la minute près. `data-heure` seul ne porte que « 14 ».
+    const creneau = creneauSous(e.clientX, e.clientY);
+    if (creneau) menu.ouvrirAuPoint(e, { type: "creneau", ...creneau });
+  };
+
+  const entreesDuMenu = (): EntreePossible[] => {
+    const c = menu.cible;
+    if (!c) return [];
+    if (c.type === "event") {
+      const ev = events.find((x) => x.id === c.id);
+      if (!ev) return [];
+      return entreesEvenement(ev, {
+        ...communsEvenement,
+        // La MÊME fenêtre que le clic sur l'événement (règle 18).
+        modifier: (x) => setModale({ event: x, jour: x.date, heure: null }),
+      });
+    }
+    if (c.type === "task") {
+      const tache = data.tasks.find((x) => x.id === c.id);
+      if (!tache) return [];
+      const recurrente = !!tache.recurrence && tache.recurrence !== "none";
+      // Faite CE jour-là pour une récurrente ; faite tout court pour une
+      // ponctuelle — la règle de `basculerTache`.
+      const faite = data.completions.some(
+        (x) => x.task_id === tache.id && !!x.done && (!recurrente || x.date === c.date),
+      );
+      return entreesTache(
+        tache,
+        {
+          ...communsTache,
+          basculer: (x) => void basculerTache(x, c.date, !faite).then(apresEvenement),
+          renommer: () => undefined, // omis : `renommable: false`
+          modifier: (x) => ouvrirParId("task", x.id),
+        },
+        { faite, objectifs: data.goals, renommable: false },
+      );
+    }
+    return entreesCreneau(c.jour, c.heure, {
+      // La même fenêtre qu'un clic sur un créneau vide.
+      nouvelEvenement: (jour, heure) => setModale({ event: null, jour, heure }),
+      nouvelleTache: async (jour, heure) => {
+        const id = await createTask({
+          label: t("Nouvelle tâche"),
+          tag: null,
+          priority: "medium",
+          recurrence: "none",
+          goal_id: null,
+          due_date: jour,
+          start_at: heure,
+          end_at: finApres(heure, DUREE_DEFAUT_MIN),
+        });
+        await apresEvenement();
+        afficherToast({
+          msg: t("Tâche ajoutée à {heure}", { heure: formatHeure(heure) }),
+          actionLabel: t("Nommer"),
+          onAction: () => ouvrirParId("task", id),
+        });
+      },
+    });
+  };
+
   const naviguer = useCallback(
     (sens: number) => {
       setMouvement((m) => ({ tour: m.tour + 1, sens }));
@@ -454,8 +568,8 @@ export default function CalendarView({ data, refresh }: Props) {
           await refresh();
         }}
         onSupprimer={async (tache) => {
-          await deleteTask(tache.id);
-          await refresh();
+          // Corbeille (migration 027) : « Annuler » dans le toast.
+          await jeter("task", tache.id, tache.label, refresh);
         }}
       />
 
@@ -466,7 +580,7 @@ export default function CalendarView({ data, refresh }: Props) {
         <ModeRetombe onRetomber={() => setMode("agenda")} />
       )}
 
-      <section className="card mt-6 overflow-hidden">
+      <section className="card mt-6 overflow-hidden" onContextMenu={surClicDroit}>
         {/* ⚠️ Le calque animé n'a PAS de `key` : il ne doit rien remonter. Seul
             le nom de l'image clé change, ce qui suffit à relancer l'animation
             et ce qui la rend interruptible — il n'y en a jamais qu'une
@@ -551,6 +665,12 @@ export default function CalendarView({ data, refresh }: Props) {
           />
         </>
       )}
+
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions du calendrier")}
+        entrees={entreesDuMenu()}
+      />
 
       {modale && (
         <EventModal

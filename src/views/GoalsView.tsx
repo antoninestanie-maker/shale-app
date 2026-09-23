@@ -8,11 +8,17 @@ import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libell
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
 import { CONTEXTE_VIDE, rattachementsDe, type ContexteObjectifs } from "../lib/objectifs/contexte";
 import { uidDeLigne } from "../lib/objectifs/progression";
-import { deleteGoal, fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
+import { fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
+import { descendantsVivants } from "../lib/corbeille/lots";
+import { jeter } from "../components/corbeille/geste";
+import MenuContextuel from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { IconPencil, IconPlus, IconTrash } from "../components/icons";
+import type { EntreePossible } from "../lib/menu/entrees";
 import type { AppData, Goal } from "../lib/types";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { pick, t } from "../lib/i18n";
+import { pick, t, tp } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -149,17 +155,74 @@ export default function GoalsView({ data, refresh }: Props) {
     return a.localeCompare(b);
   });
 
+  /**
+   * Combien d'étapes (phases et sous-objectifs, à toute profondeur) partiraient
+   * AVEC cet objectif — la règle même de la corbeille (`descendantsVivants`).
+   */
+  const etapesDe = (goal: Goal) =>
+    descendantsVivants(
+      goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
+      goal.id,
+    ).length - 1;
+
+  /**
+   * ⭐ Corbeille (migration 027) — et un CHANGEMENT DE COMPORTEMENT, décidé à
+   * l'arrêt 1 : un objectif part désormais AVEC ses phases et sous-objectifs
+   * (avant : ils remontaient d'un niveau). Ses tâches restent, détachées tant
+   * qu'il est en corbeille, et le retrouvent à la restauration.
+   *
+   * La confirmation en deux clics ne reste QUE pour le cas lourd — un objectif
+   * qui emporte des étapes — et elle dit combien. Sans étape, la corbeille et
+   * son « Annuler » suffisent.
+   */
+  const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
   const handleDelete = async (goal: Goal) => {
-    if (deletingId !== goal.id) {
+    if (etapesDe(goal) > 0 && deletingId !== goal.id) {
       setDeletingId(goal.id);
       window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingId(null), 3000);
+      deleteTimer.current = window.setTimeout(() => setDeletingId(null), 4000);
       return;
     }
     window.clearTimeout(deleteTimer.current);
     setDeletingId(null);
-    await deleteGoal(goal);
-    await refresh();
+    await supprimerObjectif(goal);
+  };
+
+  const ajouterEtape = (goal: Goal) => {
+    setAjoutPour(goal.id);
+    onReplier(`g${goal.id}`, true);
+  };
+
+  // ─── Le menu contextuel d'un objectif ─────────────────────────────────────
+  // Les MÊMES gestes que les trois boutons de la ligne (règle 18). Les étapes,
+  // elles, ont déjà leur menu « ⋯ » dans la feuille de route (`MenuEtape`).
+  const menu = useMenuContextuel<Goal>();
+  const entreesObjectif = (goal: Goal): EntreePossible[] => {
+    const n = etapesDe(goal);
+    return [
+      { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterEtape(goal) },
+      { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => setEditing(goal) },
+      {
+        id: "supprimer",
+        libelle: t("Supprimer"),
+        icone: <IconTrash />,
+        danger: true,
+        // Cas LOURD : il emporte des étapes. La confirmation reste, et dit
+        // combien (cahier des charges, phase 3).
+        confirmation:
+          n > 0
+            ? {
+                libelle: t("Confirmer la suppression"),
+                detail: tp(
+                  n,
+                  "Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.",
+                  "Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.",
+                ),
+              }
+            : undefined,
+        executer: () => supprimerObjectif(goal),
+      },
+    ];
   };
 
   const renderGoal = (goal: Goal) => {
@@ -183,7 +246,11 @@ export default function GoalsView({ data, refresh }: Props) {
 
     return (
       <div key={goal.id}>
-        <div className="group flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-3 hover:bg-surface-2">
+        <div
+          className="group flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-3 hover:bg-surface-2"
+          onContextMenu={(e) => menu.ouvrirAuPoint(e, goal)}
+          onKeyDown={(e) => void menu.ouvrirAuClavier(e, goal)}
+        >
           {avecFeuille && !(ajoutPour === goal.id && !aDesEtapes && !aDesTaches) ? (
             <button
               type="button"
@@ -285,10 +352,7 @@ export default function GoalsView({ data, refresh }: Props) {
           <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <button
               type="button"
-              onClick={() => {
-                setAjoutPour(goal.id);
-                onReplier(cle, true);
-              }}
+              onClick={() => ajouterEtape(goal)}
               className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
               aria-label={t("Ajouter une étape à {title}", { title: goal.title })}
               data-tip={t("Ajouter une étape")}
@@ -323,7 +387,17 @@ export default function GoalsView({ data, refresh }: Props) {
                   : t("Supprimer {title}", { title: goal.title })
               }
               data-tip={deletingId === goal.id ? t("Confirmer la suppression") : t("Supprimer l’objectif")}
-              data-tip-sub={t("Les sous-objectifs remontent d’un niveau, les tâches liées sont déliées.")}
+              // ⚠️ Cette bulle disait « les sous-objectifs remontent d'un
+              // niveau » : faux depuis la corbeille, ils partent avec lui.
+              data-tip-sub={
+                etapesDe(goal) > 0
+                  ? tp(
+                      etapesDe(goal),
+                      "Il part avec 1 étape dans Supprimés récemment, 30 jours. Ses tâches restent.",
+                      "Il part avec ses {n} étapes dans Supprimés récemment, 30 jours. Ses tâches restent.",
+                    )
+                  : t("Il reste 30 jours dans Supprimés récemment. Ses tâches restent.")
+              }
             >
               {deletingId === goal.id ? (
                 <span className="px-0.5 text-[11px] font-semibold">{t("sûr ?")}</span>
@@ -441,6 +515,17 @@ export default function GoalsView({ data, refresh }: Props) {
           }}
         />
       )}
+
+      {/* Un seul menu pour toute la liste, recalculé depuis les objectifs frais :
+          un objectif effacé par la synchronisation le ferme au lieu d'y agir. */}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.title ?? "" })}
+        entrees={(() => {
+          const frais = menu.cible && goals.find((g) => g.id === menu.cible!.id);
+          return frais ? entreesObjectif(frais) : [];
+        })()}
+      />
     </div>
   );
 }

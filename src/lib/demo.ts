@@ -1957,6 +1957,11 @@ export const demo = {
     Object.assign(goal, { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress });
   },
 
+  async majObjectif(id: number, champs: { title?: string; deadline?: string | null }): Promise<void> {
+    const goal = goals.find((g) => g.id === id);
+    if (goal) Object.assign(goal, champs);
+  },
+
   async majFeuilleDeRoute(id: number, champs: FeuilleDeRoutePatch & { count_since?: string }): Promise<void> {
     const goal = goals.find((g) => g.id === id);
     if (goal) Object.assign(goal, champs);
