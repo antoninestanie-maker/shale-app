@@ -28,8 +28,14 @@ App mixte **productivité + trading** utilisée plusieurs heures d'affilée :
   ombre et son liseré interne neutre : c'est la hiérarchie d'élévation qui donne
   la profondeur « matériau » ;
 - couleurs vives **réservées aux signaux de trading**, plus saturées qu'en V6
-  mais lisibles en session longue (le néon a été écarté) : vert = achat/win/long,
-  rouge = vente/loss/short, ambre = alerte, indigo = sessions & segments ;
+  mais lisibles en session longue (le néon a été écarté) : rouge =
+  vente/loss/short, ambre = alerte, indigo = sessions & segments ;
+- ⭐ **le « réussi » est à l'encre** *(2026-09-23)* : case cochée, gain, trade
+  gagnant, habitude tenue, jauge terminée, « en direct » prennent **la couleur
+  du texte**, pas une couleur. C'est littéralement *Ink & Azure* : de l'encre
+  et du bleu, et seules les alertes (ambre, rouge) sortent de la famille. Le
+  vert n'est plus un signal — il ne reste que comme couleur **qu'on choisit**
+  (étiquette, habitude, événement…), voir § « Le réussi à l'encre » ;
 - sobriété : typographie, espace, hairlines — zéro glow décoratif, **sauf
   l'ombre teintée du bouton primaire** (`--btn-primary-shadow`) ;
 - **un peu de mouvement, à deux endroits précis** : le filet de survol des
@@ -54,14 +60,16 @@ c'est voulu. Le gain vient de l'accent, des dégradés et des signaux.
 | `--color-blue` | `#0088ff` | `#0060dc` | accent unique : texte, icônes, focus, états actifs. **Ne porte pas de blanc** |
 | `--color-blue-solid` | `#0070f0` | `#0070f0` | **aplat bleu qui porte du texte** (jour choisi, compteur, pastille sélectionnée) |
 | `--color-on-blue` | `#ffffff` | `#ffffff` | texte sur `--color-blue-solid` / `.fill-primary` |
-| `--color-green` | `#10d9a0` | `#00764f` | sémantique : achat / win / long / go |
+| `--color-success` | `#f4f6fa` | `#0a0c12` | **le réussi, à l'encre** : texte, coche, bouton plein, point « en direct ». **= `--color-text`**, verrouillé par `theme.encre.test.ts` |
+| `--color-success-fill` | `#c7ccd6` | `#323741` | le réussi en **grande surface** : barres de graphique, cartes de chaleur |
+| `--color-on-success` | `#07080b` | `#ffffff` | texte sur aplat d'encre (« Lancer », « Gagnante ») |
+| `--color-green` | `#4ade80` | `#287845` | **plus un signal** : une couleur qu'on choisit (étiquettes, habitudes, événements, texte de note, types, branches de carte). Reste parce que les données enregistrent `var(--color-green)` / `green` |
 | `--color-red` | `#ff4d5e` | `#c8122b` | sémantique : vente / loss / short / stop |
 | `--color-yellow` | `#ffc23a` | `#8f5300` | alertes, avertissements, risque engagé |
 | `--color-violet` | `#9a8cff` | `#4b40e0` | sessions de trading, catégories |
 | `--color-border` | ardoise `rgb(160 170 190)` 13 % | encre `rgb(10 12 18)` 9 % | hairlines |
 | `--color-border-strong` | ardoise 20 % | encre 16 % | séparateurs appuyés |
 | `--color-overlay` / `-2` | ardoise 6/12 % | encre 4.5/8.5 % | hover / sélection |
-| `--color-on-green` | `#03130d` | `#ffffff` | texte sur aplat vert |
 
 ### ⭐ Pourquoi deux bleus
 
@@ -78,7 +86,7 @@ contraste »** : le compromis est déjà fait par ces deux tokens.
 | Token | Sombre | Clair | Emploi — et AUCUN autre |
 |---|---|---|---|
 | `--gradient-primary` | `linear-gradient(180deg, #0070f0, #0062dc)` | identique | fond du bouton primaire, via `.fill-primary` seulement |
-| `--gradient-brand` | `linear-gradient(90deg, #0088ff, #00c2ff)` | `… #0060dc, #0082e6` | jauges linéaires (état en cours ; « atteint » reste vert), soulignement d'onglet actif, filet de survol |
+| `--gradient-brand` | `linear-gradient(90deg, #0088ff, #00c2ff)` | `… #0060dc, #0082e6` | jauges linéaires (état en cours ; « atteint » passe à l'encre), soulignement d'onglet actif, filet de survol |
 | `--gradient-brand-from` / `-to` | `#0088ff` / `#00c2ff` | `#0060dc` / `#0082e6` | les deux arrêts bruts, pour les `<linearGradient>` SVG (anneau de discipline, courbe du patrimoine) — un `stop-color` n'accepte pas un raccourci `background` |
 | `--btn-primary-shadow` | ombre bleue 55 % + reflet interne | ombre `--color-blue-solid` 50 % | bouton primaire seulement |
 
@@ -171,7 +179,9 @@ réordonne, et une animation se rejoue sur un nœud réinséré.
 | texte `#f4f6fa` | 18,51 | 17,17 | 15,59 |
 | texte atténué `#9aa1b2` | 7,74 | 7,18 | 6,52 |
 | bleu `#0088ff` | 5,69 | 5,28 | 4,79 |
-| vert `#10d9a0` | 10,92 | 10,14 | 9,20 |
+| encre du réussi = texte | 18,51 | 17,17 | 15,59 |
+| encre adoucie `#c7ccd6` (non textuel) | 12,43 | 11,54 | 10,47 |
+| vert choisi `#4ade80` | 11,49 | 10,66 | 9,68 |
 | rouge `#ff4d5e` | 6,18 | 5,73 | 5,20 |
 | ambre `#ffc23a` | 12,43 | 11,53 | 10,46 |
 | indigo `#9a8cff` | 7,22 | 6,70 | 6,08 |
@@ -179,20 +189,58 @@ réordonne, et une animation se rejoue sur un nœud réinséré.
 | texte `#0a0c12` | 18,08 | 19,55 | 16,68 |
 | texte atténué `#5a6272` | 5,67 | 6,13 | 5,23 |
 | bleu `#0060dc` | 5,24 | 5,67 | 4,83 |
-| vert `#00764f` | 5,24 | 5,67 | 4,84 |
+| encre du réussi = texte | 18,08 | 19,55 | 16,68 |
+| encre adoucie `#323741` (non textuel) | 11,04 | 11,94 | 10,19 |
+| vert choisi `#287845` | 5,03 | 5,44 | 4,64 |
 | rouge `#c8122b` | 5,43 | 5,87 | 5,01 |
 | ambre `#8f5300` | 5,70 | 6,17 | 5,26 |
 | indigo `#4b40e0` | 6,25 | 6,75 | 5,76 |
 
 Et : blanc sur `#0070f0` **4,59** · sur `#0062dc` 5,55 · sur `#0070f0` assombri
 (`brightness(.92)`) 5,27 · blanc sur `#0088ff` **3,52** (d'où les deux bleus) ·
-`--color-on-green` sombre sur vert 10,39 · blanc sur vert clair 5,67 · fin du
+`--color-on-success` sur encre 18,51 (sombre) / 19,55 (clair) · fin du
 dégradé de jauge clair (`#0082e6`) sur surface-2 3,36 (élément non textuel,
 seuil 3) · bouton « Perdante » (blanc sur rouge sombre) **3,24** — 3,1 en V6, pas
 de régression, accepté tel quel.
 
-Vert et rouge diffèrent aussi en **luminosité** → différenciables en cas de
-daltonisme rouge-vert ; les montants gardent toujours leur signe (`+5R` / `−2R`).
+*(2026-09-23)* Encre et rouge diffèrent en **luminosité** autant qu'en teinte :
+écart OKLab 0,30 en deutéranopie simulée, contre 0,11 pour l'ancienne menthe —
+le gain/la perte se lisent désormais sans voir les couleurs. Les montants
+gardent toujours leur signe (`+5R` / `−2R`) : un gain à l'encre ne se distingue
+d'un zéro QUE par son signe, c'est voulu.
+
+### ⭐ Le réussi à l'encre — quelle forme à quel endroit (2026-09-23)
+
+Antonin a comparé cinq verts et deux pistes sans vert, sur les mêmes écrans
+(planche « Le vert de Shale »), et a choisi l'encre en demandant qu'elle soit
+« bien intégrée selon les endroits ». Un simple remplacement de token ne
+suffisait pas : le blanc pur, posé sur de grandes surfaces, écrase tout le
+reste. D'où la règle, par FORME et non par écran :
+
+| Ce que c'est | Classe / token | Exemples |
+|---|---|---|
+| texte, icône, montant positif | `text-success` | « +2R », série en cours, « Enregistré », ∞ du runway |
+| coche, bouton plein, point « en direct » | `bg-success` (+ `text-on-success`) | case cochée, « Lancer 25 min », « Gagnante », systèmes actifs |
+| puce/chip « fait » ou « choisi » | `border-success/40 bg-success/10 text-success` | trade gagnant, cycle fait, « haussier » |
+| jauge fine terminée | `bg-success` | objectif atteint, phase achevée, streak |
+| **grande surface** : barres, cartes de chaleur | `var(--color-success-fill)` | complétion des tâches, 7 jours, discipline, habitudes |
+
+**Ce qui n'est PAS devenu de l'encre, exprès :**
+
+- les **pastilles « nouveau »** de la barre latérale et de la barre d'onglets
+  mobile → **bleu**, comme la pastille de la cloche : un appel à l'attention,
+  pas un réussi ;
+- l'**interrupteur « pause auto »** du Timer → **bleu**, comme les
+  interrupteurs de Réglages ;
+- la série **« liquide »** de la courbe du patrimoine → `--color-text` : c'est
+  une série, pas un réussi ;
+- toutes les **couleurs choisies** (`TAG_COLORS`, `HABIT_COLORS`, couleurs
+  d'événement, texte coloré des notes, types, branches de carte) restent sur
+  `--color-green` — seule sa valeur a changé (menthe → `#4ade80` / `#287845`,
+  le « vert tendre » de la planche). **Aucune donnée touchée.**
+
+Les tâches du calendrier et les créneaux libres proposés, verts jusque-là,
+sont à l'encre : un ton neutre, que les couleurs d'événement dominent.
 
 ## Typographie
 
@@ -478,8 +526,9 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
   `color-mix(in srgb, var(--color-x) N%, transparent)`.
   ⚠️ **Jamais de concaténation `couleur + "22"`** : invalide dès que la couleur
   est un token `var(...)` (fond transparent silencieux) — utiliser `color-mix`.
-- Un seul accent (bleu). Vert/rouge = sémantique uniquement — dans le tracker
-  live : bouton plein vert « Gagnante » (`text-on-green`), plein rouge
+- Un seul accent (bleu). Encre/rouge = sémantique — dans le tracker
+  live : bouton plein encre « Gagnante » (`bg-success text-on-success` ;
+  c'était vert jusqu'au 2026-09-23), plein rouge
   « Perdante » (`text-white`). Zéro glow décoratif — *(nuance V7, 2026-09-22)*
   sauf l'ombre teintée du bouton primaire (`--btn-primary-shadow`) ; et le
   dégradé de marque (`--gradient-brand`, `--gradient-primary`) ne sert que cinq

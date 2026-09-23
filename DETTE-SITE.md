@@ -554,3 +554,8 @@ volontaire pour ce chantier** : Antonin mène lui-même la refonte du site.
    dédié**. La V7 ne le crée pas : elle fait de `--color-blue` le bleu de marque
    de l'app, et laisse au chantier « site + icônes » le soin d'aligner l'autre
    côté.
+5. *(2026-09-23)* **Le réussi est à l'encre dans l'app** (plus de vert pour
+   « fait », « gain », « gagnant », « en direct »). La démo jouable du site
+   montre encore des coches et des gains verts. À aligner avec le reste de
+   cette entrée : `DESIGN.md` § « Le réussi à l'encre » dit quelle forme va
+   à quel endroit.

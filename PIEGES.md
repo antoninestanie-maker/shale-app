@@ -2717,3 +2717,36 @@ retire l'attribut.
 mode Système, et cliquer « Clair » dans Réglages pour le choix explicite.
 
 **Payé.** V7, une série de captures « claires » qui étaient sombres.
+
+## 21.8 ⚠️ `button[aria-label="Trading"]` attrape la CATÉGORIE, pas le module
+
+**Symptôme.** Un script de captures clique `button[aria-label="Trading"]`, et
+l'écran capturé est celui d'avant (Savoir, Aujourd'hui…) — sans erreur.
+
+**Cause.** Dans la barre latérale, l'en-tête de catégorie repliable « Trading »
+porte le même `aria-label` que le module « Trading » qu'il contient, et il vient
+en premier dans le DOM : `querySelector` renvoie l'en-tête, le clic replie ou
+déplie la catégorie, et la vue ne change pas.
+
+**Parade.** Prendre le DERNIER bouton qui porte le libellé
+(`querySelectorAll(...)`, puis `[length - 1]`), et vérifier sur la capture que
+le titre de la page est le bon.
+
+**Payé.** V7 puis Encre (2026-09-22 et 23) : deux séries où « Trading »,
+« Market-Brain » et « Position » n'avaient en fait jamais été capturés.
+
+## 21.9 ⚠️⚠️ Un token de couleur que les DONNÉES enregistrent ne se supprime pas
+
+**Symptôme** (évité, 2026-09-23). Passer le « réussi » à l'encre en
+redéfinissant `--color-green` aurait blanchi, chez l'utilisateur, toutes les
+étiquettes, habitudes, couleurs d'événement et textes de note qu'il avait
+choisis VERTS.
+
+**Cause.** Les palettes de choix (`TAG_COLORS`, `HABIT_COLORS`, les couleurs
+de texte des notes, `richtext.ts`) enregistrent la chaîne `var(--color-green)`
+en base ; les événements, types et branches de carte enregistrent le nom
+`green`. Le token est donc une donnée, pas seulement un style.
+
+**Parade.** Un NOUVEAU token pour le nouveau sens (`--color-success`), et
+`--color-green` garde son nom. `src/lib/theme.encre.test.ts` échoue si
+`--color-green` disparaît d'un des trois blocs de thème.

@@ -5971,3 +5971,44 @@ dans `Shale-projet/sauvegardes-locales/avant-deux-temps-20260923-0740`. Les
 sauvegardes AUTOMATIQUES de l'app, elles, ne passent pas par là (elles vivent
 dans `~/Library/Application Support/com.atnfx.shale/backups`) : la dernière
 datait du 2026-09-22 09:39, le filet fonctionne.
+
+## 2026-09-23 — Le « réussi » passe à l'encre
+
+Antonin, la V7 installée sous les yeux : « tout me paraît bien à part le vert ».
+Planche comparée dans l'app réelle (5 verts, puis 2 pistes sans vert : cyan et
+encre, mêmes écrans, même instant). Son choix : **Encre**, « mais intègre-le
+bien selon les endroits ».
+
+**Pourquoi l'encre, et pas un autre vert :**
+- La menthe `#10d9a0` était le vert le plus proche du cyan de la marque (écart
+  OKLab 0,17) : elle se lisait comme un second bleu, et une jauge terminée ne
+  changeait presque pas de couleur.
+- Sur le cercle, il ne restait pas d'autre place : ambre = alerte, violet =
+  catégories, rose/orange = trop près du rouge des pertes.
+- L'encre, c'est le nom même de la V7 : de l'encre et du bleu. Et c'est la
+  plus lisible en daltonisme (0,30 contre le rouge, 0,11 pour la menthe).
+- **Le prix, accepté** : un gain n'est plus vert en Finance et en Trading. Il
+  se distingue d'un zéro par son signe, d'une perte par le rouge.
+
+**Pourquoi un nouveau token au lieu de repeindre `--color-green`** : les données
+enregistrent `var(--color-green)` et `green` (étiquettes, habitudes,
+événements, textes de note, types, branches de carte). Repeindre le token
+aurait blanchi les choix d'Antonin. `--color-green` reste donc, comme couleur
+qu'on CHOISIT, et passe de la menthe au « vert tendre » `#4ade80` / `#287845`
+de la planche. `--color-success` (= `--color-text`, test à l'appui) porte le
+sens. PIEGES § 21.9.
+
+**Pourquoi DEUX encres** : le blanc pur sur les barres de graphique écrasait la
+barre bleue « aujourd'hui » (vu à l'écran), et en clair les cartes de chaleur
+devenaient des carrés noirs. `--color-success-fill` (`#c7ccd6` / `#323741`)
+prend les grandes surfaces. La règle est par forme, dans DESIGN.md.
+
+**Pourquoi quatre endroits ne sont PAS à l'encre** : les pastilles « nouveau »
+(sidebar, onglets mobiles) passent au **bleu** comme la pastille de la cloche ;
+l'interrupteur du Timer passe au **bleu** comme ceux de Réglages ; la série
+« liquide » du patrimoine prend `--color-text` (une série, pas un réussi) ; les
+couleurs choisies restent vertes.
+
+Aucune donnée, aucune migration, aucune dépendance. ⛔ Pas de build : il part
+avec celui de [P-menus] (fin de sa phase 4), un seul clic « Toujours
+autoriser » pour Antonin.

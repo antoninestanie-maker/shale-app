@@ -886,3 +886,26 @@ neuve puis taper immédiatement ne pose pas le texte — la racine reste vide. V
 deux fois, le 2026-09-08 et le 2026-09-22, toujours dans un enchaînement de
 frappes très rapide (donc peut-être un artefact du pilotage automatisé, pas un
 défaut de l'app). **À reproduire à la main avant d'y toucher.**
+
+### 11.z Le 2026-09-23 — le « réussi » à l'encre
+
+Antonin n'aimait pas le vert menthe de la V7. Planche comparative (5 verts,
+cyan, encre, sur les mêmes écrans) → il choisit **l'encre**. Le « réussi »
+(case cochée, gain, trade gagnant, habitude tenue, jauge terminée, « en
+direct ») prend la couleur du texte ; les grandes surfaces (barres, cartes de
+chaleur) une encre adoucie. Pourquoi : `CLAUDE.md` (section datée) ; règle
+endroit par endroit : `DESIGN.md` § « Le réussi à l'encre ».
+
+**Ce qui est prouvé.** ✅ Captures des 13 modules en sombre et en clair (mode
+démo, Chrome headless), dont Trading, Market-Brain et Position enfin vraiment
+capturés (PIEGES § 21.8). ✅ Ligne de base : 1288 tests, `tsc`, `test:types`,
+`i18n:check`, build. ✅ `theme.encre.test.ts` : réussi = texte dans les trois
+blocs, `--color-green` toujours là — les deux gardes vus échouer.
+
+**Ce qui ne l'est pas.** ⚠️ Pas dans l'app installée : part avec le build de
+[P-menus]. ⚠️ Vu en Chrome, pas en WKWebView.
+
+**Ce qui reste.** `--color-green` n'est plus un signal mais une couleur choisie
+(`#4ade80` / `#287845`) : **ne jamais le supprimer ni le renommer** (données en
+base, PIEGES § 21.9). Le site et la démo jouable gardent l'ancien vert — même
+dette que la V7 (`DETTE-SITE.md`, entrée Q).
