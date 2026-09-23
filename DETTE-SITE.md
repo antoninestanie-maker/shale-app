@@ -559,3 +559,33 @@ volontaire pour ce chantier** : Antonin mène lui-même la refonte du site.
    montre encore des coches et des gains verts. À aligner avec le reste de
    cette entrée : `DESIGN.md` § « Le réussi à l'encre » dit quelle forme va
    à quel endroit.
+
+## R — Menus contextuels et « Supprimés récemment » (app, 2026-09-23)
+
+L'app a désormais un menu au clic droit (et un bouton « ⋯ ») sur chaque objet,
+et une corbeille : ce qu'on supprime reste **30 jours** dans « Supprimés
+récemment », avec « Annuler » juste après le geste.
+
+### R.1 — Rien de FAUX sur le site, vérifié
+
+Recherche faite dans `shale-site` (branche `sync-chiffree`) : aucune page ne dit
+qu'une suppression est définitive, ni ne parle de clic droit. La seule phrase
+qui touche au sujet — la FAQ de la maquette « Tout est stocké localement…
+un fichier que tu peux ouvrir, sauvegarder ou supprimer » — parle du FICHIER de
+base, et reste vraie.
+
+### R.2 — ⛔ PROPOSÉ, pas écrit : une ligne sur la corbeille
+
+Antonin décide (règle « chercher avant d'écrire du texte de vente »). Si une
+ligne doit s'ajouter, l'endroit naturel est la FAQ « Mes données… », et la
+formulation la plus sûre reste descriptive, sans superlatif :
+« Supprimé par erreur ? Tout ce que tu supprimes attend 30 jours dans
+Supprimés récemment. »
+Pourquoi pas plus : c'est une attente de base (Notes, Fichiers, Photos le
+font), pas un argument ; la vendre comme une fonctionnalité sonnerait faux.
+
+### R.3 — La démo jouable
+
+`vitrine/src/components/Demo.astro` n'a ni menu contextuel ni corbeille. Rien à
+faire tant qu'elle ne montre pas de suppression.
+

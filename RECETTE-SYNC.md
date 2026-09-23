@@ -263,6 +263,62 @@ partent au déverrouillage.
 
 ---
 
+## Scénario 8 — la corbeille traverse, dans les deux sens (migration 027)
+
+*Prérequis : les DEUX appareils en version 27 (`SELECT MAX(version) FROM
+_sqlx_migrations` → 27). Automatisé dans `src/lib/sync/corbeille.test.ts` ;
+cette recette le rejoue sur de vraies machines.*
+
+| | Appareil A | Appareil B |
+|---|---|---|
+| 1 | Créer « recette-corbeille » (une tâche), laisser partir | — |
+| 2 | — | Vérifier qu'elle est arrivée (même `uid`) |
+| 3 | Clic droit → **Supprimer**. NE PAS cliquer « Annuler » | — |
+| 4 | Laisser deux cycles | Ouvrir « Supprimés récemment » |
+| 5 | — | **Restaurer** depuis la corbeille de B |
+| 6 | Laisser deux cycles | — |
+
+**Vérification** après l'étape 4, sur les deux :
+
+```sql
+SELECT uid, deleted_at FROM tasks WHERE uid = '<uid>';  -- une ligne, deleted_at NON nul, IDENTIQUE des deux côtés
+SELECT deleted FROM sync_state WHERE row_uid = '<uid>'; -- 0 : c'est une MISE À JOUR, pas une pierre tombale
+```
+
+Après l'étape 6 : `deleted_at` est NUL des deux côtés, la tâche est revenue dans
+la liste de A sans aucun geste sur A.
+
+✅ La corbeille voyage comme une colonne ordinaire (last-write-wins). ⚠️ Ce qui
+serait un défaut : la ligne ABSENTE d'un côté (la corbeille ne supprime rien),
+ou un `deleted_at` différent entre A et B (le lot se reconnaît à son
+horodatage exact).
+
+**Variante lot** : supprimer un objectif qui a des étapes, restaurer UNE étape
+sur B. La corbeille de B annonce « ramène cet objectif, et n autres » ; après
+confirmation, l'objectif et toutes ses étapes reviennent sur A.
+
+**Variante purge** : sur une COPIE de base, reculer `deleted_at` de 31 jours
+(`UPDATE tasks SET deleted_at = '2026-01-01T00:00:00.000Z' WHERE uid = …`),
+relancer : la ligne est effacée pour de bon au lancement, et la pierre tombale
+part (`sync_state.deleted = 1`) — l'autre appareil la perd aussi.
+
+---
+
+## Scénario 9 — l'appareil resté en version 26 (risque connu, PIEGES § 19.9)
+
+| | Appareil A (27) | Appareil B (26) |
+|---|---|---|
+| 1 | Supprimer une note synchronisée | — |
+| 2 | — | Laisser deux cycles |
+
+**Attendu, et ce n'est PAS un défaut à corriger ici** : B affiche encore la
+note (il ne connaît pas `deleted_at`). Si B MODIFIE la note, A la garde en
+corbeille (seules les colonnes reçues sont écrites) ; mais un appareil NEUF qui
+la reçoit d'abord de B l'insère vivante. ⛔ D'où la règle : tous les appareils
+en 27 avant de se servir de la corbeille.
+
+---
+
 ## Ce que la recette ne couvre pas
 
 - **Le bucket `sync-blobs` en écriture.** L'app n'émet aujourd'hui aucune charge
