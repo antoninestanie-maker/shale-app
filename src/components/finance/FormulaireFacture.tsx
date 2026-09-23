@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { IconAlert, IconPlus, IconTrash } from "../icons";
 import ApercuFacture from "./ApercuFacture";
 import { Dialogue } from "./ComptesPanel";
+import { jeterBrouillon } from "../menu/catalogue/facture";
 import { BoutonDiscret, Champ, ChampMontant, Montant, dateCls, inputCls, labelCls } from "./champs";
 import { MENTION_FRANCHISE, TAUX_TVA_USUELS, formaterTaux, totalLigneHtCents, totauxFacture } from "../../lib/finance/facturation/totaux";
 import { empechementsEmission, numeroSuivant } from "../../lib/finance/facturation/numerotation";
@@ -20,7 +21,6 @@ import { factureDepuisDevis, factureDuDevis } from "../../lib/finance/facturatio
 import { parseQuantiteE8 } from "../../lib/finance/montants";
 import {
   createInvoice,
-  deleteInvoice,
   emettreInvoice,
   replaceInvoiceLines,
   setInvoiceStatut,
@@ -278,9 +278,10 @@ export default function FormulaireFacture({
 
   const supprimer = async () => {
     if (!facture) return;
-    const fait = await deleteInvoice(facture.id);
-    if (!fait) return; // le dépôt refuse tout ce qui n'est pas un brouillon
-    await onChange();
+    // Vers « Supprimés récemment », avec « Annuler » — la même fonction que
+    // l'entrée du menu contextuel de la liste (règle 18).
+    const fait = await jeterBrouillon(facture, onChange);
+    if (!fait) return; // la corbeille refuse tout ce qui n'est pas un brouillon
     onFerme();
   };
 

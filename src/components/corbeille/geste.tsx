@@ -78,13 +78,15 @@ export async function jeter(
   kind: KindCorbeille,
   id: number,
   titre: string,
-  apres: () => Promise<void> | void,
+  apres: () => unknown,
 ): Promise<boolean> {
   const lot = await mettreEnCorbeille(kind, id);
   if (lot.ids.length === 0) return false;
   await apres();
 
-  const nom = titreCourt(titre || t("Sans titre"));
+  // `titreAffiche` : une entrée de journal se nomme par sa date, écrite en
+  // toutes lettres — jamais « 2026-09-23 » dans un toast.
+  const nom = titreCourt(titreAffiche({ kind, titre }));
   const autres = lot.ids.length - 1;
   afficherToast({
     msg:
@@ -121,7 +123,7 @@ export function voirObjet(kind: KindCorbeille, uid: string | null): void {
 /** Restaure depuis la vue « Supprimés récemment », et propose « Voir ». */
 export async function restaurerAvecToast(
   el: Pick<ElementCorbeille, "kind" | "id" | "uid" | "titre">,
-  apres: () => Promise<void> | void,
+  apres: () => unknown,
 ): Promise<void> {
   const plan = await restaurer(el.kind, el.id);
   await apres();
@@ -136,7 +138,7 @@ export async function restaurerAvecToast(
 /** Supprime pour de bon depuis la vue — sans « Annuler » : c'est irréversible, et la confirmation l'a dit. */
 export async function supprimerPourDeBon(
   el: Pick<ElementCorbeille, "kind" | "id" | "titre">,
-  apres: () => Promise<void> | void,
+  apres: () => unknown,
 ): Promise<void> {
   const n = await supprimerDefinitivement(el.kind, el.id);
   await apres();

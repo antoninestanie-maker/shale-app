@@ -26,6 +26,7 @@ import CreancesPanel from "../components/finance/CreancesPanel";
 import FacturesPanel from "../components/finance/FacturesPanel";
 import FormulaireEncaissement from "../components/finance/FormulaireEncaissement";
 import FormulaireFacture from "../components/finance/FormulaireFacture";
+import { jeterBrouillon } from "../components/menu/catalogue/facture";
 import DemarrageFinance, {
   demarrageTermine,
 } from "../components/finance/DemarrageFinance";
@@ -261,6 +262,9 @@ export default function FinanceView({ data }: Props) {
               setEditeFacture(facture);
             }}
             onEncaisser={setEncaisse}
+            onSupprimer={async (facture) => {
+              await jeterBrouillon(facture, f.recharger);
+            }}
           />
         </ResizablePanel>
 
@@ -283,6 +287,9 @@ export default function FinanceView({ data }: Props) {
               setEditeFacture(facture);
             }}
             onEncaisser={setEncaisse}
+            onSupprimer={async (facture) => {
+              await jeterBrouillon(facture, f.recharger);
+            }}
           />
         </ResizablePanel>
 

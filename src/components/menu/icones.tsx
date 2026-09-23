@@ -55,3 +55,11 @@ export const IconPoints = (p: IconProps) => (
     <circle cx="19" cy="12" r="1.8" />
   </svg>
 );
+
+/** Une planchette à pince — copier dans le presse-papier. */
+export const IconCopier = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="8" y="3" width="8" height="4" rx="1.4" />
+    <path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
+  </Icon>
+);

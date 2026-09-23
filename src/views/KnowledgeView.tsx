@@ -93,8 +93,6 @@ import { consommerDemande } from "../lib/naviguer";
 import {
   createKnowledgeEntry,
   createSujet,
-  deleteKnowledgeEntry,
-  deleteSujet,
   fetchKnowledge,
   fetchKnowledgeEntry,
   fetchObjectTypes,
@@ -114,6 +112,10 @@ import type {
   Sujet,
 } from "../lib/types";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
+import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
+import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuContextuel";
+import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu/catalogue/savoir";
+import { jeter } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
 
 /**
@@ -165,6 +167,8 @@ export default function KnowledgeView() {
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  /** Un seul menu pour toutes les cartes de notes (voir `useMenuContextuel`). */
+  const menuFiche = useMenuContextuel<KnowledgeEntryLite>();
   /** Le type en cours d'édition, ou `"nouveau"`. Ouvert depuis la page d'un sujet. */
   const [editionType, setEditionType] = useState<ObjectType | "nouveau" | null>(null);
 
@@ -471,6 +475,21 @@ export default function KnowledgeView() {
     return () => window.removeEventListener("paste", onPaste);
   }, [openId, importImages]);
 
+  /**
+   * Les gestes d'une carte de note, écrits UNE fois : la carte (clic, épingle,
+   * corbeille) et son menu contextuel appellent les mêmes (règle 18).
+   */
+  const gestesFiche: GestesFiche = {
+    ouvrir: (f) => setOpenId(f.id),
+    epingler: async (f) => {
+      await updateKnowledgeEntry(f.id, { pinned: f.pinned === 1 ? 0 : 1 }, { touch: false });
+      await load();
+    },
+    supprimer: async (f) => {
+      await jeter("knowledge", f.id, f.title, load);
+    },
+  };
+
   return (
     <div
       className="mx-auto flex h-full w-full max-w-6xl flex-col p-8"
@@ -719,19 +738,10 @@ export default function KnowledgeView() {
                       key={entry.id}
                       entry={entry}
                       topic={topics.find((tag) => tag.id === entry.topic_id) ?? null}
-                      onOpen={() => setOpenId(entry.id)}
-                      onTogglePin={async () => {
-                        await updateKnowledgeEntry(
-                          entry.id,
-                          { pinned: entry.pinned === 1 ? 0 : 1 },
-                          { touch: false },
-                        );
-                        await load();
-                      }}
-                      onDelete={async () => {
-                        await deleteKnowledgeEntry(entry.id);
-                        await load();
-                      }}
+                      onOpen={() => gestesFiche.ouvrir(entry)}
+                      onTogglePin={() => void gestesFiche.epingler(entry)}
+                      onDelete={() => void gestesFiche.supprimer(entry)}
+                      menu={menuFiche}
                     />
                   ))}
                 </div>
@@ -775,6 +785,17 @@ export default function KnowledgeView() {
           </div>
         </div>
       )}
+
+      {/* Recalculé depuis les notes FRAÎCHES : une note effacée par la
+          synchronisation pendant que le menu est ouvert le ferme. */}
+      <MenuContextuel
+        etat={menuFiche}
+        libelle={t("Actions sur « {titre} »", { titre: menuFiche.cible?.title ?? "" })}
+        entrees={(() => {
+          const frais = menuFiche.cible && entries.find((x) => x.id === menuFiche.cible!.id);
+          return frais ? entreesFiche(frais, gestesFiche) : [];
+        })()}
+      />
 
       {openId !== null && (
         <Reader
@@ -840,6 +861,7 @@ function TopicGrid({
   /** `"new"` = la case de création est dépliée ; un nombre = ce thème s'édite. */
   const [editing, setEditing] = useState<number | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Sujet | null>(null);
+  const menu = useMenuContextuel<Sujet>();
 
   const create = useCallback(
     async (name: string) => {
@@ -905,6 +927,7 @@ function TopicGrid({
               onEdit={() => setEditing(topic.id)}
               onMove={(delta) => void move(index, delta)}
               onDelete={() => setPendingDelete(topic)}
+              menu={menu}
             />
           ),
         )}
@@ -933,15 +956,36 @@ function TopicGrid({
         )}
       </div>
 
+      {/* Chaque entrée appelle le bouton de la case qui lui correspond (règle 18). */}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.name ?? "" })}
+        entrees={(() => {
+          const index = menu.cible ? topics.findIndex((x) => x.id === menu.cible!.id) : -1;
+          if (index < 0) return [];
+          return entreesSujet(
+            topics[index],
+            {
+              ouvrir: (s) => onOpen(s.id),
+              renommer: (s) => setEditing(s.id),
+              deplacer: (_s, delta) => void move(index, delta),
+              supprimer: (s) => setPendingDelete(s),
+            },
+            { premier: index === 0, dernier: index === topics.length - 1 },
+          );
+        })()}
+      />
+
       {pendingDelete && (
         <ConfirmDeleteTopic
           topic={pendingDelete}
           count={stats.get(pendingDelete.id)?.count ?? 0}
           onCancel={() => setPendingDelete(null)}
           onConfirm={async () => {
-            await deleteSujet(pendingDelete.id);
+            // `pendingDelete` est capturé ICI, pas relu après l'await (règle 15).
+            const sujet = pendingDelete;
             setPendingDelete(null);
-            await reload();
+            await jeter("object", sujet.id, sujet.name, reload);
           }}
         />
       )}
@@ -1226,6 +1270,7 @@ function TopicTile({
   onEdit,
   onMove,
   onDelete,
+  menu,
 }: {
   topic: Sujet;
   stats: TopicStats;
@@ -1236,6 +1281,7 @@ function TopicTile({
   onEdit: () => void;
   onMove: (delta: number) => void;
   onDelete: () => void;
+  menu: EtatMenu<Sujet>;
 }) {
   return (
     // Même construction que `EntryCard` : la case entière porte le rôle bouton,
@@ -1245,13 +1291,16 @@ function TopicTile({
       tabIndex={0}
       aria-label={t("Ouvrir le sujet « {nom} »", { nom: topic.name })}
       onClick={onOpen}
+      onContextMenu={(e) => menu.ouvrirAuPoint(e, topic)}
       onKeyDown={(e) => {
+        if (menu.ouvrirAuClavier(e, topic)) return;
+        if (e.target !== e.currentTarget) return; // Entrée sur un bouton interne
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen();
         }
       }}
-      className="card group/topic relative flex min-h-[150px] cursor-pointer flex-col overflow-hidden text-left transition-transform duration-200 hover:-translate-y-0.5"
+      className="card group/topic group/ligne relative flex min-h-[150px] cursor-pointer flex-col overflow-hidden text-left transition-transform duration-200 hover:-translate-y-0.5"
     >
       <span
         className="absolute left-0 top-0 h-full w-[3px]"
@@ -1306,9 +1355,11 @@ function TopicTile({
         </div>
       </div>
 
-      {/* Gérer le thème : barre de verre, révélée au survol ou au focus clavier */}
+      {/* Gérer le thème : barre de verre, révélée au survol ou au focus clavier.
+          ⚠️ RÈGLE 17 — au doigt, pas de survol : la barre reste visible et ne
+          montre que « ⋯ », qui porte TOUTES les actions. */}
       <span
-        className="glass absolute right-2 top-2 flex gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 focus-within:opacity-100 group-hover/topic:opacity-100"
+        className="glass absolute right-2 top-2 flex gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 focus-within:opacity-100 group-hover/topic:opacity-100 [@media(pointer:coarse)]:opacity-100"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -1317,7 +1368,7 @@ function TopicTile({
           disabled={first}
           data-tip={t("Déplacer avant")}
           aria-label={t("Déplacer avant")}
-          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30"
+          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30 [@media(pointer:coarse)]:hidden"
         >
           <IconChevronUp className="h-3.5 w-3.5 -rotate-90" />
         </button>
@@ -1327,7 +1378,7 @@ function TopicTile({
           disabled={last}
           data-tip={t("Déplacer après")}
           aria-label={t("Déplacer après")}
-          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30"
+          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-30 [@media(pointer:coarse)]:hidden"
         >
           <IconChevronUp className="h-3.5 w-3.5 rotate-90" />
         </button>
@@ -1337,7 +1388,7 @@ function TopicTile({
           data-tip={t("Renommer le sujet")}
           data-tip-sub={t("Change aussi sa teinte.")}
           aria-label={t("Renommer le sujet")}
-          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
+          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text [@media(pointer:coarse)]:hidden"
         >
           <IconPencil className="h-3.5 w-3.5" />
         </button>
@@ -1347,10 +1398,15 @@ function TopicTile({
           data-tip={t("Supprimer le sujet")}
           data-tip-sub={t("Les notes ne sont pas supprimées : elles passent « sans sujet ».")}
           aria-label={t("Supprimer le sujet")}
-          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-red"
+          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-red [@media(pointer:coarse)]:hidden"
         >
           <IconTrash className="h-3.5 w-3.5" />
         </button>
+        <BoutonMenu
+          onOuvrir={(e) => menu.ouvrirSousLeBouton(e, topic)}
+          ouvert={menu.ouvert && menu.cible?.id === topic.id}
+          libelle={t("Actions sur « {titre} »", { titre: topic.name })}
+        />
       </span>
     </div>
   );
@@ -1557,6 +1613,9 @@ function ConfirmDeleteTopic({
                 "Ses {n} notes ne sont pas supprimées : elles passent « sans thème » et restent accessibles depuis l’accueil.",
               )}
         </p>
+        <p className="mt-2 text-sm leading-relaxed text-text-dim">
+          {t("Le sujet reste 30 jours dans Supprimés récemment. Le restaurer y range de nouveau ses notes.")}
+        </p>
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
@@ -1652,14 +1711,15 @@ function EntryCard({
   onOpen,
   onTogglePin,
   onDelete,
+  menu,
 }: {
   entry: KnowledgeEntryLite;
   topic: Sujet | null;
   onOpen: () => void;
   onTogglePin: () => void;
   onDelete: () => void;
+  menu: EtatMenu<KnowledgeEntryLite>;
 }) {
-  const [confirming, setConfirming] = useState(false);
   const tags = parseTags(entry.tags);
   const text = excerpt(entry.text, 150);
 
@@ -1671,14 +1731,18 @@ function EntryCard({
       role="button"
       tabIndex={0}
       data-entry-id={entry.id}
+      aria-label={entry.title}
       onClick={onOpen}
+      onContextMenu={(e) => menu.ouvrirAuPoint(e, entry)}
       onKeyDown={(e) => {
+        if (menu.ouvrirAuClavier(e, entry)) return;
+        if (e.target !== e.currentTarget) return; // Entrée sur un bouton interne
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen();
         }
       }}
-      className="card group/card relative flex cursor-pointer flex-col overflow-hidden text-left transition-transform duration-200 hover:-translate-y-0.5"
+      className="card group/card group/ligne relative flex cursor-pointer flex-col overflow-hidden text-left transition-transform duration-200 hover:-translate-y-0.5"
     >
       {entry.thumb && (
         <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-border bg-surface-2">
@@ -1735,40 +1799,43 @@ function EntryCard({
         </div>
       </div>
 
-      {/* Actions de carte : barre de verre, révélée au survol */}
+      {/* Actions de carte : barre de verre, révélée au survol ou au focus.
+          ⚠️ RÈGLE 17 — au doigt, il n'y a pas de survol : la barre reste
+          visible et ne montre que « ⋯ », qui porte TOUTES les actions. */}
       <span
-        className="glass absolute right-2 top-2 flex gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 group-hover/card:opacity-100"
+        className="glass absolute right-2 top-2 flex gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 focus-within:opacity-100 group-hover/card:opacity-100 [@media(pointer:coarse)]:opacity-100"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onTogglePin}
+          aria-label={entry.pinned === 1 ? t("Désépingler") : t("Épingler")}
           data-tip={entry.pinned === 1 ? t("Désépingler") : t("Épingler")}
           data-tip-sub={t("Les notes épinglées remontent en tête de liste.")}
-          className={`rounded-lg p-1.5 transition-colors ${
+          className={`rounded-lg p-1.5 transition-colors [@media(pointer:coarse)]:hidden ${
             entry.pinned === 1 ? "text-blue" : "text-text-dim hover:bg-overlay hover:text-text"
           }`}
         >
           <IconPin className="h-3.5 w-3.5" />
         </button>
+        {/* Un seul clic : la note part dans « Supprimés récemment », et le
+            toast propose « Annuler ». La double confirmation n'a plus lieu
+            d'être — rien n'est plus définitif. */}
         <button
           type="button"
-          onClick={() => {
-            if (!confirming) {
-              setConfirming(true);
-              window.setTimeout(() => setConfirming(false), 3000);
-              return;
-            }
-            onDelete();
-          }}
-          data-tip={confirming ? t("Confirmer la suppression") : t("Supprimer la note")}
-          data-tip-sub={t("Un second clic la supprime définitivement.")}
-          className={`rounded-lg p-1.5 transition-colors ${
-            confirming ? "bg-red/20 text-red" : "text-text-dim hover:bg-overlay hover:text-red"
-          }`}
+          onClick={onDelete}
+          aria-label={t("Supprimer la note")}
+          data-tip={t("Supprimer la note")}
+          data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment.")}
+          className="rounded-lg p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-red [@media(pointer:coarse)]:hidden"
         >
           <IconTrash className="h-3.5 w-3.5" />
         </button>
+        <BoutonMenu
+          onOuvrir={(e) => menu.ouvrirSousLeBouton(e, entry)}
+          ouvert={menu.ouvert && menu.cible?.id === entry.id}
+          libelle={t("Actions sur « {titre} »", { titre: entry.title })}
+        />
       </span>
 
       {entry.pinned === 1 && (
@@ -1831,7 +1898,6 @@ function Reader({
   const isPhone = useIsPhone();
   const [reading, setReading] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   /** Dernière écriture refusée. L'indicateur du pied LIT cet état, il ne le devine pas. */
   const [saveError, setSaveError] = useState(false);
@@ -2164,22 +2230,18 @@ function Reader({
             <button
               type="button"
               onClick={async () => {
-                if (!confirmDelete) {
-                  setConfirmDelete(true);
-                  window.setTimeout(() => setConfirmDelete(false), 3000);
-                  return;
-                }
-                pending.current = {}; // inutile d'écrire dans une note supprimée
-                window.clearTimeout(timer.current);
-                await deleteKnowledgeEntry(entry.id);
+                // ⚠️ On ÉCRIT d'abord ce qui est en vol : la note peut revenir
+                // de la corbeille, et elle doit revenir avec sa dernière phrase.
+                // `id` et `title` sont capturés avant la fermeture (règle 15).
+                const { id, title } = entry;
+                await flush();
                 onClose();
-                await onChanged();
+                await jeter("knowledge", id, title, onChanged);
               }}
-              data-tip={confirmDelete ? t("Confirmer la suppression") : t("Supprimer la note")}
-              data-tip-sub={t("Un second clic la supprime définitivement.")}
-              className={`rounded-lg p-2 transition-colors ${
-                confirmDelete ? "bg-red/20 text-red" : "text-text-dim hover:text-red"
-              }`}
+              aria-label={t("Supprimer la note")}
+              data-tip={t("Supprimer la note")}
+              data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment.")}
+              className="rounded-lg p-2 text-text-dim transition-colors hover:text-red"
             >
               <IconTrash className="h-4 w-4" />
             </button>

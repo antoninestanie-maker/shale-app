@@ -9,11 +9,10 @@ import {
 import {
   addHabit,
   createNote,
-  deleteHabit,
   setHabitCheck,
   upsertJournal,
 } from "../lib/repo";
-import type { AppData } from "../lib/types";
+import type { AppData, Habit } from "../lib/types";
 import { IconBolt, IconFlame, IconMood, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
@@ -21,6 +20,10 @@ import { localeTag, t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import { estExemple, sansExemples } from "../lib/onboarding/exemples";
+import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { entreesHabitude, entreesJour } from "../components/menu/catalogue/journal";
+import { jeter } from "../components/corbeille/geste";
 
 interface Props {
   data: AppData;
@@ -110,8 +113,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
 
   const [newHabit, setNewHabit] = useState("");
   const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
-  const [deletingHabit, setDeletingHabit] = useState<number | null>(null);
-  const deleteTimer = useRef<number | undefined>(undefined);
+  const menuHabitude = useMenuContextuel<Habit>();
+  /** Le menu de l'entrée du jour : une seule cible, la carte elle-même. */
+  const menuJour = useMenuContextuel<"jour">();
 
   // resynchronise si l'entrée change (autre appareil, reload…)
   useEffect(() => {
@@ -183,16 +187,28 @@ export default function JournalView({ data, refresh, navigate }: Props) {
     await refresh();
   };
 
-  const handleDeleteHabit = async (id: number) => {
-    if (deletingHabit !== id) {
-      setDeletingHabit(id);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingHabit(null), 3000);
-      return;
-    }
-    setDeletingHabit(null);
-    await deleteHabit(id);
-    await refresh();
+  /**
+   * Un seul clic : l'habitude part dans « Supprimés récemment » avec son
+   * historique de coches, et le toast propose « Annuler ». La croix de la ligne
+   * et le menu appellent cette même fonction (règle 18).
+   */
+  const supprimerHabitude = async (h: Habit) => {
+    await jeter("habit", h.id, h.name, refresh);
+  };
+
+  /**
+   * Efface l'entrée du jour. ⚠️ L'écriture EN VOL part d'abord : sans elle, le
+   * minuteur de 600 ms écrirait APRÈS le jet — et l'`upsert` du journal
+   * réanime une entrée en corbeille (voir `upsertJournal`), qui reviendrait
+   * donc toute seule. L'entrée est capturée ici, pas relue après l'await.
+   */
+  const effacerJour = async () => {
+    const cible = entry;
+    if (!cible) return;
+    window.clearTimeout(saveTimer.current);
+    if (!saved) await upsertJournal(today, { mood, energy, body });
+    setSaved(true);
+    await jeter("journal", cible.id, cible.date, refresh);
   };
 
   const generateReview = async () => {
@@ -231,7 +247,15 @@ export default function JournalView({ data, refresh, navigate }: Props) {
       <ResizableGrid gridId="journal" className="mt-6">
       {/* Entrée du jour */}
       <ResizablePanel id="journal-entry" defaultW={12}>
-      <section className="card p-5">
+      <section
+        className="card group/ligne p-5"
+        onContextMenu={(e) => {
+          // Dans le champ de texte, le menu natif (couper, coller, orthographe)
+          // reste le bon : on ne le remplace pas.
+          if ((e.target as HTMLElement).closest("textarea")) return;
+          menuJour.ouvrirAuPoint(e, "jour");
+        }}
+      >
         <div className="rgrid-head flex items-center justify-between">
           <h2 className="hud-label">
             {new Date().toLocaleDateString(localeTag(), {
@@ -240,7 +264,14 @@ export default function JournalView({ data, refresh, navigate }: Props) {
               month: "long",
             })}
           </h2>
-          <span className="hud-label">{saved ? t("enregistré") : "…"}</span>
+          <span className="flex items-center gap-1">
+            <span className="hud-label">{saved ? t("enregistré") : "…"}</span>
+            <BoutonMenu
+              onOuvrir={(e) => menuJour.ouvrirSousLeBouton(e, "jour")}
+              ouvert={menuJour.ouvert}
+              libelle={t("Actions sur l'entrée du jour")}
+            />
+          </span>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-8">
@@ -390,7 +421,12 @@ export default function JournalView({ data, refresh, navigate }: Props) {
               has: (date: string) => etatCoche(`h${habit.id}:${date}`, enBase.has(date)),
             };
             return (
-              <li key={habit.id} className="group flex items-center gap-3">
+              <li
+                key={habit.id}
+                className="group group/ligne flex items-center gap-3"
+                onContextMenu={(e) => menuHabitude.ouvrirAuPoint(e, habit)}
+                onKeyDown={(e) => void menuHabitude.ouvrirAuClavier(e, habit)}
+              >
                 <CaseACocher
                   cochee={checks.has(today)}
                   couleur={habit.color}
@@ -432,19 +468,23 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     />
                   ))}
                 </span>
+                {/* Au doigt, pas de survol : la croix s'efface devant « ⋯ »,
+                    qui porte la même suppression (règle 17). */}
                 <button
                   type="button"
-                  onClick={() => handleDeleteHabit(habit.id)}
-                  data-tip={deletingHabit === habit.id ? t("Confirmer") : t("Supprimer l’habitude")}
-                  data-tip-sub={t("Un second clic supprime l’habitude et son historique de coches.")}
-                  className={`shrink-0 rounded-md px-1.5 text-xs transition-all ${
-                    deletingHabit === habit.id
-                      ? "bg-red/20 font-semibold text-red"
-                      : "text-text-dim opacity-0 hover:text-red group-hover:opacity-100"
-                  }`}
+                  onClick={() => void supprimerHabitude(habit)}
+                  aria-label={t("Supprimer l’habitude")}
+                  data-tip={t("Supprimer l’habitude")}
+                  data-tip-sub={t("Elle part dans Supprimés récemment avec son historique de coches.")}
+                  className="shrink-0 rounded-md px-1.5 text-xs text-text-dim opacity-0 transition-all hover:text-red focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:hidden"
                 >
-                  {deletingHabit === habit.id ? t("sûr ?") : <IconX className="h-3.5 w-3.5" />}
+                  <IconX className="h-3.5 w-3.5" />
                 </button>
+                <BoutonMenu
+                  onOuvrir={(e) => menuHabitude.ouvrirSousLeBouton(e, habit)}
+                  ouvert={menuHabitude.ouvert && menuHabitude.cible?.id === habit.id}
+                  libelle={t("Actions sur « {titre} »", { titre: habit.name })}
+                />
               </li>
             );
           })}
@@ -452,6 +492,27 @@ export default function JournalView({ data, refresh, navigate }: Props) {
       </section>
       </ResizablePanel>
       </ResizableGrid>
+
+      <MenuContextuel
+        etat={menuJour}
+        libelle={t("Actions sur l'entrée du jour")}
+        entrees={menuJour.cible ? entreesJour(body, !!entry, { effacer: effacerJour }) : []}
+      />
+      {/* Recalculé depuis les habitudes fraîches : une habitude effacée
+          ailleurs ferme le menu au lieu d'y agir. */}
+      <MenuContextuel
+        etat={menuHabitude}
+        libelle={t("Actions sur « {titre} »", { titre: menuHabitude.cible?.name ?? "" })}
+        entrees={(() => {
+          const h = menuHabitude.cible && data.habits.find((x) => x.id === menuHabitude.cible!.id);
+          if (!h) return [];
+          const coche = etatCoche(`h${h.id}:${today}`, data.habitChecks.some((c) => c.habit_id === h.id && c.date === today));
+          return entreesHabitude(h, coche, {
+            basculer: (x) => void basculerHabitude(x.id, today, coche),
+            supprimer: supprimerHabitude,
+          });
+        })()}
+      />
     </div>
   );
 }

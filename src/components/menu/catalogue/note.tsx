@@ -17,7 +17,7 @@
  */
 
 import { IconNote, IconPencil, IconTrash } from "../../icons";
-import { IconDupliquer } from "../icones";
+import { IconCopier, IconDupliquer } from "../icones";
 import { t } from "../../../lib/i18n";
 import type { EntreePossible } from "../../../lib/menu/entrees";
 import { copierTexte } from "../../../lib/menu/pressePapier";
@@ -33,24 +33,6 @@ export interface GestesNote {
   /** La MÊME fonction que le bouton « supprimer » de l'éditeur : vers la corbeille. */
   supprimer: (note: Note) => Promise<void>;
 }
-
-/** Icône « presse-papier » — locale au catalogue, faute d'équivalent partagé. */
-const IconCopier = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="1em"
-    height="1em"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <rect x="8" y="3" width="8" height="4" rx="1.4" />
-    <path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
-  </svg>
-);
 
 export function entreesNote(note: Note, gestes: GestesNote): EntreePossible[] {
   return [

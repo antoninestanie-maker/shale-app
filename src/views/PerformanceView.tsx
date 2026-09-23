@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   Bar,
@@ -23,7 +23,7 @@ import {
   todayTasks,
   type Period,
 } from "../lib/logic";
-import { addMetric, deleteMetric, setMetricValue } from "../lib/repo";
+import { addMetric, setMetricValue } from "../lib/repo";
 import { fmtR, tradeStats } from "../lib/trades";
 import type { AppData, CustomMetric } from "../lib/types";
 import { IconX } from "../components/icons";
@@ -31,6 +31,10 @@ import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid"
 import { useEntitlements } from "../lib/entitlements";
 
 import { localeTag, t } from "../lib/i18n";
+import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
+import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuContextuel";
+import { entreesMetrique } from "../components/menu/catalogue/metrique";
+import { jeter } from "../components/corbeille/geste";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -84,8 +88,7 @@ export default function PerformanceView({ data, refresh }: Props) {
   const [selGoalId, setSelGoalId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
   const [newUnit, setNewUnit] = useState("");
-  const [deletingMetric, setDeletingMetric] = useState<number | null>(null);
-  const deleteTimer = useRef<number | undefined>(undefined);
+  const menuMetrique = useMenuContextuel<CustomMetric>();
 
   const derived = useMemo(() => {
     const list = todayTasks(tasks, completions, today);
@@ -206,17 +209,13 @@ export default function PerformanceView({ data, refresh }: Props) {
     await refresh();
   };
 
-  const handleDeleteMetric = async (id: number) => {
-    if (deletingMetric !== id) {
-      setDeletingMetric(id);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingMetric(null), 3000);
-      return;
-    }
-    window.clearTimeout(deleteTimer.current);
-    setDeletingMetric(null);
-    await deleteMetric(id);
-    await refresh();
+  /**
+   * Un seul clic : la métrique part dans « Supprimés récemment » avec son
+   * historique, et le toast propose « Annuler ». La croix de la carte et le
+   * menu appellent cette même fonction (règle 18).
+   */
+  const supprimerMetrique = async (m: CustomMetric) => {
+    await jeter("metric", m.id, m.name, refresh);
   };
 
   return (
@@ -619,8 +618,8 @@ export default function PerformanceView({ data, refresh }: Props) {
                 metric={m}
                 entries={metricEntries.filter((e) => e.metric_id === m.id)}
                 today={today}
-                deleting={deletingMetric === m.id}
-                onDelete={() => handleDeleteMetric(m.id)}
+                onDelete={() => void supprimerMetrique(m)}
+                menu={menuMetrique}
                 onSave={async (value) => {
                   await setMetricValue(m.id, today, value);
                   await refresh();
@@ -632,6 +631,15 @@ export default function PerformanceView({ data, refresh }: Props) {
       </section>
       </ResizablePanel>
       </ResizableGrid>
+
+      <MenuContextuel
+        etat={menuMetrique}
+        libelle={t("Actions sur « {titre} »", { titre: menuMetrique.cible?.name ?? "" })}
+        entrees={(() => {
+          const m = menuMetrique.cible && metrics.find((x) => x.id === menuMetrique.cible!.id);
+          return m ? entreesMetrique(m, { supprimer: supprimerMetrique }) : [];
+        })()}
+      />
     </div>
   );
 }
@@ -640,15 +648,15 @@ function MetricCard({
   metric,
   entries,
   today,
-  deleting,
   onDelete,
   onSave,
+  menu,
 }: {
   metric: CustomMetric;
   entries: { date: string; value: number }[];
   today: string;
-  deleting: boolean;
   onDelete: () => void;
+  menu: EtatMenu<CustomMetric>;
   onSave: (value: number) => Promise<void>;
 }) {
   const todayValue = entries.find((e) => e.date === today)?.value ?? 0;
@@ -674,23 +682,35 @@ function MetricCard({
   };
 
   return (
-    <div className="card group p-4">
+    <div
+      className="card group group/ligne p-4"
+      onContextMenu={(e) => {
+        // Dans le champ de valeur, le menu natif (coller…) reste le bon.
+        if ((e.target as HTMLElement).closest("input")) return;
+        menu.ouvrirAuPoint(e, metric);
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-text-dim">{metric.name}</p>
-        <button
-          type="button"
-          onClick={onDelete}
-          className={`shrink-0 rounded-md px-1 text-xs transition-colors ${
-            deleting
-              ? "bg-red/20 font-semibold text-red"
-              : "text-text-dim opacity-0 hover:text-red group-hover:opacity-100"
-          }`}
-          aria-label={deleting ? t("Confirmer la suppression de {name}", { name: metric.name }) : t("Supprimer {name}", { name: metric.name })}
-          data-tip={deleting ? t("Confirmer la suppression") : t("Supprimer la métrique")}
-          data-tip-sub={t("Un second clic supprime la métrique et tout son historique.")}
-        >
-          {deleting ? t("sûr ?") : <IconX className="h-3 w-3" />}
-        </button>
+        <span className="-mr-1 -mt-1 flex shrink-0 items-center">
+          {/* Au doigt, pas de survol : la croix s'efface devant « ⋯ », qui
+              porte la même suppression (règle 17). */}
+          <button
+            type="button"
+            onClick={onDelete}
+            className="shrink-0 rounded-md px-1 text-xs text-text-dim opacity-0 transition-colors hover:text-red focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:hidden"
+            aria-label={t("Supprimer {name}", { name: metric.name })}
+            data-tip={t("Supprimer la métrique")}
+            data-tip-sub={t("Elle part dans Supprimés récemment avec tout son historique.")}
+          >
+            <IconX className="h-3 w-3" />
+          </button>
+          <BoutonMenu
+            onOuvrir={(e) => menu.ouvrirSousLeBouton(e, metric)}
+            ouvert={menu.ouvert && menu.cible?.id === metric.id}
+            libelle={t("Actions sur « {titre} »", { titre: metric.name })}
+          />
+        </span>
       </div>
 
       <div className="mt-1 flex items-baseline gap-1.5">

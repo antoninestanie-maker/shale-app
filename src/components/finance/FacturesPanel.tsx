@@ -34,6 +34,13 @@ import type {
 } from "../../lib/types";
 import { formatDate, t, tp } from "../../lib/i18n";
 import ChampDate from "../ChampDate";
+import MenuContextuel, { BoutonMenu } from "../menu/MenuContextuel";
+import { useMenuContextuel, type EtatMenu } from "../menu/useMenuContextuel";
+import { entreesFacture } from "../menu/catalogue/facture";
+
+/** La ligne a-t-elle un bouton d'encaissement ? Une seule règle, pour la ligne ET son menu. */
+const encaissable = ({ facture, etat }: FactureAffichee) =>
+  facture.statut !== "brouillon" && etat.resteDuCents !== 0 && facture.type !== "devis";
 
 /** Filtres de la liste. `tous` n'est pas une valeur stockée, c'est l'absence de filtre. */
 type FiltreStatut = "tous" | "a-encaisser" | "en-retard" | "brouillon" | "encaissee";
@@ -95,6 +102,7 @@ export default function FacturesPanel({
   onNouveau,
   onOuvrir,
   onEncaisser,
+  onSupprimer,
 }: {
   factures: readonly Invoice[];
   paiements: readonly InvoicePayment[];
@@ -108,7 +116,10 @@ export default function FacturesPanel({
   onNouveau: () => void;
   onOuvrir: (f: Invoice) => void;
   onEncaisser: (f: Invoice) => void;
+  /** Un brouillon vers la corbeille — la même fonction que le bouton de sa fenêtre. */
+  onSupprimer: (f: Invoice) => Promise<void>;
 }) {
+  const menu = useMenuContextuel<Invoice>();
   const [filtre, setFiltre] = useState<FiltreStatut>("tous");
   const [partyId, setPartyId] = useState<number | "tous">("tous");
   /** Période de l'export comptable. Vide = tout. */
@@ -304,11 +315,30 @@ export default function FacturesPanel({
                 devise={devise}
                 onOuvrir={() => onOuvrir(l.facture)}
                 onEncaisser={() => onEncaisser(l.facture)}
+                menu={menu}
               />
             ))}
           </ul>
         )}
       </div>
+
+      {/* Recalculé depuis les lignes FRAÎCHES : un document effacé ou émis
+          ailleurs pendant que le menu est ouvert en change les entrées. */}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", {
+          titre: menu.cible?.numero ?? menu.cible?.objet ?? t("Brouillon"),
+        })}
+        entrees={(() => {
+          const l = menu.cible && lignes.find((x) => x.facture.id === menu.cible!.id);
+          if (!l) return [];
+          return entreesFacture(l.facture, {
+            ouvrir: onOuvrir,
+            encaisser: encaissable(l) ? onEncaisser : null,
+            supprimer: onSupprimer,
+          });
+        })()}
+      />
     </section>
   );
 }
@@ -320,15 +350,21 @@ function LigneFacture({
   devise,
   onOuvrir,
   onEncaisser,
+  menu,
 }: FactureAffichee & {
   devise: string;
   onOuvrir: () => void;
   onEncaisser: () => void;
+  menu: EtatMenu<Invoice>;
 }) {
   const brouillon = facture.statut === "brouillon";
 
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[10px] border border-border px-3 py-2 transition-colors hover:bg-overlay">
+    <li
+      className="group/ligne flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[10px] border border-border px-3 py-2 transition-colors hover:bg-overlay"
+      onContextMenu={(e) => menu.ouvrirAuPoint(e, facture)}
+      onKeyDown={(e) => void menu.ouvrirAuClavier(e, facture)}
+    >
       <div className="flex min-w-0 flex-1 basis-[13rem] flex-col">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate truncate-souris font-mono text-sm text-text" title={facture.numero ?? undefined}>
@@ -354,7 +390,7 @@ function LigneFacture({
         <BoutonDiscret onClick={onOuvrir} tip={brouillon ? t("Modifier") : t("Ouvrir")}>
           <IconPencil className="h-3.5 w-3.5" />
         </BoutonDiscret>
-        {!brouillon && etat.resteDuCents !== 0 && facture.type !== "devis" && (
+        {encaissable({ facture, etat, tiers }) && (
           <BoutonDiscret
             onClick={onEncaisser}
             tip={
@@ -366,6 +402,11 @@ function LigneFacture({
             <IconSend className="h-3.5 w-3.5" />
           </BoutonDiscret>
         )}
+        <BoutonMenu
+          onOuvrir={(e) => menu.ouvrirSousLeBouton(e, facture)}
+          ouvert={menu.ouvert && menu.cible?.id === facture.id}
+          libelle={t("Actions sur « {titre} »", { titre: facture.numero ?? facture.objet ?? t("Brouillon") })}
+        />
       </div>
     </li>
   );
