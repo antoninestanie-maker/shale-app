@@ -512,6 +512,11 @@ la corbeille par « Plus », base du simulateur migrée en 27 sans perte ;
 `RECETTE-SYNC.md` scénarios 8 et 9 — **pas encore jouée sur de vraies
 machines**.
 
+**Build n° 2 installé le 2026-09-24 à 00:04** (`012f1335…`) : confirmations +
+correction du survol de [U-survol] (`2c397b6`, fusionnée dans la branche des
+menus). Base inchangée en 27. ⛔ `chantier/menus-contextuels` n'est TOUJOURS PAS
+fusionnée dans `mobile-ios` (worktree principal occupé par [R-pieces-jointes]).
+
 Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
 `PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
 
