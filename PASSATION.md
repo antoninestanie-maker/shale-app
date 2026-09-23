@@ -940,6 +940,16 @@ graphe** : il se cite, il porte des backlinks, il peut être un nœud de carte.
 `components/useDepotPieceJointe.ts`, `src-tauri/src/pieces_jointes.rs` (4 tests),
 `src-tauri/migrations/028_pieces_jointes.sql`.
 
+**⛔⛔ AVANT TOUT BUILD NATIF — LIRE CECI.** La base réelle d'Antonin est en
+**027** (`corbeille`, jouée le 2026-09-23 par le chantier voisin), et la 027
+**n'est PAS sur `mobile-ios`** : elle dort sur `chantier/menus-contextuels`.
+`sqlx` valide à chaque démarrage que toute migration enregistrée dans la base
+existe encore dans le binaire (`ignore_missing` vaut `false`, et
+`tauri-plugin-sql` ne le change jamais). Construire depuis `mobile-ios` seul
+ferait donc échouer le démarrage sur `VersionMissing(27)` — **l'app ne s'ouvre
+plus du tout**. ▶️ **Fusionner `chantier/menus-contextuels` AVANT de construire.**
+Détail et commande de contrôle : `PIEGES.md` § 22.9.
+
 **⛔ CE QUI RESTE, ET QUI EST IMPORTANT.**
 
 - ⭐ **VU sur le vrai moteur** via `webkit-pilote.swift` (l'outil de

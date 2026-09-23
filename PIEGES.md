@@ -2933,3 +2933,52 @@ pour que le clic fonctionne (§ 18.1, cas réel et non hypothétique).
 ▶️ **Ne pas conclure « le clic est vérifié » avec cet outil.** Le survol, la
 géométrie, les styles calculés et les captures : oui, et c'est beaucoup.
 
+## 22.9 ⛔⛔ UN TROU dans la suite des migrations EMPÊCHE L'APP DE DÉMARRER
+
+**C'est la conséquence opérationnelle du § 22.1, et elle est plus grave que la
+collision elle-même.**
+
+Au 2026-09-24, l'état est celui-ci :
+
+| | version des migrations |
+|---|---|
+| La **base réelle** d'Antonin | **27** (`corbeille`, jouée le 2026-09-23) |
+| La branche **`mobile-ios`** | 026, puis **028** — la 027 n'y est pas |
+| La branche `chantier/menus-contextuels` | 027, non fusionnée |
+
+**Ce qui se passe si on construit l'app depuis `mobile-ios` seul.** `sqlx`
+valide, à CHAQUE démarrage, que toute migration enregistrée dans la base existe
+encore dans la liste compilée :
+
+```rust
+// sqlx-core-0.8.6/src/migrate/migrator.rs:28 et :161
+fn validate_applied_migrations(...) {
+    if migrator.ignore_missing { return Ok(()); }   // ← false par défaut (:51)
+    for applied in applied_migrations {
+        if !migrations.contains(&applied.version) {
+            return Err(MigrateError::VersionMissing(applied.version));
+        }
+    }
+}
+```
+
+`tauri-plugin-sql` n'appelle **jamais** `set_ignore_missing`. Donc : la base dit
+« 27 jouée », le binaire ne connaît pas de 27, et le démarrage échoue sur
+`VersionMissing(27)`. **L'app ne s'ouvre plus du tout** — pas un module cassé,
+pas une table manquante : la porte d'entrée.
+
+▶️ **LA RÈGLE, jusqu'à ce que la 027 soit sur le tronc : ne JAMAIS construire
+l'app depuis `mobile-ios` sans avoir fusionné `chantier/menus-contextuels`
+d'abord.** Le contrôle avant tout build natif tient en une commande :
+
+```bash
+sqlite3 "$HOME/Library/Application Support/com.atnfx.shale/shale.db" \
+  "SELECT version FROM _sqlx_migrations ORDER BY version;"   # ce que la BASE a
+ls src-tauri/migrations/                                      # ce que le BUILD aura
+```
+Toute version présente à gauche et absente à droite est un refus de démarrage.
+
+⚠️ **Et la réciproque est bénigne** : une migration présente dans le binaire mais
+absente de la base est le cas NORMAL — c'est une migration à jouer. Seul le sens
+« la base en sait plus que le binaire » tue.
+
