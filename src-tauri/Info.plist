@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Fusionné par Tauri dans l'Info.plist de l'app macOS (le schéma de
+  configuration le dit : « Tauri also looks for a Info.plist file in the same
+  directory as the Tauri configuration file »).
+
+  ⭐ POURQUOI CE FICHIER EXISTE (2026-09-23, demande d'Antonin).
+  Le clic droit dans l'app installée ouvrait un menu EN ANGLAIS sur un Mac en
+  français. Ce n'était pas le menu de Shale : c'était celui du système (WebKit),
+  et macOS le rend dans une langue que l'app DÉCLARE. Or l'app ne déclarait que
+  l'anglais (`CFBundleDevelopmentRegion = English`, aucune autre langue) :
+  tout ce qui est natif — le menu du clic droit, le correcteur, « Copier /
+  Coller » — sortait donc en anglais, quelle que soit la langue du Mac.
+
+  Déclarer le français ET l'anglais reproduit, côté système, la règle même de
+  l'app (`systemLang()` dans `lib/i18n`) : la première langue du Mac qui soit
+  le français ou l'anglais, sinon l'anglais (la région de développement reste
+  `English`, c'est le repli). Aucun code n'est nécessaire.
+
+  ⚠️ LIMITE, assumée : si l'utilisateur force une AUTRE langue dans Réglages que
+  celle de son Mac, le menu système, lui, suit toujours le Mac. Le faire suivre
+  demanderait d'écrire `AppleLanguages` pour l'app depuis le Rust, avec effet au
+  relancement seulement. En production, ce menu n'apparaît plus que sur du
+  texte (`lib/menu/natif.ts`) : partout ailleurs, c'est celui de Shale, traduit.
+
+  ⚠️ `CFBundleAllowMixedLocalizations` : l'app n'a pas de dossiers `.lproj` ;
+  cette clé laisse les frameworks du système (WebKit, AppKit) se localiser
+  dans la langue choisie malgré tout.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>fr</string>
+  </array>
+  <key>CFBundleAllowMixedLocalizations</key>
+  <true/>
+</dict>
+</plist>
