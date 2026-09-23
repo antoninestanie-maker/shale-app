@@ -27,6 +27,22 @@ export const TABLES_SYNC = [
   "custom_metrics",
   "goals",
   "notes",
+  // ⭐ Le SIGNALEMENT d'une pièce jointe (migration 027) : nom, type, taille.
+  // Les OCTETS, eux, ne voyagent pas — ils restent sur le disque de l'appareil
+  // où le fichier a été déposé. Ce n'est pas un oubli :
+  //   • ce qui voyage ici sert à ce que l'autre appareil SACHE qu'une pièce
+  //     jointe existe, et l'affiche grisée au lieu de faire comme si le
+  //     paragraphe n'avait jamais rien porté ;
+  //   • les octets ne peuvent pas passer par là : la synchronisation chiffre
+  //     ligne à ligne et envoie par lots qui ont une limite de taille. Un PDF
+  //     de 5 Mo demanderait un stockage chiffré chez Supabase — un autre
+  //     chantier, et une facture.
+  // ⚠️ Les ARÊTES qui citent un fichier ne partent pas non plus, et la garde
+  // est en SQL (migration 027 § 3), pas ici : sans elle, un appareil resté en
+  // version antérieure refuserait l'arête par son `CHECK` et verrait son cycle
+  // de synchronisation échouer indéfiniment. Lire l'en-tête de la 027 avant d'y
+  // toucher.
+  "files",
   "journal_entries",
   "trades",
   "position_size_calculations",

@@ -8,10 +8,13 @@ import { doitResemer, type Graine } from "../lib/graineEditeur";
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
 import MentionPicker from "./liens/MentionPicker";
+import { useDepotPieceJointe } from "./useDepotPieceJointe";
+import { pieceJointeCliquee } from "../lib/piecesJointesDom";
+import { ouvrirPieceJointe } from "../lib/repo";
 import EditeurCarte from "./carte/EditeurCarte";
 import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
-import { IconCarte } from "./icons";
+import { IconCarte, IconTrombone, IconX } from "./icons";
 import { requeteEnCours } from "../lib/mentions";
 import { remplacerParMention, rectDuCurseur, texteAvantCurseur } from "../lib/mentionsDom";
 import { rechercherPartout } from "../lib/repo";
@@ -105,6 +108,21 @@ export default function RichNoteEditor({
   // dans l'éditeur du Savoir (`NoteComposer`). La carte reçoit donc un bouton
   // dans la barre d'outils, et pas une entrée dans un menu qui n'existe pas.
   const [carteOuverte, setCarteOuverte] = useState<Carte | null>(null);
+
+  // ─── Pièces jointes ────────────────────────────────────────────────────────
+  //
+  // ⚠️ `marquerModifie` fait DEUX choses, et aucune n'est facultative :
+  // `aTape.current = true` dit à l'éditeur que son contenu ne vient plus de la
+  // graine (sans quoi la graine rafraîchie le resèmerait et **la pièce jointe
+  // disparaîtrait de l'écran**, cf. le commentaire des cartes ci-dessus), et
+  // `emit()` fait remonter le nouveau corps à l'appelant pour enregistrement.
+  const depot = useDepotPieceJointe({
+    racine: () => ref.current,
+    marquerModifie: () => {
+      aTape.current = true;
+      emit();
+    },
+  });
   /** Le bloc en cours d'édition. `null` = la carte n'est pas encore posée. */
   const blocCarteRef = useRef<HTMLElement | null>(null);
 
@@ -395,7 +413,34 @@ export default function RichNoteEditor({
           title={t("Insérer une carte mentale")}
           onDo={() => ouvrirCarte(null, carteVide(""))}
         />
+        <Btn
+          label={
+            <span className="flex items-center gap-1.5">
+              <IconTrombone className="h-3.5 w-3.5" />
+              <span className="text-xs">{t("Fichier")}</span>
+            </span>
+          }
+          title={t("Joindre un fichier")}
+          onDo={() => void depot.joindre()}
+        />
       </div>
+
+      {/* ⚠️ Le refus est affiché DANS l'éditeur, pas dans une alerte système :
+          il nomme des fichiers, et on doit pouvoir le lire en regardant la note
+          pour voir ce qui a été joint et ce qui ne l'a pas été. */}
+      {depot.etat.erreur && (
+        <div className="mt-2 flex items-start gap-2 rounded-[10px] border border-red/40 bg-surface-2 px-3 py-2 text-xs text-text">
+          <span className="min-w-0 flex-1">{depot.etat.erreur}</span>
+          <button
+            type="button"
+            onClick={depot.effacerErreur}
+            className="shrink-0 text-text-dim hover:text-text"
+            aria-label={t("Fermer")}
+          >
+            <IconX className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Zone d'édition */}
       <div
@@ -424,6 +469,15 @@ export default function RichNoteEditor({
         onClick={(e) => {
           // ⚠️ Un jeton MORT ne mène nulle part : sa cible n'existe plus. Le
           // rendre cliquable promettrait une navigation impossible.
+          // Une pièce jointe s'OUVRE dans le logiciel du système — elle ne
+          // navigue pas, contrairement à une mention. `pieceJointeCliquee`
+          // remonte depuis l'enfant réellement cliqué (le picto ou le nom) et
+          // rend `null` sur un jeton mort.
+          const fichier = pieceJointeCliquee(e.target);
+          if (fichier) {
+            void ouvrirPieceJointe(fichier);
+            return;
+          }
           const jeton = (e.target as HTMLElement).closest<HTMLElement>(".mention:not(.mention-morte)");
           const ref = jeton?.dataset.mention?.split(":");
           if (ref && ref.length >= 2) {

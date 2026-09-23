@@ -26,6 +26,7 @@ import m23 from "../../../src-tauri/migrations/023_facturation.sql?raw";
 import m24 from "../../../src-tauri/migrations/024_onboarding_exemples.sql?raw";
 import m25 from "../../../src-tauri/migrations/025_licence_profil.sql?raw";
 import m26 from "../../../src-tauri/migrations/026_feuille_de_route.sql?raw";
+import m28 from "../../../src-tauri/migrations/028_pieces_jointes.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -37,7 +38,17 @@ import m26 from "../../../src-tauri/migrations/026_feuille_de_route.sql?raw";
  */
 export const MIGRATIONS: readonly string[] = [
   m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m12, m13, m14, m15, m16, m17, m18,
-  m19, m20, m21, m22, m23, m24, m25, m26,
+  // ⚠️ LE TROU À 27 EST VOULU — ne pas « corriger » en renumérotant 028 en 027.
+  // `027_corbeille.sql` appartient au chantier « menus contextuels », qui n'est
+  // pas encore fusionné (branche `chantier/menus-contextuels`). Les deux
+  // migrations ont d'abord porté le même numéro ; les pièces jointes ont cédé
+  // le 2026-09-23, la corbeille étant la plus avancée. Le numéro reprendra sa
+  // place à la fusion, et cette liste redeviendra contiguë.
+  //
+  // Les deux sont compatibles DANS LES DEUX SENS, vérifié et non supposé : la
+  // corbeille n'ajoute que des colonnes `deleted_at` et ne crée aucun trigger,
+  // là où la 028 recrée les sept triggers de ménage d'`object_links`.
+  m19, m20, m21, m22, m23, m24, m25, m26, m28,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

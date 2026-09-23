@@ -15,6 +15,7 @@ import SketchPad, { parseSketch, type SketchData } from "./SketchPad";
 import {
   IconBrush,
   IconCarte,
+  IconTrombone,
   IconImage,
   IconLink,
   IconPlus,
@@ -23,6 +24,9 @@ import {
 import EditeurCarte from "./carte/EditeurCarte";
 import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
+import { useDepotPieceJointe } from "./useDepotPieceJointe";
+import { pieceJointeCliquee } from "../lib/piecesJointesDom";
+import { ouvrirPieceJointe } from "../lib/repo";
 import { encodeImage, imageFilesOf, normalizeUrl, openExternal } from "../lib/knowledge";
 import type { LinkKind } from "../lib/types";
 import { toEditorHtml } from "../lib/richtext";
@@ -86,6 +90,7 @@ export default function NoteComposer({
   /** Le bloc en cours d'édition. `null` = la carte n'est pas encore posée. */
   const blocCarte = useRef<HTMLElement | null>(null);
 
+
   // (re)charge le contenu quand on change de note, jamais pendant la frappe
   useEffect(() => {
     if (ref.current) ref.current.innerHTML = toEditorHtml(initialHtml);
@@ -101,6 +106,18 @@ export default function NoteComposer({
   const emit = useCallback(() => {
     if (ref.current) onChange(ref.current.innerHTML);
   }, [onChange]);
+
+  // ─── Pièces jointes ────────────────────────────────────────────────────────
+  //
+  // ⚠️ Ici `marquerModifie` n'appelle QUE `emit()`, là où `RichNoteEditor` doit
+  // en plus poser son drapeau `aTape`. Ce n'est pas un oubli : cet éditeur-ci
+  // ne recharge son DOM que sur un changement de `noteId` (l'effet ci-dessus),
+  // jamais sur l'arrivée différée d'un corps rafraîchi. Il n'y a donc pas de
+  // graine qui puisse venir écraser l'insertion.
+  const depot = useDepotPieceJointe({
+    racine: () => ref.current,
+    marquerModifie: emit,
+  });
 
   const placeCaretAtEnd = () => {
     const root = ref.current;
@@ -374,6 +391,12 @@ export default function NoteComposer({
                 <IconCarte className="h-3.5 w-3.5" />,
                 () => ouvrirCarte(null, carteVide("")),
               )}
+              {menuItem(
+                t("Fichier"),
+                t("PDF, tableur, document…"),
+                <IconTrombone className="h-3.5 w-3.5" />,
+                () => void depot.joindre(),
+              )}
               {menuItem("Lien", t("Vers une ressource externe"), <IconLink className="h-3.5 w-3.5" />, () =>
                 setLinkDraft(""),
               )}
@@ -487,6 +510,16 @@ export default function NoteComposer({
               emit();
               return;
             }
+          }
+          // Une pièce jointe s'OUVRE dans le logiciel du système. Testée AVANT
+          // le lien : les deux remontent par `closest`, et un jeton posé dans
+          // un lien répondrait aux deux — c'est la pièce jointe qui gagne,
+          // puisque c'est elle qu'on a cliquée.
+          const fichier = pieceJointeCliquee(el);
+          if (fichier) {
+            e.preventDefault();
+            void ouvrirPieceJointe(fichier);
+            return;
           }
           // Lien : en lecture (ou ⌘-clic), on ouvre dans le navigateur système —
           // jamais dans la webview, qui quitterait l'application.

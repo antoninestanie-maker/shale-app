@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { refusDeDepot, type RefusDepot } from "./piecesJointes";
 import { demo } from "./demo";
 import { theoreticalRR } from "./liveTracker";
 import { todayStr, toDateStr } from "./logic";
@@ -1741,6 +1742,179 @@ export async function uidDe(kind: LinkKind, id: number): Promise<string | null> 
   return rows[0]?.uid ?? null;
 }
 
+// ─── Pièces jointes (migration 028) ──────────────────────────────────────────
+//
+// ⚠️ DEUX MOITIÉS QUI DOIVENT RESTER D'ACCORD : la LIGNE (`files`, ici) et les
+// OCTETS (`<app_data>/pieces-jointes/<uid>`, côté Rust). Chaque écriture touche
+// les deux, et l'ordre compte — il est écrit à chaque fonction.
+//
+// ⚠️ La ligne se SYNCHRONISE, les octets NON. Sur un second appareil, une pièce
+// jointe existe donc sans ses octets : c'est un état NORMAL, et `presente`
+// permet à l'interface de le dire au lieu de faire comme si rien n'avait été
+// joint. Voir l'en-tête de la migration 028.
+
+export interface PieceJointeLigne {
+  id: number;
+  uid: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/**
+ * Dépose un fichier : copie ses octets, PUIS écrit sa ligne.
+ *
+ * ⭐ L'ORDRE N'EST PAS ARBITRAIRE. Écrire la ligne d'abord laisserait, si la
+ * copie échoue (disque plein, fichier verrouillé), une pièce jointe qui
+ * s'affiche dans la note et ne s'ouvrira jamais — sur CET appareil, celui où
+ * l'utilisateur vient de la déposer. Dans l'autre sens, l'échec ne laisse qu'un
+ * fichier orphelin de quelques octets que personne ne voit.
+ *
+ * ⚠️ L'uid est tiré ICI, pas par le trigger SQL : il faut le connaître AVANT
+ * d'écrire les octets, puisqu'il les nomme. Le trigger reste le filet.
+ */
+export async function deposerPieceJointe(
+  src: string,
+  /**
+   * ⚠️ N'EXISTE QUE POUR LE MODE DÉMO, et le natif l'IGNORE volontairement.
+   *
+   * En natif, la taille est mesurée par le Rust APRÈS la copie : c'est la seule
+   * valeur qui décrive ce qui est réellement sur le disque, et la croire sur
+   * parole ferait entrer une copie d'affichage de plus dans la base.
+   *
+   * En démo il n'y a pas de disque : le fichier vient d'un `<input type="file">`,
+   * et sa taille est la seule vraie donnée qu'on ait. Sans elle, le refus
+   * « trop gros » serait invérifiable en preview navigateur — c'est-à-dire dans
+   * le seul mode où l'on peut relire cette interface sans piloter la base
+   * d'Antonin (`PIEGES.md` § 6.2).
+   */
+  tailleDemo?: number,
+): Promise<PieceJointeLigne | null> {
+  if (!isTauri) return demo.deposerPieceJointe(src, tailleDemo);
+  const uid = crypto.randomUUID();
+
+  const { invoke } = await import("@tauri-apps/api/core");
+  const depot = await invoke<{ nom: string; taille: number }>("deposer_piece_jointe", { uid, src });
+
+  const refus = refusDeDepot(depot.taille);
+  if (refus) {
+    // ⚠️ On défait la copie plutôt que de laisser un fichier que plus rien ne
+    // cite. La taille n'est connue avec certitude qu'APRÈS la copie (le front
+    // ne voit qu'un chemin, pas un octet), donc le contrôle ne peut pas venir
+    // plus tôt sans faire confiance à une valeur devinée.
+    await invoke("supprimer_piece_jointe", { uid }).catch(() => undefined);
+    throw new ErreurDepot(refus, depot.nom);
+  }
+
+  const mime = mimeDeNom(depot.nom);
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO files (uid, name, mime, size, created_at, updated_at) VALUES ($1, $2, $3, $4, datetime('now'), datetime('now'))",
+    [uid, depot.nom, mime, depot.taille],
+  );
+  const rows = await db.select<PieceJointeLigne[]>(
+    "SELECT id, uid, name, mime, size FROM files WHERE uid = $1",
+    [uid],
+  );
+  return rows[0] ?? null;
+}
+
+/** Une taille refusée porte de quoi l'expliquer à l'écran, pas un message figé. */
+export class ErreurDepot extends Error {
+  constructor(
+    readonly refus: RefusDepot,
+    readonly nom: string,
+  ) {
+    super(`dépôt refusé (${refus}) : ${nom}`);
+  }
+}
+
+/**
+ * Les lignes de ces pièces jointes, avec la présence RÉELLE de leurs octets.
+ *
+ * ⚠️ Une clé absente de la réponse signifie « ce fichier n'existe plus » — la
+ * ligne a été supprimée, ici ou sur un autre appareil. C'est ce que le jeton
+ * traduit en « fichier supprimé », et c'est DIFFÉRENT de `presente: false`, qui
+ * veut dire « il existe, mais pas ici ». Les confondre afficherait « supprimé »
+ * sur l'iPhone pour un PDF parfaitement vivant sur le Mac.
+ */
+export async function fetchPiecesJointes(
+  uids: readonly string[],
+): Promise<Map<string, PieceJointeLigne & { presente: boolean }>> {
+  const out = new Map<string, PieceJointeLigne & { presente: boolean }>();
+  if (uids.length === 0) return out;
+  if (!isTauri) return demo.fetchPiecesJointes(uids);
+
+  const db = await getDb();
+  const jokers = uids.map((_, i) => `$${i + 1}`).join(", ");
+  const rows = await db.select<PieceJointeLigne[]>(
+    `SELECT id, uid, name, mime, size FROM files WHERE uid IN (${jokers})`,
+    [...uids],
+  );
+  const { invoke } = await import("@tauri-apps/api/core");
+  for (const r of rows) {
+    const presente = await invoke<boolean>("piece_jointe_presente", { uid: r.uid }).catch(() => false);
+    out.set(r.uid, { ...r, presente });
+  }
+  return out;
+}
+
+/**
+ * Supprime une pièce jointe : la ligne, PUIS les octets.
+ *
+ * ⭐ L'ORDRE EST L'INVERSE DU DÉPÔT, et pour la même raison. La ligne partie,
+ * la pièce jointe a disparu pour l'utilisateur et sa suppression voyage (le
+ * trigger `files_out_del`) ; si l'effacement des octets échoue derrière, il ne
+ * reste qu'un fichier que plus rien ne cite. Effacer les octets d'abord
+ * laisserait au contraire une pièce jointe visible et morte.
+ *
+ * ⚠️ Les ARÊTES partent toutes seules — `files_links_del` (migration 028 § 4).
+ * Ne pas les supprimer à la main ici : le trigger doit aussi jouer quand la
+ * suppression arrive de l'autre appareil, et deux chemins pour un même ménage
+ * finissent par ne plus faire la même chose.
+ */
+export async function supprimerPieceJointe(uid: string): Promise<void> {
+  if (!isTauri) return demo.supprimerPieceJointe(uid);
+  const db = await getDb();
+  await db.execute("DELETE FROM files WHERE uid = $1", [uid]);
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("supprimer_piece_jointe", { uid }).catch(() => undefined);
+}
+
+/**
+ * Type MIME deviné d'après l'extension.
+ *
+ * ⚠️ DEVINÉ, et c'est assumé : le sélecteur de fichiers de Tauri rend un chemin,
+ * pas un type. Ce MIME ne sert qu'à choisir une ICÔNE — jamais à décider
+ * d'ouvrir quoi que ce soit, ce que fait le système avec ses propres règles.
+ * Une erreur ici coûte un pictogramme générique, rien de plus.
+ */
+function mimeDeNom(nom: string): string {
+  const ext = nom.toLowerCase().split(".").pop() ?? "";
+  const table: Record<string, string> = {
+    pdf: "application/pdf",
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+    gif: "image/gif", webp: "image/webp", heic: "image/heic", svg: "image/svg+xml",
+    txt: "text/plain", md: "text/markdown", csv: "text/csv",
+    zip: "application/zip",
+  };
+  return table[ext] ?? "";
+}
+
+/**
+ * Ouvre une pièce jointe dans le logiciel du système.
+ *
+ * ⚠️ Rend `false` quand les octets ne sont pas là — le cas NORMAL sur un second
+ * appareil, puisqu'ils ne se synchronisent pas. Ce n'est donc pas une erreur à
+ * remonter comme telle : l'appelant affiche « pas sur cet appareil », jamais
+ * « échec de l'ouverture ».
+ */
+export async function ouvrirPieceJointe(uid: string): Promise<boolean> {
+  if (!isTauri) return demo.ouvrirPieceJointe(uid);
+  const { invoke } = await import("@tauri-apps/api/core");
+  return (await invoke<boolean>("ouvrir_piece_jointe", { uid })) === true;
+}
+
 // ─── Événements du calendrier ────────────────────────────────────────────────
 
 export interface CalendarEventInput {
@@ -2189,6 +2363,9 @@ export async function titresDesMentions(
     // ⚠️ La colonne est `name`, pas `title` : les sujets ont hérité du
     // schéma des thèmes (migration 022).
     object: { table: "knowledge_topics", titre: "name" },
+    // ⚠️ La colonne est `name` : le « titre » d'une pièce jointe est son nom de
+    // fichier d'origine (migration 028).
+    file: { table: "files", titre: "name" },
   };
 
   for (const [kind, uids] of parFamille) {

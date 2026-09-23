@@ -13,7 +13,16 @@ import type { LinkKind, LinkOrigin, ObjectLink } from "./types";
  * Liaisons de s'appuyer dessus sans avoir à monter quoi que ce soit.
  */
 
-/** Les sept familles d'objets qu'une arête peut relier. */
+/**
+ * Les huit familles d'objets qu'une arête peut relier.
+ *
+ * ⚠️ Cette liste est désormais la SEULE gardienne des familles valides. La
+ * migration 027 a retiré le `CHECK` que portait `object_links` depuis la 020 :
+ * une contrainte SQL violée par une ligne venue d'un autre appareil fait
+ * échouer le cycle de synchronisation entier (`PIEGES.md` § 3.4), ce qui est un
+ * prix hors de proportion pour une règle de saisie. La règle vit ici, et
+ * `liens.test.ts` la garde.
+ */
 export const LINK_KINDS: readonly LinkKind[] = [
   "note",
   "knowledge",
@@ -22,6 +31,15 @@ export const LINK_KINDS: readonly LinkKind[] = [
   "event",
   "trade",
   "object",
+  // ⭐ La pièce jointe (migration 027). Une famille à part sur deux points, et
+  // il faut les avoir en tête avant d'écrire du code qui la traite comme les
+  // autres :
+  //   • elle n'a pas de MODULE — un fichier s'ouvre dans le logiciel du
+  //     système, pas dans un écran de Shale (cf. `naviguer.ts`) ;
+  //   • ses arêtes ne QUITTENT PAS la machine (migration 027 § 3), parce qu'un
+  //     appareil resté en version antérieure les refuserait par son `CHECK` et
+  //     verrait sa synchronisation échouer indéfiniment.
+  "file",
 ] as const;
 
 /**
@@ -46,6 +64,7 @@ export const TABLE_DE_KIND: Readonly<Record<LinkKind, string>> = {
   // arête, c'est-à-dire l'identité que les deux appareils calculent chacun de
   // leur côté. Un renommage cosmétique ne vaut pas une divergence d'identité.
   object: "knowledge_topics",
+  file: "files",
 };
 
 const KINDS = new Set<string>(LINK_KINDS);

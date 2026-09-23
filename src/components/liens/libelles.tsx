@@ -6,6 +6,7 @@ import {
   IconNote,
   IconTarget,
   IconTrendUp,
+  IconTrombone,
 } from "../icons";
 import type { LinkKind } from "../../lib/types";
 
@@ -24,6 +25,7 @@ export const LIBELLE_DE_KIND: Record<LinkKind, string> = {
   event: "Événement",
   trade: "Trade",
   object: "Objet",
+  file: "Fichier",
 };
 
 /** Au pluriel — les en-têtes de section du panneau « Mentionné dans ». */
@@ -35,6 +37,7 @@ export const LIBELLE_PLURIEL: Record<LinkKind, string> = {
   event: "Événements",
   trade: "Trades",
   object: "Objets",
+  file: "Fichiers",
 };
 
 export const ICONE_DE_KIND: Record<LinkKind, ReactNode> = {
@@ -45,4 +48,5 @@ export const ICONE_DE_KIND: Record<LinkKind, ReactNode> = {
   event: <IconCalendar className="h-4 w-4" />,
   trade: <IconTrendUp className="h-4 w-4" />,
   object: <IconFolder className="h-4 w-4" />,
+  file: <IconTrombone className="h-4 w-4" />,
 };

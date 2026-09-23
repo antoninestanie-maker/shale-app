@@ -2750,3 +2750,146 @@ en base ; les événements, types et branches de carte enregistrent le nom
 **Parade.** Un NOUVEAU token pour le nouveau sens (`--color-success`), et
 `--color-green` garde son nom. `src/lib/theme.encre.test.ts` échoue si
 `--color-green` disparaît d'un des trois blocs de thème.
+
+---
+
+# 22. Chantier « pièces jointes » (2026-09-23)
+
+## 22.1 ⚠️⚠️ Deux chantiers, la MÊME migration 027 — et rien ne l'aurait dit
+
+**Symptôme.** Aucun. C'est tout le problème. `027_pieces_jointes.sql` et
+`027_corbeille.sql` vivaient dans deux arbres différents, chacun enregistré
+sous `version: 27` dans son propre `lib.rs`. Les deux passaient leurs tests.
+
+**Ce qui serait arrivé.** `sqlx` enregistre une migration jouée dans
+`_sqlx_migrations` **par son numéro**. Le premier des deux à tourner sur la
+vraie base aurait marqué 27 comme fait ; le second n'aurait **jamais été joué**,
+en silence, et l'app aurait tourné en croyant son schéma complet. Le défaut ne
+se voit qu'à la première requête sur une table qui n'existe pas — c'est-à-dire
+chez Antonin, après un build.
+
+**Comment il a été attrapé.** Pas par un test, pas par une relecture : par la
+phrase de `CLAUDE.md` qui dit « la 027 de [P-menus] n'est pas fusionnée », lue
+quand le fichier s'est chargé en cours de session. Puis
+`find ~/Desktop -name "027_*.sql"`, qui a rendu deux fichiers.
+
+**Parade, avant d'écrire la moindre ligne d'une migration :**
+```bash
+find ~/Desktop -name "0*_*.sql" -not -path "*/node_modules/*" | sort
+```
+Les worktrees de `~/Desktop/Shale-chantiers/` ne sont PAS dans le dépôt
+principal : un `ls src-tauri/migrations` ne les voit pas. Puis **inscrire le
+numéro pris dans `~/Desktop/Shale-chantiers/COORDINATION.md`** — c'est le seul
+canal entre sessions parallèles, et il existe exactement pour ça.
+
+**Qui cède ?** Le moins avancé. Ici la corbeille avait trois commits et une
+phase 2 livrée, les pièces jointes vingt minutes : elles sont passées en 028.
+Le précédent est dans l'en-tête de la 026, qui a cédé son 025 à la licence.
+
+## 22.2 ⚠️ `ALTER TABLE … RENAME TO` reparse TOUT le schéma
+
+**Symptôme.**
+```
+error in trigger notes_links_del: no such table: main.object_links
+```
+La migration échoue, sur un trigger qu'on n'a pas touché.
+
+**Cause.** Recréer une table impose la séquence `CREATE new` → `INSERT SELECT`
+→ `DROP old` → `RENAME`. Or le `RENAME` fait revalider par SQLite **tous les
+triggers du schéma** — et entre le `DROP` et le `RENAME`, la table n'existe
+plus. Les sept triggers `*_links_del` des autres tables la nomment : ils
+deviennent invalides le temps d'une instruction, et ça suffit.
+
+**Parade.** Supprimer ces triggers AVANT la manœuvre et les recréer APRÈS.
+`PRAGMA legacy_alter_table = ON` ferait taire l'erreur en deux lignes, mais il
+fait dépendre une migration jouée sur les VRAIES données d'un réglage dont le
+comportement varie d'une version de SQLite à l'autre.
+
+⚠️ **Et ne PAS recopier les triggers depuis la migration qui les a créés.** La
+020 en déclare un `objects_links_del` que la 022 a supprimé avec sa table. Les
+lire dans le schéma réel :
+```sql
+SELECT name, sql FROM sqlite_master WHERE sql LIKE '%object_links%';
+```
+
+## 22.3 ⭐⭐ Une contrainte `CHECK` ne refuse pas une ligne : elle arrête le CYCLE
+
+Le § 3.4 disait « une contrainte violée peut arrêter la synchronisation ». La
+lecture du moteur, ce jour-là, a montré que c'est plus dur que ça.
+
+`appliquerReçue` (`sync/engine.ts`) ne rattrape que `ParentManquant` et
+**relance tout le reste**. Une erreur SQL traverse donc `enApplication`, fait
+échouer le cycle entier — et comme le curseur n'avance pas, **la même page
+repart échouer à l'identique, indéfiniment**. Ce n'est pas une ligne perdue,
+c'est la synchronisation de l'appareil qui s'arrête pour toujours.
+
+▶️ **Conséquence pratique** : ajouter une valeur à une énumération contrainte
+en SQL (un `kind`, un `origin`, un `status`) est un changement à **DEUX temps**
+— jamais un seul. Soit on retire la contrainte (c'est ce qu'a fait la 028 pour
+`object_links`), soit on s'assure que la valeur neuve **ne quitte jamais la
+machine** tant que tous les appareils n'ont pas la migration. La 028 fait les
+deux : `CHECK` retiré ici, et garde `<> 'file'` sur les triggers d'outbox.
+
+## 22.4 ⚠️ Un test qui lit `sqlite_master` lit AUSSI les commentaires
+
+**Symptôme.** Un test « la table ne porte plus de `CHECK` » échoue en désignant
+un `CHECK`… qui est dans le commentaire expliquant pourquoi il a été retiré.
+
+**Cause.** `sqlite_master.sql` rend le texte INTÉGRAL du `CREATE TABLE`,
+commentaires compris. Sur un dépôt qui commente ses migrations aussi
+abondamment que celui-ci, c'est la règle et non l'exception.
+
+**Parade.** Retirer les commentaires avant de chercher, et viser la forme
+syntaxique et non le mot :
+```js
+const schema = sql.replace(/--[^\n]*/g, "");
+expect(schema).not.toMatch(/\bCHECK\s*\(/i);
+```
+⚠️ Sans ce nettoyage, le réflexe est de « réparer » le test en effaçant le
+commentaire — donc de supprimer l'explication pour faire passer la vérification.
+
+## 22.5 ⚠️ Un U+00A0 littéral dans la source est indistinguable d'une espace
+
+**Cause.** Un jeton `contenteditable="false"` en fin de bloc emprisonne le
+curseur : il faut une espace insécable derrière pour pouvoir continuer à taper.
+Écrite en caractère littéral, elle est **invisible à la relecture** — et le
+premier nettoyage venu la remplace par une espace ordinaire, rouvrant le défaut
+sans que rien ne le signale.
+
+**Parade.** Une constante nommée, en échappement : `const ESPACE_INSECABLE =
+"\u00a0"`. La remplacer demande alors de le vouloir.
+
+## 22.6 ⭐ « Ce fichier n'a aucun test, et c'est structurel » était FAUX
+
+**Symptôme.** Trois modules DOM du dépôt (`mentionsDom`, `carteDom`, et la
+première version de `piecesJointesDom`) portent en tête la même affirmation :
+pas de test possible, les tests tournent en `environment: "node"`.
+
+**Cause.** La config GLOBALE est bien en `node` — mais un fichier de test peut
+en demander une autre par un simple docblock `// @vitest-environment happy-dom`,
+et **deux fichiers du dépôt le faisaient déjà** (`sync/sas.test.ts`,
+`sync/planificateur.test.ts`). `happy-dom` est une dev-dépendance depuis
+toujours.
+
+**Ce que ça a coûté / rapporté.** `piecesJointesDom.test.ts` couvre en 13 tests
+l'insertion, les trois états d'affichage et la remontée du clic — dont un défaut
+(le clic qui n'atteint pas l'enfant cliqué) qui serait passé pour de
+l'imprécision de souris.
+
+▶️ **La leçon dépasse le cas** : une affirmation d'impossibilité recopiée de
+module en module ne se vérifie jamais. `mentionsDom.ts` et `carteDom.ts`
+restent sans tests, et **rien ne s'y oppose** — c'est une dette, pas une
+fatalité.
+
+## 22.7 ⚠️ Le panneau intégré rend un viewport 0×0 — mesuré, pas supposé
+
+Rappel du piège déjà connu, confirmé ce jour-là faute de Chrome disponible :
+```js
+({ viewport: `${innerWidth}x${innerHeight}`, visible: !document.hidden,
+   racineMontee: !!document.querySelector("#root")?.firstElementChild })
+// → { viewport: "0x0", visible: false, racineMontee: false }
+```
+▶️ **Toujours mesurer ces trois valeurs avant de croire une observation faite
+dans le panneau.** Une racine non montée et un viewport nul font passer une app
+parfaitement saine pour du code cassé.
+
