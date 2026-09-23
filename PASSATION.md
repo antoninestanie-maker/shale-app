@@ -132,7 +132,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | Poussé ? | ✅ **oui**, `origin/mobile-ios` à jour au 2026-09-18 (le dépôt du site aussi). Pour pousser sans Terminal : double-cliquer `Envoyer sur GitHub.command` |
 | App installée | ✅ `/Applications/Shale.app`, binaire du **2026-09-16 à 10:38**, 21,2 Mo. C'est la version qui porte la feuille de route des objectifs |
 | App en fonctionnement | ✅ **elle tourne** (processus `shale`, vue le 2026-09-18) |
-| Base de données | ✅ **version 26** (`_sqlx_migrations`, 026 `feuille_de_route` jouée le 2026-09-16 à 10:40), 47 tables |
+| Base de données | ✅ **version 27** (`_sqlx_migrations`, 027 `corbeille` jouée le 2026-09-23 à 19:20 sur la vraie base : integrity ok, 0 violation FK, comptes identiques à la sauvegarde `shale-backups/avant-menus-corbeille-20260923-1914/`), 47 tables |
 | Contenu réel | ✅ 3 objectifs · 2 tâches · 14 notes · 1 trade · 0 profil de licence |
 | Synchronisation | ✅ **elle fonctionne** — dernier envoi ET dernière lecture le **2026-09-17 à 22:37 UTC**, curseur à 554. ⭐ **Cela prouve que la fenêtre de trousseau a été autorisée** après le build du 16 : c'était le dernier geste en attente, il est fait |
 | File de sortie | ⚠️ `sync_outbox` contient **1 ligne** en attente — normal si l'app vient d'écrire ; anormal si ça ne bouge plus |
@@ -258,7 +258,7 @@ chiffres comme une réalité commerciale.
 
 ---
 
-## 7. La base locale, et ses vingt-six migrations
+## 7. La base locale, et ses vingt-sept migrations
 
 Un seul fichier SQLite, 47 tables, migrations jouées par `sqlx` au démarrage et
 enregistrées dans `_sqlx_migrations`. Les fichiers sont dans
@@ -282,6 +282,7 @@ qui n'accuse pas la migration.
 | 024 | onboarding_exemples | le contenu de départ du premier lancement |
 | 025 | licence_profil | le cache local du profil de licence signé |
 | 026 | feuille_de_route | ⭐ dix colonnes, **zéro table nouvelle** : un jalon EST un objectif |
+| 027 | corbeille | ⭐ une colonne `deleted_at` sur dix tables, **aucun trigger** : « Supprimés récemment », 30 jours. Lue en bas de `repo.ts` (`VIVANT`) et dans `notifications/data.rs` (`filtre_vivant`, qui vérifie que la colonne existe) |
 
 ⚠️ **Avant tout build natif qui porte une migration : sauvegarder la base avec
 `sqlite3 .backup`, JAMAIS avec `cp`** — la base est en WAL, une copie de fichier
@@ -475,6 +476,36 @@ Les six choses à savoir sans lire le code :
 deux vrais appareils. Et une **question non tranchée** : un objectif en péril ET
 ses jalons en péril produisent plusieurs alertes ; le plafond les tient à deux
 lignes, mais on pourrait n'afficher que la plus précise.
+
+---
+
+### 11.x Le 2026-09-23 — menus contextuels et « Supprimés récemment »
+
+| Date | Chantier |
+|---|---|
+| 09-23 | ⭐⭐ **Un menu contextuel sur chaque objet** — clic droit, Ctrl+clic, tap à deux doigts, Maj+F10, ET un bouton « ⋯ » jumeau (visible au doigt) : notes, tâches (Tâches, Aujourd'hui, Calendrier), événements et créneaux, objectifs et étapes, sujets et fiches du Savoir, habitudes et entrée du jour, métriques, documents de facturation · ⭐⭐ **« Supprimés récemment »** (027), 4ᵉ entrée du pied de la barre latérale : 30 jours, puis purge au lancement · un toast « … est dans Supprimés récemment · Voir · Annuler » après chaque suppression |
+
+Les cinq choses à savoir sans lire le code :
+1. **Une suppression n'efface plus rien** : elle pose `deleted_at` (horodatage
+   UTC). Les lignes qui partent ENSEMBLE (un objectif et ses étapes) partagent
+   le même horodatage : c'est un **lot**, restauré ou purgé d'un bloc.
+2. **Les feuilles** (coches, entrées de métrique, lignes de facture,
+   paiements) n'ont pas de colonne : elles suivent leur parent par jointure.
+3. **Une facture ÉMISE ne va pas à la corbeille** — elle s'annule par avoir.
+   Comptes et tiers s'archivent. Le reste hors corbeille est déclaré dans
+   `AMELIORATIONS-UI.md` § E.
+4. **La synchronisation porte `deleted_at` comme une colonne ordinaire**
+   (last-write-wins) : jeter sur un appareil jette sur l'autre, restaurer
+   aussi. Un appareil resté en version 26 ignore la colonne : il continue
+   d'AFFICHER l'objet jeté, et un appareil NEUF qui le reçoit d'abord de lui
+   l'insère vivant — risque mesuré, `PIEGES.md` § 19.9. ⛔ Tous les appareils
+   en 27 avant de se servir de la corbeille (l'iPhone : Phase 5).
+5. **Le menu natif de la WebView** (Reload, Inspect…) est remplacé hors des
+   champs de texte, et l'app se déclare en français (`Info.plist`,
+   `CFBundleLocalizations`) : le menu des champs suit la langue du Mac.
+
+Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
+`PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
 
 ---
 

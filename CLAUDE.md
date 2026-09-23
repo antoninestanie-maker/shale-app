@@ -1704,6 +1704,9 @@ pour qu'elle s'applique à la base réelle.
 ### Limite assumée (à connaître)
 Il n'y a **pas de corbeille** : une suppression crée un tombstone qui se propage à tous
 les appareils et ne se rattrape pas. Hors périmètre du chantier, arbitré le 2026-08-02.
+⚠️ **Périmé depuis le 2026-09-23** : la corbeille existe (migration 027,
+« Supprimés récemment »). Le tombstone ne part plus qu'à la PURGE, 30 jours
+après. Voir la section datée du 2026-09-23 « Menus contextuels ».
 
 ## Support Windows — portage (2026-08-05)
 
@@ -6012,3 +6015,43 @@ couleurs choisies restent vertes.
 Aucune donnée, aucune migration, aucune dépendance. ⛔ Pas de build : il part
 avec celui de [P-menus] (fin de sa phase 4), un seul clic « Toujours
 autoriser » pour Antonin.
+
+## 2026-09-23 — Menus contextuels, et « Supprimés récemment »
+
+Cahier des charges : `PROMPT-MENU-CONTEXTUEL.md` ; audit : `RAPPORT-PHASE0-MENU-CONTEXTUEL.md`.
+Déclencheur côté Antonin : « je ne peux pas supprimer une tâche avec clic
+droit », et le menu système de la WebView en anglais sur un Mac français.
+
+**Pourquoi un menu maison et pas le menu natif de Tauri** : un menu natif ne
+porte ni confirmation en place, ni raison de grisage, ni sous-menu « Rattacher
+à un objectif › Phase » construit depuis les données fraîches ; et il
+n'existe pas sur iPhone. Un seul composant (`MenuContextuel`) sert la souris,
+le clavier (Maj+F10, touche Menu — macOS n'émet PAS de `contextmenu` pour
+Maj+F10, PIEGES § 19.2) et le doigt.
+
+**Pourquoi un bouton « ⋯ » partout (règle 17)** : une action qui n'existe
+qu'au clic droit n'existe pas pour qui ne le connaît pas, ni au doigt. Au
+pointeur grossier, les barres de survol s'effacent devant le « ⋯ ».
+
+**Pourquoi chaque entrée appelle la fonction du bouton (règle 18)** : deux
+chemins pour le même geste divergent au premier correctif. D'où `jeter()`
+(`components/corbeille/geste.tsx`), seul chemin de suppression de dix
+familles, et `jeterBrouillon` partagé par la fenêtre d'une facture et son menu.
+
+**Pourquoi le modèle A (une colonne `deleted_at`) plutôt qu'une table
+corbeille** (validé par Antonin en Phase 0) : la ligne ne bouge pas, ses
+liens et ses coches non plus, et la synchronisation la porte sans code neuf.
+Le prix : TOUTES les lectures filtrent (`VIVANT`), et une lecture oubliée
+montre un fantôme. `lectures.test.ts` en fait la liste, rouge d'abord.
+
+**Pourquoi les doubles-clics « sûr ? » ont disparu** : ils protégeaient une
+suppression définitive. Elle ne l'est plus : un clic, puis « Annuler » dans le
+toast (8 s, en pause au survol), puis 30 jours dans la corbeille. Restent
+confirmés AVANT : un objectif qui a des étapes, un sujet (sa fenêtre dit
+combien de notes passent « sans sujet »), et tout ce qui est définitif dans la
+corbeille elle-même.
+
+**Ce qui n'est PAS fait** : iOS (Phase 5, `CFBundleLocalizations` à poser
+aussi dans `gen/apple`), les widgets d'Aujourd'hui (leurs contrôles restent au
+survol), les positions et encaissements de Finance (toujours définitifs, sans
+confirmation). Liste complète : `AMELIORATIONS-UI.md` § E–F.
