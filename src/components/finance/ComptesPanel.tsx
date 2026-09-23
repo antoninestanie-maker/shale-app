@@ -289,7 +289,7 @@ function LigneCompte({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void valider()}
               data-tip={t("Enregistrer ce solde")}
-              className="rounded-[10px] border border-green/40 p-1.5 text-green transition-colors hover:bg-green/10"
+              className="rounded-[10px] border border-success/40 p-1.5 text-success transition-colors hover:bg-success/10"
             >
               <IconCheck className="h-4 w-4" />
             </button>

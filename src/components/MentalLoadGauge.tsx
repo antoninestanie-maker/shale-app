@@ -20,7 +20,7 @@ export const MENTAL_LOAD_CONFIG_EVENT = "sb:mental-load-config";
 function colorFor(energy: number): string {
   if (energy <= 30) return "var(--color-red)";
   if (energy <= 60) return "var(--color-yellow)";
-  return "var(--color-green)";
+  return "var(--color-success)";
 }
 
 function fmtMin(min: number): string {

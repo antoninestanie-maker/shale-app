@@ -157,7 +157,7 @@ export default function PontTradingPanel({
                 pont.partDuBurnPct === null
                   ? "text-text-dim"
                   : pont.partDuBurnPct >= 100
-                    ? "text-green"
+                    ? "text-success"
                     : pont.partDuBurnPct < 0
                       ? "text-red"
                       : "text-text"

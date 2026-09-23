@@ -97,7 +97,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
             cy="110"
             r="70"
             fill="none"
-            stroke="color-mix(in srgb, var(--color-green) 18%, transparent)"
+            stroke="color-mix(in srgb, var(--color-success) 18%, transparent)"
             strokeWidth="1"
             strokeDasharray="1 10"
           />
@@ -159,7 +159,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
 
       {/* Chip de streak : positionnée en % → suit l'échelle du conteneur */}
       <div className="pointer-events-none absolute inset-x-0 top-[64%] flex justify-center">
-        <span className="pill inline-flex max-w-full items-center gap-1 border border-green/30 bg-green/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-green">
+        <span className="pill inline-flex max-w-full items-center gap-1 border border-success/30 bg-success/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-success">
           <IconFlame className="h-3 w-3 shrink-0" /> {streak} j
         </span>
       </div>

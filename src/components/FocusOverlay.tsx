@@ -28,7 +28,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
   const totalSec = session.plannedMin * 60;
   const progress = totalSec > 0 ? 1 - remainingSec / totalSec : 0;
   const isBreak = session.kind === "break";
-  const accent = isBreak ? "var(--color-green)" : "var(--color-blue)";
+  const accent = isBreak ? "var(--color-success)" : "var(--color-blue)";
 
   if (!overlayOpen) {
     return (
@@ -101,7 +101,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
           onClick={paused ? resume : pause}
           className={`pill inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-semibold ${
             paused
-              ? "border-green/40 bg-green/10 text-green hover:bg-green/20"
+              ? "border-success/40 bg-success/10 text-success hover:bg-success/20"
               : "border-yellow/40 bg-yellow/10 text-yellow hover:bg-yellow/20"
           }`}
         >

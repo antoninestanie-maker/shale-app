@@ -31,7 +31,7 @@ function WinrateGauge({ stats }: { stats: TradeStats }) {
   const R = 22;
   const CIRC = 2 * Math.PI * R;
   const color =
-    stats.winrate === null ? "var(--color-text-dim)" : pct >= 50 ? "var(--color-green)" : "var(--color-red)";
+    stats.winrate === null ? "var(--color-text-dim)" : pct >= 50 ? "var(--color-success)" : "var(--color-red)";
   return (
     <div className="relative h-14 w-14 shrink-0">
       <svg viewBox="0 0 56 56" className="h-full w-full -rotate-90">
@@ -59,7 +59,7 @@ function WinrateGauge({ stats }: { stats: TradeStats }) {
 function CountPills({ stats }: { stats: TradeStats }) {
   const items = [
     { n: stats.count, color: "var(--color-blue)", title: t("trades") },
-    { n: stats.wins, color: "var(--color-green)", title: t("gagnants") },
+    { n: stats.wins, color: "var(--color-success)", title: t("gagnants") },
     { n: stats.be, color: "var(--color-yellow)", title: "break-even" },
     { n: stats.losses, color: "var(--color-red)", title: t("perdants") },
   ];
@@ -263,7 +263,7 @@ export default function TradingView({ data, refresh }: Props) {
                     stats.count === 0
                       ? "text-text-dim"
                       : stats.totalR >= 0
-                        ? "text-green"
+                        ? "text-success"
                         : "text-red"
                   }`}
                 >
@@ -286,7 +286,7 @@ export default function TradingView({ data, refresh }: Props) {
                     stats.profitFactor == null
                       ? ""
                       : stats.profitFactor >= 1
-                        ? "font-semibold text-green"
+                        ? "font-semibold text-success"
                         : "font-semibold text-red"
                   }
                 >
@@ -401,7 +401,7 @@ export default function TradingView({ data, refresh }: Props) {
                           <>
                             <span
                               className={`block font-mono text-xs font-semibold ${
-                                s.totalR >= 0 ? "text-green" : "text-red"
+                                s.totalR >= 0 ? "text-success" : "text-red"
                               }`}
                             >
                               {fmtR(s.totalR)}
@@ -416,7 +416,7 @@ export default function TradingView({ data, refresh }: Props) {
                     <td className="border-l border-border py-2 pl-3 text-right">
                       <span
                         className={`block font-mono text-xs font-bold ${
-                          total.totalR >= 0 ? "text-green" : "text-red"
+                          total.totalR >= 0 ? "text-success" : "text-red"
                         }`}
                       >
                         {fmtR(total.totalR)}
@@ -462,7 +462,7 @@ export default function TradingView({ data, refresh }: Props) {
                   </span>
                   <span
                     className={`w-14 shrink-0 text-right font-mono text-xs font-semibold ${
-                      stats.totalR >= 0 ? "text-green" : "text-red"
+                      stats.totalR >= 0 ? "text-success" : "text-red"
                     }`}
                   >
                     {fmtR(stats.totalR)}
@@ -470,7 +470,7 @@ export default function TradingView({ data, refresh }: Props) {
                 </div>
                 <div className="pill mt-1.5 h-1.5 overflow-hidden bg-surface-2">
                   <div
-                    className="pill h-full bg-green transition-[width] duration-500"
+                    className="pill h-full bg-success transition-[width] duration-500"
                     style={{ width: `${stats.winrate ?? 0}%` }}
                   />
                 </div>
@@ -515,7 +515,7 @@ export default function TradingView({ data, refresh }: Props) {
                 <span
                   className={`pill w-14 shrink-0 border px-2 py-0.5 text-center text-[10px] font-bold uppercase ${
                     trade.direction === "long"
-                      ? "border-green/40 text-green"
+                      ? "border-success/40 text-success"
                       : "border-red/40 text-red"
                   }`}
                 >
@@ -535,7 +535,7 @@ export default function TradingView({ data, refresh }: Props) {
                 <span
                   className={`w-16 shrink-0 font-mono text-sm font-bold ${
                     outcome === "win"
-                      ? "text-green"
+                      ? "text-success"
                       : outcome === "loss"
                         ? "text-red"
                         : "text-text-dim"

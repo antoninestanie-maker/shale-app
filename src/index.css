@@ -45,7 +45,17 @@
   /* Le bleu de Shazam, exact : texte, icônes, focus, états actifs. Il ne porte
      PAS de texte blanc (3,5:1) — c'est le rôle de `--color-blue-solid`. */
   --color-blue: #0088ff;
-  --color-green: #10d9a0;
+  /* Encre (2026-09-23) : le « réussi » n'a pas de couleur, il prend celle du
+     texte — case cochée, gain, habitude tenue, jauge terminée, en direct.
+     Seuls le bleu (agir) et les alertes (ambre, rouge) restent colorés. */
+  --color-success: #f4f6fa;
+  /* Les grandes surfaces du réussi (barres de graphique) : une encre adoucie,
+     sinon le blanc pur écrase la barre bleue « aujourd'hui ». */
+  --color-success-fill: #c7ccd6;
+  /* Le vert n'est plus un signal : c'est une couleur qu'on CHOISIT (étiquette,
+     habitude, événement, texte de note, type, branche de carte). Les données
+     enregistrent `var(--color-green)` ou `green` — le token doit rester. */
+  --color-green: #4ade80;
   --color-red: #ff4d5e;
   --color-yellow: #ffc23a;
   --color-violet: #9a8cff;
@@ -56,8 +66,8 @@
   --color-overlay: rgb(160 170 190 / 0.06);
   --color-overlay-2: rgb(160 170 190 / 0.12);
 
-  /* Texte posé sur un aplat vert (bouton plein) */
-  --color-on-green: #03130d;
+  /* Texte posé sur un aplat d'encre (bouton « Lancer », case cochée) */
+  --color-on-success: #07080b;
   /* Le même bleu, un cran plus profond : le seul qui PORTE du blanc (4,6:1).
      Pastille sélectionnée, compteur, numéro du jour — tout aplat bleu écrit. */
   --color-blue-solid: #0070f0;
@@ -161,7 +171,9 @@
   --color-text: #0a0c12;
   --color-text-dim: #5a6272;
   --color-blue: #0060dc;
-  --color-green: #00764f;
+  --color-success: #0a0c12;
+  --color-success-fill: #323741;
+  --color-green: #287845;
   --color-red: #c8122b;
   --color-yellow: #8f5300;
   --color-violet: #4b40e0;
@@ -169,7 +181,7 @@
   --color-border-strong: rgb(10 12 18 / 0.16);
   --color-overlay: rgb(10 12 18 / 0.045);
   --color-overlay-2: rgb(10 12 18 / 0.085);
-  --color-on-green: #ffffff;
+  --color-on-success: #ffffff;
   --color-blue-solid: #0070f0;
   --color-on-blue: #ffffff;
 
@@ -219,7 +231,9 @@
     --color-text: #0a0c12;
     --color-text-dim: #5a6272;
     --color-blue: #0060dc;
-    --color-green: #00764f;
+    --color-success: #0a0c12;
+    --color-success-fill: #323741;
+    --color-green: #287845;
     --color-red: #c8122b;
     --color-yellow: #8f5300;
     --color-violet: #4b40e0;
@@ -227,7 +241,7 @@
     --color-border-strong: rgb(10 12 18 / 0.16);
     --color-overlay: rgb(10 12 18 / 0.045);
     --color-overlay-2: rgb(10 12 18 / 0.085);
-    --color-on-green: #ffffff;
+    --color-on-success: #ffffff;
     --color-blue-solid: #0070f0;
     --color-on-blue: #ffffff;
 
@@ -1079,8 +1093,8 @@
     text-decoration: line-through;
   }
   .note-rich ul.cl > li[data-checked="true"]::before {
-    border-color: var(--color-green);
-    background: var(--color-green);
+    border-color: var(--color-success);
+    background: var(--color-success);
   }
   /* La coche : un chevron dessiné en CSS, net à toutes les densités. */
   .note-rich ul.cl > li[data-checked="true"]::after {
@@ -1090,7 +1104,7 @@
     top: 0.48em;
     width: 4px;
     height: 8px;
-    border: solid var(--color-on-green);
+    border: solid var(--color-on-success);
     border-width: 0 2px 2px 0;
     transform: rotate(42deg);
   }

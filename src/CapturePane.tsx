@@ -70,7 +70,7 @@ export default function CapturePane() {
           }}
         >
           <div className="flex items-center gap-3">
-            <span className="animate-pulse-dot h-2 w-2 shrink-0 rounded-full bg-green" />
+            <span className="animate-pulse-dot h-2 w-2 shrink-0 rounded-full bg-success" />
             <input
               ref={inputRef}
               value={draft}

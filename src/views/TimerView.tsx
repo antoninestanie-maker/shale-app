@@ -82,7 +82,7 @@ export default function TimerView({ data, focus }: Props) {
 
   const totalSec = session ? session.plannedMin * 60 : 0;
   const progress = session && totalSec > 0 ? 1 - remainingSec / totalSec : 0;
-  const accent = session?.kind === "break" ? "var(--color-green)" : "var(--color-blue)";
+  const accent = session?.kind === "break" ? "var(--color-success)" : "var(--color-blue)";
 
   return (
     <div className="mx-auto max-w-5xl p-8">
@@ -150,7 +150,7 @@ export default function TimerView({ data, focus }: Props) {
                   }
                   className={`pill inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-semibold ${
                     paused
-                      ? "border-green/40 bg-green/10 text-green"
+                      ? "border-success/40 bg-success/10 text-success"
                       : "border-yellow/40 bg-yellow/10 text-yellow"
                   }`}
                 >
@@ -213,7 +213,7 @@ export default function TimerView({ data, focus }: Props) {
                     <span
                       className={`pill w-14 shrink-0 border px-2 py-0.5 text-center text-[10px] font-semibold uppercase ${
                         s.kind === "break"
-                          ? "border-green/40 text-green"
+                          ? "border-success/40 text-success"
                           : "border-blue/40 text-blue"
                       }`}
                     >
@@ -273,7 +273,7 @@ export default function TimerView({ data, focus }: Props) {
             <div className="pill mt-2 h-2 overflow-hidden bg-surface-2">
               <div
                 className={`pill h-full transition-[width] duration-500 ${
-                  stats.todayMin >= goalMin ? "bg-green" : "bg-[image:var(--gradient-brand)]"
+                  stats.todayMin >= goalMin ? "bg-success" : "bg-[image:var(--gradient-brand)]"
                 }`}
                 style={{
                   width: `${Math.min((stats.todayMin / goalMin) * 100, 100)}%`,
@@ -288,12 +288,12 @@ export default function TimerView({ data, focus }: Props) {
           <div className="auto-tiles panel-stretch gap-3">
             {[
               { label: t("cette semaine"), value: fmtMin(stats.weekMin), accent: "text-text" },
-              { label: t("cycles du jour"), value: String(stats.cycles), accent: "text-green" },
+              { label: t("cycles du jour"), value: String(stats.cycles), accent: "text-success" },
               { label: t("moyenne / jour"), value: fmtMin(stats.avg7), accent: "text-text" },
               {
                 label: t("objectif atteint"),
                 value: stats.todayMin >= goalMin ? t("oui") : `${Math.round((stats.todayMin / goalMin) * 100)}%`,
-                accent: stats.todayMin >= goalMin ? "text-green" : "text-text-dim",
+                accent: stats.todayMin >= goalMin ? "text-success" : "text-text-dim",
               },
             ].map((tile) => (
               <div key={tile.label} className="card p-4">

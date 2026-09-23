@@ -93,7 +93,7 @@ export default function DemarrageFinance({
           >
             <span
               className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                e.fait ? "text-green" : "bg-overlay-2 text-text-dim"
+                e.fait ? "text-success" : "bg-overlay-2 text-text-dim"
               }`}
             >
               {e.fait ? <IconCheckCircle className="h-5 w-5" /> : i + 1}

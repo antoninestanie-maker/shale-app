@@ -30,7 +30,7 @@ const DEMO_USERS: Row[] = [
 ];
 
 const statusMeta = (): Record<Status, { label: string; color: string }> => ({
-  active: { label: "Actif", color: "var(--color-green)" },
+  active: { label: "Actif", color: "var(--color-success)" },
   trialing: { label: "Essai", color: "var(--color-blue)" },
   past_due: { label: t("Impayé"), color: "var(--color-red)" },
   canceled: { label: t("Résilié"), color: "var(--color-text-dim)" },
@@ -111,7 +111,7 @@ export default function ConsoleView() {
           <h1 className="mt-1 text-3xl text-text">Console</h1>
         </div>
         <span className="pill inline-flex items-center gap-2 border border-border bg-surface-2 px-3 py-1 text-[12px] text-text-dim">
-          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-green" />
+          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-success" />
           {session?.user.email}
         </span>
       </div>
@@ -123,7 +123,7 @@ export default function ConsoleView() {
             <p className="hud-label">{t(k.label)}</p>
             <div className="mt-2 flex items-end justify-between gap-2">
               <span className="text-2xl font-bold tabular-nums text-text">{k.value}</span>
-              <span className="text-[12px] font-semibold text-green">{k.delta}</span>
+              <span className="text-[12px] font-semibold text-success">{k.delta}</span>
             </div>
           </div>
         ))}
@@ -133,7 +133,7 @@ export default function ConsoleView() {
       <div className="mt-3 card p-5">
         <div className="flex items-center justify-between">
           <p className="hud-label">{t("inscriptions · 30 j")}</p>
-          <span className="text-sm font-semibold text-green">+619</span>
+          <span className="text-sm font-semibold text-success">+619</span>
         </div>
         <div className="mt-3">
           <Sparkline />

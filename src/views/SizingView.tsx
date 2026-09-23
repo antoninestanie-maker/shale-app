@@ -359,7 +359,7 @@ export default function SizingView({
                           className={`pill flex-1 border px-3 py-2 text-xs font-semibold uppercase transition-colors ${
                             direction === d
                               ? d === "long"
-                                ? "border-green/50 bg-green/15 text-green"
+                                ? "border-success/50 bg-success/15 text-success"
                                 : "border-red/50 bg-red/15 text-red"
                               : "border-border text-text-dim hover:text-text"
                           }`}
@@ -501,7 +501,7 @@ export default function SizingView({
                         {rr != null && (
                           <div className="pill bg-surface-2 px-3 py-2.5">
                             <p className="hud-label">{t("gain potentiel")}</p>
-                            <p className="mt-0.5 font-mono text-sm font-semibold text-green">
+                            <p className="mt-0.5 font-mono text-sm font-semibold text-success">
                               +{fmtMoney(result.actualRiskUSD * rr, usd)}
                             </p>
                           </div>
@@ -705,7 +705,7 @@ function SettingsPanel({
           {t("Enregistrer les réglages")}
         </button>
         {saved && (
-          <span className="inline-flex items-center gap-1 text-xs text-green"><IconCheck className="h-3 w-3" /> {t("réglages enregistrés")}</span>
+          <span className="inline-flex items-center gap-1 text-xs text-success"><IconCheck className="h-3 w-3" /> {t("réglages enregistrés")}</span>
         )}
       </div>
     </div>

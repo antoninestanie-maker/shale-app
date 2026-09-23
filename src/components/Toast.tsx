@@ -31,10 +31,10 @@ export default function Toast({
   if (!toast) return null;
   const tone =
     toast.tone === "win"
-      ? "text-green"
+      ? "text-success"
       : toast.tone === "loss"
         ? "text-red"
-        : "text-green";
+        : "text-success";
   return (
     <div className="animate-fade-up fixed bottom-6 right-6 z-[90]">
       <div className="card flex items-center gap-3 bg-surface py-3 pl-4 pr-3">

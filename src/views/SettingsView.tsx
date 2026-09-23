@@ -501,7 +501,7 @@ export default function SettingsView() {
                   className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim"
                 />
                 {pwMsg && (
-                  <p className={`text-xs ${pwMsg.ok ? "text-green" : "text-red"}`}>{pwMsg.text}</p>
+                  <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-red"}`}>{pwMsg.text}</p>
                 )}
                 <div className="flex gap-2">
                   <button
@@ -1016,7 +1016,7 @@ export default function SettingsView() {
         <p className="mt-2 text-sm text-text-dim">
           {t("Le bouton")} <span className="font-semibold text-blue">{t("Trader")}</span>{" "}
           {t("(vue Position) envoie instantanément la position vers le tracker de la vue Trading : heure d'entrée, paire, prix, SL/TP et R:R sont capturés automatiquement. Il ne reste qu'à cliquer")}{" "}
-          <span className="font-semibold text-green">{t("Gagnante")}</span> {t("ou")}{" "}
+          <span className="font-semibold text-success">{t("Gagnante")}</span> {t("ou")}{" "}
           <span className="font-semibold text-red">{t("Perdante")}</span> {t("au dénouement.")}
         </p>
         <div className="mt-3 flex flex-col gap-1">
@@ -1073,7 +1073,7 @@ export default function SettingsView() {
               {t("Disponible dans l'app native.")}
             </span>
           )}
-          {backupMsg && <span className="text-xs text-green">{backupMsg}</span>}
+          {backupMsg && <span className="text-xs text-success">{backupMsg}</span>}
         </div>
 
         {/* ⭐ REJOUER L'ACCUEIL — « rejouable depuis les Réglages, SANS MISE EN

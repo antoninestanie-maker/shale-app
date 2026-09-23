@@ -56,7 +56,7 @@ export default function WeekChart({ stats }: { stats: DayStat[] }) {
         <YAxis hide domain={[0, 100]} />
         <Bar dataKey="pct" radius={[5, 5, 5, 5]} maxBarSize={26} background={{ fill: "var(--color-overlay)", radius: 5 }}>
           {data.map((d, i) => (
-            <Cell key={i} fill={d.isToday ? "var(--color-blue)" : "var(--color-green)"} />
+            <Cell key={i} fill={d.isToday ? "var(--color-blue)" : "var(--color-success-fill)"} />
           ))}
         </Bar>
       </BarChart>

@@ -173,7 +173,7 @@ function ValeurRunway({ runway }: { runway: Runway }) {
     case "epuise":
       return <span className="text-red">{t("Épuisé")}</span>;
     case "infini":
-      return <span className="text-green">∞</span>;
+      return <span className="text-success">∞</span>;
     case "sans-burn":
       return <span className="text-sm font-normal text-text-dim">{t("Aucune charge déclarée")}</span>;
     default:
@@ -206,7 +206,7 @@ function BlocEncours({
 
       {encours.totalCents === 0 ? (
         <p className="mt-1 flex items-center gap-1.5 text-[11px] text-text-dim">
-          <IconCheckCircle className="h-3 w-3 shrink-0 text-green" />
+          <IconCheckCircle className="h-3 w-3 shrink-0 text-success" />
           {sens === "client" ? t("Rien en attente de règlement.") : t("Rien à régler.")}
         </p>
       ) : (

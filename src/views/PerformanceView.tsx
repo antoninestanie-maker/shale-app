@@ -181,10 +181,10 @@ export default function PerformanceView({ data, refresh }: Props) {
 
   const heatColor = (pct: number | null): string => {
     if (pct === null) return "var(--color-overlay)";
-    if (pct >= 100) return "var(--color-green)";
-    if (pct >= 80) return "color-mix(in srgb, var(--color-green) 65%, transparent)";
-    if (pct >= 50) return "color-mix(in srgb, var(--color-green) 35%, transparent)";
-    if (pct > 0) return "color-mix(in srgb, var(--color-green) 15%, transparent)";
+    if (pct >= 100) return "var(--color-success-fill)";
+    if (pct >= 80) return "color-mix(in srgb, var(--color-success-fill) 65%, transparent)";
+    if (pct >= 50) return "color-mix(in srgb, var(--color-success-fill) 35%, transparent)";
+    if (pct > 0) return "color-mix(in srgb, var(--color-success-fill) 15%, transparent)";
     return "color-mix(in srgb, var(--color-red) 18%, transparent)";
   };
 
@@ -228,7 +228,7 @@ export default function PerformanceView({ data, refresh }: Props) {
       <ResizablePanel id="perf-tiles" defaultW={12}>
       <div className="auto-tiles panel-stretch gap-4">
         {[
-          { label: t("Streak actuel"), value: `${derived.current} j`, accent: "text-green" },
+          { label: t("Streak actuel"), value: `${derived.current} j`, accent: "text-success" },
           { label: t("Record"), value: `${derived.best} j`, accent: "text-blue" },
           { label: t("Moyenne 30 jours"), value: `${derived.avg30}%`, accent: "text-text" },
           { label: t("Focus aujourd'hui"), value: fmtMinutes(focusStats.todayMin), accent: "text-blue" },
@@ -298,7 +298,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               />
               <Bar dataKey="pct" radius={[4, 4, 4, 4]} maxBarSize={22}>
                 {derived.bars.map((d, i) => (
-                  <Cell key={i} fill={d.isCurrent ? "var(--color-blue)" : "var(--color-green)"} />
+                  <Cell key={i} fill={d.isCurrent ? "var(--color-blue)" : "var(--color-success-fill)"} />
                 ))}
               </Bar>
             </BarChart>
@@ -326,7 +326,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                   </span>
                   <div className="pill h-2 flex-1 overflow-hidden bg-surface-2">
                     <div
-                      className="pill h-full bg-green"
+                      className="pill h-full bg-success"
                       style={{
                         width: `${Math.min((run.length / Math.max(derived.best, 1)) * 100, 100)}%`,
                       }}
@@ -709,7 +709,7 @@ function MetricCard({
       <div className="mt-2 h-12">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={last14} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-            <Bar dataKey="value" radius={[2, 2, 2, 2]} fill="var(--color-green)" maxBarSize={10} />
+            <Bar dataKey="value" radius={[2, 2, 2, 2]} fill="var(--color-success-fill)" maxBarSize={10} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -191,7 +191,7 @@ export default function TradeModal({
                     className={`pill flex-1 border px-3 py-1.5 text-xs font-semibold uppercase transition-colors ${
                       direction === d
                         ? d === "long"
-                          ? "border-green/50 bg-green/15 text-green"
+                          ? "border-success/50 bg-success/15 text-success"
                           : "border-red/50 bg-red/15 text-red"
                         : "border-border text-text-dim hover:text-text"
                     }`}

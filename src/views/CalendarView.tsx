@@ -905,7 +905,7 @@ function couleurEntree(e: EntreeAgenda): string {
   if (e.enRetard) return "var(--color-red)";
   if (e.kind === "event") return `var(--color-${e.color ?? "blue"})`;
   if (e.kind === "recurrence") return "var(--color-text-dim)";
-  return "var(--color-green)";
+  return "var(--color-success)";
 }
 
 // ─── Les créneaux proposés ───────────────────────────────────────────────────
@@ -941,8 +941,8 @@ function CreneauxProposes({
                 key={c.debut}
                 className="pill border px-3 py-1.5 text-sm tabular-nums"
                 style={{
-                  borderColor: "color-mix(in srgb, var(--color-green) 40%, transparent)",
-                  color: "var(--color-green)",
+                  borderColor: "color-mix(in srgb, var(--color-success) 40%, transparent)",
+                  color: "var(--color-success)",
                 }}
               >
                 {c.debut} – {c.fin}

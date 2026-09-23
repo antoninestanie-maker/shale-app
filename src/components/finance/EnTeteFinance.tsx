@@ -19,11 +19,11 @@ const bref = (cents: number, devise: string) =>
 /** Teinte du runway : sous trois mois, ça se voit. */
 function teinteRunway(r: Runway): string {
   if (r.etat === "epuise") return "text-red";
-  if (r.etat === "infini") return "text-green";
+  if (r.etat === "infini") return "text-success";
   if (r.etat !== "ok" || r.mois === null) return "text-text-dim";
   if (r.mois < 3) return "text-red";
   if (r.mois < 6) return "text-yellow";
-  return "text-green";
+  return "text-success";
 }
 
 /**
@@ -122,7 +122,7 @@ export default function EnTeteFinance({
           </p>
           <p
             className={`mt-1 font-display text-2xl font-semibold ${
-              epargne ? "text-green" : "text-text"
+              epargne ? "text-success" : "text-text"
             }`}
           >
             <Montant

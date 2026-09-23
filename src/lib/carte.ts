@@ -822,7 +822,7 @@ export const PALETTE_EXPORT = {
   blue: "#0060dc",
   violet: "#4b40e0",
   yellow: "#8f5300",
-  green: "#00764f",
+  green: "#287845",
 } as const;
 
 export interface OptionsRendu {

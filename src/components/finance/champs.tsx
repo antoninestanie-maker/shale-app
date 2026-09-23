@@ -107,7 +107,7 @@ export function Montant({
 }) {
   if (cents === null)
     return <span className={`font-mono text-text-dim ${className}`}>{t("—")}</span>;
-  const teinte = !colore || cents === 0 ? "" : cents > 0 ? "text-green" : "text-red";
+  const teinte = !colore || cents === 0 ? "" : cents > 0 ? "text-success" : "text-red";
   return (
     <span className={`font-mono tabular-nums ${teinte} ${className}`}>
       {formaterCents(cents, devise, localeTag(), { sansDecimales, signeExplicite: signe })}

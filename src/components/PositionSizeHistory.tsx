@@ -81,7 +81,7 @@ export default function PositionSizeHistory({
                   <span
                     className={`pill border px-2 py-0.5 text-[10px] font-bold uppercase ${
                       c.direction === "long"
-                        ? "border-green/40 text-green"
+                        ? "border-success/40 text-success"
                         : "border-red/40 text-red"
                     }`}
                   >

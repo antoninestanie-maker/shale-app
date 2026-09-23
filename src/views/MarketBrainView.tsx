@@ -42,7 +42,7 @@ const OUT_BIAS: Record<
   OutBias,
   { Icon: ComponentType<SVGProps<SVGSVGElement>>; cls: string; chip: string }
 > = {
-  haussier: { Icon: IconTrendUp, cls: "text-green", chip: "border-green/25 bg-green/10 text-green" },
+  haussier: { Icon: IconTrendUp, cls: "text-success", chip: "border-success/25 bg-success/10 text-success" },
   baissier: { Icon: IconTrendDown, cls: "text-red", chip: "border-red/25 bg-red/10 text-red" },
   neutre: { Icon: IconDash, cls: "text-text-dim", chip: "border-border bg-surface-2 text-text-dim" },
 };
@@ -71,7 +71,7 @@ function ConvictionDots({ level, tone }: { level: Conviction; tone: string }) {
 }
 
 function dotTone(bias: OutBias): string {
-  return bias === "haussier" ? "bg-green" : bias === "baissier" ? "bg-red" : "bg-text-dim";
+  return bias === "haussier" ? "bg-success" : bias === "baissier" ? "bg-red" : "bg-text-dim";
 }
 
 /** Rangée "en un coup d'œil" : le biais des 5 instruments, lisible en 2 s. */

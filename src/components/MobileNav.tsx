@@ -148,7 +148,7 @@ export default function MobileNav({
         <span className="relative grid size-6 place-items-center [&>svg]:size-6">
           {id === "plus" ? iconePlus : item?.icon}
           {id === "plus" && !plusOuvert && (badges.market || badges.trading) && (
-            <span className="bg-green absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
+            <span className="bg-blue absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
           )}
         </span>
         <span className="w-full truncate text-[11px] font-semibold leading-none">
@@ -177,7 +177,7 @@ export default function MobileNav({
           {dansLeCatalogue(id)?.icon}
         </span>
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{libelle(id)}</span>
-        {badgeDe(id) && <span className="bg-green size-2 shrink-0 rounded-full" />}
+        {badgeDe(id) && <span className="bg-blue size-2 shrink-0 rounded-full" />}
         {verrou && <span className="shrink-0">{cadenas}</span>}
       </button>
     );

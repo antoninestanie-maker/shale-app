@@ -390,7 +390,7 @@ function EtiquetteEtat({ facture, etat }: { facture: Invoice; etat: EtatFacture 
 
   if (etat.statut === "encaissee")
     return (
-      <Puce teinte="text-green">
+      <Puce teinte="text-success">
         <IconCheckCircle className="h-3 w-3" />
         {achat ? t("Payée") : t("Encaissée")}
       </Puce>

@@ -285,7 +285,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   data-tip-sub={energy === v ? t("Cliquer à nouveau pour effacer.") : undefined}
                   className={`flex h-9 w-9 items-center justify-center rounded-[10px] border font-mono text-sm transition-all ${
                     energy !== null && v <= energy
-                      ? "border-green/50 bg-green/15 text-green"
+                      ? "border-success/50 bg-success/15 text-success"
                       : "border-border text-text-dim hover:text-text"
                   }`}
                 >
@@ -364,7 +364,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                       ? "transparent"
                       : cell.ratio === 0
                         ? "var(--color-overlay)"
-                        : `color-mix(in srgb, var(--color-green) ${Math.round(25 + cell.ratio * 75)}%, transparent)`,
+                        : `color-mix(in srgb, var(--color-success-fill) ${Math.round(25 + cell.ratio * 75)}%, transparent)`,
                   }}
                 />
               ))}

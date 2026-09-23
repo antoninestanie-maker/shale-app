@@ -362,7 +362,7 @@ export default function AdminView({ config, save, profil }: Props) {
             {config.window
               ? t("Appliquée à chaque lancement : {w} × {h}.", { w: config.window.width, h: config.window.height })
               : t("Aucune taille imposée au lancement (la fenêtre garde sa taille).")}
-            {sizeMsg && <span className="ml-2 text-green">{sizeMsg}</span>}
+            {sizeMsg && <span className="ml-2 text-success">{sizeMsg}</span>}
           </p>
           </>
         )}

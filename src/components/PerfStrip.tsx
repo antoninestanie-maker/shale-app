@@ -65,7 +65,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
       <div className="card flex min-w-0 items-center gap-3 p-4">
         <IconFlame className="h-6 w-6 shrink-0 text-yellow" />
         <div className="min-w-0">
-          <p className="font-display text-2xl font-extrabold leading-none text-green">
+          <p className="font-display text-2xl font-extrabold leading-none text-success">
             {streak} j
           </p>
           {/* Seule étiquette du bandeau restée en anglais et hors `t()` dans
@@ -89,8 +89,8 @@ export default function PerfStrip({ data, week, streak }: Props) {
                   i === week.length - 1
                     ? "var(--color-blue)"
                     : (d.pct ?? 0) >= 80
-                      ? "var(--color-green)"
-                      : "color-mix(in srgb, var(--color-green) 35%, transparent)",
+                      ? "var(--color-success-fill)"
+                      : "color-mix(in srgb, var(--color-success-fill) 35%, transparent)",
               }}
             />
           ))}
@@ -136,7 +136,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
       <div className="card flex min-w-0 flex-col justify-center p-4">
         <p
           className={`font-display text-2xl font-extrabold leading-none ${
-            ts.totalR >= 0 ? "text-green" : "text-red"
+            ts.totalR >= 0 ? "text-success" : "text-red"
           }`}
         >
           {ts.count === 0 ? "—" : fmtR(ts.totalR)}

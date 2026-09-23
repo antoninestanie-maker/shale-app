@@ -81,7 +81,7 @@ export default function CourbePatrimoine({
             {t("total")}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-green" />
+            <span className="h-2 w-2 rounded-full bg-text" />
             {t("liquide")}
           </span>
         </div>
@@ -164,10 +164,10 @@ export default function CourbePatrimoine({
               <Area
                 type="monotone"
                 dataKey="liquide"
-                stroke="var(--color-green)"
+                stroke="var(--color-text)"
                 strokeWidth={2}
                 fill="transparent"
-                activeDot={{ r: 4, fill: "var(--color-green)" }}
+                activeDot={{ r: 4, fill: "var(--color-text)" }}
               />
             </ComposedChart>
           </ResponsiveContainer>

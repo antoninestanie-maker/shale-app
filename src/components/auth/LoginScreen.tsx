@@ -175,7 +175,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
             </div>
           )}
           {notice && (
-            <div className="mb-4 rounded-[12px] border border-green/40 bg-green/10 px-3 py-2.5 text-sm text-text">
+            <div className="mb-4 rounded-[12px] border border-success/40 bg-success/10 px-3 py-2.5 text-sm text-text">
               {notice}
             </div>
           )}

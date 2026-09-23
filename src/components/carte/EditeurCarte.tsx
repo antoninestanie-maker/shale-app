@@ -933,7 +933,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           <h3 className="min-w-0 flex-1 basis-40 truncate font-display text-lg font-bold text-text">
             {titre || t("Carte mentale")}
           </h3>
-          {message && <span className="text-xs text-green">{message}</span>}
+          {message && <span className="text-xs text-success">{message}</span>}
           {lecture && (
             /* ⭐ Dit ce que l'écran EST, avant qu'on cherche pourquoi on ne peut
                pas y écrire. Un écran silencieux sur sa propre nature se lit

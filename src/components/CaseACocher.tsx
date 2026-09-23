@@ -41,7 +41,7 @@ export function CocheVisuelle({
         cochee
           ? couleur
             ? "border-transparent"
-            : "border-green bg-green"
+            : "border-success bg-success"
           : "border-text-dim/40 group-hover:border-text-dim"
       }`}
       style={cochee && couleur ? { backgroundColor: couleur } : undefined}

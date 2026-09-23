@@ -135,5 +135,5 @@ function couleur(e: EntreeAgenda): string {
   if (e.enRetard) return "var(--color-red)";
   if (e.kind === "event") return `var(--color-${e.color ?? "blue"})`;
   if (e.kind === "recurrence") return "var(--color-text-dim)";
-  return "var(--color-green)";
+  return "var(--color-success)";
 }

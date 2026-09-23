@@ -51,7 +51,7 @@ export default function TimerCard({ data, focus }: Props) {
         <h2 className="hud-label">timer</h2>
         <span className="flex items-center gap-1" data-tip={t("cycles aujourd'hui")}>
           {Array.from({ length: Math.min(cyclesToday, 8) }).map((_, i) => (
-            <span key={i} className="h-1.5 w-1.5 rounded-full bg-green" />
+            <span key={i} className="h-1.5 w-1.5 rounded-full bg-success" />
           ))}
         </span>
       </div>
@@ -78,7 +78,7 @@ export default function TimerCard({ data, focus }: Props) {
               data-tip={paused ? t("Reprendre") : t("Mettre en pause")}
               className={`pill inline-flex h-9 w-9 items-center justify-center border ${
                 paused
-                  ? "border-green/40 bg-green/10 text-green"
+                  ? "border-success/40 bg-success/10 text-success"
                   : "border-yellow/40 bg-yellow/10 text-yellow"
               }`}
             >
@@ -127,7 +127,7 @@ export default function TimerCard({ data, focus }: Props) {
             onClick={launch}
             data-tip={t("Lancer la session")}
             data-tip-sub={t("Démarre le compte à rebours de concentration.")}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] bg-green py-2.5 font-display text-sm font-bold uppercase tracking-wide text-on-green transition-opacity hover:opacity-90"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] bg-success py-2.5 font-display text-sm font-bold uppercase tracking-wide text-on-success transition-opacity hover:opacity-90"
           >
             <IconPlay className="h-4 w-4" /> {t("Lancer {n} min", { n: preset.work })}
           </button>

@@ -136,7 +136,7 @@ export default function ApercuFacture({
         </p>
 
         {enregistre && (
-          <p className="truncate text-[11px] text-green" title={enregistre}>
+          <p className="truncate text-[11px] text-success" title={enregistre}>
             {t("Enregistré :")} {enregistre}
           </p>
         )}

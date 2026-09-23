@@ -499,8 +499,8 @@ function ColonneJour({
             style={{
               top: haut(d),
               height: ((f - d) / 60) * PX_PAR_HEURE,
-              borderColor: "var(--color-green)",
-              backgroundColor: "color-mix(in srgb, var(--color-green) 8%, transparent)",
+              borderColor: "var(--color-success)",
+              backgroundColor: "color-mix(in srgb, var(--color-success) 8%, transparent)",
             }}
           />
         );
@@ -600,5 +600,5 @@ function bordDe(e: EntreeAgenda): string {
   if (e.enRetard) return "var(--color-red)";
   if (e.kind === "event") return `var(--color-${e.color ?? "blue"})`;
   if (e.kind === "recurrence") return "var(--color-text-dim)";
-  return "var(--color-green)";
+  return "var(--color-success)";
 }

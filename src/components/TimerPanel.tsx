@@ -31,7 +31,7 @@ function Switch({
         data-tip={label}
         data-tip-sub={hint ?? (checked ? t("Activé") : t("Désactivé"))}
         className={`pill h-4 w-7 shrink-0 border transition-colors ${
-          checked ? "border-green/50 bg-green/30" : "border-border bg-surface-2"
+          checked ? "border-blue/50 bg-blue/30" : "border-border bg-surface-2"
         }`}
       >
         <span
@@ -157,7 +157,7 @@ export default function TimerPanel({ data, focus }: Props) {
               onClick={paused ? focus.resume : focus.pause}
               className={`pill inline-flex items-center gap-1.5 border px-4 py-2 text-xs font-semibold ${
                 paused
-                  ? "border-green/40 bg-green/10 text-green"
+                  ? "border-success/40 bg-success/10 text-success"
                   : "border-yellow/40 bg-yellow/10 text-yellow"
               }`}
             >
@@ -336,7 +336,7 @@ export default function TimerPanel({ data, focus }: Props) {
             onClick={launch}
             data-tip={t("Lancer la session")}
             data-tip-sub={t("Démarre le compte à rebours de concentration.")}
-            className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-green py-3 font-display text-sm font-bold uppercase tracking-wide text-on-green hover:opacity-90"
+            className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-success py-3 font-display text-sm font-bold uppercase tracking-wide text-on-success hover:opacity-90"
           >
             <IconPlay className="h-4 w-4" /> {t("Lancer {n} min", { n: workMin })}
           </button>
@@ -353,7 +353,7 @@ export default function TimerPanel({ data, focus }: Props) {
               Array.from({ length: Math.min(cyclesToday, 10) }).map((_, i) => (
                 <span
                   key={i}
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-green"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-success"
                 />
               ))
             )}

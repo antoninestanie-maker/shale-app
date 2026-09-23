@@ -97,8 +97,8 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
       anime: true,
     },
     aJour: {
-      classe: "border-green/30 bg-green/10 text-green",
-      pastille: "bg-green",
+      classe: "border-success/30 bg-success/10 text-success",
+      pastille: "bg-success",
       libelle: t("synchronisé"),
       bulle: sync.dernierSucces
         ? t("Dernier échange {when}.", { when: formatWhen(sync.dernierSucces) })

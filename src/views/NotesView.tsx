@@ -388,7 +388,7 @@ export default function NotesView({ data, refresh }: Props) {
                       key={`b${n.id}`}
                       type="button"
                       onClick={() => setSelectedId(n.id)}
-                      className="pill border border-green/40 bg-green/10 px-2.5 py-1 text-[11px] font-medium text-green hover:bg-green/20"
+                      className="pill border border-success/40 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success hover:bg-success/20"
                     >
                       ← {n.title}
                     </button>

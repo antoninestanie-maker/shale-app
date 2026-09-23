@@ -268,7 +268,7 @@ export default function GoalsView({ data, refresh }: Props) {
               <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
                 {pct != null && (
                   <div
-                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-green" : "bg-[image:var(--gradient-brand)]"}`}
+                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-success" : "bg-[image:var(--gradient-brand)]"}`}
                     style={{ width: `${Math.min(pct, 100)}%` }}
                   />
                 )}

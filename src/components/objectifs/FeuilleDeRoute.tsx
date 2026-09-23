@@ -410,7 +410,7 @@ function BarreMesure({ pct, acheve }: { pct: number | null; acheve: boolean }) {
       <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
         {pct != null && (
           <div
-            className={`pill h-full transition-[width] duration-500 ${acheve ? "bg-green" : "bg-[image:var(--gradient-brand)]"}`}
+            className={`pill h-full transition-[width] duration-500 ${acheve ? "bg-success" : "bg-[image:var(--gradient-brand)]"}`}
             style={{ width: `${Math.min(pct, 100)}%` }}
           />
         )}
@@ -1031,7 +1031,7 @@ function ListeElements(props: {
 function Coche({ faite }: { faite: boolean }) {
   return (
     <span
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${faite ? "border-green bg-green/20 text-green" : "border-border"}`}
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${faite ? "border-success bg-success/20 text-success" : "border-border"}`}
       aria-label={faite ? t("faite") : t("à faire")}
     >
       {faite && <IconCheck className="h-3 w-3" />}

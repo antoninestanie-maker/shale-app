@@ -200,7 +200,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                     <span
                       className={`pill w-fit border px-2 py-0.5 text-[10px] font-bold uppercase ${
                         pos.direction === "long"
-                          ? "border-green/40 text-green"
+                          ? "border-success/40 text-success"
                           : "border-red/40 text-red"
                       }`}
                     >
@@ -224,7 +224,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                     <div>
                       <p className="hud-label">tp</p>
                       {pos.take_profit_price != null ? (
-                        <p className="mt-0.5 text-green">
+                        <p className="mt-0.5 text-success">
                           {fmtPx(pos.take_profit_price)}
                         </p>
                       ) : (
@@ -297,7 +297,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                       onClick={() => close(pos, "win")}
                       data-tip={t("Position gagnante")}
                       data-tip-sub={t("Clôt au TP (ou au prix de sortie demandé), logue le trade et archive la position.")}
-                      className="pill bg-green px-3.5 py-1.5 text-xs font-bold uppercase text-on-green transition-opacity hover:opacity-90"
+                      className="pill bg-success px-3.5 py-1.5 text-xs font-bold uppercase text-on-success transition-opacity hover:opacity-90"
                     >
                       {t("Gagnante")}
                     </button>
@@ -467,7 +467,7 @@ function InlineForm({
         <span
           className={`pill border px-2 py-0.5 font-mono text-[11px] font-semibold ${
             r > 0
-              ? "border-green/40 text-green"
+              ? "border-success/40 text-success"
               : r < 0
                 ? "border-red/40 text-red"
                 : "border-border text-text-dim"

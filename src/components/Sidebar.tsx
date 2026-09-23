@@ -450,7 +450,7 @@ export default function Sidebar({
         {locked ? (
           <IconLock className="ml-auto h-3.5 w-3.5 shrink-0 text-text-dim/45" />
         ) : (
-          badges?.[id] && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+          badges?.[id] && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
         )}
       </button>
     );
@@ -548,7 +548,7 @@ export default function Sidebar({
                         {libelle(cat.label)}
                       </span>
                       {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
-                      {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-green" />}
+                      {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-blue" />}
                       <svg
                         viewBox="0 0 12 12"
                         className="h-2.5 w-2.5 text-text-dim transition-transform duration-200"
@@ -613,7 +613,7 @@ export default function Sidebar({
         {/* Replié, seule la pastille verte reste : elle dit la même chose que le
             texte à côté, et c'est elle qu'on regarde. */}
         <div className="flex items-center justify-center gap-2 lg:justify-start">
-          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-green" />
+          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-success" />
           <span className="hud-label hidden lg:inline">{t("systèmes actifs")}</span>
         </div>
       </div>
