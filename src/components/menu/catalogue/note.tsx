@@ -16,7 +16,7 @@
  * démarrage (`PASSATION.md` § 14.2).
  */
 
-import { IconNote, IconPencil } from "../../icons";
+import { IconNote, IconPencil, IconTrash } from "../../icons";
 import { IconDupliquer } from "../icones";
 import { t } from "../../../lib/i18n";
 import type { EntreePossible } from "../../../lib/menu/entrees";
@@ -30,6 +30,8 @@ export interface GestesNote {
   /** Sélectionne la note ET pose le curseur dans le champ du titre. */
   renommer: (note: Note) => void;
   dupliquer: (note: Note) => Promise<void>;
+  /** La MÊME fonction que le bouton « supprimer » de l'éditeur : vers la corbeille. */
+  supprimer: (note: Note) => Promise<void>;
 }
 
 /** Icône « presse-papier » — locale au catalogue, faute d'équivalent partagé. */
@@ -101,6 +103,15 @@ export function entreesNote(note: Note, gestes: GestesNote): EntreePossible[] {
             : { raison: t("Cette note est vide.") },
         },
       ],
+    },
+    {
+      id: "supprimer",
+      libelle: t("Supprimer"),
+      icone: <IconTrash />,
+      // Descend en dernier, sous un filet, en rouge — imposé par `ordonner()`,
+      // pas par l'ordre d'écriture ici.
+      danger: true,
+      executer: () => gestes.supprimer(note),
     },
   ];
 }

@@ -200,6 +200,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
           goals={data.goals}
           onToggle={handleToggle}
           onAdd={handleAdd}
+          refresh={refresh}
           onFocus={
             focus && !focus.session
               ? (task) =>

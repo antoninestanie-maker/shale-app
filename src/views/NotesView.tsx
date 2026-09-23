@@ -4,10 +4,11 @@ import PanneauLiens from "../components/liens/PanneauLiens";
 import { useLiens } from "../components/liens/useLiens";
 import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
-import { createNote, deleteNote, searchNotes, updateNote } from "../lib/repo";
+import { createNote, searchNotes, updateNote } from "../lib/repo";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
+import { jeter } from "../components/corbeille/geste";
 import {
   ecritureAcceptable,
   graineDeNote,
@@ -46,9 +47,7 @@ export default function NotesView({ data, refresh }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saved, setSaved] = useState(true);
-  const [deleting, setDeleting] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
-  const deleteTimer = useRef<number | undefined>(undefined);
   const champTitre = useRef<HTMLInputElement>(null);
   const menu = useMenuContextuel<Note>();
 
@@ -86,7 +85,6 @@ export default function NotesView({ data, refresh }: Props) {
       setTitle(selected.title);
       setBody(selected.body);
       setSaved(true);
-      setDeleting(false);
     }
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -252,20 +250,33 @@ export default function NotesView({ data, refresh }: Props) {
     setSelectedId(id);
   };
 
-  const gestesNote = { ouvrir: ouvrirNote, renommer: renommerNote, dupliquer: dupliquerNote };
 
+
+  /**
+   * ⭐ Corbeille (migration 027) : la note part dans « Supprimés récemment »,
+   * 30 jours, et un toast propose « Annuler ». Plus de double-clic de
+   * confirmation — il protégeait d'un geste irréversible qui ne l'est plus.
+   *
+   * ⚠️ Une sauvegarde encore en attente (`scheduleSave`, 700 ms) s'écrira
+   * quand même : la note existe toujours, en corbeille. Rien de ce qui a été
+   * tapé ne se perd, et la restauration rend la dernière version.
+   */
+  const jeterNote = async (note: Note) => {
+    const etaitOuverte = note.id === selectedId;
+    await jeter("note", note.id, note.title, async () => {
+      await refresh();
+      if (etaitOuverte) setSelectedId(null);
+    });
+  };
   const handleDelete = async () => {
-    if (!selected) return;
-    if (!deleting) {
-      setDeleting(true);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeleting(false), 3000);
-      return;
-    }
-    await deleteNote(selected.id);
-    await refresh();
-    setSelectedId(null);
-    setDeleting(false);
+    if (selected) await jeterNote(selected);
+  };
+
+  const gestesNote = {
+    ouvrir: ouvrirNote,
+    renommer: renommerNote,
+    dupliquer: dupliquerNote,
+    supprimer: jeterNote,
   };
 
   // liens [[wiki]] sortants + backlinks
@@ -406,15 +417,11 @@ export default function NotesView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={handleDelete}
-              data-tip={deleting ? t("Confirmer la suppression") : t("Supprimer la note")}
-              data-tip-sub={t("Un second clic supprime définitivement la note.")}
-              className={`shrink-0 rounded-md px-2 py-1 text-xs transition-colors ${
-                deleting
-                  ? "bg-red/20 font-semibold text-red"
-                  : "text-text-dim hover:text-red"
-              }`}
+              data-tip={t("Supprimer la note")}
+              data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment.")}
+              className="shrink-0 rounded-md px-2 py-1 text-xs text-text-dim transition-colors hover:text-red"
             >
-              {deleting ? t("sûr ?") : t("supprimer")}
+              {t("supprimer")}
             </button>
           </div>
 

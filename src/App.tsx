@@ -13,8 +13,10 @@ import UpgradeModal from "./components/UpgradeModal";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
-import { deposerDemande, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import { deposerDemande, EVT_ALLER, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import { installerMenuNatif } from "./lib/menu/natif";
+import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
+import Toast from "./components/Toast";
 import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
@@ -51,6 +53,9 @@ const EVT_MODULE: Partial<Record<LinkKind, string>> = {
   note: "sb:open-note",
   knowledge: "sb:open-knowledge",
   object: "sb:open-object",
+  // Depuis le 2026-09-23 : une mention de tâche, ou « Modifier… » dans le menu
+  // d'une tâche du widget d'Aujourd'hui, ouvre son éditeur dans les Tâches.
+  task: "sb:open-task",
 };
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
@@ -65,6 +70,7 @@ const SizingView = lazy(() => import("./views/SizingView"));
 const AdminView = lazy(() => import("./views/AdminView"));
 const ConsoleView = lazy(() => import("./views/ConsoleView"));
 const SettingsView = lazy(() => import("./views/SettingsView"));
+const CorbeilleView = lazy(() => import("./views/CorbeilleView"));
 
 /**
  * Délai du second relevé de la demande de note rapide, en millisecondes.
@@ -142,6 +148,15 @@ function App() {
   const [erreurDonnees, setErreurDonnees] = useState<string | null>(null);
   const snapshotDone = useRef(false);
   const purgeFaite = useRef(false);
+
+  // ─── L'hôte des toasts GLOBAUX (`lib/toast.ts`) ───────────────────────────
+  // « Supprimé · Annuler » part de dix vues et du menu contextuel ; il s'affiche
+  // ici, dans un composant toujours monté, pour survivre à la vue qui
+  // l'émet — elle disparaît souvent avec l'objet qu'on vient de supprimer.
+  const [toastGlobal, setToastGlobal] = useState<ToastGlobal | null>(null);
+  useEffect(() => brancherHoteToast(setToastGlobal), []);
+  // Stable : `Toast` relance son minuteur à chaque changement de `onClose`.
+  const fermerToast = useCallback(() => setToastGlobal(null), []);
 
   // ⚠️ Le `catch` n'est pas décoratif — il répare un défaut mesuré.
   // Sans lui, un rejet de `fetchAll` partait en rejet NON TRAITÉ et `data`
@@ -245,6 +260,14 @@ function App() {
     };
     window.addEventListener(EVT_OUVRIR, onOuvrir);
     return () => window.removeEventListener(EVT_OUVRIR, onOuvrir);
+  }, [navigate]);
+
+  // « Voir la corbeille », « Voir » après une restauration : une VUE, sans
+  // objet. Même garde de navigation que ci-dessus (`lib/naviguer.ts`).
+  useEffect(() => {
+    const onAller = (e: Event) => navigate((e as CustomEvent<View>).detail);
+    window.addEventListener(EVT_ALLER, onAller);
+    return () => window.removeEventListener(EVT_ALLER, onAller);
   }, [navigate]);
 
   // Filet : l'offre peut changer PENDANT la session (fin d'essai détectée par
@@ -675,12 +698,18 @@ function App() {
             <AdminView config={ui.config} save={ui.save} profil={profil} />
           ) : view === "console" ? (
             <ConsoleView />
+          ) : view === "corbeille" ? (
+            // ⚠️ Cette branche DOIT précéder le dernier `:` — qui rend Réglages
+            // par défaut. Oubliée, la vue « Supprimés récemment » aurait affiché
+            // Réglages, sans une erreur de compilation.
+            <CorbeilleView refresh={refresh} />
           ) : (
             <SettingsView />
           )}
           </Suspense>
         </div>
       </div>
+      <Toast toast={toastGlobal} onClose={fermerToast} duration={toastGlobal?.duree ?? 4500} />
     </div>
     </SyncProvider>
   );

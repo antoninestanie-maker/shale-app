@@ -5,7 +5,7 @@ import {
   addTag,
   deleteTag,
   basculerTache,
-  deleteTask,
+  renommerTache,
 } from "../lib/repo";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import type { AppData, Tag, Task } from "../lib/types";
@@ -16,6 +16,10 @@ import { t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
 import ChampDate from "../components/ChampDate";
+import { consommerDemande } from "../lib/naviguer";
+import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 
 interface Props {
   data: AppData;
@@ -49,13 +53,37 @@ export default function TasksView({ data, refresh }: Props) {
   const [dateFilter, setDateFilter] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const deleteTimer = useRef<number | undefined>(undefined);
+  /** La tâche dont le libellé est en cours de renommage, EN PLACE. */
+  const [renommeId, setRenommeId] = useState<number | null>(null);
+  const menu = useMenuContextuel<Task & { done: boolean }>();
 
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   const today = todayStr();
+
+  /**
+   * Ouvrir la tâche qu'on demande d'ailleurs — une mention `@`, ou « Modifier… »
+   * dans le menu d'une tâche du widget d'Aujourd'hui (`lib/naviguer.ts`).
+   *
+   * ⚠️ Les tâches sont lues par une RÉFÉRENCE : l'écouteur est posé une fois, et
+   * une fermeture sur `data.tasks` garderait la liste du premier affichage —
+   * une tâche créée depuis ne s'ouvrirait jamais (PIEGES § 6.5, transposé aux
+   * fermetures).
+   */
+  const tachesRef = useRef(data.tasks);
+  tachesRef.current = data.tasks;
+  useEffect(() => {
+    const ouvrir = (id: number) => {
+      const tache = tachesRef.current.find((x) => x.id === id);
+      if (tache) setEditing(tache);
+    };
+    const onOpen = (e: Event) => ouvrir((e as CustomEvent<number>).detail);
+    window.addEventListener("sb:open-task", onOpen);
+    const enAttente = consommerDemande("task");
+    if (enAttente) ouvrir(enAttente);
+    return () => window.removeEventListener("sb:open-task", onOpen);
+  }, []);
 
   // action palette "Nouvelle tâche" → ouvre le formulaire
   useEffect(() => {
@@ -112,17 +140,31 @@ export default function TasksView({ data, refresh }: Props) {
       await refresh();
     });
 
-  const handleDelete = async (id: number) => {
-    if (deletingId !== id) {
-      setDeletingId(id);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingId(null), 3000);
-      return;
+  /**
+   * ⭐ Les gestes du menu contextuel — et du bouton « ⋯ », qui en est le jumeau.
+   * Chacun est la fonction du geste qui existait déjà (règle 18) : la case,
+   * le crayon, et pour le reste les gestes communs aux vues qui montrent une
+   * tâche (`catalogue/tache.tsx`).
+   *
+   * La suppression part désormais à la CORBEILLE, avec « Annuler » : le
+   * double-clic de confirmation protégeait d'un geste irréversible qui ne
+   * l'est plus. La tâche garde son historique de coches — il reviendra avec
+   * elle.
+   */
+  const gestes: GestesTache = {
+    ...gestesCommunsTache(refresh),
+    basculer: (task) => void handleToggle(task as Task & { done: boolean }),
+    renommer: (task) => setRenommeId(task.id),
+    modifier: (task) => setEditing(task),
+  };
+  const handleDelete = (task: Task) => gestes.supprimer(task);
+
+  const validerRenommage = async (task: Task, libelle: string) => {
+    setRenommeId(null);
+    if (libelle.trim() && libelle.trim() !== task.label) {
+      await renommerTache(task.id, libelle);
+      await refresh();
     }
-    window.clearTimeout(deleteTimer.current);
-    setDeletingId(null);
-    await deleteTask(id);
-    await refresh();
   };
 
   const handleAddTag = async () => {
@@ -283,9 +325,21 @@ export default function TasksView({ data, refresh }: Props) {
             </li>
           )}
           {rows.map((task) => (
+            /* ⚠️ Clic droit et touches de LIGNE sur le <li> : ils marchent que le
+               focus soit sur la case, sur un bouton ou sur « ⋯ ». F2 renomme
+               (c'est ce qu'annonce le menu), Maj+F10 / touche Menu ouvre le
+               menu — macOS ne le fait pas tout seul (PIEGES § 19.2). */
             <li
               key={task.id}
-              className="group flex items-center gap-3 rounded-[10px] px-3 py-2.5 hover:bg-surface-2"
+              className="group group/ligne flex items-center gap-3 rounded-[10px] px-3 py-2.5 hover:bg-surface-2"
+              onContextMenu={(e) => menu.ouvrirAuPoint(e, task)}
+              onKeyDown={(e) => {
+                if (renommeId === task.id) return; // le champ gère ses touches
+                if (menu.ouvrirAuClavier(e, task)) return;
+                if (e.key !== "F2" || e.defaultPrevented) return;
+                e.preventDefault();
+                setRenommeId(task.id);
+              }}
             >
               <CaseACocher
                 cochee={task.done}
@@ -303,12 +357,37 @@ export default function TasksView({ data, refresh }: Props) {
 
               {/* min-w-0 + clamp : un libellé long se coupe proprement au lieu
                   de pousser les chips hors de la carte. */}
-              <span
-                className={`clamp-2 min-w-0 flex-1 text-sm ${task.done ? "text-text-dim line-through" : "text-text"}`}
-                title={task.label}
-              >
-                {task.label}
-              </span>
+              {renommeId === task.id ? (
+                /* ⭐ RENOMMER EN PLACE, jamais dans une fenêtre (cahier des
+                   charges, § 7). Entrée valide, Échap annule, quitter le champ
+                   valide — comme un nom de fichier dans le Finder. */
+                <input
+                  autoFocus
+                  defaultValue={task.label}
+                  aria-label={t("Nouveau nom de la tâche")}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void validerRenommage(task, e.currentTarget.value);
+                    } else if (e.key === "Escape") {
+                      // On MARQUE la touche : Échap ne doit rien fermer d'autre.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setRenommeId(null);
+                    }
+                  }}
+                  onBlur={(e) => void validerRenommage(task, e.currentTarget.value)}
+                  className="min-w-0 flex-1 rounded-md border border-blue bg-surface px-2 py-0.5 text-sm text-text focus:outline-none"
+                />
+              ) : (
+                <span
+                  className={`clamp-2 min-w-0 flex-1 text-sm ${task.done ? "text-text-dim line-through" : "text-text"}`}
+                  title={task.label}
+                >
+                  {task.label}
+                </span>
+              )}
 
               {estExemple(task) && <BadgeExemple />}
 
@@ -343,7 +422,10 @@ export default function TasksView({ data, refresh }: Props) {
                 </span>
               )}
 
-              <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              {/* Au survol, deux accélérateurs pour la souris. Au doigt, ils
+                  s'effacent : le « ⋯ » juste après porte les mêmes gestes, et
+                  il est TOUJOURS visible (règle 17). */}
+              <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:hidden">
                 <button
                   type="button"
                   onClick={() => setEditing(task)}
@@ -357,25 +439,22 @@ export default function TasksView({ data, refresh }: Props) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(task.id)}
-                  className={`rounded-md p-1.5 transition-colors ${
-                    deletingId === task.id
-                      ? "bg-red/20 text-red"
-                      : "text-text-dim hover:bg-surface hover:text-red"
-                  }`}
-                  aria-label={deletingId === task.id ? t("Confirmer la suppression") : t("Supprimer")}
-                  data-tip={deletingId === task.id ? t("Confirmer la suppression") : t("Supprimer la tâche")}
-                  data-tip-sub={t("Un second clic supprime la tâche et son historique.")}
+                  onClick={() => void handleDelete(task)}
+                  className="rounded-md p-1.5 text-text-dim transition-colors hover:bg-surface hover:text-red"
+                  aria-label={t("Supprimer")}
+                  data-tip={t("Supprimer la tâche")}
+                  data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment, avec son historique.")}
                 >
-                  {deletingId === task.id ? (
-                    <span className="px-0.5 text-[11px] font-semibold">{t("sûr ?")}</span>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                    </svg>
-                  )}
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  </svg>
                 </button>
               </span>
+              <BoutonMenu
+                onOuvrir={(e) => menu.ouvrirSousLeBouton(e, task)}
+                ouvert={menu.ouvert && menu.cible?.id === task.id}
+                libelle={t("Actions sur « {titre} »", { titre: task.label })}
+              />
             </li>
           ))}
         </ul>
@@ -466,6 +545,18 @@ export default function TasksView({ data, refresh }: Props) {
           }}
         />
       )}
+
+      {/* ⭐ UN SEUL menu pour toute la liste. Les entrées sont recalculées depuis
+          les lignes FRAÎCHES : si la synchronisation retire la tâche pendant que
+          le menu est ouvert, le tableau devient vide et le menu se ferme seul. */}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
+        entrees={(() => {
+          const fraiche = menu.cible && rows.find((r) => r.id === menu.cible!.id);
+          return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: data.goals }) : [];
+        })()}
+      />
     </div>
   );
 }

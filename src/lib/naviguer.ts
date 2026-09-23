@@ -117,3 +117,30 @@ export async function idDepuisUid(kind: LinkKind, uid: string): Promise<number |
   );
   return rows[0]?.id ?? null;
 }
+
+// ─── Aller vers une VUE (pas un objet) ───────────────────────────────────────
+
+export const EVT_ALLER = "sb:aller-vue";
+
+/**
+ * Demande à `App.tsx` d'ouvrir une vue — « Voir la corbeille » depuis un toast,
+ * « Voir » après la restauration d'une entrée de journal.
+ *
+ * ⚠️ Passe par la GARDE de navigation d'`App.tsx`, jamais par `setView` : une
+ * vue verrouillée par l'offre ou par le profil de licence doit le rester, d'où
+ * qu'on vienne. C'est le patron d'`ouvrirObjet`, sans objet à ouvrir.
+ */
+export function allerVers(vue: View): void {
+  window.dispatchEvent(new CustomEvent<View>(EVT_ALLER, { detail: vue }));
+}
+
+/**
+ * Ouvrir un objet dont on connaît déjà le numéro LOCAL — sans passer par l'uid.
+ *
+ * Sert au menu d'une tâche du widget d'Aujourd'hui (« Modifier… ») : la tâche
+ * est là, sous la main, avec son `id` ; rien à résoudre. Même événement, même
+ * garde de navigation qu'`ouvrirObjet`.
+ */
+export function ouvrirParId(kind: LinkKind, id: number): void {
+  window.dispatchEvent(new CustomEvent<DemandeOuverture>(EVT_OUVRIR, { detail: { kind, id } }));
+}

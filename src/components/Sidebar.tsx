@@ -7,7 +7,7 @@ import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
 import SessionIndicator from "./SessionIndicator";
 import SyncIndicator from "./SyncIndicator";
-import { IconLock, IconSliders } from "./icons";
+import { IconLock, IconSliders, IconTrash } from "./icons";
 
 import { getLang, t } from "../lib/i18n";
 export type View =
@@ -26,7 +26,11 @@ export type View =
   | "sizing"
   | "console"
   | "admin"
-  | "settings";
+  | "settings"
+  // Vue « Supprimés récemment » (corbeille, migration 027). Une VUE, pas un
+  // module : elle vit dans `ITEMS_PIED`, et le compte de treize modules reste
+  // intact (décision de l'arrêt 1 du chantier « menus contextuels »).
+  | "corbeille";
 
 interface Props {
   view: View;
@@ -221,6 +225,7 @@ const DESCRIPTIONS: Record<View, string> = {
   console: "Console d'administration : utilisateurs, abonnements, métriques.",
   admin: "Réorganiser les onglets et les widgets, densité, identité.",
   settings: "Clés d'API, apparence, charge mentale, réglages du tracker.",
+  corbeille: "Ce que tu as supprimé ces 30 derniers jours, prêt à revenir.",
 };
 
 /** Libellés par défaut des modules (utilisés par la page Personnaliser). */
@@ -276,6 +281,10 @@ export const ITEMS_PIED: {
   },
   { id: "admin", label: "Personnaliser", icon: <IconSliders className="h-full w-full" /> },
   { id: "settings", label: "Réglages", icon: BY_ID.get("settings")!.icon },
+  // ⭐ Quatrième entrée du pied, sous Réglages : c'est là que macOS range sa
+  // propre corbeille, en bas du Dock. Pas dans `ITEMS`, qui fait autorité sur
+  // le NOMBRE de modules — voir l'en-tête de cette table.
+  { id: "corbeille", label: "Supprimés récemment", icon: <IconTrash className="h-full w-full" /> },
 ];
 
 /**

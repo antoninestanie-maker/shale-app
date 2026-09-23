@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { Goal, Tag, TodayTask } from "../lib/types";
 import { CocheVisuelle } from "./CaseACocher";
+import MenuContextuel, { BoutonMenu } from "./menu/MenuContextuel";
+import { useMenuContextuel } from "./menu/useMenuContextuel";
+import { entreesTache, gestesCommunsTache, type GestesTache } from "./menu/catalogue/tache";
+import { renommerTache } from "../lib/repo";
+import { ouvrirParId } from "../lib/naviguer";
 
 import { t } from "../lib/i18n";
 interface Props {
@@ -10,6 +15,12 @@ interface Props {
   onToggle: (task: TodayTask) => void;
   onAdd: (label: string) => void;
   onFocus?: (task: TodayTask) => void;
+  /**
+   * Le rafraîchissement de l'app — il active le MENU CONTEXTUEL des tâches
+   * (Renommer, Dater, Rattacher, Dupliquer, Supprimer…). Sans lui, le widget
+   * reste celui d'avant, sans menu.
+   */
+  refresh?: () => Promise<void>;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -18,8 +29,29 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: "var(--color-text-dim)",
 };
 
-export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocus }: Props) {
+export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocus, refresh }: Props) {
   const [draft, setDraft] = useState("");
+  const [renommeId, setRenommeId] = useState<number | null>(null);
+  const menu = useMenuContextuel<TodayTask>();
+
+  // Les gestes du menu : la case de CE widget pour Terminer (règle 18), le
+  // renommage en place, et l'éditeur de la vue Tâches pour « Modifier… » — le
+  // widget n'en a pas à lui. Le reste est commun à toutes les vues de tâches.
+  const gestes: GestesTache | null = refresh
+    ? {
+        ...gestesCommunsTache(refresh),
+        basculer: (task) => onToggle(task as TodayTask),
+        renommer: (task) => setRenommeId(task.id),
+        modifier: (task) => ouvrirParId("task", task.id),
+      }
+    : null;
+
+  const validerRenommage = async (task: TodayTask, libelle: string) => {
+    setRenommeId(null);
+    if (!refresh || !libelle.trim() || libelle.trim() === task.label) return;
+    await renommerTache(task.id, libelle);
+    await refresh();
+  };
   const tagColor = (name: string | null) =>
     tags.find((t) => t.name === name)?.color ?? "var(--color-blue)";
   const goalTitle = (goalId: number | null) =>
@@ -61,7 +93,40 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
           </li>
         )}
         {sorted.map((task) => (
-          <li key={task.id} className="group relative shrink-0">
+          <li
+            key={task.id}
+            className="group group/ligne relative flex shrink-0 items-center gap-0.5"
+            onContextMenu={gestes ? (e) => menu.ouvrirAuPoint(e, task) : undefined}
+            onKeyDown={(e) => {
+              if (!gestes || renommeId === task.id) return;
+              if (menu.ouvrirAuClavier(e, task)) return;
+              if (e.key !== "F2" || e.defaultPrevented) return;
+              e.preventDefault();
+              setRenommeId(task.id);
+            }}
+          >
+            {renommeId === task.id ? (
+              /* Renommer EN PLACE. Pas dans le bouton-case : un champ dans un
+                 <button> n'est pas du HTML valide, et chaque frappe cocherait. */
+              <input
+                autoFocus
+                defaultValue={task.label}
+                aria-label={t("Nouveau nom de la tâche")}
+                onFocus={(e) => e.currentTarget.select()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void validerRenommage(task, e.currentTarget.value);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setRenommeId(null);
+                  }
+                }}
+                onBlur={(e) => void validerRenommage(task, e.currentTarget.value)}
+                className="my-1 min-w-0 flex-1 rounded-md border border-blue bg-surface px-2 py-1 text-sm text-text focus:outline-none"
+              />
+            ) : (
             <button
               type="button"
               role="checkbox"
@@ -70,7 +135,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               onClick={() => onToggle(task)}
               data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
               data-tip-sub={t("Compte dans la discipline et le streak du jour.")}
-              className="flex w-full min-w-0 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
             >
               <CocheVisuelle cochee={task.done} />
 
@@ -113,25 +178,45 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
                   {task.tag}
                 </span>
               )}
-              {onFocus && !task.done && <span className="w-6 shrink-0" />}
             </button>
-            {onFocus && !task.done && (
+            )}
+            {onFocus && !task.done && renommeId !== task.id && (
               <button
                 type="button"
                 onClick={() => onFocus(task)}
                 data-tip={t("Focus 25 min")}
                 data-tip-sub={t("Démarre un pomodoro dédié à cette tâche.")}
                 aria-label={t("Focus sur {label}", { label: task.label })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100"
+                className="shrink-0 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100 focus-visible:opacity-100"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
                   <path d="M8 5.14v13.72c0 .86.95 1.38 1.68.92l10.9-6.86a1.09 1.09 0 0 0 0-1.84L9.68 4.22A1.09 1.09 0 0 0 8 5.14Z" />
                 </svg>
               </button>
             )}
+            {gestes && renommeId !== task.id && (
+              <BoutonMenu
+                onOuvrir={(e) => menu.ouvrirSousLeBouton(e, task)}
+                ouvert={menu.ouvert && menu.cible?.id === task.id}
+                libelle={t("Actions sur « {titre} »", { titre: task.label })}
+              />
+            )}
           </li>
         ))}
       </ul>
+
+      {/* Dans un panneau de GRILLE, qui rogne ce qui déborde (`overflow: clip`) :
+          c'est précisément pourquoi le menu vit dans un portail (PIEGES § 14.1). */}
+      {gestes && (
+        <MenuContextuel
+          etat={menu}
+          libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
+          entrees={(() => {
+            const fraiche = menu.cible && tasks.find((x) => x.id === menu.cible!.id);
+            return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: goals ?? [] }) : [];
+          })()}
+        />
+      )}
     </div>
   );
 }

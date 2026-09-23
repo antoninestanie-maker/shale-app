@@ -47,6 +47,26 @@ export function estModuleProfil(v: unknown): v is ModuleProfil {
 export const MODULE_NON_MASQUABLE: ModuleProfil = "today";
 
 /**
+ * Les VUES SYSTÈME qu'une action de la palette ⌘K peut ouvrir, et qu'aucun
+ * profil de licence ne masque jamais — parce que ce ne sont pas des modules.
+ *
+ * ⚠️ UNE LISTE COURTE ET EXPLICITE, pas « tout ce qui n'est pas un module ».
+ * `licence/actions.test.ts` exige que chaque action de la palette déclare un
+ * module connu, pour qu'aucune n'échappe au masquage en silence. Une vue
+ * système y est admise PARCE QU'ELLE EST ICI, et seulement ainsi : l'ajouter
+ * est une décision qui se lit, pas un trou dans le test.
+ *
+ * `corbeille` : « Supprimés récemment » (migration 027). Masquer la corbeille
+ * reviendrait à rendre irrécupérable ce qu'on a jeté — aucun profil ne doit
+ * pouvoir le faire.
+ */
+export const VUES_SYSTEME = ["corbeille"] as const;
+
+export function estVueSysteme(v: unknown): boolean {
+  return typeof v === "string" && (VUES_SYSTEME as readonly string[]).includes(v);
+}
+
+/**
  * Le module dont chaque widget du tableau de bord montre le contenu. Un widget
  * dont le module est masqué par le profil sort de la grille avec lui. Les
  * widgets absents de cette table (discipline, énergie, graphique 7 jours,

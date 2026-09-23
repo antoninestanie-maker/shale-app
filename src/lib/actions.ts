@@ -142,6 +142,16 @@ export const ACTIONS: AppAction[] = [
     run: (ctx) => ctx.navigate("knowledge"),
   },
   {
+    // La corbeille (migration 027). Une VUE, pas un module : aucun profil de
+    // licence ne peut la masquer — `moduleVisible` ne connaît que les modules.
+    id: "nav.corbeille",
+    module: "corbeille",
+    title: "Ouvrir Supprimés récemment",
+    category: "navigation",
+    keywords: ["corbeille", "supprimé", "supprimés", "restaurer", "annuler", "trash", "deleted", "restore"],
+    run: (ctx) => ctx.navigate("corbeille"),
+  },
+  {
     id: "nav.journal",
     module: "journal",
     title: "Aller au Journal",

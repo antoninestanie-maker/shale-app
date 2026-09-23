@@ -1901,6 +1901,11 @@ export const demo = {
     if (task) task.goal_id = goalId;
   },
 
+  async renommerTache(taskId: number, label: string): Promise<void> {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) task.label = label;
+  },
+
   async deleteTask(id: number): Promise<void> {
     const i = tasks.findIndex((t) => t.id === id);
     if (i >= 0) tasks.splice(i, 1);

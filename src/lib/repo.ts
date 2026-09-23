@@ -1282,6 +1282,32 @@ export async function rattacherTache(taskId: number, goalId: number | null): Pro
   await adopter("tasks", taskId);
 }
 
+/**
+ * Renomme une tâche, et RIEN d'autre (menu contextuel, 2026-09-23).
+ *
+ * ⚠️⚠️ SURTOUT PAS `updateTask` avec une tâche reconstituée : il réécrit
+ * `due_date`, `start_at`, `end_at`, `recurrence`, `goal_id`… sans condition. Un
+ * champ oublié en chemin effacerait la date d'une tâche posée au calendrier —
+ * c'est le défaut « renommer une tâche effaçait sa date » (PIEGES § 6.2), que
+ * le cahier des charges du chantier nomme en toutes lettres (règle 16).
+ *
+ * `label IS NOT $1` : renommer à l'identique n'écrit rien — ni ligne, ni entrée
+ * d'outbox, ni horodatage de synchronisation qui battrait une vraie modification
+ * faite ailleurs.
+ */
+export async function renommerTache(taskId: number, label: string): Promise<void> {
+  const net = label.trim();
+  if (!net) return; // un libellé vide n'est pas un nom : on garde l'ancien
+  if (!isTauri) {
+    await demo.renommerTache(taskId, net);
+    await adopter("tasks", taskId);
+    return;
+  }
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET label = $1 WHERE id = $2 AND label IS NOT $1", [net, taskId]);
+  await adopter("tasks", taskId);
+}
+
 export async function deleteTask(id: number): Promise<void> {
   if (!isTauri) return demo.deleteTask(id);
   const db = await getDb();

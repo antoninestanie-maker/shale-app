@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { estModuleProfil } from "./catalogue";
+import { estModuleProfil, estVueSysteme } from "./catalogue";
 
 const src = readFileSync(resolve(__dirname, "../actions.ts"), "utf-8");
 const blocs = src
@@ -29,8 +29,18 @@ describe("actions de la palette — module déclaré", () => {
   });
 
   it("chaque action déclare un module connu", () => {
-    const fautives = blocs.filter((b) => !estModuleProfil(b.module));
+    // Ou une VUE SYSTÈME déclarée comme telle (`VUES_SYSTEME`) : la corbeille,
+    // que nul profil ne masque. Admise par la liste, pas par une exception ici.
+    const fautives = blocs.filter((b) => !estModuleProfil(b.module) && !estVueSysteme(b.module));
     expect(fautives).toEqual([]);
+  });
+
+  it("une vue système n'est JAMAIS un module masquable", () => {
+    // Si « corbeille » devenait un module de profil, elle deviendrait masquable
+    // — et ce qu'on a jeté, irrécupérable pour ce profil.
+    expect(estModuleProfil("corbeille")).toBe(false);
+    expect(estVueSysteme("corbeille")).toBe(true);
+    expect(estVueSysteme("tasks")).toBe(false);
   });
 
   it("une action qui navigue déclare le module où elle mène", () => {
