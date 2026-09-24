@@ -41,6 +41,13 @@ export interface EtatMenu<C> {
    * enchaîner ses propres raccourcis (F2…) sans les faire passer deux fois.
    */
   ouvrirAuClavier: (e: ReactKeyboardEvent<HTMLElement>, cible: C) => boolean;
+  /**
+   * Ouvre sous un ÉLÉMENT qu'on désigne soi-même — pour ce qui n'a pas de
+   * bouton « ⋯ » à soi : un bloc DANS une note (carte, croquis), touché au
+   * doigt. Au doigt, `ouvrirAuPoint` ne fait rien (l'appui long appartient au
+   * glisser du calendrier) : c'est ce chemin-ci qui porte la règle 17 là.
+   */
+  ouvrirSurElement: (el: HTMLElement, cible: C) => void;
   fermer: () => void;
 }
 
@@ -207,6 +214,11 @@ export function useMenuContextuel<C>(): EtatMenu<C> {
     return true;
   }, []);
 
+  const ouvrirSurElement = useCallback((el: HTMLElement, cible: C) => {
+    focusAvant.current = document.activeElement as HTMLElement | null;
+    setEtat({ cible, ancre: rectEnAncre(el), alignement: "debut", elementAncre: el, auClavier: false });
+  }, []);
+
   // Le bouton d'ancre a disparu du document (la ligne a été retirée par la
   // synchronisation pendant que le menu était ouvert) : on ferme, sans bruit.
   useEffect(() => {
@@ -224,6 +236,7 @@ export function useMenuContextuel<C>(): EtatMenu<C> {
     ouvrirAuPoint,
     ouvrirSousLeBouton,
     ouvrirAuClavier,
+    ouvrirSurElement,
     fermer,
   };
 }

@@ -50,7 +50,11 @@ import {
   IconZoomMoins,
   IconZoomPlus,
 } from "../icons";
-import { t } from "../../lib/i18n";
+import { t, tp } from "../../lib/i18n";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
+import { menuContextuelOuvert } from "../../lib/menu/tactile";
+import type { EntreePossible } from "../../lib/menu/entrees";
 import { kbd } from "../../lib/platform";
 
 /**
@@ -470,6 +474,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   // lecteur (qui teste `defaultPrevented`) laisse passer son tour.
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
+      // Un menu contextuel est ouvert (clic droit sur un nœud) : la touche est
+      // à LUI. Sans ce test, Échap fermait le menu ET la carte (PIEGES § 19.15).
+      if (menuContextuelOuvert()) return;
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -880,11 +887,22 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       setArme(selection);
       return;
     }
-    const parent = n.parent;
+    effacerNoeud(selection);
+  };
+
+  /**
+   * Le SECOND temps, seul — ce que fait le bouton armé, et ce que fait le menu
+   * contextuel une fois sa propre confirmation passée. Écrit une fois pour que
+   * les deux chemins ne divergent pas (règle 18). ⌘Z le défait : il passe par
+   * `modifier`, donc par l'historique de la carte.
+   */
+  const effacerNoeud = (id: string) => {
+    const n = noeudDe(courante, id);
+    if (!n || n.parent === null) return;
     setArme(null);
     setEdition(null);
-    modifier((c) => supprimerNoeud(c, selection));
-    setSelection(parent);
+    modifier((c) => supprimerNoeud(c, id));
+    setSelection(n.parent);
   };
 
   // ─── L'export ──────────────────────────────────────────────────────────────
@@ -919,6 +937,72 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    */
   const aEmporter = Math.max(0, sousArbre(courante, selection).length - 1);
   const estArme = arme === selection && !estRacine;
+
+  /**
+   * ⭐ LE CLIC DROIT SUR UN NŒUD (2026-09-24, vérification complète demandée
+   * par Antonin). Jusque-là, tout passait par la barre d'outils et le clavier :
+   * un clic droit sur un nœud ne proposait RIEN. Chaque entrée appelle la
+   * fonction du bouton de la barre qui lui correspond (règle 18) — le menu
+   * sélectionne d'abord le nœud visé, comme le ferait un clic.
+   */
+  const menuNoeud = useMenuContextuel<string>();
+  const entreesNoeud = (id: string): EntreePossible[] => {
+    const n = noeudDe(courante, id);
+    if (!n || id !== selection) return [];
+    const racine = n.parent === null;
+    const branche = n.parent === racineDe(courante).id;
+    const enfants = enfantsDe(courante, id).length > 0;
+    const dessous = Math.max(0, sousArbre(courante, id).length - 1);
+    if (lecture) return [];
+    return [
+      { id: "enfant", libelle: t("Sous-nœud"), icone: <IconNoeudEnfant />, raccourci: "Tab", executer: () => creer("enfant") },
+      {
+        id: "frere",
+        libelle: t("Nœud voisin"),
+        icone: <IconNoeudFrere />,
+        desactive: racine ? { raison: t("Le nœud central n'a pas de voisin : tout part de lui.") } : undefined,
+        executer: () => creer("frere"),
+      },
+      {
+        id: "renommer",
+        libelle: t("Renommer"),
+        icone: <IconPencil />,
+        raccourci: "F2",
+        desactive: n.ref ? { raison: t("Un nœud lié porte le titre de sa cible : il se renomme là-bas.") } : undefined,
+        executer: modifierTexte,
+      },
+      { id: "citer", libelle: t("Citer un objet"), icone: <IconArobase />, executer: citer },
+      enfants && {
+        id: "plier",
+        libelle: n.plie ? t("Déplier") : t("Replier"),
+        icone: <IconPlier />,
+        executer: () => modifier((c) => basculerPli(c, id)),
+      },
+      branche && {
+        id: "cote",
+        libelle: t("Changer de côté"),
+        icone: <IconCote />,
+        executer: () => modifier((c) => poserCote(c, id, coteSel === 1 ? -1 : 1)),
+      },
+      {
+        id: "supprimer",
+        libelle: t("Supprimer"),
+        icone: <IconTrash />,
+        danger: true,
+        desactive: racine ? { raison: t("Le nœud central ne se supprime pas : c'est la carte elle-même.") } : undefined,
+        // Un nœud qui porte une sous-branche demande confirmation, comme le
+        // bouton armé de la barre ; une feuille part d'un coup (⌘Z la rend).
+        confirmation:
+          dessous > 0
+            ? {
+                libelle: t("Supprimer"),
+                detail: tp(dessous, "Ce nœud et celui qui pend dessous disparaissent.", "Ce nœud et les {n} qui pendent dessous disparaissent."),
+              }
+            : undefined,
+        executer: () => effacerNoeud(id),
+      },
+    ];
+  };
   const outil = OUTIL;
 
   return (
@@ -1210,6 +1294,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         <div
           ref={scene}
           onPointerDown={surAppui}
+          onContextMenu={(e) => {
+            const cible = (e.target as HTMLElement).closest?.("[data-noeud]") as HTMLElement | null;
+            const id = cible?.dataset.noeud;
+            if (!id || lecture) return;
+            if (edition && edition !== id) fermerEdition(true);
+            setSelection(id);
+            menuNoeud.ouvrirAuPoint(e, id);
+          }}
           onWheel={surMolette}
           onDoubleClick={(e) => {
             if (lecture) return;
@@ -1455,6 +1547,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           onQuitterCarte={onFermer}
         />
       )}
+
+      <MenuContextuel
+        etat={menuNoeud}
+        libelle={t("Actions sur le nœud")}
+        entrees={menuNoeud.cible ? entreesNoeud(menuNoeud.cible) : []}
+      />
 
       {mention && (
         <MentionPicker

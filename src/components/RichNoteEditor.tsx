@@ -14,6 +14,7 @@ import { ouvrirPieceJointe } from "../lib/repo";
 import EditeurCarte from "./carte/EditeurCarte";
 import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
+import { useMenuBlocs } from "./menu/useMenuBlocs";
 import { IconCarte, IconTrombone, IconX } from "./icons";
 import { requeteEnCours } from "../lib/mentions";
 import { remplacerParMention, rectDuCurseur, texteAvantCurseur } from "../lib/mentionsDom";
@@ -208,6 +209,19 @@ export default function RichNoteEditor({
   const emit = () => {
     if (ref.current) onChange(ref.current.innerHTML, idDuDom.current ?? noteId);
   };
+
+  /**
+   * Le menu des BLOCS de la note (carte, image, pièce jointe) : clic droit à la
+   * souris, toucher au doigt. Chaque entrée appelle le geste de l'éditeur —
+   * double-clic pour la carte, clic pour la pièce jointe (règle 18).
+   */
+  const blocs = useMenuBlocs({
+    racine: () => ref.current,
+    enregistrer: emit,
+    lectureSeule: false,
+    modifierCarte: (figure, c) => ouvrirCarte(figure, c),
+    ouvrirPiece: (uid) => void ouvrirPieceJointe(uid),
+  });
 
   const verifierMention = useCallback(async () => {
     if (!ref.current) return;
@@ -466,7 +480,9 @@ export default function RichNoteEditor({
             ouvrirCarte(bloc, c);
           }
         }}
+        onContextMenu={blocs.surClicDroit}
         onClick={(e) => {
+          if (blocs.surToucher(e)) return;
           // ⚠️ Un jeton MORT ne mène nulle part : sa cible n'existe plus. Le
           // rendre cliquable promettrait une navigation impossible.
           // Une pièce jointe s'OUVRE dans le logiciel du système — elle ne
@@ -487,6 +503,8 @@ export default function RichNoteEditor({
         data-placeholder={placeholder}
         className="note-rich mt-3 min-h-0 flex-1 overflow-y-auto text-text focus:outline-none"
       />
+
+      {blocs.menu}
 
       {mention && (
         <MentionPicker

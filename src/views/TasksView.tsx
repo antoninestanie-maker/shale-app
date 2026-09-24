@@ -9,10 +9,11 @@ import {
 } from "../lib/repo";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import type { AppData, Tag, Task } from "../lib/types";
-import { IconX } from "../components/icons";
+import { IconSearch, IconTrash, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { t } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
+import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
 import ChampDate from "../components/ChampDate";
@@ -175,10 +176,27 @@ export default function TasksView({ data, refresh }: Props) {
     await refresh();
   };
 
-  const handleDeleteTag = async (tag: Tag) => {
+  /**
+   * Supprimer un tag le RETIRE de toutes ses tâches, sans retour : rien ne
+   * garde la trace de qui le portait. Utilisé, il demande donc confirmation, et
+   * dit combien de tâches le perdent (2026-09-24). Inutilisé, il part d'un clic.
+   */
+  const [tagASupprimer, setTagASupprimer] = useState<Tag | null>(null);
+  /** Le clic droit sur un tag : filtrer, ou supprimer (avec la même question que la croix). */
+  const menuTag = useMenuContextuel<Tag>();
+  const tachesDuTag = (tag: Tag) => data.tasks.filter((x) => x.tag === tag.name).length;
+  const effacerTag = async (tag: Tag) => {
+    setTagASupprimer(null);
     await deleteTag(tag);
     if (tagFilter === tag.name) setTagFilter(null);
     await refresh();
+  };
+  const handleDeleteTag = async (tag: Tag) => {
+    if (tachesDuTag(tag) > 0) {
+      setTagASupprimer(tag);
+      return;
+    }
+    await effacerTag(tag);
   };
 
   const chip = (active: boolean) =>
@@ -471,6 +489,7 @@ export default function TasksView({ data, refresh }: Props) {
           {data.tags.map((tag) => (
             <span
               key={tag.id}
+              onContextMenu={(e) => menuTag.ouvrirAuPoint(e, tag)}
               className="pill flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
               style={{ backgroundColor: `color-mix(in srgb, ${tag.color} 16%, transparent)`, color: tag.color }}
             >
@@ -487,6 +506,21 @@ export default function TasksView({ data, refresh }: Props) {
               </button>
             </span>
           ))}
+
+          {tagASupprimer && (
+            <ConfirmationEnLigne
+              className="basis-full"
+              question={tp(
+                tachesDuTag(tagASupprimer),
+                "Supprimer le tag « {name} » ? 1 tâche le perd — elle reste, sans tag. C'est définitif.",
+                "Supprimer le tag « {name} » ? {n} tâches le perdent — elles restent, sans tag. C'est définitif.",
+                { name: tagASupprimer.name },
+              )}
+              libelle={t("Supprimer")}
+              onRenoncer={() => setTagASupprimer(null)}
+              onConfirmer={() => effacerTag(tagASupprimer)}
+            />
+          )}
 
           <form
             className="flex min-w-0 flex-wrap items-center gap-2"
@@ -549,6 +583,31 @@ export default function TasksView({ data, refresh }: Props) {
       {/* ⭐ UN SEUL menu pour toute la liste. Les entrées sont recalculées depuis
           les lignes FRAÎCHES : si la synchronisation retire la tâche pendant que
           le menu est ouvert, le tableau devient vide et le menu se ferme seul. */}
+      <MenuContextuel
+        etat={menuTag}
+        libelle={t("Actions sur le tag « {name} »", { name: menuTag.cible?.name ?? "" })}
+        entrees={(() => {
+          const tag = menuTag.cible && data.tags.find((x) => x.id === menuTag.cible!.id);
+          if (!tag) return [];
+          return [
+            {
+              id: "filtrer",
+              libelle: tagFilter === tag.name ? t("Ne plus filtrer") : t("Filtrer les tâches"),
+              icone: <IconSearch />,
+              executer: () => setTagFilter(tagFilter === tag.name ? null : tag.name),
+            },
+            {
+              id: "supprimer",
+              // « … » seulement quand une question suivra : un tag inutilisé part d'un coup.
+              libelle: tachesDuTag(tag) > 0 ? t("Supprimer…") : t("Supprimer"),
+              icone: <IconTrash />,
+              danger: true,
+              executer: () => handleDeleteTag(tag),
+            },
+          ];
+        })()}
+      />
+
       <MenuContextuel
         etat={menu}
         libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}

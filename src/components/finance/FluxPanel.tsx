@@ -23,6 +23,8 @@ import type {
   FinanceRecurring,
 } from "../../lib/types";
 import { formatDate, t } from "../../lib/i18n";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
 import ChampDate from "../ChampDate";
 
 const FREQUENCES: { id: FinanceFrequency; label: string }[] = [
@@ -57,6 +59,14 @@ export default function FluxPanel({
 }) {
   const [edite, setEdite] = useState<FinanceRecurring | "nouveau" | null>(null);
   const [voirPerimes, setVoirPerimes] = useState(false);
+  /** La fenêtre s'ouvre DÉJÀ sur sa question de suppression (entrée « Supprimer… » du menu). */
+  const [suppressionDemandee, setSuppressionDemandee] = useState(false);
+  /** Le clic droit sur un flux (2026-09-24) : la fenêtre du flux, et sa suppression confirmée. */
+  const menu = useMenuContextuel<FinanceRecurring>();
+  const ouvrir = (r: FinanceRecurring, supprimer = false) => {
+    setSuppressionDemandee(supprimer);
+    setEdite(r);
+  };
 
   useEffect(() => {
     if (signalNouveau > 0) setEdite("nouveau");
@@ -91,7 +101,8 @@ export default function FluxPanel({
             categories={categories}
             devise={devise}
             totalCents={burn.entreesCents}
-            onEditer={setEdite}
+            onEditer={(r) => ouvrir(r)}
+            onMenu={(e, r) => menu.ouvrirAuPoint(e, r)}
           />
           <Groupe
             titre={t("sorties")}
@@ -99,7 +110,8 @@ export default function FluxPanel({
             categories={categories}
             devise={devise}
             totalCents={burn.sortiesCents}
-            onEditer={setEdite}
+            onEditer={(r) => ouvrir(r)}
+            onMenu={(e, r) => menu.ouvrirAuPoint(e, r)}
           />
           <div className="flex items-center justify-between border-t border-border pt-3">
             <span className="hud-label">{t("burn net mensuel")}</span>
@@ -126,7 +138,11 @@ export default function FluxPanel({
           {voirPerimes && (
             <ul className="mt-2 flex flex-col gap-1.5">
               {perimes.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-3 text-xs">
+                <li
+                  key={r.id}
+                  onContextMenu={(e) => menu.ouvrirAuPoint(e, r)}
+                  className="flex items-center justify-between gap-3 text-xs"
+                >
                   <span
                     className="min-w-0 truncate text-text-dim line-through"
                     title={r.label}
@@ -155,10 +171,27 @@ export default function FluxPanel({
           categories={categories}
           aujourdhui={aujourdhui}
           estPerime={edite !== "nouveau" && idsPerimes.has(edite.id)}
-          onFerme={() => setEdite(null)}
+          suppressionDemandee={suppressionDemandee}
+          onFerme={() => {
+            setEdite(null);
+            setSuppressionDemandee(false);
+          }}
           onChange={onChange}
         />
       )}
+
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
+        entrees={(() => {
+          const r = menu.cible && recurrents.find((x) => x.id === menu.cible!.id);
+          if (!r) return [];
+          return [
+            { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => ouvrir(r) },
+            { id: "supprimer", libelle: t("Supprimer…"), icone: <IconTrash />, danger: true, executer: () => ouvrir(r, true) },
+          ];
+        })()}
+      />
     </section>
   );
 }
@@ -170,6 +203,7 @@ function Groupe({
   devise,
   totalCents,
   onEditer,
+  onMenu,
 }: {
   titre: string;
   lignes: FinanceRecurring[];
@@ -177,6 +211,7 @@ function Groupe({
   devise: string;
   totalCents: number;
   onEditer: (r: FinanceRecurring) => void;
+  onMenu: (e: React.MouseEvent, r: FinanceRecurring) => void;
 }) {
   if (lignes.length === 0) return null;
   const nomCat = (id: number | null) =>
@@ -194,7 +229,7 @@ function Groupe({
       </div>
       <ul className="mt-1.5 flex flex-col divide-y divide-border">
         {lignes.map((r) => (
-          <li key={r.id} className="group/flux flex items-center gap-3 py-2">
+          <li key={r.id} className="group/flux flex items-center gap-3 py-2" onContextMenu={(e) => onMenu(e, r)}>
             <div className="min-w-0 flex-1">
               <p className="truncate truncate-souris text-sm text-text" title={r.label}>
                 {r.label}
@@ -244,6 +279,7 @@ export function FormulaireFlux({
   categories,
   aujourdhui,
   estPerime,
+  suppressionDemandee = false,
   onFerme,
   onChange,
 }: {
@@ -251,6 +287,8 @@ export function FormulaireFlux({
   categories: FinanceCategory[];
   aujourdhui: string;
   estPerime: boolean;
+  /** Ouverte par « Supprimer… » du menu : la question est déjà posée. */
+  suppressionDemandee?: boolean;
   onFerme: () => void;
   onChange: () => Promise<void> | void;
 }) {
@@ -281,7 +319,7 @@ export function FormulaireFlux({
           active_to: null,
         },
   );
-  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
+  const [confirmeSuppression, setConfirmeSuppression] = useState(suppressionDemandee && !!flux);
 
   const catsDuSens = categories.filter((c) => c.kind === form.direction);
 

@@ -22,6 +22,7 @@ import {
   IconX,
 } from "./icons";
 import EditeurCarte from "./carte/EditeurCarte";
+import { useMenuBlocs } from "./menu/useMenuBlocs";
 import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
 import { useDepotPieceJointe } from "./useDepotPieceJointe";
@@ -301,6 +302,20 @@ export default function NoteComposer({
     });
   };
 
+  /**
+   * Le menu des BLOCS de la fiche (carte, croquis, image, pièce jointe) : clic
+   * droit à la souris, toucher au doigt. Chaque entrée appelle le geste de
+   * l'éditeur — double-clic pour carte et croquis, clic pour une pièce jointe.
+   */
+  const blocs = useMenuBlocs({
+    racine: () => ref.current,
+    enregistrer: emit,
+    lectureSeule: reading,
+    modifierCarte: (figure, c) => ouvrirCarte(figure, c),
+    modifierCroquis: (img) => openSketch(img),
+    ouvrirPiece: (uid) => void ouvrirPieceJointe(uid),
+  });
+
   const applyLink = (raw: string) => {
     const url = normalizeUrl(raw);
     setLinkDraft(null);
@@ -499,7 +514,9 @@ export default function NoteComposer({
             ouvrirCarte(bloc, c);
           }
         }}
+        onContextMenu={blocs.surClicDroit}
         onClick={(e) => {
+          if (blocs.surToucher(e)) return;
           const el = e.target as HTMLElement;
           // Case à cocher : la boîte est un ::before, on teste la zone à gauche
           const li = el.closest?.("ul.cl > li") as HTMLElement | null;
@@ -534,6 +551,8 @@ export default function NoteComposer({
           reading ? "note-reading" : ""
         }`}
       />
+
+      {blocs.menu}
 
       {/* Bulle de mise en forme — n'existe que le temps d'une sélection.
           PORTAIL OBLIGATOIRE : le lecteur de note porte une animation, donc un

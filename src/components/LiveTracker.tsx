@@ -4,6 +4,9 @@
 // avant le dénouement ; le résultat final en R est pondéré en conséquence.
 // À la clôture, la position est archivée dans le journal (trades) et toutes
 // les statistiques (winrate, profit factor, drawdown…) se mettent à jour.
+import ConfirmationEnLigne from "./ConfirmationEnLigne";
+import MenuContextuel from "./menu/MenuContextuel";
+import { useMenuContextuel } from "./menu/useMenuContextuel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   buildJournalNotes,
@@ -34,7 +37,7 @@ import type {
   LivePartial,
   LivePosition,
 } from "../lib/types";
-import { IconPlus, IconX } from "./icons";
+import { IconCheck, IconDash, IconPlus, IconTrash, IconX } from "./icons";
 import type { ToastState } from "./Toast";
 
 import { t, tp } from "../lib/i18n";
@@ -59,6 +62,8 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
   const [expanded, setExpanded] = useState<Expanded | null>(null);
   const [allowBe, setAllowBe] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  /** Le clic droit sur une position : les MÊMES gestes que ses boutons (règle 18). */
+  const menu = useMenuContextuel<LivePosition>();
   const [, setTick] = useState(0); // re-rendu périodique des durées "il y a…"
 
   const load = useCallback(() => {
@@ -132,12 +137,13 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
     await archive(pos, outcome, r);
   };
 
-  const remove = async (id: number) => {
-    if (deletingId !== id) {
-      setDeletingId(id);
-      window.setTimeout(() => setDeletingId(null), 3000);
-      return;
-    }
+  /**
+   * Retirer une position du tracker : la question est posée DANS la ligne
+   * (`ConfirmationEnLigne`) et nomme la paire — le double-clic « sûr ? » d'avant
+   * ne disait ni laquelle, ni que rien ne serait écrit au journal (2026-09-24).
+   */
+  const remove = (id: number) => setDeletingId(id);
+  const retirerPosition = async (id: number) => {
     setDeletingId(null);
     await deleteLivePosition(id);
   };
@@ -179,6 +185,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
             return (
               <li
                 key={pos.id}
+                onContextMenu={(e) => menu.ouvrirAuPoint(e, pos)}
                 className="rounded-[12px] border border-border bg-surface-2/60 px-3.5 py-3"
               >
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -324,27 +331,25 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                     <button
                       type="button"
                       onClick={() => remove(pos.id)}
-                      data-tip={
-                        deletingId === pos.id ? t("Confirmer le retrait") : t("Retirer du tracker")
-                      }
+                      data-tip={t("Retirer du tracker")}
                       data-tip-sub={t("Pour une position envoyée par erreur : rien n’est écrit dans le journal.")}
-                      className={`rounded-md p-1.5 transition-colors ${
-                        deletingId === pos.id
-                          ? "bg-red/20 text-red"
-                          : "text-text-dim hover:text-red"
-                      }`}
+                      className="rounded-md p-1.5 text-text-dim transition-colors hover:text-red"
                       aria-label={t("Retirer")}
                     >
-                      {deletingId === pos.id ? (
-                        <span className="px-0.5 text-[11px] font-semibold">
-                          {t("sûr ?")}
-                        </span>
-                      ) : (
-                        <IconX className="h-3.5 w-3.5" />
-                      )}
+                      <IconX className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
+
+                {deletingId === pos.id && (
+                  <ConfirmationEnLigne
+                    className="mt-2"
+                    question={t("Retirer {pair} du tracker ? Rien n'est écrit dans le journal, et la position ne pourra pas être récupérée.", { pair: pos.pair })}
+                    libelle={t("Retirer")}
+                    onRenoncer={() => setDeletingId(null)}
+                    onConfirmer={() => retirerPosition(pos.id)}
+                  />
+                )}
 
                 {isExp && (
                   <InlineForm
@@ -371,6 +376,20 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
           })}
         </ul>
       )}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur {pair}", { pair: menu.cible?.pair ?? "" })}
+        entrees={(() => {
+          const pos = menu.cible && positions.find((x) => x.id === menu.cible!.id);
+          if (!pos) return [];
+          return [
+            { id: "gagnante", libelle: t("Gagnante"), icone: <IconCheck />, executer: () => close(pos, "win") },
+            { id: "perdante", libelle: t("Perdante"), icone: <IconX />, executer: () => close(pos, "loss") },
+            allowBe && { id: "be", libelle: "Break-even", icone: <IconDash />, executer: () => close(pos, "be") },
+            { id: "retirer", libelle: t("Retirer du tracker…"), icone: <IconTrash />, danger: true, executer: () => remove(pos.id) },
+          ];
+        })()}
+      />
     </section>
   );
 }

@@ -11,6 +11,8 @@ import { IconPlus, IconTrash } from "../icons";
 import { BoutonDiscret, Champ, ChampMontant, inputCls, Montant } from "./champs";
 import { Dialogue } from "./ComptesPanel";
 import ConfirmationEnLigne from "../ConfirmationEnLigne";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { formaterQuantite, parseQuantiteE8 } from "../../lib/finance/montants";
 import type { Valorisation } from "../../lib/finance/valorisation";
 import { deleteFinanceHolding, saveFinanceHolding } from "../../lib/repo";
@@ -37,6 +39,7 @@ export default function PositionsPanel({
   const [ajout, setAjout] = useState(false);
   /** La position dont on demande le retrait — définitif, d'où la question. */
   const [aRetirer, setARetirer] = useState<number | null>(null);
+  const menu = useMenuContextuel<number>();
   const nomCompte = (id: number) => comptes.find((c) => c.id === id)?.label ?? t("compte inconnu");
 
   return (
@@ -63,7 +66,13 @@ export default function PositionsPanel({
         <>
           <ul className="mt-3 flex flex-col divide-y divide-border">
             {valorisation.lignes.map((l) => (
-              <li key={l.holding.id} className="group/pos flex flex-wrap items-center gap-3 py-2.5">
+              <li
+                key={l.holding.id}
+                // Clic droit : le même geste que la corbeille de la ligne, qui
+                // pose sa question dans la ligne (règle 18).
+                onContextMenu={(e) => menu.ouvrirAuPoint(e, l.holding.id)}
+                className="group/pos flex flex-wrap items-center gap-3 py-2.5"
+              >
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate truncate-souris font-mono text-sm text-text"
@@ -190,6 +199,23 @@ export default function PositionsPanel({
           onChange={onChange}
         />
       )}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur la position")}
+        entrees={
+          menu.cible !== null && valorisation.lignes.some((l) => l.holding.id === menu.cible)
+            ? [
+                {
+                  id: "retirer",
+                  libelle: t("Retirer…"),
+                  icone: <IconTrash />,
+                  danger: true,
+                  executer: () => setARetirer(menu.cible),
+                },
+              ]
+            : []
+        }
+      />
     </section>
   );
 }

@@ -3289,3 +3289,64 @@ Toute version présente à gauche et absente à droite est un refus de démarrag
 absente de la base est le cas NORMAL — c'est une migration à jouer. Seul le sens
 « la base en sait plus que le binaire » tue.
 
+
+# 19 bis. Menus contextuels — la vérification complète (2026-09-24)
+
+*Numérotés à la suite du § 19, placés ici parce que le § 22 a été écrit entre
+les deux. Quatre défauts, tous invisibles aux tests et au build, tous trouvés
+en pilotant Chrome.*
+
+## 19.15 ⚠️⚠️ Un écouteur clavier en CAPTURE sur `window` passe avant le menu
+
+**Symptôme.** Clic droit sur un nœud de carte mentale, puis Échap : le menu se
+ferme… et l'éditeur de carte AUSSI. On perdait la carte ouverte en voulant
+seulement renoncer à un menu.
+
+**Cause.** `EditeurCarte` (comme `SketchPad` et `DepuisCarte`) écoute
+`keydown` sur `window` en phase de CAPTURE — c'est ce qui lui permet de passer
+avant le lecteur de note. Il passait donc aussi avant le menu, qui n'avait pas
+encore reçu la touche qu'il aurait marquée (`preventDefault`).
+
+**Parade.** `menuContextuelOuvert()` (`lib/menu/tactile.ts`) : les trois
+écouteurs de capture rendent la main tant qu'un `[data-menu-contextuel]` est
+dans le document. Tout NOUVEL écouteur de capture doit faire de même.
+
+## 19.16 ⚠️⚠️ Un menu en `z-[60]` se peignait SOUS les fenêtres
+
+**Symptôme** (trouvé par lecture, confirmé par `elementFromPoint`). Le menu
+vivait à `z-[60]` ; le lecteur du Savoir est à `z-[70]`, l'éditeur de carte à
+`z-[75]`, plusieurs fenêtres à `z-[80]`. Un menu ouvert DANS l'une d'elles
+existait, avait le focus, et ne se voyait pas.
+
+**Parade.** `z-[95]` (sous-menu `z-[96]`) : au-dessus de toute fenêtre, sous le
+sélecteur de date (190) et les bulles (200). La preuve à rejouer : le point
+central de la première entrée doit rendre CETTE entrée par
+`document.elementFromPoint` — une capture ne suffit pas, un menu recouvert
+peut sembler « un peu terne ».
+
+## 19.17 ⚠️⚠️ Ouvert sur un bloc d'un `contenteditable`, le menu n'a PAS le focus
+
+**Symptôme.** Dans le lecteur du Savoir, clic droit sur une carte de la fiche,
+puis Échap : le lecteur se FERMAIT avec le menu. Mesuré : `activeElement`
+était l'éditeur (`.note-rich`), pas le panneau du menu.
+
+**Cause.** Le clic droit dans un `contenteditable` y laisse (ou y remet) le
+focus, et le lecteur écoute Échap sur `window` : la touche partait chez lui.
+
+**Parade.** Tant qu'il est ouvert, `MenuContextuel` écoute `keydown` en
+CAPTURE sur `window` : une touche de menu née HORS du menu lui est rendue
+(focus sur le panneau, puis le même `surTouche`). Le clavier est au menu
+ouvert, où que soit le focus — comme un menu du système.
+
+## 19.18 Outil : sous émulation tactile, `Input.dispatchMouseEvent` peut ne jamais rendre la main
+
+**Symptôme.** Script CDP bloqué indéfiniment sur un clic, avec
+`Emulation.setEmitTouchEventsForMouse` actif.
+
+**Parade.** Au doigt, toucher par `Input.dispatchTouchEvent`
+(`touchStart` puis `touchEnd`) : c'est le vrai geste, et il rend la main.
+Arrêter un script bloqué par le PID exact de son Node et de SON Chrome
+(`--remote-debugging-port=9333`), jamais par motif.
+
+**Payé.** 2026-09-24, vérification complète demandée par Antonin après « je ne
+peux pas supprimer une carte mentale dans une note avec un clic droit ».

@@ -274,6 +274,27 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
     [items, rang, sousMenu, rangSous, lancer, fermer],
   );
 
+  // ── Le clavier est au menu, même quand le focus n'y est pas ────────────────
+  // ⚠️ VU LE 2026-09-24 dans le lecteur du Savoir : un clic droit sur un bloc
+  // de la fiche laissait le focus dans l'éditeur (`contenteditable`), et Échap
+  // partait au lecteur — qui se fermait AVEC le menu, sans rien enregistrer
+  // de plus. On écoute donc en CAPTURE sur `window` tant que le menu est
+  // ouvert : une touche qui naît HORS du menu lui est rendue. Les écouteurs de
+  // capture posés AVANT (l'éditeur de carte, le croquis) s'effacent d'eux-mêmes
+  // devant un menu ouvert (`menuContextuelOuvert`, PIEGES § 19.15).
+  useEffect(() => {
+    if (!ouvert) return;
+    const capter = (ev: KeyboardEvent) => {
+      if ((ev.target as Element | null)?.closest?.("[data-menu-contextuel]")) return; // le menu l'a déjà
+      if (!actionDe(ev.key, sousMenu !== null)) return;
+      panneau.current?.focus();
+      // Mêmes méthodes que l'événement React : `surTouche` s'en contente.
+      surTouche(ev as unknown as React.KeyboardEvent);
+    };
+    window.addEventListener("keydown", capter, true);
+    return () => window.removeEventListener("keydown", capter, true);
+  }, [ouvert, sousMenu, surTouche]);
+
   if (!ouvert || items.length === 0) return null;
 
   const filet = rangDuFilet(items);
@@ -289,7 +310,11 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
       // ⚠️ `contextmenu` capté et annulé SUR LE MENU : sans cela, un clic droit
       // dans le menu rouvre le menu de la ligne dessous, à un autre endroit.
       onContextMenu={(e) => e.preventDefault()}
-      className="card-solid fixed z-[60] min-w-[15rem] max-w-[22rem] overflow-y-auto rounded-[12px] border border-border p-1 shadow-lg focus:outline-none"
+      // ⚠️ z-[95] : AU-DESSUS de toute fenêtre (la plus haute est à 80) — un menu
+      // ouvert DANS l'éditeur de carte (z-75) ou le lecteur du Savoir (z-70)
+      // se peignait dessous à z-60, et on ne le voyait pas (2026-09-24). Sous
+      // le sélecteur de date (190) et les bulles (200), qui s'ouvrent par-dessus.
+      className="card-solid fixed z-[95] min-w-[15rem] max-w-[22rem] overflow-y-auto rounded-[12px] border border-border p-1 shadow-lg focus:outline-none"
       style={{
         ...(place ?? INVISIBLE),
         maxHeight: "calc((100vh - 1rem) * var(--zoom-inv, 1))",
@@ -469,7 +494,7 @@ function SousMenu(props: {
       role="menu"
       aria-label={props.libelle}
       data-menu-contextuel=""
-      className="card-solid fixed z-[61] min-w-[12rem] max-w-[20rem] overflow-y-auto rounded-[12px] border border-border p-1 shadow-lg"
+      className="card-solid fixed z-[96] min-w-[12rem] max-w-[20rem] overflow-y-auto rounded-[12px] border border-border p-1 shadow-lg"
       style={{
         ...(place ?? INVISIBLE),
         maxHeight: "calc((100vh - 1rem) * var(--zoom-inv, 1))",

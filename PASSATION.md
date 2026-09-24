@@ -519,6 +519,14 @@ menus). Base inchangée en 27. ✅ **Fusionnée dans `mobile-ios` le 2026-09-24*
 après le commit des pièces jointes : `lib.rs` et `schema.testutil.ts` déclarent
 027 PUIS 028, sans trou.
 
+**2026-09-24, vérification complète** : menu sur les BLOCS d'une note (carte,
+croquis, image, pièce jointe — clic droit, ou toucher au doigt) et sur les
+NŒUDS d'une carte ; clic droit sur trades, tracker, calculs de Position,
+comptes, flux, positions, tags, liens rapides, liens entre objets ;
+confirmations en ligne pour tout ce qui est définitif et coûte à refaire. Trois
+défauts du menu corrigés (sous les fenêtres, Échap en double, focus perdu) —
+`PIEGES.md` § 19.15–19.18, `CLAUDE.md` section du 2026-09-24.
+
 Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
 `PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
 

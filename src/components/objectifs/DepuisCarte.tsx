@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Carte } from "../../lib/carte";
+import { menuContextuelOuvert } from "../../lib/menu/tactile";
 import { t, tp } from "../../lib/i18n";
 import { comptesDuPlan, planDeCarte } from "../../lib/objectifs/carte";
 import { creerObjectifDepuisPlan } from "../../lib/objectifs/creerDepuisCarte";
@@ -60,7 +61,7 @@ export default function DepuisCarte(props: {
     const touche = (e: KeyboardEvent) => {
       // ⚠️ On MARQUE la touche : sans ça, un seul Échap referme aussi la carte
       // derrière (convention de l'app depuis le 2026-08-28).
-      if (e.defaultPrevented || e.key !== "Escape") return;
+      if (e.defaultPrevented || e.key !== "Escape" || menuContextuelOuvert()) return;
       e.preventDefault();
       e.stopPropagation();
       props.onFermer();

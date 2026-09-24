@@ -5,6 +5,9 @@ import type { PositionSizeCalc } from "../lib/types";
 
 import { localeTag, t } from "../lib/i18n";
 import ConfirmationEnLigne from "./ConfirmationEnLigne";
+import MenuContextuel from "./menu/MenuContextuel";
+import { useMenuContextuel } from "./menu/useMenuContextuel";
+import { IconReset, IconSend, IconTrash, IconX } from "./icons";
 
 /** Nombre de colonnes du tableau — la ligne de confirmation les couvre toutes. */
 const COLONNES = 9;
@@ -38,6 +41,8 @@ export default function PositionSizeHistory({
 }: Props) {
   /** Le calcul dont on demande la suppression — définitive, d'où la question. */
   const [aSupprimer, setASupprimer] = useState<number | null>(null);
+  /** Le clic droit sur un calcul : les MÊMES gestes que ses boutons (règle 18). */
+  const menu = useMenuContextuel<PositionSizeCalc>();
   if (calcs.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-text-dim">
@@ -78,7 +83,7 @@ export default function PositionSizeHistory({
             );
             return (
               <Fragment key={c.id}>
-              <tr className="group border-t border-border">
+              <tr className="group border-t border-border" onContextMenu={(e) => menu.ouvrirAuPoint(e, c)}>
                 <td className="py-2.5 pl-1 font-mono text-xs text-text-dim">
                   {frDateTime(c.created_at)}
                 </td>
@@ -207,6 +212,23 @@ export default function PositionSizeHistory({
           })}
         </tbody>
       </table>
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur le calcul")}
+        entrees={(() => {
+          const c = menu.cible && calcs.find((x) => x.id === menu.cible!.id);
+          if (!c) return [];
+          return [
+            // Le bouton « tradé » de la ligne, tel quel : pas encore tradé, il
+            // ENVOIE au tracker (et marque) ; déjà tradé, il retire la marque.
+            c.used_for_trade
+              ? { id: "trade", libelle: t("Retirer la marque « tradé »"), icone: <IconX />, executer: () => onToggleUsed(c) }
+              : { id: "trade", libelle: t("Trader ce calcul"), icone: <IconSend />, executer: () => onTrade(c) },
+            { id: "recharger", libelle: t("Recharger ce calcul"), icone: <IconReset />, executer: () => onReuse(c) },
+            { id: "supprimer", libelle: t("Supprimer…"), icone: <IconTrash />, danger: true, executer: () => setASupprimer(c.id) },
+          ];
+        })()}
+      />
     </div>
   );
 }

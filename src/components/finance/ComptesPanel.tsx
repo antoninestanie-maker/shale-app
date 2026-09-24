@@ -21,6 +21,8 @@ import {
 } from "../../lib/repo";
 import type { FinanceAccount, FinanceAccountKind } from "../../lib/types";
 import { formatDate, localeTag, t } from "../../lib/i18n";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
 
 /**
  * Libellés des natures de compte. Les valeurs stockées sont celles du schéma
@@ -69,6 +71,19 @@ export default function ComptesPanel({
   const [edite, setEdite] = useState<FinanceAccount | "nouveau" | null>(null);
   const [releveGroupe, setReleveGroupe] = useState(false);
   const [voirArchives, setVoirArchives] = useState(false);
+  /** La fenêtre s'ouvre DÉJÀ sur sa question de suppression (entrée « Supprimer… » du menu). */
+  const [suppressionDemandee, setSuppressionDemandee] = useState(false);
+  /**
+   * Le clic droit sur un compte (2026-09-24). Chaque entrée appelle le geste qui
+   * existe déjà (règle 18) : la fenêtre du compte, l'archivage de cette fenêtre,
+   * et sa suppression — qui garde SA confirmation, puisqu'elle emporte les
+   * relevés.
+   */
+  const menu = useMenuContextuel<FinanceAccount>();
+  const ouvrir = (c: FinanceAccount, supprimer = false) => {
+    setSuppressionDemandee(supprimer);
+    setEdite(c);
+  };
 
   useEffect(() => {
     if (signalNouveau > 0) setEdite("nouveau");
@@ -114,8 +129,9 @@ export default function ComptesPanel({
               ligne={ligne}
               aujourdhui={aujourdhui}
               devise={devise}
-              onEditer={() => setEdite(ligne.compte)}
+              onEditer={() => ouvrir(ligne.compte)}
               onChange={onChange}
+              onMenu={(e) => menu.ouvrirAuPoint(e, ligne.compte)}
             />
           ))}
         </ul>
@@ -165,7 +181,11 @@ export default function ComptesPanel({
           {voirArchives && (
             <ul className="mt-2 flex flex-col gap-1.5">
               {archives.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 text-xs">
+                <li
+                  key={c.id}
+                  onContextMenu={(e) => menu.ouvrirAuPoint(e, c)}
+                  className="flex items-center justify-between gap-3 text-xs"
+                >
                   <span className="min-w-0 truncate text-text-dim" title={c.label}>
                     {c.label}
                   </span>
@@ -187,10 +207,36 @@ export default function ComptesPanel({
       {edite && (
         <FormulaireCompte
           compte={edite === "nouveau" ? null : edite}
-          onFerme={() => setEdite(null)}
+          suppressionDemandee={suppressionDemandee}
+          onFerme={() => {
+            setEdite(null);
+            setSuppressionDemandee(false);
+          }}
           onChange={onChange}
         />
       )}
+
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
+        entrees={(() => {
+          const c = menu.cible && comptes.find((x) => x.id === menu.cible!.id);
+          if (!c) return [];
+          return [
+            { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => ouvrir(c) },
+            {
+              id: "archiver",
+              libelle: c.archived === 1 ? t("Désarchiver") : t("Archiver"),
+              icone: <IconFolder />,
+              executer: async () => {
+                await archiveFinanceAccount(c.id, c.archived === 0);
+                await onChange();
+              },
+            },
+            { id: "supprimer", libelle: t("Supprimer…"), icone: <IconTrash />, danger: true, executer: () => ouvrir(c, true) },
+          ];
+        })()}
+      />
 
       {releveGroupe && (
         <ReleveGroupe
@@ -212,12 +258,14 @@ function LigneCompte({
   devise,
   onEditer,
   onChange,
+  onMenu,
 }: {
   ligne: LignePatrimoine;
   aujourdhui: string;
   devise: string;
   onEditer: () => void;
   onChange: () => Promise<void> | void;
+  onMenu: (e: React.MouseEvent) => void;
 }) {
   const [saisie, setSaisie] = useState<string | null>(null);
   const { compte, montantCents, dernierReleve, perime } = ligne;
@@ -250,7 +298,7 @@ function LigneCompte({
     .join(" · ");
 
   return (
-    <li className="group/ligne flex items-center gap-3 py-2.5">
+    <li className="group/ligne flex items-center gap-3 py-2.5" onContextMenu={onMenu}>
       <div className="min-w-0 flex-1">
         <p className="truncate truncate-souris text-sm text-text" title={compte.label}>
           {compte.label}
@@ -443,10 +491,13 @@ function ReleveGroupe({
  */
 export function FormulaireCompte({
   compte,
+  suppressionDemandee = false,
   onFerme,
   onChange,
 }: {
   compte: FinanceAccount | null;
+  /** Ouverte par « Supprimer… » du menu : la question est déjà posée. */
+  suppressionDemandee?: boolean;
   onFerme: () => void;
   onChange: () => Promise<void> | void;
 }) {
@@ -461,7 +512,7 @@ export function FormulaireCompte({
         }
       : VIDE,
   );
-  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
+  const [confirmeSuppression, setConfirmeSuppression] = useState(suppressionDemandee && !!compte);
 
   const valider = async () => {
     if (!form.label.trim()) return;

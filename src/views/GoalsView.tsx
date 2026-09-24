@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import GoalModal from "../components/GoalModal";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
@@ -12,6 +12,7 @@ import { fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } fro
 import { descendantsVivants } from "../lib/corbeille/lots";
 import { jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
+import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { IconPencil, IconPlus, IconTrash } from "../components/icons";
 import type { EntreePossible } from "../lib/menu/entrees";
@@ -63,8 +64,8 @@ export default function GoalsView({ data, refresh }: Props) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [parentForNew, setParentForNew] = useState<number | null>(null);
+  /** L'objectif dont on demande la suppression (il a des étapes : la question est posée dans la ligne). */
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const deleteTimer = useRef<number | undefined>(undefined);
   /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par son bouton. */
   const [ajoutPour, setAjoutPour] = useState<number | null>(null);
   /** L'objectif regardé en carte mentale (lecture) — un seul à la fois, plein écran. */
@@ -176,15 +177,16 @@ export default function GoalsView({ data, refresh }: Props) {
    * son « Annuler » suffisent.
    */
   const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
+  /**
+   * Le bouton de la ligne. Avec des étapes, la question est posée DANS la
+   * ligne (`ConfirmationEnLigne`), comme le menu la pose dans le menu — plus de
+   * double-clic « sûr ? », qui ne disait pas ce qui partait (2026-09-24).
+   */
   const handleDelete = async (goal: Goal) => {
-    if (etapesDe(goal) > 0 && deletingId !== goal.id) {
+    if (etapesDe(goal) > 0) {
       setDeletingId(goal.id);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingId(null), 4000);
       return;
     }
-    window.clearTimeout(deleteTimer.current);
-    setDeletingId(null);
     await supprimerObjectif(goal);
   };
 
@@ -376,17 +378,9 @@ export default function GoalsView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => handleDelete(goal)}
-              className={`cible-tactile rounded-md p-1.5 transition-colors ${
-                deletingId === goal.id
-                  ? "bg-red/20 text-red"
-                  : "text-text-dim hover:bg-surface hover:text-red"
-              }`}
-              aria-label={
-                deletingId === goal.id
-                  ? t("Confirmer la suppression")
-                  : t("Supprimer {title}", { title: goal.title })
-              }
-              data-tip={deletingId === goal.id ? t("Confirmer la suppression") : t("Supprimer l’objectif")}
+              className="cible-tactile rounded-md p-1.5 text-text-dim transition-colors hover:bg-surface hover:text-red"
+              aria-label={t("Supprimer {title}", { title: goal.title })}
+              data-tip={t("Supprimer l’objectif")}
               // ⚠️ Cette bulle disait « les sous-objectifs remontent d'un
               // niveau » : faux depuis la corbeille, ils partent avec lui.
               data-tip-sub={
@@ -399,16 +393,30 @@ export default function GoalsView({ data, refresh }: Props) {
                   : t("Il reste 30 jours dans Supprimés récemment. Ses tâches restent.")
               }
             >
-              {deletingId === goal.id ? (
-                <span className="px-0.5 text-[11px] font-semibold">{t("sûr ?")}</span>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
-              )}
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              </svg>
             </button>
           </span>
         </div>
+
+        {deletingId === goal.id && (
+          <ConfirmationEnLigne
+            className="mx-3 mb-2"
+            question={tp(
+              etapesDe(goal),
+              "Supprimer « {titre} » ? Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.",
+              "Supprimer « {titre} » ? Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.",
+              { titre: goal.title },
+            )}
+            libelle={t("Supprimer")}
+            onRenoncer={() => setDeletingId(null)}
+            onConfirmer={async () => {
+              setDeletingId(null);
+              await supprimerObjectif(goal);
+            }}
+          />
+        )}
 
         {avecFeuille && ouvert && (
           <FeuilleDeRoute

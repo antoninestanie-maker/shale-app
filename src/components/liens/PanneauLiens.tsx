@@ -4,7 +4,9 @@ import { aretesResolues, grouperParKind, LINK_KINDS } from "../../lib/liens";
 import { createLink, deleteLink, fetchLinksTo, rechercherPartout } from "../../lib/repo";
 import type { Trouvaille } from "../../lib/recherche";
 import type { LinkKind, ObjectLink } from "../../lib/types";
-import { IconPlus, IconX } from "../icons";
+import { IconExpand, IconPlus, IconX } from "../icons";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { t } from "../../lib/i18n";
 
 /**
@@ -40,6 +42,12 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
   const [liens, setLiens] = useState<ObjectLink[]>([]);
   const [titres, setTitres] = useState<Map<string, string>>(new Map());
   const [ajout, setAjout] = useState(false);
+  /** Le clic droit sur un lien : l'ouvrir, ou retirer un rattachement fait à la main (règle 18). */
+  const menu = useMenuContextuel<ObjectLink>();
+  const retirerLien = async (id: number) => {
+    await deleteLink(id);
+    await charger();
+  };
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Trouvaille[]>([]);
   // ⚠️ Par REF, pas en dépendance : `onCompte` est souvent une lambda recréée à
@@ -159,7 +167,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
               </h4>
               <ul className="mt-1 space-y-0.5">
                 {groupes.get(k)!.map((l) => (
-                  <li key={l.id} className="group flex items-center gap-2">
+                  <li key={l.id} className="group flex items-center gap-2" onContextMenu={(e) => menu.ouvrirAuPoint(e, l)}>
                     <button
                       type="button"
                       onClick={() => onOuvrir?.(l.from_kind, l.from_uid)}
@@ -183,13 +191,10 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
                     {l.origin === "manual" && (
                       <button
                         type="button"
-                        onClick={async () => {
-                          await deleteLink(l.id);
-                          await charger();
-                        }}
+                        onClick={() => void retirerLien(l.id)}
                         data-tip={t("Retirer ce rattachement")}
                         aria-label={t("Retirer ce rattachement")}
-                        className="cible-tactile shrink-0 rounded p-1 text-text-dim transition-opacity hover:text-red md:opacity-0 md:group-hover:opacity-100"
+                        className="cible-tactile shrink-0 rounded p-1 text-text-dim transition-opacity hover:text-red focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
                       >
                         <IconX className="h-3.5 w-3.5" />
                       </button>
@@ -201,6 +206,27 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
           ))}
         </div>
       )}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur le lien")}
+        entrees={(() => {
+          const l = menu.cible && liens.find((x) => x.id === menu.cible!.id);
+          if (!l) return [];
+          return [
+            onOuvrir && { id: "ouvrir", libelle: t("Ouvrir"), icone: <IconExpand />, executer: () => onOuvrir(l.from_kind, l.from_uid) },
+            {
+              id: "retirer",
+              libelle: t("Retirer ce rattachement"),
+              icone: <IconX />,
+              danger: true,
+              // Une MENTION se retire dans le texte, pas ici : la retirer d'ici la
+              // ferait revenir au prochain enregistrement (voir le bouton).
+              desactive: l.origin === "manual" ? undefined : { raison: t("Une mention se retire en effaçant le @ dans le texte.") },
+              executer: () => retirerLien(l.id),
+            },
+          ];
+        })()}
+      />
     </section>
   );
 }

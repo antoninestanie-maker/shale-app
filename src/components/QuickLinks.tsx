@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import { addQuickLink, deleteQuickLink, isTauri } from "../lib/repo";
 import type { QuickLink } from "../lib/types";
-import { IconX } from "./icons";
+import { IconExternal, IconTrash, IconX } from "./icons";
+import MenuContextuel from "./menu/MenuContextuel";
+import { useMenuContextuel } from "./menu/useMenuContextuel";
+import { IconCopier } from "./menu/icones";
+import { copierTexte } from "../lib/menu/pressePapier";
 
 import { t } from "../lib/i18n";
 interface Props {
@@ -44,17 +48,22 @@ export default function QuickLinks({ links, refresh }: Props) {
       deleteTimer.current = window.setTimeout(() => setDeletingId(null), 3000);
       return;
     }
+    await effacerLien(id);
+  };
+  /** Le second temps du bouton, seul — ce que fait aussi l'entrée du menu (règle 18). */
+  const effacerLien = async (id: number) => {
     window.clearTimeout(deleteTimer.current);
     setDeletingId(null);
     await deleteQuickLink(id);
     await refresh();
   };
+  const menu = useMenuContextuel<number>();
 
   return (
     <div className="panel-col panel-grow">
       <div className="panel-scroll flex flex-wrap content-start gap-2 pr-0.5 pt-1">
         {links.map((link) => (
-          <span key={link.id} className="group/link relative">
+          <span key={link.id} className="group/link relative" onContextMenu={(e) => menu.ouvrirAuPoint(e, link.id)}>
             <button
               type="button"
               onClick={() => openLink(link.url)}
@@ -70,7 +79,7 @@ export default function QuickLinks({ links, refresh }: Props) {
               className={`absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-opacity ${
                 deletingId === link.id
                   ? "bg-red text-white opacity-100"
-                  : "bg-surface-2 text-text-dim opacity-0 group-hover/link:opacity-100"
+                  : "bg-surface-2 text-text-dim opacity-0 focus-visible:opacity-100 group-hover/link:opacity-100 [@media(pointer:coarse)]:opacity-100"
               }`}
               aria-label={
                 deletingId === link.id
@@ -131,6 +140,29 @@ export default function QuickLinks({ links, refresh }: Props) {
           </form>
         )}
       </div>
+
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur le lien")}
+        entrees={(() => {
+          const l = menu.cible !== null ? links.find((x) => x.id === menu.cible) : undefined;
+          if (!l) return [];
+          return [
+            { id: "ouvrir", libelle: t("Ouvrir"), icone: <IconExternal />, executer: () => openLink(l.url) },
+            {
+              id: "copier",
+              libelle: t("Copier l'adresse"),
+              icone: <IconCopier />,
+              executer: async () => {
+                await copierTexte(l.url);
+              },
+            },
+            // Un raccourci se recrée en dix secondes : le menu, geste délibéré,
+            // vaut confirmation (le bouton, lui, garde son second clic).
+            { id: "supprimer", libelle: t("Supprimer"), icone: <IconTrash />, danger: true, executer: () => effacerLien(l.id) },
+          ];
+        })()}
+      />
     </div>
   );
 }

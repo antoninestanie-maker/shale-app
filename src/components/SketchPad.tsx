@@ -15,6 +15,7 @@ import { IconCheck, IconReset, IconX } from "./icons";
 
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
+import { menuContextuelOuvert } from "../lib/menu/tactile";
 const SHEET_W = 1440;
 const SHEET_H = 900;
 const PAPER = "#f7f8fa";
@@ -202,6 +203,8 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
   // et le lecteur (qui teste `defaultPrevented`) laisse passer son tour.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Un menu contextuel ouvert garde le clavier (PIEGES § 19.15).
+      if (menuContextuelOuvert()) return;
       if (e.key === "Escape") {
         e.preventDefault();
         onCancel();

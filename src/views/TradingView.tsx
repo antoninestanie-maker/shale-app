@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   ComposedChart,
@@ -8,7 +8,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { IconImage } from "../components/icons";
+import { IconImage, IconPencil, IconTrash } from "../components/icons";
+import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
+import MenuContextuel from "../components/menu/MenuContextuel";
+import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import LiveTracker from "../components/LiveTracker";
 import Toast, { type ToastState } from "../components/Toast";
 import TradeModal from "../components/TradeModal";
@@ -109,7 +112,6 @@ export default function TradingView({ data, refresh }: Props) {
   const [zoom, setZoom] = useState<string | null>(null); // screenshot agrandi
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const deleteTimer = useRef<number | undefined>(undefined);
 
   const today = todayStr();
 
@@ -182,18 +184,20 @@ export default function TradingView({ data, refresh }: Props) {
 
   const bySetup = useMemo(() => statsBySetup(shown), [shown]);
 
-  const handleDelete = async (id: number) => {
-    if (deletingId !== id) {
-      setDeletingId(id);
-      window.clearTimeout(deleteTimer.current);
-      deleteTimer.current = window.setTimeout(() => setDeletingId(null), 3000);
-      return;
-    }
-    window.clearTimeout(deleteTimer.current);
+  /**
+   * Un trade effacé l'est POUR DE BON — le journal de trading n'a pas de
+   * corbeille. La question est donc posée dans la ligne, et elle nomme le trade
+   * (`ConfirmationEnLigne`) : le double-clic « sûr ? » d'avant ne disait ni
+   * lequel, ni que c'était définitif (2026-09-24).
+   */
+  const handleDelete = (id: number) => setDeletingId(id);
+  const effacerTrade = async (id: number) => {
     setDeletingId(null);
     await deleteTrade(id);
     await refresh();
   };
+  /** Le clic droit sur un trade : les mêmes gestes que ses deux boutons (règle 18). */
+  const menuTrade = useMenuContextuel<Trade>();
 
   return (
     <div className="mx-auto max-w-5xl p-8">
@@ -505,6 +509,7 @@ export default function TradingView({ data, refresh }: Props) {
               // toujours groupé et lisible.
               <li
                 key={trade.id}
+                onContextMenu={(e) => menuTrade.ouvrirAuPoint(e, trade)}
                 className="group flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] px-3 py-2.5 hover:bg-surface-2"
               >
                 {/* `whitespace-nowrap` : « 20 juil. » tient sur une ligne, sinon
@@ -559,7 +564,8 @@ export default function TradingView({ data, refresh }: Props) {
                   {trade.notes}
                 </span>
 
-                <span className="ml-auto flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                {/* Au survol à la souris ; TOUJOURS visibles au doigt et au clavier (règle 17). */}
+                <span className="ml-auto flex shrink-0 gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
                   <button
                     type="button"
                     onClick={() => setEditing(trade)}
@@ -574,32 +580,29 @@ export default function TradingView({ data, refresh }: Props) {
                   <button
                     type="button"
                     onClick={() => handleDelete(trade.id)}
-                    className={`rounded-md p-1.5 transition-colors ${
-                      deletingId === trade.id
-                        ? "bg-red/20 text-red"
-                        : "text-text-dim hover:bg-surface hover:text-red"
-                    }`}
-                    aria-label={
-                      deletingId === trade.id
-                        ? t("Confirmer la suppression")
-                        : t("Supprimer")
-                    }
-                    data-tip={
-                      deletingId === trade.id ? t("Confirmer la suppression") : t("Supprimer le trade")
-                    }
-                    data-tip-sub={t("Un second clic le retire définitivement du journal.")}
+                    className="rounded-md p-1.5 text-text-dim transition-colors hover:bg-surface hover:text-red"
+                    aria-label={t("Supprimer")}
+                    data-tip={t("Supprimer le trade")}
+                    data-tip-sub={t("Une question est posée d'abord : c'est définitif.")}
                   >
-                    {deletingId === trade.id ? (
-                      <span className="px-0.5 text-[11px] font-semibold">
-                        {t("sûr ?")}
-                      </span>
-                    ) : (
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                      </svg>
-                    )}
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                    </svg>
                   </button>
                 </span>
+                {deletingId === trade.id && (
+                  <ConfirmationEnLigne
+                    className="basis-full"
+                    question={t("Supprimer le trade {instrument} du {date} ({r}) ? C'est définitif : le journal de trading n'a pas de corbeille.", {
+                      instrument: trade.instrument,
+                      date: frDate(trade.date),
+                      r: fmtR(trade.result_r),
+                    })}
+                    libelle={t("Supprimer")}
+                    onRenoncer={() => setDeletingId(null)}
+                    onConfirmer={() => effacerTrade(trade.id)}
+                  />
+                )}
               </li>
             );
           })}
@@ -641,6 +644,21 @@ export default function TradingView({ data, refresh }: Props) {
           />
         </div>
       )}
+
+      <MenuContextuel
+        etat={menuTrade}
+        libelle={t("Actions sur le trade {instrument}", { instrument: menuTrade.cible?.instrument ?? "" })}
+        entrees={(() => {
+          const tr = menuTrade.cible && data.trades.find((x) => x.id === menuTrade.cible!.id);
+          if (!tr) return [];
+          return [
+            { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => setEditing(tr) },
+            // La question est posée dans la ligne, pas dans le menu : c'est le
+            // MÊME chemin que la corbeille de la ligne (règle 18).
+            { id: "supprimer", libelle: t("Supprimer…"), icone: <IconTrash />, danger: true, executer: () => handleDelete(tr.id) },
+          ];
+        })()}
+      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

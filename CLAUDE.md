@@ -6240,3 +6240,35 @@ parallèle. C'est le § 9.11, confirmé dans les deux sens, pas une régression.
 - **Le `@` dans le corps de TEXTE du Savoir n'existe toujours pas** — trou connu
   depuis le 2026-09-07, hors périmètre ici.
 
+
+## 2026-09-24 — Menus contextuels : la vérification complète
+
+Déclencheur : « je ne peux pas supprimer une carte mentale dans une note avec
+un clic droit… fais une vérif complète… ajoute des confirmations si
+nécessaire quand l'objet à supprimer est important ».
+
+**Ce qui manquait, et pourquoi.** Les menus avaient été posés LISTE PAR LISTE.
+Tout ce qui n'est pas une ligne de liste était resté dehors : les BLOCS dans
+une note (carte, croquis, image, pièce jointe — le clic droit y rendait le menu
+du système, sans « Supprimer »), les NŒUDS d'une carte, et une dizaine de
+listes secondaires (trades, tracker, calculs de Position, comptes, flux,
+positions, tags, liens rapides, liens entre objets). Un seul module,
+`useMenuBlocs`, sert les deux éditeurs de note ; `lib/blocsNote.ts` retire un
+bloc et sait le remettre à sa place exacte (le « Annuler » du toast), parce
+qu'un retrait fait par le DOM n'entre pas dans le ⌘Z du navigateur.
+
+**La règle des confirmations, telle qu'appliquée.** Ce qui passe par la
+corbeille ne demande rien de plus, sauf s'il emporte d'autres choses (objectif
+à étapes). Ce qui est DÉFINITIF et coûte à refaire demande, dans la ligne, une
+phrase qui nomme l'objet et dit que c'est définitif (`ConfirmationEnLigne`) :
+trades, positions du tracker, tags utilisés, positions et encaissements de
+Finance, calculs de Position. Carte à branches et croquis : confirmation dans
+le menu, puis « Annuler ». Les derniers doubles-clics « sûr ? » ont disparu
+(objectifs, trades, tracker) : ils ne disaient ni quoi, ni que c'était
+définitif.
+
+**Trois défauts du menu lui-même, trouvés en pilotant Chrome** (PIEGES § 19.15
+à 19.17) : il se peignait SOUS les fenêtres (z-60 contre 70–80) ; Échap fermait
+aussi l'éditeur de carte (écouteur en capture) ; dans un `contenteditable`, le
+menu n'avait pas le focus et Échap fermait le lecteur. Les trois sont corrigés
+à la racine — le menu garde le clavier tant qu'il est ouvert.

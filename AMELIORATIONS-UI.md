@@ -497,7 +497,11 @@ c'est voulu ou à venir :
 | Facture ÉMISE | Finance | S'annule par un **avoir** : la numérotation légale ne supporte pas de trou. L'entrée « Supprimer » reste grisée, avec la raison. |
 | Flux récurrents, positions, encaissements | Finance | Suppression définitive, **toujours après une confirmation en ligne** qui dit que c'est définitif (`ConfirmationEnLigne`, depuis le 2026-09-23 pour les positions et les encaissements — demande d'Antonin). |
 | Calculs de l'historique | Position | Idem : confirmation en ligne, définitif. |
-| Tags, liens entre objets, types d'objet | Savoir / Liaisons | Métadonnées : les jeter à part n'a pas de sens, ils suivent leur objet. |
+| Tags | Tâches | Définitif : un tag UTILISÉ demande confirmation et dit combien de tâches le perdent (2026-09-24) ; inutilisé, il part d'un clic. |
+| Liens entre objets, types d'objet | Savoir / Liaisons | Un rattachement se refait ; un type demande confirmation et dit que ses sujets restent. |
+| Trades, positions du tracker live | Trading | Définitifs : confirmation en ligne qui nomme le trade ou la paire (2026-09-24 — le double-clic « sûr ? » ne disait ni lequel ni que c'était définitif). |
+| Blocs d'une note (carte, croquis, image, pièce jointe) | Notes, Savoir | Pas de corbeille, mais « Annuler » dans le toast remet le bloc à sa place ; carte à branches et croquis demandent confirmation dans le menu. Le FICHIER d'une pièce jointe n'est jamais supprimé, seul son jeton quitte la note. |
+| Liens rapides | Aujourd'hui | Un raccourci se recrée en dix secondes : second clic sur la croix, ou l'entrée du menu. |
 | Exemples de démarrage | Partout | « Retirer les exemples » est un geste de nettoyage, pas une perte. |
 | Trading, Market-Brain, Position | — | Hors périmètre du chantier (règle explicite). |
 
@@ -505,6 +509,9 @@ c'est voulu ou à venir :
 
 - **Widgets d'Aujourd'hui** (voir B) : leurs contrôles restent au survol. Reporté
   à un chantier dédié — c'est `ResizableGrid`, partagé par toutes les grilles.
-- **Nœuds de carte mentale** : ils ont DÉJÀ leur propre menu et leur F2 (le
-  modèle dont ce chantier s'est inspiré) ; les fondre dans `MenuContextuel`
-  est un refactor sans gain visible.
+- ~~**Nœuds de carte mentale**~~ — *fait le 2026-09-24* : clic droit sur un
+  nœud (Sous-nœud, Voisin, Renommer, Citer, Replier, Côté, Supprimer), mêmes
+  fonctions que la barre d'outils. La phrase d'avant (« ils ont déjà leur
+  propre menu ») était FAUSSE : ils n'avaient que la barre et le clavier.
+- Les **exemples** de démarrage partent d'un clic, sans question : ce ne sont
+  que des contenus jamais touchés (en modifier un le rend sien).
