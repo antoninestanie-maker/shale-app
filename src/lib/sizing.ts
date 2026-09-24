@@ -142,18 +142,14 @@ export function computeSizing(
   const highRisk = riskPercent > thresholds.maxRiskPercent;
   if (highRisk)
     warnings.push(
-      `Risque élevé (${fmtPercent(riskPercent)}) — au-dessus de ton seuil de ${fmtPercent(
-        thresholds.maxRiskPercent,
-      )}. Reconsidère la taille ou le stop-loss.`,
+      t("Risque élevé ({risk}) — au-dessus de ton seuil de {max}. Reconsidère la taille ou le stop-loss.", { risk: fmtPercent(riskPercent), max: fmtPercent(thresholds.maxRiskPercent) }),
     );
 
   const exceedsMaxLots =
     thresholds.maxLots != null && lots > thresholds.maxLots;
   if (exceedsMaxLots)
     warnings.push(
-      `Taille (${fmtLots(lots)} lots) au-dessus de ta limite de ${fmtLots(
-        thresholds.maxLots as number,
-      )} lots.`,
+      t("Taille ({lots} lots) au-dessus de ta limite de {max} lots.", { lots: fmtLots(lots), max: fmtLots(thresholds.maxLots as number) }),
     );
 
   const belowMinLot = lots < thresholds.minLot;

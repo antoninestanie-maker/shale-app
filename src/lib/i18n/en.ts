@@ -895,6 +895,10 @@ export const EN: Record<string, string> = {
   "Taille de pip invalide pour {pair}.": "Invalid pip size for {pair}.",
   "Taille calculée ({lots} lots) sous le minimum tradable ({min}). Augmente le risque ou resserre le stop-loss.":
     "Calculated size ({lots} lots) is below the minimum tradable size ({min}). Increase the risk or tighten the stop-loss.",
+  "Risque élevé ({risk}) — au-dessus de ton seuil de {max}. Reconsidère la taille ou le stop-loss.":
+    "High risk ({risk}) — above your {max} threshold. Reconsider the size or the stop-loss.",
+  "Taille ({lots} lots) au-dessus de ta limite de {max} lots.":
+    "Size ({lots} lots) is above your {max}-lot limit.",
   "Requête bloquée par Gemini : {reason}": "Request blocked by Gemini: {reason}",
 
   // ── Timer : objectif quotidien ────────────────────────────────────────────
