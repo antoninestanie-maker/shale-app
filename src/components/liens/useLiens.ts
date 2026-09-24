@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { rafraichirReferences, refsDesCartes } from "../../lib/carte";
 import { rafraichirBlocs } from "../../lib/carteDom";
 import { extraireMentions, rafraichirMentions } from "../../lib/mentions";
-import { synchroniserMentions, titresDesMentions, uidDe } from "../../lib/repo";
+import { extrairePiecesJointes } from "../../lib/piecesJointes";
+import { rafraichirPiecesJointes } from "../../lib/piecesJointesDom";
+import { localeTag } from "../../lib/i18n";
+import { fetchPiecesJointes, synchroniserMentions, titresDesMentions, uidDe } from "../../lib/repo";
 import type { LinkKind } from "../../lib/types";
 
 /**
@@ -16,20 +19,32 @@ import type { LinkKind } from "../../lib/types";
  * silencieux : le texte affiche le jeton, mais aucun backlink n'apparaît en
  * face. Personne ne cherche un défaut qui ne se voit que de l'autre côté.
  *
- * ⭐ DEUX FAMILLES DE CITATIONS, UN SEUL CALCUL — et c'est la garantie du
- * chantier « cartes mentales » (2026-09-07). Un texte peut citer un objet de
- * deux façons : par un jeton `@` (`<span data-mention>`) ou par un nœud de
- * carte mentale (dans le JSON de `data-mindmap`). Les deux produisent la MÊME
- * arête `object_links`, avec la MÊME origine `'mention'` — le `CHECK` du schéma
- * (migration 020) n'en accepte pas d'autre, et une valeur inconnue arrêterait
- * la synchronisation (`PIEGES.md` § 3.4).
+ * ⭐ TROIS FAMILLES DE CITATIONS, UN SEUL CALCUL — la garantie du chantier
+ * « cartes mentales » (2026-09-07), étendue aux pièces jointes le 2026-09-23.
+ * Un texte peut citer un objet de trois façons :
+ *   • un jeton `@` — `<span data-mention>` (`mentions.ts`) ;
+ *   • un nœud de carte mentale — le JSON de `data-mindmap` (`carte.ts`) ;
+ *   • une pièce jointe — `<span data-fichier>` (`piecesJointes.ts`).
+ * Les trois produisent la MÊME arête `object_links`, avec la MÊME origine
+ * `'mention'`.
+ *
+ * ⚠️ Sur l'origine, une correction DATÉE plutôt qu'effacée : jusqu'au
+ * 2026-09-23, ce commentaire justifiait le `'mention'` unique par le `CHECK`
+ * de la migration 020, « qui n'en accepte pas d'autre ». La migration 028 a
+ * retiré ce `CHECK` (il faisait échouer le cycle de synchronisation entier, et
+ * non la seule ligne fautive — `PIEGES.md` § 3.4). Le motif tient toujours,
+ * mais il a changé de nature : inventer une origine `'piece-jointe'` obligerait
+ * `diffMentions` à savoir laquelle il a le droit de supprimer, alors que sa
+ * règle actuelle — « ne retire que ce qui vient d'un texte, jamais un
+ * rattachement manuel » — est exactement la bonne pour les trois familles.
  *
  * ⚠️ Elles sont donc réconciliées **ENSEMBLE, EN UNE SEULE PASSE**, sur l'union
  * de ce que le corps contient maintenant. C'est ce qui rend impossible
- * qu'enregistrer une carte détruise une arête créée par un `@` du même texte :
- * `diffMentions` ne supprime que ce qui n'est plus voulu, et les deux familles
- * sont dans le même « voulu ». Deux appels séparés se seraient effacés l'un
- * l'autre — un test le garde (`carte.test.ts`, § porte 3).
+ * qu'enregistrer une carte détruise une arête créée par un `@` du même texte,
+ * ou qu'une frappe efface le lien vers un PDF joint trois lignes plus haut :
+ * `diffMentions` ne supprime que ce qui n'est plus voulu, et les trois familles
+ * sont dans le même « voulu ». Trois appels séparés se seraient effacés les uns
+ * les autres — un test le garde (`carte.test.ts`, § porte 3).
  */
 export function useLiens(kind: LinkKind, id: number | null) {
   const [uid, setUid] = useState<string | null>(null);
@@ -62,13 +77,43 @@ export function useLiens(kind: LinkKind, id: number | null) {
   const rafraichir = useCallback(async (html: string): Promise<string> => {
     const desMentions = extraireMentions(html);
     const desCartes = refsDesCartes(html);
-    if (desMentions.length === 0 && desCartes.length === 0) return html;
-    const titres = await titresDesMentions([...desMentions, ...desCartes]);
-    const titreDe = (k: LinkKind, u: string) => titres.get(`${k}:${u}`) ?? null;
-    const avecMentions = rafraichirMentions(html, titreDe);
-    return desCartes.length === 0
-      ? avecMentions
-      : rafraichirBlocs(avecMentions, (c) => rafraichirReferences(c, titreDe));
+    const desFichiers = extrairePiecesJointes(html);
+    if (desMentions.length === 0 && desCartes.length === 0 && desFichiers.length === 0) return html;
+
+    let sortie = html;
+
+    if (desMentions.length > 0 || desCartes.length > 0) {
+      const titres = await titresDesMentions([...desMentions, ...desCartes]);
+      const titreDe = (k: LinkKind, u: string) => titres.get(`${k}:${u}`) ?? null;
+      sortie = rafraichirMentions(sortie, titreDe);
+      if (desCartes.length > 0) {
+        sortie = rafraichirBlocs(sortie, (c) => rafraichirReferences(c, titreDe));
+      }
+    }
+
+    // ⭐ LES PIÈCES JOINTES SE RAFRAÎCHISSENT ICI, avec les deux autres familles,
+    // et pas dans un second chemin appelé par chaque vue. `NotesView` et
+    // `KnowledgeView` en bénéficient sans une ligne de plus — et surtout, il
+    // n'existe pas de vue qui puisse oublier de le faire.
+    //
+    // ⚠️ Ce rafraîchissement ne sert pas qu'à réécrire un nom : c'est lui qui
+    // distingue les TROIS états d'une pièce jointe — présente, « pas sur cet
+    // appareil » (ses octets ne se synchronisent pas), et supprimée. Sans lui,
+    // un fichier effacé sur le Mac s'afficherait encore comme ouvrable sur
+    // l'iPhone, et le clic ne ferait rien.
+    if (desFichiers.length > 0) {
+      const etats = await fetchPiecesJointes(desFichiers.map((f) => f.uid));
+      sortie = rafraichirPiecesJointes(
+        sortie,
+        (uid) => {
+          const l = etats.get(uid);
+          return l ? { nom: l.name, mime: l.mime, taille: l.size, presente: l.presente } : null;
+        },
+        localeTag(),
+      );
+    }
+
+    return sortie;
   }, []);
 
   /**
@@ -86,7 +131,14 @@ export function useLiens(kind: LinkKind, id: number | null) {
     async (html: string, uidCible?: string | null): Promise<void> => {
       const cible = uidCible ?? uid;
       if (!cible) return;
-      const citations = [...extraireMentions(html), ...refsDesCartes(html)];
+      // ⚠️ LES TROIS FAMILLES, EN UNE SEULE LISTE. Retirer l'une d'elles d'ici
+      // ne casserait rien de visible tout de suite : c'est au PROCHAIN
+      // enregistrement que ses arêtes disparaîtraient, une par une, sans erreur.
+      const citations = [
+        ...extraireMentions(html),
+        ...refsDesCartes(html),
+        ...extrairePiecesJointes(html).map((p) => ({ kind: "file" as const, uid: p.uid })),
+      ];
       await synchroniserMentions(
         kind,
         cible,

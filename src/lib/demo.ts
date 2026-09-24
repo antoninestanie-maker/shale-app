@@ -17,6 +17,10 @@ import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
+// ⚠️ `import type`, jamais un import de valeur : `repo.ts` importe déjà ce
+// module en retour. Un type est effacé à la compilation, donc le cycle n'existe
+// pas à l'exécution — un import de valeur, lui, en créerait un vrai.
+import type { PieceJointeLigne } from "./repo";
 import { plainText } from "./richtext";
 import { poserCleDemo } from "./licence/cles";
 import {
@@ -1092,6 +1096,9 @@ const invoicePayments: InvoicePayment[] = (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const uidDemo = (kind: LinkKind, id: number) => `demo:${kind}:${id}`;
+
+/** Les pièces jointes déposées pendant la session (migration 028). */
+const piecesJointes: PieceJointeLigne[] = [];
 
 /** Ce que fait la cascade de triggers du natif (migration 020, § 8). */
 function retirerLiens(kind: LinkKind, uid: string): void {
@@ -2197,6 +2204,63 @@ export const demo = {
   },
 
   // ─── Calendrier, liaisons et objets (migration 020) ────────────────────────
+
+  // ─── Pièces jointes (migration 028) ────────────────────────────────────────
+  //
+  // ⚠️ LE MODE DÉMO DOIT AVOIR LA MÊME SÉMANTIQUE QUE LE NATIF, pas seulement
+  // la même signature — c'est le § 6.2 quater de `PIEGES.md`, et il a déjà coûté
+  // une perte de données (« renommer une tâche effaçait sa date » : le démo
+  // faisait un `Object.assign`, donc plus indulgent que le natif, donc le défaut
+  // était invisible ici).
+  //
+  // Concrètement, ce qui est reproduit fidèlement :
+  //   • une pièce jointe déposée EXISTE et s'affiche comme en natif ;
+  //   • ses octets ne sont NULLE PART — il n'y a pas de disque ici. `presente`
+  //     rend donc `false`, ce qui fait de la preview navigateur le seul endroit
+  //     où l'on peut relire l'état « pas sur cet appareil » sans monter un
+  //     second Mac. Ce n'est pas une dégradation : c'est le cas qu'on veut
+  //     pouvoir regarder.
+
+  async deposerPieceJointe(src: string, tailleDemo?: number): Promise<PieceJointeLigne | null> {
+    const nom = src.split("/").pop() || "fichier";
+    // La VRAIE taille quand le navigateur l'a donnée (`<input type="file">`) ;
+    // sinon une valeur plausible et STABLE pour un même nom — tirée au sort à
+    // chaque appel, elle ferait clignoter l'affichage d'un rendu à l'autre.
+    const taille = tailleDemo ?? 20_000 + (nom.length * 7919) % 900_000;
+    const ligne: PieceJointeLigne = {
+      id: piecesJointes.length + 1,
+      uid: `demo:file:${piecesJointes.length + 1}`,
+      name: nom,
+      mime: "",
+      size: taille,
+    };
+    piecesJointes.push(ligne);
+    return ligne;
+  },
+
+  async fetchPiecesJointes(
+    uids: readonly string[],
+  ): Promise<Map<string, PieceJointeLigne & { presente: boolean }>> {
+    const out = new Map<string, PieceJointeLigne & { presente: boolean }>();
+    for (const u of uids) {
+      const l = piecesJointes.find((p) => p.uid === u);
+      // ⚠️ `presente: false` — voir l'en-tête de ce bloc. Absent de la map =
+      // « supprimé », ce qui est autre chose.
+      if (l) out.set(u, { ...l, presente: false });
+    }
+    return out;
+  },
+
+  async supprimerPieceJointe(uid: string): Promise<void> {
+    const i = piecesJointes.findIndex((p) => p.uid === uid);
+    if (i >= 0) piecesJointes.splice(i, 1);
+  },
+
+  async ouvrirPieceJointe(_uid: string): Promise<boolean> {
+    // Aucun disque, aucun logiciel système : on rend `false`, exactement comme
+    // le natif le ferait pour des octets absents.
+    return false;
+  },
 
   async uidDe(kind: LinkKind, id: number): Promise<string | null> {
     return uidDemo(kind, id);

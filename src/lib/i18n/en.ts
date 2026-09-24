@@ -2867,4 +2867,12 @@ export const EN: Record<string, string> = {
   "{n} éléments cités rattachés": "{n} cited items linked",
   "{n} nœud vide écarté": "{n} empty node skipped",
   "{n} nœuds vides écartés": "{n} empty nodes skipped",
+
+  // ─── Pièces jointes (chantier du 2026-09-23, migration 028) ───────────────
+  // ⚠️ « Fichier » existe déjà plus haut ("File") : ne PAS le redéclarer, le
+  // contrôle i18n refuse une clé écrite deux fois.
+  "Joindre un fichier": "Attach a file",
+  "PDF, tableur, document…": "PDF, spreadsheet, document…",
+  "{nom} dépasse {max}": "{nom} is larger than {max}",
+  "{nom} est vide": "{nom} is empty",
 };

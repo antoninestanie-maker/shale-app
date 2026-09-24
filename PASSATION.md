@@ -240,7 +240,7 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus | migration 026. Voir § 11 (2026-09-16) — c'est le dernier gros chantier |
 | **Performance** | métriques personnalisées, habitudes, séries, graphiques (recharts) | |
 | **Finance** | remplace Benchmark (2026-08-25). Comptes, soldes, positions, cours, récurrents — **et la facturation** depuis le 2026-09-10 | migrations 018, 019, 023. ⚠️ Deux écrans manquent pour un usage réel : **l'émetteur** (identité, SIRET, régime) et **les tiers**. Sans eux, aucune facture ne peut être adressée à quelqu'un |
-| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG) | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre |
+| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. ⛔ Les pièces jointes ne sont **pas encore dans l'app installée** : aucun build natif, donc la migration 028 n'a jamais tourné sur la vraie base |
 | **Journal** | entrées datées | |
 | **Savoir** | base de connaissances. ⭐ **Un seul objet depuis le 2026-09-07 : le SUJET** — les « thèmes » et les « objets » ont fusionné (migration 022) | le chiffre qui a tranché : 5 jours après la livraison des objets, 4 thèmes utilisés, **0 objet** |
 | **Trading** | journal de trades en R, modes live / backtest | verrouillé hors offre trading |
@@ -258,7 +258,7 @@ chiffres comme une réalité commerciale.
 
 ---
 
-## 7. La base locale, et ses vingt-sept migrations
+## 7. La base locale, et ses vingt-huit migrations
 
 Un seul fichier SQLite, 47 tables, migrations jouées par `sqlx` au démarrage et
 enregistrées dans `_sqlx_migrations`. Les fichiers sont dans
@@ -283,6 +283,7 @@ qui n'accuse pas la migration.
 | 025 | licence_profil | le cache local du profil de licence signé |
 | 026 | feuille_de_route | ⭐ dix colonnes, **zéro table nouvelle** : un jalon EST un objectif |
 | 027 | corbeille | ⭐ une colonne `deleted_at` sur dix tables, **aucun trigger** : « Supprimés récemment », 30 jours. Lue en bas de `repo.ts` (`VIVANT`) et dans `notifications/data.rs` (`filtre_vivant`, qui vérifie que la colonne existe) |
+| 028 | pieces_jointes | la table `files` (signalement ; les octets vivent dans `<app_data>/pieces-jointes/`), et `object_links` RECRÉÉE sans son `CHECK` pour accueillir la 8ᵉ famille `file`. Répétée le 2026-09-24 sur une copie de la vraie base en 27 : integrity ok, outbox à 0 |
 
 ⚠️ **Avant tout build natif qui porte une migration : sauvegarder la base avec
 `sqlite3 .backup`, JAMAIS avec `cp`** — la base est en WAL, une copie de fichier
@@ -514,8 +515,9 @@ machines**.
 
 **Build n° 2 installé le 2026-09-24 à 00:04** (`012f1335…`) : confirmations +
 correction du survol de [U-survol] (`2c397b6`, fusionnée dans la branche des
-menus). Base inchangée en 27. ⛔ `chantier/menus-contextuels` n'est TOUJOURS PAS
-fusionnée dans `mobile-ios` (worktree principal occupé par [R-pieces-jointes]).
+menus). Base inchangée en 27. ✅ **Fusionnée dans `mobile-ios` le 2026-09-24**,
+après le commit des pièces jointes : `lib.rs` et `schema.testutil.ts` déclarent
+027 PUIS 028, sans trou.
 
 Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
 `PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
@@ -977,3 +979,69 @@ un bord qui rogne. ✅ `theme.survol.test.ts` (vu rouge sur l'ancienne règle).
 
 **Ce qui ne l'est pas.** ⚠️ Pas encore dans l'app installée (build groupé).
 ⚠️ L'audit ne couvre que le haut de chaque vue, dans les données de démo.
+
+### 11.z Le 2026-09-23 — joindre un fichier à une note
+
+Demandé par Antonin : « ce serait bien de pouvoir ajouter des fichiers, notes
+documents dans les notes ». Décisions et pourquoi : `CLAUDE.md`, section datée.
+Pièges : `PIEGES.md` § 22. **Migration 028.**
+
+**Ce qui est livré.** Un bouton « Fichier » dans la barre d'outils des Notes,
+une entrée « Fichier » dans le menu « Insérer » du Savoir, et un jeton en ligne
+dans le corps de la note — pictogramme, nom, taille — qui s'ouvre d'un clic dans
+le logiciel du système. Un fichier devient du même coup la **huitième famille du
+graphe** : il se cite, il porte des backlinks, il peut être un nœud de carte.
+
+**Les deux choses à savoir avant d'y toucher :**
+
+1. **Les octets ne sont pas dans la note.** La table `files` porte le
+   signalement, les octets vivent dans `<app_data>/pieces-jointes/<uid>`. La
+   ligne se synchronise, **les octets non** : sur l'autre appareil la pièce
+   jointe s'affiche grisée, « pas sur cet appareil ». L'en-tête de la 028 porte
+   le calcul qui a tranché.
+2. **`object_links` n'a plus de `CHECK`.** Il refusait la huitième famille, et
+   une contrainte violée par une ligne distante arrête le CYCLE de
+   synchronisation, pas la ligne. La règle est en TypeScript, gardée par deux
+   tests. Les arêtes citant un fichier **ne quittent pas la machine** — c'est ce
+   qui protège un appareil resté en version antérieure.
+
+**Fichiers neufs.** `lib/piecesJointes.ts` (pur, 22 tests),
+`lib/piecesJointesDom.ts` (+ 13 tests sous `happy-dom`),
+`components/useDepotPieceJointe.ts`, `src-tauri/src/pieces_jointes.rs` (4 tests),
+`src-tauri/migrations/028_pieces_jointes.sql`.
+
+**⛔⛔ AVANT TOUT BUILD NATIF — LIRE CECI.** La base réelle d'Antonin est en
+**027** (`corbeille`, jouée le 2026-09-23 par le chantier voisin), et la 027
+**n'est PAS sur `mobile-ios`** : elle dort sur `chantier/menus-contextuels`.
+`sqlx` valide à chaque démarrage que toute migration enregistrée dans la base
+existe encore dans le binaire (`ignore_missing` vaut `false`, et
+`tauri-plugin-sql` ne le change jamais). Construire depuis `mobile-ios` seul
+ferait donc échouer le démarrage sur `VersionMissing(27)` — **l'app ne s'ouvre
+plus du tout**. ▶️ **Fusionner `chantier/menus-contextuels` AVANT de construire.**
+Détail et commande de contrôle : `PIEGES.md` § 22.9.
+✅ **Résolu le 2026-09-24** : la branche des menus est fusionnée, `mobile-ios`
+porte 027 ET 028. La règle générale du § 22.9 (contrôler la base contre le
+dossier des migrations avant tout build) reste valable.
+
+**⛔ CE QUI RESTE, ET QUI EST IMPORTANT.**
+
+- ⭐ **VU sur le vrai moteur** via `webkit-pilote.swift` (l'outil de
+  [P-menus]) : bouton présent, **trois états du jeton distincts en sombre et en
+  clair**, tokens CSS qui résolvent, aucun débordement. Captures :
+  `/tmp/pj-shots/sombre.png` et `clair.png` (temporaires).
+- ⛔ **PAS VU : le clic, et l'entrée du menu « Insérer » du Savoir.** Le pas
+  `{"clic"}` de l'outil ne produit aucun événement DOM (§ 22.8, établi par
+  contre-épreuve). Le hit-test, lui, est prouvé : le clic toucherait `.pj-nom`
+  et `closest()` remonte au bon jeton. **Premier geste de la reprise** : joindre
+  un vrai fichier et cliquer le jeton, dans l'app installée ou dans Chrome.
+- **Aucun build natif** : la 028 n'a jamais tourné sur la vraie base d'Antonin,
+  et la commande Rust n'a jamais copié un octet. À grouper avec [P-menus] et
+  [T-encre] — chaque build lui coûte une fenêtre de trousseau.
+- ⚠️ **Sauvegarder la base avant ce build.** La 028 RECRÉE `object_links`
+  (copie, `DROP`, renommage). C'est éprouvé sur base neuve et sur les 27
+  migrations d'affilée, jamais sur ses vraies données.
+- **Le numéro 027 appartient à [P-menus]** (corbeille), non fusionné. Les deux
+  migrations sont compatibles dans les deux sens, vérifié.
+- Une pièce jointe supprimée **ne passe pas par la corbeille** (`files` n'a pas
+  de `deleted_at`) — couture laissée au chantier qui possède ce motif.
+

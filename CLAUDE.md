@@ -6076,3 +6076,167 @@ identique partout où il a de la place.
 (`tools/webkit-pilote.swift`, PIEGES § 21.11), pas en survol forcé dans Chrome.
 La vérification V7 disait « filet à 1 au survol » — c'était vrai, et le filet
 était pourtant invisible.
+
+---
+
+## 2026-09-23 — ⭐ Les pièces jointes, et la huitième famille du graphe
+
+Demande d'Antonin, en une phrase : « ce serait bien de pouvoir ajouter des
+fichiers, notes documents dans les notes », précédée de « carte mentale avec
+notes liés, savoir documents etc, création de liens ».
+
+**Migration 028** (et non 027 : voir plus bas). Pièges dans `PIEGES.md` § 22.
+
+### ⭐ La moitié de la demande existait déjà
+
+Citer une note, une fiche, un objectif depuis une note : c'est le `@`, livré le
+2026-09-02, et le champ le dit en toutes lettres dans son texte d'invite. Un
+nœud de carte mentale le fait aussi depuis le 2026-09-07. Ce qui manquait
+vraiment tenait en trois trous, et il fallait les nommer avant de construire :
+le `@` n'existe pas dans le corps de TEXTE du Savoir ; Notes n'a aucun menu
+« Insérer » ; et **aucun fichier n'existe nulle part** — `lib/fichiers.ts` sait
+seulement écrire vers le disque, jamais en lire un.
+
+### ⭐⭐ LES OCTETS NE SONT PAS DANS LA NOTE — et le calcul qui tranche
+
+Les images du Savoir sont écrites en base64 **dans le corps** (`encodeImage`).
+Tenable pour une image recompressée ; intenable pour un fichier quelconque, et
+pour trois raisons qui se cumulent : `notes_fts` indexe le corps **BRUT** (un
+PDF de 3 Mo coûterait 4 Mo dans la note PLUS 4 Mo d'index, pour un contenu dont
+pas un mot n'est cherchable) ; la synchronisation renvoie la **ligne entière** à
+chaque enregistrement, par lots qui ont une limite de taille ; et c'est le même
+raisonnement qui avait fait choisir le SVG pour les cartes mentales le
+2026-09-07 — on ne le refait pas dans l'autre sens.
+
+Donc : table `files` pour le **signalement**, octets sur le disque
+(`<app_data>/pieces-jointes/<uid>`, Rust), et **un simple jeton** dans le corps.
+
+### ⭐ Ce qui se synchronise, et ce qui ne se synchronise pas
+
+Décision prise et assumée : **la ligne voyage, les octets non.**
+L'autre appareil SAIT donc qu'une pièce jointe existe et l'affiche grisée
+« pas sur cet appareil », au lieu de faire comme si le paragraphe n'avait jamais
+rien porté. Les octets ne peuvent pas passer par la synchronisation (chiffrement
+ligne à ligne, envoi par lots) ; les faire suivre demande un stockage chiffré
+chez Supabase — un chantier à part, et une facture.
+
+⚠️ **Trois états, et les confondre serait mentir** : présente · pas sur cet
+appareil · supprimée. Le troisième laisse le jeton en place, barré — l'effacer
+réécrirait la phrase de l'utilisateur, même règle qu'une mention morte.
+
+### ⭐⭐ Le `CHECK` d'`object_links` a été RETIRÉ, pas contourné
+
+C'est la décision la plus lourde du chantier. La contrainte énumérait les sept
+familles et refusait la huitième. En lisant le moteur, un fait plus dur que le
+§ 3.4 de `PIEGES.md` est apparu : `appliquerReçue` ne rattrape que
+`ParentManquant` et **relance tout le reste**, et le curseur n'avance pas sur
+une page en échec. Une famille inconnue venue d'un appareil plus récent
+n'aurait donc pas refusé UNE ligne : elle aurait arrêté **la synchronisation de
+cet appareil, définitivement**.
+
+La règle vit désormais en TypeScript (`LINK_KINDS`, `estKindConnu`), gardée par
+deux tests — dont un qui lit le schéma réel et échouera si quelqu'un replace
+une liste fermée sans lire pourquoi elle a disparu.
+
+⚠️ **Et la parade a une seconde moitié, sans laquelle la première ne suffit
+pas** : les arêtes dont une extrémité est un fichier **ne sont pas
+journalisées** (028 § 3). Elles ne quittent jamais la machine, donc aucun
+appareil en version antérieure n'en voit une. Coût assumé : le panneau
+« Mentionné dans » d'un fichier est LOCAL — cohérent, puisque les octets le sont
+aussi. ▶️ Retirer cette garde un jour suppose que TOUS les appareils ont joué la
+028.
+
+### La huitième famille, et ce que le compilateur a trouvé
+
+`LinkKind` gagne `"file"`. Les six tables exhaustives (`Record<LinkKind, …>`)
+ont été désignées une à une par `tsc` — c'est le compilateur qui tient
+l'énumération, pas une liste à jour à la main (§ 7.2 ter).
+
+⭐ **`VUE_DE_KIND` exclut `file` PAR SON TYPE** (`Exclude<LinkKind, "file">`).
+Un fichier n'a pas de module : il s'ouvre dans le logiciel du système. Inventer
+une valeur « faute de mieux » aurait fait atterrir quelqu'un dans les Notes en
+croyant ouvrir son PDF. L'exclusion a immédiatement désigné `App.tsx`, qui
+lisait la table sans rien écarter.
+
+### Les trois familles de citations, réconciliées ENSEMBLE
+
+`useLiens` calculait déjà l'union des mentions `@` et des nœuds de carte, pour
+qu'enregistrer une carte ne détruise pas une arête de `@`. Les pièces jointes
+rejoignent cette union — en une seule passe, dans le même « voulu ». Sans cela,
+une frappe aurait effacé le lien vers un PDF joint trois lignes plus haut, au
+prochain enregistrement, sans erreur ni alerte.
+
+Le **rafraîchissement** est au même endroit, et pour la même raison : un second
+chemin appelé par chaque vue serait un chemin qu'une vue peut oublier.
+
+### Un incident de coordination, et ce qu'il enseigne
+
+La migration est née `027`. Le chantier voisin « menus contextuels » en avait
+déjà une sous ce numéro (`027_corbeille.sql`, non fusionnée). **Les pièces
+jointes ont cédé** — la corbeille était bien plus avancée. Les deux ont été
+vérifiées compatibles dans les deux sens : la corbeille n'ajoute que des
+colonnes `deleted_at` et ne crée aucun trigger, la 028 ne touche qu'aux
+triggers. Consigné dans `COORDINATION.md`. Détail et parade : `PIEGES.md` § 22.1.
+
+⚠️ **Couture connue** : `files` n'a PAS de `deleted_at`. Une pièce jointe
+supprimée ne passe donc pas par la corbeille. Ce n'est pas un oubli — c'est le
+motif du chantier voisin, qu'il lui revient d'étendre s'il le juge bon.
+
+### Décidé, et à ne pas re-litiger
+
+- **Le jeton n'est PAS un jeton de mention** (`data-fichier`, pas
+  `data-mention="file:…"`). Une version antérieure de l'app lirait le second
+  comme une mention morte au milieu du texte ; le premier n'est vu par personne
+  et se dégrade en un `<span>` inerte qui affiche le nom du fichier.
+- **En ligne, pas en bloc.** On cite un fichier au fil d'une phrase ; une figure
+  de premier niveau la couperait en deux.
+- **Aucun base64 sur le chemin du dépôt.** Le front n'envoie qu'un chemin, le
+  Rust copie. Encoder 100 Mo en base64 pour les repasser au Rust ferait transiter
+  133 Mo de texte par le pont, pour écrire ce qu'on pouvait copier.
+- **Plafond à 100 Mo.** Pas une limite technique : la base et les fichiers
+  partent ensemble dans les sauvegardes, et un dossier de plusieurs gigaoctets
+  les rendrait impraticables sans que personne fasse le lien.
+- **Un sélecteur de fichiers côté navigateur pour le mode démo.** Sans lui, le
+  bouton ne ferait rien en preview, donc toute l'interface serait invérifiable
+  ailleurs qu'en pilotant la vraie base d'Antonin (§ 6.2).
+
+### Ligne de base
+
+`tsc` ✓ · `test:types` ✓ · `vite build` ✓ · `cargo check --all-targets` ✓
+(0 avertissement) · `cargo test --lib` **137** (+4) · vitest **1324**, soit
+**36 tests neufs** sur les 1288 d'avant : 22 purs (`piecesJointes.test.ts`),
+13 DOM (`piecesJointesDom.test.ts`, sous `happy-dom`) et 1 sur le schéma
+(`liens.test.ts`, « le `CHECK` est bien parti ») · `i18n:check` 0 manquante
+(**2030 entrées**) · `i18n:durs` 0 chaîne sûrement française.
+
+⚠️ **Les quatre fichiers PGlite échouent en suite complète et passent isolés**
+(42 tests, code 0) — charge machine à 41 puis 57, plusieurs sessions en
+parallèle. C'est le § 9.11, confirmé dans les deux sens, pas une régression.
+
+### ⛔ Ce qui n'est PAS vérifié, et que personne ne doit supposer
+
+- ⭐ **VU SUR LE VRAI MOTEUR, finalement** — pas dans Chrome (non connecté) ni
+  dans le panneau (viewport 0×0, racine non montée, mesuré — § 22.7), mais dans
+  un **WKWebView piloté** : `tools/webkit-pilote.swift`, l'outil du chantier
+  « menus contextuels ». Mode démo, viewport 1360×880, app réellement montée.
+  Constaté : le bouton « Fichier » présent et visible à côté de « Carte
+  mentale » ; les **trois états du jeton distincts au premier coup d'œil** en
+  sombre ET en clair (plein · tireté et estompé · barré) ; tous les tokens CSS
+  résolvent (fond `rgb(26,29,36)` en sombre, `rgb(235,237,241)` en clair — donc
+  aucun échec silencieux, § 6.3) ; aucun débordement horizontal.
+- ⚠️ **Ce qui n'a PAS pu être vu, et il faut le savoir** : le CLIC. Le pas
+  `{"clic"}` de cet outil ne produit aucun événement DOM — établi par
+  contre-épreuve sur un bouton livré (§ 22.8). Ce qui EST prouvé, c'est que le
+  clic atterrirait sur l'enfant `.pj-nom` et que `closest()` remonte au bon
+  jeton (`elementFromPoint`) : le hit-test est juste, le branchement React ne
+  l'est que par le typage et les 13 tests `happy-dom`.
+- ⚠️ **L'entrée « Fichier » du menu « Insérer » du Savoir n'a pas été
+  atteinte** à l'écran (navigation à l'aveugle dans un module à deux niveaux).
+  Elle passe par le même `menuItem` que l'image et le croquis, et elle est
+  typée — mais elle n'a pas été regardée.
+- **Aucun build natif.** La migration 028 n'a donc **pas** tourné sur la vraie
+  base ; la commande Rust n'a jamais copié un octet. À grouper avec les
+  chantiers voisins.
+- **Le `@` dans le corps de TEXTE du Savoir n'existe toujours pas** — trou connu
+  depuis le 2026-09-07, hors périmètre ici.
+

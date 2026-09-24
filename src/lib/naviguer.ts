@@ -17,13 +17,42 @@ import type { View } from "../components/Sidebar";
 export const EVT_OUVRIR = "sb:ouvrir-objet";
 
 export interface DemandeOuverture {
-  kind: LinkKind;
+  /**
+   * ⚠️ `KindAvecVue`, jamais `LinkKind` : cet événement demande d'OUVRIR UN
+   * MODULE, et une pièce jointe n'en a pas (`ouvrirObjet` la détourne avant
+   * d'en arriver là). Le dire dans le type épargne un `if` à chaque écouteur —
+   * et surtout, ça a immédiatement désigné `App.tsx`, qui lisait `VUE_DE_KIND`
+   * sans rien écarter.
+   */
+  kind: KindAvecVue;
   /** Numéro LOCAL, résolu depuis l'uid avant l'émission. */
   id: number;
 }
 
+/**
+ * Les familles qui ont un module — c'est-à-dire toutes, SAUF le fichier.
+ *
+ * ⚠️ Ce `Exclude` n'est pas une commodité de typage, c'est la règle elle-même.
+ * Une pièce jointe (migration 028) ne s'ouvre pas dans un écran de Shale : elle
+ * s'ouvre dans le logiciel du système. Il n'existe donc aucune valeur honnête à
+ * écrire pour `file` dans cette table — et si on en inventait une (`"notes"`,
+ * faute de mieux), un appelant finirait par y naviguer et l'utilisateur
+ * atterrirait dans les Notes en croyant ouvrir son PDF.
+ *
+ * En excluant la famille du TYPE, le compilateur oblige chaque lecture de cette
+ * table à écarter `file` d'abord. La règle est tenue par la forme du code et non
+ * par une liste à maintenir — c'est la leçon du § 7.2 ter de `PIEGES.md`, où une
+ * règle écrite en énumérant des familles avait un trou de la taille exacte de ce
+ * qu'elle prétendait garder.
+ */
+export type KindAvecVue = Exclude<LinkKind, "file">;
+
+export function aUneVue(kind: LinkKind): kind is KindAvecVue {
+  return kind !== "file";
+}
+
 /** Le module qui affiche chaque famille. */
-export const VUE_DE_KIND: Record<LinkKind, View> = {
+export const VUE_DE_KIND: Record<KindAvecVue, View> = {
   note: "notes",
   knowledge: "knowledge",
   task: "tasks",
@@ -42,6 +71,15 @@ export const VUE_DE_KIND: Record<LinkKind, View> = {
  * ligne, pour le cas où la suppression arrive entre l'affichage et le clic.
  */
 export async function ouvrirObjet(kind: LinkKind, uid: string): Promise<void> {
+  // ⚠️ UNE PIÈCE JOINTE NE SE NAVIGUE PAS, elle s'ouvre. Ce n'est pas un cas
+  // particulier pour faire taire le compilateur : c'est une action d'une autre
+  // nature, qui sort de l'app. Émettre `EVT_OUVRIR` pour un fichier ferait
+  // changer de module sans rien ouvrir du tout.
+  if (kind === "file") {
+    const { ouvrirPieceJointe } = await import("./repo");
+    await ouvrirPieceJointe(uid);
+    return;
+  }
   const id = await idDepuisUid(kind, uid);
   if (id == null) return;
   window.dispatchEvent(new CustomEvent<DemandeOuverture>(EVT_OUVRIR, { detail: { kind, id } }));
@@ -141,6 +179,6 @@ export function allerVers(vue: View): void {
  * est là, sous la main, avec son `id` ; rien à résoudre. Même événement, même
  * garde de navigation qu'`ouvrirObjet`.
  */
-export function ouvrirParId(kind: LinkKind, id: number): void {
+export function ouvrirParId(kind: KindAvecVue, id: number): void {
   window.dispatchEvent(new CustomEvent<DemandeOuverture>(EVT_OUVRIR, { detail: { kind, id } }));
 }

@@ -659,8 +659,24 @@ export interface CalendarEvent {
   updated_at: string;
 }
 
-/** Les sept familles d'objets qu'une liaison peut relier. */
-export type LinkKind = "note" | "knowledge" | "task" | "goal" | "event" | "trade" | "object";
+/**
+ * Les huit familles d'objets qu'une liaison peut relier.
+ *
+ * ⚠️ `"file"` (migration 027) n'est PAS un module : c'est une pièce jointe, et
+ * elle ne s'ouvre pas dans un écran de l'app mais dans le logiciel du système.
+ * `VUE_DE_KIND` (`lib/naviguer.ts`) l'exclut donc explicitement par son type —
+ * c'est le compilateur, et non une convention, qui interdit d'écrire « le
+ * module qui affiche un fichier ».
+ */
+export type LinkKind =
+  | "note"
+  | "knowledge"
+  | "task"
+  | "goal"
+  | "event"
+  | "trade"
+  | "object"
+  | "file";
 
 /** Comment l'arête est née : tapée dans un texte, ou rattachée à la main. */
 export type LinkOrigin = "mention" | "manual";

@@ -5,6 +5,7 @@ import {
   areteValide,
   aretesResolues,
   diffMentions,
+  estKindConnu,
   grouperParKind,
   LINK_KINDS,
   normaliserAretes,
@@ -82,10 +83,20 @@ describe("l'identité d'une arête", () => {
     for (const kind of LINK_KINDS) expect(tables.has(TABLE_DE_KIND[kind])).toBe(true);
   });
 
-  it("les familles connues du SQL et du TypeScript sont les mêmes", () => {
-    // La contrainte CHECK de la table et `LINK_KINDS` disent la même chose.
-    // Ajouter une famille d'un seul côté produirait, selon le côté, un écran
-    // vide ou une écriture refusée.
+  it("⭐ le SQL accepte toutes les familles — le tri est en TypeScript", () => {
+    // ⚠️ CE TEST A CHANGÉ DE SENS LE 2026-09-23, ET CE N'EST PAS UN
+    // RELÂCHEMENT. Il exigeait auparavant que le SQL REFUSE une famille
+    // inconnue, via le `CHECK` que la migration 020 posait sur `object_links`.
+    // La migration 028 a retiré ce `CHECK`, pour la raison que `PIEGES.md`
+    // § 3.4 énonce et que ce chantier a vérifiée dans le moteur :
+    // `appliquerReçue` (`sync/engine.ts`) ne rattrape que `ParentManquant` et
+    // RELANCE tout le reste. Une contrainte violée par une ligne venue d'un
+    // appareil plus récent ne refuse donc pas une ligne : elle fait échouer le
+    // CYCLE ENTIER, à chaque tentative, indéfiniment.
+    //
+    // Autrement dit, l'ancienne version de ce test gardait une porte qui, le
+    // jour où elle aurait servi, aurait coûté la synchronisation de l'appareil
+    // qu'elle prétendait protéger.
     for (const kind of LINK_KINDS) {
       expect(() =>
         db
@@ -93,11 +104,32 @@ describe("l'identité d'une arête", () => {
           .run(kind),
       ).not.toThrow();
     }
+    // Une famille inconnue s'ÉCRIT désormais sans broncher…
     expect(() =>
       db
         .prepare("INSERT INTO object_links (from_kind, from_uid, to_kind, to_uid) VALUES ('inventé', 'a', 'note', 'b')")
         .run(),
-    ).toThrow();
+    ).not.toThrow();
+    // …mais elle ne passe pas le tri du TypeScript, qui est maintenant le seul
+    // gardien — et elle reste invisible à la lecture, comme une arête orpheline.
+    expect(estKindConnu("inventé")).toBe(false);
+    for (const kind of LINK_KINDS) expect(estKindConnu(kind)).toBe(true);
+  });
+
+  it("⭐ le CHECK est bien PARTI du schéma — pas seulement contourné", () => {
+    // Le test précédent passerait aussi si le `CHECK` était encore là mais
+    // écrit de travers. Celui-ci lit le schéma RÉEL et échouera si quelqu'un
+    // replace une liste fermée sur cette table sans lire pourquoi elle a
+    // disparu. La huitième famille (`file`, migration 028) en dépend.
+    const sql =
+      (db.prepare("SELECT sql FROM sqlite_master WHERE name = 'object_links'").get() as { sql: string }).sql;
+    // ⚠️ Les COMMENTAIRES sont retirés d'abord — et ce n'est pas de la
+    // cosmétique : `sqlite_master` rend le texte intégral du `CREATE TABLE`,
+    // commentaires compris, et celui de la 028 explique justement pourquoi le
+    // `CHECK` est parti. Sans ce nettoyage, le test échouait sur sa propre
+    // prose et aurait été « réparé » en l'effaçant.
+    const schema = sql.replace(/--[^\n]*/g, "");
+    expect(schema).not.toMatch(/\bCHECK\s*\(/i);
   });
 });
 

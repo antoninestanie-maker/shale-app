@@ -3054,3 +3054,238 @@ souris synthétiques : `:hover` ne s'allume jamais. Et la page capturée est vid
 3. Passer par `_simulateMouseMove:` (la porte des tests de WebKit).
 Le repli « copier les règles `:hover` en classe » fonctionne pour la peinture,
 mais ne survole que les éléments marqués — c'est lui qui a caché le § 21.10.
+
+---
+
+# 22. Chantier « pièces jointes » (2026-09-23)
+
+## 22.1 ⚠️⚠️ Deux chantiers, la MÊME migration 027 — et rien ne l'aurait dit
+
+**Symptôme.** Aucun. C'est tout le problème. `027_pieces_jointes.sql` et
+`027_corbeille.sql` vivaient dans deux arbres différents, chacun enregistré
+sous `version: 27` dans son propre `lib.rs`. Les deux passaient leurs tests.
+
+**Ce qui serait arrivé — et ce n'est PAS une hypothèse.** `sqlx` enregistre une
+migration jouée dans `_sqlx_migrations` **par son numéro**. Vérifié sur la vraie
+base d'Antonin le 2026-09-24, après coup :
+
+```
+$ sqlite3 "$HOME/Library/Application Support/com.atnfx.shale/shale.db" \
+    "SELECT version, description, success FROM _sqlx_migrations ORDER BY version DESC LIMIT 2;"
+27|corbeille|1
+26|feuille_de_route|1
+```
+
+**La 027 de la corbeille avait DÉJÀ tourné chez lui.** Une migration des pièces
+jointes restée numérotée 027 aurait donc été **sautée en silence** au premier
+build : `files` jamais créée, `CHECK` jamais retiré — et une arête citant un
+fichier refusée par ce `CHECK`, donc le cycle de synchronisation arrêté (§ 22.3).
+Aucune erreur au démarrage, aucun message : le défaut ne se serait vu qu'à la
+première pièce jointe, sur SA machine.
+
+**Comment il a été attrapé.** Pas par un test, pas par une relecture : par la
+phrase de `CLAUDE.md` qui dit « la 027 de [P-menus] n'est pas fusionnée », lue
+quand le fichier s'est chargé en cours de session. Puis
+`find ~/Desktop -name "027_*.sql"`, qui a rendu deux fichiers.
+
+**Parade, avant d'écrire la moindre ligne d'une migration :**
+```bash
+find ~/Desktop -name "0*_*.sql" -not -path "*/node_modules/*" | sort
+```
+Les worktrees de `~/Desktop/Shale-chantiers/` ne sont PAS dans le dépôt
+principal : un `ls src-tauri/migrations` ne les voit pas. Puis **inscrire le
+numéro pris dans `~/Desktop/Shale-chantiers/COORDINATION.md`** — c'est le seul
+canal entre sessions parallèles, et il existe exactement pour ça.
+
+**Qui cède ?** Le moins avancé. Ici la corbeille avait trois commits et une
+phase 2 livrée, les pièces jointes vingt minutes : elles sont passées en 028.
+Le précédent est dans l'en-tête de la 026, qui a cédé son 025 à la licence.
+
+## 22.2 ⚠️ `ALTER TABLE … RENAME TO` reparse TOUT le schéma
+
+**Symptôme.**
+```
+error in trigger notes_links_del: no such table: main.object_links
+```
+La migration échoue, sur un trigger qu'on n'a pas touché.
+
+**Cause.** Recréer une table impose la séquence `CREATE new` → `INSERT SELECT`
+→ `DROP old` → `RENAME`. Or le `RENAME` fait revalider par SQLite **tous les
+triggers du schéma** — et entre le `DROP` et le `RENAME`, la table n'existe
+plus. Les sept triggers `*_links_del` des autres tables la nomment : ils
+deviennent invalides le temps d'une instruction, et ça suffit.
+
+**Parade.** Supprimer ces triggers AVANT la manœuvre et les recréer APRÈS.
+`PRAGMA legacy_alter_table = ON` ferait taire l'erreur en deux lignes, mais il
+fait dépendre une migration jouée sur les VRAIES données d'un réglage dont le
+comportement varie d'une version de SQLite à l'autre.
+
+⚠️ **Et ne PAS recopier les triggers depuis la migration qui les a créés.** La
+020 en déclare un `objects_links_del` que la 022 a supprimé avec sa table. Les
+lire dans le schéma réel :
+```sql
+SELECT name, sql FROM sqlite_master WHERE sql LIKE '%object_links%';
+```
+
+## 22.3 ⭐⭐ Une contrainte `CHECK` ne refuse pas une ligne : elle arrête le CYCLE
+
+Le § 3.4 disait « une contrainte violée peut arrêter la synchronisation ». La
+lecture du moteur, ce jour-là, a montré que c'est plus dur que ça.
+
+`appliquerReçue` (`sync/engine.ts`) ne rattrape que `ParentManquant` et
+**relance tout le reste**. Une erreur SQL traverse donc `enApplication`, fait
+échouer le cycle entier — et comme le curseur n'avance pas, **la même page
+repart échouer à l'identique, indéfiniment**. Ce n'est pas une ligne perdue,
+c'est la synchronisation de l'appareil qui s'arrête pour toujours.
+
+▶️ **Conséquence pratique** : ajouter une valeur à une énumération contrainte
+en SQL (un `kind`, un `origin`, un `status`) est un changement à **DEUX temps**
+— jamais un seul. Soit on retire la contrainte (c'est ce qu'a fait la 028 pour
+`object_links`), soit on s'assure que la valeur neuve **ne quitte jamais la
+machine** tant que tous les appareils n'ont pas la migration. La 028 fait les
+deux : `CHECK` retiré ici, et garde `<> 'file'` sur les triggers d'outbox.
+
+## 22.4 ⚠️ Un test qui lit `sqlite_master` lit AUSSI les commentaires
+
+**Symptôme.** Un test « la table ne porte plus de `CHECK` » échoue en désignant
+un `CHECK`… qui est dans le commentaire expliquant pourquoi il a été retiré.
+
+**Cause.** `sqlite_master.sql` rend le texte INTÉGRAL du `CREATE TABLE`,
+commentaires compris. Sur un dépôt qui commente ses migrations aussi
+abondamment que celui-ci, c'est la règle et non l'exception.
+
+**Parade.** Retirer les commentaires avant de chercher, et viser la forme
+syntaxique et non le mot :
+```js
+const schema = sql.replace(/--[^\n]*/g, "");
+expect(schema).not.toMatch(/\bCHECK\s*\(/i);
+```
+⚠️ Sans ce nettoyage, le réflexe est de « réparer » le test en effaçant le
+commentaire — donc de supprimer l'explication pour faire passer la vérification.
+
+## 22.5 ⚠️ Un U+00A0 littéral dans la source est indistinguable d'une espace
+
+**Cause.** Un jeton `contenteditable="false"` en fin de bloc emprisonne le
+curseur : il faut une espace insécable derrière pour pouvoir continuer à taper.
+Écrite en caractère littéral, elle est **invisible à la relecture** — et le
+premier nettoyage venu la remplace par une espace ordinaire, rouvrant le défaut
+sans que rien ne le signale.
+
+**Parade.** Une constante nommée, en échappement : `const ESPACE_INSECABLE =
+"\u00a0"`. La remplacer demande alors de le vouloir.
+
+## 22.6 ⭐ « Ce fichier n'a aucun test, et c'est structurel » était FAUX
+
+**Symptôme.** Trois modules DOM du dépôt (`mentionsDom`, `carteDom`, et la
+première version de `piecesJointesDom`) portent en tête la même affirmation :
+pas de test possible, les tests tournent en `environment: "node"`.
+
+**Cause.** La config GLOBALE est bien en `node` — mais un fichier de test peut
+en demander une autre par un simple docblock `// @vitest-environment happy-dom`,
+et **deux fichiers du dépôt le faisaient déjà** (`sync/sas.test.ts`,
+`sync/planificateur.test.ts`). `happy-dom` est une dev-dépendance depuis
+toujours.
+
+**Ce que ça a coûté / rapporté.** `piecesJointesDom.test.ts` couvre en 13 tests
+l'insertion, les trois états d'affichage et la remontée du clic — dont un défaut
+(le clic qui n'atteint pas l'enfant cliqué) qui serait passé pour de
+l'imprécision de souris.
+
+▶️ **La leçon dépasse le cas** : une affirmation d'impossibilité recopiée de
+module en module ne se vérifie jamais. `mentionsDom.ts` et `carteDom.ts`
+restent sans tests, et **rien ne s'y oppose** — c'est une dette, pas une
+fatalité.
+
+## 22.7 ⚠️ Le panneau intégré rend un viewport 0×0 — mesuré, pas supposé
+
+Rappel du piège déjà connu, confirmé ce jour-là faute de Chrome disponible :
+```js
+({ viewport: `${innerWidth}x${innerHeight}`, visible: !document.hidden,
+   racineMontee: !!document.querySelector("#root")?.firstElementChild })
+// → { viewport: "0x0", visible: false, racineMontee: false }
+```
+▶️ **Toujours mesurer ces trois valeurs avant de croire une observation faite
+dans le panneau.** Une racine non montée et un viewport nul font passer une app
+parfaitement saine pour du code cassé.
+
+## 22.8 ⚠️ `webkit-pilote.swift` : le SURVOL marche, le CLIC non
+
+**Symptôme.** Un pas `{"clic":[x,y]}` ne produit aucun événement DOM : un
+écouteur `click` posé en capture ne voit rien, et le bouton visé ne réagit pas.
+
+**Ce qui l'établit, et c'est la partie qui compte.** Le doute porte toujours sur
+son propre code. La contre-épreuve consiste à cliquer un bouton LIVRÉ ET CONNU
+POUR MARCHER — ici « Carte mentale », dans la barre d'outils des Notes. Il ne
+s'ouvre pas davantage. Le défaut est donc dans l'outil, pas dans le code testé.
+
+**Cause probable.** `souris()` n'emprunte `_simulateMouseMove:` que pour
+`.mouseMoved` ; les boutons passent par `win.sendEvent`, qui ne remonte pas
+jusqu'à la `WKWebView` dans cette configuration (fenêtre `borderless`,
+`alphaValue 0.01`). L'outil a été écrit pour le SURVOL — c'est ce qu'annonce son
+en-tête — et il le fait très bien.
+
+**Ce qu'on peut vérifier malgré tout, et qui vaut presque autant :**
+```js
+document.elementFromPoint(x, y)            // ce qu'un vrai clic TOUCHERAIT
+  .closest("[data-fichier]")               // ce à quoi il remonterait
+```
+C'est ce qui a confirmé, sur le vrai moteur, que le clic sur une pièce jointe
+atterrit sur l'enfant `.pj-nom` et **jamais sur le jeton** — donc que le
+`closest()` de `pieceJointeCliquee` n'est pas une précaution mais la condition
+pour que le clic fonctionne (§ 18.1, cas réel et non hypothétique).
+
+▶️ **Ne pas conclure « le clic est vérifié » avec cet outil.** Le survol, la
+géométrie, les styles calculés et les captures : oui, et c'est beaucoup.
+
+## 22.9 ⛔⛔ UN TROU dans la suite des migrations EMPÊCHE L'APP DE DÉMARRER
+
+**C'est la conséquence opérationnelle du § 22.1, et elle est plus grave que la
+collision elle-même.**
+
+Au 2026-09-24, l'état est celui-ci :
+
+| | version des migrations |
+|---|---|
+| La **base réelle** d'Antonin | **27** (`corbeille`, jouée le 2026-09-23) |
+| La branche **`mobile-ios`** | 026, puis **028** — la 027 n'y est pas |
+| La branche `chantier/menus-contextuels` | 027, non fusionnée |
+
+✅ *(2026-09-24)* Fusionnée : `mobile-ios` porte 027 puis 028. Le tableau
+ci-dessus décrit l'état du 23 au soir ; la leçon, elle, reste.
+
+**Ce qui se passe si on construit l'app depuis `mobile-ios` seul.** `sqlx`
+valide, à CHAQUE démarrage, que toute migration enregistrée dans la base existe
+encore dans la liste compilée :
+
+```rust
+// sqlx-core-0.8.6/src/migrate/migrator.rs:28 et :161
+fn validate_applied_migrations(...) {
+    if migrator.ignore_missing { return Ok(()); }   // ← false par défaut (:51)
+    for applied in applied_migrations {
+        if !migrations.contains(&applied.version) {
+            return Err(MigrateError::VersionMissing(applied.version));
+        }
+    }
+}
+```
+
+`tauri-plugin-sql` n'appelle **jamais** `set_ignore_missing`. Donc : la base dit
+« 27 jouée », le binaire ne connaît pas de 27, et le démarrage échoue sur
+`VersionMissing(27)`. **L'app ne s'ouvre plus du tout** — pas un module cassé,
+pas une table manquante : la porte d'entrée.
+
+▶️ **LA RÈGLE, jusqu'à ce que la 027 soit sur le tronc : ne JAMAIS construire
+l'app depuis `mobile-ios` sans avoir fusionné `chantier/menus-contextuels`
+d'abord.** Le contrôle avant tout build natif tient en une commande :
+
+```bash
+sqlite3 "$HOME/Library/Application Support/com.atnfx.shale/shale.db" \
+  "SELECT version FROM _sqlx_migrations ORDER BY version;"   # ce que la BASE a
+ls src-tauri/migrations/                                      # ce que le BUILD aura
+```
+Toute version présente à gauche et absente à droite est un refus de démarrage.
+
+⚠️ **Et la réciproque est bénigne** : une migration présente dans le binaire mais
+absente de la base est le cas NORMAL — c'est une migration à jouer. Seul le sens
+« la base en sait plus que le binaire » tue.
+

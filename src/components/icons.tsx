@@ -350,6 +350,21 @@ export const IconLink = (p: IconProps) => (
   </Icon>
 );
 
+/**
+ * Trombone — une pièce jointe (migration 027).
+ *
+ * ⚠️ Volontairement DISTINCT d'`IconNote` et d'`IconFolder` : un fichier n'est
+ * ni une note ni un dossier, et le panneau « Mentionné dans » affiche les trois
+ * dans la même liste. Deux familles qui partagent une icône y deviennent
+ * indiscernables — c'est déjà le cas de `knowledge` et `object`, et ce n'est
+ * pas une raison pour l'aggraver.
+ */
+export const IconTrombone = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5" />
+  </Icon>
+);
+
 /** Pinceau — croquis. */
 export const IconBrush = (p: IconProps) => (
   <Icon {...p}>

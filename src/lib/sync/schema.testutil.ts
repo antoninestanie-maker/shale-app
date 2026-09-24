@@ -27,6 +27,7 @@ import m24 from "../../../src-tauri/migrations/024_onboarding_exemples.sql?raw";
 import m25 from "../../../src-tauri/migrations/025_licence_profil.sql?raw";
 import m26 from "../../../src-tauri/migrations/026_feuille_de_route.sql?raw";
 import m27 from "../../../src-tauri/migrations/027_corbeille.sql?raw";
+import m28 from "../../../src-tauri/migrations/028_pieces_jointes.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -38,7 +39,12 @@ import m27 from "../../../src-tauri/migrations/027_corbeille.sql?raw";
  */
 export const MIGRATIONS: readonly string[] = [
   m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m12, m13, m14, m15, m16, m17, m18,
-  m19, m20, m21, m22, m23, m24, m25, m26, m27,
+  // 027 (corbeille) et 028 (pièces jointes) ont d'abord porté le même numéro ;
+  // les pièces jointes ont cédé le 2026-09-23. Fusionnées le 2026-09-24 : la
+  // liste est de nouveau contiguë. Compatibles dans les deux sens — la 027
+  // n'ajoute que des colonnes `deleted_at` et aucun trigger ; la 028 recrée les
+  // sept triggers de ménage d'`object_links`.
+  m19, m20, m21, m22, m23, m24, m25, m26, m27, m28,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

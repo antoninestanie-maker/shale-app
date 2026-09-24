@@ -1,6 +1,7 @@
 
 pub mod crypto;
 pub mod note_rapide;
+pub mod pieces_jointes;
 pub mod notifications;
 pub mod sauvegardes;
 pub mod secrets;
@@ -80,7 +81,7 @@ fn show_main(app: &tauri::AppHandle) {
 /// Le décodage passe par `url` plutôt que par un `strip_prefix("file://")` :
 /// l'URL est percent-encodée, et un nom de fichier avec un espace ou un
 /// accent produirait sinon un chemin qui n'existe pas.
-fn chemin_reel(src: &str) -> std::path::PathBuf {
+pub(crate) fn chemin_reel(src: &str) -> std::path::PathBuf {
     if src.starts_with("file://") {
         if let Ok(url) = url::Url::parse(src) {
             // ⚠️ `file_name().is_some()` et non `to_file_path().is_ok()` :
@@ -436,6 +437,12 @@ pub fn run() {
             sql: include_str!("../migrations/027_corbeille.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 28,
+            description: "pieces_jointes",
+            sql: include_str!("../migrations/028_pieces_jointes.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
@@ -451,6 +458,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_screenshot,
             ecrire_fichier,
+            pieces_jointes::deposer_piece_jointe,
+            pieces_jointes::piece_jointe_presente,
+            pieces_jointes::ouvrir_piece_jointe,
+            pieces_jointes::supprimer_piece_jointe,
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_delete,

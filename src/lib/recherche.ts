@@ -53,6 +53,12 @@ const POIDS: Record<LinkKind, number> = {
   event: 3,
   task: 3,
   trade: 1,
+  // ⭐ Le plus BAS de tous, et c'est délibéré. Un fichier n'a qu'un nom — pas de
+  // corps indexé, rien à quoi une recherche puisse s'accrocher d'autre. À score
+  // de texte égal, ce qu'on a ÉCRIT (une note, une fiche) est presque toujours
+  // ce qu'on cherchait ; « contrat.pdf » ne doit pas passer devant la note qui
+  // l'explique. Il reste trouvable, il ne prend pas la première place.
+  file: 0,
 };
 
 const RANG = new Map(LINK_KINDS.map((k, i) => [k, i]));
