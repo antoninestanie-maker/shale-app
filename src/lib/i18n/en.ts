@@ -2917,4 +2917,13 @@ export const EN: Record<string, string> = {
   "PDF, tableur, document…": "PDF, spreadsheet, document…",
   "{nom} dépasse {max}": "{nom} is larger than {max}",
   "{nom} est vide": "{nom} is empty",
+  // Menu des panneaux de grille (2026-09-25)
+  "Avancer d'une place": "Move earlier",
+  "Reculer d'une place": "Move later",
+  "C'est déjà le premier panneau.": "It's already the first panel.",
+  "C'est déjà le dernier panneau.": "It's already the last panel.",
+  "Actions sur le panneau « {titre} »": "Actions for the “{titre}” panel",
+  "Actions sur le panneau": "Panel actions",
+  "Ce fichier n'est pas sur cet appareil : il reste sur celui où il a été joint.": "This file isn't on this device: it stays on the one it was attached from.",
+  "Le fichier n'a pas pu s'ouvrir : {erreur}": "The file couldn't be opened: {erreur}",
 };

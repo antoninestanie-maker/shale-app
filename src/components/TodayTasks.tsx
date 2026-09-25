@@ -43,6 +43,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
         basculer: (task) => onToggle(task as TodayTask),
         renommer: (task) => setRenommeId(task.id),
         modifier: (task) => ouvrirParId("task", task.id),
+        focus: onFocus ? (task) => onFocus(task as TodayTask) : undefined,
       }
     : null;
 
@@ -180,6 +181,10 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               )}
             </button>
             )}
+            {/* ⚠️ Au doigt, le ▶ est RETIRÉ, pas révélé : sur un téléphone, ses
+                28 px écrasaient le libellé (« Sessio n… », mesuré à 390 px le
+                2026-09-25). Le « ⋯ », toujours visible au doigt, porte « Focus
+                25 min » — la même fonction (règle 18). */}
             {onFocus && !task.done && renommeId !== task.id && (
               <button
                 type="button"
@@ -187,7 +192,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
                 data-tip={t("Focus 25 min")}
                 data-tip-sub={t("Démarre un pomodoro dédié à cette tâche.")}
                 aria-label={t("Focus sur {label}", { label: task.label })}
-                className="shrink-0 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100 focus-visible:opacity-100"
+                className="shrink-0 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:hidden"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
                   <path d="M8 5.14v13.72c0 .86.95 1.38 1.68.92l10.9-6.86a1.09 1.09 0 0 0 0-1.84L9.68 4.22A1.09 1.09 0 0 0 8 5.14Z" />

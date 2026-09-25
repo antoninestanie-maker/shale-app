@@ -3292,6 +3292,8 @@ absente de la base est le cas NORMAL — c'est une migration à jouer. Seul le s
 
 # 19 bis. Menus contextuels — la vérification complète (2026-09-24)
 
+> § 19.19–19.21 : suite du 2026-09-25 (contrôles au survol, pièces jointes muettes, cache Vite).
+
 *Numérotés à la suite du § 19, placés ici parce que le § 22 a été écrit entre
 les deux. Quatre défauts, tous invisibles aux tests et au build, tous trouvés
 en pilotant Chrome.*
@@ -3350,3 +3352,47 @@ Arrêter un script bloqué par le PID exact de son Node et de SON Chrome
 
 **Payé.** 2026-09-24, vérification complète demandée par Antonin après « je ne
 peux pas supprimer une carte mentale dans une note avec un clic droit ».
+
+## 19.19 ⚠️⚠️ `opacity-0` CACHE un bouton, il ne LIBÈRE PAS sa place
+
+**Symptôme.** Sur téléphone, les noms de tâches d'Aujourd'hui se coupaient
+au milieu des mots (« Sessio n… », « Publi er u… »), mesuré à 390 px. Le
+▶ « Focus 25 min » était invisible au doigt (révélé au survol seulement), et
+pourtant ses 28 px comptaient.
+
+**Cause.** Un bouton en `opacity-0` reste dans la mise en page. « Révélé au
+survol » coûte donc sa place même là où le survol n'existe pas.
+
+**Parade.** Au doigt, un contrôle de survol se RETIRE (`[@media(pointer:coarse)]:hidden`)
+quand son action est ailleurs (ici : l'entrée « Focus 25 min » du « ⋯ »,
+toujours visible au doigt). Sinon il se RÉVÈLE (`[@media(pointer:coarse)]:opacity-100`).
+Il ne reste jamais invisible en gardant sa place.
+
+**Payé.** 2026-09-25, en rendant le ▶ visible au doigt : la capture a montré
+que la place était prise depuis toujours.
+
+## 19.20 ⚠️⚠️ `void promesse()` jette le `false` ET l'erreur : un échec devient muet
+
+**Symptôme.** Cliquer une pièce jointe dont les octets ne sont pas sur cet
+appareil ne faisait RIEN. C'est pourtant le cas normal sur un second appareil,
+puisque les octets ne se synchronisent jamais.
+
+**Cause.** Cinq appelants écrivaient `void ouvrirPieceJointe(uid)`. Le booléen
+rendu (`false` = « pas ici ») était jeté, et l'exception aussi.
+
+**Parade.** Un seul chemin, `lib/piecesJointesOuvrir.tsx`
+(`ouvrirPieceJointeOuDire`), qui DIT l'échec dans un toast avec l'icône
+d'alerte (pas la coche verte par défaut, qui dirait « réussi »). Avant d'écrire
+`void f()`, lire ce que `f` rend.
+
+**Payé.** 2026-09-25, en vérifiant enfin le clic sur une pièce jointe à l'écran
+(il ne l'avait jamais été).
+
+## 19.21 Outil : Vite garde en cache un fichier RENOMMÉ `.ts` → `.tsx`
+
+**Symptôme.** Page blanche en démo, sans erreur dans le navigateur. Le journal
+de Vite dit : `Failed to load url /src/lib/X.ts … Does the file exist?`.
+
+**Parade.** Relancer le serveur. L'arrêter par les PID exacts de `npm exec vite`
+et de son enfant (`pgrep -P`), jamais par motif. Lire le journal de Vite AVANT
+de soupçonner le code.

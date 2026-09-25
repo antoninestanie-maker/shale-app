@@ -817,8 +817,12 @@
     flex-wrap: wrap;
     row-gap: 0.5rem;
   }
-  .group\/panel:hover .rgrid-head {
-    padding-right: var(--rgrid-handle-w, 4rem);
+  .group\/panel:hover .rgrid-head,
+  /* La barre révélée au CLAVIER ou menu ouvert : même réservation, sinon elle
+     recouvre les contrôles de l'en-tête sans survol pour les écarter. */
+  .group\/panel:has(> .rgrid-poignees:focus-within) .rgrid-head,
+  .group\/panel[data-menu-ouvert] .rgrid-head {
+    padding-right: var(--rgrid-handle-w, 5.25rem);
   }
   /* ⚠️ Au doigt, les poignées sont masquées (`ResizableGrid`) : réserver leur
      place décalerait l'en-tête pour du vide. Et iOS simulant un survol collant,

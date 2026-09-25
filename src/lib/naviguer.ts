@@ -76,8 +76,8 @@ export async function ouvrirObjet(kind: LinkKind, uid: string): Promise<void> {
   // nature, qui sort de l'app. Émettre `EVT_OUVRIR` pour un fichier ferait
   // changer de module sans rien ouvrir du tout.
   if (kind === "file") {
-    const { ouvrirPieceJointe } = await import("./repo");
-    await ouvrirPieceJointe(uid);
+    const { ouvrirPieceJointeOuDire } = await import("./piecesJointesOuvrir");
+    await ouvrirPieceJointeOuDire(uid);
     return;
   }
   const id = await idDepuisUid(kind, uid);

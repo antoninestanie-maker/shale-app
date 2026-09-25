@@ -468,6 +468,27 @@ du chantier interdit (« aucune action n'existe uniquement au survol »). La
 Phase 4d, qui pose un menu sur les widgets, est l'occasion naturelle de le
 régler — c'est donc là qu'il sera traité, pas avant.
 
+✅ **Fait le 2026-09-25**, dans `ResizableGrid` : les grilles de TOUTES les vues
+sont concernées, pas seulement Aujourd'hui.
+- **Clic droit sur un panneau** : ses actions, c'est-à-dire Ouvrir la vue
+  complète, Avancer d'une place, Reculer d'une place, Réinitialiser la taille
+  (si redimensionné) et Masquer.
+- **« ⋯ » dans la barre de poignées**, pour le même menu.
+- **La barre se révèle au CLAVIER** (`focus-within`), et reste visible tant
+  que son menu est ouvert.
+- **Avancer / Reculer** est le premier moyen de réordonner sans glisser à la
+  souris.
+
+Deux cas restent sans ce menu, volontairement :
+- une ligne qui a son menu (tâche, lien, bloc de note) garde le sien ;
+- le texte édité ou sélectionné garde le menu du système.
+
+**Au doigt, la barre reste masquée.** Ordre et masquage des widgets
+d'Aujourd'hui sont dans Personnaliser, et « ouvrir la vue » est dans la barre
+d'onglets. ⚠️ Pour les grilles des AUTRES vues (Finance, Trading…), masquer ou
+réordonner un panneau reste impossible au doigt : il faudrait un « ⋯ » permanent
+sur chaque carte, ce qui chargerait l'écran du téléphone. Laissé ouvert.
+
 ### C. Les notes ne s'épinglent pas et ne portent pas de tag
 
 Le catalogue du chantier demandait « Épingler » et « Ajouter un tag » sur une
@@ -507,8 +528,8 @@ c'est voulu ou à venir :
 
 ### F. Menus non posés dans ce chantier
 
-- **Widgets d'Aujourd'hui** (voir B) : leurs contrôles restent au survol. Reporté
-  à un chantier dédié — c'est `ResizableGrid`, partagé par toutes les grilles.
+- ~~**Widgets d'Aujourd'hui**~~ — *fait le 2026-09-25* (voir B) : menu de
+  panneau sur toutes les grilles, au clic droit, au « ⋯ » et au clavier.
 - ~~**Nœuds de carte mentale**~~ — *fait le 2026-09-24* : clic droit sur un
   nœud (Sous-nœud, Voisin, Renommer, Citer, Replier, Côté, Supprimer), mêmes
   fonctions que la barre d'outils. La phrase d'avant (« ils ont déjà leur

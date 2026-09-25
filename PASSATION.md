@@ -527,6 +527,14 @@ confirmations en ligne pour tout ce qui est définitif et coûte à refaire. Tro
 défauts du menu corrigés (sous les fenêtres, Échap en double, focus perdu) —
 `PIEGES.md` § 19.15–19.18, `CLAUDE.md` section du 2026-09-24.
 
+**2026-09-25, suite** : menu sur les PANNEAUX de toutes les grilles (clic
+droit, « ⋯ », clavier ; Avancer / Reculer d'une place) ; plus aucun bouton
+seulement au survol (crayons Finance, croix des notifications, ▶ Focus,
+désormais dans le « ⋯ » au doigt) ; une pièce jointe absente de l'appareil DIT
+qu'elle n'y est pas au lieu de ne rien faire. `PIEGES.md` § 19.19–19.21,
+`CLAUDE.md` section du 2026-09-25. ⛔ Pas encore de build natif pour ces
+changements.
+
 Pourquoi : `CLAUDE.md` section du 2026-09-23 « Menus contextuels » ; pièges :
 `PIEGES.md` § 19 ; hors périmètre : `AMELIORATIONS-UI.md` § A–F.
 

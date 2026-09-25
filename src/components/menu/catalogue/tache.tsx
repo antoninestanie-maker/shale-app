@@ -18,7 +18,7 @@
  * ⚠️ `t()` à la construction, jamais dans une constante de module.
  */
 
-import { IconCalendar, IconCheck, IconPencil, IconTarget, IconTrash, IconX } from "../../icons";
+import { IconCalendar, IconCheck, IconPencil, IconPlay, IconTarget, IconTrash, IconX } from "../../icons";
 import { IconDupliquer } from "../icones";
 import { formatDate, t } from "../../../lib/i18n";
 import { createTask, rattacherTache, setTaskSchedule } from "../../../lib/repo";
@@ -39,6 +39,12 @@ export interface GestesTache {
   rattacher: (task: Task, goalId: number | null) => Promise<void>;
   dupliquer: (task: Task) => Promise<void>;
   supprimer: (task: Task) => Promise<void>;
+  /**
+   * Le ▶ « Focus 25 min » d'Aujourd'hui — absent des vues qui ne l'ont pas.
+   * ⚠️ Au doigt, le ▶ cède sa place au libellé (`TodayTasks`) : cette entrée
+   * est alors SA seule porte (règle 17).
+   */
+  focus?: (task: Task) => void;
 }
 
 export interface ContexteTache {
@@ -148,6 +154,12 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
       libelle: ctx.faite ? t("Rouvrir") : t("Terminer"),
       icone: ctx.faite ? <IconX /> : <IconCheck />,
       executer: () => gestes.basculer(task),
+    },
+    !ctx.faite && gestes.focus && {
+      id: "focus",
+      libelle: t("Focus 25 min"),
+      icone: <IconPlay />,
+      executer: () => gestes.focus?.(task),
     },
     ctx.renommable !== false && {
       id: "renommer",

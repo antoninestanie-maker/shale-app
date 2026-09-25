@@ -10,7 +10,7 @@ import { kbd } from "../lib/platform";
 import MentionPicker from "./liens/MentionPicker";
 import { useDepotPieceJointe } from "./useDepotPieceJointe";
 import { pieceJointeCliquee } from "../lib/piecesJointesDom";
-import { ouvrirPieceJointe } from "../lib/repo";
+import { ouvrirPieceJointeOuDire } from "../lib/piecesJointesOuvrir";
 import EditeurCarte from "./carte/EditeurCarte";
 import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
@@ -220,7 +220,7 @@ export default function RichNoteEditor({
     enregistrer: emit,
     lectureSeule: false,
     modifierCarte: (figure, c) => ouvrirCarte(figure, c),
-    ouvrirPiece: (uid) => void ouvrirPieceJointe(uid),
+    ouvrirPiece: (uid) => void ouvrirPieceJointeOuDire(uid),
   });
 
   const verifierMention = useCallback(async () => {
@@ -491,7 +491,7 @@ export default function RichNoteEditor({
           // rend `null` sur un jeton mort.
           const fichier = pieceJointeCliquee(e.target);
           if (fichier) {
-            void ouvrirPieceJointe(fichier);
+            void ouvrirPieceJointeOuDire(fichier);
             return;
           }
           const jeton = (e.target as HTMLElement).closest<HTMLElement>(".mention:not(.mention-morte)");

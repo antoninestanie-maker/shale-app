@@ -262,7 +262,8 @@ function Groupe({
               type="button"
               onClick={() => onEditer(r)}
               data-tip={t("Modifier ce flux")}
-              className="shrink-0 rounded-[10px] p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-overlay hover:text-text group-hover/flux:opacity-100"
+              aria-label={t("Modifier ce flux")}
+              className="shrink-0 rounded-[10px] p-1.5 text-text-dim opacity-0 transition-opacity hover:bg-overlay hover:text-text focus-visible:opacity-100 group-hover/flux:opacity-100 [@media(pointer:coarse)]:opacity-100"
             >
               <IconPencil className="h-4 w-4" />
             </button>

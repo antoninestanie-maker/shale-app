@@ -56,6 +56,11 @@ import {
   type ReactNode,
 } from "react";
 import { getSetting, setSetting } from "../../lib/repo";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
+import { IconPoints } from "../menu/icones";
+import type { EntreePossible } from "../../lib/menu/entrees";
+import { IconChevronDown, IconChevronUp, IconExpand, IconEyeOff, IconReset } from "../icons";
 
 import { t } from "../../lib/i18n";
 const COLUMNS = 12;
@@ -140,6 +145,12 @@ interface GridCtx {
   clearOverride: (id: string) => void;
   startMove: (id: string, e: React.PointerEvent) => void;
   hidePanel: (id: string) => void;
+  /** Clic droit sur le panneau (hors texte éditable et hors ligne qui a son menu). */
+  ouvrirMenuPanneau: (e: React.MouseEvent, id: string) => void;
+  /** Le « ⋯ » de la barre de poignées. */
+  ouvrirMenuPanneauBouton: (e: React.MouseEvent<HTMLElement>, id: string) => void;
+  /** Le panneau dont le menu est ouvert : sa barre reste visible sans survol. */
+  menuPanneauSur: string | null;
 }
 
 /** Libellé de repli quand un panneau n'a pas de prop `title` : "timer-goal" → "Goal". */
@@ -157,6 +168,13 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+/** Ce que la grille lit des props de ses panneaux. */
+interface PropsConnues {
+  id: string;
+  title?: string;
+  onOpen?: () => void;
 }
 
 interface DragState {
@@ -207,10 +225,10 @@ export function ResizableGrid({
   const hiddenKey = `hidden.${gridId}`;
 
   const items = useMemo(() => {
-    const list: ReactElement<{ id: string; title?: string }>[] = [];
+    const list: ReactElement<PropsConnues>[] = [];
     Children.forEach(children, (child) => {
       if (isValidElement(child) && (child.props as { id?: string }).id) {
-        list.push(child as ReactElement<{ id: string; title?: string }>);
+        list.push(child as ReactElement<PropsConnues>);
       }
     });
     return list;
@@ -472,6 +490,33 @@ export function ResizableGrid({
     [captureFlip, hiddenKey],
   );
 
+  const hiddenRef = useRef(hidden);
+  hiddenRef.current = hidden;
+
+  /**
+   * Avance ou recule un panneau d'UNE place parmi les panneaux visibles — le
+   * pendant clavier et menu du glisser ⠿, qui n'existait qu'à la souris.
+   * Même stockage (`order.<gridId>`) et même animation FLIP que le glisser.
+   */
+  const deplacerPanneau = useCallback(
+    (id: string, sens: -1 | 1) => {
+      const tous = effectiveOrderRef.current;
+      const visibles = tous.filter((x) => !hiddenRef.current.includes(x));
+      const i = visibles.indexOf(id);
+      const voisin = i < 0 ? undefined : visibles[i + sens];
+      if (!voisin) return;
+      const next = arrayMove(tous, tous.indexOf(id), tous.indexOf(voisin));
+      captureFlip();
+      setOrder(next);
+      setSetting(orderKey, JSON.stringify(next)).catch(() => {});
+    },
+    [captureFlip, orderKey],
+  );
+
+  // ⭐ UN SEUL MENU PAR GRILLE, pas un par panneau (cf. `useMenuContextuel`).
+  const menu = useMenuContextuel<string>();
+  const { ouvrirAuPoint, ouvrirSousLeBouton } = menu;
+
   /** Slots recalculés au début d'un drag (au repos, les transforms sont vides). */
   const refreshSlots = useCallback(() => {
     const grid = gridRef.current;
@@ -638,6 +683,9 @@ export function ResizableGrid({
       clearOverride,
       startMove,
       hidePanel,
+      ouvrirMenuPanneau: ouvrirAuPoint,
+      ouvrirMenuPanneauBouton: ouvrirSousLeBouton,
+      menuPanneauSur: menu.cible,
     }),
     [
       columns,
@@ -650,11 +698,61 @@ export function ResizableGrid({
       clearOverride,
       startMove,
       hidePanel,
+      ouvrirAuPoint,
+      ouvrirSousLeBouton,
+      menu.cible,
     ],
   );
 
   const byId = new Map(items.map((c) => [c.props.id, c]));
   const hiddenKnown = hidden.filter((id) => byId.has(id));
+  const titreDe = (id: string) => byId.get(id)?.props.title ?? prettify(id);
+
+  /**
+   * ⚠️ RÈGLE 18 — chaque entrée appelle ce qu'appelle la poignée : `hidePanel`
+   * (✕), `clearOverride` (⟲ — `resetSize` n'y ajoute que l'effacement d'un
+   * aperçu de redimensionnement, qui n'existe pas quand un menu est ouvert),
+   * `onOpen` (↗). « Avancer / Reculer » sont le pendant du glisser ⠿.
+   */
+  const entreesPanneau = (id: string): EntreePossible[] => {
+    const ouvrir = byId.get(id)?.props.onOpen;
+    const visibles = effectiveOrder.filter((x) => !hidden.includes(x));
+    const i = visibles.indexOf(id);
+    return [
+      ouvrir && {
+        id: "ouvrir",
+        libelle: t("Ouvrir la vue complète"),
+        icone: <IconExpand />,
+        executer: ouvrir,
+      },
+      {
+        id: "avancer",
+        libelle: t("Avancer d'une place"),
+        icone: <IconChevronUp />,
+        desactive: i <= 0 ? { raison: t("C'est déjà le premier panneau.") } : undefined,
+        executer: () => deplacerPanneau(id, -1),
+      },
+      {
+        id: "reculer",
+        libelle: t("Reculer d'une place"),
+        icone: <IconChevronDown />,
+        desactive: i >= visibles.length - 1 ? { raison: t("C'est déjà le dernier panneau.") } : undefined,
+        executer: () => deplacerPanneau(id, 1),
+      },
+      id in overrides && {
+        id: "reinitialiser",
+        libelle: t("Réinitialiser la taille"),
+        icone: <IconReset />,
+        executer: () => clearOverride(id),
+      },
+      {
+        id: "masquer",
+        libelle: t("Masquer le panneau"),
+        icone: <IconEyeOff />,
+        executer: () => hidePanel(id),
+      },
+    ];
+  };
 
   return (
     <Ctx.Provider value={ctx}>
@@ -684,8 +782,7 @@ export function ResizableGrid({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="hud-label mr-1">{t("masqués")}</span>
           {hiddenKnown.map((id) => {
-            const child = byId.get(id)!;
-            const label = child.props.title ?? prettify(id);
+            const label = titreDe(id);
             return (
               <button
                 key={id}
@@ -701,6 +798,13 @@ export function ResizableGrid({
           })}
         </div>
       )}
+
+      <MenuContextuel
+        etat={menu}
+        libelle={menu.cible ? t("Actions sur le panneau « {titre} »", { titre: titreDe(menu.cible) }) : ""}
+        // Un panneau retiré entre-temps (module désactivé) ferme le menu.
+        entrees={menu.cible && byId.has(menu.cible) ? entreesPanneau(menu.cible) : []}
+      />
     </Ctx.Provider>
   );
 }
@@ -748,7 +852,11 @@ export function ResizablePanel({
     clearOverride,
     startMove,
     hidePanel,
+    ouvrirMenuPanneau,
+    ouvrirMenuPanneauBouton,
+    menuPanneauSur,
   } = ctx;
+  const menuOuvert = menuPanneauSur === id;
 
   const override = overrides[id];
   const isDragging = draggingId === id;
@@ -1033,6 +1141,20 @@ export function ResizablePanel({
       data-cols={effW}
       data-stretched={stretched ? "" : undefined}
       className="group/panel relative min-w-0"
+      data-menu-ouvert={menuOuvert ? "" : undefined}
+      // Clic droit sur le panneau : ses actions (masquer, déplacer, ouvrir…).
+      // ⚠️ Une ligne qui a SON menu (tâche, lien rapide, bloc de note) l'a déjà
+      // ouvert et arrêté la propagation : on n'arrive pas jusqu'ici. Et le texte
+      // qu'on édite ou qu'on a sélectionné garde le menu du SYSTÈME (Copier,
+      // Coller, orthographe) — le lui voler serait une régression.
+      onContextMenu={(e) => {
+        if (e.defaultPrevented) return;
+        const cible = e.target as Element;
+        if (cible.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]')) return;
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && sel.toString().trim()) return;
+        ouvrirMenuPanneau(e, id);
+      }}
       style={{
         gridColumn: `span ${effW}`,
         gridRow: `span ${footprint}`,
@@ -1040,7 +1162,8 @@ export function ResizablePanel({
         // 3 poignées (avec ⟲ réinitialiser) si le panneau a été redimensionné,
         // 2 sinon. Les en-têtes marqués `.rgrid-head` décalent alors leurs
         // contrôles pour ne jamais passer sous la barre.
-        ["--rgrid-handle-w" as string]: override ? "5.25rem" : "4rem",
+        // 4 poignées (⋯ en plus) : 5.25rem, 6.5rem avec ⟲.
+        ["--rgrid-handle-w" as string]: override ? "6.5rem" : "5.25rem",
         // La carte remplit TOUJOURS son empreinte (min-height via .rgrid-fill) :
         // bords alignés sur la grille 8px et gouttière verticale constante (16px),
         // identique à la gouttière horizontale.
@@ -1087,13 +1210,35 @@ export function ResizablePanel({
         // taille) n'a rien à défaire ici, puisque redimensionner est justement
         // impossible au doigt et qu'une taille posée sur le Mac est de toute
         // façon neutralisée AU RENDU par le clamp de largeur.
-        className="pointer-events-none absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 opacity-0 shadow-sm transition-opacity duration-150 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden"
+        //
+        // ⚠️ RÉVÉLÉE AUSSI AU CLAVIER (`focus-within`) et TANT QUE SON MENU EST
+        // OUVERT. Sans le premier, Tab posait le focus sur des boutons à
+        // opacité nulle — un focus invisible ; sans le second, la barre
+        // disparaissait sous le menu dès que le pointeur y descendait.
+        className={`rgrid-poignees absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 shadow-sm transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden ${
+          menuOuvert ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
         style={{
           background: "var(--glass-bg)",
           backdropFilter: "var(--glass-blur)",
           WebkitBackdropFilter: "var(--glass-blur)",
         }}
       >
+        {/* Actions — le même menu qu'au clic droit, et la seule porte au CLAVIER
+            vers « Avancer / Reculer d'une place » (le ⠿ ne se prend qu'à la souris). */}
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={menuOuvert}
+          aria-label={t("Actions sur le panneau")}
+          data-tip={t("Actions")}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => ouvrirMenuPanneauBouton(e, id)}
+          className={handleBtn}
+        >
+          <IconPoints className="h-3.5 w-3.5" />
+        </button>
+
         {/* Réinitialiser — seulement si le panneau a été modifié */}
         {override && (
           <button
@@ -1171,7 +1316,7 @@ export function ResizablePanel({
           // accidentelle. Et le module qu'elle ouvre est à une tape dans la
           // barre d'onglets — c'est un raccourci de curseur, pas une porte
           // unique.
-          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden`}
+          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden`}
           style={{
             bottom: V_SPACE + 6,
             background: "var(--glass-bg)",

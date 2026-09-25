@@ -20,12 +20,13 @@
  */
 
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { IconExpand, IconPencil, IconTrash } from "../icons";
+import { IconAlert, IconExpand, IconPencil, IconTrash } from "../icons";
 import MenuContextuel from "./MenuContextuel";
 import { useMenuContextuel } from "./useMenuContextuel";
 import { blocSous, nomDePiece, retirerBloc, type BlocNote } from "../../lib/blocsNote";
 import { carteDuBloc } from "../../lib/carteDom";
 import type { Carte } from "../../lib/carte";
+import { CLASSE_ABSENTE, CLASSE_MORTE } from "../../lib/piecesJointes";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 import type { EntreePossible } from "../../lib/menu/entrees";
 import { afficherToast } from "../../lib/toast";
@@ -101,7 +102,11 @@ export function useMenuBlocs(g: GestesBlocs): {
           g.enregistrer();
           return;
         }
-        afficherToast({ msg: t("La note a changé entre-temps : le bloc n'a pas pu être remis.") });
+        afficherToast({
+          msg: t("La note a changé entre-temps : le bloc n'a pas pu être remis."),
+          // Un échec : pas la coche verte du toast par défaut.
+          icone: <IconAlert className="h-5 w-5 shrink-0 text-yellow" />,
+        });
       },
     });
   };
@@ -167,13 +172,19 @@ export function useMenuBlocs(g: GestesBlocs): {
         return [supprimer(t("Supprimer l'image"))];
       case "piece": {
         const uid = bloc.element.dataset.fichier;
-        const morte = bloc.element.classList.contains("piece-jointe-morte");
+        const morte = bloc.element.classList.contains(CLASSE_MORTE);
+        const absente = bloc.element.classList.contains(CLASSE_ABSENTE);
         return [
           !!uid && {
             id: "ouvrir",
             libelle: t("Ouvrir"),
             icone: <IconExpand />,
-            desactive: morte ? { raison: t("Ce fichier a été supprimé.") } : undefined,
+            // Grisée AVEC la raison : le jeton en pointillés ne la dit pas.
+            desactive: morte
+              ? { raison: t("Ce fichier a été supprimé.") }
+              : absente
+                ? { raison: t("Ce fichier n'est pas sur cet appareil : il reste sur celui où il a été joint.") }
+                : undefined,
             executer: () => g.ouvrirPiece(uid),
           },
           // Le FICHIER reste : seul le jeton quitte la note. D'où « Retirer ».

@@ -201,7 +201,7 @@ export default function NotificationBell({ onNavigate }: Props) {
                       type="button"
                       onClick={() => notifs.remove(n.id)}
                       aria-label={t("Supprimer cette notification")}
-                      className="absolute right-2 top-2.5 rounded-[var(--radius-field)] p-1 text-text-dim opacity-0 transition-opacity hover:bg-overlay hover:text-text focus-visible:opacity-100 group-hover/notif:opacity-100"
+                      className="absolute right-2 top-2.5 rounded-[var(--radius-field)] p-1 text-text-dim opacity-0 transition-opacity hover:bg-overlay hover:text-text focus-visible:opacity-100 group-hover/notif:opacity-100 [@media(pointer:coarse)]:opacity-100"
                     >
                       <IconX className="h-3.5 w-3.5" />
                     </button>

@@ -6272,3 +6272,42 @@ définitif.
 aussi l'éditeur de carte (écouteur en capture) ; dans un `contenteditable`, le
 menu n'avait pas le focus et Échap fermait le lecteur. Les trois sont corrigés
 à la racine — le menu garde le clavier tant qu'il est ouvert.
+
+## 2026-09-25 — Ce qui restait au survol, et la pièce jointe muette
+
+Déclencheur : « enchaîne », sur les points laissés ouverts le 09-24.
+
+**Les panneaux de grille ont un menu** (`ResizableGrid`, toutes les vues) :
+- au clic droit, au « ⋯ » de la barre de poignées, et au clavier (la barre se
+  révèle à `focus-within`) ;
+- un SEUL menu par grille ;
+- chaque entrée appelle la fonction de la poignée (règle 18) ;
+- « Avancer / Reculer d'une place » écrit `order.<gridId>` comme le glisser.
+
+**Quatre autres boutons n'existaient qu'au survol :**
+- les crayons des comptes et des flux (Finance), et la croix des
+  notifications : ils sont désormais visibles au doigt et au clavier ;
+- le ▶ Focus des tâches d'Aujourd'hui : au doigt, il est RETIRÉ, et son action
+  passe dans le « ⋯ » (« Focus 25 min », entrée optionnelle `focus` de
+  `GestesTache`), parce que sa place invisible écrasait les libellés
+  (PIEGES § 19.19).
+
+**La pièce jointe muette** (PIEGES § 19.20). Cliquer un fichier absent de
+l'appareil ne faisait rien.
+- Tous les chemins d'ouverture passent désormais par
+  `lib/piecesJointesOuvrir.tsx` (clic du jeton dans Notes et le Savoir, menu du
+  bloc, lien vers un fichier), qui dit l'échec.
+- Le menu du jeton grise « Ouvrir » avec la raison.
+- Les toasts d'échec portent l'icône d'alerte, pas la coche verte.
+
+**Vérifié dans Chrome, en démo :**
+- menu de panneau, entrées grisées aux extrémités, clavier et retour du focus ;
+- la ligne de tâche garde son propre menu ;
+- masquer, puis réafficher par la pastille ;
+- au doigt : ▶ retiré, « Focus 25 min » lance le minuteur, croix des
+  notifications et crayons visibles ;
+- pièce jointe : jointe, relue « absente », clic avec message.
+
+⛔ Non vérifié : l'ouverture RÉELLE d'un fichier par le logiciel du Mac, qui
+demande l'app native et un vrai fichier.
+

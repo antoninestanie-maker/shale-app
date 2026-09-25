@@ -27,7 +27,7 @@ import { carteVide, type Carte } from "../lib/carte";
 import { carteDuBloc, figureDeCarte, insererBloc, remplacerBloc } from "../lib/carteDom";
 import { useDepotPieceJointe } from "./useDepotPieceJointe";
 import { pieceJointeCliquee } from "../lib/piecesJointesDom";
-import { ouvrirPieceJointe } from "../lib/repo";
+import { ouvrirPieceJointeOuDire } from "../lib/piecesJointesOuvrir";
 import { encodeImage, imageFilesOf, normalizeUrl, openExternal } from "../lib/knowledge";
 import type { LinkKind } from "../lib/types";
 import { toEditorHtml } from "../lib/richtext";
@@ -313,7 +313,7 @@ export default function NoteComposer({
     lectureSeule: reading,
     modifierCarte: (figure, c) => ouvrirCarte(figure, c),
     modifierCroquis: (img) => openSketch(img),
-    ouvrirPiece: (uid) => void ouvrirPieceJointe(uid),
+    ouvrirPiece: (uid) => void ouvrirPieceJointeOuDire(uid),
   });
 
   const applyLink = (raw: string) => {
@@ -535,7 +535,7 @@ export default function NoteComposer({
           const fichier = pieceJointeCliquee(el);
           if (fichier) {
             e.preventDefault();
-            void ouvrirPieceJointe(fichier);
+            void ouvrirPieceJointeOuDire(fichier);
             return;
           }
           // Lien : en lecture (ou ⌘-clic), on ouvre dans le navigateur système —
