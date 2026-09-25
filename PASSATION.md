@@ -575,7 +575,9 @@ Aucune migration, aucun Rust. ⚠️ **Les paquets `@tauri-apps/*` n'ont PAS ét
 montés** : leurs versions doivent rester alignées sur les crates Rust
 (`Cargo.lock`), donc on les monte ensemble, au prochain build natif. Reste une
 faille *moderate* dans vitest (outil de test, jamais embarqué) dont le
-correctif impose vitest 5 — non fait. Rebuild natif dû, à grouper. Pourquoi :
+correctif impose vitest 5 — non fait. ✅ **Installé le 2026-09-26 à 01:11**
+(avec la suite des menus `9e90a35`) ; les `@tauri-apps/*` ont été montés avec
+leurs crates au même build (`6fa996d`, http retenu à 2.6.1). Pourquoi :
 `CLAUDE.md` section du 2026-09-26.
 
 ---
