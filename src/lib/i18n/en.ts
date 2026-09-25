@@ -2926,4 +2926,8 @@ export const EN: Record<string, string> = {
   "Actions sur le panneau": "Panel actions",
   "Ce fichier n'est pas sur cet appareil : il reste sur celui où il a été joint.": "This file isn't on this device: it stays on the one it was attached from.",
   "Le fichier n'a pas pu s'ouvrir : {erreur}": "The file couldn't be opened: {erreur}",
+  // ── Filet contre l'écran blanc (FiletErreur.tsx, 2026-09-26) ──
+  "Shale a rencontré un problème.": "Shale ran into a problem.",
+  "Ce module a rencontré un problème. Le reste de l'app fonctionne.": "This module ran into a problem. The rest of the app still works.",
+  "Recharger Shale": "Reload Shale",
 };

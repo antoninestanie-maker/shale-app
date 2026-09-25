@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import AuthGate from "./components/auth/AuthGate";
 import CapturePane from "./CapturePane";
+import FiletErreur from "./components/FiletErreur";
 import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
 import { peindreLaFenetre, themeAuDemarrage } from "./lib/theme";
@@ -88,13 +89,17 @@ void sauvegardeQuotidienne();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <LangRoot>
-      {isCapturePane() ? (
-        <CapturePane />
-      ) : (
-        <AuthGate>
-          <App />
-        </AuthGate>
-      )}
+      {/* Dernier recours contre l'écran blanc : ce qui plante hors d'un module
+          (barre latérale, authentification, capture) — voir FiletErreur.tsx. */}
+      <FiletErreur portee="app">
+        {isCapturePane() ? (
+          <CapturePane />
+        ) : (
+          <AuthGate>
+            <App />
+          </AuthGate>
+        )}
+      </FiletErreur>
     </LangRoot>
   </React.StrictMode>,
 );

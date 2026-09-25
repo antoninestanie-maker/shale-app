@@ -168,7 +168,7 @@ connue derrière laquelle se cacher.
 ```
 npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
-npm test                                      ✅   1273 tests, 91 fichiers, 54 s  (2026-09-22)
+npm test                                      ✅   1494 tests, 109 fichiers, 46 s  (2026-09-26)
 npm run i18n:check                            ✅   0 clé manquante, 0 doublon, 2021 entrées
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
@@ -562,6 +562,21 @@ natif reste dû** : l'app installée date du 2026-09-16 et ne porte pas ce
 chantier. Le pourquoi est dans la section datée du 2026-09-18 de `CLAUDE.md`,
 les pièges dans `PIEGES.md` § 16, l'iPhone dans `MOBILE.md` § 23, le site dans
 `DETTE-SITE.md` § N.
+
+---
+
+### 11.x Le 2026-09-26 — le filet contre l'écran blanc, et les dépendances
+
+| Date | Chantier |
+|---|---|
+| 09-26 | ⭐ **`FiletErreur`** : un module qui plante au rendu n'emporte plus la fenêtre (message + « Réessayer »), et un filet racine propose « Recharger Shale » · `npm audit fix` (nanoid, postcss) · mises à jour mineures (React 19.3, recharts 3.10, Tailwind 4.3.3…) |
+
+Aucune migration, aucun Rust. ⚠️ **Les paquets `@tauri-apps/*` n'ont PAS été
+montés** : leurs versions doivent rester alignées sur les crates Rust
+(`Cargo.lock`), donc on les monte ensemble, au prochain build natif. Reste une
+faille *moderate* dans vitest (outil de test, jamais embarqué) dont le
+correctif impose vitest 5 — non fait. Rebuild natif dû, à grouper. Pourquoi :
+`CLAUDE.md` section du 2026-09-26.
 
 ---
 

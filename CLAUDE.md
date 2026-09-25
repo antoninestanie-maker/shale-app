@@ -6311,3 +6311,38 @@ l'appareil ne faisait rien.
 ⛔ Non vérifié : l'ouverture RÉELLE d'un fichier par le logiciel du Mac, qui
 demande l'app native et un vrai fichier.
 
+## 2026-09-26 — Le filet contre l'écran blanc
+
+Trouvé en passant l'app au crible des nouveaux skills (`harden` de
+`builder-design`) : **Shale n'avait aucun error boundary.** Une exception levée
+pendant le RENDU — une donnée inattendue en base, un chunk `lazy()`
+introuvable — démontait tout l'arbre React : fenêtre blanche, sans message ni
+sortie. C'est aussi le seul état d'erreur « natif » que le § 12.3 de
+`PASSATION.md` disait jamais vu.
+
+`src/components/FiletErreur.tsx`, en deux portées :
+- **`module`**, autour de la vue courante dans `App.tsx` : le module planté
+  affiche son message technique (lisible sur iPhone, même règle
+  qu'`EcranDonneesIllisibles`) et « Réessayer » ; la barre latérale reste
+  utilisable. Le conteneur porte déjà `key={view}`, donc **changer de module
+  efface l'erreur** sans code de plus.
+- **`app`**, autour de tout dans `main.tsx`, pour ce qui plante hors d'une vue
+  (barre latérale, `AuthGate`, barre de capture) : « Recharger Shale ».
+
+⚠️ Un filet ne voit que les erreurs de rendu : un `onClick` ou une promesse qui
+lève n'arrive pas jusqu'à lui. Ce n'est pas un trou — ces chemins ont leurs
+toasts.
+
+Prouvé par `FiletErreur.test.ts` (happy-dom, vrai rendu React : le voisin reste
+monté, « Réessayer » remonte le module). ⚠️ La phrase « aucune infrastructure
+de test de rendu React » plus haut est **périmée** : `happy-dom` sert déjà à
+`blocsNote` et `piecesJointesDom`, et maintenant à un composant.
+
+**Dépendances, même jour** : `npm audit fix` a retiré les deux failles *high*
+(nanoid, postcss — outils de build, jamais dans le `.dmg`) ; React, recharts,
+Tailwind et les types ont reçu leurs mises à jour mineures. ⚠️ **Les
+`@tauri-apps/*` n'ont pas bougé exprès** : leur version JS doit suivre la crate
+Rust du même greffon, et monter l'un sans l'autre se découvre au build natif.
+Les deux se montent ensemble (`npm update @tauri-apps/…` + `cargo update -p
+tauri-plugin-…`) le jour d'un build.
+

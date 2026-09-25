@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
+import FiletErreur from "./components/FiletErreur";
 import FocusOverlay from "./components/FocusOverlay";
 import { noteRapideDemandee, planNotifications } from "./lib/notifications";
 import { IS_IOS, useIsPhone } from "./lib/platform";
@@ -647,6 +648,10 @@ function App() {
               reconstruction complet (MOBILE.md §14.3). Elles ne disent plus la
               même chose : le repli de `Suspense` parle du MODULE (un chunk
               `lazy()` en vol), l'autre parle des DONNÉES (`fetchAll`). */}
+          {/* Le filet : un module qui plante au rendu n'emporte plus la fenêtre
+              (voir FiletErreur.tsx). Le `key={view}` du conteneur le remonte à
+              chaque changement de module, ce qui efface l'erreur. */}
+          <FiletErreur portee="module">
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">
@@ -707,6 +712,7 @@ function App() {
             <SettingsView />
           )}
           </Suspense>
+          </FiletErreur>
         </div>
       </div>
       <Toast toast={toastGlobal} onClose={fermerToast} duration={toastGlobal?.duree ?? 4500} />
