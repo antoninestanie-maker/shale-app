@@ -437,7 +437,13 @@ Commit du dépôt site : « Objectifs : le site décrit la feuille de route ».
 ⚠️ `vitrine/src/lib/modules.ts` n'existe plus (refonte du site) : l'audit de ce
 chantier le citait encore. La description vit dans les vues `refonte/`.
 
-### M.2 — ⛔ RESTE : la capture montre l'ANCIENNE vue
+### M.2 — ✅ RÉSOLU le 2026-09-26 (site `88db7c1`)
+Le générateur existe : `shale-site/vitrine/tools/shoot-v2.mjs` régénère les 26
+captures `v2` (dix modules × deux thèmes, trois écrans iPhone × deux thèmes)
+depuis l'app en mode démo (§ 13.2 de PASSATION, dans une copie jetable). La
+capture d'Objectifs montre la feuille de route. Ce qui suit est l'état d'avant.
+
+### M.2 (historique) — la capture montrait l'ANCIENNE vue
 `vitrine/public/shots/v2/dark-objectifs.webp` (1800 × 1125) date d'avant le
 chantier : ni jalons, ni cibles chiffrées, ni la phrase qui dit d'où vient le
 pourcentage. **Il n'existe aucun générateur pour cette famille `v2`** —
