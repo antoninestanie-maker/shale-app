@@ -1,5 +1,15 @@
+import { createPortal } from "react-dom";
 import type { FocusController } from "../lib/useFocus";
-import { IconPause, IconPlay, IconStop } from "./icons";
+import { IS_IOS } from "../lib/platform";
+import { themeAuDemarrage, FONDS } from "../lib/theme";
+import { afficherToast } from "../lib/toast";
+import {
+  fenetreSepareeDisponible,
+  ouvrirFenetreTimer,
+  usePontFenetreTimer,
+} from "../lib/timerFenetre";
+import EcranTimer, { ActionFenetre } from "./timer/EcranTimer";
+import { IconExternal, IconPause } from "./icons";
 
 import { t } from "../lib/i18n";
 function fmt(sec: number): string {
@@ -8,25 +18,30 @@ function fmt(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const R = 120;
-const CIRC = 2 * Math.PI * R;
+/**
+ * Ouvre la séance dans sa propre fenêtre — et le dit si ça échoue, plutôt que
+ * de laisser un bouton qui ne fait rien.
+ */
+export async function detacherLeTimer(focus: FocusController): Promise<void> {
+  const ok = await ouvrirFenetreTimer(FONDS[themeAuDemarrage()]);
+  if (ok) focus.setOverlayOpen(false);
+  else afficherToast({ msg: t("La fenêtre séparée n'a pas pu s'ouvrir."), tone: "loss" });
+}
 
-/** Mode session : overlay plein écran + chip compacte quand réduit. */
+/**
+ * Mode session : plein écran (l'horloge à volets) + pastille compacte quand
+ * réduit. Héberge aussi le pont vers la fenêtre séparée du Timer : c'est ici
+ * que vit l'affichage de la séance, et ce composant est monté une seule fois,
+ * au niveau d'`App`.
+ */
 export default function FocusOverlay({ focus }: { focus: FocusController }) {
-  const {
-    session,
-    remainingSec,
-    paused,
-    overlayOpen,
-    setOverlayOpen,
-    stop,
-    pause,
-    resume,
-  } = focus;
+  // ⚠️ Avant tout `return` : un crochet ne se saute pas.
+  usePontFenetreTimer(focus);
+
+  const { session, remainingSec, paused, overlayOpen, setOverlayOpen, stop, pause, resume } =
+    focus;
   if (!session) return null;
 
-  const totalSec = session.plannedMin * 60;
-  const progress = totalSec > 0 ? 1 - remainingSec / totalSec : 0;
   const isBreak = session.kind === "break";
   const accent = isBreak ? "var(--color-success)" : "var(--color-blue)";
 
@@ -53,87 +68,43 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-bg/95 backdrop-blur-md">
-      <p className="hud-label">{isBreak ? t("pause") : t("focus session")}</p>
-      <h2 className="mt-2 max-w-lg truncate px-6 text-2xl text-text">
-        {session.label}
-      </h2>
-
-      <div className="relative mt-8 h-72 w-72">
-        <svg viewBox="0 0 280 280" className="h-full w-full -rotate-90">
-          <circle
-            cx="140"
-            cy="140"
-            r={R}
-            fill="none"
-            stroke="var(--color-border)"
-            strokeWidth="10"
-          />
-          <circle
-            cx="140"
-            cy="140"
-            r={R}
-            fill="none"
-            stroke={accent}
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeDasharray={CIRC}
-            strokeDashoffset={CIRC * (1 - progress)}
-            style={{
-              transition: "stroke-dashoffset 1s linear",
-            }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-6xl font-semibold text-text">
-            {fmt(remainingSec)}
-          </span>
-          <span className="mt-2 font-mono text-xs text-text-dim">
-            / {session.plannedMin} min
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-8 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={paused ? resume : pause}
-          className={`pill inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-semibold ${
-            paused
-              ? "border-success/40 bg-success/10 text-success hover:bg-success/20"
-              : "border-yellow/40 bg-yellow/10 text-yellow hover:bg-yellow/20"
-          }`}
-        >
-          {paused ? (
-            <>
-              <IconPlay className="h-3.5 w-3.5" /> {t("Reprendre")}
-            </>
-          ) : (
-            <>
-              <IconPause className="h-3.5 w-3.5" /> {t("Pause")}
-            </>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={stop}
-          className="pill inline-flex items-center gap-1.5 border border-red/40 bg-red/10 px-5 py-2 text-sm font-semibold text-red hover:bg-red/20"
-        >
-          <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOverlayOpen(false)}
-          className="pill border border-border px-5 py-2 text-sm text-text-dim hover:text-text"
-        >
-          {t("Réduire")}
-        </button>
-      </div>
-
-      <p className="hud-label mt-10">
-        {t("la fenêtre peut être réduite — le chrono continue")}
-      </p>
-    </div>
+  // Portail sur `document.body` : un ancêtre animé ferait de `inset-0` « cet
+  // ancêtre » et laisserait la barre latérale allumée (PIEGES § 9.5).
+  return createPortal(
+    <div className="fixed inset-0 z-[80] bg-bg">
+      <EcranTimer
+        seance={session}
+        restantSec={remainingSec}
+        enPause={paused}
+        onBasculerPause={paused ? resume : pause}
+        onTerminer={() => void stop()}
+        onEchap={() => setOverlayOpen(false)}
+        // La barre de titre de la fenêtre principale est transparente : les
+        // pastilles de macOS sont posées sur ce coin (pas sur iPhone/iPad).
+        retraitPastilles={!IS_IOS}
+        actions={
+          <>
+            {fenetreSepareeDisponible() && (
+              <ActionFenetre
+                onClick={() => void detacherLeTimer(focus)}
+                label={t("Fenêtre séparée")}
+                tipSub={t("Ouvre le chrono dans sa propre fenêtre, à poser sur un autre écran.")}
+              >
+                <IconExternal className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t("Fenêtre séparée")}</span>
+              </ActionFenetre>
+            )}
+            <ActionFenetre
+              onClick={() => setOverlayOpen(false)}
+              label={t("Réduire")}
+              tipSub={t("Le chrono continue. Raccourci : Échap")}
+            >
+              {t("Réduire")}
+            </ActionFenetre>
+          </>
+        }
+      />
+    </div>,
+    document.body,
   );
 }

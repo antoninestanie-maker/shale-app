@@ -236,7 +236,7 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Aujourd'hui** | le tableau de bord : widgets redimensionnables sur une grille, tâches du jour, charge, objectifs, horloge de marché | c'est l'écran qui s'ouvre. Les widgets ont une structure et des contraintes propres (`CLAUDE.md`, 2026-07-21) |
 | **Tâches** | tâches, sous-tâches, récurrence, dates, rattachement à un objectif | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre |
 | **Calendrier** | le 13ᵉ module (2026-09-02). Événements, multi-jours, récurrence, saisie à la minute, roulette d'heure | migrations 020 et 021. « journée entière » s'annonce encore comme « 1 tâche sans horaire » — mot faux, compte juste, **non corrigé faute de mandat** |
-| **Timer** | Pomodoro, sessions de focus, plein écran | |
+| **Timer** | Pomodoro, sessions de focus, plein écran ; *(2026-09-29)* **horloge à volets** et **fenêtre séparée** | ⛔ *(2026-09-29)* sur `chantier/timer-flip`, **ni fusionné ni installé, jamais vu à l'écran** — § 11.x du 2026-09-29 |
 | **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29** : la vue est en **maître-détail** — la liste (chaque objectif avec sa **prochaine action**) et la fiche de celui qu'on choisit (une phrase d'origine, la feuille de route, une icône par niveau) ; sur iPhone, la liste OU la fiche. Sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
 | **Performance** | métriques personnalisées, habitudes, séries, graphiques (recharts) | |
 | **Finance** | remplace Benchmark (2026-08-25). Comptes, soldes, positions, cours, récurrents — **et la facturation** depuis le 2026-09-10 | migrations 018, 019, 023. ⚠️ Deux écrans manquent pour un usage réel : **l'émetteur** (identité, SIRET, régime) et **les tiers**. Sans eux, aucune facture ne peut être adressée à quelqu'un |
@@ -593,6 +593,28 @@ une incitation (`PIEGES.md` § 23.1). Tests : `boutique.test.ts` et
 non vacants). Ligne de base verte : 1513 tests. Simulateur : compte abonné et
 écran de connexion **vus** ; compte sans abonnement **pas vu** (disque plein,
 `PIEGES.md` § 23.3), couvert par le test de rendu. Tout est dans `MOBILE.md` § 25.
+
+### 11.x Le 2026-09-29 — Timer : horloge à volets et fenêtre séparée
+
+Demande d'Antonin, sur vidéo : la séance lancée doit pouvoir partir **dans sa
+propre fenêtre** (en plus du plein écran), et l'anneau laisse place à **une
+horloge à volets** (cartes MM / SS qui basculent), adaptée au thème. Nouveaux :
+`components/timer/` (`HorlogeVolets`, `EcranTimer`, `volets.css`),
+`lib/timerFenetre.ts`, `TimerPane.tsx`, capacité Tauri `timer.json` ; modifiés :
+`TimerView`, `FocusOverlay`, `main.tsx`, `capabilities/default.json`, `en.ts`.
+Aucune migration, **aucune ligne de Rust** — mais les capacités sont compilées
+dans le binaire, donc **rien n'existe dans l'app installée avant un build natif**.
+
+| | |
+|---|---|
+| Branche | `chantier/timer-flip` (worktree `~/Desktop/Shale-chantiers/timer`), depuis `mobile-ios` `340bdf4`. **Non fusionnée, non poussée sur `mobile-ios`** |
+| Prouvé | tsc, test:types, i18n:check ; **1 532 tests** (passe complète : 1 526 + 6 délais dépassés dans `sync/engine` et `sync/supabase`, machine chargée par d'autres sessions — § 9.11 de PIEGES ; les deux fichiers repassés seuls : 49/49) ; `timerFenetre.test.ts` (13, calculs + arrondi identique à `useFocus`) et `HorlogeVolets.test.ts` (6, mécanique de la bascule, happy-dom) — les deux vus échouer sur mutation ; `vite build` embarque bien la police étroite |
+| **PAS prouvé** | ⛔ **Rien n'a été vu à l'écran** : ni l'horloge, ni la bascule, ni les thèmes, ni la fenêtre. Le patch démo (§ 13.2) a été refusé par le garde-fou du mode automatique de la session, et le serveur de dev avec lui. En natif restent à voir : la création de la fenêtre (permissions), le plein écran macOS d'une fenêtre SECONDAIRE (et sa fermeture en plein écran — cf. l'espace fantôme de 2026-07-26), « Garder au premier plan », le déplacement par le fond |
+| Ce qui reste | ① regarder en démo (Antonin autorise le patch § 13.2 ou le lance) ; ② fusion dans `mobile-ios` ; ③ build natif — **à grouper** avec les chantiers voisins qui en attendent un (`COORDINATION.md`) |
+
+Le pourquoi (source de vérité unique dans la fenêtre principale, instant de fin
+plutôt que reste, fenêtre créée à la demande, chiffres à l'encre et non crème) :
+`CLAUDE.md`, section du 2026-09-29.
 
 ### 11.x Le 2026-09-26 — le filet contre l'écran blanc, et les dépendances
 

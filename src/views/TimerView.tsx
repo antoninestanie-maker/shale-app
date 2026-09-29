@@ -4,19 +4,16 @@ import { addDays, todayStr } from "../lib/logic";
 import { getSetting, setSetting } from "../lib/repo";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData, FocusSession } from "../lib/types";
-import { IconExpand, IconPause, IconPlay, IconStop } from "../components/icons";
+import { IconExpand, IconExternal, IconPause, IconPlay, IconStop } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
+import { detacherLeTimer } from "../components/FocusOverlay";
+import HorlogeVolets from "../components/timer/HorlogeVolets";
+import { afficheLesHeures, fenetreSepareeDisponible } from "../lib/timerFenetre";
 
 import { t } from "../lib/i18n";
 interface Props {
   data: AppData;
   focus: FocusController;
-}
-
-function fmt(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function fmtMin(min: number): string {
@@ -33,9 +30,6 @@ function sessionMinutes(s: FocusSession): number {
     new Date(s.started_at.replace(" ", "T")).getTime();
   return Math.max(0, Math.round(ms / 60_000));
 }
-
-const R = 110;
-const CIRC = 2 * Math.PI * R;
 
 export default function TimerView({ data, focus }: Props) {
   const today = todayStr();
@@ -82,17 +76,16 @@ export default function TimerView({ data, focus }: Props) {
 
   const totalSec = session ? session.plannedMin * 60 : 0;
   const progress = session && totalSec > 0 ? 1 - remainingSec / totalSec : 0;
-  const accent = session?.kind === "break" ? "var(--color-success)" : "var(--color-blue)";
 
   return (
     <div className="mx-auto max-w-5xl p-8">
       <h1 className="text-3xl text-text">{t("Timer")}</h1>
 
       <ResizableGrid gridId="timer" className="mt-6">
-        {/* Session en cours (grand anneau) ou lanceur */}
+        {/* Session en cours (horloge à volets) ou lanceur */}
         <ResizablePanel id="timer-main" title={t("Session")} defaultW={8}>
           {session ? (
-            <section className="card flex flex-col items-center p-8">
+            <section className="card flex flex-col items-center p-6 sm:p-8">
               <p className="hud-label">
                 {session.kind === "break" ? t("pause") : t("focus session")}
                 {paused ? ` — ${t("en pause")}` : ""}
@@ -100,45 +93,37 @@ export default function TimerView({ data, focus }: Props) {
               <h2 className="mt-1 max-w-md truncate text-xl text-text">
                 {session.label}
               </h2>
-              <div className="relative mt-6 h-64 w-64">
-                <svg viewBox="0 0 260 260" className="h-full w-full -rotate-90">
-                  <circle
-                    cx="130"
-                    cy="130"
-                    r={R}
-                    fill="none"
-                    stroke="var(--color-border)"
-                    strokeWidth="10"
-                  />
-                  <circle
-                    cx="130"
-                    cy="130"
-                    r={R}
-                    fill="none"
-                    stroke={accent}
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeDasharray={CIRC}
-                    strokeDashoffset={CIRC * (1 - progress)}
-                    style={{
-                      transition: "stroke-dashoffset 1s linear",
-                      opacity: paused ? 0.4 : 1,
-                    }}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span
-                    className={`font-mono text-6xl font-semibold text-text ${paused ? "opacity-50" : ""}`}
-                  >
-                    {fmt(remainingSec)}
-                  </span>
-                  <span className="mt-1 font-mono text-xs text-text-dim">
-                    / {session.plannedMin} min
-                    {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
-                  </span>
-                </div>
+              {/* L'horloge à volets, la même qu'en plein écran et dans la
+                  fenêtre séparée — à la taille du panneau. */}
+              <HorlogeVolets
+                restantSec={remainingSec}
+                avecHeures={afficheLesHeures(session.plannedMin)}
+                enPause={paused}
+                hauteurMax="10rem"
+                className="mt-6 max-w-[34rem]"
+              />
+              <div
+                className="pill mt-5 h-1 w-full max-w-[16rem] overflow-hidden bg-surface-2"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progress * 100)}
+                aria-label={t("Progression de la séance")}
+              >
+                <div
+                  className={`pill h-full transition-[width] duration-1000 ease-linear ${
+                    session.kind === "break"
+                      ? "bg-[var(--color-success-fill)]"
+                      : "bg-[image:var(--gradient-brand)]"
+                  }`}
+                  style={{ width: `${progress * 100}%` }}
+                />
               </div>
-              <div className="mt-6 flex gap-2">
+              <span className="mt-2 font-mono text-xs text-text-dim">
+                / {session.plannedMin} min
+                {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
+              </span>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <button
                   type="button"
                   onClick={paused ? focus.resume : focus.pause}
@@ -182,6 +167,17 @@ export default function TimerView({ data, focus }: Props) {
                 >
                   <IconExpand className="h-3.5 w-3.5" /> {t("Plein écran")}
                 </button>
+                {fenetreSepareeDisponible() && (
+                  <button
+                    type="button"
+                    onClick={() => void detacherLeTimer(focus)}
+                    data-tip={t("Fenêtre séparée")}
+                    data-tip-sub={t("Ouvre le chrono dans sa propre fenêtre, à poser sur un autre écran.")}
+                    className="pill inline-flex items-center gap-1.5 border border-border px-5 py-2 text-sm text-text-dim hover:text-text"
+                  >
+                    <IconExternal className="h-3.5 w-3.5" /> {t("Fenêtre séparée")}
+                  </button>
+                )}
               </div>
             </section>
           ) : (

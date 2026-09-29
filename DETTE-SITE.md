@@ -619,3 +619,30 @@ qui compte une étape nommée dans sa ligne. À montrer sur le site : « chaque
 objectif dit quoi faire ensuite ». Captures de référence prises en démo (sombre
 et clair, bureau et 390 pt) dans le brouillon de la session — à refaire par le
 générateur `shots/v2` (entrée M.2), pas à recopier.
+## U — Timer : horloge à volets et fenêtre séparée (app, 2026-09-29)
+
+Sur `chantier/timer-flip`, **pas encore dans l'app installée**. Une séance
+lancée s'affiche en horloge à volets (cartes MM / SS), et peut partir dans sa
+propre fenêtre, à poser sur un autre écran et à passer en plein écran là-bas.
+
+### U.1 — Rien de FAUX sur le site, vérifié
+
+Lu dans `shale-site` le 2026-09-29 (sans rien y toucher — le dépôt était sur la
+branche d'une autre session) : « Plein écran sans distraction : le compte à
+rebours, rien d'autre. » et « Préréglages ou durée sur mesure, et un mode plein
+écran » restent vrais. Les captures `shots/v2/dark-timer.webp` et
+`light-timer.webp` montrent le **lanceur**, pas une séance en cours : l'anneau
+disparu n'y figure pas.
+
+### U.2 — ⛔ PROPOSÉ, pas écrit : la fenêtre séparée
+
+Antonin décide (règle « chercher avant d'écrire du texte de vente »). Si une
+ligne doit s'ajouter, c'est dans la liste du Timer de `Fonctionsavancer.astro`,
+descriptive : « Le chrono dans sa propre fenêtre, à poser sur un second écran. »
+À n'écrire **qu'après** le build natif qui l'installe.
+
+### U.3 — Une capture « séance en cours » manque
+
+L'horloge à volets est la partie la plus montrable du module, et aucune capture
+du site ne montre une séance lancée. À ajouter au générateur de captures v2
+quand l'app installée la porte.

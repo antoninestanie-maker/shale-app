@@ -3636,3 +3636,55 @@ non.
 l'aide de toucher elle-même (`tel.mjs` du chantier).
 
 **Payé.** 2026-09-29, deux parcours à rejouer.
+
+# 26. Timer — horloge à volets et fenêtre séparée (2026-09-29)
+
+## 26.1 ⚠️⚠️ Une API de fenêtre Tauri sans SA permission échoue en silence — et un `catch` la rend invisible
+
+**Symptôme.** Aucun, et c'est le problème. `peindreLaFenetre()` (`lib/theme.ts`)
+appelle `getCurrentWindow().setBackgroundColor(…)` au démarrage et à chaque
+changement de thème, dans un `try/catch` commenté « du confort visuel, jamais un
+blocage ». Rien ne signale qu'elle échoue.
+
+**Cause.** Chaque commande de fenêtre exige sa permission dans la capacité de la
+fenêtre qui l'appelle. `core:window:allow-set-background-color` n'est **ni dans
+`capabilities/default.json`, ni dans `core:window:default`** (lu dans
+`src-tauri/gen/schemas/acl-manifests.json` le 2026-09-29 : le jeu par défaut ne
+contient que des lectures — `is-*`, tailles, positions, thème). L'appel est donc
+très probablement refusé depuis qu'il existe, et le `catch` l'avale.
+⚠️ **Raisonné, pas observé** : personne n'a regardé la console de l'app native.
+
+**Parade.** Pour une NOUVELLE fenêtre : poser la couleur **à la création**
+(option `backgroundColor` de `WebviewWindow`), qui ne demande aucune permission —
+c'est ce que fait `ouvrirFenetreTimer()`. Pour la fenêtre principale :
+⚠️ **ne PAS ajouter la permission telle quelle** — `default.json` couvre aussi la
+fenêtre `capture`, TRANSPARENTE, et `main.tsx` appelle `peindreLaFenetre` dans
+toutes les fenêtres : la barre de capture deviendrait un rectangle opaque. Il
+faudrait d'abord que `peindreLaFenetre` épargne `capture`. Non fait (hors du
+chantier Timer).
+
+**Généralisation.** Toute nouvelle commande de fenêtre appelée depuis le front
+(`setFullscreen`, `setAlwaysOnTop`, `close`, `startDragging`…) → chercher sa
+permission dans la capacité de la fenêtre **qui l'appelle**, avant d'écrire le
+`catch`. Un `catch` silencieux autour d'un appel natif ne doit jamais être la
+première ligne de défense.
+
+**Payé.** Rien encore — trouvé en écrivant la capacité `timer.json`.
+
+## 26.2 ⚠️ Le patch démo du § 13.2 de `PASSATION.md` est refusé par le garde-fou du mode automatique
+
+**Symptôme.** 2026-09-29 : la modification locale de `auth/config.ts` et
+`auth/useAuth.ts` (mode démo, jamais commitée) est refusée par le classificateur
+du mode automatique (« Security Weaken »). Le refus s'étend ensuite à ce qui sert
+le même but — y compris lancer le serveur de dev pour regarder l'interface.
+
+**Cause.** Le patch désactive l'authentification ; le garde-fou le juge comme tel,
+quel que soit l'usage (local, jamais commité).
+
+**Parade.** Ne pas contourner. **Demander à Antonin, AU DÉBUT du chantier**, s'il
+autorise la procédure du § 13.2 pour la session (ou s'il la lance lui-même) —
+pas au moment où on en a besoin, quand tout le reste est écrit et qu'il n'y a
+plus qu'à regarder.
+
+**Payé.** Le chantier Timer du 2026-09-29 est livré sur sa branche **sans avoir
+été vu à l'écran**.

@@ -1,0 +1,189 @@
+/* ==========================================================
+   HORLOGE À VOLETS — le Timer en séance (2026-09-29)
+   ==========================================================
+   Voir `HorlogeVolets.tsx` pour le pourquoi. Ici : la géométrie,
+   les deux thèmes, et la bascule.
+
+   ⚠️ Écrit hors de `index.css` exprès : c'est l'affaire d'un seul
+   composant, et `index.css` est un fichier chaud partagé par tous
+   les chantiers. Les tokens (`--color-*`, `--card-shadow`…) sont
+   ceux du design system, lus tels quels : rien n'est dupliqué, donc
+   le thème clair suit sans une ligne de plus. */
+
+/* L'Instrument Sans de l'app, dans sa coupe à axe de LARGEUR.
+   `index.css` n'importe que l'axe `wght` (30 ko) ; le fichier `wdth`
+   (57 ko) ne se charge qu'à l'affichage d'un volet, et seulement
+   pour les chiffres (`unicode-range`). Nom de famille à part, pour
+   ne rien changer au texte du reste de l'app. */
+@font-face {
+  font-family: "Instrument Sans Etroit";
+  font-style: normal;
+  font-display: block;
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  src: url("@fontsource-variable/instrument-sans/files/instrument-sans-latin-wdth-normal.woff2")
+    format("woff2-variations");
+  unicode-range: U+0030-003A;
+}
+
+.volets {
+  /* La taille des cartes se règle sur la largeur RÉELLE du conteneur,
+     pas sur la fenêtre : la même horloge tient dans un panneau de la
+     vue Timer, dans le plein écran et dans une petite fenêtre séparée. */
+  container-type: inline-size;
+  width: 100%;
+}
+
+.volets-rangee {
+  /* ⚠️ Les unités `cqw` se résolvent sur le conteneur ANCÊTRE le plus
+     proche — jamais sur l'élément qui porte `container-type` lui-même.
+     D'où ce calcul posé sur l'enfant de `.volets`, pas sur `.volets`. */
+  --gap: 2.6cqw;
+  --volet-h: min(
+    var(--volets-hmax, 12rem),
+    calc((100cqw - (var(--n) - 1) * var(--gap)) / var(--n) / 1.08)
+  );
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+}
+
+.volet {
+  --r: calc(var(--volet-h) * 0.075);
+  /* Lumière venue d'en haut, comme `--card-bg` : la moitié haute prend la
+     surface, la basse glisse vers le fond. Valable dans les DEUX thèmes
+     (en clair, le fond est plus sombre que la surface blanche). */
+  --volet-fond-haut: var(--color-surface);
+  --volet-fond-bas: color-mix(in oklab, var(--color-surface) 78%, var(--color-bg));
+  --volet-charniere: color-mix(in oklab, var(--color-bg) 70%, black);
+
+  position: relative;
+  flex: none;
+  height: var(--volet-h);
+  width: calc(var(--volet-h) * 1.08);
+  border-radius: var(--r);
+  box-shadow: var(--card-shadow);
+  perspective: calc(var(--volet-h) * 4);
+
+  font-family: "Instrument Sans Etroit", var(--font-display);
+  font-stretch: 75%;
+  font-weight: 700;
+  font-size: calc(var(--volet-h) * 0.8);
+  line-height: 1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  user-select: none;
+}
+
+/* La charnière : le trait qui coupe la carte en deux, par-dessus tout. */
+.volet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: max(1px, calc(var(--volet-h) * 0.014));
+  transform: translateY(-50%);
+  background: var(--volet-charniere);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.volet-moitie {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Chaque moitié porte le chiffre ENTIER, à la hauteur de la carte, et n'en
+   montre que sa moitié : c'est ce qui fait coïncider les deux au trait. */
+.volet-moitie > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--dur-slow) var(--ease-out-quint);
+}
+
+.volet-haut {
+  top: 0;
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--volet-fond-haut);
+  transform-origin: 50% 100%;
+}
+.volet-haut > span {
+  top: 0;
+}
+
+.volet-bas {
+  bottom: 0;
+  border-radius: 0 0 var(--r) var(--r);
+  background: var(--volet-fond-bas);
+  transform-origin: 50% 0%;
+}
+.volet-bas > span {
+  bottom: 0;
+}
+
+/* La bascule. La moitié haute de l'ANCIEN chiffre tombe vers l'avant
+   (0 → −90°, accélérée comme une chute), puis la moitié basse du NOUVEAU
+   se rabat (90° → 0, amortie). 240 + 300 ms : fini bien avant la seconde
+   suivante. `both` tient l'état avant le délai ET après la fin — c'est lui
+   qui remplace `animationend`. */
+.volet-tombe {
+  z-index: 2;
+  animation: volet-tombe 240ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+}
+.volet-arrive {
+  z-index: 2;
+  animation: volet-arrive 300ms var(--ease-out-quint) 240ms both;
+}
+
+/* Le volet qui tombe s'assombrit en quittant la lumière. */
+.volet-tombe::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: black;
+  animation: volet-ombre 240ms ease-in both;
+  pointer-events: none;
+}
+
+@keyframes volet-tombe {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(-90deg);
+  }
+}
+@keyframes volet-arrive {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+@keyframes volet-ombre {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* En pause, les chiffres s'effacent à moitié : le temps est suspendu, pas perdu. */
+.volets[data-pause] .volet-moitie > span {
+  opacity: 0.42;
+}

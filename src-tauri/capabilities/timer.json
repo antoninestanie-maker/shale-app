@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "timer",
+  "description": "Fenêtre séparée du Timer (créée à la demande par lib/timerFenetre.ts). Elle n'ouvre jamais la base : ni sql, ni http, ni dialog — seulement le canal d'événements avec la fenêtre principale et ses propres gestes de fenêtre.",
+  "windows": ["timer"],
+  "platforms": ["macOS", "windows", "linux"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging"
+  ]
+}

@@ -3,10 +3,12 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import AuthGate from "./components/auth/AuthGate";
 import CapturePane from "./CapturePane";
+import TimerPane from "./TimerPane";
 import FiletErreur from "./components/FiletErreur";
 import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
 import { peindreLaFenetre, themeAuDemarrage } from "./lib/theme";
+import { estFenetreTimer } from "./lib/timerFenetre";
 import "./index.css";
 
 /** La fenêtre Tauri "capture" (et /?pane=capture en navigateur) rend la barre de capture. */
@@ -84,7 +86,10 @@ applyLangAttribute();
  * `backup.last_at` en jour LOCAL), donc l'appeler au chargement du module ne
  * peut ni bloquer le démarrage ni produire deux copies.
  */
-void sauvegardeQuotidienne();
+// ⚠️ Pas depuis la fenêtre séparée du Timer : elle n'ouvre jamais la base
+// (`lib/timerFenetre.ts`), et la fenêtre principale, qui tourne forcément à
+// côté, a déjà fait ce geste.
+if (!estFenetreTimer()) void sauvegardeQuotidienne();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -94,6 +99,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <FiletErreur portee="app">
         {isCapturePane() ? (
           <CapturePane />
+        ) : estFenetreTimer() ? (
+          <TimerPane />
         ) : (
           <AuthGate>
             <App />

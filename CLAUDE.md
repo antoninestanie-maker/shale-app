@@ -6548,3 +6548,89 @@ bandeau dessous). La fiche dit les deux en une phrase, avec son action : « Sais
 d'`App.tsx`) : la liste montrait tout, la fiche n'en montre qu'un — sans cela
 une mention d'objectif, ou « En faire un objectif », arrivait devant le premier
 objectif venu. La demande attend l'objectif s'il n'est pas encore relu.
+
+## 2026-09-29 — Timer : l'horloge à volets, et la séance dans sa propre fenêtre
+
+**Demande d'Antonin, avec une vidéo** (une horloge à palettes sur iPad posé
+sous un écran : « Focus » en haut à gauche, deux grandes cartes MM / SS, une
+pastille « Pause ») : pouvoir mettre le timer lancé **dans une fenêtre
+séparée** en plus du plein écran, et **remplacer l'interface par celle de la
+vidéo, adaptée à l'app**. Branche `chantier/timer-flip`.
+
+**Ce qui a été fait.**
+- `components/timer/HorlogeVolets.tsx` + `volets.css` : l'horloge à volets.
+  Elle remplace l'anneau dans **les trois endroits où une séance s'affiche en
+  grand** : le panneau « Session » de la vue Timer, le plein écran de l'app
+  (`FocusOverlay`) et la nouvelle fenêtre. Le widget Timer d'Aujourd'hui reste
+  compact (règle « dashboard = coup d'œil » du 2026-07-12) ; la pastille de
+  séance réduite en haut de l'app ne change pas.
+- `components/timer/EcranTimer.tsx` : l'écran de séance en grand, **le même**
+  pour le plein écran et la fenêtre séparée — disposition de la vidéo (genre
+  de séance en haut à gauche, volets au centre, « Pause » dessous), plus les
+  gestes de fenêtre en haut à droite et une jauge de progression fine.
+- `lib/timerFenetre.ts` + `TimerPane.tsx` : la fenêtre séparée (étiquette Tauri
+  `timer`, `/?pane=timer` en navigateur). Boutons « Fenêtre séparée » dans le
+  panneau Session et dans le plein écran. Dans la fenêtre : « Revenir à
+  Shale », « Garder au premier plan », « Plein écran » (le vrai, celui de
+  macOS, donc sur l'écran où la fenêtre a été posée — c'est le geste de la
+  vidéo). Clavier : Espace pause/reprise, F plein écran, Échap sortir.
+
+**⭐ Pourquoi la fenêtre séparée n'a PAS de session à elle.** La séance vit dans
+`useFocus`, dans la fenêtre principale ; la fenêtre `timer` affiche ce qu'on lui
+diffuse et renvoie les gestes (`pause`, `reprendre`, `terminer`,
+`montrer-app`). Deux horloges qui se tiendraient chacune leur compte finiraient
+par se contredire — une pause prise d'un côté, une séance écrite deux fois en
+base de l'autre. Conséquence voulue : **la fenêtre n'ouvre jamais la base**
+(sa capacité Tauri `timer.json` n'a ni `sql`, ni `http`, ni `dialog`), et
+`main.tsx` n'y lance pas la sauvegarde quotidienne.
+
+**Pourquoi l'instant de FIN voyage, pas le reste.** Diffuser « il reste N s »
+obligerait à émettre chaque seconde, et la fenêtre afficherait le retard du
+message. On diffuse l'instant de fin (ou le reste figé pendant une pause) aux
+seuls changements de sens ; la fenêtre recalcule avec **la même formule que
+`useFocus`** (`Math.round`, plancher 0) — `timerFenetre.test.ts` la tient.
+
+**Pourquoi créée à la demande, pas déclarée dans `tauri.conf.json` comme la
+capture.** Une fenêtre déclarée charge toute l'app au démarrage, cachée, pour
+une fonction qui ne sert qu'en séance. Le prix : la permission
+`core:webview:allow-create-webview-window` sur `main` (+ `allow-unminimize`
+pour la ramener devant). ⚠️ **Les capacités sont compilées dans le binaire :
+rien de tout ça n'existe dans l'app installée avant un build natif.**
+
+**Pourquoi montée hors d'`AuthGate`.** Comme `CapturePane` : la fenêtre ne voit
+que ce que l'app, authentifiée, lui envoie, et ses gestes sont exécutés par
+l'app. Elle a MOINS de pouvoir que la capture, qui écrit des tâches.
+
+**« Adaptée à l'app » — ce qui a été traduit, et ce qui ne l'a pas été.**
+- Les cartes sont les **surfaces du thème** (haut = `--color-surface`, bas qui
+  glisse vers `--color-bg` : la lumière vient d'en haut, comme `--card-bg`),
+  donc le **thème clair suit** sans une ligne de plus. Charnière sombre,
+  `--card-shadow`.
+- Les chiffres sont **à l'encre du texte**, pas crème comme dans la vidéo : la
+  V7 est « de l'encre et du bleu » (DESIGN.md), une couleur crème y serait la
+  seule chaude de l'app.
+- La police est **l'Instrument Sans de l'app, dans sa coupe ÉTROITE** (axe
+  `wdth` à 75, graisse 700) — la vidéo montre une grotesque condensée, et la
+  nôtre en a une. Famille déclarée à part (« Instrument Sans Etroit »,
+  chiffres seulement) pour ne rien changer au texte du reste de l'app ;
+  57 ko chargés seulement quand un volet s'affiche.
+- Ajout qui n'est pas dans la vidéo : **une jauge fine** sous les volets —
+  l'anneau disparu portait la progression, elle ne devait pas disparaître
+  avec lui. Dégradé de marque (emploi « progression » de DESIGN.md) ; la
+  pause est à l'encre.
+- En pause, les chiffres s'effacent à moitié et « Reprendre » devient le
+  bouton primaire (`.fill-primary`).
+
+**⚠️ La bascule n'écoute aucun `animationend`** (PIEGES § 11.4 / 11.5) : chaque
+volet animé est monté avec la nouvelle valeur pour clé et tient sa position
+finale par `animation-fill-mode: both`. Un mouvement réduit tombe donc droit
+sur l'état final. `HorlogeVolets.test.ts` (happy-dom) prouve la mécanique —
+quelle moitié porte quel chiffre, et que le volet est REMONTÉ à chaque
+changement — **pas le rendu** (§ 7.1 de PIEGES).
+
+**⚠️ Ce qui n'a PAS été vu à l'écran** : ni l'horloge, ni la bascule, ni la
+fenêtre séparée. Le patch de mode démo (PASSATION § 13.2) a été refusé par le
+garde-fou du mode automatique de la session, puis le serveur de dev avec lui ;
+rien n'a été contourné. La fenêtre native, ses permissions, le plein écran
+macOS d'une fenêtre secondaire et « premier plan » ne se vérifient de toute
+façon qu'après un build natif.
