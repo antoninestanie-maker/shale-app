@@ -54,6 +54,7 @@ import { choisirProfilDemo, profilDemoChoisi, type ProfilDemo } from "../lib/dem
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
+import ReglagesIa from "../components/ia/ReglagesIa";
 
 import { pick, t } from "../lib/i18n";
 import { rejouerAccueil } from "../lib/onboarding/semer";
@@ -549,6 +550,7 @@ export default function SettingsView() {
                 [
                   ["shale", "Shale"],
                   ["shale_trade", "Shale Trade"],
+                  ["shale_pro", "Shale Pro"],
                   ["trialing", t("essai en cours")],
                 ] as const
               ).map(([value, label]) => (
@@ -923,6 +925,15 @@ export default function SettingsView() {
         )}
       </section>
       </ResizablePanel>
+
+      {/* L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29). Absente sur iOS :
+          ses écrans sont hors périmètre de la V1, et un réglage « réservé à
+          Pro » y serait un appel à l'achat (`lib/boutique.ts`). */}
+      {!IS_IOS && (
+      <ResizablePanel id="settings-ia" defaultW={12}>
+        <ReglagesIa />
+      </ResizablePanel>
+      )}
 
       {/* Clés IA + tracker : les deux ne servent qu'aux modules trading, donc
           réservés à Shale Trade. Rendu conditionnel plutôt que masquage, pour

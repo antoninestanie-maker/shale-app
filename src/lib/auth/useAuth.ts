@@ -132,17 +132,17 @@ function estPanneReseau(e: unknown): boolean {
 // ça, le gating des modules trading ne serait pas testable sans Supabase.
 const DEMO_TIER_KEY = "shale.demo.tier";
 
-export function demoTier(): "shale" | "shale_trade" | "trialing" {
+export function demoTier(): "shale" | "shale_trade" | "shale_pro" | "trialing" {
   try {
     const v = localStorage.getItem(DEMO_TIER_KEY);
-    if (v === "shale" || v === "shale_trade" || v === "trialing") return v;
+    if (v === "shale" || v === "shale_trade" || v === "shale_pro" || v === "trialing") return v;
   } catch {
     /* stockage indisponible */
   }
   return "shale_trade";
 }
 
-export function setDemoTier(v: "shale" | "shale_trade" | "trialing"): void {
+export function setDemoTier(v: "shale" | "shale_trade" | "shale_pro" | "trialing"): void {
   try {
     localStorage.setItem(DEMO_TIER_KEY, v);
   } catch {

@@ -43,6 +43,14 @@ export interface Entitlements {
   billingPeriod: BillingPeriod | null;
   /** Jours entiers restants avant la fin de l'essai (`null` hors essai). */
   trialDaysLeft: number | null;
+  /**
+   * L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29) : Pro payé, ou essai Pro
+   * en cours. Business ne l'a PAS (décision d'Antonin, 2026-09-29).
+   * ⚠️ Ce drapeau ne commande que l'AFFICHAGE : c'est la fonction `ai` qui fait
+   * foi (`ai_offre`, migration Supabase 008) — un client qui mentirait ici
+   * recevrait `not_pro`.
+   */
+  aIa: boolean;
 }
 
 /**
@@ -70,6 +78,7 @@ export function entitlementsOf(
       hasTrading: tradingActif,
       billingPeriod: null,
       trialDaysLeft: null,
+      aIa: true,
     };
 
   const isTrialing = sub?.status === "trialing";
@@ -87,6 +96,7 @@ export function entitlementsOf(
         : tier === "shale_trade" || isTrialing),
     billingPeriod: sub?.billing_period ?? null,
     trialDaysLeft: isTrialing ? (sub?.trial_days_left ?? null) : null,
+    aIa: tier === "shale_pro" && (sub?.status === "active" || isTrialing),
   };
 }
 
