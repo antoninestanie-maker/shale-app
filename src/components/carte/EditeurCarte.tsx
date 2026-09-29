@@ -22,13 +22,23 @@ import {
   retablir,
   sousArbre,
   supprimerNoeud,
+  typeDeNoeud,
   voisin,
   type Carte,
   type Direction,
+  type KindCarte,
+  type TypeDonnable,
 } from "../../lib/carte";
+import { etatsVivants, type EtatVivant } from "../../lib/carteEtat";
+import { addDays, todayStr } from "../../lib/logic";
+import { allerVers } from "../../lib/naviguer";
+import type { ContexteObjectifs } from "../../lib/objectifs/contexte";
+import type { AppData } from "../../lib/types";
+import EtatsVivants from "./EtatsVivants";
+import PanneauType from "./PanneauType";
 import { pngDeCarte, svgExportable } from "../../lib/carteDom";
 import { requeteEnCours } from "../../lib/mentions";
-import { rechercherPartout } from "../../lib/repo";
+import { basculerTache, fetchAll, fetchContexteObjectifs, rechercherPartout } from "../../lib/repo";
 import { enregistrerFichier } from "../../lib/fichiers";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { Trouvaille } from "../../lib/recherche";
@@ -38,9 +48,12 @@ import DepuisCarte from "../objectifs/DepuisCarte";
 import {
   IconArobase,
   IconCheck,
+  IconCheckCircle,
   IconCote,
   IconExpand,
   IconExternal,
+  IconFlame,
+  IconFolder,
   IconLink,
   IconNoeudEnfant,
   IconNoeudFrere,
@@ -201,8 +214,10 @@ function Outil({
 }
 
 export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef }: Props) {
-  const ouvrirCible = (kind: LinkKind, uid: string) => {
-    onOuvrirRef?.(kind, uid);
+  const ouvrirCible = (kind: KindCarte, uid: string) => {
+    // Une habitude n'a pas de fiche à elle : elle vit dans le Journal.
+    if (kind === "habit") allerVers("journal");
+    else onOuvrirRef?.(kind, uid);
     onFermer();
   };
   const [histoire, setHistoire] = useState(() => historiqueDe(carte));
@@ -248,6 +263,33 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * temps : un état armé ne survit jamais à ce qui l'a motivé.
    */
   const [armeReorg, setArmeReorg] = useState<Carte | null>(null);
+  /** Le panneau « Type » ouvert : quel type, pour quel nœud. */
+  const [typage, setTypage] = useState<{ type: TypeDonnable; id: string } | null>(null);
+
+  /**
+   * ⭐ LES DONNÉES VIVANTES — l'état des nœuds typés (coche, échéance, série,
+   * pourcentage) et les objectifs où ranger un nœud qu'on type.
+   *
+   * L'éditeur les lit LUI-MÊME : ses deux hôtes historiques n'ont pas les mêmes
+   * (Notes reçoit `data`, le Savoir non). `fetchAll` à l'ouverture, puis relu à
+   * chaque `sb:data-changed` — le signal que toute écriture hors-vue émet, y
+   * compris celles de la carte (PIEGES § 18.2).
+   */
+  const [donnees, setDonnees] = useState<{ data: AppData; contexte: ContexteObjectifs } | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    const lire = async () => {
+      const [data, contexte] = await Promise.all([fetchAll(addDays(todayStr(), -400)), fetchContexteObjectifs()]);
+      if (vivant) setDonnees({ data, contexte });
+    };
+    void lire();
+    const surChangement = () => void lire();
+    window.addEventListener("sb:data-changed", surChangement);
+    return () => {
+      vivant = false;
+      window.removeEventListener("sb:data-changed", surChangement);
+    };
+  }, []);
   const [message, setMessage] = useState<string | null>(null);
   /** Le panneau « En faire un objectif » — jamais en lecture (rien à convertir deux fois). */
   const [versObjectif, setVersObjectif] = useState(false);
@@ -265,6 +307,30 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     return apercu ? glisserNoeud(courante, apercu.id, apercu.dx, apercu.dy) : courante;
   }, [courante, apercu, armeReorg, edition]);
   const agencement = useMemo(() => agencer(affichee), [affichee]);
+
+  const etats = useMemo(() => {
+    if (!donnees) return new Map<string, EtatVivant>();
+    const { data, contexte } = donnees;
+    const today = todayStr();
+    return etatsVivants(affichee, {
+      goals: data.goals,
+      tasks: data.tasks,
+      completions: data.completions,
+      habits: data.habits,
+      habitChecks: data.habitChecks,
+      liens: contexte.liens,
+      evenements: contexte.evenements,
+      maintenant: `${today} ${new Date().toTimeString().slice(0, 5)}`,
+      today,
+    });
+  }, [affichee, donnees]);
+
+  /** Cocher depuis la carte : le MÊME chemin que partout (`basculerTache`). */
+  const cocher = async (e: EtatVivant, fait: boolean) => {
+    if (!e.tache) return;
+    await basculerTache(e.tache, todayStr(), fait);
+    window.dispatchEvent(new Event("sb:data-changed"));
+  };
 
   const svg = useMemo(
     () => rendreSvg(affichee, { mode: "theme", selection: edition ? null : selection, peril: arme }),
@@ -542,6 +608,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       // Un menu contextuel est ouvert (clic droit sur un nœud) : la touche est
       // à LUI. Sans ce test, Échap fermait le menu ET la carte (PIEGES § 19.15).
       if (menuContextuelOuvert()) return;
+      // Un panneau est ouvert par-dessus la carte (« Type », « En faire un
+      // objectif ») : les touches sont à LUI. Sans ce garde, Échap fermait la
+      // carte entière au lieu du seul panneau — l'ordre des écouteurs en
+      // capture dépend de qui s'est réabonné en dernier.
+      if (typage || versObjectif) return;
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -670,6 +741,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       // ⌥ + flèche envoie la BRANCHE de ce côté, au lieu d'y déplacer la
       // sélection. Un geste délibéré : depuis que le côté est posé, réordonner
       // ne fait plus traverser la carte à une branche (voir `poserCote`).
+      // ⌥T : le TYPE du nœud. `e.code` et pas `e.key` : sur Mac, ⌥T tape « † ».
+      if (e.altKey && e.code === "KeyT") {
+        e.preventDefault();
+        const el = scene.current?.querySelector<HTMLElement>(`[data-noeud="${CSS.escape(selection)}"]`);
+        if (el) menuType.ouvrirSurElement(el, selection);
+        return;
+      }
       if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         e.preventDefault();
         if (rattache) return;
@@ -712,7 +790,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     // garderait la fermeture du rendu précédent — donc `arme` à `null` pour
     // toujours, et le second ⌫ ne confirmerait jamais. C'est le § 9.1 de
     // `PIEGES.md`, repris à l'identique.
-  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, rattache, selection]);
+  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, rattache, selection, typage, versObjectif]);
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
@@ -1133,6 +1211,41 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * sélectionne d'abord le nœud visé, comme le ferait un clic.
    */
   const menuNoeud = useMenuContextuel<string>();
+  const menuType = useMenuContextuel<string>();
+
+  /**
+   * ⭐ LES TYPES D'UN NŒUD — Idée, Étape, Tâche, Habitude (2026-09-29).
+   *
+   * Un nœud typé EST son objet : on ne le convertit pas d'un type à l'autre
+   * (transformer une tâche en étape est une transformation de données, hors
+   * du chantier). Il se DÉTYPE — redevient une idée, l'objet reste en vie — et
+   * se retype ensuite. Les entrées grisées disent pourquoi.
+   */
+  const entreesType = (id: string): EntreePossible[] => {
+    const n = noeudDe(courante, id);
+    if (!n || lecture) return [];
+    const actuel = typeDeNoeud(n);
+    const libre = actuel === "idee";
+    const raison = libre
+      ? undefined
+      : actuel === "citation"
+        ? { raison: t("Ce nœud cite déjà un objet : repasse-le en Idée d'abord.") }
+        : { raison: t("Un nœud typé EST son objet : repasse-le en Idée pour lui donner un autre type.") };
+    const ouvrir = (type: TypeDonnable) => () => setTypage({ type, id });
+    return [
+      {
+        id: "idee",
+        libelle: libre ? t("Idée") : t("Idée — retirer le type"),
+        icone: <IconPencil />,
+        desactive: libre ? { raison: t("C'est déjà une idée : du texte libre.") } : undefined,
+        executer: () => modifier((c) => poserReference(c, id, null, n.texte)),
+      },
+      { id: "etape", libelle: t("Étape…"), icone: <IconFolder />, desactive: raison, executer: ouvrir("etape") },
+      { id: "tache", libelle: t("Tâche…"), icone: <IconCheckCircle />, desactive: raison, executer: ouvrir("tache") },
+      { id: "habitude", libelle: t("Habitude…"), icone: <IconFlame />, desactive: raison, executer: ouvrir("habitude") },
+    ];
+  };
+
   const entreesNoeud = (id: string): EntreePossible[] => {
     const n = noeudDe(courante, id);
     if (!n || id !== selection) return [];
@@ -1159,6 +1272,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         executer: modifierTexte,
       },
       { id: "citer", libelle: t("Citer un objet"), icone: <IconArobase />, executer: citer },
+      {
+        id: "type",
+        libelle: t("Type"),
+        icone: <IconTarget />,
+        raccourci: kbd("⌥T"),
+        sousMenu: entreesType(id).filter((x): x is Exclude<EntreePossible, null | false | undefined> => !!x),
+      },
       enfants && {
         id: "plier",
         libelle: n.plie ? t("Déplier") : t("Replier"),
@@ -1559,6 +1679,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
               dangerouslySetInnerHTML={{ __html: svg }}
             />
 
+            {/* L'état vivant des nœuds typés : PAR-DESSUS le SVG, jamais dedans. */}
+            <EtatsVivants agencement={agencement} etats={etats} onCocher={cocher} />
+
             {/* Le champ d'édition, posé EXACTEMENT sur la boîte du nœud. Il vit
                 dans le même conteneur transformé, donc il suit le zoom sans
                 calcul supplémentaire. */}
@@ -1823,9 +1946,10 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         carte zoomée au lieu de la fenêtre. Ce voile-ci, lui, couvre exactement
         la fenêtre, donc les deux repères coïncident.
       */}
-      {versObjectif && !lecture && (
+      {versObjectif && !lecture && donnees && (
         <DepuisCarte
           carte={courante}
+          existants={donnees.data}
           onFermer={() => setVersObjectif(false)}
           onQuitterCarte={onFermer}
         />
@@ -1836,6 +1960,27 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         libelle={t("Actions sur le nœud")}
         entrees={menuNoeud.cible ? entreesNoeud(menuNoeud.cible) : []}
       />
+      <MenuContextuel
+        etat={menuType}
+        libelle={t("Type du nœud")}
+        entrees={menuType.cible ? entreesType(menuType.cible) : []}
+      />
+
+      {typage && !lecture && donnees && (
+        <PanneauType
+          type={typage.type}
+          carte={courante}
+          noeudId={typage.id}
+          goals={donnees.data.goals}
+          onFermer={() => setTypage(null)}
+          onCree={(ref, titreObjet, genre) => {
+            const id = typage.id;
+            modifier((c) => poserReference(c, id, ref, titreObjet, genre));
+            setTypage(null);
+            setSelection(id);
+          }}
+        />
+      )}
 
       {mention && (
         <MentionPicker

@@ -223,16 +223,64 @@ describe("une carte mentale, devenue objectif", () => {
     expect(plan.etapes[0].phase).toBe(false);
   });
 
-  it("un objectif cité reste du TEXTE : perdre le lien vaut mieux que perdre l'idée", () => {
+  // ⚠️ CHANGÉ EXPRÈS le 2026-09-29 — décision D de l'arrêt 1 du chantier
+  // carte-objectifs. Ce test disait « un objectif cité reste du TEXTE : perdre
+  // le lien vaut mieux que perdre l'idée » : le titre devenait une étape NEUVE,
+  // c'est-à-dire un doublon de l'étape citée. Depuis qu'un nœud peut ÊTRE une
+  // étape, ce doublon se fabriquerait à chaque conversion.
+  it("⭐ un objectif cité n'est NI recopié NI déplacé : laissé où il est, et compté", () => {
     const plan = planDeCarte(
       carte([
         { id: "r", parent: null, texte: "Devenir rentable" },
         { id: "a", parent: "r", texte: "Discipline", ref: { kind: "goal", uid: "u-g9" } },
+        { id: "a1", parent: "a", texte: "Une idée sous l'étape existante" },
       ]),
     );
-    expect(plan.etapes.map((e) => e.titre)).toEqual(["Discipline"]);
-    expect(plan.taches).toEqual([]);
-    expect(plan.ressources).toEqual([]);
+    expect(plan.etapes).toEqual([]);
+    expect(plan.laisses).toEqual([{ kind: "goal", uid: "u-g9", titre: "Discipline" }]);
+    // Ce qui pend sous une étape existante reste avec elle : ni tâche, ni « écarté ».
+    expect(plan.ignores).toBe(0);
+    expect(comptesDuPlan(plan).laisses).toBe(1);
+  });
+
+  it("⭐ une tâche citée DÉJÀ rattachée ailleurs est laissée ; une tâche libre est rattachée", () => {
+    const c = carte([
+      { id: "r", parent: null, texte: "Devenir rentable" },
+      { id: "a", parent: "r", texte: "Revue", ref: { kind: "task", uid: "u-t1" } },
+      { id: "b", parent: "r", texte: "Journal", ref: { kind: "task", uid: "u-t2" } },
+    ]);
+    const plan = planDeCarte(c, {
+      tasks: [
+        { id: 1, uid: "u-t1", goal_id: 42 },
+        { id: 2, uid: "u-t2", goal_id: null },
+      ],
+    });
+    expect(plan.laisses).toEqual([{ kind: "task", uid: "u-t1", titre: "Revue" }]);
+    expect(plan.taches).toEqual([{ titre: "Journal", ref: { kind: "task", uid: "u-t2" } }]);
+  });
+
+  it("une habitude citée est mise de côté pour le panneau, jamais changée en étape de texte", () => {
+    const plan = planDeCarte(
+      carte([
+        { id: "r", parent: null, texte: "Devenir rentable" },
+        { id: "a", parent: "r", texte: "Méditer", ref: { kind: "habit", uid: "h-1" } },
+      ]),
+    );
+    expect(plan.etapes).toEqual([]);
+    expect(plan.habitudes).toEqual([{ uid: "h-1", titre: "Méditer" }]);
+  });
+
+  it("un objectif cité PROFOND (niveau 3) n'est pas recopié en tâche non plus", () => {
+    const plan = planDeCarte(
+      carte([
+        { id: "r", parent: null, texte: "R" },
+        { id: "a", parent: "r", texte: "A" },
+        { id: "b", parent: "a", texte: "B" },
+        { id: "c", parent: "b", texte: "Étape d'ailleurs", ref: { kind: "goal", uid: "u-g9" } },
+      ]),
+    );
+    expect(plan.etapes[0].sousEtapes[0].taches).toEqual([]);
+    expect(plan.laisses.map((l) => l.uid)).toEqual(["u-g9"]);
   });
 
   it("un nœud vide ou mort est écarté AVEC ce qui pend dessous, et le compte est rendu", () => {
@@ -278,12 +326,14 @@ describe("une carte mentale, devenue objectif", () => {
       taches: 1, // « 50 setups »
       tachesRattachees: 1, // la tâche citée
       ressources: 1, // la note citée
+      laisses: 0,
+      habitudes: 0,
     });
   });
 
   it("une carte réduite à son centre ne propose aucune étape, et garde son titre", () => {
     const plan = planDeCarte(carte([{ id: "r", parent: null, texte: "Une idée" }]));
-    expect(plan).toEqual({ titre: "Une idée", etapes: [], taches: [], ressources: [], ignores: 0 });
+    expect(plan).toEqual({ titre: "Une idée", etapes: [], taches: [], ressources: [], ignores: 0, laisses: [], habitudes: [] });
   });
 });
 
@@ -301,7 +351,19 @@ describe("l'aller et le retour se répondent", () => {
         tasks: [tache({ id: 10, label: "50 setups", goal_id: 3, uid: "u-t10" })],
       }),
     );
-    const plan = planDeCarte(dessin);
+    // ⚠️ Depuis la décision D (2026-09-29), un objectif CITÉ est laissé en
+    // place, jamais recopié : reconvertir le dessin tel quel ne créerait plus
+    // rien. L'aller-retour porte sur la STRUCTURE — on relit donc le dessin
+    // avec ses étapes redevenues des idées, comme si on l'avait redessiné.
+    const redessine = {
+      ...dessin,
+      noeuds: dessin.noeuds.map((n) => {
+        if (n.ref?.kind !== "goal") return n;
+        const { ref: _r, genre: _g, ...idee } = n;
+        return idee;
+      }),
+    };
+    const plan = planDeCarte(redessine);
 
     expect(plan.titre).toBe("Devenir rentable");
     expect(plan.etapes.map((e) => [e.titre, e.phase])).toEqual([["Préparer", true]]);

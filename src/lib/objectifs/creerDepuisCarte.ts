@@ -1,5 +1,6 @@
 import { idDepuisUid } from "../naviguer";
-import { createGoal, createLink, createTask, rattacherTache, uidDe } from "../repo";
+import { t } from "../i18n";
+import { createGoal, createLink, createTask, majFeuilleDeRoute, rattacherTache, uidDe } from "../repo";
 import type { Goal } from "../types";
 import type { EtapePlan, PlanObjectif, RessourcePlan, TachePlan } from "./carte";
 
@@ -24,6 +25,7 @@ export interface ComptesEcrits {
   taches: number;
   tachesRattachees: number;
   ressources: number;
+  habitudes: number;
 }
 
 /**
@@ -33,8 +35,14 @@ export interface ComptesEcrits {
 export async function creerObjectifDepuisPlan(
   plan: PlanObjectif,
   base: Pick<Goal, "scope" | "category">,
+  /**
+   * Les habitudes citées : si une cible est donnée, chacune est rattachée par
+   * un sous-objectif de l'objectif, compté en jours tenus (le chemin de la
+   * 026, décision C). Sans cible, elles restent seules — rien n'est imposé.
+   */
+  options: { cibleHabitudes?: number | null } = {},
 ): Promise<ComptesEcrits> {
-  const comptes: ComptesEcrits = { racineId: 0, etapes: 0, taches: 0, tachesRattachees: 0, ressources: 0 };
+  const comptes: ComptesEcrits = { racineId: 0, etapes: 0, taches: 0, tachesRattachees: 0, ressources: 0, habitudes: 0 };
 
   const racineId = await createGoal({
     title: plan.titre,
@@ -66,6 +74,33 @@ export async function creerObjectifDepuisPlan(
       const sousId = await createGoal(fiche(sous, base, etapeId, sousPosition++));
       comptes.etapes++;
       await garnir(sousId, sous.taches, sous.ressources, comptes);
+    }
+  }
+
+  const cible = options.cibleHabitudes;
+  if (cible != null && cible >= 1) {
+    for (const h of plan.habitudes) {
+      const etapeId = await createGoal({
+        title: h.titre,
+        description: null,
+        scope: base.scope,
+        category: base.category,
+        parent_goal_id: racineId,
+        deadline: null,
+        progress_pct: 0,
+        manual_progress: 0,
+        is_milestone: 0,
+        position: position++,
+      });
+      await majFeuilleDeRoute(etapeId, {
+        count_source: "habit",
+        count_ref_uid: h.uid,
+        target_count: Math.round(cible),
+        // Une DONNÉE, écrite dans la langue de l'utilisateur (voir `typer.ts`).
+        target_unit: t("jours"),
+      });
+      comptes.etapes++;
+      comptes.habitudes++;
     }
   }
 

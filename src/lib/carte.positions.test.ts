@@ -83,10 +83,24 @@ describe("⭐ une carte SANS position se dessine exactement comme avant le chant
   // [thème, export, thème avec sélection et suppression armée, JSON].
   const AVANT: Record<string, [string, string, string, string]> = {
     essai: ["6cc63c398568a9f8", "62cc0d223dbd1052", "9136115e37edbb8d", "1ed23a15768fc53c"],
-    riche: ["e9fa2106586ab593", "9ea8d1d4c0a31252", "38f9af999c841bcf", "2b26ad48464e4e1b"],
+    // ⚠️ CHANGÉE EXPRÈS le 2026-09-29 (types de nœud) : « riche » cite une TÂCHE,
+    // et un nœud qui cite une tâche EST une tâche — il prend son icône au lieu
+    // de la pastille. Le test juste en dessous prouve que c'est la SEULE
+    // différence : la même carte citant une note rend les empreintes d'avant.
+    riche: ["87d9afb3ffa89a34", "ab86ec120a40854e", "68306a476e960e18", "2b26ad48464e4e1b"],
     grande: ["b6c509e5a0a59630", "a0d92dd779ff25ed", "ea5bccfe0bd2868d", "7ec7d6ef318e6e54"],
   };
   const cartes: Record<string, () => Carte> = { essai, riche, grande };
+
+  it("« riche » dont la tâche citée devient une note citée : les empreintes d'AVANT le chantier", () => {
+    const c = riche();
+    const sansTache = { ...c, noeuds: c.noeuds.map((n) => (n.ref?.kind === "task" ? { ...n, ref: { ...n.ref, kind: "note" as const } } : n)) };
+    expect([
+      empreinte(rendreSvg(sansTache, { mode: "theme" })),
+      empreinte(rendreSvg(sansTache, { mode: "export" })),
+      empreinte(rendreSvg(sansTache, { mode: "theme", selection: "n2", peril: "n1" })),
+    ]).toEqual(["e9fa2106586ab593", "9ea8d1d4c0a31252", "38f9af999c841bcf"]);
+  });
 
   for (const [nom, fabriquer] of Object.entries(cartes)) {
     it(`« ${nom} » : SVG d'écran, SVG d'export, rendu armé et JSON identiques`, () => {

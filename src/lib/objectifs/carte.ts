@@ -8,6 +8,7 @@ import {
 import { formatNumber, t } from "../i18n";
 import { estRecurrente } from "../taches";
 import type { Goal, LinkKind, Task } from "../types";
+import type { KindCarte } from "../carte";
 import { rattachementsDe, type ContexteObjectifs } from "./contexte";
 import { uidDeLigne } from "./progression";
 import { etapesTriees } from "./structure";
@@ -186,6 +187,22 @@ export interface PlanObjectif {
   ressources: RessourcePlan[];
   /** Nœuds écartés (vides, ou dont la cible n'existe plus), sous-arbres compris. */
   ignores: number;
+  /**
+   * ⭐ Ce qui APPARTIENT DÉJÀ à un autre objectif — une étape typée, une tâche
+   * rattachée ailleurs. Décision d'Antonin (arrêt 1, 2026-09-29) : ni recopié,
+   * ni déplacé en silence. Laissé où il est, et compté à part.
+   */
+  laisses: { kind: KindCarte; uid: string; titre: string }[];
+  /**
+   * Les habitudes citées — des objets LIBRES (une habitude n'appartient à aucun
+   * objectif). Rattachées, sur demande du panneau, par une étape qui les compte.
+   */
+  habitudes: { uid: string; titre: string }[];
+}
+
+/** Ce que le plan sait déjà des objets existants, pour ne rien déplacer en silence. */
+export interface ExistantsPlan {
+  tasks: readonly Pick<Task, "id" | "uid" | "goal_id">[];
 }
 
 /**
@@ -219,7 +236,7 @@ export interface PlanObjectif {
  * structure que personne n'a dessinée. Le compte est rendu, pour que l'écran
  * puisse le dire avant de créer.
  */
-export function planDeCarte(carte: Carte): PlanObjectif {
+export function planDeCarte(carte: Carte, existants?: ExistantsPlan): PlanObjectif {
   const racine = carte.noeuds.find((n) => n.parent === null) ?? carte.noeuds[0];
   const plan: PlanObjectif = {
     titre: (racine?.texte ?? "").trim(),
@@ -227,7 +244,11 @@ export function planDeCarte(carte: Carte): PlanObjectif {
     taches: [],
     ressources: [],
     ignores: 0,
+    laisses: [],
+    habitudes: [],
   };
+  const ranger = (n: Noeud, taches: TachePlan[], ressources: RessourcePlan[]) =>
+    poserRattachement(n, taches, ressources, plan, existants);
   if (!racine) return plan;
 
   const enfants = (id: string) => carte.noeuds.filter((n) => n.parent === id);
@@ -241,11 +262,12 @@ export function planDeCarte(carte: Carte): PlanObjectif {
       ecarter(niveau1);
       continue;
     }
-    const range = poserRattachement(niveau1, plan.taches, plan.ressources);
+    const range = ranger(niveau1, plan.taches, plan.ressources);
     if (range) {
       // Une tâche ou une ressource citée au premier niveau appartient à
-      // l'objectif lui-même ; ce qui pend dessous n'a plus de porteur.
-      for (const dessous of enfants(niveau1.id)) ecarter(dessous);
+      // l'objectif lui-même ; ce qui pend dessous n'a plus de porteur. Sous une
+      // ÉTAPE EXISTANTE laissée en place, ce qui pend reste avec elle.
+      if (niveau1.ref?.kind !== "goal") for (const dessous of enfants(niveau1.id)) ecarter(dessous);
       continue;
     }
 
@@ -263,8 +285,8 @@ export function planDeCarte(carte: Carte): PlanObjectif {
         ecarter(niveau2);
         continue;
       }
-      if (poserRattachement(niveau2, etape.taches, etape.ressources)) {
-        for (const dessous of enfants(niveau2.id)) ecarter(dessous);
+      if (ranger(niveau2, etape.taches, etape.ressources)) {
+        if (niveau2.ref?.kind !== "goal") for (const dessous of enfants(niveau2.id)) ecarter(dessous);
         continue;
       }
       const sous: EtapePlan = {
@@ -286,7 +308,7 @@ export function planDeCarte(carte: Carte): PlanObjectif {
           plan.ignores += 1;
           continue;
         }
-        if (poserRattachement(profond, sous.taches, sous.ressources)) continue;
+        if (ranger(profond, sous.taches, sous.ressources)) continue;
         sous.taches.push({ titre: profond.texte.trim() });
       }
       etape.sousEtapes.push(sous);
@@ -307,13 +329,43 @@ function retenu(n: Noeud): boolean {
 }
 
 /**
- * Si le nœud cite un objet rattachable, le ranger et rendre `true`.
+ * Si le nœud cite un objet, le ranger et rendre `true`.
  * Sinon `false` : c'est du texte, l'appelant en fait une étape ou une tâche.
+ *
+ * ⚠️ CORRIGÉ LE 2026-09-29 (décision D de l'arrêt 1). Jusque-là, un nœud qui
+ * citait un OBJECTIF rendait `false` : son titre devenait une étape NEUVE —
+ * un doublon de l'étape qu'il désignait. Et une tâche citée était rattachée
+ * au nouvel objectif même si elle en avait déjà un : elle le quittait, sans
+ * que le panneau le dise. Désormais :
+ *   • un objectif cité (une étape typée) est LAISSÉ où il est, et compté ;
+ *   • une tâche déjà rattachée ailleurs aussi ; une tâche libre est rattachée ;
+ *   • une habitude citée est mise de côté pour le panneau, qui propose de la
+ *     rattacher par une étape qui la compte.
  */
-function poserRattachement(n: Noeud, taches: TachePlan[], ressources: RessourcePlan[]): boolean {
+function poserRattachement(
+  n: Noeud,
+  taches: TachePlan[],
+  ressources: RessourcePlan[],
+  plan: PlanObjectif,
+  existants?: ExistantsPlan,
+): boolean {
   if (!n.ref) return false;
+  const titre = n.texte.trim();
+  if (n.ref.kind === "goal") {
+    plan.laisses.push({ kind: "goal", uid: n.ref.uid, titre });
+    return true;
+  }
+  if (n.ref.kind === "habit") {
+    plan.habitudes.push({ uid: n.ref.uid, titre });
+    return true;
+  }
   if (n.ref.kind === "task") {
-    taches.push({ titre: n.texte.trim(), ref: n.ref });
+    const tache = existants?.tasks.find((x) => uidDeLigne("task", x) === n.ref!.uid);
+    if (tache?.goal_id != null) {
+      plan.laisses.push({ kind: "task", uid: n.ref.uid, titre });
+      return true;
+    }
+    taches.push({ titre, ref: { kind: "task", uid: n.ref.uid } });
     return true;
   }
   if (n.ref.kind === "note" || n.ref.kind === "knowledge" || n.ref.kind === "event") {
@@ -344,10 +396,21 @@ export interface ComptesPlan {
   taches: number;
   tachesRattachees: number;
   ressources: number;
+  /** Étapes et tâches qui appartiennent déjà à un autre objectif : laissées en place. */
+  laisses: number;
+  habitudes: number;
 }
 
 export function comptesDuPlan(plan: PlanObjectif): ComptesPlan {
-  const c: ComptesPlan = { etapes: 0, phases: 0, taches: 0, tachesRattachees: 0, ressources: 0 };
+  const c: ComptesPlan = {
+    etapes: 0,
+    phases: 0,
+    taches: 0,
+    tachesRattachees: 0,
+    ressources: 0,
+    laisses: plan.laisses.length,
+    habitudes: plan.habitudes.length,
+  };
   const compterTaches = (liste: readonly TachePlan[]) => {
     for (const x of liste) {
       if (x.ref) c.tachesRattachees++;

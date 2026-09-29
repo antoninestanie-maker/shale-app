@@ -25,8 +25,41 @@ import type { LinkKind } from "./types";
 
 // ─── Le modèle ───────────────────────────────────────────────────────────────
 
-/** La cible d'un nœud-référence : la même identité qu'une arête (`liens.ts`). */
-export type RefNoeud = Extremite;
+/**
+ * La cible d'un nœud-référence.
+ *
+ * ⭐ UNE FAMILLE DE PLUS QU'UNE ARÊTE : `habit`. Depuis le 2026-09-29, un nœud
+ * peut devenir une vraie habitude (celles du Journal). Mais `habit` n'est PAS
+ * une famille de lien (`LINK_KINDS`, `liens.ts`) — et, décision d'Antonin à
+ * l'arrêt 1 du chantier, il ne le devient pas : un appareil resté en 027 porte
+ * encore le `CHECK` de la migration 020, et une arête `habit` reçue y
+ * arrêterait tout le cycle de synchronisation (PIEGES § 3.4). Un nœud-habitude
+ * vit donc dans le JSON de la carte, et `refsDeCarte` l'ÉCARTE des arêtes.
+ * Le rattachement d'une habitude à un objectif passe par le chemin qui existe
+ * depuis la 026 : une étape comptée par l'habitude.
+ */
+export type KindCarte = LinkKind | "habit";
+export interface RefNoeud {
+  kind: KindCarte;
+  uid: string;
+}
+
+/**
+ * Le genre d'un objectif cité — la seule chose que le RENDU ENREGISTRÉ doit
+ * savoir pour dessiner la bonne icône (le bloc d'une note est une chaîne,
+ * produite sans accès à la base).
+ *
+ * ⚠️ UNE COPIE D'AFFICHAGE, comme `texte` : l'identité reste dans `ref`, et
+ * `rafraichirReferences` la réécrit au chargement. Ce n'est pas une seconde
+ * vérité sur l'objectif, c'est la légende de son icône.
+ */
+export type GenreRef = "objectif" | "phase" | "sous-objectif";
+const GENRES_REF: readonly string[] = ["objectif", "phase", "sous-objectif"];
+
+/** Une famille qu'un nœud de carte sait citer : les huit des arêtes, plus l'habitude. */
+export function estKindDeCarte(valeur: string): valeur is KindCarte {
+  return valeur === "habit" || estKindConnu(valeur);
+}
 
 export interface Noeud {
   id: string;
@@ -43,6 +76,8 @@ export interface Noeud {
   texte: string;
   /** Présent = ce nœud désigne un objet de l'app. Absent = texte libre. */
   ref?: RefNoeud;
+  /** Seulement pour une `ref` vers un objectif : voir `GenreRef`. */
+  genre?: GenreRef;
   /** Ses enfants sont repliés (le compte reste affiché). */
   plie?: boolean;
   /** La cible n'existe plus : le nœud reste, marqué mort, non cliquable. */
@@ -138,14 +173,17 @@ export function lireCarte(brut: string | null | undefined): Carte | null {
     if (!n || typeof n.id !== "string" || !n.id || vus.has(n.id)) continue;
     vus.add(n.id);
     const ref =
-      n.ref && typeof n.ref === "object" && estKindConnu(String(n.ref.kind)) && n.ref.uid
-        ? { kind: n.ref.kind as LinkKind, uid: String(n.ref.uid) }
+      n.ref && typeof n.ref === "object" && estKindDeCarte(String(n.ref.kind)) && n.ref.uid
+        ? { kind: n.ref.kind as KindCarte, uid: String(n.ref.uid) }
         : undefined;
     noeuds.push({
       id: n.id,
       parent: typeof n.parent === "string" ? n.parent : null,
       texte: typeof n.texte === "string" ? n.texte : "",
       ...(ref ? { ref } : {}),
+      ...(ref?.kind === "goal" && typeof n.genre === "string" && GENRES_REF.includes(n.genre)
+        ? { genre: n.genre as GenreRef }
+        : {}),
       ...(n.plie ? { plie: true as const } : {}),
       ...(n.mort ? { mort: true as const } : {}),
       ...(n.cote === 1 || n.cote === -1 ? { cote: n.cote } : {}),
@@ -386,17 +424,31 @@ export function renommer(c: Carte, id: string, texte: string): Carte {
   return { ...c, noeuds: c.noeuds.map((n) => (n.id === id ? { ...n, texte } : n)) };
 }
 
-/** Pose (ou retire) la référence d'un nœud. Le texte suit le titre de la cible. */
-export function poserReference(c: Carte, id: string, ref: RefNoeud | null, titre: string): Carte {
+/**
+ * Pose (ou retire) la référence d'un nœud. Le texte suit le titre de la cible.
+ *
+ * ⭐ RETIRER LA RÉFÉRENCE, C'EST « DÉTYPER » (2026-09-29) : le nœud redevient
+ * une idée, son texte reste, et l'objet qu'il désignait reste EN VIE là où il
+ * est. Supprimer l'objet est un autre geste, ailleurs.
+ */
+export function poserReference(
+  c: Carte,
+  id: string,
+  ref: RefNoeud | null,
+  titre: string,
+  genre?: GenreRef,
+): Carte {
   return {
     ...c,
-    noeuds: c.noeuds.map((n) =>
-      n.id === id
-        ? ref
-          ? { ...n, ref, texte: titre, mort: undefined }
-          : { ...n, ref: undefined, mort: undefined, texte: n.texte }
-        : n,
-    ),
+    noeuds: c.noeuds.map((n) => {
+      if (n.id !== id) return n;
+      if (!ref) {
+        const { ref: _r, mort: _m, genre: _g, ...reste } = n;
+        return reste;
+      }
+      const { genre: _g, mort: _m, ...reste } = n;
+      return { ...reste, ref, texte: titre, ...(ref.kind === "goal" && genre ? { genre } : {}) };
+    }),
   };
 }
 
@@ -556,16 +608,23 @@ export function reorganiser(c: Carte): Carte {
 
 // ─── Les nœuds-références ────────────────────────────────────────────────────
 
-/** Les cibles citées par une carte, sans doublon — ce qui deviendra des arêtes. */
-export function refsDeCarte(carte: Carte): RefNoeud[] {
+/**
+ * Les cibles citées par une carte, sans doublon — ce qui deviendra des arêtes.
+ *
+ * ⚠️ LES HABITUDES N'EN SONT PAS : `habit` n'est pas une famille de lien (voir
+ * `KindCarte`). Les laisser passer écrirait dans `object_links` une arête qu'un
+ * appareil plus ancien refuserait — et son refus arrête la synchronisation
+ * entière. Leurs titres se rafraîchissent par `habitudesDesCartes`.
+ */
+export function refsDeCarte(carte: Carte): Extremite[] {
   const vues = new Set<string>();
-  const out: RefNoeud[] = [];
+  const out: Extremite[] = [];
   for (const n of carte.noeuds) {
-    if (!n.ref) continue;
+    if (!n.ref || n.ref.kind === "habit") continue;
     const cle = `${n.ref.kind}:${n.ref.uid}`;
     if (vues.has(cle)) continue;
     vues.add(cle);
-    out.push(n.ref);
+    out.push({ kind: n.ref.kind, uid: n.ref.uid });
   }
   return out;
 }
@@ -582,7 +641,12 @@ export function refsDeCarte(carte: Carte): RefNoeud[] {
  */
 export function rafraichirReferences(
   carte: Carte,
-  titreDe: (kind: LinkKind, uid: string) => string | null,
+  titreDe: (kind: KindCarte, uid: string) => string | null,
+  /**
+   * Le genre ACTUEL d'un objectif cité, pour que l'icône suive une phase
+   * redevenue sous-objectif. Absent = on ne touche pas au genre.
+   */
+  genreDe?: (uid: string) => GenreRef | null,
 ): Carte {
   let change = false;
   const noeuds = carte.noeuds.map((n) => {
@@ -593,9 +657,11 @@ export function rafraichirReferences(
       change = true;
       return { ...n, mort: true as const };
     }
-    if (n.texte === titre && !n.mort) return n;
+    const genre = n.ref.kind === "goal" && genreDe ? (genreDe(n.ref.uid) ?? undefined) : n.genre;
+    if (n.texte === titre && !n.mort && n.genre === genre) return n;
     change = true;
-    return { ...n, texte: titre, mort: undefined };
+    const { mort: _m, genre: _g, ...reste } = n;
+    return { ...reste, texte: titre, ...(genre ? { genre } : {}) };
   });
   return change ? { ...carte, noeuds } : carte;
 }
@@ -684,9 +750,9 @@ export function blocCarte(carte: Carte): string {
  * calculée en UNE fois sur tout le corps, qui garantit qu'enregistrer une carte
  * ne peut pas détruire une arête créée par un `@` du même texte.
  */
-export function refsDesCartes(html: string): RefNoeud[] {
+export function refsDesCartes(html: string): Extremite[] {
   const vues = new Set<string>();
-  const out: RefNoeud[] = [];
+  const out: Extremite[] = [];
   for (const carte of cartesDuHtml(html)) {
     for (const ref of refsDeCarte(carte)) {
       const cle = `${ref.kind}:${ref.uid}`;
@@ -697,6 +763,41 @@ export function refsDesCartes(html: string): RefNoeud[] {
   }
   return out;
 }
+
+/** Les habitudes citées par les cartes d'un texte, sans doublon : leurs `uid`. */
+export function habitudesDesCartes(html: string): string[] {
+  const vues = new Set<string>();
+  for (const carte of cartesDuHtml(html)) {
+    for (const n of carte.noeuds) if (n.ref?.kind === "habit") vues.add(n.ref.uid);
+  }
+  return [...vues];
+}
+
+// ─── Les types de nœud (2026-09-29) ──────────────────────────────────────────
+
+/**
+ * ⭐ CE QU'UN NŒUD EST — déduit de sa référence, jamais stocké à part.
+ *
+ * Il n'y a pas de champ « type » : un nœud typé EST une référence vers l'objet
+ * qu'on a créé pour lui (pas de double vérité — son titre et son état viennent
+ * de l'objet). Conséquence voulue : un `@` qui citait déjà une tâche EST une
+ * tâche, et prend son icône sans aucun geste.
+ */
+export type TypeNoeud = "idee" | "objectif" | "phase" | "sous-objectif" | "tache" | "habitude" | "citation";
+
+export function typeDeNoeud(n: Pick<Noeud, "ref" | "genre">): TypeNoeud {
+  if (!n.ref) return "idee";
+  if (n.ref.kind === "task") return "tache";
+  if (n.ref.kind === "habit") return "habitude";
+  // Un objectif cité par un `@` d'avant ce chantier n'a pas de genre : c'est
+  // l'icône de l'objectif qu'il prend, jusqu'au prochain rafraîchissement.
+  if (n.ref.kind === "goal") return n.genre ?? "objectif";
+  return "citation";
+}
+
+/** Étape, tâche, habitude : ce qu'on a le droit de faire DEVENIR un nœud. */
+export const TYPES_DONNABLES = ["etape", "tache", "habitude"] as const;
+export type TypeDonnable = (typeof TYPES_DONNABLES)[number];
 
 // ─── L'agencement ────────────────────────────────────────────────────────────
 
@@ -999,6 +1100,38 @@ export interface OptionsRendu {
   peril?: string | null;
 }
 
+/**
+ * ⭐ L'ICÔNE DE TYPE — la SEULE chose qu'un nœud typé porte dans le rendu
+ * enregistré et dans l'export (décision du cadrage, 2026-09-29).
+ *
+ * ⚠️ JAMAIS SON ÉTAT : ni coche, ni échéance, ni série, ni pourcentage. Le bloc
+ * d'une note est une image figée — une coche dessinée dedans mentirait dès la
+ * première tâche décochée ailleurs. L'état vivant se dessine PAR-DESSUS, dans
+ * l'éditeur seulement (`components/carte/EtatsVivants.tsx`).
+ *
+ * Les tracés sont ceux de `components/icons.tsx` (grille de 24), réduits de
+ * moitié. Vocabulaire commun à la carte et à la vue Objectifs : `DESIGN.md`,
+ * « Les types de nœud ».
+ */
+function iconeDeType(type: TypeNoeud, x: number, y: number, couleur: string): string {
+  const traces: Partial<Record<TypeNoeud, string>> = {
+    objectif: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="${couleur}"/>`,
+    "sous-objectif": `<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>`,
+    phase: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>`,
+    tache: `<rect x="4" y="4" width="16" height="16" rx="4"/>`,
+    habitude: `<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>`,
+  };
+  const trace = traces[type];
+  if (!trace) return "";
+  return (
+    `<g transform="translate(${x} ${y}) scale(0.5)" fill="none" stroke="${couleur}" stroke-width="2.2" ` +
+    `stroke-linecap="round" stroke-linejoin="round">${trace}</g>`
+  );
+}
+
+/** Les types qui portent une icône — les autres références gardent leur pastille. */
+const TYPES_A_ICONE: ReadonlySet<TypeNoeud> = new Set(["objectif", "phase", "sous-objectif", "tache", "habitude"]);
+
 const echapperTexte = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -1090,7 +1223,11 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
     const enfantsCaches = n.plie ? comptePlie(carte, n.id) : 0;
     const selectionne = options.selection === n.id;
 
-    morceaux.push(`<g data-noeud="${echapperTexte(n.id)}"${n.ref ? ' data-ref="1"' : ""}>`);
+    const type = typeDeNoeud(n);
+    const aIcone = TYPES_A_ICONE.has(type);
+    morceaux.push(
+      `<g data-noeud="${echapperTexte(n.id)}"${n.ref ? ' data-ref="1"' : ""}${aIcone ? ` data-type="${type}"` : ""}>`,
+    );
     if (b.tronque) morceaux.push(`<title>${echapperTexte(n.texte)}</title>`);
     // ⚠️ Une SEULE `stroke-width` : deux fois le même attribut sur une balise
     // est du balisage invalide, et c'est le PREMIER qui gagne à l'analyse — donc
@@ -1100,12 +1237,23 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
     // la simule pas. Le rouge, le pointillé et le fond teinté suffisent à dire
     // « ceci va partir » sans rendre illisible ce qu'on demande de relire avant
     // de confirmer — c'est précisément le moment où il faut pouvoir le lire.
+    // ⭐ La FORME dit le niveau (DESIGN.md, « Les types de nœud ») : un
+    // objectif est teinté comme la racine, une habitude est une pilule, une
+    // phase a un double filet — c'est un contenant. Le reste garde la boîte.
+    const teinte = racine || condamne || type === "objectif";
+    const rx = type === "habitude" ? b.h / 2 : 9;
     morceaux.push(
-      `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="9" ` +
-        `fill="${racine || condamne ? trait : c.surface}" fill-opacity="${racine ? 0.14 : condamne ? 0.1 : 1}" ` +
+      `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="${rx}" ` +
+        `fill="${teinte ? trait : c.surface}" fill-opacity="${racine || type === "objectif" ? 0.14 : condamne ? 0.1 : 1}" ` +
         `stroke="${n.mort && !condamne ? c.dim : trait}" stroke-width="${epaisseur}" ` +
         `${n.mort || condamne ? 'stroke-dasharray="4 3" ' : ""}/>`,
     );
+    if (type === "phase") {
+      morceaux.push(
+        `<rect x="${b.x + 3}" y="${b.y + 3}" width="${b.w - 6}" height="${b.h - 6}" rx="6.5" fill="none" ` +
+          `stroke="${n.mort && !condamne ? c.dim : trait}" stroke-width="0.8" opacity="0.55"/>`,
+      );
+    }
     if (selectionne) {
       morceaux.push(
         `<rect x="${b.x - 3}" y="${b.y - 3}" width="${b.w + 6}" height="${b.h + 6}" rx="12" ` +
@@ -1126,9 +1274,13 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
       );
     });
 
-    // La pastille d'un nœud-référence : un point de la couleur de la branche,
-    // pour distinguer d'un coup d'œil un nœud qui MÈNE quelque part.
-    if (n.ref) {
+    // Un nœud TYPÉ porte son icône ; une autre référence (note, fiche…) garde
+    // la pastille : un point de la couleur de la branche, pour distinguer d'un
+    // coup d'œil un nœud qui MÈNE quelque part.
+    if (aIcone) {
+      const couleurIcone = n.mort ? c.dim : type === "sous-objectif" ? c.dim : trait;
+      morceaux.push(iconeDeType(type, b.x + PAD_X - 3, b.y + b.h / 2 - 6, couleurIcone));
+    } else if (n.ref) {
       morceaux.push(
         `<circle cx="${b.x + PAD_X + 3}" cy="${b.y + b.h / 2}" r="3.5" fill="${n.mort ? c.dim : trait}"/>`,
       );

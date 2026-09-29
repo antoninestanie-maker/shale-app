@@ -6,6 +6,7 @@ import {
   todayStr,
   weekdayOf,
 } from "../lib/logic";
+import { HABIT_COLORS, serieHabitude } from "../lib/habitudes";
 import {
   addHabit,
   createNote,
@@ -32,7 +33,6 @@ interface Props {
 }
 
 const MOOD_LEVELS = [0, 1, 2, 3, 4] as const;
-const HABIT_COLORS = ["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"];
 
 function fmtMin(min: number): string {
   if (min < 60) return `${min} min`;
@@ -165,19 +165,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
     return weeks;
   }, [data.habitChecks, data.habits, today]);
 
-  const habitStreak = (habitId: number): number => {
-    let streak = 0;
-    let d = today;
-    const set = new Set(
-      data.habitChecks.filter((c) => c.habit_id === habitId).map((c) => c.date),
-    );
-    if (!set.has(d)) d = addDays(d, -1); // aujourd'hui pas encore coché ne casse pas
-    while (set.has(d)) {
-      streak++;
-      d = addDays(d, -1);
-    }
-    return streak;
-  };
+  // La série se calcule dans `lib/habitudes.ts` : la carte mentale l'affiche
+  // aussi (2026-09-29), et deux calculs finiraient par diverger.
+  const habitStreak = (habitId: number): number => serieHabitude(habitId, data.habitChecks, today);
 
   const handleAddHabit = async () => {
     const name = newHabit.trim();

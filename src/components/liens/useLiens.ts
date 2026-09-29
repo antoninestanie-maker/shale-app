@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { rafraichirReferences, refsDesCartes } from "../../lib/carte";
+import { habitudesDesCartes, rafraichirReferences, refsDesCartes, type KindCarte } from "../../lib/carte";
 import { rafraichirBlocs } from "../../lib/carteDom";
 import { extraireMentions, rafraichirMentions } from "../../lib/mentions";
 import { extrairePiecesJointes } from "../../lib/piecesJointes";
 import { rafraichirPiecesJointes } from "../../lib/piecesJointesDom";
 import { localeTag } from "../../lib/i18n";
-import { fetchPiecesJointes, synchroniserMentions, titresDesMentions, uidDe } from "../../lib/repo";
+import { fetchPiecesJointes, infosDeCartes, synchroniserMentions, titresDesMentions, uidDe } from "../../lib/repo";
 import type { LinkKind } from "../../lib/types";
 
 /**
@@ -77,17 +77,30 @@ export function useLiens(kind: LinkKind, id: number | null) {
   const rafraichir = useCallback(async (html: string): Promise<string> => {
     const desMentions = extraireMentions(html);
     const desCartes = refsDesCartes(html);
+    // Les habitudes citées par une carte n'ont pas d'arête (voir `KindCarte`) :
+    // elles ne sont pas dans `desCartes`, et leur nom se relit à part.
+    const habitudes = habitudesDesCartes(html);
     const desFichiers = extrairePiecesJointes(html);
-    if (desMentions.length === 0 && desCartes.length === 0 && desFichiers.length === 0) return html;
+    if (desMentions.length === 0 && desCartes.length === 0 && habitudes.length === 0 && desFichiers.length === 0) {
+      return html;
+    }
 
     let sortie = html;
 
-    if (desMentions.length > 0 || desCartes.length > 0) {
+    if (desMentions.length > 0 || desCartes.length > 0 || habitudes.length > 0) {
       const titres = await titresDesMentions([...desMentions, ...desCartes]);
       const titreDe = (k: LinkKind, u: string) => titres.get(`${k}:${u}`) ?? null;
       sortie = rafraichirMentions(sortie, titreDe);
-      if (desCartes.length > 0) {
-        sortie = rafraichirBlocs(sortie, (c) => rafraichirReferences(c, titreDe));
+      if (desCartes.length > 0 || habitudes.length > 0) {
+        // ⭐ Le GENRE des objectifs cités se relit aussi : c'est lui qui choisit
+        // l'icône (objectif, phase, sous-objectif) du rendu enregistré.
+        const objectifs = desCartes.filter((r) => r.kind === "goal").map((r) => r.uid);
+        const infos = await infosDeCartes(habitudes, objectifs);
+        const titreCarte = (k: KindCarte, u: string) =>
+          k === "habit" ? (infos.titresHabitudes.get(u) ?? null) : titreDe(k, u);
+        sortie = rafraichirBlocs(sortie, (c) =>
+          rafraichirReferences(c, titreCarte, (u) => infos.genres.get(u) ?? null),
+        );
       }
     }
 

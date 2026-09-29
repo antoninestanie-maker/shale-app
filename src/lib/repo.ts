@@ -1863,9 +1863,11 @@ export async function saveFinanceFx(rates: FinanceFxRate[]): Promise<void> {
  * n'ont évidemment aucun rapport avec les uid réels, et rien de tout cela ne se
  * synchronise.
  */
-export async function uidDe(kind: LinkKind, id: number): Promise<string | null> {
+export async function uidDe(kind: LinkKind | "habit", id: number): Promise<string | null> {
   if (!isTauri) return demo.uidDe(kind, id);
-  const table = TABLE_DE_KIND[kind];
+  // ⚠️ `habit` n'est pas une famille de lien (pas dans `TABLE_DE_KIND`) ; une
+  // carte mentale en a pourtant besoin pour citer l'habitude qu'elle crée.
+  const table = kind === "habit" ? "habits" : TABLE_DE_KIND[kind];
   const db = await getDb();
   const rows = await db.select<{ uid: string }[]>(`SELECT uid FROM ${table} WHERE id = $1`, [id]);
   return rows[0]?.uid ?? null;
@@ -2519,6 +2521,44 @@ export async function titresDesMentions(
     for (const r of rows) out.set(`${kind}:${r.uid}`, r.titre ?? "");
   }
   return out;
+}
+
+/**
+ * Ce que les cartes mentales doivent relire au chargement d'une note, au-delà
+ * des titres que `titresDesMentions` rend déjà (2026-09-29) :
+ *   • le nom des HABITUDES citées — `habit` n'étant pas une famille de lien,
+ *     `titresDesMentions` ne les connaît pas (voir `KindCarte`, `lib/carte.ts`) ;
+ *   • le GENRE des objectifs cités, pour que l'icône du bloc enregistré suive
+ *     une phase redevenue sous-objectif.
+ * Un objet en corbeille est absent des deux cartes — comme un objet supprimé.
+ */
+export async function infosDeCartes(
+  habitudes: readonly string[],
+  objectifs: readonly string[],
+): Promise<{ titresHabitudes: Map<string, string>; genres: Map<string, "objectif" | "phase" | "sous-objectif"> }> {
+  if (!isTauri) return demo.infosDeCartes(habitudes, objectifs);
+  const titresHabitudes = new Map<string, string>();
+  const genres = new Map<string, "objectif" | "phase" | "sous-objectif">();
+  const db = await getDb();
+  if (habitudes.length > 0) {
+    const jokers = habitudes.map((_, i) => `$${i + 1}`).join(", ");
+    const rows = await db.select<{ uid: string; name: string }[]>(
+      `SELECT uid, name FROM habits WHERE uid IN (${jokers}) AND ${VIVANT}`,
+      [...habitudes],
+    );
+    for (const r of rows) titresHabitudes.set(r.uid, r.name ?? "");
+  }
+  if (objectifs.length > 0) {
+    const jokers = objectifs.map((_, i) => `$${i + 1}`).join(", ");
+    const rows = await db.select<{ uid: string; parent_goal_id: number | null; is_milestone: number }[]>(
+      `SELECT uid, parent_goal_id, is_milestone FROM goals WHERE uid IN (${jokers}) AND ${VIVANT}`,
+      [...objectifs],
+    );
+    for (const r of rows) {
+      genres.set(r.uid, r.parent_goal_id == null ? "objectif" : r.is_milestone ? "phase" : "sous-objectif");
+    }
+  }
+  return { titresHabitudes, genres };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Carte } from "../../lib/carte";
 import { menuContextuelOuvert } from "../../lib/menu/tactile";
 import { t, tp } from "../../lib/i18n";
-import { comptesDuPlan, planDeCarte } from "../../lib/objectifs/carte";
+import { comptesDuPlan, planDeCarte, type ExistantsPlan } from "../../lib/objectifs/carte";
 import { creerObjectifDepuisPlan } from "../../lib/objectifs/creerDepuisCarte";
-import { EVT_OUVRIR, type DemandeOuverture } from "../../lib/naviguer";
+import { EVT_OUVRIR, ouvrirObjet, type DemandeOuverture } from "../../lib/naviguer";
 import type { Goal } from "../../lib/types";
 
 /**
@@ -38,12 +38,24 @@ const HORIZONS: { value: Goal["scope"]; label: string }[] = [
 
 export default function DepuisCarte(props: {
   carte: Carte;
+  /**
+   * Les tâches EXISTANTES : une tâche citée qui a déjà un objectif est laissée
+   * en place et annoncée comme telle, jamais déplacée en silence (décision D,
+   * 2026-09-29). L'éditeur de carte les a déjà lues.
+   */
+  existants: ExistantsPlan;
   /** Referme le panneau, la carte reste ouverte. */
   onFermer: () => void;
   /** Referme la CARTE — après navigation vers l'objectif créé. */
   onQuitterCarte: () => void;
 }) {
-  const plan = useMemo(() => planDeCarte(props.carte), [props.carte]);
+  const plan = useMemo(() => planDeCarte(props.carte, props.existants), [props.carte, props.existants]);
+  /** La carte part-elle DÉJÀ d'un objectif ? Alors il n'y a rien à créer : on l'ouvre. */
+  const racineRef = (props.carte.noeuds.find((n) => n.parent === null) ?? props.carte.noeuds[0])?.ref;
+  const dejaObjectif = racineRef?.kind === "goal" ? racineRef.uid : null;
+  const [rattacherHabitudes, setRattacherHabitudes] = useState(true);
+  const [cibleHabitudes, setCibleHabitudes] = useState("");
+  const cibleValide = Math.round(Number(cibleHabitudes)) >= 1;
   const comptes = useMemo(() => comptesDuPlan(plan), [plan]);
   const [titre, setTitre] = useState(plan.titre);
   const [horizon, setHorizon] = useState<Goal["scope"]>("medium");
@@ -78,7 +90,11 @@ export default function DepuisCarte(props: {
     setOccupe(true);
     setErreur(null);
     try {
-      const ecrits = await creerObjectifDepuisPlan({ ...plan, titre: nom }, { scope: horizon, category: null });
+      const ecrits = await creerObjectifDepuisPlan(
+        { ...plan, titre: nom },
+        { scope: horizon, category: null },
+        { cibleHabitudes: plan.habitudes.length && rattacherHabitudes ? Number(cibleHabitudes) : null },
+      );
       // ⚠️ DIRE QU'ON A ÉCRIT. Ce panneau vit dans l'éditeur de carte d'une
       // note : il n'a pas le `refresh()` de l'app, et sans ce signal la vue
       // Objectifs restait vide devant un objectif qui existait vraiment (vu à
@@ -118,7 +134,33 @@ export default function DepuisCarte(props: {
       >
         <h4 className="font-display text-base font-bold text-text">{t("En faire un objectif")}</h4>
 
-        {fait ? (
+        {dejaObjectif && !fait ? (
+          <>
+            <p className="mt-2 text-sm text-text">{t("Cette carte part déjà d'un objectif : son centre en est un.")}</p>
+            <p className="mt-1 text-xs text-text-dim">
+              {t("Rien à créer — ses étapes se modifient dans sa feuille de route, ou dans sa carte.")}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={props.onFermer}
+                className="pill cible-tactile-ligne px-3 py-1.5 text-sm font-medium text-text-dim hover:text-text"
+              >
+                {t("Fermer")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void ouvrirObjet("goal", dejaObjectif);
+                  props.onQuitterCarte();
+                }}
+                className="pill cible-tactile-ligne fill-primary px-4 py-1.5 text-sm font-semibold"
+              >
+                {t("Voir l’objectif")}
+              </button>
+            </div>
+          </>
+        ) : fait ? (
           <>
             <p className="mt-2 text-sm text-text">
               {t("L’objectif est créé, avec sa feuille de route.")}
@@ -219,6 +261,17 @@ export default function DepuisCarte(props: {
                   )}
                 </ul>
               )}
+              {/* ⭐ Décision D : ce qui appartient déjà à un autre objectif n'est
+                  ni recopié ni déplacé. On le DIT, avec le chiffre. */}
+              {comptes.laisses > 0 && (
+                <p className="mt-1.5">
+                  {tp(
+                    comptes.laisses,
+                    "{n} étape ou tâche appartient déjà à un autre objectif : laissée où elle est.",
+                    "{n} étapes ou tâches appartiennent déjà à un autre objectif : laissées où elles sont.",
+                  )}
+                </p>
+              )}
               {plan.ignores > 0 && (
                 <p className="mt-1.5">
                   {tp(plan.ignores, "{n} nœud vide écarté", "{n} nœuds vides écartés")}
@@ -228,6 +281,41 @@ export default function DepuisCarte(props: {
                 {t("Au-delà du deuxième niveau, les nœuds deviennent des tâches de l’étape qui les porte.")}
               </p>
             </div>
+
+            {comptes.habitudes > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                <label className="flex items-start gap-2 text-sm text-text">
+                  <input
+                    type="checkbox"
+                    checked={rattacherHabitudes}
+                    onChange={(e) => setRattacherHabitudes(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>
+                    {tp(comptes.habitudes, "Rattacher l'habitude citée", "Rattacher les {n} habitudes citées")}
+                    <span className="block text-[11px] text-text-dim">
+                      {t("Une étape par habitude, qui compte les jours tenus à partir d'aujourd'hui. Décoche pour les laisser seules.")}
+                    </span>
+                  </span>
+                </label>
+                {rattacherHabitudes && (
+                  <label className="flex items-center gap-2 pl-6 text-xs text-text-dim">
+                    <span>{t("Cible")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={cibleHabitudes}
+                      onChange={(e) => setCibleHabitudes(e.target.value)}
+                      placeholder="30"
+                      aria-label={t("Cible en jours")}
+                      className="w-20 rounded-[8px] border border-border bg-surface-2 px-2 py-1 text-sm text-text"
+                    />
+                    <span>{t("jours")}</span>
+                  </label>
+                )}
+              </div>
+            )}
 
             {erreur && <p className="mt-2 text-xs text-red">{erreur}</p>}
 
@@ -242,7 +330,7 @@ export default function DepuisCarte(props: {
               <button
                 type="button"
                 onClick={() => void creer()}
-                disabled={!titre.trim() || occupe}
+                disabled={!titre.trim() || occupe || (comptes.habitudes > 0 && rattacherHabitudes && !cibleValide)}
                 className="pill cible-tactile-ligne fill-primary px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
               >
                 {t("Créer l’objectif")}

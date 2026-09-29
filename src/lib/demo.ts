@@ -2262,8 +2262,9 @@ export const demo = {
     return false;
   },
 
-  async uidDe(kind: LinkKind, id: number): Promise<string | null> {
-    return uidDemo(kind, id);
+  async uidDe(kind: LinkKind | "habit", id: number): Promise<string | null> {
+    // Même formule que `uidDeLigne` (progression.ts) pour une habitude de démo.
+    return kind === "habit" ? `demo:habit:${id}` : uidDemo(kind, id);
   },
 
   async fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
@@ -2410,6 +2411,23 @@ export const demo = {
       origin: arete.origin,
       created_at: now,
     });
+  },
+
+  // ⚠️ MÊME SÉMANTIQUE que `infosDeCartes` du natif : un objet en corbeille
+  // n'est plus dans `habits` / `goals` en démo, comme `VIVANT` l'écarte là-bas.
+  async infosDeCartes(habitudes: readonly string[], objectifs: readonly string[]) {
+    const titresHabitudes = new Map<string, string>();
+    for (const h of habits) {
+      const uid = h.uid ?? `demo:habit:${h.id}`;
+      if (habitudes.includes(uid)) titresHabitudes.set(uid, h.name);
+    }
+    const genres = new Map<string, "objectif" | "phase" | "sous-objectif">();
+    for (const g of goals) {
+      const uid = g.uid ?? uidDemo("goal", g.id);
+      if (!objectifs.includes(uid)) continue;
+      genres.set(uid, g.parent_goal_id == null ? "objectif" : g.is_milestone ? "phase" : "sous-objectif");
+    }
+    return { titresHabitudes, genres };
   },
 
   async fetchContexteObjectifs(): Promise<ContexteObjectifs> {
