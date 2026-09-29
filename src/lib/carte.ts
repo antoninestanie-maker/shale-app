@@ -71,6 +71,33 @@ export interface Noeud {
   cote?: -1 | 1;
   /** Index dans `COULEURS_BRANCHE`. Voir `cote` — même histoire, même remède. */
   teinte?: number;
+  /**
+   * ⭐ OÙ L'UTILISATEUR A POSÉ CE NŒUD À LA MAIN — le centre de sa boîte.
+   *
+   * Absent = le nœud suit l'agencement automatique, comme toujours. Présent =
+   * il est posé là, et plus rien ne le fait bouger tout seul : ajouter,
+   * supprimer ou renommer un AUTRE nœud ne le décale pas (PIEGES § 9.13 — une
+   * position visible ne se déduit pas d'un rang).
+   *
+   * ⚠️ DES COORDONNÉES LOGIQUES, DANS LE REPÈRE DE LA RACINE : la racine est
+   * toujours centrée en (0, 0). Surtout pas les coordonnées que rend
+   * `agencer()` — celles-là sont RECADRÉES (tout est ramené dans le premier
+   * quadrant), donc toutes décalées dès qu'un nœud déborde plus à gauche ou
+   * plus haut qu'avant. Une position rangée dans ce repère-là bougerait à
+   * chaque insertion ailleurs, c'est-à-dire exactement le défaut qu'on retire.
+   * Et rien ici ne dépend du zoom, de la Densité ni de la fenêtre.
+   *
+   * ⚠️ Un glisser NE CHANGE QUE ÇA (décision d'Antonin, 2026-09-29) : ni le
+   * parent, ni le rang parmi les frères. La place que le nœud occupait dans
+   * l'empilement de ses frères reste réservée, pour qu'aucun voisin ne bouge
+   * pendant qu'on en déplace un. « Réorganiser » rend tout à l'automatique.
+   *
+   * ⚠️ FACULTATIF, ET UNE VERSION ANTÉRIEURE DE L'APP LE PERD : elle relit la
+   * carte sans lui (`lireCarte` ne recopie que ce qu'il connaît), et si elle
+   * réécrit le bloc, la position disparaît. Rien ne casse, la mise en page
+   * redevient automatique. Voir `MOBILE.md`, dettes du chantier iOS.
+   */
+  pos?: { x: number; y: number };
 }
 
 export interface Carte {
@@ -128,6 +155,9 @@ export function lireCarte(brut: string | null | undefined): Carte | null {
       n.teinte < COULEURS_BRANCHE.length
         ? { teinte: n.teinte }
         : {}),
+      ...(n.pos && Number.isFinite(n.pos.x) && Number.isFinite(n.pos.y)
+        ? { pos: { x: Number(n.pos.x), y: Number(n.pos.y) } }
+        : {}),
     });
   }
   if (noeuds.length === 0) return null;
@@ -136,6 +166,8 @@ export function lireCarte(brut: string | null | undefined): Carte | null {
   // la racine plutôt que de le faire disparaître de l'écran sans le dire.
   const racine = noeuds.find((n) => n.parent === null) ?? noeuds[0];
   racine.parent = null;
+  // La racine EST l'origine du repère des positions : elle n'en porte pas.
+  delete racine.pos;
   for (const n of noeuds) {
     if (n === racine) continue;
     if (n.parent === null || !vus.has(n.parent) || n.parent === n.id) n.parent = racine.id;
@@ -391,7 +423,18 @@ export function poserCote(c: Carte, id: string, cote: -1 | 1): Carte {
   const n = noeudDe(c, id);
   if (!n || n.parent !== racineDe(c).id) return c;
   if (coteDeBranche(c, n) === cote) return c;
-  return { ...c, noeuds: c.noeuds.map((x) => (x.id === id ? { ...x, cote } : x)) };
+  // ⚠️ Les nœuds POSÉS À LA MAIN de la branche passent en MIROIR (la racine
+  // est en x = 0). Sans cela, la position manuelle gagnerait sur le côté, et
+  // « Changer de côté » ne ferait visiblement rien sur une branche déplacée.
+  const branche = new Set(sousArbre(c, id));
+  return {
+    ...c,
+    noeuds: c.noeuds.map((x) => {
+      if (!branche.has(x.id)) return x;
+      const miroir = x.pos ? { ...x, pos: { x: -x.pos.x, y: x.pos.y } } : x;
+      return x.id === id ? { ...miroir, cote } : miroir;
+    }),
+  };
 }
 
 /**
@@ -407,8 +450,15 @@ export function deplacer(c: Carte, id: string, nouveauParent: string, avantId: s
   if (!noeudDe(c, nouveauParent)) return c;
   if (sousArbre(c, id).includes(nouveauParent)) return c;
 
-  const sansLui = c.noeuds.filter((x) => x.id !== id);
-  const deplace: Noeud = { ...n, parent: nouveauParent };
+  // ⚠️ Rattacher ailleurs rend la branche à l'AUTOMATIQUE : on la range sous
+  // son nouveau parent, là où on s'attend à la trouver. Garder une position
+  // manuelle la laisserait à l'autre bout de la carte, reliée par une longue
+  // arête à un parent qu'elle ne côtoie pas.
+  const branche = new Set(sousArbre(c, id));
+  const sansLui = c.noeuds
+    .filter((x) => x.id !== id)
+    .map((x) => (branche.has(x.id) && x.pos ? sansPos(x) : x));
+  const deplace: Noeud = { ...sansPos(n), parent: nouveauParent };
   // Devenir une branche, c'est recevoir un côté ; cesser d'en être une, c'est
   // le rendre. Une branche seulement réordonnée garde le sien : elle est déjà
   // quelque part, et la déplacer d'un bord à l'autre de la carte pour un
@@ -430,6 +480,78 @@ export function deplacer(c: Carte, id: string, nouveauParent: string, avantId: s
     noeuds.splice(j + 1, 0, deplace);
   }
   return { ...c, noeuds };
+}
+
+// ─── Les positions posées à la main ──────────────────────────────────────────
+
+function sansPos(n: Noeud): Noeud {
+  if (!n.pos) return n;
+  const { pos: _pos, ...reste } = n;
+  return reste;
+}
+
+/** Un dixième de pixel suffit : au-delà, le JSON grossit pour rien. */
+const arrondi = (v: number) => Math.round(v * 10) / 10;
+
+/**
+ * Le centre d'une boîte, dans le repère de la RACINE — celui de `Noeud.pos`.
+ * `null` si le nœud n'est pas posé (replié sous un ancêtre, ou inexistant).
+ */
+export function centreLogique(a: Agencement, id: string): { x: number; y: number } | null {
+  const b = a.boites.get(id);
+  if (!b) return null;
+  return { x: b.x + b.w / 2 - a.origine.x, y: b.y + b.h / 2 - a.origine.y };
+}
+
+/**
+ * ⭐ LE GLISSER D'UN NŒUD : il change de place À L'ÉCRAN, et rien d'autre.
+ *
+ * Ni son parent, ni son rang, ni ses frères — décision d'Antonin du
+ * 2026-09-29. Le rattacher ailleurs est un AUTRE geste (`deplacer`), qu'on
+ * atteint par ⌥ + glisser ou par le menu du nœud.
+ *
+ * ⚠️ IL EMPORTE SA DESCENDANCE, qui garde sa disposition : les descendants
+ * sans position suivent tout seuls (ils s'agencent autour de lui), ceux qui en
+ * ont une sont translatés du même écart. Sans ce second point, un enfant posé
+ * à la main resterait sur place quand on déplace son parent — la branche se
+ * disloquerait.
+ *
+ * `dx`, `dy` sont en unités LOGIQUES de la scène — l'appelant divise par le
+ * zoom. La racine ne se glisse pas : elle est l'origine du repère.
+ */
+export function glisserNoeud(c: Carte, id: string, dx: number, dy: number): Carte {
+  const n = noeudDe(c, id);
+  if (!n || n.parent === null || (dx === 0 && dy === 0)) return c;
+  const depart = n.pos ?? centreLogique(agencer(c), id);
+  if (!depart) return c;
+  const descendants = new Set(sousArbre(c, id).slice(1));
+  return {
+    ...c,
+    noeuds: c.noeuds.map((x) => {
+      if (x.id === id) return { ...x, pos: { x: arrondi(depart.x + dx), y: arrondi(depart.y + dy) } };
+      if (x.pos && descendants.has(x.id)) {
+        return { ...x, pos: { x: arrondi(x.pos.x + dx), y: arrondi(x.pos.y + dy) } };
+      }
+      return x;
+    }),
+  };
+}
+
+/** Combien de nœuds ont été posés à la main — ce que « Réorganiser » rendrait. */
+export function positionsManuelles(c: Carte): number {
+  return c.noeuds.filter((n) => n.pos).length;
+}
+
+/**
+ * « Réorganiser » : toute la carte revient à l'agencement automatique.
+ *
+ * Rend la MÊME carte s'il n'y a rien à rendre — l'historique n'y verra pas de
+ * geste. Sinon, une carte neuve : ⌘Z la défait comme n'importe quelle
+ * modification.
+ */
+export function reorganiser(c: Carte): Carte {
+  if (positionsManuelles(c) === 0) return c;
+  return { ...c, noeuds: c.noeuds.map(sansPos) };
 }
 
 // ─── Les nœuds-références ────────────────────────────────────────────────────
@@ -645,6 +767,15 @@ export interface Agencement {
   boites: Map<string, Boite>;
   largeur: number;
   hauteur: number;
+  /**
+   * Où tombe le CENTRE DE LA RACINE dans les coordonnées recadrées. C'est le
+   * pont entre les deux repères : `boîte = repère racine + origine`.
+   *
+   * ⚠️ Il bouge dès qu'un nœud déborde plus à gauche ou plus haut qu'avant —
+   * tout le dessin glisse alors d'autant. L'éditeur compense son panoramique
+   * de ce même écart pour que rien ne saute à l'écran.
+   */
+  origine: { x: number; y: number };
 }
 
 /**
@@ -704,15 +835,35 @@ export function agencer(carte: Carte): Agencement {
   };
 
   const boites = new Map<string, Boite>();
-  const poser = (id: string, xAncre: number, centreY: number, cote: -1 | 1, profondeur: number, couleur: Couleur) => {
+  const poser = (
+    id: string,
+    xAncre: number,
+    centreY: number,
+    cote: -1 | 1,
+    profondeur: number,
+    couleur: Couleur,
+    /** Le centre horizontal du parent : il dit de quel côté tombe un nœud posé à la main. */
+    xParent: number,
+  ) => {
     const n = noeudDe(carte, id)!;
     const b = brutes.get(id)!;
     // `xAncre` est le bord par lequel la boîte se rattache à son parent :
     // le bord GAUCHE quand on va vers la droite, le bord DROIT sinon.
-    const x = cote === 1 ? xAncre : xAncre - b.w;
+    let x = cote === 1 ? xAncre : xAncre - b.w;
+    let yCentre = centreY;
+    // ⭐ Un nœud POSÉ À LA MAIN est là où on l'a mis, et son côté se lit à sa
+    // place par rapport à son parent — c'est ce qui fait partir l'arête du
+    // bon bord quand on l'a traîné de l'autre côté. La place qu'il occupait
+    // dans l'empilement de ses frères, elle, reste réservée par `mesurer` :
+    // le déplacer ne fait bouger aucun voisin.
+    if (n.pos) {
+      x = n.pos.x - b.w / 2;
+      yCentre = n.pos.y;
+      cote = n.pos.x >= xParent ? 1 : -1;
+    }
     boites.set(id, {
       x,
-      y: centreY - b.h / 2,
+      y: yCentre - b.h / 2,
       w: b.w,
       h: b.h,
       cote,
@@ -725,11 +876,11 @@ export function agencer(carte: Carte): Agencement {
     const enfants = enfantsDe(carte, id);
     if (!enfants.length) return;
     const total = enfants.reduce((s, e) => s + mesurer(e.id), 0) + ECART_V * (enfants.length - 1);
-    let curseur = centreY - total / 2;
+    let curseur = yCentre - total / 2;
     const xEnfants = cote === 1 ? x + b.w + ECART_H : x - ECART_H;
     for (const e of enfants) {
       const he = mesurer(e.id);
-      poser(e.id, xEnfants, curseur + he / 2, cote, profondeur + 1, couleur);
+      poser(e.id, xEnfants, curseur + he / 2, cote, profondeur + 1, couleur, x + b.w / 2);
       curseur += he + ECART_V;
     }
   };
@@ -762,7 +913,7 @@ export function agencer(carte: Carte): Agencement {
       const xAncre = cote === 1 ? bRacine.w / 2 + ECART_H : -bRacine.w / 2 - ECART_H;
       for (const e of liste) {
         const he = mesurer(e.id);
-        poser(e.id, xAncre, curseur + he / 2, cote, 1, COULEURS_BRANCHE[teinteDeBranche(carte, e)]);
+        poser(e.id, xAncre, curseur + he / 2, cote, 1, COULEURS_BRANCHE[teinteDeBranche(carte, e)], 0);
         curseur += he + ECART_V;
       }
     }
@@ -787,6 +938,7 @@ export function agencer(carte: Carte): Agencement {
     boites,
     largeur: Math.round(maxX - minX + MARGE * 2),
     hauteur: Math.round(maxY - minY + MARGE * 2),
+    origine: { x: Math.round((MARGE - minX) * 100) / 100, y: Math.round((MARGE - minY) * 100) / 100 },
   };
 }
 
