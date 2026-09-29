@@ -1,6 +1,7 @@
 // Thème d'apparence : sombre / clair / système (suit macOS).
 // Persisté dans la table settings (clé "ui.theme") ; appliqué via l'attribut
 // data-theme sur <html>, que le CSS (index.css) interprète.
+import { IS_IOS } from "./platform";
 import { getSetting, isTauri, setSetting } from "./repo";
 
 export type ThemePref = "system" | "light" | "dark";
@@ -85,22 +86,68 @@ export function themeAuDemarrage(): ThemeResolu {
 }
 
 /**
+ * La seule fenêtre dont on repeint le fond. `main.tsx` appelle
+ * `peindreLaFenetre` dans TOUTES les fenêtres, et deux ne doivent pas l'être :
+ * - `capture` est TRANSPARENTE — un fond peint en ferait un rectangle opaque ;
+ * - `timer` reçoit sa couleur à la création (`ouvrirFenetreTimer`).
+ * Une liste d'une fenêtre autorisée plutôt que de fenêtres exclues : une
+ * cinquième fenêtre, un jour, ne sera pas peinte par accident. La capacité
+ * `fenetre-principale.json` ne donne d'ailleurs la permission qu'à `main`.
+ */
+const FENETRE_PEINTE = "main";
+
+/**
  * Le fond de la FENÊTRE Tauri, sous la webview.
  *
  * `tauri.conf.json` ne peut porter qu'une couleur fixe : elle ne saurait pas
  * suivre l'apparence. C'est donc ici, à l'exécution, que la fenêtre prend le
  * bon fond — sans quoi un thème clair montre le liseré sombre de la config au
- * redimensionnement et à l'ouverture.
+ * redimensionnement. (Sur macOS, la webview ne peint pas son propre fond : c'est
+ * celui de la NSWindow qui se voit tant que la page n'a pas repeint.)
+ *
+ * ⚠️ Cet appel a échoué EN SILENCE du 2026-09-12 au 2026-09-30, pour deux
+ * raisons empilées (PIEGES § 26.1) :
+ * 1. la permission `core:window:allow-set-background-color` manquait — l'ACL
+ *    refusait, et le `catch` vide avalait le refus ;
+ * 2. et même permise, `getCurrentWindow().setBackgroundColor(c)` de
+ *    `@tauri-apps/api` 2.11 envoie `{ color: c }` alors que la commande Rust
+ *    attend `value` : l'argument manquant est lu comme `None`, et la fenêtre
+ *    retombe sur le fond SYSTÈME (gris clair si macOS est clair, même en thème
+ *    sombre). Corrigé en amont dans la 2.12.0, qui envoie `{ label, value }`.
+ *    D'où l'`invoke` direct, avec la forme de la 2.12 : il reste juste après
+ *    la montée de version, et `setBackgroundColor` pourra revenir alors.
  */
 export async function peindreLaFenetre(resolu: ThemeResolu): Promise<void> {
-  if (!isTauri) return;
+  if (!isTauri || IS_IOS) return; // iOS : commande non prise en charge
   try {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    await getCurrentWindow().setBackgroundColor(FONDS[resolu]);
-  } catch {
-    // Fenêtre « capture » (transparente), version de Tauri sans la commande,
-    // plateforme qui l'ignore : c'est du confort visuel, jamais un blocage.
+    if (getCurrentWindow().label !== FENETRE_PEINTE) return;
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("plugin:window|set_background_color", { value: FONDS[resolu] });
+  } catch (e) {
+    // Du confort visuel, jamais un blocage — mais plus jamais en silence : un
+    // refus doit se lire dans la console (§ 26.1 de PIEGES).
+    console.error("thème : le fond de la fenêtre n'a pas pu être peint", e);
   }
+}
+
+/**
+ * Réglage « Système » : repeindre le fond quand macOS change d'apparence
+ * PENDANT que l'app tourne. La page, elle, suit seule (media query CSS) ; la
+ * fenêtre native n'a aucun moyen de le savoir. Sans cet écouteur, elle gardait
+ * le fond du démarrage — sombre sous une page devenue claire.
+ *
+ * Un choix explicite (Clair / Sombre) pose `data-theme` sur `<html>` : l'OS
+ * n'a alors plus son mot à dire, et l'écouteur se tait.
+ */
+export function suivreLApparenceDuSysteme(): void {
+  if (typeof window === "undefined" || !window.matchMedia) return;
+  window
+    .matchMedia("(prefers-color-scheme: light)")
+    .addEventListener("change", (e) => {
+      if (document.documentElement.dataset.theme) return;
+      void peindreLaFenetre(e.matches ? "light" : "dark");
+    });
 }
 
 /**

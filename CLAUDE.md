@@ -6672,3 +6672,79 @@ garde-fou du mode automatique de la session, puis le serveur de dev avec lui ;
 rien n'a été contourné. La fenêtre native, ses permissions, le plein écran
 macOS d'une fenêtre secondaire et « premier plan » ne se vérifient de toute
 façon qu'après un build natif.
+
+## 2026-09-30 — Le fond natif de la fenêtre suit enfin le thème, et la barre latérale déplace la fenêtre
+
+**Point de départ.** Constat raisonné du chantier Timer (PIEGES § 26.1) :
+`peindreLaFenetre()` appelait `setBackgroundColor` sans la permission
+`core:window:allow-set-background-color`, dans un `catch` muet. Consigne :
+prouver le refus avant de corriger, et **ne pas** ajouter la permission à
+`default.json`, qui couvre aussi la barre de capture transparente. Branche
+`chantier/fond-fenetre`.
+
+**Ce qui a été prouvé, et comment.** Pas de console dans l'app installée (build
+de production, pas d'outils de développement) ; `tauri dev` est exclu (il pilote
+la vraie base). Deux preuves à la place :
+- `src-tauri/tests/permissions_fenetres.rs` — **test d'intégration**, pas un
+  module de `lib.rs` (pris par [X-ia-pro] ce soir-là, et il n'a rien à y faire).
+  Il interroge `RuntimeAuthority::resolve_access`, l'autorité que
+  `generate_context!` compile à partir de `capabilities/*.json` : exactement
+  celle du binaire, sans rien réimplémenter. Avant correction, sur 41 appels
+  natifs du front recensés à la main, **deux refus** : `main` →
+  `set_background_color` et `main` → **`start_dragging`**.
+- Le binaire installé ne contient pas la clé `plugin:window|set_background_color`.
+
+**⭐ Le second refus était plus visible que le premier.** `Sidebar.tsx` porte
+`data-tauri-drag-region="deep"` — « la seule poignée de la fenêtre », dit son
+commentaire. Le `drag.js` de Tauri traduit ce clic en `plugin:window|start_dragging`,
+refusé à `main` depuis l'import du 2 août : la poignée avalait le clic
+(`preventDefault`) et la commande était rejetée. ⚠️ Que la fenêtre ne se
+déplaçait PAS DU TOUT est déduit, pas observé : macOS a peut-être laissé un
+glissement natif par la barre de titre transparente — Antonin le sait. Accordé.
+
+**⭐ Pourquoi la permission seule n'aurait rien réparé.** Lu dans les sources
+avant de l'ajouter : `@tauri-apps/api` 2.11.1 envoie `{ color }`, la commande
+Rust attend `value`, et un `Option` absent est lu comme `None` — la fenêtre
+serait retombée sur le fond du SYSTÈME, donc un liseré gris clair en thème
+sombre sur un macOS clair : le correctif naïf empirait un cas qui marchait
+« par accident ». Bogue amont, corrigé en 2.12.0 (PIEGES § 26.6).
+
+**Décisions.**
+1. **Une capacité à part, `fenetre-principale.json`, `windows: ["main"]`**, plutôt
+   que la permission dans `default.json` + une garde dans le code. La garde
+   seule laisserait la barre de capture capable de se peindre au premier appel
+   qui l'oublierait ; ici, l'ACL la lui refuse — et le test le vérifie
+   (`INTERDITS`). Contre-épreuve faite : permission remise dans `default.json`
+   → le test tombe sur `[capture]`. `platforms` limité au bureau : sur iOS, la
+   commande n'existe pas et le déplacement non plus.
+2. **`peindreLaFenetre` ne peint que `main`** — une fenêtre AUTORISÉE plutôt que
+   des fenêtres exclues : une fenêtre ajoutée un jour ne sera pas peinte par
+   accident. `timer` garde sa couleur de création (si le thème change pendant
+   qu'elle est ouverte, son fond natif ne suit pas : accepté, consigne
+   d'Antonin).
+3. **`invoke("plugin:window|set_background_color", { value })` direct**, et pas
+   la montée de `@tauri-apps/api` en 2.12 : les paquets JS suivent les crates
+   Rust et se montent ensemble (§ 11.x du 2026-09-26 de `PASSATION.md`) — une
+   montée de Tauri entier pour une couleur de fond, sur un disque à 4,5 Go,
+   n'était pas proportionnée. La forme envoyée est celle de la 2.12 : rien ne
+   cassera à la montée, et `theme.fenetre.test.ts` le signalera.
+4. **Le `catch` journalise** (`console.error`) au lieu de se taire. Toujours pas
+   bloquant ; mais un refus se lira dans la console d'un build de dev.
+5. **`suivreLApparenceDuSysteme()`** : avec le réglage « Système », rien ne
+   repeignait la fenêtre quand macOS change d'apparence en cours de route (la
+   page suit par sa media query, la fenêtre non). Masqué jusqu'ici par le refus.
+   Se tait dès qu'un choix explicite pose `data-theme`.
+
+**Ce que ça ne règle PAS.** Au tout premier instant d'un lancement en thème
+clair, la fenêtre est créée avec le `#07080b` de `tauri.conf.json` et ne
+devient claire qu'une fois le JS chargé — le Rust ne lit pas le miroir du
+thème (`localStorage`). Si Antonin voit encore un éclair sombre À L'OUVERTURE
+(pas au redimensionnement), c'est celui-là : il faudrait décider la couleur
+côté Rust, avant de créer la fenêtre. Non fait, non demandé.
+
+**Tests.** `theme.fenetre.test.ts` (8) fait tourner la VRAIE `@tauri-apps/api`
+sur un faux pont IPC : il montre le `{ color }` de la 2.11, puis tient
+`{ value }`, l'épargne de `capture` / `timer` / iOS, la journalisation du
+refus et le suivi de macOS — ancien code remis : 4 échecs. Côté Rust :
+`cargo test --test permissions_fenetres` (3), qui NE tourne PAS avec
+`cargo test --lib`.

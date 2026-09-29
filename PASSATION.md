@@ -175,7 +175,13 @@ npx vite build                                ✅
 cd src-tauri
 cargo check --all-targets                     ✅
 cargo test --lib                              ✅   133 tests
+cargo test --test permissions_fenetres        ✅   3 tests   (ajouté le 2026-09-30)
 ```
+
+⚠️ **Ajouté le 2026-09-30 — `cargo test --lib` NE LANCE PAS
+`tests/permissions_fenetres.rs`.** C'est un test d'intégration : il vérifie, sur
+l'ACL compilée, que chaque appel natif du front est permis dans la fenêtre qui
+le fait (PIEGES § 26.1). Tout nouvel appel natif du front s'y ajoute.
 
 ⚠️ **`npx tsc --noEmit` NE REMPLACE PAS `npm run test:types`** : le premier passe
 pendant que le second échoue, parce que les fabriques des `*.test.ts` ne
@@ -616,6 +622,31 @@ dans le binaire, donc **rien n'existe dans l'app installée avant un build natif
 Le pourquoi (source de vérité unique dans la fenêtre principale, instant de fin
 plutôt que reste, fenêtre créée à la demande, chiffres à l'encre et non crème) :
 `CLAUDE.md`, section du 2026-09-29.
+
+### 11.x Le 2026-09-30 — le fond natif de la fenêtre, et la poignée de la barre latérale
+
+Suite du § 26.1 de `PIEGES.md` (constat raisonné du chantier Timer). **Deux
+appels natifs de la fenêtre principale étaient refusés par l'ACL, en silence,
+depuis toujours** : le fond (`set_background_color`, depuis le 2026-09-12) et le
+déplacement par la barre latérale (`start_dragging`, depuis l'import du 2 août).
+Et le premier, même permis, envoyait sa couleur sous un nom que Rust ne lit pas
+(bogue de `@tauri-apps/api` 2.11, § 26.6). Modifiés : `lib/theme.ts`,
+`main.tsx` ; nouveaux : `capabilities/fenetre-principale.json` (réservée à
+`main`), `src-tauri/tests/permissions_fenetres.rs`, `lib/theme.fenetre.test.ts`.
+Aucune migration, aucune ligne de `lib.rs` — mais une capacité, donc **rien
+n'existe dans l'app installée avant un build natif**.
+
+| | |
+|---|---|
+| Branche | `chantier/fond-fenetre` (worktree `~/Desktop/Shale-chantiers/fond-fenetre`), depuis `85dd58d` |
+| Prouvé | **Le refus** : `permissions_fenetres.rs` lancé AVANT correction → 2 refus sur 41 appels, les deux dans `main` ; après → 3/3. Contre-épreuve : permission remise dans `default.json` → échec sur `[capture]`. Le binaire installé `bc1c9f36…` ne contient pas la clé `plugin:window|set_background_color`. **Le mauvais nom d'argument** : la vraie `@tauri-apps/api` sur un faux pont IPC envoie `{ color }` (`theme.fenetre.test.ts`, 8 tests ; ancien code remis → 4 échecs). Ligne de base : tsc, test:types, **1 627 / 1 627**, i18n (2248), i18n:durs, vite build, `cargo check --all-targets`, `cargo test --lib` 139 |
+| **PAS prouvé** | ⛔ **Rien n'a été vu à l'écran.** Ni le fond clair au redimensionnement, ni le déplacement par la barre latérale, ni le suivi de macOS en réglage « Système ». Pas de console dans l'app de production, `tauri dev` exclu (vraie base), et aucune session ne prend le curseur d'Antonin |
+| À regarder (Antonin, 30 s) | ① Réglages → Apparence → **Clair**, puis agrandir la fenêtre d'un geste rapide par le coin bas-droit : le bord qui apparaît doit être **clair**, plus sombre. ② Attraper le **haut de la barre latérale** (autour du nom « Shale ») et tirer : la fenêtre doit suivre. ③ Réglage « Système », puis basculer macOS clair ↔ sombre (Réglages Système → Apparence) : même test qu'en ①. ④ La barre de capture (raccourci global) doit rester **sans fond**, comme avant |
+| Ce qui reste | ⚠️ Un éclair sombre **à l'ouverture** en thème clair n'est pas couvert : la fenêtre naît avec le `#07080b` de `tauri.conf.json` avant que le JS ne tourne (`CLAUDE.md`, section du 2026-09-30) |
+
+Le pourquoi (capacité à part plutôt que garde seule, `invoke` direct plutôt que
+monter Tauri, liste d'une fenêtre autorisée) : `CLAUDE.md`, section du
+2026-09-30.
 
 ### 11.x Le 2026-09-26 — le filet contre l'écran blanc, et les dépendances
 

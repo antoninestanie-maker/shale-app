@@ -3694,6 +3694,39 @@ première ligne de défense.
 
 **Payé.** Rien encore — trouvé en écrivant la capacité `timer.json`.
 
+> ### ⭐ Mis à jour le 2026-09-30 — PROUVÉ, deux fois, et corrigé
+> Le « raisonné, pas observé » ci-dessus est levé :
+> - **Par l'ACL réelle.** `src-tauri/tests/permissions_fenetres.rs` interroge
+>   l'autorité que `generate_context!` compile depuis `capabilities/*.json` — la
+>   même que dans le binaire — pour chaque appel natif du front (41 couples
+>   fenêtre × commande). Lancé AVANT correction, il a rendu exactement deux
+>   refus, tous deux dans `main` : `set_background_color`, et
+>   **`start_dragging`** — la poignée `data-tauri-drag-region` de `Sidebar.tsx`,
+>   « la seule poignée de la fenêtre », que `drag.js` de Tauri traduit en cette
+>   commande. Même défaut, second exemplaire, présent depuis l'import du 2 août.
+> - **Par le binaire installé** (`bc1c9f36…`, build du 29/09 23:40) : la clé
+>   `plugin:window|set_background_color` y apparaît **0 fois**, quand chaque
+>   commande accordée (`hide`, `set_focus`, `set_size`…) y figure.
+>
+> ⚠️ **Et la permission seule n'aurait RIEN réparé** : même autorisé, l'appel
+> envoyait l'argument sous le mauvais nom (§ 26.6). Le correctif naïf aurait
+> même empiré le thème sombre sur un macOS clair.
+>
+> **Corrigé** (`chantier/fond-fenetre`) : nouvelle capacité
+> `capabilities/fenetre-principale.json`, réservée à `main` (fond +
+> déplacement) ; `peindreLaFenetre` ne peint QUE `main` (liste d'une fenêtre
+> autorisée, pas de fenêtres exclues) ; `invoke` direct avec `value` ; le `catch`
+> journalise au lieu de se taire. Contre-épreuve faite : la permission remise
+> dans `default.json` fait échouer le test sur `[capture]`.
+>
+> **Ce que le refus masquait** : rien ne repeignait la fenêtre quand macOS change
+> d'apparence en cours de route (réglage « Système ») — la page suivait par sa
+> media query, pas la fenêtre. Ajouté : `suivreLApparenceDuSysteme()`.
+>
+> **Parade, désormais outillée** : tout nouvel appel natif du front entre dans
+> `APPELS` du test, avec la fenêtre QUI L'APPELLE. `cargo test --test
+> permissions_fenetres` (il ne tourne PAS avec `cargo test --lib`).
+
 ## 26.2 ⚠️ Le patch démo du § 13.2 de `PASSATION.md` est refusé par le garde-fou du mode automatique
 
 **Symptôme.** 2026-09-29 : la modification locale de `auth/config.ts` et
@@ -3711,3 +3744,53 @@ plus qu'à regarder.
 
 **Payé.** Le chantier Timer du 2026-09-29 est livré sur sa branche **sans avoir
 été vu à l'écran**.
+
+## 26.6 ⚠️⚠️ `@tauri-apps/api` 2.11 : `setBackgroundColor(c)` envoie `{ color }`, Rust lit `value` — et un `Option` absent devient `None` sans erreur
+
+**Symptôme.** Aucun, encore. La promesse se résout, aucune erreur. Mais la
+fenêtre prend le fond **du système** (gris clair si macOS est clair, sombre
+sinon), pas la couleur passée.
+
+**Cause.** `node_modules/@tauri-apps/api/window.js` (2.11.1) :
+`invoke('plugin:window|set_background_color', { color })`. Côté Rust (tauri
+2.11.5, `window/plugin.rs`) : `setter!(set_background_color, Option<Color>)`,
+dont l'argument s'appelle `value`. Et `ipc/command.rs` (`deserialize_option`) :
+**une clé absente est lue comme `None`**, pas comme une erreur. `None` sur une
+fenêtre opaque = `setBackgroundColor(nil)` = fond système (tao,
+`platform_impl/macos/window.rs`). Bogue amont, corrigé dans `@tauri-apps/api`
+**2.12.0** (`{ label, value: color }`) — même défaut, même correction, pour
+`Webview.setBackgroundColor`.
+
+**Parade.** Tant que le paquet JS est en 2.11 : `invoke` direct avec
+`{ value }` (`lib/theme.ts`). ⚠️ **Ne pas monter `@tauri-apps/api` seul** : ses
+versions suivent les crates Rust (§ 11.x du 2026-09-26 de `PASSATION.md`), on
+monte les deux ensemble. `theme.fenetre.test.ts` fait tourner la VRAIE
+bibliothèque sur un faux pont IPC : son premier test échouera le jour de la
+montée en 2.12 — c'est le signal pour revenir à `setBackgroundColor`.
+**Généralisation** : une commande Tauri dont un argument est `Option<T>` ne dira
+JAMAIS qu'on lui a mal nommé cet argument. Pour un appel natif dont l'effet ne
+se voit pas, lire la signature Rust, pas seulement la doc JS.
+
+Vérifié le 2026-09-30 pour les autres appels du front : `set_size`,
+`set_fullscreen`, `set_always_on_top` envoient bien `value` en 2.11.1 ; `show`,
+`hide`, `set_focus`, `unminimize`, `close` n'ont pas d'argument à nommer. Seul
+`setBackgroundColor` (fenêtre et webview) est touché.
+
+**Payé.** Rien — trouvé en lisant les sources avant d'ajouter la permission.
+Sans cette lecture, le correctif « ajouter la permission » serait parti tel quel.
+
+## 26.7 Outil — un worktree neuf recompile tout le Rust à froid ; le disque ne le supporte pas
+
+**Symptôme.** 2026-09-30 : 4,5 Go libres ; le `target/debug` du worktree
+principal pèse 4,9 Go. Un `cargo test` dans un worktree de `Shale-chantiers/`
+le reconstruirait en entier.
+
+**Parade.** `CARGO_TARGET_DIR=~/Desktop/Shale-projet/Shale/src-tauri/target
+cargo test …` depuis le worktree : les dépendances sont reprises, seule la
+crate `shale` se recompile (35 s). Pas de collision : le chemin du paquet entre
+dans l'empreinte de ses artefacts, et cargo verrouille le dossier par profil (un
+`tauri build` en release à côté n'est pas gêné). ⚠️ Ne pas le faire pour un
+`tauri build` : le build natif part du worktree principal (§ 13.1 de
+`PASSATION.md`).
+
+**Payé.** Rien — mesuré avant de lancer.

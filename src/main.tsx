@@ -7,7 +7,7 @@ import TimerPane from "./TimerPane";
 import FiletErreur from "./components/FiletErreur";
 import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
-import { peindreLaFenetre, themeAuDemarrage } from "./lib/theme";
+import { peindreLaFenetre, suivreLApparenceDuSysteme, themeAuDemarrage } from "./lib/theme";
 import { estFenetreTimer } from "./lib/timerFenetre";
 import "./index.css";
 
@@ -61,8 +61,11 @@ document.documentElement.style.removeProperty("background-color");
  * l'apparence. Sans cet appel, un thème clair laisse voir le liseré sombre de la
  * config à l'ouverture et au redimensionnement. On passe par le miroir du thème,
  * jamais par SQLite : rien ne doit ouvrir la base avant l'authentification.
+ * Appelé dans toutes les fenêtres, mais seule `main` est repeinte : `capture`
+ * est transparente et `timer` a sa couleur dès sa création (`lib/theme.ts`).
  */
 void peindreLaFenetre(themeAuDemarrage());
+suivreLApparenceDuSysteme();
 
 applyLangAttribute();
 
