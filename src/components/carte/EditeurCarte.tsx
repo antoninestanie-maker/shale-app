@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   agencer,
   ajouterEnfant,
@@ -8,14 +8,17 @@ import {
   basculerPli,
   deplacer,
   enfantsDe,
+  glisserNoeud,
   historiqueDe,
   coteEtProfondeur,
   noeudDe,
   poserCote,
   poserReference,
+  positionsManuelles,
   racineDe,
   rendreSvg,
   renommer,
+  reorganiser,
   retablir,
   sousArbre,
   supprimerNoeud,
@@ -38,12 +41,14 @@ import {
   IconCote,
   IconExpand,
   IconExternal,
+  IconLink,
   IconNoeudEnfant,
   IconNoeudFrere,
   IconPencil,
   IconPlier,
   IconReset,
   IconSave,
+  IconSliders,
   IconTarget,
   IconTrash,
   IconX,
@@ -52,6 +57,7 @@ import {
 } from "../icons";
 import { t, tp } from "../../lib/i18n";
 import MenuContextuel from "../menu/MenuContextuel";
+import { IconPoints } from "../menu/icones";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { menuContextuelOuvert } from "../../lib/menu/tactile";
 import type { EntreePossible } from "../../lib/menu/entrees";
@@ -160,7 +166,8 @@ function Outil({
   libelle: string;
   aide: string;
   raccourci?: string;
-  onClick: () => void;
+  /** Reçoit l'événement : le « ⋯ » en a besoin pour ancrer son menu sous lui. */
+  onClick: (e: React.MouseEvent<HTMLElement>) => void;
   disabled?: boolean;
   /** Le bouton est ARMÉ : un second clic détruit. Rouge plein, et il garde son mot. */
   danger?: boolean;
@@ -218,19 +225,70 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const [edition, setEdition] = useState<string | null>(null);
   const [brouillon, setBrouillon] = useState("");
   const [vue, setVue] = useState({ x: 0, y: 0, z: 1 });
+  /** Le glisser qui RATTACHE (⌥ + glisser) : où tomberait le nœud. */
   const [glisse, setGlisse] = useState<{ id: string; cible: string | null } | null>(null);
+  /**
+   * ⭐ LE GLISSER QUI DÉPLACE — l'écart en cours, en unités LOGIQUES.
+   *
+   * Tant que le doigt ou la souris n'est pas relâché, rien n'entre dans
+   * l'historique : la carte AFFICHÉE est la carte courante plus cet écart
+   * (`affichee`). Un seul geste enregistré au relâcher, donc un seul ⌘Z pour
+   * le défaire — et pas soixante états intermédiaires.
+   */
+  const [apercu, setApercu] = useState<{ id: string; dx: number; dy: number } | null>(null);
+  /**
+   * « Rattacher à un autre nœud… » (menu du nœud) : l'id du nœud qui attend son
+   * nouveau parent. Le prochain nœud touché le reçoit ; Échap renonce. C'est le
+   * chemin du rattachement AU DOIGT, où ⌥ n'existe pas.
+   */
+  const [rattache, setRattache] = useState<string | null>(null);
+  /**
+   * « Réorganiser » armé : la carte au moment où l'on a armé. Il ne vaut que
+   * tant qu'elle n'a pas changé — même invariant que la suppression en deux
+   * temps : un état armé ne survit jamais à ce qui l'a motivé.
+   */
+  const [armeReorg, setArmeReorg] = useState<Carte | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   /** Le panneau « En faire un objectif » — jamais en lecture (rien à convertir deux fois). */
   const [versObjectif, setVersObjectif] = useState(false);
 
   const scene = useRef<HTMLDivElement>(null);
   const champ = useRef<HTMLInputElement>(null);
-  const agencement = useMemo(() => agencer(courante), [courante]);
+  /**
+   * ⭐ LE PREMIER TEMPS DE « RÉORGANISER » MONTRE LE RÉSULTAT — même principe
+   * que la suppression en deux temps : une confirmation qui ne montre rien
+   * n'ajoute qu'un clic. Armé, on VOIT la carte rangée ; Échap la rend telle
+   * qu'elle était, le second appui l'enregistre. Rien n'est écrit entre les deux.
+   */
+  const affichee = useMemo(() => {
+    if (armeReorg === courante && !edition) return reorganiser(courante);
+    return apercu ? glisserNoeud(courante, apercu.id, apercu.dx, apercu.dy) : courante;
+  }, [courante, apercu, armeReorg, edition]);
+  const agencement = useMemo(() => agencer(affichee), [affichee]);
 
   const svg = useMemo(
-    () => rendreSvg(courante, { mode: "theme", selection: edition ? null : selection, peril: arme }),
-    [courante, selection, edition, arme],
+    () => rendreSvg(affichee, { mode: "theme", selection: edition ? null : selection, peril: arme }),
+    [affichee, selection, edition, arme],
   );
+
+  /**
+   * ⭐ RIEN NE SAUTE À L'ÉCRAN QUAND LE RECADRAGE BOUGE.
+   *
+   * `agencer` ramène tout le dessin dans le premier quadrant : dès qu'un nœud
+   * déborde plus à gauche ou plus haut qu'avant — une branche neuve, un nœud
+   * qu'on traîne —, TOUT le SVG glisse d'autant. Sans compensation, la carte
+   * entière bondissait sous le curseur, y compris les nœuds posés à la main
+   * qu'on venait de promettre immobiles. On décale donc le panoramique du même
+   * écart (en pixels d'écran : × zoom), avant la peinture.
+   */
+  const originePrecedente = useRef<{ x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    const o = agencement.origine;
+    const p = originePrecedente.current;
+    originePrecedente.current = o;
+    if (!p || (p.x === o.x && p.y === o.y)) return;
+    setVue((v) => ({ ...v, x: v.x - (o.x - p.x) * v.z, y: v.y - (o.y - p.y) * v.z }));
+  }, [agencement]);
 
   /**
    * ⭐ L'ARME SE REND DÈS QUE L'ATTENTION SE DÉPLACE.
@@ -251,6 +309,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   useEffect(() => {
     if (arme && (edition || arme !== selection || !noeudDe(courante, arme))) setArme(null);
   }, [arme, selection, edition, courante]);
+  useEffect(() => {
+    if (armeReorg && (edition || armeReorg !== courante)) setArmeReorg(null);
+  }, [armeReorg, edition, courante]);
+  // Un nœud en attente de rattachement qui disparaît (⌘Z, suppression) : on renonce.
+  useEffect(() => {
+    if (rattache && !noeudDe(courante, rattache)) setRattache(null);
+  }, [rattache, courante]);
 
   /** Toute modification passe par ici : un seul point d'entrée pour l'historique. */
   const modifier = useCallback((f: (c: Carte) => Carte) => {
@@ -492,7 +557,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         // tomber ce que je viens de commencer » : fermer la carte entière parce
         // qu'on renonce à une suppression serait la mauvaise réponse à la
         // bonne touche.
-        if (arme) setArme(null);
+        if (armeReorg) setArmeReorg(null);
+        else if (arme) setArme(null);
+        else if (rattache) setRattache(null);
         else if (mention) fermerMention();
         else if (edition) fermerEdition(true);
         else onFermer();
@@ -525,6 +592,25 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
       const n = noeudDe(courante, selection);
       if (!n) return;
+
+      /**
+       * « Rattacher à un autre nœud… » attend sa cible : les flèches déplacent
+       * la sélection, Entrée choisit, et RIEN d'autre ne part — un Tab tapé par
+       * réflexe créerait un nœud au milieu d'un geste qui n'est pas fini.
+       */
+      if (rattache) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          rattacherA(selection);
+          return;
+        }
+        if (!e.key.startsWith("Arrow")) {
+          if (e.key.length === 1 || e.key === "Tab" || e.key === "Backspace" || e.key === "Delete" || e.key === "F2") {
+            e.preventDefault();
+          }
+          return;
+        }
+      }
 
       /**
        * ⚠️ LA LECTURE SE FILTRE ICI, EN UN SEUL ENDROIT — pas en dispersant un
@@ -586,6 +672,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       // ne fait plus traverser la carte à une branche (voir `poserCote`).
       if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         e.preventDefault();
+        if (rattache) return;
         modifier((c) => poserCote(c, selection, e.key === "ArrowRight" ? 1 : -1));
         return;
       }
@@ -625,7 +712,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     // garderait la fermeture du rendu précédent — donc `arme` à `null` pour
     // toujours, et le second ⌫ ne confirmerait jamais. C'est le § 9.1 de
     // `PIEGES.md`, repris à l'identique.
-  }, [arme, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, selection]);
+  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, rattache, selection]);
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
@@ -686,6 +773,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * par le coin haut-gauche, une fois, et on n'y revient plus.
    */
   useEffect(() => {
+    // Pendant un glisser, c'est la MAIN qui décide où va le nœud : recadrer la
+    // vue sous elle ferait fuir la carte à chaque pixel.
+    if (apercu) return;
     const b = agencement.boites.get(edition ?? selection);
     const cadre = scene.current?.getBoundingClientRect();
     if (!b || !cadre) return;
@@ -705,7 +795,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       const dy = glissement(v.y + b.y * v.z, b.h * v.z, cadre.height);
       return dx === 0 && dy === 0 ? v : { ...v, x: v.x + dx, y: v.y + dy };
     });
-  }, [agencement, edition, selection, ouverture]);
+  }, [agencement, apercu, edition, selection, ouverture]);
 
   /**
    * Le zoom à la souris seule — pour qui n'a ni molette ni trackpad sous la
@@ -757,32 +847,70 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     if (e.button !== 0) return;
     const cible = (e.target as HTMLElement).closest?.("[data-noeud]") as HTMLElement | null;
     const id = cible?.dataset.noeud ?? null;
+
+    // « Rattacher à un autre nœud… » attendait sa cible : c'est CET appui.
+    // Toucher le fond de la scène renonce, comme Échap.
+    if (rattache) {
+      if (id) rattacherA(id);
+      else setRattache(null);
+      return;
+    }
+
     const depart = { x: e.clientX, y: e.clientY };
     const vueDepart = { ...vue };
     const tactile = e.pointerType === "touch";
-    let mode: "attente" | "panoramique" | "glisse" = "attente";
+    /**
+     * ⭐ DEUX GLISSERS, ET C'EST LA DÉCISION DU 2026-09-29.
+     *   • `deplace` — le geste simple : le nœud change de place à l'écran, et
+     *     RIEN d'autre (ni parent, ni rang). C'est ce que « déplacer » veut
+     *     dire pour quelqu'un qui n'a jamais ouvert une carte mentale.
+     *   • `rattache` — ⌥ + glisser : l'ancien geste, qui change le parent. Il
+     *     reste, parce qu'on ne retire pas une capacité sans la rendre
+     *     ailleurs (PIEGES § 9.13) ; au doigt, il passe par le menu du nœud.
+     */
+    let mode: "attente" | "panoramique" | "deplace" | "rattache" = "attente";
     let survole: string | null = null;
     let minuteurAppui = 0;
+    let ecart = { dx: 0, dy: 0 };
+    /**
+     * Pixels d'ÉCRAN → unités LOGIQUES de la scène. Deux facteurs : le zoom de
+     * la carte (`vue.z`), et celui de la Densité (le `zoom` CSS de l'app), qu'on
+     * mesure plutôt que de le supposer — le rapport entre la taille rendue de la
+     * scène et sa taille CSS les contient tous les deux.
+     */
+    const el = scene.current;
+    const densite = el && el.offsetWidth > 0 ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    const echelle = (densite || 1) * vueDepart.z;
 
     if (id) {
       setSelection(id);
       if (edition && edition !== id) fermerEdition(true);
     }
 
-    const armerGlisse = () => {
-      // En lecture, il n'y a pas de reparentage : le glissement reste un
-      // panoramique, comme sur le fond de la scène.
-      if (lecture) return;
-      if (!id || id === courante.noeuds.find((n) => n.parent === null)?.id) return;
-      mode = "glisse";
-      setGlisse({ id, cible: null });
+    const armerGlisse = (rattacher: boolean) => {
+      // En lecture, rien ne se déplace : le glissement reste un panoramique,
+      // comme sur le fond de la scène.
+      if (lecture) {
+        mode = "panoramique";
+        return;
+      }
+      // La racine est l'origine du repère : elle ne se déplace pas. La glisser
+      // fait glisser la vue, ce qui revient au même pour l'œil.
+      if (!id || id === racineDe(courante).id) {
+        mode = "panoramique";
+        return;
+      }
+      mode = rattacher ? "rattache" : "deplace";
+      if (rattacher) setGlisse({ id, cible: null });
+      else setApercu({ id, dx: 0, dy: 0 });
     };
 
     if (id && tactile) {
       // ⚠️ Au doigt, glisser et défiler sont le MÊME geste : on exige un appui
       // long avant d'armer, et on annule si le doigt bouge avant l'échéance —
-      // c'est un défilement, on rend la main (`PIEGES.md` § 7.4 ter).
-      minuteurAppui = window.setTimeout(armerGlisse, APPUI_LONG_MS);
+      // c'est un défilement, on rend la main (`PIEGES.md` § 7.4 ter). ⌥
+      // n'existe pas au doigt : l'appui long arme toujours le DÉPLACEMENT.
+      minuteurAppui = window.setTimeout(() => armerGlisse(false), APPUI_LONG_MS);
     }
 
     const bouge = (ev: PointerEvent) => {
@@ -794,11 +922,16 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           // le doigt a bougé avant l'appui long : c'est un panoramique
           window.clearTimeout(minuteurAppui);
           mode = "panoramique";
-        } else mode = id ? "glisse" : "panoramique";
-        if (mode === "glisse") armerGlisse();
+        } else if (id) armerGlisse(e.altKey || ev.altKey);
+        else mode = "panoramique";
       }
       if (mode === "panoramique") {
         setVue({ ...vueDepart, x: vueDepart.x + dx, y: vueDepart.y + dy });
+        return;
+      }
+      if (mode === "deplace") {
+        ecart = { dx: dx / echelle, dy: dy / echelle };
+        setApercu({ id: id!, ...ecart });
         return;
       }
       // En glissement : où tomberait le nœud ? `elementFromPoint` dit sur quoi
@@ -819,7 +952,16 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       window.removeEventListener("pointerup", fini);
       window.removeEventListener("pointercancel", fini);
       setGlisse(null);
-      if (mode === "glisse" && id && survole && survole !== id) {
+      setApercu(null);
+      if (mode === "deplace" && id) {
+        // ⚠️ `ecart` est une variable du geste, jamais relue dans l'état React :
+        // le dernier `setApercu` n'est peut-être pas encore commité (§ 6.2 bis).
+        // Un `pointercancel` (le système reprend le doigt) n'enregistre rien.
+        const { dx, dy } = ecart;
+        if (ev.type === "pointerup") modifier((c) => glisserNoeud(c, id, dx, dy));
+        return;
+      }
+      if (mode === "rattache" && id && survole && survole !== id) {
         modifier((c) => deplacer(c, id, survole!, null));
         return;
       }
@@ -884,6 +1026,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     const n = noeudDe(courante, selection);
     if (!n || n.parent === null) return; // la racine ne se supprime pas
     if (arme !== selection) {
+      setArmeReorg(null);
       setArme(selection);
       return;
     }
@@ -903,6 +1046,50 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     setEdition(null);
     modifier((c) => supprimerNoeud(c, id));
     setSelection(n.parent);
+  };
+
+  /** Un message court dans l'en-tête, qui s'efface seul. */
+  const dire = (texte: string) => {
+    setMessage(texte);
+    window.setTimeout(() => setMessage(null), 3000);
+  };
+
+  /**
+   * ⭐ LE RATTACHEMENT SANS ⌥ — ce que fait « Rattacher à un autre nœud… ».
+   *
+   * Le même `deplacer` que ⌥ + glisser (règle 18) : deux chemins, une seule
+   * écriture. C'est le chemin du doigt, où ⌥ n'existe pas, et celui de qui ne
+   * connaît pas le raccourci.
+   */
+  const rattacherA = (cible: string) => {
+    const id = rattache;
+    if (!id) return;
+    if (cible === id) return; // on a retouché le nœud lui-même : on attend encore
+    if (sousArbre(courante, id).includes(cible)) {
+      dire(t("Un nœud ne peut pas se ranger sous sa propre branche."));
+      return;
+    }
+    modifier((c) => deplacer(c, id, cible, null));
+    setRattache(null);
+    setSelection(id);
+  };
+
+  /**
+   * « Réorganiser », en DEUX TEMPS — même patron que la suppression : le
+   * premier appui arme et dit combien de nœuds reprendraient leur place, le
+   * second confirme. ⌘Z le défait (il passe par `modifier`).
+   */
+  const nManuels = positionsManuelles(courante);
+  const reorgArme = armeReorg === courante && !edition;
+  const reorganiserCarte = () => {
+    if (nManuels === 0) return;
+    if (!reorgArme) {
+      setArme(null);
+      setArmeReorg(courante);
+      return;
+    }
+    setArmeReorg(null);
+    modifier(reorganiser);
   };
 
   // ─── L'export ──────────────────────────────────────────────────────────────
@@ -983,6 +1170,18 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         libelle: t("Changer de côté"),
         icone: <IconCote />,
         executer: () => modifier((c) => poserCote(c, id, coteSel === 1 ? -1 : 1)),
+      },
+      {
+        id: "rattacher",
+        libelle: t("Rattacher à un autre nœud…"),
+        icone: <IconLink />,
+        raccourci: kbd(t("⌥ glisser")),
+        desactive: racine ? { raison: t("Le nœud central ne se rattache à rien : tout part de lui.") } : undefined,
+        executer: () => {
+          setArme(null);
+          setArmeReorg(null);
+          setRattache(id);
+        },
       },
       {
         id: "supprimer",
@@ -1226,6 +1425,19 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           >
             <IconTrash className="h-3.5 w-3.5" />
           </Outil>
+          {/* ⭐ RÈGLE 17 : le menu du nœud n'existait qu'au clic droit — donc pas
+              du tout au doigt, où l'appui long appartient au glisser
+              (`useMenuContextuel`, `ouvrirAuPoint`). Ce bouton l'ouvre pour le
+              nœud sélectionné. Il vit dans la BARRE et pas sur chaque boîte :
+              un « ⋯ » dessiné dans le SVG finirait dans le corps de la note. */}
+          <Outil
+            libelle={t("Actions")}
+            aide={t("Tout ce qu'on peut faire du nœud sélectionné — le même menu que le clic droit.")}
+            disabled={!noeudSel}
+            onClick={(e) => menuNoeud.ouvrirSousLeBouton(e, selection)}
+          >
+            <IconPoints className="h-3.5 w-3.5" />
+          </Outil>
           </>
           )}
 
@@ -1284,9 +1496,29 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             >
               <IconZoomPlus className="h-3.5 w-3.5" />
             </Outil>
-            <Outil libelle={t("Tout voir")} aide={t("Recadrer la carte entière dans la fenêtre.")} onClick={toutVoir}>
+            {/* ⚠️ `() => toutVoir()` et PAS `onClick={toutVoir}` : le bouton passe
+                l'événement de clic, qui devenait le `plancher` du cadrage
+                (paramètre ajouté le 2026-09-20) — le zoom tombait à NaN. */}
+            <Outil libelle={t("Tout voir")} aide={t("Recadrer la carte entière dans la fenêtre.")} onClick={() => toutVoir()}>
               <IconExpand className="h-3.5 w-3.5" />
             </Outil>
+            {!lecture && (
+              <Outil
+                libelle={reorgArme ? t("Confirmer") : t("Réorganiser")}
+                aide={
+                  nManuels === 0
+                    ? t("Aucun nœud n'a été déplacé à la main : la carte est déjà rangée automatiquement.")
+                    : reorgArme
+                      ? tp(nManuels, "Le nœud déplacé à la main reprend sa place automatique. Échap annule.", "Les {n} nœuds déplacés à la main reprennent leur place automatique. Échap annule.")
+                      : t("Remettre toute la carte en rangement automatique. Un premier appui dit combien de nœuds bougeraient.")
+                }
+                disabled={nManuels === 0}
+                danger={reorgArme}
+                onClick={reorganiserCarte}
+              >
+                <IconSliders className="h-3.5 w-3.5" />
+              </Outil>
+            )}
           </div>
         </div>
 
@@ -1297,7 +1529,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           onContextMenu={(e) => {
             const cible = (e.target as HTMLElement).closest?.("[data-noeud]") as HTMLElement | null;
             const id = cible?.dataset.noeud;
-            if (!id || lecture) return;
+            if (!id || lecture || rattache) return;
             if (edition && edition !== id) fermerEdition(true);
             setSelection(id);
             menuNoeud.ouvrirAuPoint(e, id);
@@ -1416,6 +1648,22 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           </div>
 
           {/* Ce qu'un glissement va faire, dit à l'écran plutôt que deviné. */}
+          {apercu && (
+            <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
+              {t("Déplacé à l'écran — la structure ne change pas")}
+              <span className="text-text-dim [@media(pointer:coarse)]:hidden">
+                {" · "}
+                {t("⌥ + glisser pour le rattacher ailleurs")}
+              </span>
+            </div>
+          )}
+          {rattache && (
+            <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-blue px-3 py-1.5 text-[11px] text-text">
+              {t("Choisis le nœud qui accueillera « {titre} »", {
+                titre: noeudDe(courante, rattache)?.texte || t("sans titre"),
+              })}
+            </div>
+          )}
           {glisse && (
             <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
               {glisse.cible && glisse.cible !== glisse.id
@@ -1429,7 +1677,36 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
         {/* Le pied d'aide : les raccourcis ne servent que si on les connaît. */}
         <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
-          {estArme ? (
+          {reorgArme ? (
+            <>
+              <span className="font-semibold text-red">
+                {tp(
+                  nManuels,
+                  "Aperçu : le nœud déplacé à la main reprend sa place automatique.",
+                  "Aperçu : les {n} nœuds déplacés à la main reprennent leur place automatique.",
+                )}
+              </span>
+              <span>
+                <b className="text-text">{t("Réorganiser")}</b> {t("confirmer")}
+              </span>
+              <span>
+                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+              </span>
+            </>
+          ) : rattache ? (
+            <>
+              <span className="font-semibold text-text">
+                <span className="[@media(pointer:coarse)]:hidden">{t("Clique le nœud qui doit l'accueillir.")}</span>
+                <span className="hidden [@media(pointer:coarse)]:inline">{t("Touche le nœud qui doit l'accueillir.")}</span>
+              </span>
+              <span className="[@media(pointer:coarse)]:hidden">
+                <b className="text-text">{t("Flèches")}</b> {t("choisir")} · <b className="text-text">{t("Entrée")}</b> {t("valider")}
+              </span>
+              <span>
+                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+              </span>
+            </>
+          ) : estArme ? (
             /*
               ⭐ ARMÉ, LE PIED DIT CE QUI VA PARTIR — et remplace la légende des
               raccourcis, qui n'a plus aucune importance à cet instant précis.
@@ -1504,6 +1781,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           </span>
           <span>
             <b className="text-text">{kbd("⌘Z")}</b> {t("annuler")}
+          </span>
+          <span>
+            <b className="text-text">{t("Glisser")}</b> {t("déplacer un nœud")}
+          </span>
+          <span className="[@media(pointer:coarse)]:hidden">
+            <b className="text-text">{kbd("⌥")}</b> {t("+ glisser : le rattacher ailleurs")}
           </span>
           <span className="text-text-dim/70">{t("molette : déplacer · ⌘molette : zoomer")}</span>
           </>
