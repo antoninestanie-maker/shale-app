@@ -798,5 +798,23 @@ forme** — jamais l'état. L'état est une couche HTML par-dessus le SVG.
 Les pastilles d'état s'accrochent au coin haut-droit de la boîte (bordure,
 `text-[10px]`), `pointer-events-none` : elles ne volent jamais le glisser.
 
-▶️ La vue Objectifs (phase D du chantier) reprendra ce même tableau, pour qu'une
-ligne de feuille de route et un nœud de carte se lisent pareil.
+✅ **La vue Objectifs reprend ce tableau depuis la phase D (2026-09-29)** : dans
+la feuille de route, l'icône précède le titre — dossier (`IconFolder`, en
+`text-text`) pour une phase, cible (`IconTarget`, en `text-text-dim`) pour un
+sous-objectif ; elle remplace la pastille violette « PHASE ». Le carré de la
+tâche (`h-2.5 w-2.5 rounded-[3px] border-current`) marque la prochaine action
+sous un objectif de la liste, et la tâche récurrente qui compte une étape ; la
+flamme, l'habitude qui la compte.
+
+### La vue Objectifs — maître-détail épuré (2026-09-29)
+
+- **Liste** (colonne `minmax(220px, 300px)`, sans carte autour) : titre en
+  `text-sm font-medium`, pourcentage en `font-display font-bold` à droite, UNE
+  ligne `text-xs` dessous (prochaine action, sinon échéance, sinon rien ; « Atteint »
+  en `text-success`). Sélection : `bg-surface-2`, comme les Notes. Intertitres
+  `hud-label` seulement s'il existe une vraie catégorie.
+- **Fiche** (`card`) : titre `text-2xl font-extrabold`, à droite « Carte » et un
+  seul « ⋯ » toujours visibles ; une ligne de méta (horizon · échéance · retard en
+  `text-red`) ; barre fine + pourcentage `text-3xl font-extrabold` ; UNE phrase
+  d'origine ; puis la feuille de route, sans retrait ni filet à gauche.
+- Pas de dégradé, pas de pastille de compte, pas d'action au survol seul.

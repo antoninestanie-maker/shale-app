@@ -3078,9 +3078,38 @@ seulement). Ce qui est VU, ce qui est seulement SUPPOSÉ — séparés.*
    petite pour un doigt. À mesurer, probablement à agrandir sous `pointer: coarse`.
 6. **Les pastilles d'état** (échéance, %, série) en `text-[10px]` sous le zoom :
    illisibles à 50 %. Même remarque.
-7. **La nouvelle vue Objectifs à 390 pt** : phase D du chantier, pas encore faite.
+7. **La nouvelle vue Objectifs à 390 pt** : faite en phase D — voir « La vue
+   Objectifs en maître-détail » ci-dessous (vu en émulation, pas sur l'iPhone).
 8. ⚠️⚠️ **Compatibilité de version** (PIEGES § 24.1) : un iPhone resté sur une
    version antérieure relit une carte sans ses positions ni ses nœuds-habitudes —
    et s'il RÉÉCRIT le bloc, il les efface pour tout le monde. **Mettre l'iPhone à
    la même version avant qu'Antonin ne déplace ou ne type des nœuds sur le Mac.**
-9. `cargo check` iOS : à rejouer en phase E du chantier (aucun Rust touché).
+9. `cargo check` iOS : rejoué en phase E — voir PASSATION § 11.z.
+
+### La vue Objectifs en maître-détail (phase D, 2026-09-29)
+
+**Vu en émulation (390 × 844, au doigt)** : la vue s'ouvre sur la LISTE (aucune
+présélection, règle des Notes) ; toucher un objectif ouvre sa fiche ; l'en-tête
+« Objectifs + Nouvel objectif » s'efface et laisse la place à « ← Tous les
+objectifs », qui reste en haut quand la fiche défile (il défilait avec elle :
+`PIEGES.md` § 24.10) ; retour → la liste ; aucun débordement horizontal, y
+compris sur la ligne la plus chargée (une phase, un sous-objectif compté par
+l'habitude « Méditation », « 1/30 · 🔥 Méditation »).
+
+**Jamais vu — la dette**
+1. **Une ligne d'étape perd ~120 pt avant son titre** : poignée ⋮⋮ et chevron
+   font chacun 44 pt de large (`.cible-tactile`, `min-width` réel), plus l'icône
+   de niveau. Le titre d'une étape tient sur ~180 pt et passe sur deux lignes.
+   Piste : une cible élargie par un pseudo-élément (sans prendre de place), ou
+   la poignée masquée au doigt (« Monter / Descendre » existent dans le « ⋯ »).
+   Pas fait ici : `.cible-tactile` est partagée par toute l'app.
+2. **Le glisser-réordonner des étapes au doigt DANS une fiche qui défile** : la
+   poignée porte `touch-action: none`, le reste de la ligne défile. Jamais
+   éprouvé sur un vrai iPhone.
+3. **« Carte »** ouvre l'éditeur plein écran : toutes les dettes 1 à 6 ci-dessus
+   s'y appliquent.
+4. **La fiche est une carte qui défile DANS la vue** (comme les Notes) : la zone
+   sûre haute est posée par `App.tsx` sur le conteneur, et l'en-tête masqué met
+   le retour tout en haut — à vérifier sous la Dynamic Island, sur l'appareil.
+5. Le menu « ⋯ » de la fiche (Ajouter une étape, Modifier…, Supprimer) est le
+   menu contextuel commun : vu en anglais au bureau, pas au doigt.

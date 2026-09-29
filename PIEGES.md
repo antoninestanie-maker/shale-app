@@ -3587,3 +3587,52 @@ rejouer avant chaque scénario qui suit une modification.
 Deux échecs (« une ligne → profil », « aucune ligne → aucun ») avec
 `SUPABASE_URL = ""`. Sans le patch : 13/13. C'est le § 1.2 ter, pour une
 suite de plus. **Rejouer ce fichier sans le patch avant de conclure.**
+
+## 24.10 Un bouton « retour » posé DANS la zone qui défile part avec le contenu
+
+**Symptôme.** Sur iPhone (390 pt), dans la fiche d'un objectif, on descend dans
+la feuille de route : « ← Tous les objectifs » a disparu, il faut remonter tout
+en haut pour sortir.
+
+**Cause.** Le retour était le premier enfant de la `<section>` en
+`overflow-y-auto` : il défile avec elle. Les Notes ne le montraient pas, parce
+que leur fiche ne défile pas en bloc (c'est le champ de texte qui défile).
+
+**Parade.** Le retour vit HORS de la zone qui défile : un conteneur
+`flex flex-col min-h-0`, le bouton en `shrink-0`, la fiche en
+`flex-1 overflow-y-auto` (`GoalsView`). Même règle pour toute barre d'en-tête
+d'une vue en maître-détail.
+
+**Payé.** 2026-09-29, trouvé par le parcours piloté — qui a lui-même raté le
+bouton (§ 24.12).
+
+## 24.11 Une ponctuation française collée à `t()` dans le JSX passe telle quelle en anglais
+
+**Symptôme.** VoiceOver lit « Next action : » en anglais — l'espace avant les
+deux-points est française.
+
+**Cause.** `{t("Prochaine action")} :` : les deux-points sont HORS de la clé.
+`i18n:check` ne voit que les clés, `i18n:durs` que les chaînes de plus d'un mot
+— une ponctuation isolée ne relève d'aucun des deux.
+
+**Parade.** La ponctuation qui dépend de la langue passe par `pick(" :", ":")`,
+ou entre DANS la clé. Chercher `")} :` et `")} ;` dans le JSX avant de livrer.
+
+**Payé.** 2026-09-29, vu au texte de la page en anglais. Corrigé large : le seul
+autre cas trouvé par cette recherche (« Déposés auprès d'iOS : », `SettingsView`,
+visible sur iPhone seulement) l'est aussi.
+
+## 24.12 ⚠️ Outil — `page.touchscreen.tap` sur un élément HORS de l'écran tape à côté
+
+**Symptôme.** Au doigt émulé, un bouton trouvé (`$` le rend) ne réagit pas au
+toucher ; l'état attendu n'arrive pas, sans erreur.
+
+**Cause.** `boundingBox()` rend des coordonnées hors du viewport quand
+l'élément est plus bas dans une zone qui défile ; `touchscreen.tap` tape à ces
+coordonnées-là, c'est-à-dire sur rien. `page.click` fait défiler, le toucher
+non.
+
+**Parade.** `el.scrollIntoView({ block: "center" })` avant `boundingBox()`, dans
+l'aide de toucher elle-même (`tel.mjs` du chantier).
+
+**Payé.** 2026-09-29, deux parcours à rejouer.

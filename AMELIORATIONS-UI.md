@@ -557,3 +557,20 @@ c'est voulu ou à venir :
   l'habitude serait une autre règle.
 - **Le trou laissé par un nœud glissé** dans l'empilement de ses frères : voulu
   (aucun voisin ne bouge pendant qu'on déplace) ; « Réorganiser » le comble.
+
+## Écarté de la vue Objectifs en maître-détail (phase D, 2026-09-29)
+
+- **La bascule Plan / Carte dans la fiche** (maquette B) : la carte s'ouvre en
+  plein écran par le bouton « Carte ». L'intégrer exigerait un `EditeurCarte`
+  non modal (il pose `inert` sur `#root`) — et une carte à l'étroit.
+- **La frise des phases en colonnes** (direction C) : glissement horizontal en
+  conflit avec le retour par le bord d'iOS, une étape par écran à 390 pt.
+- **Une colonne « Maintenant »** (en retard, dû aujourd'hui, habitudes à tenir,
+  tirés de toutes les étapes) : la prochaine action de la liste en tient lieu ;
+  une vraie colonne serait une seconde vue « Aujourd'hui ».
+- **La prochaine action dans la fiche** (« Ensuite ») : elle est dans la liste ;
+  dans la fiche, la tâche en retard se lit en rouge dans sa propre étape.
+- **Garder l'objectif choisi d'une session à l'autre** : non fait ; le bureau
+  rouvre sur le premier de la liste.
+- **Réordonner les objectifs RACINES à la main** : l'ordre reste horizon puis
+  échéance, groupé par catégorie.

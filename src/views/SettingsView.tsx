@@ -55,7 +55,7 @@ import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid"
 import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
 
-import { t } from "../lib/i18n";
+import { pick, t } from "../lib/i18n";
 import { rejouerAccueil } from "../lib/onboarding/semer";
 /** Interrupteur avec libellé + description (sauvegarde immédiate au clic). */
 function ToggleRow({
@@ -909,7 +909,8 @@ export default function SettingsView() {
                 )}
                 {IS_IOS && (
                   <p className="mt-2 text-xs text-text-dim">
-                    {t("Déposés auprès d'iOS")} : {plan.deposited}
+                    {/* L'espace avant « : » est française (PIEGES § 24.11). */}
+                    {t("Déposés auprès d'iOS")}{pick(" :", ":")} {plan.deposited}
                   </p>
                 )}
               </div>

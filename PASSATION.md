@@ -237,10 +237,10 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Tâches** | tâches, sous-tâches, récurrence, dates, rattachement à un objectif | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre |
 | **Calendrier** | le 13ᵉ module (2026-09-02). Événements, multi-jours, récurrence, saisie à la minute, roulette d'heure | migrations 020 et 021. « journée entière » s'annonce encore comme « 1 tâche sans horaire » — mot faux, compte juste, **non corrigé faute de mandat** |
 | **Timer** | Pomodoro, sessions de focus, plein écran | |
-| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29 (branche `chantier/carte-objectifs`, pas encore fusionnée)** : sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
+| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29** : la vue est en **maître-détail** — la liste (chaque objectif avec sa **prochaine action**) et la fiche de celui qu'on choisit (une phrase d'origine, la feuille de route, une icône par niveau) ; sur iPhone, la liste OU la fiche. Sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
 | **Performance** | métriques personnalisées, habitudes, séries, graphiques (recharts) | |
 | **Finance** | remplace Benchmark (2026-08-25). Comptes, soldes, positions, cours, récurrents — **et la facturation** depuis le 2026-09-10 | migrations 018, 019, 023. ⚠️ Deux écrans manquent pour un usage réel : **l'émetteur** (identité, SIRET, régime) et **les tiers**. Sans eux, aucune facture ne peut être adressée à quelqu'un |
-| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG ; depuis le 2026-09-29, sur la branche `chantier/carte-objectifs` : nœuds **déplaçables** à la main et **typés** — étape, tâche, habitude), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. ⛔ Les pièces jointes ne sont **pas encore dans l'app installée** : aucun build natif, donc la migration 028 n'a jamais tourné sur la vraie base |
+| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG ; depuis le 2026-09-29 : nœuds **déplaçables** à la main et **typés** — étape, tâche, habitude), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. Les pièces jointes sont installées depuis le build du 2026-09-26 (la vraie base est en 028 : carnet de coordination, entrée [V-filet]) ; leur clic n'a jamais été vérifié à la main |
 | **Journal** | entrées datées | |
 | **Savoir** | base de connaissances. ⭐ **Un seul objet depuis le 2026-09-07 : le SUJET** — les « thèmes » et les « objets » ont fusionné (migration 022) | le chiffre qui a tranché : 5 jours après la livraison des objets, 4 thèmes utilisés, **0 objet** |
 | **Trading** | journal de trades en R, modes live / backtest | verrouillé hors offre trading |
@@ -1108,14 +1108,13 @@ dossier des migrations avant tout build) reste valable.
 - Une pièce jointe supprimée **ne passe pas par la corbeille** (`files` n'a pas
   de `deleted_at`) — couture laissée au chantier qui possède ce motif.
 
-### 11.z Le 2026-09-29 — cartes déplaçables et typées, carte d'objectif éditable
+### 11.z Le 2026-09-29 — cartes déplaçables et typées, carte d'objectif éditable, vue Objectifs en maître-détail
 
 Cadrage `PROMPT-CARTE-OBJECTIFS.md`. Branche **`chantier/carte-objectifs`** (worktree
 `~/Desktop/Shale-chantiers/carte-objectifs`), depuis `mobile-ios` `340bdf4`.
-**⛔ À l'arrêt 2** : phases A, B, C faites et commitées ; **NON fusionnée, NON
-poussée, AUCUN build natif** — rien de tout ceci n'est dans `/Applications/Shale.app`.
-Phases D (vue Objectifs, arrêt 3) et E (ligne de base, build) restent à faire.
-Aucune migration. Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
+Phases A à E faites, **fusionnée dans `mobile-ios`** ; le build natif et son
+installation sont consignés en fin d'entrée. Aucune migration, aucun Rust touché.
+Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
 
 **Ce qui a changé à l'écran.**
 - Carte de note / du Savoir : **glisser déplace un nœud à l'écran** (et sa
@@ -1133,6 +1132,16 @@ Aucune migration. Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES
   détache) ; glisser ne change que la place, rangée dans le réglage synchronisé
   `carte.objectif.<uid>`. Le texte des nœuds est le titre seul (plus de « · 42 % »
   ni de « ✓ » figés dans l'export).
+- ⭐ **Vue Objectifs en maître-détail** (direction B « épurée », arrêt 3) : à
+  gauche la liste, chaque objectif avec son pourcentage et **sa prochaine
+  action** (la tâche la plus en retard, sinon la plus proche, sinon la première
+  de la feuille de route) ; à droite la fiche de l'objectif choisi — une seule
+  phrase d'origine (« Saisi à la main : la feuille de route ne compte pas. La
+  faire compter » remplace le bandeau contradictoire), « Carte », un seul « ⋯ »,
+  la feuille de route. Une icône par niveau (dossier = phase, cible = sous-
+  objectif) à la place de la pastille « PHASE » ; l'habitude ou la tâche qui
+  compte une étape est nommée dans sa ligne. Sur iPhone, la liste OU la fiche.
+  « Voir l'objectif » (mention, carte) ouvre SA fiche (`sb:open-goal`).
 
 **Ce qui est prouvé.**
 - ✅ 12 empreintes du rendu relevées AVANT le chantier : une carte sans position
@@ -1150,10 +1159,22 @@ Aucune migration. Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES
   glisser → ordre de la feuille de route inchangé, position retrouvée).
 - ✅ App en **anglais** : aucune clé manquante au journal de `t()` ; **thème
   clair** ; **390 × 844 au doigt** en émulation.
-- ✅ Ligne de base au 2026-09-29 13:31 : `tsc`, `test:types`, `i18n:check` (2252),
-  `i18n:durs` (0), build ; vitest **1575 / 1577** — les 2 rouges sont
-  `licence/transport.test.ts`, qui tombe avec le patch de démo et passe sans
-  (13/13, vérifié). `cargo check` non rejoué (aucun Rust touché) : phase E.
+- ✅ Phase D : `prochaineAction` (9 tests, cinq mutations vues rouges) ; à
+  l'écran en démo — sombre et clair, français et anglais (aucune clé manquante),
+  bureau et 390 × 844 au doigt : la liste, la fiche, une phase créée par le menu,
+  un sous-objectif compté par une habitude (« 1/30 · 🔥 Méditation ») ;
+  « ouvrir l'objectif » depuis les Notes (vue non montée), depuis la vue déjà
+  ouverte, et à la création d'un objectif → la bonne fiche à chaque fois.
+- ✅ **Ligne de base finale, SANS le patch de démo** (2026-09-29 22:29) : `tsc`,
+  `test:types`, `i18n:check` (2241 entrées : 18 phrases de l'ancienne vue
+  retirées), `i18n:durs` (0), build Vite, vitest **1586 / 1586**. `grep -r
+  AUDIT-TEMP src/` → 0, `git diff --exit-code src/lib/auth/` propre. Rejouée à
+  22:45 après le dernier correctif (une ponctuation des Réglages, PIEGES
+  § 24.11), sous une charge de ~95 (rendu After Effects + `cargo` iOS) : 1583,
+  et 3 EXPIRATIONS toutes dans `sync/` (§ 9.11) — ces deux fichiers rejoués
+  avec un délai large : **49 / 49**.
+- ✅ `cargo check --all-targets` (code 0) et `cargo check --target
+  aarch64-apple-ios` (code 0, 29 min à cache vide). Aucun Rust touché.
 
 **Ce qui ne l'est pas.**
 - ⛔ Pas d'app installée (aucun build) ; pas de WKWebView ; pas d'iPhone réel ni de
@@ -1164,8 +1185,9 @@ Aucune migration. Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES
 - ⚠️ Deux appareils qui déplacent deux nœuds de la même carte d'objectif au même
   instant : l'un des deux déplacements est perdu (last-write-wins sur le réglage).
 
-**Ce qui reste.** Arrêt 2 (Antonin essaie, `~/Desktop/Essayer les cartes.command`),
-puis phase D (vue Objectifs, directions à l'arrêt 3), phase E (ligne de base
-complète, `cargo check` iOS, build natif groupé), fusion. Site : `DETTE-SITE.md`
-entrée S. Écarté : `AMELIORATIONS-UI.md` (fin de fichier).
+**Ce qui reste.** Essayer à la main dans l'app installée (Antonin n'a rien pu
+essayer en démo — arrêt 2). iPhone : `MOBILE.md` § 26, dont la vue Objectifs à
+390 pt. Site : `DETTE-SITE.md` entrée S (captures Objectifs à régénérer).
+Écarté : `AMELIORATIONS-UI.md` (fin de fichier). Le réglage `layout.goals`
+(géométrie des anciens panneaux par catégorie) est orphelin, sans effet.
 

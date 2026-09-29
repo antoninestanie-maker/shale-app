@@ -6389,10 +6389,11 @@ ailleurs (`PIEGES.md` § 23.1).
 Vérifié : tsc, test:types, 1513 tests, i18n:check, build. Parcours simulateur :
 voir `MOBILE.md` § 25.5.
 
-## 2026-09-29 — ⭐ Cartes mentales déplaçables et typées, carte d'objectif éditable
+## 2026-09-29 — ⭐ Cartes mentales déplaçables et typées, carte d'objectif éditable, vue Objectifs en maître-détail
 
-Cadrage `PROMPT-CARTE-OBJECTIFS.md` ; audit `~/Desktop/Shale-chantiers/CARTE-OBJECTIFS-phase0.md` ;
-pièges `PIEGES.md` § 24. Branche `chantier/carte-objectifs`. **Aucune migration,
+Cadrage `PROMPT-CARTE-OBJECTIFS.md` ; audits `~/Desktop/Shale-chantiers/CARTE-OBJECTIFS-phase0.md`
+et `CARTE-OBJECTIFS-D1.md` ; pièges `PIEGES.md` § 24. Branche `chantier/carte-objectifs`,
+fusionnée dans `mobile-ios`. **Aucune migration,
 aucun Rust, aucune dépendance.** Les six arbitrages de l'arrêt 1 (A à F), acceptés
 par Antonin (« ok sur tout »), sont les recommandations du rapport.
 
@@ -6505,3 +6506,45 @@ le ✕ de la feuille de route) — la supprimer aurait détruit une note parce q
 étaient figés dans l'export. ⌘Z ne défait rien dans cette carte (tout y est écrit
 dans les objets ; une suppression se rattrape par la corbeille), et ⌥ y déplace
 seulement : l'ordre des étapes ne change que dans la feuille de route.
+
+### Arrêt 2 — « je ne peux pas tester, pars du principe que ça marche »
+
+Antonin n'essaie pas en mode démo : pour lui, essayer, c'est l'app installée.
+Conséquence retenue : toutes les preuves A-C sont faites à l'écran par la
+session (Chrome sans fenêtre, démo), et le chantier se termine par UN build
+natif groupé — jamais un build par phase (chaque build lui coûte une fenêtre de
+trousseau).
+
+### Phase D — la vue Objectifs en maître-détail, « épurée » (arrêt 3)
+
+Trois directions montrées sur un canevas (A liste balisée, B maître-détail, C
+frise des phases) ; Antonin : **« B, mais épure un peu encore »**. Ce que l'épure
+a retiré de la maquette B, et pourquoi :
+- **la bascule Plan / Carte** → un bouton « Carte » qui ouvre l'éditeur plein
+  écran. La carte a besoin de toute la place et de sa barre ; la loger dans un
+  panneau de 700 px aurait exigé de rendre `EditeurCarte` non modal (il pose
+  `inert` sur `#root`, PIEGES § 18.1) — un refactor, pour une carte à l'étroit ;
+- **la frise décorative et les colonnes « Tâches / Habitudes »** → la feuille
+  de route telle quelle, avec l'icône de niveau et l'habitude qui compte NOMMÉE
+  dans la ligne de son étape (elle était cachée derrière trois clics) ;
+- **l'encadré « Ensuite » dans la fiche** → la prochaine action vit dans la
+  liste seulement, sous le titre : c'est là qu'on choisit quoi ouvrir ;
+- **les trois boutons au survol et les panneaux redimensionnables par
+  catégorie** → un seul « ⋯ », visible (règle 17), et des intertitres.
+  `layout.goals` (la géométrie de ces panneaux) est orphelin, sans effet.
+
+**La prochaine action** (`lib/objectifs/prochaineAction.ts`, pur, testé, cinq
+mutations vues rouges) est une règle d'AFFICHAGE : la tâche non faite la plus en
+retard, sinon la plus proche, sinon la première de la feuille de route hors des
+étapes achevées. Elle lit `elementsDe` — la règle même du calcul — donc jamais
+une récurrente. Aucune règle métier n'a changé : le chiffre vient de `mesurer`.
+
+**Une seule phrase d'origine.** L'audit avait relevé deux vérités pour un chiffre
+(« saisi à la main » sur la ligne, « la feuille de route n'est pas lue » dans un
+bandeau dessous). La fiche dit les deux en une phrase, avec son action : « Saisi
+à la main : la feuille de route ne compte pas. La faire compter ».
+
+**« Voir l'objectif » ouvre SA fiche** (`sb:open-goal`, ajouté à `EVT_MODULE`
+d'`App.tsx`) : la liste montrait tout, la fiche n'en montre qu'un — sans cela
+une mention d'objectif, ou « En faire un objectif », arrivait devant le premier
+objectif venu. La demande attend l'objectif s'il n'est pas encore relu.

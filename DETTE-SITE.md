@@ -609,5 +609,13 @@ L'app sait maintenant, et le site ne le dit nulle part :
 
 À répercuter : la page Notes/Savoir (section cartes mentales) et la page
 Objectifs du site ; la capture `shots/v2/dark-objectifs.webp` était déjà
-périmée (entrée M), elle l'est davantage. **La vue Objectifs va encore changer
-(phase D du chantier) : régénérer les captures APRÈS elle, pas avant.**
+périmée (entrée M), elle l'est davantage.
+
+✅ **La vue Objectifs a changé (phase D, 2026-09-29) — les captures peuvent être
+régénérées maintenant** : maître-détail (la liste des objectifs, chacun avec sa
+prochaine action ; la fiche de l'objectif choisi avec sa feuille de route), une
+icône par niveau (dossier pour la phase, cible pour le sous-objectif), l'habitude
+qui compte une étape nommée dans sa ligne. À montrer sur le site : « chaque
+objectif dit quoi faire ensuite ». Captures de référence prises en démo (sombre
+et clair, bureau et 390 pt) dans le brouillon de la session — à refaire par le
+générateur `shots/v2` (entrée M.2), pas à recopier.
