@@ -20,6 +20,7 @@ import {
   renommer,
   reorganiser,
   retablir,
+  ecrireCarte,
   sousArbre,
   supprimerNoeud,
   typeDeNoeud,
@@ -27,8 +28,10 @@ import {
   type Carte,
   type Direction,
   type KindCarte,
+  type RefNoeud,
   type TypeDonnable,
 } from "../../lib/carte";
+import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
 import { etatsVivants, type EtatVivant } from "../../lib/carteEtat";
 import { addDays, todayStr } from "../../lib/logic";
 import { allerVers } from "../../lib/naviguer";
@@ -90,6 +93,31 @@ import { kbd } from "../../lib/platform";
  * prouve une interface, donc tout ce qui peut sortir d'ici doit en sortir.
  */
 
+/** Ce qu'un nœud de la carte d'un objectif peut recevoir comme enfant. */
+export type EnfantObjectif = "phase" | "sous-objectif" | "tache" | "habitude";
+
+/**
+ * ⭐ LA CARTE D'UN OBJECTIF, ÉDITABLE (2026-09-29) — une seconde vue du même
+ * plan que la feuille de route, modifiable des deux côtés.
+ *
+ * Chaque geste ÉCRIT UN OBJET, par le chemin normal de l'app, puis la carte est
+ * re-dérivée des données (`carteDObjectif`). Rien n'est gardé dans un JSON de
+ * carte : il n'y en a pas, la feuille de route reste l'unique auteur des nœuds.
+ * Seules les POSITIONS posées à la main vivent ailleurs — dans un réglage, par
+ * `onEnregistrer` (décision B).
+ */
+export interface GestesObjectif {
+  /** Ce que ce nœud peut accueillir — vide pour une tâche, une habitude, une note. */
+  enfantsPossibles: (ref: RefNoeud) => EnfantObjectif[];
+  creer: (parent: RefNoeud, type: Exclude<EnfantObjectif, "habitude">, titre: string) => Promise<void>;
+  renommer: (ref: RefNoeud, titre: string) => Promise<void>;
+  /** Supprime l'OBJET (deux temps, puis « Supprimés récemment ») — ou DÉTACHE une note rattachée. */
+  supprimer: (ref: RefNoeud, parent: RefNoeud | null, titre: string) => Promise<void>;
+}
+
+/** Les familles qui SONT un morceau de l'objectif — les autres y sont seulement rattachées. */
+const KINDS_OBJETS: readonly string[] = ["goal", "task", "habit"];
+
 interface Props {
   titre: string;
   carte: Carte;
@@ -119,6 +147,8 @@ interface Props {
   onFermer: () => void;
   /** Clic sur un nœud-référence. Sans elle, le nœud n'ouvre rien. */
   onOuvrirRef?: (kind: LinkKind, uid: string) => void;
+  /** Présent = carte d'un OBJECTIF, éditable (voir `GestesObjectif`). */
+  objectif?: GestesObjectif;
 }
 
 /**
@@ -213,7 +243,7 @@ function Outil({
   );
 }
 
-export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef }: Props) {
+export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef, objectif }: Props) {
   const ouvrirCible = (kind: KindCarte, uid: string) => {
     // Une habitude n'a pas de fiche à elle : elle vit dans le Journal.
     if (kind === "habit") allerVers("journal");
@@ -265,6 +295,29 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const [armeReorg, setArmeReorg] = useState<Carte | null>(null);
   /** Le panneau « Type » ouvert : quel type, pour quel nœud. */
   const [typage, setTypage] = useState<{ type: TypeDonnable; id: string } | null>(null);
+  /**
+   * Carte d'objectif : le nœud neuf en cours de saisie, et ce qu'il deviendra.
+   * Il n'existe pas encore dans les données — il vit dans la carte locale le
+   * temps qu'on tape son nom, puis l'objet est créé et la carte re-dérivée.
+   */
+  const [enfantEnAttente, setEnfantEnAttente] = useState<{ id: string; parentId: string; type: EnfantObjectif } | null>(null);
+  const attenteRef = useRef(enfantEnAttente);
+  attenteRef.current = enfantEnAttente;
+
+  /**
+   * ⭐ LA CARTE D'OBJECTIF SE RE-DÉRIVE À CHAQUE ÉCRITURE, et l'éditeur suit.
+   * Renommer dans la feuille de route, cocher ailleurs, créer une tâche d'ici :
+   * les données changent, `CarteObjectif` redessine, et on garde de l'écran ce
+   * qui n'est pas de la donnée — replis, positions, nœud en saisie.
+   */
+  useEffect(() => {
+    if (!objectif) return;
+    setHistoire((h) => {
+      const present = fusionnerCarteObjectif(carte, h.present, attenteRef.current?.id ?? null);
+      return ecrireCarte(present) === ecrireCarte(h.present) ? h : { passe: [], present, futur: [] };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carte]);
 
   /**
    * ⭐ LES DONNÉES VIVANTES — l'état des nœuds typés (coche, échéance, série,
@@ -324,6 +377,17 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       today,
     });
   }, [affichee, donnees]);
+
+  /**
+   * Peut-on réécrire le texte de ce nœud ? Une idée, oui. Une référence, non —
+   * son texte est le titre de sa cible… SAUF dans la carte d'un objectif, où
+   * renommer le nœud RENOMME l'objet (étape, tâche, habitude). Une note
+   * rattachée, elle, se renomme toujours là-bas.
+   */
+  const renommable = (n: { ref?: RefNoeud; mort?: boolean }) =>
+    !n.ref || (!!objectif && KINDS_OBJETS.includes(n.ref.kind) && !n.mort);
+  /** Carte d'objectif : une note, une fiche, un événement RATTACHÉS — pas un morceau de l'objectif. */
+  const estRattache = (n: { ref?: RefNoeud } | undefined) => !!objectif && !!n?.ref && !KINDS_OBJETS.includes(n.ref.kind);
 
   /** Cocher depuis la carte : le MÊME chemin que partout (`basculerTache`). */
   const cocher = async (e: EtatVivant, fait: boolean) => {
@@ -577,24 +641,66 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     (id: string, texte: string): Carte => {
       const n = noeudDe(courante, id);
       // Un nœud-référence garde son identité : on ne réécrit que le texte libre.
-      if (!n || n.ref || n.texte === texte) return courante;
+      // (Carte d'objectif : on réécrit aussi une étape, une tâche, une habitude —
+      // c'est `fermerEdition` qui renomme l'objet derrière. Un nom vide n'en est pas un.)
+      if (!n || n.texte === texte) return courante;
+      if (n.ref && !(objectif && renommable(n) && texte.trim())) return courante;
       return renommer(courante, id, texte);
     },
-    [courante],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [courante, objectif],
   );
 
   const fermerEdition = useCallback(
     (garder: boolean) => {
       if (!edition) return;
+      // ⭐ Carte d'objectif : le nœud NEUF qu'on vient de nommer devient un objet.
+      const attente = attenteRef.current;
+      if (objectif && attente && edition === attente.id) {
+        const nom = brouillon.trim();
+        setEdition(null);
+        fermerMention();
+        if (!garder || !nom) {
+          retirerAttente(attente);
+          return;
+        }
+        setHistoire((h) => appliquer(h, renommer(h.present, attente.id, nom)));
+        // Une habitude a besoin de sa cible en jours : le panneau la demande,
+        // et dit où l'étape qui la comptera va naître.
+        if (attente.type === "habitude") {
+          setTypage({ type: "habitude", id: attente.id });
+          return;
+        }
+        const parentRef = noeudDe(courante, attente.parentId)?.ref;
+        if (!parentRef) {
+          retirerAttente(attente);
+          return;
+        }
+        void objectif.creer(parentRef, attente.type, nom).finally(() => retirerAttente(attente));
+        return;
+      }
       if (garder) {
         const suivante = validerEdition(edition, brouillon);
-        if (suivante !== courante) setHistoire((h) => appliquer(h, suivante));
+        if (suivante !== courante) {
+          setHistoire((h) => appliquer(h, suivante));
+          // Renommer le nœud RENOMME l'objet — la feuille de route le montre aussitôt.
+          const n = noeudDe(courante, edition);
+          if (objectif && n?.ref) void objectif.renommer(n.ref, brouillon.trim());
+        }
       }
       setEdition(null);
       fermerMention();
     },
-    [brouillon, courante, edition, fermerMention, validerEdition],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [brouillon, courante, edition, fermerMention, objectif, validerEdition],
   );
+
+  /** Le nœud neuf a fini sa vie locale : créé (la carte re-dérivée le montre), ou abandonné. */
+  const retirerAttente = (attente: { id: string; parentId: string }) => {
+    setEnfantEnAttente(null);
+    setHistoire((h) => ({ ...h, present: supprimerNoeud(h.present, attente.id) }));
+    setSelection(attente.parentId);
+  };
 
   // ─── Les raccourcis ────────────────────────────────────────────────────────
   //
@@ -617,6 +723,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       if (meta && e.key.toLowerCase() === "z") {
         e.preventDefault();
         e.stopPropagation();
+        // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets, et ⌘Z
+        // n'en défait rien. Une suppression se rattrape par la corbeille.
+        if (objectif) return;
         setHistoire((h) => (e.shiftKey ? retablir(h) : annuler(h)));
         setEdition(null);
         return;
@@ -715,18 +824,26 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       // Entrée). ⌘Entrée, lui, crée le voisin.
       if (e.key === "Enter") {
         e.preventDefault();
-        if (meta) {
+        if (meta && objectif) {
+          ouvrirCreation("frere");
+        } else if (meta) {
           const { carte: suivante, neuf } = ajouterFrere(courante, selection);
           setHistoire((h) => appliquer(h, suivante));
           setSelection(neuf);
           ouvrirEdition(neuf, "", false);
-        } else if (!n.ref) {
+        } else if (renommable(n)) {
           ouvrirEdition(selection, n.texte, true);
         }
         return;
       }
       if (e.key === "Tab") {
         e.preventDefault();
+        // Carte d'objectif : ajouter un enfant EXIGE un type — une carte dérivée
+        // n'a nulle part où ranger une idée sans objet.
+        if (objectif) {
+          ouvrirCreation("enfant");
+          return;
+        }
         const { carte: suivante, neuf } = ajouterEnfant(courante, selection);
         setHistoire((h) => appliquer(h, suivante));
         setSelection(neuf);
@@ -744,13 +861,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       // ⌥T : le TYPE du nœud. `e.code` et pas `e.key` : sur Mac, ⌥T tape « † ».
       if (e.altKey && e.code === "KeyT") {
         e.preventDefault();
+        if (objectif) return; // tout y est déjà typé
         const el = scene.current?.querySelector<HTMLElement>(`[data-noeud="${CSS.escape(selection)}"]`);
         if (el) menuType.ouvrirSurElement(el, selection);
         return;
       }
       if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         e.preventDefault();
-        if (rattache) return;
+        if (rattache || objectif) return;
         modifier((c) => poserCote(c, selection, e.key === "ArrowRight" ? 1 : -1));
         return;
       }
@@ -773,12 +891,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       }
       if (e.key === "F2") {
         e.preventDefault();
-        ouvrirEdition(selection, n.texte, true);
+        if (renommable(n)) ouvrirEdition(selection, n.texte, true);
         return;
       }
       // Une frappe imprimable ouvre l'édition et REMPLACE le texte : c'est ce
       // qu'on attend d'une carte mentale, où l'on renomme plus qu'on ne corrige.
-      if (!meta && !e.altKey && e.key.length === 1) {
+      if (!meta && !e.altKey && e.key.length === 1 && (!objectif || renommable(n))) {
         e.preventDefault();
         ouvrirEdition(selection, e.key, false);
       }
@@ -790,7 +908,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     // garderait la fermeture du rendu précédent — donc `arme` à `null` pour
     // toujours, et le second ⌫ ne confirmerait jamais. C'est le § 9.1 de
     // `PIEGES.md`, repris à l'identique.
-  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, onFermer, ouvrirEdition, rattache, selection, typage, versObjectif]);
+  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, objectif, onFermer, ouvrirEdition, rattache, selection, typage, versObjectif]);
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
@@ -978,8 +1096,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         mode = "panoramique";
         return;
       }
-      mode = rattacher ? "rattache" : "deplace";
-      if (rattacher) setGlisse({ id, cible: null });
+      // Carte d'objectif : l'ordre et la place des étapes ne changent QUE dans
+      // la feuille de route. ⌥ + glisser y déplace, comme le glisser simple.
+      const vraiRattachement = rattacher && !objectif;
+      mode = vraiRattachement ? "rattache" : "deplace";
+      if (vraiRattachement) setGlisse({ id, cible: null });
       else setApercu({ id, dx: 0, dy: 0 });
     };
 
@@ -1074,6 +1195,10 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   // chemin n'y passerait pas.
 
   const creer = (comment: "enfant" | "frere") => {
+    if (objectif) {
+      ouvrirCreation(comment);
+      return;
+    }
     const base = edition ? validerEdition(edition, brouillon) : courante;
     const r = comment === "enfant" ? ajouterEnfant(base, selection) : ajouterFrere(base, selection);
     setHistoire((h) => appliquer(h, r.carte));
@@ -1084,7 +1209,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
   const modifierTexte = () => {
     const n = noeudDe(courante, selection);
-    if (!n || n.ref) return;
+    if (!n || !renommable(n)) return;
     ouvrirEdition(selection, n.texte, true);
   };
 
@@ -1122,6 +1247,16 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     if (!n || n.parent === null) return;
     setArme(null);
     setEdition(null);
+    // ⭐ Carte d'objectif : le nœud EST l'objet — il part par le chemin normal
+    // (« Supprimés récemment », restaurable 30 jours), ou, pour une note
+    // rattachée, il se DÉTACHE (décision E : on ne supprime jamais la note).
+    // La carte re-dérivée le retirera d'elle-même.
+    if (objectif && n.ref) {
+      const parent = n.parent ? noeudDe(courante, n.parent) : undefined;
+      void objectif.supprimer(n.ref, parent?.ref ?? null, n.texte);
+      setSelection(n.parent);
+      return;
+    }
     modifier((c) => supprimerNoeud(c, id));
     setSelection(n.parent);
   };
@@ -1212,6 +1347,51 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    */
   const menuNoeud = useMenuContextuel<string>();
   const menuType = useMenuContextuel<string>();
+  /** Carte d'objectif : « quel type ? » avant tout nœud neuf. La cible est le PARENT. */
+  const menuCreation = useMenuContextuel<string>();
+
+  /**
+   * ⭐ AJOUTER, DANS LA CARTE D'UN OBJECTIF, EXIGE UN TYPE — Étape (phase ou
+   * sous-objectif), Tâche ou Habitude. Pas d'idée : une carte dérivée n'a
+   * nulle part où ranger un texte libre. Le menu s'ouvre sur le nœud choisi ;
+   * les genres impossibles à cet endroit sont grisés, avec la raison.
+   */
+  const ouvrirCreation = (comment: "enfant" | "frere") => {
+    const n = noeudDe(courante, selection);
+    if (!n) return;
+    const parentId = comment === "enfant" ? n.id : n.parent;
+    if (!parentId) return;
+    const el = scene.current?.querySelector<HTMLElement>(`[data-noeud="${CSS.escape(n.id)}"]`);
+    if (el) menuCreation.ouvrirSurElement(el, parentId);
+  };
+  const commencerEnfant = (parentId: string, type: EnfantObjectif) => {
+    const { carte: suivante, neuf } = ajouterEnfant(courante, parentId);
+    setHistoire((h) => appliquer(h, suivante));
+    setEnfantEnAttente({ id: neuf, parentId, type });
+    setSelection(neuf);
+    ouvrirEdition(neuf, "", false);
+  };
+  const entreesCreation = (parentId: string): EntreePossible[] => {
+    if (!objectif) return [];
+    const p = noeudDe(courante, parentId);
+    const possibles = p?.ref ? objectif.enfantsPossibles(p.ref) : [];
+    const raison = possibles.length
+      ? { raison: t("Pas à cet endroit : la feuille de route n'a que trois niveaux.") }
+      : { raison: t("Une tâche, une habitude ou une note ne porte rien dessous.") };
+    const entree = (type: EnfantObjectif, libelle: string, icone: ReactNode) => ({
+      id: type,
+      libelle,
+      icone,
+      desactive: possibles.includes(type) ? undefined : raison,
+      executer: () => commencerEnfant(parentId, type),
+    });
+    return [
+      entree("phase", t("Phase"), <IconFolder />),
+      entree("sous-objectif", t("Sous-objectif"), <IconTarget />),
+      entree("tache", t("Tâche"), <IconCheckCircle />),
+      entree("habitude", t("Habitude"), <IconFlame />),
+    ];
+  };
 
   /**
    * ⭐ LES TYPES D'UN NŒUD — Idée, Étape, Tâche, Habitude (2026-09-29).
@@ -1268,11 +1448,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         libelle: t("Renommer"),
         icone: <IconPencil />,
         raccourci: "F2",
-        desactive: n.ref ? { raison: t("Un nœud lié porte le titre de sa cible : il se renomme là-bas.") } : undefined,
+        desactive: !renommable(n) ? { raison: t("Un nœud lié porte le titre de sa cible : il se renomme là-bas.") } : undefined,
         executer: modifierTexte,
       },
-      { id: "citer", libelle: t("Citer un objet"), icone: <IconArobase />, executer: citer },
-      {
+      !objectif && { id: "citer", libelle: t("Citer un objet"), icone: <IconArobase />, executer: citer },
+      !objectif && {
         id: "type",
         libelle: t("Type"),
         icone: <IconTarget />,
@@ -1285,13 +1465,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         icone: <IconPlier />,
         executer: () => modifier((c) => basculerPli(c, id)),
       },
-      branche && {
+      branche && !objectif && {
         id: "cote",
         libelle: t("Changer de côté"),
         icone: <IconCote />,
         executer: () => modifier((c) => poserCote(c, id, coteSel === 1 ? -1 : 1)),
       },
-      {
+      !objectif && {
         id: "rattacher",
         libelle: t("Rattacher à un autre nœud…"),
         icone: <IconLink />,
@@ -1305,7 +1485,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       },
       {
         id: "supprimer",
-        libelle: t("Supprimer"),
+        libelle: estRattache(n) ? t("Détacher") : t("Supprimer"),
         icone: <IconTrash />,
         danger: true,
         desactive: racine ? { raison: t("Le nœud central ne se supprime pas : c'est la carte elle-même.") } : undefined,
@@ -1349,7 +1529,18 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
               {t("lecture")}
             </span>
           )}
-          {!lecture && (
+          {objectif && (
+            /* ⭐ Dit ce que l'écran EST : chaque nœud est un vrai objet, et ce
+               qu'on y change change la feuille de route. */
+            <span
+              className="pill shrink-0 border border-border px-2 py-0.5 text-[11px] text-text-dim"
+              data-tip={t("Une seconde vue de la feuille de route")}
+              data-tip-sub={t("Chaque nœud est un vrai objet : le renommer, le cocher ou le supprimer ici le fait aussi dans la feuille de route. Le glisser ne change que sa place à l'écran.")}
+            >
+              {t("feuille de route")}
+            </span>
+          )}
+          {!lecture && !objectif && (
           <>
           <button
             type="button"
@@ -1374,7 +1565,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           </>
           )}
           <span className="mx-0.5 h-5 w-px bg-border" />
-          {!lecture && (
+          {!lecture && !objectif && (
             /* ⭐ LE PONT VERS LES OBJECTIFS EST ICI, dans l'éditeur, et pas dans
                chacune des deux vues qui l'hébergent (Notes et Savoir) : posé
                chez les hôtes, il aurait fallu l'écrire deux fois, et la
@@ -1480,16 +1671,19 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           <Outil
             libelle={t("Renommer")}
             aide={
-              noeudSel?.ref
+              noeudSel && !renommable(noeudSel)
                 ? t("Un nœud lié porte le titre de sa cible : il se renomme là-bas.")
-                : t("Réécrire le texte du nœud sélectionné.")
+                : objectif && noeudSel?.ref
+                  ? t("Renomme l'objet lui-même : la feuille de route suit.")
+                  : t("Réécrire le texte du nœud sélectionné.")
             }
             raccourci={t("Entrée")}
-            disabled={!noeudSel || !!noeudSel.ref}
+            disabled={!noeudSel || !renommable(noeudSel)}
             onClick={modifierTexte}
           >
             <IconPencil className="h-3.5 w-3.5" />
           </Outil>
+          {!objectif && (
           <Outil
             libelle={t("Citer un objet")}
             aide={t("Remplace le nœud par un lien vers une note, une tâche, une fiche…")}
@@ -1499,6 +1693,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           >
             <IconArobase className="h-3.5 w-3.5" />
           </Outil>
+          )}
           <Outil
             libelle={noeudSel?.plie ? t("Déplier") : t("Replier")}
             aide={
@@ -1512,6 +1707,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           >
             <IconPlier className="h-3.5 w-3.5" />
           </Outil>
+          {!objectif && (
           <Outil
             libelle={t("Changer de côté")}
             aide={
@@ -1525,8 +1721,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           >
             <IconCote className={`h-3.5 w-3.5 ${coteSel === -1 ? "-scale-x-100" : ""}`} />
           </Outil>
+          )}
           <Outil
-            libelle={estArme ? t("Confirmer") : t("Supprimer")}
+            libelle={estArme ? t("Confirmer") : estRattache(noeudSel) ? t("Détacher") : t("Supprimer")}
             aide={
               estRacine
                 ? t("Le nœud central ne se supprime pas : c'est la carte elle-même.")
@@ -1536,7 +1733,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                         n: aEmporter,
                       })
                     : t("Ce nœud disparaît. Échap annule.")
-                  : t("Retire ce nœud et tout ce qui pend dessous. Un premier appui montre ce qui partirait.")
+                  : estRattache(noeudSel)
+                    ? t("Retire le lien avec l'objectif : la note, elle, reste. Un premier appui montre ce qui partirait.")
+                    : objectif
+                      ? t("Met l'objet dans « Supprimés récemment » (30 jours), avec ce qui pend dessous. Un premier appui montre ce qui partirait.")
+                      : t("Retire ce nœud et tout ce qui pend dessous. Un premier appui montre ce qui partirait.")
             }
             raccourci="⌫"
             disabled={estRacine}
@@ -1659,7 +1860,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             if (lecture) return;
             const cible = (e.target as HTMLElement).closest?.("[data-noeud]") as HTMLElement | null;
             const id = cible?.dataset.noeud;
-            if (id) ouvrirEdition(id, noeudDe(courante, id)?.texte ?? "", true);
+            const n = id ? noeudDe(courante, id) : undefined;
+            if (id && n && (!objectif || renommable(n))) ouvrirEdition(id, n.texte, true);
           }}
           className="carte-scene relative mt-2 min-h-0 flex-1 overflow-hidden rounded-[var(--radius-field)] border border-border bg-surface-2 touch-none"
         >
@@ -1717,6 +1919,19 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                   // sélection sur le nœud qu'on vient d'écrire. Créer un voisin
                   // dans la foulée est devenu ⌘Entrée — un geste distinct pour
                   // un effet distinct.
+                  // Carte d'objectif : Entrée, Tab et ⌘Entrée VALIDENT, rien de plus.
+                  // Enchaîner sur un nœud neuf demanderait de choisir son type : on
+                  // le fait par Tab, une fois la saisie close.
+                  if (objectif && (e.key === "Enter" || e.key === "Tab")) {
+                    e.preventDefault();
+                    fermerEdition(true);
+                    return;
+                  }
+                  if (objectif && (e.key === "Backspace" || e.key === "Delete") && brouillon === "" && attenteRef.current?.id === edition) {
+                    e.preventDefault();
+                    fermerEdition(false);
+                    return;
+                  }
                   if (e.key === "Enter" && !(e.metaKey || e.ctrlKey)) {
                     e.preventDefault();
                     const id = edition;
@@ -1813,7 +2028,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                 <b className="text-text">{t("Réorganiser")}</b> {t("confirmer")}
               </span>
               <span>
-                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+                <b className="text-text">{t("Échap")}</b> {t("annuler|renoncer")}
               </span>
             </>
           ) : rattache ? (
@@ -1826,7 +2041,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                 <b className="text-text">{t("Flèches")}</b> {t("choisir")} · <b className="text-text">{t("Entrée")}</b> {t("valider")}
               </span>
               <span>
-                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+                <b className="text-text">{t("Échap")}</b> {t("annuler|renoncer")}
               </span>
             </>
           ) : estArme ? (
@@ -1848,7 +2063,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                 <b className="text-text">⌫</b> {t("confirmer")}
               </span>
               <span>
-                <b className="text-text">{t("Échap")}</b> {t("annuler")}
+                <b className="text-text">{t("Échap")}</b> {t("annuler|renoncer")}
               </span>
             </>
           ) : lecture ? (
@@ -1884,6 +2099,21 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             </>
           ) : (
           <>
+          {/* ⚠️ DEUX PIEDS, comme celui de la lecture : au doigt, ni Tab, ni
+              flèches, ni molette. Sans cette variante, la carte d'un objectif —
+              qui avait le pied tactile de la lecture jusqu'au 2026-09-29 — aurait
+              parlé de touches à qui n'en a pas. */}
+          <span className="hidden [@media(pointer:coarse)]:inline">
+            <b className="text-text">{t("Appui long")}</b> {t("déplacer un nœud")}
+          </span>
+          <span className="hidden [@media(pointer:coarse)]:inline">
+            <b className="text-text">{t("Glisser")}</b> {t("se déplacer")}
+          </span>
+          <span className="hidden [@media(pointer:coarse)]:inline">
+            <b className="text-text">⋯</b> {t("les actions du nœud")}
+          </span>
+          <span className="hidden text-text-dim/70 [@media(pointer:coarse)]:inline">{t("les loupes zooment")}</span>
+          <span className="contents [@media(pointer:coarse)]:hidden">
           <span>
             <b className="text-text">{t("Entrée")}</b> {t("valider")}
           </span>
@@ -1899,19 +2129,26 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           <span>
             <b className="text-text">{t("Espace")}</b> {t("replier")}
           </span>
-          <span>
-            <b className="text-text">@</b> {t("citer un objet")}
-          </span>
-          <span>
-            <b className="text-text">{kbd("⌘Z")}</b> {t("annuler")}
-          </span>
+          {!objectif && (
+            <>
+              <span>
+                <b className="text-text">@</b> {t("citer un objet")}
+              </span>
+              <span>
+                <b className="text-text">{kbd("⌘Z")}</b> {t("annuler")}
+              </span>
+            </>
+          )}
           <span>
             <b className="text-text">{t("Glisser")}</b> {t("déplacer un nœud")}
           </span>
-          <span className="[@media(pointer:coarse)]:hidden">
-            <b className="text-text">{kbd("⌥")}</b> {t("+ glisser : le rattacher ailleurs")}
-          </span>
+          {!objectif && (
+            <span className="[@media(pointer:coarse)]:hidden">
+              <b className="text-text">{kbd("⌥")}</b> {t("+ glisser : le rattacher ailleurs")}
+            </span>
+          )}
           <span className="text-text-dim/70">{t("molette : déplacer · ⌘molette : zoomer")}</span>
+          </span>
           </>
           )}
           {noeudSel?.ref && !noeudSel.mort && (
@@ -1965,6 +2202,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         libelle={t("Type du nœud")}
         entrees={menuType.cible ? entreesType(menuType.cible) : []}
       />
+      <MenuContextuel
+        etat={menuCreation}
+        libelle={t("Ajouter sous ce nœud")}
+        entrees={menuCreation.cible ? entreesCreation(menuCreation.cible) : []}
+      />
 
       {typage && !lecture && donnees && (
         <PanneauType
@@ -1972,11 +2214,24 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           carte={courante}
           noeudId={typage.id}
           goals={donnees.data.goals}
-          onFermer={() => setTypage(null)}
+          ajout={!!objectif}
+          onFermer={() => {
+            // Carte d'objectif : l'habitude en attente renonce, son nœud part.
+            const attente = attenteRef.current;
+            if (objectif && attente?.id === typage.id) retirerAttente(attente);
+            setTypage(null);
+          }}
           onCree={(ref, titreObjet, genre) => {
             const id = typage.id;
-            modifier((c) => poserReference(c, id, ref, titreObjet, genre));
+            const attente = attenteRef.current;
             setTypage(null);
+            // Carte d'objectif : l'objet existe, la carte re-dérivée le montre —
+            // le nœud provisoire n'a plus de raison d'être.
+            if (objectif && attente?.id === id) {
+              retirerAttente(attente);
+              return;
+            }
+            modifier((c) => poserReference(c, id, ref, titreObjet, genre));
             setSelection(id);
           }}
         />

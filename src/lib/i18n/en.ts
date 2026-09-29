@@ -2311,6 +2311,9 @@ export const EN: Record<string, string> = {
   "replier": "collapse",
   "citer un objet": "cite an object",
   "annuler": "undo",
+  // Sous « Échap », « annuler » veut dire RENONCER, pas défaire (⌘Z) : clé à part
+  // (2026-09-29 — le pied de la suppression en deux temps disait « Esc undo »).
+  "annuler|renoncer": "cancel",
   "molette : déplacer · ⌘molette : zoomer": "wheel: pan \u00b7 \u2318wheel: zoom",
   // ⚠️ CLÉS DYNAMIQUES — `i18n:check` ne les réclamera JAMAIS (PIEGES § 5.2
   // bis) : `lib/fichiers.ts` fait `t(NOM[extension])`, donc une clé CALCULÉE.
@@ -2988,4 +2991,19 @@ export const EN: Record<string, string> = {
   "{n} étapes ou tâches appartiennent déjà à un autre objectif : laissées où elles sont.": "{n} steps or tasks already belong to another goal: left where they are.",
   "Rattacher l'habitude citée": "Attach the cited habit",
   "Rattacher les {n} habitudes citées": "Attach the {n} cited habits",
+  // ─── Carte d'objectif éditable (chantier carte-objectifs, 2026-09-29) ──────
+  "Pas à cet endroit : la feuille de route n'a que trois niveaux.": "Not here: the roadmap only has three levels.",
+  "Une tâche, une habitude ou une note ne porte rien dessous.": "A task, a habit or a note holds nothing underneath.",
+  "Habitude": "Habit",
+  "Détacher": "Detach",
+  "Une seconde vue de la feuille de route": "A second view of the roadmap",
+  "Chaque nœud est un vrai objet : le renommer, le cocher ou le supprimer ici le fait aussi dans la feuille de route. Le glisser ne change que sa place à l'écran.": "Each node is a real item: renaming, ticking or deleting it here does it in the roadmap too. Dragging only changes where it sits on screen.",
+  "feuille de route": "roadmap",
+  "Renomme l'objet lui-même : la feuille de route suit.": "Renames the item itself: the roadmap follows.",
+  "Retire le lien avec l'objectif : la note, elle, reste. Un premier appui montre ce qui partirait.": "Removes the link to the goal: the note itself stays. A first press shows what would go.",
+  "Met l'objet dans « Supprimés récemment » (30 jours), avec ce qui pend dessous. Un premier appui montre ce qui partirait.": "Moves the item to “Recently deleted” (30 days), with what hangs below it. A first press shows what would go.",
+  "Ajouter sous ce nœud": "Add under this node",
+  "Ajouter une habitude": "Add a habit",
+  "Appui long": "Long press",
+  "les actions du nœud": "the node's actions",
 };

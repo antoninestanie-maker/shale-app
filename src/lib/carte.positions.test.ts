@@ -229,6 +229,23 @@ describe("le glisser d'un nœud", () => {
     expect(b.cote).toBe(-1);
   });
 
+  it("⭐ posé SOUS son parent, l'arête part du bas du parent et arrive par le haut du nœud", () => {
+    const c0 = essai();
+    const a0 = agencer(c0);
+    const r = centreLogique(a0, "r")!;
+    const n2 = centreLogique(a0, "n2")!;
+    // n2 placé juste sous la racine, les deux boîtes se chevauchant en largeur
+    const c = glisserNoeud(c0, "n2", r.x - n2.x, r.y + 120 - n2.y);
+    const a = agencer(c);
+    const p = a.boites.get("r")!;
+    const b = a.boites.get("n2")!;
+    const chemin = /data-noeud="n2"/.test(rendreSvg(c, { mode: "theme" }));
+    expect(chemin).toBe(true);
+    const d = rendreSvg(c, { mode: "theme" }).match(/<path d="([^"]+)"/g)!.map((x) => x.slice(9, -1));
+    const depart = `M${p.x + p.w / 2} ${p.y + p.h}`;
+    expect(d.some((x) => x.startsWith(depart) && x.endsWith(`${b.x + b.w / 2} ${b.y}`))).toBe(true);
+  });
+
   it("le repère ne dépend pas du zoom : la position est la même, quel que soit l'agencement recadré", () => {
     const c = glisserNoeud(essai(), "n3", 10, 10);
     const pos = noeudDe(c, "n3")!.pos!;

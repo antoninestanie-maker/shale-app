@@ -45,9 +45,7 @@ const tache = (p: Partial<Task> = {}): Task => ({
 const sources = (p: Partial<Parameters<Mod["carteDObjectif"]>[1]> = {}) => ({
   goals: [],
   tasks: [],
-  faites: new Set<number>(),
   contexte: { liens: [], evenements: [], titres: {} },
-  pct: new Map<number, number | null>(),
   ...p,
 });
 
@@ -68,31 +66,26 @@ describe("la feuille de route, dessinée en carte", () => {
   const jeu = sources({
     goals: [racine, phase, sous, autre],
     tasks: [tache({ id: 10, label: "50 setups", goal_id: 3, uid: "u-t10" })],
-    pct: new Map([
-      [1, 42],
-      [2, 60],
-      [3, 60],
-      [4, null],
-    ]),
   });
 
-  /**
-   * ⚠️ En français, `Intl` sépare le nombre du signe par une espace INSÉCABLE
-   * (U+00A0), pas par une espace ordinaire — et c'est exactement pour cela que
-   * le pourcentage passe par `Intl` : une chaîne écrite à la main ici aurait
-   * l'air juste et serait typographiquement fausse (PIEGES § 5.2 bis).
-   */
-  it("le centre porte l'objectif, son pourcentage, et sa référence", () => {
+  // ⚠️ CHANGÉ EXPRÈS le 2026-09-29 (décision F de l'arrêt 1 du chantier
+  // carte-objectifs). Le centre portait « Devenir rentable · 42 % » DANS son
+  // texte — donc dans l'export PNG/SVG, figé. Le pourcentage vit désormais dans
+  // la couche vivante de l'éditeur, jamais dans le dessin.
+  it("le centre porte l'objectif, son TITRE seul, son genre et sa référence", () => {
     const c = carteDObjectif(racine, jeu);
     const centre = noeud(c, "r");
     expect(centre.parent).toBeNull();
-    expect(centre.texte).toBe("Devenir rentable · 42\u00a0%");
+    expect(centre.texte).toBe("Devenir rentable");
+    expect(centre.genre).toBe("objectif");
     expect(centre.ref).toEqual({ kind: "goal", uid: "u-racine" });
   });
 
-  it("une étape sans pourcentage n'affiche pas un faux zéro", () => {
+  it("chaque étape dit son genre — l'icône du dessin en dépend", () => {
     const c = carteDObjectif(racine, jeu);
-    expect(noeud(c, "g4").texte).toBe("Tenir le journal");
+    expect(noeud(c, "g2").genre).toBe("phase");
+    expect(noeud(c, "g3").genre).toBe("sous-objectif");
+    expect(noeud(c, "g4").genre).toBe("sous-objectif");
   });
 
   it("les branches naissent en alternance, une couleur chacune", () => {
@@ -118,18 +111,35 @@ describe("la feuille de route, dessinée en carte", () => {
     expect(t.ref).toEqual({ kind: "task", uid: "u-t10" });
   });
 
-  it("une tâche faite porte une coche ; une récurrente cochée, jamais", () => {
-    const faite = sources({
-      ...jeu,
-      tasks: [
-        tache({ id: 10, label: "50 setups", goal_id: 3, uid: "u-t10" }),
-        tache({ id: 11, label: "revue du soir", goal_id: 3, recurrence: "daily", uid: "u-t11" }),
-      ],
-      faites: new Set([10, 11]),
-    });
-    const c = carteDObjectif(racine, faite);
-    expect(noeud(c, "t10").texte).toBe("✓ 50 setups");
-    expect(noeud(c, "t11").texte).toBe("revue du soir");
+  // ⚠️ CHANGÉ EXPRÈS le 2026-09-29 (décision F) : « ✓ 50 setups » figeait la
+  // coche dans l'export. La coche est une case de la couche vivante.
+  it("une tâche porte son TITRE seul, jamais de coche dans le texte", () => {
+    const c = carteDObjectif(racine, jeu);
+    expect(noeud(c, "t10").texte).toBe("50 setups");
+  });
+
+  it("⭐ l'habitude qui COMPTE une étape pend sous elle, en nœud-habitude", () => {
+    const comptee = objectif({ id: 5, title: "Méditer 30 jours", parent_goal_id: 1, position: 2, uid: "u-m", count_source: "habit", count_ref_uid: "h-1" });
+    const c = carteDObjectif(
+      racine,
+      sources({ ...jeu, goals: [racine, phase, sous, autre, comptee], habits: [{ id: 1, uid: "h-1", name: "Méditer", color: "x", archived: 0, is_example: 0 }] }),
+    );
+    expect(noeud(c, "h:5")).toMatchObject({ parent: "g5", texte: "Méditer", ref: { kind: "habit", uid: "h-1" } });
+  });
+
+  it("⭐ les positions posées viennent du RÉGLAGE, par identité globale — jamais sur la racine", () => {
+    const positions = { "goal:u-phase": { x: 300, y: -40 }, "task:u-t10": { x: 12, y: 8 }, "goal:u-racine": { x: 5, y: 5 } };
+    const c = carteDObjectif(racine, sources({ ...jeu, positions }));
+    expect(noeud(c, "g2").pos).toEqual({ x: 300, y: -40 });
+    expect(noeud(c, "t10").pos).toEqual({ x: 12, y: 8 });
+    expect(noeud(c, "r").pos).toBeUndefined();
+    expect(noeud(c, "g4").pos).toBeUndefined();
+  });
+
+  it("⭐ glisser ne touche PAS à la feuille de route : mêmes nœuds, même ordre, avec ou sans positions", () => {
+    const sans = carteDObjectif(racine, jeu);
+    const avec = carteDObjectif(racine, sources({ ...jeu, positions: { "goal:u-phase": { x: -500, y: 900 } } }));
+    expect(avec.noeuds.map((n) => [n.id, n.parent])).toEqual(sans.noeuds.map((n) => [n.id, n.parent]));
   });
 
   it("une note rattachée devient un nœud-référence, pas un sous-objectif", () => {
@@ -372,5 +382,63 @@ describe("l'aller et le retour se répondent", () => {
     expect(plan.etapes[0].sousEtapes[0].taches).toEqual([
       { titre: "50 setups", ref: { kind: "task", uid: "u-t10" } },
     ]);
+  });
+});
+
+// ─── Les positions d'une carte d'objectif (2026-09-29) ───────────────────────
+
+describe("les positions d'une carte d'objectif, dans un réglage", () => {
+  it("la clé est par objectif, et elle n'est ni sous `layout.` ni un secret", async () => {
+    const { clePositionsObjectif } = await import("./carte");
+    const { settingSynchronisable } = await import("../sync/scope");
+    const cle = clePositionsObjectif("3f2a9c1e-7b4d-4e0a-9c1f-0a1b2c3d4e5f");
+    expect(cle).toBe("carte.objectif.3f2a9c1e-7b4d-4e0a-9c1f-0a1b2c3d4e5f");
+    expect(settingSynchronisable(cle)).toBe(true);
+  });
+
+  it("aller-retour, clés triées ; une position illisible est ignorée, jamais une erreur", async () => {
+    const { ecrirePositionsObjectif, lirePositionsObjectif } = await import("./carte");
+    const c: Carte = {
+      v: 1,
+      noeuds: [
+        { id: "r", parent: null, texte: "R", ref: { kind: "goal", uid: "g-0" } },
+        { id: "b", parent: "r", texte: "B", ref: { kind: "task", uid: "t-2" }, pos: { x: 3, y: 4 } },
+        { id: "a", parent: "r", texte: "A", ref: { kind: "goal", uid: "g-1" }, pos: { x: 1, y: 2 } },
+        { id: "i", parent: "r", texte: "idée", pos: { x: 9, y: 9 } },
+      ],
+    };
+    const brut = ecrirePositionsObjectif(c);
+    expect(brut).toBe('{"v":1,"pos":{"goal:g-1":{"x":1,"y":2},"task:t-2":{"x":3,"y":4}}}');
+    expect(lirePositionsObjectif(brut)).toEqual({ "goal:g-1": { x: 1, y: 2 }, "task:t-2": { x: 3, y: 4 } });
+    expect(lirePositionsObjectif('{"pos":{"x":{"x":"loin","y":1}}}')).toEqual({});
+    expect(lirePositionsObjectif("pas du json")).toEqual({});
+    expect(lirePositionsObjectif(null)).toEqual({});
+  });
+
+  it("re-dériver garde les replis, les positions locales, et le nœud en saisie", async () => {
+    const { fusionnerCarteObjectif } = await import("./carte");
+    const derivee: Carte = {
+      v: 1,
+      noeuds: [
+        { id: "r", parent: null, texte: "R" },
+        { id: "g1", parent: "r", texte: "Renommée ailleurs" },
+        { id: "g2", parent: "r", texte: "B", pos: { x: 0, y: 0 } },
+      ],
+    };
+    const locale: Carte = {
+      v: 1,
+      noeuds: [
+        { id: "r", parent: null, texte: "R" },
+        { id: "g1", parent: "r", texte: "A", plie: true, pos: { x: 7, y: 7 } },
+        { id: "g2", parent: "r", texte: "B" },
+        { id: "n9", parent: "g1", texte: "en saisie" },
+      ],
+    };
+    const f = fusionnerCarteObjectif(derivee, locale, "n9");
+    expect(f.noeuds.find((n) => n.id === "g1")).toEqual({ id: "g1", parent: "r", texte: "Renommée ailleurs", plie: true, pos: { x: 7, y: 7 } });
+    // « Réorganiser » localement a retiré la position : la locale gagne.
+    expect(f.noeuds.find((n) => n.id === "g2")!.pos).toBeUndefined();
+    expect(f.noeuds.find((n) => n.id === "n9")!.texte).toBe("en saisie");
+    expect(fusionnerCarteObjectif(derivee, locale, null).noeuds.some((n) => n.id === "n9")).toBe(false);
   });
 });

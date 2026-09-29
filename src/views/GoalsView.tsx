@@ -500,7 +500,6 @@ export default function GoalsView({ data, refresh }: Props) {
           racine={goals.find((g) => g.id === enCarte.id) ?? enCarte}
           data={data}
           contexte={contexte}
-          mesures={mesures}
           onFermer={() => setEnCarte(null)}
         />
       )}

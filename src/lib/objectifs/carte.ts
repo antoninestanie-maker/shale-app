@@ -5,9 +5,8 @@ import {
   type Noeud,
   type RefNoeud,
 } from "../carte";
-import { formatNumber, t } from "../i18n";
-import { estRecurrente } from "../taches";
-import type { Goal, LinkKind, Task } from "../types";
+import { t } from "../i18n";
+import type { Goal, Habit, LinkKind, Task } from "../types";
 import type { KindCarte } from "../carte";
 import { rattachementsDe, type ContexteObjectifs } from "./contexte";
 import { uidDeLigne } from "./progression";
@@ -45,16 +44,23 @@ import { etapesTriees } from "./structure";
 export interface SourcesCarte {
   goals: readonly Goal[];
   tasks: readonly Task[];
-  /** Les `task_id` cochés — le calcul reste celui de la vue, jamais refait ici. */
-  faites: ReadonlySet<number>;
   contexte: ContexteObjectifs;
+  /** Les habitudes : une étape comptée par une habitude la montre en feuille. */
+  habits?: readonly Habit[];
   /**
-   * Le pourcentage de chaque objectif, tel que `progression.ts` l'a mesuré.
-   * ⚠️ Une carte ne recalcule RIEN : deux règles de progression finiraient par
-   * donner deux chiffres pour la même étape.
+   * Les positions posées à la main, lues dans le réglage de l'objectif
+   * (`clePositionsObjectif`), par `kind:uid`. Jamais sur les lignes d'objectif.
    */
-  pct: ReadonlyMap<number, number | null>;
+  positions?: Readonly<PositionsObjectif>;
 }
+
+/**
+ * ⚠️ CHANGÉ LE 2026-09-29 (décision F de l'arrêt 1) : le texte d'un nœud est
+ * le TITRE, et rien d'autre. Il portait « · 42 % » et « ✓ » — donc l'export
+ * PNG/SVG d'une carte d'objectif figeait un pourcentage et des coches qui
+ * mentaient dès le lendemain. L'état se dessine désormais dans la couche
+ * vivante de l'éditeur (`carteEtat.ts`, `EtatsVivants.tsx`), jamais dans le SVG.
+ */
 
 /**
  * La feuille de route d'un objectif, en carte mentale.
@@ -69,7 +75,7 @@ export interface SourcesCarte {
  */
 export function carteDObjectif(racine: Goal, s: SourcesCarte): Carte {
   const noeuds: Noeud[] = [
-    { id: RACINE, parent: null, texte: texteObjectif(racine, s), ref: refDe("goal", racine) },
+    { id: RACINE, parent: null, texte: texteObjectif(racine), ref: refDe("goal", racine), genre: "objectif" },
   ];
 
   const etapes = etapesTriees(racine.id, s.goals);
@@ -77,8 +83,9 @@ export function carteDObjectif(racine: Goal, s: SourcesCarte): Carte {
     noeuds.push({
       id: `g${etape.id}`,
       parent: RACINE,
-      texte: texteObjectif(etape, s),
+      texte: texteObjectif(etape),
       ref: refDe("goal", etape),
+      genre: etape.is_milestone ? "phase" : "sous-objectif",
       // Le côté et la teinte sont POSÉS, jamais déduits du rang à l'affichage :
       // c'est ce que fait `lireCarte` pour une carte enregistrée, et ça garde
       // le dessin identique d'une ouverture à l'autre.
@@ -89,8 +96,9 @@ export function carteDObjectif(racine: Goal, s: SourcesCarte): Carte {
       noeuds.push({
         id: `g${sous.id}`,
         parent: `g${etape.id}`,
-        texte: texteObjectif(sous, s),
+        texte: texteObjectif(sous),
         ref: refDe("goal", sous),
+        genre: "sous-objectif",
       });
       noeuds.push(...feuillesDe(sous, `g${sous.id}`, s));
     }
@@ -98,12 +106,36 @@ export function carteDObjectif(racine: Goal, s: SourcesCarte): Carte {
   });
   noeuds.push(...feuillesDe(racine, RACINE, s));
 
+  // Les positions posées à la main, par identité GLOBALE (`kind:uid`) — la
+  // racine n'en porte jamais : elle est l'origine du repère.
+  if (s.positions) {
+    for (const n of noeuds) {
+      if (n.parent === null || !n.ref) continue;
+      const p = s.positions[`${n.ref.kind}:${n.ref.uid}`];
+      if (p) n.pos = { x: p.x, y: p.y };
+    }
+  }
+
   return { v: 1, noeuds };
 }
 
 /** Les tâches et les ressources rattachées à UN objectif, en nœuds-feuilles. */
 function feuillesDe(goal: Goal, parent: string, s: SourcesCarte): Noeud[] {
   const out: Noeud[] = [];
+  // ⭐ L'habitude qui COMPTE cette étape (migration 026, `count_source`) : le
+  // seul chemin qui relie une habitude à un objectif (décision C). Elle se
+  // dessine en feuille de l'étape qu'elle fait avancer.
+  if (goal.count_source === "habit" && goal.count_ref_uid) {
+    const h = (s.habits ?? []).find((x) => uidDeLigne("habit", x) === goal.count_ref_uid);
+    if (h) {
+      out.push({
+        id: `h:${goal.id}`,
+        parent,
+        texte: h.name.trim() || t("Sans titre"),
+        ref: { kind: "habit", uid: goal.count_ref_uid },
+      });
+    }
+  }
   const taches = s.tasks
     .filter((x) => x.goal_id === goal.id)
     .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") || a.id - b.id);
@@ -111,7 +143,7 @@ function feuillesDe(goal: Goal, parent: string, s: SourcesCarte): Noeud[] {
     out.push({
       id: `t${tache.id}`,
       parent,
-      texte: texteTache(tache, s.faites.has(tache.id)),
+      texte: tache.label.trim() || t("Sans titre"),
       ref: refDe("task", tache),
     });
   }
@@ -126,29 +158,86 @@ function feuillesDe(goal: Goal, parent: string, s: SourcesCarte): Noeud[] {
   return out;
 }
 
+/** Le titre, et lui seul (décision F) : le pourcentage vit dans la couche vivante. */
+function texteObjectif(goal: Goal): string {
+  return goal.title.trim() || t("Sans titre");
+}
+
+// ─── Les positions d'une carte d'objectif (2026-09-29) ────────────────────────
+
 /**
- * « Backtester 100 setups · 42 % ».
+ * ⭐ OÙ VIVENT LES POSITIONS D'UNE CARTE D'OBJECTIF — décision B de l'arrêt 1.
  *
- * ⚠️ Le pourcentage passe par `Intl` (`formatNumber`), jamais par un `%` collé à
- * la main : l'espace avant le signe existe en français et pas en anglais
- * (PIEGES § 5.2 bis).
+ * Un réglage par objectif, SYNCHRONISÉ, indexé par l'`uid` des nœuds. Surtout
+ * pas sur les lignes d'objectif : un glisser réécrirait la ligne, et le
+ * last-write-wins écraserait un renommage fait sur l'autre appareil. Et pas
+ * sous `layout.*`, exclu de la synchronisation parce qu'il dépend de l'écran —
+ * ce n'est pas le cas ici, les positions sont LOGIQUES. Vérifié en exécutant
+ * `settingSynchronisable` (rapport de phase 0, § 2.4).
+ *
+ * Le prix, accepté : un seul bloc par objectif, donc LWW sur le bloc — deux
+ * appareils qui déplacent deux nœuds au même instant, l'un des deux gagne.
+ * C'est de la mise en page, jamais une donnée.
  */
-function texteObjectif(goal: Goal, s: SourcesCarte): string {
-  const titre = goal.title.trim() || t("Sans titre");
-  const pct = s.pct.get(goal.id);
-  if (pct == null) return titre;
-  return `${titre} · ${formatNumber(pct / 100, { style: "percent", maximumFractionDigits: 0 })}`;
+export const clePositionsObjectif = (uidObjectif: string) => `carte.objectif.${uidObjectif}`;
+
+export type PositionsObjectif = Record<string, { x: number; y: number }>;
+
+/** Relit le réglage en tolérant n'importe quoi : une position illisible est ignorée, jamais une erreur. */
+export function lirePositionsObjectif(brut: string | null | undefined): PositionsObjectif {
+  if (!brut) return {};
+  try {
+    const o = JSON.parse(brut) as { pos?: Record<string, { x?: unknown; y?: unknown }> };
+    const out: PositionsObjectif = {};
+    for (const [cle, p] of Object.entries(o?.pos ?? {})) {
+      if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) out[cle] = { x: Number(p.x), y: Number(p.y) };
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 /**
- * Une tâche faite porte une coche.
+ * Le réglage à écrire, depuis la carte affichée. Clés TRIÉES : deux écritures
+ * de la même mise en page rendent la même chaîne, et on n'écrit rien (donc
+ * rien dans la file de synchronisation) quand rien n'a bougé.
  *
- * ⚠️ Une tâche RÉCURRENTE n'est jamais « faite » (règle de la feuille de route,
- * `origineEnClair`) : elle ne reçoit donc pas de coche, même cochée aujourd'hui.
+ * ⚠️ Une position ORPHELINE (objet supprimé) disparaît ici à la première
+ * écriture qui suit ; à la lecture, elle est simplement ignorée.
  */
-function texteTache(tache: Task, faite: boolean): string {
-  const nom = tache.label.trim() || t("Sans titre");
-  return faite && !estRecurrente(tache) ? `✓ ${nom}` : nom;
+export function ecrirePositionsObjectif(carte: Carte): string {
+  const pos: PositionsObjectif = {};
+  for (const n of carte.noeuds) {
+    if (n.parent === null || !n.ref || !n.pos) continue;
+    pos[`${n.ref.kind}:${n.ref.uid}`] = n.pos;
+  }
+  const trie = Object.fromEntries(Object.keys(pos).sort().map((k) => [k, pos[k]]));
+  return JSON.stringify({ v: 1, pos: trie });
+}
+
+/**
+ * ⭐ LA CARTE D'OBJECTIF EST RE-DÉRIVÉE À CHAQUE ÉCRITURE — mais ce que
+ * l'utilisateur a fait de la VUE ne doit pas sauter pour autant.
+ *
+ * Après un renommage, une tâche créée, une coche, la feuille de route est
+ * relue et la carte redessinée. On garde de l'écran : les replis, et les
+ * positions posées depuis (l'écriture du réglage est différée). Et le nœud
+ * en cours de saisie (`garder`), qui n'existe pas encore dans les données.
+ */
+export function fusionnerCarteObjectif(derivee: Carte, locale: Carte, garder: string | null): Carte {
+  const parId = new Map(locale.noeuds.map((n) => [n.id, n]));
+  const noeuds: Noeud[] = derivee.noeuds.map((n) => {
+    const l = parId.get(n.id);
+    if (!l) return n;
+    const { plie: _p, pos: _q, ...reste } = n;
+    return { ...reste, ...(l.plie ? { plie: true as const } : {}), ...(l.pos ? { pos: l.pos } : {}) };
+  });
+  if (garder) {
+    const g = parId.get(garder);
+    if (g && g.parent && noeuds.some((n) => n.id === g.parent) && !noeuds.some((n) => n.id === g.id)) noeuds.push(g);
+  }
+  return { ...derivee, noeuds };
 }
 
 /** L'identité d'un objet, pour un nœud-référence (même `uid` que les arêtes). */

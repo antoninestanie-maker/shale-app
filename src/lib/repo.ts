@@ -987,6 +987,25 @@ export async function addHabit(name: string, color: string): Promise<number> {
   return res.lastInsertId ?? 0;
 }
 
+/**
+ * Renomme une habitude, et RIEN d'autre — la carte mentale d'un objectif le
+ * fait quand on renomme un nœud-habitude (2026-09-29). Même garde que
+ * `renommerTache` : un nom vide n'est pas un nom, et renommer à l'identique
+ * n'écrit rien (ni ligne, ni file de synchronisation).
+ */
+export async function renommerHabitude(id: number, nom: string): Promise<void> {
+  const net = nom.trim();
+  if (!net) return;
+  if (!isTauri) {
+    await demo.renommerHabitude(id, net);
+    await adopter("habits", id);
+    return;
+  }
+  const db = await getDb();
+  await db.execute("UPDATE habits SET name = $1 WHERE id = $2 AND name IS NOT $1", [net, id]);
+  await adopter("habits", id);
+}
+
 export async function deleteHabit(id: number): Promise<void> {
   if (!isTauri) return demo.deleteHabit(id);
   const db = await getDb();

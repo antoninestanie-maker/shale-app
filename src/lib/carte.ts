@@ -1198,17 +1198,36 @@ export function rendreSvg(carte: Carte, options: OptionsRendu): string {
     const b = a.boites.get(n.id);
     const p = a.boites.get(n.parent);
     if (!b || !p) continue; // parent replié : ni l'un ni l'autre n'est posé
-    const yP = p.y + p.h / 2;
-    const yB = b.y + b.h / 2;
-    const xP = b.cote === 1 ? p.x + p.w : p.x;
-    const xB = b.cote === 1 ? b.x : b.x + b.w;
-    const dx = (xB - xP) / 2;
+    // ⭐ Un nœud posé À LA MAIN peut se trouver au-dessus ou au-dessous de son
+    // parent, les deux boîtes se chevauchant en largeur. Une arête horizontale
+    // traverserait alors la boîte du parent : elle part du BAS (ou du haut) et
+    // arrive par le haut (ou le bas). Les nœuds rangés automatiquement sont
+    // toujours séparés en largeur — leur tracé est celui d'avant, à l'octet
+    // près (empreintes dorées de `carte.positions.test.ts`).
+    const chevauche = b.x < p.x + p.w && b.x + b.w > p.x;
+    let d: string;
+    if (chevauche) {
+      const dessous = b.y + b.h / 2 >= p.y + p.h / 2;
+      const xP = p.x + p.w / 2;
+      const xB = b.x + b.w / 2;
+      const yP = dessous ? p.y + p.h : p.y;
+      const yB = dessous ? b.y : b.y + b.h;
+      const dy = (yB - yP) / 2;
+      d = `M${xP} ${yP} C${xP} ${yP + dy} ${xB} ${yB - dy} ${xB} ${yB}`;
+    } else {
+      const yP = p.y + p.h / 2;
+      const yB = b.y + b.h / 2;
+      const xP = b.cote === 1 ? p.x + p.w : p.x;
+      const xB = b.cote === 1 ? b.x : b.x + b.w;
+      const dx = (xB - xP) / 2;
+      d = `M${xP} ${yP} C${xP + dx} ${yP} ${xB - dx} ${yB} ${xB} ${yB}`;
+    }
     // L'arête qui MÈNE à un nœud condamné meurt avec lui : la laisser de la
     // couleur de sa branche rattacherait visuellement le sous-arbre rouge au
     // reste de la carte, et on ne verrait plus où la coupure passe.
     const perdue = !!condamnes?.has(n.id);
     morceaux.push(
-      `<path d="M${xP} ${yP} C${xP + dx} ${yP} ${xB - dx} ${yB} ${xB} ${yB}" fill="none" ` +
+      `<path d="${d}" fill="none" ` +
         `stroke="${perdue ? c.peril : c.de(b.couleur)}" stroke-width="${b.profondeur === 1 ? 2.4 : 1.6}" ` +
         `stroke-linecap="round"${perdue ? ' stroke-dasharray="5 4"' : ""} opacity="0.75"/>`,
     );

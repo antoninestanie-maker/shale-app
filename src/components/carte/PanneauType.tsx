@@ -28,6 +28,8 @@ export default function PanneauType(props: {
   noeudId: string;
   /** Les objectifs VIVANTS, lus par l'éditeur. */
   goals: readonly Goal[];
+  /** Carte d'objectif : on AJOUTE un nœud neuf, on ne transforme pas un nœud existant. */
+  ajout?: boolean;
   onFermer: () => void;
   /** L'objet est créé : le nœud devient sa référence. */
   onCree: (ref: RefNoeud, titre: string, genre?: GenreRef) => void;
@@ -103,11 +105,9 @@ export default function PanneauType(props: {
     }
   };
 
-  const titres: Record<TypeDonnable, string> = {
-    etape: t("En faire une étape"),
-    tache: t("En faire une tâche"),
-    habitude: t("En faire une habitude"),
-  };
+  const titres: Record<TypeDonnable, string> = props.ajout
+    ? { etape: t("Ajouter une étape"), tache: t("Ajouter une tâche"), habitude: t("Ajouter une habitude") }
+    : { etape: t("En faire une étape"), tache: t("En faire une tâche"), habitude: t("En faire une habitude") };
   const nomObjectif = (g: Goal) => g.title.trim() || t("Sans titre");
   const champ = "rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-blue focus:outline-none";
 
@@ -235,7 +235,9 @@ export default function PanneauType(props: {
                     : t("L'habitude « {titre} », dans le Journal.", { titre })}
                 </p>
               )}
-              <p className="mt-1.5">{t("Le nœud devient un lien vers cet objet : son titre et son état viendront de lui.")}</p>
+              {!props.ajout && (
+                <p className="mt-1.5">{t("Le nœud devient un lien vers cet objet : son titre et son état viendront de lui.")}</p>
+              )}
             </div>
           </>
         )}

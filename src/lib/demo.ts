@@ -1908,6 +1908,11 @@ export const demo = {
     if (task) task.goal_id = goalId;
   },
 
+  async renommerHabitude(id: number, nom: string): Promise<void> {
+    const h = habits.find((x) => x.id === id);
+    if (h) h.name = nom;
+  },
+
   async renommerTache(taskId: number, label: string): Promise<void> {
     const task = tasks.find((t) => t.id === taskId);
     if (task) task.label = label;
