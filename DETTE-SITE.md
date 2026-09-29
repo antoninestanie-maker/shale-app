@@ -734,3 +734,27 @@ sa fusion.
   avec les brouillons — c'est « mis de côté », pas supprimé.
 - Les trois articles en brouillon parlent de trading ; les republier demandera
   de les relire.
+
+## T — L'IA de Shale Pro (app, chantier `ia-pro` ouvert le 2026-09-29)
+
+⛔ **Rien à publier tant que l'IA n'est pas livrée dans l'app** (règle : une
+promesse n'arrive sur le site qu'après la fonction). Ce qui devra changer, à la
+phase H du chantier, **chaque phrase soumise à Antonin avant d'être écrite** :
+
+- `vitrine/src/views/refonte/Tarifs.astro:32` dit aujourd'hui « Pro n'ajoute pas
+  de fonctions : il ajoute le support prioritaire et l'accès anticipé ». Faux dès
+  la livraison : l'IA devient la première fonction propre à Pro.
+- **Business n'a PAS l'IA** (Antonin, 2026-09-29 : « pas de business pour
+  l'instant, à corriger sur le site »). La carte Business de Tarifs et
+  `Business.astro` doivent le dire sans ambiguïté — Business coûte plus cher que
+  Pro, un visiteur supposera l'inverse.
+- Les phrases sur le chiffrement de bout en bout (`Tarifs.astro:56`,
+  `Business.astro:86`, `Questions.astro:29`) restent vraies pour la
+  synchronisation, mais une mention honnête doit s'ajouter : les fonctions d'IA
+  envoient le texte concerné au fournisseur de modèle le temps de la réponse,
+  sans stockage par Shale.
+- CGV et politique de confidentialité : Anthropic comme sous-traitant (geste
+  d'Antonin, § 10 du cahier des charges).
+- ⚠️ Le cahier des charges cite `SPECS` et `content.json` : `SPECS` n'existe plus
+  dans le site ; les textes vivent dans le dictionnaire i18n et
+  `views/refonte/*.astro`.

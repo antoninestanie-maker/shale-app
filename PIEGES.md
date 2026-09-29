@@ -4036,3 +4036,55 @@ ont poussé la charge de la machine au-delà de 100 et fait expirer les tests de
 volume (`sync/engine.test.ts`, 35 s) des autres sessions. Pour balayer beaucoup
 de jours, boucler **dans un seul test** avec `vi.resetModules()` (§ 30.1 :
 375 jours en 5 s).
+
+# 25. L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29)
+
+## 25.1 Un `timestamptz` passé par `jsonb_build_object` sort dans le fuseau de la SESSION
+
+**Symptôme.** Le test de l'essai Pro attend `resetsAt: "2026-10-20T00:00:00+00:00"`
+et reçoit `"2026-10-20T01:00:00+01:00"` — la même heure, écrite autrement.
+
+**Cause.** `jsonb_build_object('fin_essai', s.trial_ends_at)` sérialise le
+`timestamptz` dans le fuseau `TimeZone` de la session Postgres. PGlite prend
+celui de la machine (Paris) ; Supabase répond en UTC. Le même SQL rend donc
+deux textes selon l'endroit où il tourne — et l'app compare des chaînes.
+
+**Parade.** Ne jamais relayer tel quel un horodatage sorti de Postgres :
+`new Date(x).toISOString()` côté TypeScript (fait dans
+`reinitialisationDe`, `supabase/functions/ai/coeur/limites.ts`, dépôt du site).
+
+**Payé.** 2026-09-29, un test rouge — attrapé avant tout déploiement.
+
+## 25.2 Le cache de prompt ne fait RIEN sur Haiku 4.5 sous 4 096 jetons — sans erreur
+
+**Symptôme.** `cache_control` est posé sur le prompt système, la requête passe,
+et `usage.cache_read_input_tokens` reste à 0 à chaque appel.
+
+**Cause.** Le préfixe minimum cachable dépend du modèle : **4 096 jetons pour
+Haiku 4.5**, 1 024 pour `claude-sonnet-5`, 512 pour les plus récents. En
+dessous, l'API ignore le marqueur en silence (ni erreur, ni surcoût). Un prompt
+système de fonction Shale fait quelques centaines de jetons.
+
+**Parade.** Garder le marqueur (il ne coûte rien et servira sur un modèle au
+seuil plus bas), mais **ne compter aucune économie de cache** dans les calculs
+de coût tant que le prompt reste court. Le constater sur
+`cache_read_input_tokens`, jamais le supposer.
+
+**Payé.** Rien encore — relevé dans la référence de l'API pendant l'audit de la
+phase 0, avant d'écrire un calcul qui l'aurait supposé.
+
+## 25.3 L'outil imposé (`tool_choice`) casse en changeant de modèle
+
+**Symptôme (évité).** Une fonction qui force sa sortie JSON par
+`tool_choice: {type: "tool"}` marche sur Haiku 4.5 et `claude-sonnet-5`, puis
+renvoie **400** le jour où `ai_config.model` passe à `claude-sonnet-5-5`.
+
+**Cause.** Les modèles les plus récents (Sonnet 5.5, Opus 5.5, Fable 5.1)
+refusent `tool_choice` `any` / `tool`. Même famille : `thinking:
+{type: "disabled"}` est accepté par `claude-sonnet-5`, **refusé** par
+`claude-sonnet-5-5` (qui veut `between_tools`).
+
+**Parade.** Sortie par `output_config.format` (JSON Schema), accepté par tous
+les modèles en service ; et le réglage de réflexion dans `ai_config.thinking`,
+à changer **avec** `model`. Un test (`serveur.test.ts`, « changer de modèle et
+de réflexion ») le garde.

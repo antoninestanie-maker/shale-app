@@ -1570,3 +1570,37 @@ remplace Productivité par les trois items du site. »
 endroit qui montre Finance lit `presenceModule` / `afficheModule`, pas la
 constante (sauf sans accès aux droits, comme pour le trading).
 
+
+
+### 11.z Le 2026-09-29 — l'IA de Shale Pro (chantier en cours : phase A faite)
+
+Cahier des charges : `~/Desktop/Prompt en attente/prompt/PROMPT-IA-PRO.md`
+(phases 0, A à H, avec des arrêts obligatoires). Audit et réponses d'Antonin :
+`~/Desktop/Shale-chantiers/AUDIT-IA-PRO.md`. Décisions : `CLAUDE.md`, section
+datée. Pièges : `PIEGES.md` § 25.
+
+**Où en est-on.**
+
+| Phase | État |
+|---|---|
+| 0 — audit | ✅ validé par Antonin le 2026-09-29 (Business SANS IA ; recommandations retenues) |
+| A — serveur | ✅ écrit et testé, ⛔ **non déployé** — en attente de validation |
+| B à H | pas commencées |
+
+**Ce qui existe (dépôt du SITE, branche `chantier/ia-pro`, non poussée)** :
+`supabase/migrations/008_ia.sql` (tables `ai_config`, `ai_usage`, `ai_events`,
+fonctions `ai_offre`, `ai_reserver`, `ai_regler`, `ai_purger_evenements`) et
+`supabase/functions/ai/` (entrée Deno `index.ts` + cœur `coeur/`, une seule
+fonction servie : `resumer`). **Côté app (branche `chantier/ia-pro`)** : les
+tests seulement, `src/lib/ia/serveur.sql.test.ts` et `serveur.test.ts`
+(42 tests). Aucun écran, aucune migration SQLite, aucun Rust.
+
+**⚠️ Le checkout principal du site est sur `chantier/ia-pro`**, pas sur
+`sync-chiffree` — c'est lui que lisent les tests PGlite de l'app. À remettre sur
+`sync-chiffree` à la fusion.
+
+**Pour mettre en service (après accord d'Antonin)** : jouer la 008 (répétée
+d'abord sur le banc), déployer `ai` avec `--no-verify-jwt`, qu'Antonin pose
+**lui-même** `ANTHROPIC_API_KEY` dans Supabase → Edge Functions → Secrets, poser
+`AI_GLOBAL_MONTHLY_BUDGET_USD`, puis un premier appel réel (`index.ts` n'a jamais
+tourné : pas de Deno sur ce Mac).

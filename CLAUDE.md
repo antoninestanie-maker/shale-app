@@ -6918,3 +6918,75 @@ module Trading sera retiré avant le lancement ») ; elle est exécutée ici.
   prend pas le focus (PIEGES § 29.1). Elle repart « moyenne » après chaque
   ajout. `ChoixPriorite` (trois boutons) dans les fenêtres et le menu d'étape.
 
+## 2026-09-29 — L'IA de Shale Pro : le serveur (chantier `ia-pro`, phase A)
+
+**Le cahier des charges** : `~/Desktop/Prompt en attente/prompt/PROMPT-IA-PRO.md`.
+**L'audit et les réponses d'Antonin** : `~/Desktop/Shale-chantiers/AUDIT-IA-PRO.md`.
+Shale Pro reçoit des fonctions d'IA rédigées par Claude, avec une **clé Shale**
+que l'utilisateur ne voit jamais. Trois principes : le local calcule, le modèle
+rédige ; l'IA propose, l'utilisateur dispose (rien n'est écrit sans validation) ;
+IA désactivée par défaut, consentement explicite, rien de conservé par Shale.
+
+**Où vit le serveur : dans le dépôt du SITE**, pas ici —
+`shale-site/supabase/migrations/008_ia.sql` et `shale-site/supabase/functions/ai/`.
+Ses **tests vivent ICI** (`src/lib/ia/serveur*.test.ts`), comme ceux des autres
+migrations Supabase : l'app a vitest et PGlite, le site non. Ils lisent le code du
+site par le lien `../shale-site` → **le checkout principal du site**. ⚠️ Écrire la
+partie serveur dans un worktree du site la rendrait invisible aux tests.
+
+**Pourquoi un cœur TypeScript pur et une entrée Deno de quarante lignes** : ce
+Mac n'a ni Deno, ni Docker, ni la CLI Supabase installée. `coeur/` ne dépend de
+rien (réseau, base, horloge, clé, journal injectés) et se teste sous Node ;
+`index.ts` branche seulement Deno. ⚠️ Conséquence : `index.ts` n'a **jamais été
+exécuté**. Premier geste du déploiement : un appel réel.
+
+**Décisions, et pourquoi :**
+
+- **Sortie JSON par `output_config.format`, pas par un outil imposé.** Le prompt
+  d'origine demandait `tool_choice` ; il renvoie 400 sur `claude-sonnet-5-5`,
+  alors qu'`ai_config` existe précisément pour changer de modèle sans republier
+  (PIEGES § 25.3). Validé par Antonin (audit, Q3).
+- **`ai_config.thinking`** (jsonb, envoyé tel quel ou omis) : « pas de réflexion »
+  s'écrit `disabled` sur `claude-sonnet-5` et `between_tools` sur
+  `claude-sonnet-5-5`. Le réglage suit le modèle, donc il vit à côté de lui.
+- **Le payload est validé AVANT la réservation**, pas après comme dans l'ordre du
+  cahier des charges : un payload faux ne réserve rien. Seul effet : un compte à
+  court de quota qui envoie un payload faux lit `bad_payload`.
+- **Réserver puis régler** (`ai_reserver` / `ai_regler`), pas « vérifier puis
+  décompter » : quota, débit et budget global sont contrôlés ET l'action retenue
+  dans UNE transaction, sous verrou de la ligne du compte. Deux requêtes
+  simultanées ne passent pas toutes les deux sur la dernière action. Un appel qui
+  ne rend rien (sortie invalide, refus, panne) **rend l'action** mais **garde son
+  coût** — Anthropic l'a facturé.
+- **Période `essai`** : l'essai Pro a UN compteur de 60 actions pour tout l'essai.
+  Au mois, un essai à cheval sur deux mois aurait eu deux quotas.
+- **Business n'a PAS l'IA** (Antonin, 2026-09-29 : « pas de business pour
+  l'instant ») : `ai_offre` ne rend que Pro payé et essai Pro en cours. `past_due`
+  ne passe pas (même règle qu'`is_active`).
+- **Fermée par défaut** : sans `AI_GLOBAL_MONTHLY_BUDGET_USD` lisible, tout est
+  `ai_paused` ; sans `ANTHROPIC_API_KEY`, tout est `ai_unavailable`. Les dix-neuf
+  fonctions de la V1 sont inscrites **éteintes** dans `ai_config`.
+- **Le journal ne reçoit que `{code, feature, userId}`** — ni payload, ni réponse,
+  ni message d'erreur (un message peut porter un morceau de réponse). Un test y
+  cherche un texte secret après tous les chemins d'échec.
+- **Le corps d'une erreur Anthropic n'est jamais lu** : il peut citer le prompt.
+- **Purge des 90 jours par tirage** (une requête sur cent) : `pg_cron` n'est pas
+  garanti sur tous les plans Supabase.
+
+⚠️ **Règle pour les phases suivantes, venue de l'audit** : `tauri.conf.json` a
+`"csp": null`. Une sortie de modèle insérée en HTML dans la WebView (réécriture,
+résumé, brief) serait une XSS avec accès à l'IPC Tauri. **Le modèle rend du texte
+ou des structures, jamais du HTML ; c'est le client qui construit le HTML, en
+échappant.** Le socle du prompt le demande aussi, mais ce n'est pas lui la
+protection.
+
+**Ajouter une fonction côté serveur** : une `DefFonction` dans
+`coeur/fonctions.ts` (payload avec `lang`, sortie BORNÉE, prompt `"1"`,
+consigne construite sans texte libre du client), la ligne `ai_config` (présente
+pour la V1), un test. **Changer un prompt** = ajouter une version, puis basculer
+`ai_config.prompt_version`. **Changer de modèle** = `update public.ai_config set
+model = …, thinking = … where feature = …` — rien à redéployer.
+
+Vérifié : 42 tests (`src/lib/ia/`), dont une contre-épreuve (sans ses `revoke`,
+la migration laisse un compte client lire la config — le banc le voit), tsc,
+test:types, i18n, build. **Rien n'est déployé** : ni la 008, ni la fonction.
