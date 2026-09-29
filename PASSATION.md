@@ -770,9 +770,14 @@ rm -rf src-tauri/target/aarch64-apple-ios        # 624 Mo
 rm -rf src-tauri/gen/apple/Externals             # 465 Mo
 rm -rf src-tauri/gen/apple/build                 # 109 Mo
 rm -rf ~/Library/Developer/Xcode/DerivedData/*   # 198 Mo
-npm cache clean --force && rm -rf ~/.npm/_npx    # 2,7 Go
+npm cache clean --force && rm -rf ~/.npm/_npx    # 2,7 Go — ⚠️ voir ci-dessous
 git gc --prune=now                               # dans les deux dépôts
 ```
+
+⚠️ **`~/.npm/_npx` n'est jetable que si RIEN ne tourne dessus** (vu le
+2026-09-30) : les serveurs MCP lancés par `npx` (ici cinq `mcp-pdf-server`)
+s'exécutent DEPUIS ce dossier. `ps -Ao command | grep _npx` avant ; s'il rend
+quelque chose, laisser `_npx` et le cache npm.
 
 ⚠️ **`gen/apple` n'est PAS jetable en entier.** Seuls `Externals/` et `build/`
 le sont : les **20 autres fichiers sont suivis par git et édités à la main** —
