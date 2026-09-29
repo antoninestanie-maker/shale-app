@@ -590,7 +590,9 @@ Chantier « connexion seule » (décision d'Antonin du 2026-09-26). Nouveau
 gardes `IS_IOS` du paywall et du mur **nommaient encore shaleapp.com** — c'était
 une incitation (`PIEGES.md` § 23.1). Tests : `boutique.test.ts` et
 `ios-sans-achat.test.ts` (écrans rendus sous user-agent iPhone et Mac, vérifiés
-non vacants). Ligne de base verte : 1513 tests. Tout est dans `MOBILE.md` § 25.
+non vacants). Ligne de base verte : 1513 tests. Simulateur : compte abonné et
+écran de connexion **vus** ; compte sans abonnement **pas vu** (disque plein,
+`PIEGES.md` § 23.3), couvert par le test de rendu. Tout est dans `MOBILE.md` § 25.
 
 ### 11.x Le 2026-09-26 — le filet contre l'écran blanc, et les dépendances
 

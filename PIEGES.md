@@ -3432,3 +3432,23 @@ rendu échoue alors que le bouton est bien là.
 Rendre en `react-dom/server` sous `environment: "node"` suffit pour lire un
 écran : pas besoin de happy-dom tant que le composant ne touche pas au DOM au
 rendu (`createPortal` le fait — d'où l'intérêt que `UpgradeModal` sorte AVANT).
+
+## 23.3 ⛔ Un second build iOS dans un worktree remplit le disque — et sort en code 0
+
+**Symptôme.** Le build iOS « Finished » dans le journal, `echo $?` rend 0, mais
+`gen/apple/build/arm64-sim/` est VIDE. Juste après, toute commande échoue sur
+« no space left on device ».
+
+**Cause.** Chaque worktree a son propre `src-tauri/target` : un build iOS de
+simulateur y pèse **3,7 Go**. Avec ~4 Go libres, le second build de la session a
+rempli le disque au moment d'archiver `libshale_lib.a` (« os error 28 »,
+`ARCHIVE FAILED`) — et `tauri ios build` a quand même rendu 0 (même famille que
+le piège du `rm -rf` sans préfixe, `MOBILE.md` § 12).
+
+**Parade.** `df -h /` AVANT un build iOS ; **exiger 8 Go libres**. Juger un
+build au contenu de `arm64-sim/`, jamais au code de sortie ; `grep -i "error"`
+dans le journal. Après la session, supprimer le `src-tauri/target` du worktree
+(régénérable). ⚠️ Disque plein = l'app Mac d'Antonin ne peut plus écrire sa base.
+
+**Payé.** 2026-09-29 : le parcours « compte sans abonnement » n'a pas pu être vu
+au simulateur (`MOBILE.md` § 25.5).

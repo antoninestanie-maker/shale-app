@@ -3000,3 +3000,26 @@ compte a été confirmé avant — à vérifier en s'y connectant une fois.
 règle (3.1.1, « and their metadata ») : aucune capture ne doit montrer un écran
 d'offre, aucune ligne de description ne doit citer un prix ou renvoyer au site
 pour s'abonner.
+
+### 25.5 Le parcours au simulateur — ce qui a été VU, et ce qui ne l'a pas été (2026-09-29)
+
+| Parcours | Où | Résultat |
+|---|---|---|
+| Compte abonné → app | iPhone 17, session réelle d'Antonin, build du jour | ✅ entrée directe sur Aujourd'hui ; feuille « Plus » sans aucun cadenas ni entrée « Admin » ; **Réglages → compte : l'e-mail et « Compte actif », aucun nom d'offre, aucun lien** |
+| Écran de connexion | iPhone 17 Pro (appareil vide), build du jour, config de production | ✅ e-mail, mot de passe, « Mot de passe oublié ? », « Rester connecté », « Se connecter » — **et plus de « Créer un compte »** |
+| Compte sans abonnement → message neutre | — | ⛔ **pas vu au simulateur.** Il faut un compte sans abonnement ; le build de contrôle prévu (mode démo patché) a échoué faute de place disque (`PIEGES.md` § 23.3). **Couvert** par `ios-sans-achat.test.ts`, qui rend le VRAI composant sous user-agent iPhone et exige : le constat, aucun motif interdit, et « Se déconnecter » pour seul bouton |
+
+⚠️ Ce parcours a été fait **sans déconnecter** la session réelle du simulateur
+iPhone 17 : se déconnecter aurait demandé à Antonin de se reconnecter.
+⚠️ `simctl install` a de nouveau **changé de conteneur** (`PIEGES.md` § 9.10) :
+l'ancien (`939CAB67…`, 16 notes, 6 tâches, une seule écriture en attente — un
+compteur de temps d'écran, exclu de la synchro) a disparu. Copie prise AVANT :
+`shale-backups/simulateur-iphone17-conteneur-939CAB67-20260929/` (disque
+externe, `integrity_check` ok). Le conteneur redevenu actif est celui du
+2026-08-27 (17 notes, 45 tâches).
+
+▶️ **À faire au premier compte sans abonnement disponible** (un compte de test
+créé sur le site, jamais abonné) : se connecter avec lui sur le simulateur et
+regarder l'écran. Ce qui doit s'y trouver : le logo, « Shale », « Connecté en
+tant que … », « Aucun abonnement actif n'est associé à ce compte. », et
+« Se déconnecter » — rien d'autre.
