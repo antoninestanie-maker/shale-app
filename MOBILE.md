@@ -3023,3 +3023,21 @@ créé sur le site, jamais abonné) : se connecter avec lui sur le simulateur et
 regarder l'écran. Ce qui doit s'y trouver : le logo, « Shale », « Connecté en
 tant que … », « Aucun abonnement actif n'est associé à ce compte. », et
 « Se déconnecter » — rien d'autre.
+
+### 25.6 Le compte de démonstration pour Apple : un compte « Shale » classique, sans clé LLM (2026-09-29)
+
+Décidé avec Antonin. **Pas de Shale Trade, pas de clé Gemini/Groq** :
+- le module Trading sera retiré avant le lancement ;
+- les clés LLM ne se synchronisent pas (`market.*_key` est exclu dans
+  `sync/scope.ts`, elles vivent au trousseau de l'appareil) : le testeur ne les
+  aurait de toute façon pas sur son iPhone ;
+- un compte Trade montrerait donc Market Brain **sans clé**, un écran qui a
+  l'air cassé — motif de refus 2.1 ;
+- une clé personnelle confiée à des inconnus peut être consommée à ses frais.
+
+Abonnement recommandé : accordé **à la main** par SQL dans Supabase (à préparer
+sur demande), plutôt que payé ou en essai de 7 jours — l'essai expirerait
+pendant une vérification de mise à jour.
+
+L'aide-mémoire d'Antonin (étapes, fiche App Store, note au testeur) est **hors
+dépôt** : `~/Desktop/Shale-projet/administratif/App Store iPhone/`.
