@@ -11,6 +11,7 @@ import {
   type TrackerSettings,
 } from "../lib/repo";
 import { captureShortcutLabel, IS_IOS, kbd } from "../lib/platform";
+import { COMMERCE_AUTORISE } from "../lib/boutique";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
 import {
   chargerAnimationEntree,
@@ -434,7 +435,13 @@ export default function SettingsView() {
                   ('trialing', 'none'…) ne veut rien dire pour l'utilisateur :
                   il n'a rien souscrit et n'a rien à souscrire. On annonce ce
                   qui est vrai — il a tout. */}
-              {!STRIPE_ENABLED
+              {/* Sur iOS : ni nom d'offre, ni périodicité, ni « essai en
+                  cours » — l'app iPhone ne parle pas de ce qui s'achète
+                  (`lib/boutique.ts`, règle 3.1.3(f)). Arriver jusqu'ici
+                  suffit à prouver que le compte est actif. */}
+              {!COMMERCE_AUTORISE
+                ? t("Compte actif")
+                : !STRIPE_ENABLED
                 ? t("Accès complet")
                 : subscription
                   ? [
@@ -449,7 +456,7 @@ export default function SettingsView() {
                     ].join(" · ")
                   : t("Session locale")}
             </p>
-            {!hasTrading && (
+            {!hasTrading && COMMERCE_AUTORISE && (
               <button
                 type="button"
                 onClick={() => openExternal(ACCOUNT_PAGES.home)}

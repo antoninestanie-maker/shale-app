@@ -24,7 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 
-import { isTradingView } from "../lib/features";
+import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { libelleProfil, moduleVisible, type ProfilEffectif } from "../lib/licence/resoudre";
 import { getLang, t } from "../lib/i18n";
 import type { UiConfig } from "../lib/uiConfig";
@@ -75,7 +75,12 @@ export default function MobileNav({
   onLocked,
 }: Props) {
   const [plusOuvert, setPlusOuvert] = useState(false);
-  const isLocked = (id: View) => !hasTrading && isTradingView(id);
+  // Sur iOS — c'est-à-dire toujours, pour cette barre-ci — un module hors
+  // palier n'est pas verrouillé mais ABSENT de la feuille « Plus » : pas de
+  // cadenas, pas de paywall (`lib/boutique.ts`, règle 3.1.3(f)). `isLocked`
+  // reste pour une barre d'onglets qui servirait un jour hors iOS.
+  const isLocked = (id: View) => presenceModule(id, hasTrading) === "verrouille";
+  const existe = (id: View) => presenceModule(id, hasTrading) !== "absent";
 
   // La feuille se referme dès qu'on a navigué : sans ça, revenir en arrière la
   // laisserait ouverte par-dessus la vue qu'on vient de demander.
@@ -159,7 +164,9 @@ export default function MobileNav({
   };
 
   // — La feuille « Plus » : tous les modules, groupés par catégorie —
-  const visibles = config.modules.filter((m) => m.visible && BY_ID.has(m.id));
+  const visibles = config.modules.filter(
+    (m) => m.visible && BY_ID.has(m.id) && existe(m.id),
+  );
   const horsCategorie = visibles.filter((m) => !CATEGORY_OF[m.id]);
 
   const ligne = (id: View) => {
@@ -231,7 +238,7 @@ export default function MobileNav({
                 des trois à être réservée. Un compte non-administrateur perdait
                 donc l'écran qui règle l'ordre et la visibilité des modules. */}
             <section className="mt-4 border-t border-border pt-2">
-              {ITEMS_PIED.filter((it) => isAdmin || !it.adminSeul).map((it) =>
+              {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
                 ligne(it.id),
               )}
             </section>

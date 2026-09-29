@@ -964,8 +964,10 @@ export const EN: Record<string, string> = {
   "Mot de passe modifié.": "Password changed.",
   "Modification impossible.": "Could not save the change.",
   "Connecté en tant que": "Signed in as",
+  "Compte actif": "Active account",
+  "Ce compte n'est pas encore activé.": "This account is not activated yet.",
+  "Aucun abonnement actif n'est associé à ce compte.": "No active subscription is linked to this account.",
   "Gérer mon abonnement": "Manage my subscription",
-  "Ton compte se gère sur shaleapp.com.": "Manage your account at shaleapp.com.",
   "mode démo": "demo mode",
 
   // ── Personnaliser (admin UI) ──────────────────────────────────────────────
@@ -1332,8 +1334,6 @@ export const EN: Record<string, string> = {
   "Plus tard": "Later",
   "Le changement d'offre est immédiat, et tes données restent intactes.":
     "The switch takes effect immediately, and your data stays untouched.",
-  "Shale Trade se gère depuis ton compte sur shaleapp.com.":
-    "Shale Trade is managed from your account at shaleapp.com.",
   "essai en cours": "trial running",
   "offre simulée (démo)": "simulated plan (demo)",
   // Argumentaire du paywall (lib/features.ts)

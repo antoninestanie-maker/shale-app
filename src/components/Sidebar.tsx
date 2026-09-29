@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UiConfig } from "../lib/uiConfig";
 import { getSetting, setSetting } from "../lib/repo";
-import { isTradingView } from "../lib/features";
+import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { libelleProfil, type ProfilEffectif } from "../lib/licence/resoudre";
 import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
@@ -334,8 +334,14 @@ export default function Sidebar({
 }: Props) {
   /** Libellé d'une clé i18n : celui du profil de licence s'il en impose un. */
   const libelle = (cle: string) => (profil && libelleProfil(profil, cle, getLang())) || t(cle);
-  /** Verrouillé = module trading sur une offre qui ne l'inclut pas. */
-  const isLocked = (id: View) => !hasTrading && isTradingView(id);
+  /**
+   * Verrouillé = module trading sur une offre qui ne l'inclut pas — cadenas et
+   * paywall, sur macOS. Sur iOS (iPad : c'est cette barre-ci qu'il reçoit), le
+   * même module est ABSENT : un cadenas y serait une incitation à acheter
+   * (`lib/boutique.ts`, règle 3.1.3(f)).
+   */
+  const isLocked = (id: View) => presenceModule(id, hasTrading) === "verrouille";
+  const existe = (id: View) => presenceModule(id, hasTrading) !== "absent";
   // — État replié/déplié des catégories (persisté) —
   // Défaut au premier lancement : seule la catégorie de la vue active est ouverte
   // (à défaut, la première).
@@ -509,7 +515,9 @@ export default function Sidebar({
 
       <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-2 lg:px-3">
         {(() => {
-          const visible = config.modules.filter((m) => m.visible && BY_ID.has(m.id));
+          const visible = config.modules.filter(
+            (m) => m.visible && BY_ID.has(m.id) && existe(m.id),
+          );
           const uncategorized = visible.filter((m) => !CATEGORY_OF[m.id]);
           return (
             <>
@@ -596,7 +604,7 @@ export default function Sidebar({
 
       <div className="mt-auto border-t border-border pt-3">
         <nav className="flex flex-col gap-0.5 px-3">
-          {ITEMS_PIED.filter((it) => isAdmin || !it.adminSeul).map((it) =>
+          {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
             navButton(it.id, t(it.label), it.icon),
           )}
         </nav>

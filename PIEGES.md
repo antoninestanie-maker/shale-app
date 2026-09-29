@@ -3396,3 +3396,39 @@ de Vite dit : `Failed to load url /src/lib/X.ts … Does the file exist?`.
 **Parade.** Relancer le serveur. L'arrêter par les PID exacts de `npm exec vite`
 et de son enfant (`pgrep -P`), jamais par motif. Lire le journal de Vite AVANT
 de soupçonner le code.
+
+# 23. App Store — l'app iPhone qui ne vend rien (2026-09-29)
+
+## 23.1 ⛔ Une « mention neutre » qui NOMME le site est une incitation
+
+**Symptôme.** La branche `mobile-ios` portait déjà des gardes `IS_IOS` sur le
+paywall et le mur d'abonnement, commentées « aucun CTA de paiement (règle
+3.1.1) ». Elles remplaçaient le bouton par un texte non cliquable :
+« Ton compte se gère sur shaleapp.com. », « Shale Trade se gère depuis ton
+compte sur shaleapp.com. » — sous le titre « Abonnement requis ».
+
+**Cause.** La règle qui s'applique (3.1.3(f)) interdit l'achat dans l'app
+**et** « calls to action for purchase outside of the app ». Un titre
+« abonnement requis » + l'adresse du site EST un appel à acheter ailleurs, lien
+ou pas. Et le cadenas, le bandeau d'essai, le lien de Réglages et
+l'inscription n'étaient pas gardés du tout.
+
+**Parade.** `src/lib/boutique.ts` décide seul (`COMMERCE_AUTORISE`), et un
+compte sans abonnement reçoit un CONSTAT : « Aucun abonnement actif n'est
+associé à ce compte. » + déconnexion. Ni nom d'offre, ni site, ni « revérifier ».
+`ios-sans-achat.test.ts` rend les écrans et refuse `shaleapp`, `formule`,
+`Shale Trade`, etc. (`MOBILE.md` § 25).
+
+**Payé.** Rien encore — trouvé à l'audit avant toute soumission. C'est le motif
+de refus le plus courant de l'App Store.
+
+## 23.2 `renderToStaticMarkup` échappe l'apostrophe : `&#x27;`
+
+**Symptôme.** Un test qui cherche `"J'ai souscrit — revérifier"` dans le HTML
+rendu échoue alors que le bouton est bien là.
+
+**Parade.** Décoder `&#x27;` et `&amp;` avant de comparer (fait dans
+`boutons()` de `ios-sans-achat.test.ts`), ou chercher la forme échappée.
+Rendre en `react-dom/server` sous `environment: "node"` suffit pour lire un
+écran : pas besoin de happy-dom tant que le composant ne touche pas au DOM au
+rendu (`createPortal` le fait — d'où l'intérêt que `UpgradeModal` sorte AVANT).

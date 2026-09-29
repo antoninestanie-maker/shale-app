@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
 import { abonnementHorsLigne, estActive, hasAccess, palierDe } from "./access";
+import { COMMERCE_AUTORISE } from "../boutique";
 import { deposerMotDePasse, viderSas } from "../sync/sas";
 import { t } from "../i18n";
 import {
@@ -338,9 +339,13 @@ export function useAuth(): AuthState {
       // sans Stripe il n'y a rien à vendre, donc la liste d'invités redevient
       // le seul mur, et ce message redevient exactement le bon.
       if (!STRIPE_ENABLED && !estActive(sub)) {
-        const msg = t(
-          "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
-        );
+        // Sur iOS, le constat seul : « écris-nous depuis le site » y serait un
+        // renvoi hors de l'app vers ce qui ouvre l'accès (`lib/boutique.ts`).
+        const msg = COMMERCE_AUTORISE
+          ? t(
+              "Ce compte n'est pas encore activé. L'accès à Shale est ouvert compte par compte — écris-nous depuis le site pour demander le tien.",
+            )
+          : t("Ce compte n'est pas encore activé.");
         setError(msg);
         // Efface jeton + méta : rien ne doit pouvoir rouvrir hors ligne. Et le
         // mot de passe déposé pour la synchronisation part avec — il n'y a

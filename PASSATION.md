@@ -359,6 +359,18 @@ plus.
 ligne `trialing`, et la vue `my_subscription` **recalcule le statut à chaque
 lecture** — reculer l'horloge de sa machine ne prolonge rien.
 
+### ⭐ Sur iPhone, l'app ne vend RIEN (décision du 2026-09-26, codée le 2026-09-29)
+
+Apple ne prélève aucune commission : tout se paie sur le site, l'app iOS ne
+sert qu'à **se connecter** à un compte déjà abonné (règle App Store 3.1.3(f)).
+**Un seul module décide** : `src/lib/boutique.ts` (`COMMERCE_AUTORISE`, faux sur
+iPhone et iPad). Sur iOS : pas d'inscription, pas d'offre ni de prix, pas de
+bandeau d'essai, pas de paywall, pas de cadenas (un module hors palier est
+**absent**), « Compte actif » dans Réglages, et un compte sans abonnement ne
+voit que « Aucun abonnement actif n'est associé à ce compte. » + déconnexion.
+**macOS est inchangé.** Détail, tableau surface par surface et note à coller
+dans App Store Connect : `MOBILE.md` § 25.
+
 ### Les profils de licence sur devis (2026-09-13)
 
 Un compte peut recevoir du serveur un **profil signé** qui masque, réordonne et
@@ -396,6 +408,10 @@ l'écran, rien ne change pour personne.
 - **Le clavier** : ouvrir le clavier ne change PAS `innerHeight` sur iPhone
   (`PIEGES.md` § 7.4 bis). **Au doigt, glisser et défiler sont le même geste**
   (§ 7.4 ter) — c'est la contrainte qui décide de la plupart des interactions.
+- **L'app iOS est « connexion seule »** depuis le 2026-09-29 : aucune vente,
+  aucune incitation, aucune inscription (§ 9, `MOBILE.md` § 25). La question
+  « achats intégrés contre Stripe » est **tranchée** : ni l'un ni l'autre dans
+  l'app.
 - ⚠️ **Ne JAMAIS lancer `simctl uninstall` ni `simctl erase`.** Et
   `simctl install` par-dessus une app existante **peut provisionner un NOUVEAU
   conteneur** et faire disparaître l'ancien : deux notes non synchronisées ont
@@ -565,6 +581,17 @@ les pièges dans `PIEGES.md` § 16, l'iPhone dans `MOBILE.md` § 23, le site dan
 
 ---
 
+### 11.x Le 2026-09-29 — l'app iPhone ne vend rien
+
+Chantier « connexion seule » (décision d'Antonin du 2026-09-26). Nouveau
+`src/lib/boutique.ts` ; gardes posées dans `LoginScreen`, `SubscriptionRequired`,
+`AuthGate` (bandeau d'essai), `UpgradeModal`, `App.tsx` (navigation),
+`Sidebar`, `MobileNav`, `SettingsView`, `AdminView`, `useAuth`. Les anciennes
+gardes `IS_IOS` du paywall et du mur **nommaient encore shaleapp.com** — c'était
+une incitation (`PIEGES.md` § 23.1). Tests : `boutique.test.ts` et
+`ios-sans-achat.test.ts` (écrans rendus sous user-agent iPhone et Mac, vérifiés
+non vacants). Ligne de base verte : 1513 tests. Tout est dans `MOBILE.md` § 25.
+
 ### 11.x Le 2026-09-26 — le filet contre l'écran blanc, et les dépendances
 
 | Date | Chantier |
@@ -595,6 +622,7 @@ attend une décision d'Antonin, un achat, ou une machine.
 | ⛔ **Windows n'a jamais été compilé** | le code est sur le tronc, audité ; la compilation croisée depuis macOS est **impraticable** (essayée, tranchée, avec preuve) | une machine, une VM ou un runner CI. ⚠️ **Ne pas re-litiger ce point.** Publier = déposer `Shale_x64-setup.exe` dans `vitrine/public/telechargements/` et renseigner `config.exeWindows` |
 | **Certificat Authenticode Windows** | sans lui, SmartScreen avertit à chaque installation | ~200–400 €/an |
 | **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
+| **Compte de démonstration pour Apple** | la relecture App Store l'exige : un compte **abonné**, adresse dédiée, créé sur le site ; e-mail et mot de passe saisis dans App Store Connect → « Sign-in information », **jamais dans le dépôt**. La note de relecture à coller est prête (`MOBILE.md` § 25.4) | quelques minutes, et un abonnement (ou une activation manuelle) |
 | **Achat réel Pro / Business** | le tunnel est en ligne, **aucun achat de bout en bout n'a été fait** sur ces deux offres | un vrai paiement, remboursé ensuite |
 | **Ménage du DerivedData Xcode** | proposé, **sans réponse**. Quatre bundles iOS traînent. Les effacer force une reconstruction complète | un mot |
 | ~~**Le disque est plein**~~ | ✅ **RÉGLÉ le 2026-09-18** : le disque est passé de **8,2 Go à 28 Go de libre** (67 % → 37 % d'occupation). Voir § 13.6 pour ce qui a été supprimé et ce que ça coûte de le refaire | — |

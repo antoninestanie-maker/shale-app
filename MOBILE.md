@@ -575,6 +575,9 @@ donnerait deux apps différentes à documenter, à tester et à montrer sur le s
 
 #### ⚠️ Ce que les deux offres déclenchent côté App Store, et qui est nouveau
 
+> ⭐ **Réglé le 2026-09-29 — § 25** : sur iOS, un module hors palier n'est plus
+> « verrouillé » mais **absent** — ni cadenas, ni paywall.
+
 Aujourd'hui `STRIPE_ENABLED = false` : tout est déverrouillé, `entitlementsOf`
 renvoie `shale_trade` à tout le monde, et la question dort.
 
@@ -670,6 +673,10 @@ Autrement dit : le point fort revendiqué du produit et la condition d'admission
 erreur.
 
 ### 7.2 Abonnements
+
+> ⭐ **TRANCHÉ le 2026-09-26 — § 25.** Ni achats intégrés, ni lien de paiement :
+> l'app iPhone est « connexion seule » (règle 3.1.3(f)). Ce qui suit est
+> l'état de la question AVANT la décision.
 
 `STRIPE_ENABLED = false` (`src/lib/auth/config.ts:100`) cesse d'être un
 interrupteur pour devenir une décision structurante : achats intégrés Apple,
@@ -2868,3 +2875,128 @@ et sans repli puisque le pincement ne zoome pas sur cette scène (§ 18.5).
   `visualViewport`, § 16 de `PIEGES.md`) — invérifiable hors appareil.
 - Le simulateur reste **déconnecté** depuis le 2026-09-02 : seul un geste
   d'Antonin le rouvre (`PASSATION.md` § 5.1).
+
+---
+
+## 25. L'app iPhone ne vend rien — « connexion seule » (2026-09-29)
+
+**Décision d'Antonin, 2026-09-26.** Shale sera sur l'App Store iOS **sans qu'Apple
+prélève de commission** : tout se paie sur le site (Stripe, `shaleapp.com`), et
+l'app iPhone ne sert qu'à **se connecter** à un compte déjà abonné. Le module
+Trading sera supprimé avant le lancement (chantier séparé) ; d'ici là, il ne
+doit en rester **aucune trace commerciale** sur iOS.
+
+Cette section **tranche la question ouverte du § 7.2 et du § 17.5** (achats
+intégrés contre Stripe) : ni achats intégrés, ni lien de paiement. Ce qui reste
+du compte PAYANT Apple (99 $/an) ne dépend plus que du push silencieux et de la
+publication elle-même.
+
+### 25.1 La règle, relue à la source le 2026-09-29
+
+<https://developer.apple.com/app-store/review/guidelines/> — la page ne porte
+pas de date de mise à jour. Ce qui compte ici :
+
+- **3.1.3(f) Free Stand-alone Apps** — une app gratuite, compagnon autonome d'un
+  outil web payant (« VoIP, Cloud Storage, Email Services, Web Hosting »), n'a
+  pas besoin de l'achat intégré **« provided there is no purchasing inside the
+  app, or calls to action for purchase outside of the app »**. C'est notre base.
+- **3.1.3 (chapeau)** — les apps de cette section ne peuvent pas, dans l'app,
+  encourager un autre moyen de paiement… **sauf sur la vitrine États-Unis**, où
+  Apple tolère désormais boutons et liens externes (3.1.1(a) le dit aussi).
+  ⚠️ On ne s'en sert PAS : l'app est une seule et même app dans tous les pays,
+  et la règle la plus stricte est la seule qui vaille partout. Si un jour on
+  veut un lien « Gérer mon abonnement » réservé aux États-Unis, c'est
+  `lib/boutique.ts` qui s'ouvrira — et nulle part ailleurs.
+- **3.1.3(b) Multiplatform Services** — NE s'applique PAS : elle exige que ce qui
+  s'achète ailleurs soit **aussi** proposé en achat intégré.
+- **3.1.1** — « apps **and their metadata** » : la fiche App Store (description,
+  captures, mots-clés) est tenue à la même règle que l'app. Pas de prix, pas de
+  « abonnez-vous sur shaleapp.com » dans la description.
+- **5.1.1(v)** — « If your app supports account creation, you must also offer
+  account deletion within the app ». D'où le retrait de l'inscription sur iOS :
+  la garder aurait imposé la suppression de compte dans l'app.
+
+⚠️ **Le risque qui reste, et il n'est pas de code** : les exemples de 3.1.3(f)
+sont des services d'infrastructure. Une app de productivité **peut** se voir
+opposer qu'elle « déverrouille des fonctionnalités » (3.1.1). La note de relecture
+(§ 25.4) est écrite pour ça : elle présente Shale comme un service web dont
+l'app est un accès, pas comme une app dont le web vend le déblocage.
+
+### 25.2 Le code — un seul module décide
+
+`src/lib/boutique.ts` : `COMMERCE_AUTORISE` (faux sur iPhone ET iPad, `IS_IOS`
+couvrant l'iPad « bureau »), `presenceModule()` et `joursEssaiAffiches()`.
+**Ne jamais tester `IS_IOS` pour une question commerciale** — le module est le
+seul point de réouverture.
+
+| Surface | macOS | iOS |
+|---|---|---|
+| `LoginScreen` | connexion + inscription | connexion + « mot de passe oublié » ; **pas d'inscription**, aucun texte de remplacement |
+| `SubscriptionRequired` (compte sans abonnement) | « Choisir ma formule » / « Gérer mon abonnement », revérifier | **« Aucun abonnement actif n'est associé à ce compte. »** + « Se déconnecter », rien d'autre |
+| Bandeau d'essai (`AuthGate`) | jours restants + « Choisir ma formule » | **jamais** |
+| `UpgradeModal` | argumentaire + « Passer à Shale Trade » | **ne rend rien** (filet) |
+| Module trading hors palier (barre latérale iPad, feuille « Plus », navigation) | cadenas + paywall | **absent**, comme un module masqué par le profil |
+| Réglages → compte | nom d'offre · périodicité · lien « Passer à Shale Trade » | **« Compte actif »**, aucun lien |
+| Personnaliser → textes (dont « abonnement requis ») | présent | **absent** |
+| Console (chiffres d'abonnement, MRR) | admin | **absente**, et `navigate("console")` ignoré |
+| Compte non activé (Stripe éteint) | « … écris-nous depuis le site » | « Ce compte n'est pas encore activé. » |
+| Palette ⌘K | actions trading filtrées par `hasTrading` | idem — déjà sans paywall |
+
+Le texte éditable `subRequiredBody` (« Souscris sur le site… ») n'est **jamais**
+utilisé sur iOS : un texte que n'importe qui peut réécrire dans Personnaliser ne
+peut pas porter une condition d'admission à l'App Store.
+
+### 25.3 Les tests qui le verrouillent
+
+- `src/lib/boutique.test.ts` — la règle pure, la détection (iPhone, iPad, iPad
+  « bureau », Mac, Windows), et **un filet de source** : tout fichier qui vise
+  `ACCOUNT_PAGES.home`/`.signup` ou `ACCOUNT_URL` doit importer la boutique.
+- `src/components/auth/ios-sans-achat.test.ts` — **rend les vrais écrans** sous
+  un user-agent d'iPhone puis de Mac (`react-dom/server`, sans DOM) et lit le
+  HTML : aucun motif interdit (€, tarif, formule, essai, Shale Trade/Pro,
+  shaleapp, `<a`, inscription…), et la liste EXACTE des boutons.
+  ⚠️ Vérifié non vacant : règle neutralisée (`return true`), **6 tests
+  rouges** ; rétablie, verts.
+
+### 25.4 ▶️ À coller dans App Store Connect — « Notes » de la relecture
+
+*(App Store Connect → l'app → la version → section « App Review Information » →
+champ « Notes ». Le compte de démonstration se saisit dans les deux champs
+« Sign-in information » juste au-dessus — **jamais ici, jamais dans le dépôt**.)*
+
+> Shale is a productivity service (tasks, calendar, notes, journal, goals,
+> personal finance) sold exclusively on our website, shaleapp.com. The iOS app
+> is a free companion that lets existing customers sign in to the account they
+> already have and access their own data, which is end-to-end encrypted and
+> synced from the web and desktop versions.
+>
+> Under guideline 3.1.3(f), the app contains no in-app purchase, no prices, no
+> plan names, no links or buttons to our website's purchase pages, and no
+> call to action to buy outside the app. Account creation is not available in
+> the app: accounts are created on the website. A signed-in user without an
+> active subscription only sees a neutral message and a sign-out button.
+>
+> A demo account with an active subscription is provided in the Sign-in
+> information fields. It works immediately; no confirmation email is needed.
+
+Version française, pour mémoire (la relecture se fait en anglais) :
+
+> Shale est un service de productivité vendu uniquement sur notre site,
+> shaleapp.com. L'app iOS est un compagnon gratuit qui permet aux clients
+> existants de se connecter au compte qu'ils ont déjà. Conformément à la règle
+> 3.1.3(f), l'app ne contient ni achat intégré, ni prix, ni nom d'offre, ni lien
+> vers nos pages d'achat, ni incitation à acheter hors de l'app. La création de
+> compte n'existe pas dans l'app. Un compte sans abonnement actif ne voit qu'un
+> message neutre et un bouton de déconnexion. Un compte de démonstration abonné
+> est fourni dans les champs prévus.
+
+⚠️ **Le compte de démonstration, gestes d'Antonin** : le créer sur le site avec
+une adresse dédiée (pas la sienne), l'abonner (ou l'activer à la main), vérifier
+qu'il ouvre l'app sur le Mac, puis saisir e-mail et mot de passe dans App Store
+Connect. ⚠️ La phrase « no confirmation email is needed » n'est vraie que si le
+compte a été confirmé avant — à vérifier en s'y connectant une fois.
+
+⚠️ **La fiche de l'App Store** (description, sous-titre, captures) suit la même
+règle (3.1.1, « and their metadata ») : aucune capture ne doit montrer un écran
+d'offre, aucune ligne de description ne doit citer un prix ou renvoyer au site
+pour s'abonner.

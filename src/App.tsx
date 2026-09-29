@@ -11,6 +11,7 @@ import Sidebar, { MODULE_LABELS, type View } from "./components/Sidebar";
 import { SyncProvider } from "./components/SyncProvider";
 import TooltipLayer from "./components/Tooltip";
 import UpgradeModal from "./components/UpgradeModal";
+import { COMMERCE_AUTORISE, presenceModule } from "./lib/boutique";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
@@ -226,7 +227,13 @@ function App() {
       // vendre : il n'existe pas pour ce compte. Pas de paywall, pas de
       // message — la demande (poignée ↗, action ⌘K, mention) est ignorée.
       if (!moduleVisible(profil, v)) return;
-      if (!hasTrading && isTradingView(v)) {
+      // Sur iOS, un module hors palier est ABSENT, pas à vendre : même traitement
+      // que ci-dessus, aucun paywall (`lib/boutique.ts`, règle 3.1.3(f)). Idem
+      // pour la Console, qui affiche des chiffres d'abonnement.
+      if (!COMMERCE_AUTORISE && v === "console") return;
+      const presence = presenceModule(v, hasTrading);
+      if (presence === "absent") return;
+      if (presence === "verrouille") {
         setPaywallFor(v);
         return;
       }

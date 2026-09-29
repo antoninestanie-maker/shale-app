@@ -4,7 +4,7 @@ import { ACCOUNT_PAGES } from "../../lib/auth/config";
 import type { Subscription } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
-import { IS_IOS } from "../../lib/platform";
+import { COMMERCE_AUTORISE } from "../../lib/boutique";
 import ShaleMark from "./ShaleMark";
 import { mesurerMarque } from "../../lib/entree/signal";
 
@@ -60,6 +60,45 @@ export default function SubscriptionRequired({
   // sans abonnement : l'utilisateur a déjà tout vu, il sait ce qu'il achète.
   const expired = subscription?.status === "expired";
 
+  // ── iOS : app « connexion seule » (`lib/boutique.ts`, règle 3.1.3(f)) ──────
+  //
+  // Un compte sans abonnement actif reçoit un CONSTAT, pas une orientation :
+  // ni nom d'offre, ni statut « essai terminé », ni lien, ni bouton hormis la
+  // déconnexion. Même « J'ai souscrit — revérifier » est retiré : il sous-entend
+  // qu'il faut aller souscrire ailleurs. Le texte éditable de Personnaliser
+  // (`subRequiredBody`) n'est PAS utilisé ici : il dit « Souscris sur le site »,
+  // et un texte que n'importe qui peut réécrire ne peut pas porter une
+  // contrainte d'admission à l'App Store.
+  //
+  // `error` est gardé : c'est le motif d'un échec de lecture (réseau, serveur),
+  // qui n'a rien de commercial et sans lequel l'écran mentirait.
+  if (!COMMERCE_AUTORISE) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg px-6">
+        <div className="w-full max-w-md text-center">
+          <div ref={marque} className="mb-6 flex flex-col items-center">
+            <ShaleMark size={48} />
+            <h1 className="mt-4 text-xl font-bold tracking-tight text-text">Shale</h1>
+          </div>
+          <div className="card p-6 text-left">
+            <p className="text-sm text-text-dim">
+              {t("Connecté en tant que")} <span className="text-text">{email}</span>.
+            </p>
+            <p className="mt-3 text-sm text-text">
+              {error ?? t("Aucun abonnement actif n'est associé à ce compte.")}
+            </p>
+          </div>
+          <button
+            onClick={onSignOut}
+            className="pill mt-5 w-full border border-border bg-surface-2 py-2.5 text-sm text-text transition-colors hover:border-blue/50"
+          >
+            {t("Se déconnecter")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen items-center justify-center bg-bg px-6">
       <div className="w-full max-w-md text-center">
@@ -89,22 +128,13 @@ export default function SubscriptionRequired({
             </p>
           )}
 
-          {/* Sur iOS : aucun mécanisme d'achat ni CTA de paiement dans l'app
-              (règle App Store 3.1.1) — mention neutre du compte, non
-              actionnable. Le bouton externe reste inchangé sur macOS. */}
-          {IS_IOS ? (
-            <p className="pill mt-5 flex w-full items-center justify-center gap-2 border border-border bg-surface-2 py-2.5 text-center text-sm text-text-dim">
-              {t("Ton compte se gère sur shaleapp.com.")}
-            </p>
-          ) : (
-            <button
-              onClick={() => openExternal(ACCOUNT_PAGES.home)}
-              className="pill mt-5 flex w-full items-center justify-center gap-2 fill-primary py-2.5 text-sm font-semibold"
-            >
-              {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
-              <IconExternal className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            onClick={() => openExternal(ACCOUNT_PAGES.home)}
+            className="pill mt-5 flex w-full items-center justify-center gap-2 fill-primary py-2.5 text-sm font-semibold"
+          >
+            {expired ? t("Choisir ma formule") : t("Gérer mon abonnement")}
+            <IconExternal className="h-4 w-4" />
+          </button>
           <button
             onClick={recheck}
             disabled={busy}

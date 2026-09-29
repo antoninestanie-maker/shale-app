@@ -6346,3 +6346,45 @@ Rust du même greffon, et monter l'un sans l'autre se découvre au build natif.
 Les deux se montent ensemble (`npm update @tauri-apps/…` + `cargo update -p
 tauri-plugin-…`) le jour d'un build.
 
+
+## 2026-09-29 — L'app iPhone ne vend rien (« connexion seule »)
+
+**Décision d'Antonin, 2026-09-26** : Shale sera sur l'App Store iOS **sans
+commission Apple**. Tout se paie sur le site (Stripe) ; l'app iPhone ne sert qu'à
+se connecter à un compte déjà abonné. Base : règle **3.1.3(f)** « Free
+Stand-alone Apps » — pas d'achat dans l'app, **et pas d'appel à acheter hors de
+l'app**. Relue à la source le 2026-09-29 (texte cité dans `MOBILE.md` § 25.1).
+
+**Pourquoi un module et pas des `IS_IOS` épars** : `src/lib/boutique.ts`
+(`COMMERCE_AUTORISE`, `presenceModule`, `joursEssaiAffiches`) est le seul
+endroit qui répond « l'app peut-elle vendre ici ? ». La règle Apple bouge
+(vitrine États-Unis, UE) : le jour où elle se rouvre, c'est là et nulle part
+ailleurs. Un test de source échoue si un fichier vise l'espace compte du site
+sans passer par la boutique.
+
+**Pourquoi « absent » et pas « verrouillé »** : sur iOS, un module trading hors
+palier disparaît (barre iPad, feuille « Plus », navigation, palette), traité
+comme un module masqué par un profil de licence. Un cadenas « Inclus dans Shale
+Trade » est une publicité pour un achat.
+
+**Pourquoi pas d'inscription** : un compte créé dans l'app n'a pas d'abonnement,
+donc mène à un achat hors de l'app ; et 5.1.1(v) exigerait alors la suppression
+de compte dans l'app. Aucun texte ne la remplace — « crée ton compte sur le
+site » serait lui-même l'incitation interdite.
+
+**Pourquoi le mur n'a plus de « revérifier » ni de texte éditable** : « J'ai
+souscrit — revérifier » sous-entend d'aller souscrire ; `subRequiredBody` dit
+« Souscris sur le site » et se réécrit dans Personnaliser — un texte modifiable
+par n'importe qui ne peut pas porter une condition d'admission.
+
+⚠️ **Les gardes iOS antérieures étaient elles-mêmes fautives** : elles
+remplaçaient le bouton par « Ton compte se gère sur shaleapp.com. » sous le titre
+« Abonnement requis ». Nommer le site sous un titre pareil EST l'appel à acheter
+ailleurs (`PIEGES.md` § 23.1).
+
+**macOS strictement inchangé** — verrouillé par les tests de non-régression de
+`ios-sans-achat.test.ts`. Le module Trading sera supprimé avant le lancement
+(chantier séparé) : `presenceModule` deviendra alors sans objet, pas faux.
+
+Vérifié : tsc, test:types, 1513 tests, i18n:check, build. Parcours simulateur :
+voir `MOBILE.md` § 25.5.

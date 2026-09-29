@@ -16,6 +16,7 @@ import { useEntree, VoileEntree } from "./EntryTransition";
 import { mesurerMarque } from "../../lib/entree/signal";
 import { openExternal } from "../../lib/auth/external";
 import { ACCOUNT_PAGES, STRIPE_ENABLED } from "../../lib/auth/config";
+import { joursEssaiAffiches } from "../../lib/boutique";
 import { ProfilProvider } from "../../lib/licence/useProfil";
 
 import { t, tp } from "../../lib/i18n";
@@ -242,10 +243,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   // `entitlementsOf` serait le bon appel, mais `entitlements.ts` importe
   // `useSession` d'ici : le cycle d'imports rendrait ce module fragile pour un
   // gain nul, la question tenant en un booléen.
-  const trialDays =
-    STRIPE_ENABLED && auth.subscription?.status === "trialing"
-      ? (auth.subscription.trial_days_left ?? null)
-      : null;
+  //
+  // ⚠️ Et sur iOS, jamais — même avec Stripe allumé : un compte à rebours d'essai
+  // flanqué de « Choisir ma formule » est exactement l'appel à acheter hors de
+  // l'app que la règle 3.1.3(f) interdit (`lib/boutique.ts`).
+  const trialDays = joursEssaiAffiches(auth.subscription, STRIPE_ENABLED);
 
   /**
    * ⚠️ `children` — c'est-à-dire toute l'app — n'est rendu QUE dans les états

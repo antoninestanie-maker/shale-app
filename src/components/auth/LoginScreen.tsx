@@ -4,6 +4,7 @@ import { ACCOUNT_PAGES, AUTH_CONFIGURED } from "../../lib/auth/config";
 import { sendPasswordReset } from "../../lib/auth/supabase";
 import { openExternal } from "../../lib/auth/external";
 import { useAppTexts } from "../../lib/appTexts";
+import { COMMERCE_AUTORISE } from "../../lib/boutique";
 import ShaleMark from "./ShaleMark";
 import { mesurerMarque } from "../../lib/entree/signal";
 
@@ -265,7 +266,16 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
 
         {/* L'inscription se fait ici, dans l'app. Elle renvoyait vers le site :
             un aller-retour par le navigateur pour revenir taper les mêmes
-            identifiants, alors que GoTrue expose le même endpoint aux deux. */}
+            identifiants, alors que GoTrue expose le même endpoint aux deux.
+
+            ⚠️ SAUF SUR iOS, où elle n'existe pas (`lib/boutique.ts`) : l'app
+            iPhone ne fait qu'OUVRIR un compte créé et abonné sur le site. Une
+            inscription ici serait (1) un chemin vers un compte sans abonnement,
+            donc vers un achat hors de l'app — 3.1.3(f) — et (2) l'obligation
+            d'offrir la suppression de compte dans l'app — 5.1.1(v). Aucun texte
+            ne la remplace : « crée ton compte sur le site » serait lui-même un
+            appel à acheter ailleurs. */}
+        {COMMERCE_AUTORISE && (
         <p className="entree-part mt-5 text-center text-sm text-text-dim">
           {signingUp ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <button
@@ -275,6 +285,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
             {signingUp ? t("Se connecter") : t("Créer un compte")}
           </button>
         </p>
+        )}
 
         {!AUTH_CONFIGURED && (
           <p className="entree-part mt-6 text-center text-xs text-text-dim opacity-70">

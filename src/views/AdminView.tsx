@@ -12,6 +12,7 @@ import {
   IconReset,
 } from "../components/icons";
 import { IS_IOS } from "../lib/platform";
+import { COMMERCE_AUTORISE } from "../lib/boutique";
 import { isTauri } from "../lib/repo";
 import {
   applyZoom,
@@ -238,7 +239,10 @@ export default function AdminView({ config, save, profil }: Props) {
       </section>
 
       </ResizablePanel>
-      {/* Textes de l'app (commercial) */}
+      {/* Textes de l'app (commercial). Absent sur iOS : ce panneau fait
+          réécrire « abonnement requis — texte », et l'app iPhone n'affiche
+          de toute façon aucun de ces textes commerciaux (`lib/boutique.ts`). */}
+      {COMMERCE_AUTORISE && (
       <ResizablePanel id="admin-texts" defaultW={12}>
       <section className="card p-5">
         <h2 className="hud-label">{t("textes")}</h2>
@@ -283,6 +287,7 @@ export default function AdminView({ config, save, profil }: Props) {
         </div>
       </section>
       </ResizablePanel>
+      )}
       {/* Fenêtre & densité */}
       <ResizablePanel id="admin-window" defaultW={12}>
       <section className="card p-5">
