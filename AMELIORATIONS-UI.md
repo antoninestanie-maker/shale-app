@@ -574,3 +574,16 @@ c'est voulu ou à venir :
   rouvre sur le premier de la liste.
 - **Réordonner les objectifs RACINES à la main** : l'ordre reste horizon puis
   échéance, groupé par catégorie.
+
+## Écarté des retours d'Antonin du 2026-09-29 au soir (typer d'un clic, supprimer pour de bon)
+
+- **Demander la cible d'une habitude au moment du typage** : 30 jours par
+  défaut, réglables dans la feuille de route — une question de plus était
+  exactement la fenêtre qu'Antonin ne voulait plus.
+- **Supprimer la note (ou le bloc de carte) emporte ses objets** : non. Une
+  note n'est pas ses objets, et sa corbeille la rend telle quelle ; ses nœuds
+  typés redeviennent des liens morts si leurs objets partent plus tard.
+- **« Idée — retirer le type » supprime l'objet** : non, c'est son sens même —
+  libérer le nœud en gardant l'objet. Pour supprimer les deux : « Supprimer ».
+- **Emporter un objectif RACINE cité** : jamais depuis une carte — ce n'est pas
+  un morceau d'objectif, c'est l'objectif ; il se supprime dans Objectifs.

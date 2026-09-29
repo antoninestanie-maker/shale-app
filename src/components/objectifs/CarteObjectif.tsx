@@ -13,8 +13,8 @@ import {
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { uidDeLigne } from "../../lib/objectifs/progression";
 import { peutAjouterEtape } from "../../lib/objectifs/structure";
-import { genresPour } from "../../lib/objectifs/typage";
-import { typerEnEtape, typerEnTache } from "../../lib/objectifs/typer";
+import { CIBLE_HABITUDE_PAR_DEFAUT, genresPour, premierAccueil } from "../../lib/objectifs/typage";
+import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
 import { ouvrirObjet } from "../../lib/naviguer";
 import {
   deleteLink,
@@ -26,7 +26,7 @@ import {
 } from "../../lib/repo";
 import type { AppData, Goal } from "../../lib/types";
 import EditeurCarte, { type EnfantObjectif, type GestesObjectif } from "../carte/EditeurCarte";
-import { jeter } from "../corbeille/geste";
+import { jeterPlusieurs, type Jete } from "../corbeille/geste";
 
 /**
  * ⭐ La feuille de route d'un objectif, en carte mentale — ÉDITABLE depuis le
@@ -110,7 +110,13 @@ export default function CarteObjectif(props: {
       // Les MÊMES écritures que le typage d'un nœud de note (`typer.ts`) : une
       // étape en dernier rang, une tâche rattachée — et `sb:data-changed`.
       if (type === "tache") await typerEnTache(titre, parent);
-      else await typerEnEtape(titre, parent, type === "phase" ? "jalon" : "sous-objectif", data.goals);
+      else if (type === "habitude") {
+        // Sans panneau depuis le 2026-09-29 : la cible prend sa valeur par
+        // défaut, et se change dans la feuille de route (« Atteindre un nombre »).
+        const sous = premierAccueil(parent, "sous-objectif", data.goals);
+        if (!sous) return;
+        await typerEnHabitude(titre, { sous, cible: CIBLE_HABITUDE_PAR_DEFAUT }, data.goals);
+      } else await typerEnEtape(titre, parent, type === "phase" ? "jalon" : "sous-objectif", data.goals);
     },
     renommer: async (ref, titre) => {
       const nom = titre.trim();
@@ -128,7 +134,18 @@ export default function CarteObjectif(props: {
         if (id == null) return;
         // Le chemin NORMAL de l'app (règle 18) : la corbeille, son toast et son
         // « Annuler ». Un objectif qui a des étapes les emporte en un seul lot.
-        await jeter(ref.kind as KindCorbeille, id, titre, signaler);
+        const elements: (Jete & { titre: string })[] = [{ kind: ref.kind as KindCorbeille, id, titre }];
+        // ⭐ Une habitude emporte l'étape qui la COMPTAIT (retour d'Antonin,
+        // 2026-09-29 : rien ne doit « rester après ») — sans elle, l'étape ne
+        // mesurerait plus rien et resterait là, « source introuvable ».
+        if (ref.kind === "habit") {
+          for (const g of data.goals) {
+            if (g.count_source === "habit" && g.count_ref_uid === ref.uid && g.parent_goal_id != null) {
+              elements.push({ kind: "goal", id: g.id, titre: g.title });
+            }
+          }
+        }
+        await jeterPlusieurs(elements, signaler);
         return;
       }
       // ⭐ Décision E : une note, une fiche, un événement RATTACHÉS ne sont pas

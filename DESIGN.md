@@ -798,6 +798,12 @@ forme** — jamais l'état. L'état est une couche HTML par-dessus le SVG.
 Les pastilles d'état s'accrochent au coin haut-droit de la boîte (bordure,
 `text-[10px]`), `pointer-events-none` : elles ne volent jamais le glisser.
 
+**Le menu « Type » d'un nœud** (depuis le 2026-09-29 au soir) : Idée, Phase,
+Sous-objectif, Tâche, Habitude — icônes crayon, dossier, cible, coche, flamme —
+les mêmes entrées que l'ajout d'un enfant dans la carte d'un objectif. Un clic
+crée ; la confirmation d'après vit dans l'en-tête de l'éditeur (`text-success`,
+5 s), jamais dans une fenêtre.
+
 ✅ **La vue Objectifs reprend ce tableau depuis la phase D (2026-09-29)** : dans
 la feuille de route, l'icône précède le titre — dossier (`IconFolder`, en
 `text-text`) pour une phase, cible (`IconTarget`, en `text-text-dim`) pour un

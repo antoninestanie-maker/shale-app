@@ -3637,6 +3637,29 @@ l'aide de toucher elle-même (`tel.mjs` du chantier).
 
 **Payé.** 2026-09-29, deux parcours à rejouer.
 
+## 24.13 ⭐ Un toast VISIBLE au-dessus d'un éditeur plein écran, mais INERTE
+
+**Symptôme.** On supprime un nœud dans une carte mentale (ou dans la carte d'un
+objectif) : le toast « … est dans Supprimés récemment · Annuler » s'affiche
+bien, par-dessus l'éditeur — et « Annuler » ne répond pas au clic. Il ne
+répondait pas davantage au clavier.
+
+**Cause.** L'hôte global des toasts est rendu par `App.tsx`, donc DANS `#root`.
+Les éditeurs plein écran (`EditeurCarte`, `SketchPad`) posent `inert` sur
+`#root` pour garder le clavier chez eux (§ 18.1). `z-[90]` le fait passer
+au-dessus visuellement (l'éditeur est en `z-[75]`) ; `inert`, lui, ne regarde pas
+le `z-index` : tout ce qui vit sous `#root` est mort au pointeur. Livré ainsi
+avec la carte d'objectif éditable, le soir même — les preuves de restauration
+passaient par la vue « Supprimés récemment », jamais par le toast.
+
+**Parade.** L'hôte global est porté sur `document.body` (`createPortal`), hors
+de `#root`. Règle générale : **tout ce qui doit rester cliquable pendant un
+éditeur modal vit hors de `#root`** — l'éditeur lui-même, ses menus, et les
+toasts qu'il provoque. Vérifier par `elementFromPoint` au centre du bouton ET
+`bouton.closest("[inert]")` — l'un sans l'autre ne prouve rien.
+
+**Payé.** 2026-09-29, trouvé en câblant la suppression qui emporte l'objet.
+
 # 26. Timer — horloge à volets et fenêtre séparée (2026-09-29)
 
 ## 26.1 ⚠️⚠️ Une API de fenêtre Tauri sans SA permission échoue en silence — et un `catch` la rend invisible

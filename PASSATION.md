@@ -1218,6 +1218,29 @@ Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
 - ⚠️ Deux appareils qui déplacent deux nœuds de la même carte d'objectif au même
   instant : l'un des deux déplacements est perdu (last-write-wins sur le réglage).
 
+**Retours d'Antonin après essai (2026-09-29, 23 h), faits le soir même.**
+- **Typer d'un clic** : le menu « Type » propose Idée, Phase, Sous-objectif,
+  Tâche, Habitude et crée l'objet sans fenêtre ; une ligne dans l'en-tête de la
+  carte dit où il est allé. Seul reste un choix « sous quel objectif ? » quand
+  aucun objectif n'est au-dessus du nœud. Habitude rattachée : 30 jours par
+  défaut, réglables dans la feuille de route.
+- **Supprimer un nœud typé emporte son objet** (tâche, habitude, étape, et
+  l'étape qui comptait une habitude) dans « Supprimés récemment », en un toast ;
+  « Annuler » et ⌘Z rendent objets ET nœuds. Jamais une note, une fiche, un
+  événement, ni un objectif racine cité.
+- **Le toast « Annuler » était inerte** sous tout éditeur plein écran — porté
+  hors de `#root` (`PIEGES.md` § 24.13).
+- ✅ Prouvé en démo (Chrome) : les quatre typages directs sans dialogue et leur
+  ligne d'en-tête ; le choix d'objectif pour une carte libre ; la suppression
+  d'une phase qui emporte sa tâche, son habitude et l'étape qui la comptait
+  (« … et 3 éléments ») ; « Annuler » cliquable (`inert` absent, au premier
+  plan) qui rend tout ; ⌘Z, ⌘⇧Z, ⌘Z ; dans la carte d'objectif, une habitude
+  créée sans panneau puis supprimée avec son étape ; en anglais, rien ne manque.
+  `planDirect` (7 tests) et `objetsEmportes` (7 tests) : sept mutations vues
+  rouges. Ligne de base sans le patch de démo (23:51) : `tsc`, `test:types`,
+  `i18n:check` (2233 : 19 phrases de l'ancien panneau retirées), `i18n:durs`
+  (0), build Vite, vitest **1600 / 1600**.
+
 **Ce qui reste.** Essayer à la main dans l'app installée (Antonin n'a rien pu
 essayer en démo — arrêt 2). iPhone : `MOBILE.md` § 26, dont la vue Objectifs à
 390 pt. Site : `DETTE-SITE.md` entrée S (captures Objectifs à régénérer).

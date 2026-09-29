@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
 import CommandPalette from "./components/CommandPalette";
@@ -725,7 +726,15 @@ function App() {
           </FiletErreur>
         </div>
       </div>
-      <Toast toast={toastGlobal} onClose={fermerToast} duration={toastGlobal?.duree ?? 4500} />
+      {/* ⚠️ PORTAIL SUR <body>, HORS de #root (2026-09-29). Les éditeurs plein
+          écran (carte mentale, croquis) posent `inert` sur #root : le toast y
+          restait VISIBLE (z-90, au-dessus d'eux) mais INERTE — son « Annuler »
+          ne répondait pas au clic. Supprimer un nœud depuis une carte, puis
+          vouloir annuler, tombait exactement là (PIEGES § 24.13). */}
+      {createPortal(
+        <Toast toast={toastGlobal} onClose={fermerToast} duration={toastGlobal?.duree ?? 4500} />,
+        document.body,
+      )}
     </div>
     </SyncProvider>
   );

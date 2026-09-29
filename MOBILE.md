@@ -3070,9 +3070,14 @@ seulement). Ce qui est VU, ce qui est seulement SUPPOSÉ — séparés.*
    « Sous-nœud » / « Nœud voisin » de la barre existent, mais la saisie du nom
    ouvre le clavier logiciel au-dessus d'une carte qui ne se recadre pas sur lui
    (`visualViewport` non écouté par l'éditeur).
-4. **Le typage au doigt** : « Actions » → « Type » → panneau. ⌥T n'existe pas.
-   Le panneau est centré dans l'éditeur, non plafonné à 78vh : vérifier qu'il ne
-   passe pas sous la barre d'onglets (§ 18.4 de `PIEGES.md`).
+4. **Le typage au doigt** : « Actions » → « Type » → le type — créé d'un toucher
+   depuis le 2026-09-29 au soir, sans panneau. ⌥T n'existe pas. Le panneau ne
+   reste que pour « sous quel objectif ? » (aucun objectif au-dessus du nœud) :
+   plafonné à 78vh, jamais vu au doigt. La ligne qui dit où l'objet est allé
+   vit dans l'en-tête de l'éditeur, 5 s : vérifier qu'elle tient à 390 pt.
+10. **Supprimer un nœud typé emporte son objet** (2026-09-29 au soir) : le
+    toast « Annuler » vit désormais hors de `#root` (PIEGES § 24.13) — le
+    vérifier au-dessus de la barre d'onglets pendant qu'une carte est ouverte.
 5. **La case d'une tâche dans la carte** : 18 px posés sur l'icône, SOUS le
    zoom de la scène — à 50 % de zoom (plancher tactile), elle fait 9 px : trop
    petite pour un doigt. À mesurer, probablement à agrandir sous `pointer: coarse`.

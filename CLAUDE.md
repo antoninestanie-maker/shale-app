@@ -6549,6 +6549,44 @@ d'`App.tsx`) : la liste montrait tout, la fiche n'en montre qu'un — sans cela
 une mention d'objectif, ou « En faire un objectif », arrivait devant le premier
 objectif venu. La demande attend l'objectif s'il n'est pas encore relu.
 
+### Retours d'Antonin après essai (2026-09-29, 23 h) — typer d'un clic, supprimer pour de bon
+
+**« Avec le clic droit on doit pouvoir choisir directement sans confirmation par
+une fenêtre. Donc sous-objectif doit apparaître en plus d'étape. »** Le menu
+« Type » propose désormais **Idée, Phase, Sous-objectif, Tâche, Habitude** — les
+mots mêmes de l'ajout dans la carte d'un objectif (règle 18), « Étape » étant le
+nom commun de la phase et du sous-objectif. Un clic crée l'objet
+(`planDirect`, pur, testé) ; une ligne dans l'en-tête dit APRÈS coup où il est
+allé. Le panneau qui annonçait tout avant d'écrire n'est plus qu'un choix
+« sous quel objectif ? », et seulement quand AUCUN ancêtre du nœud n'est un
+objectif — là, la carte ne peut pas répondre, et c'est un choix, pas une
+confirmation (un clic sur l'objectif crée l'étape).
+- **Rangement** : une étape va sous le premier objectif au-dessus du nœud qui
+  peut l'accueillir (trois niveaux : une phase sous une racine, un sous-objectif
+  sous une racine ou une phase) ; la ligne de l'en-tête dit « rangée sous… »
+  quand ce n'est pas l'ancêtre direct.
+- **La cible d'une habitude rattachée** : 30 jours par défaut
+  (`CIBLE_HABITUDE_PAR_DEFAUT`, la valeur des exemples du panneau). Elle se
+  change dans la feuille de route. Même règle dans la carte d'un objectif.
+
+**« Quand on supprime quelque chose, cela doit se supprimer aussi dans
+l'objectif et non rester après. »** Supprimer un nœud dans une carte de note ou
+du Savoir emporte son objet et celui de tout ce qui pend dessous
+(`objetsEmportes`, pur, testé) : tâche, habitude, étape — et l'étape qui
+COMPTAIT une habitude qui part (sinon elle resterait, « source introuvable »).
+Jamais un objectif racine cité, jamais une note, une fiche, un événement : on ne
+détruit pas une ressource parce qu'on l'a citée (décision E, inchangée). Tout va
+dans « Supprimés récemment » en UN toast ; son « Annuler » rend les objets ET
+les nœuds, et ⌘Z aussi (les jets sont rangés sous l'état de carte qu'ils ont
+produit — ⌘⇧Z les rejette). Dans la carte d'un objectif, supprimer une habitude
+emporte de même l'étape qui la comptait.
+- Ce qui reste volontairement tel quel : « Idée — retirer le type » garde
+  l'objet (c'est son sens : libérer le nœud) ; supprimer la NOTE entière ou le
+  bloc de carte n'emporte rien (une note n'est pas ses objets, et sa corbeille
+  la rend telle quelle).
+- Trouvé en route : le toast « Annuler » était INERTE sous tout éditeur plein
+  écran (`PIEGES.md` § 24.13) — l'hôte des toasts est porté hors de `#root`.
+
 ## 2026-09-29 — Timer : l'horloge à volets, et la séance dans sa propre fenêtre
 
 **Demande d'Antonin, avec une vidéo** (une horloge à palettes sur iPad posé

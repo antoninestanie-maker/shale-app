@@ -29,9 +29,14 @@ import {
   type Direction,
   type KindCarte,
   type RefNoeud,
-  type TypeDonnable,
 } from "../../lib/carte";
 import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
+import { objetsEmportes } from "../../lib/objectifs/emportes";
+import { uidDeLigne } from "../../lib/objectifs/progression";
+import type { GenreEtape } from "../../lib/objectifs/structure";
+import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
+import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
+import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
 import { etatsVivants, type EtatVivant } from "../../lib/carteEtat";
 import { addDays, todayStr } from "../../lib/logic";
 import { allerVers } from "../../lib/naviguer";
@@ -109,7 +114,7 @@ export type EnfantObjectif = "phase" | "sous-objectif" | "tache" | "habitude";
 export interface GestesObjectif {
   /** Ce que ce nœud peut accueillir — vide pour une tâche, une habitude, une note. */
   enfantsPossibles: (ref: RefNoeud) => EnfantObjectif[];
-  creer: (parent: RefNoeud, type: Exclude<EnfantObjectif, "habitude">, titre: string) => Promise<void>;
+  creer: (parent: RefNoeud, type: EnfantObjectif, titre: string) => Promise<void>;
   renommer: (ref: RefNoeud, titre: string) => Promise<void>;
   /** Supprime l'OBJET (deux temps, puis « Supprimés récemment ») — ou DÉTACHE une note rattachée. */
   supprimer: (ref: RefNoeud, parent: RefNoeud | null, titre: string) => Promise<void>;
@@ -243,6 +248,9 @@ function Outil({
   );
 }
 
+/** Le signal que toute écriture hors-vue émet : l'app relit, la carte relit (PIEGES § 18.2). */
+const signalerDonnees = () => window.dispatchEvent(new Event("sb:data-changed"));
+
 export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef, objectif }: Props) {
   const ouvrirCible = (kind: KindCarte, uid: string) => {
     // Une habitude n'a pas de fiche à elle : elle vit dans le Journal.
@@ -252,6 +260,15 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   };
   const [histoire, setHistoire] = useState(() => historiqueDe(carte));
   const courante = histoire.present;
+  const histoireRef = useRef(histoire);
+  histoireRef.current = histoire;
+  /**
+   * ⭐ CE QU'UNE SUPPRESSION A EMPORTÉ, rangé sous l'état de carte qu'elle a
+   * produit (2026-09-29). ⌘Z qui QUITTE cet état rend les objets ; ⌘⇧Z qui
+   * y REVIENT les rejette. L'identité de l'objet `Carte` suffit : `annuler` et
+   * `retablir` déplacent les états, ils ne les recopient pas.
+   */
+  const jetsParEtat = useRef(new Map<Carte, (Jete & { titre: string })[]>());
   const [selection, setSelection] = useState<string>(courante.noeuds[0]?.id ?? "r");
   /**
    * ⭐ LA SUPPRESSION SE FAIT EN DEUX TEMPS — demande d'Antonin, 2026-09-22.
@@ -293,8 +310,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * temps : un état armé ne survit jamais à ce qui l'a motivé.
    */
   const [armeReorg, setArmeReorg] = useState<Carte | null>(null);
-  /** Le panneau « Type » ouvert : quel type, pour quel nœud. */
-  const [typage, setTypage] = useState<{ type: TypeDonnable; id: string } | null>(null);
+  /**
+   * Le panneau « sous quel objectif ? » — la SEULE question du typage direct
+   * qui reste : une étape dont aucun ancêtre de la carte n'est un objectif.
+   */
+  const [typage, setTypage] = useState<{ genre: GenreEtape; id: string } | null>(null);
+  /** Un typage en cours d'écriture : un second clic ne crée pas un second objet. */
+  const typageEnCours = useRef(false);
   /**
    * Carte d'objectif : le nœud neuf en cours de saisie, et ce qu'il deviendra.
    * Il n'existe pas encore dans les données — il vit dans la carte locale le
@@ -665,12 +687,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           return;
         }
         setHistoire((h) => appliquer(h, renommer(h.present, attente.id, nom)));
-        // Une habitude a besoin de sa cible en jours : le panneau la demande,
-        // et dit où l'étape qui la comptera va naître.
-        if (attente.type === "habitude") {
-          setTypage({ type: "habitude", id: attente.id });
-          return;
-        }
+        // Une habitude se crée comme le reste, sans panneau (2026-09-29) : sa
+        // cible prend la valeur par défaut, et se change dans la feuille de route.
         const parentRef = noeudDe(courante, attente.parentId)?.ref;
         if (!parentRef) {
           retirerAttente(attente);
@@ -726,7 +744,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets, et ⌘Z
         // n'en défait rien. Une suppression se rattrape par la corbeille.
         if (objectif) return;
-        setHistoire((h) => (e.shiftKey ? retablir(h) : annuler(h)));
+        if (e.shiftKey) refaire();
+        else defaire();
         setEdition(null);
         return;
       }
@@ -1257,14 +1276,139 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       setSelection(n.parent);
       return;
     }
-    modifier((c) => supprimerNoeud(c, id));
+    // ⭐ Carte de NOTE (retour d'Antonin, 2026-09-29) : un nœud typé EST son
+    // objet — il part avec lui, et avec tout ce qui pend dessous
+    // (`objetsEmportes`). Un seul toast « Annuler » ; ⌘Z rend nœuds ET objets.
+    const emportes = elementsEmportes(id);
+    const suivante = supprimerNoeud(courante, id);
+    setHistoire((h) => appliquer(h, suivante));
     setSelection(n.parent);
+    if (emportes.length) void emporter(suivante, emportes);
+  };
+
+  /** Les objets qu'emporterait la suppression de `id`, avec leur numéro local et leur titre. */
+  const elementsEmportes = (id: string): (Jete & { titre: string })[] => {
+    if (!donnees) return [];
+    const { goals, tasks, habits } = donnees.data;
+    const out: (Jete & { titre: string })[] = [];
+    for (const o of objetsEmportes(courante, id, goals)) {
+      if (o.kind === "goal") {
+        const g = goals.find((x) => uidDeLigne("goal", x) === o.uid);
+        if (g) out.push({ kind: "goal", id: g.id, titre: g.title });
+      } else if (o.kind === "task") {
+        const x = tasks.find((y) => uidDeLigne("task", y) === o.uid);
+        if (x) out.push({ kind: "task", id: x.id, titre: x.label });
+      } else {
+        const h = habits.find((y) => uidDeLigne("habit", y) === o.uid);
+        if (h) out.push({ kind: "habit", id: h.id, titre: h.name });
+      }
+    }
+    return out;
+  };
+
+  /**
+   * Met les objets en corbeille, et range le jet sous l'état de carte qu'il
+   * accompagne. L'« Annuler » du toast rend les objets ET, si la carte n'a pas
+   * bougé depuis, les nœuds — comme ⌘Z.
+   */
+  const emporter = async (etat: Carte, elements: (Jete & { titre: string })[]) => {
+    const jetes = await jeterPlusieurs(elements, signalerDonnees, () => {
+      if (histoireRef.current.present === etat) setHistoire(annuler);
+    });
+    const partis = elements.filter((e) => jetes.some((j) => j.kind === e.kind && j.id === e.id));
+    if (partis.length) jetsParEtat.current.set(etat, partis);
+  };
+
+  /** ⌘Z — la carte recule d'un geste ; si ce geste avait emporté des objets, ils reviennent. */
+  const defaire = () => {
+    const h = histoireRef.current;
+    if (h.passe.length === 0) return;
+    const jetes = jetsParEtat.current.get(h.present);
+    setHistoire(annuler);
+    if (jetes) void restaurerJetes(jetes).then(signalerDonnees);
+  };
+
+  /** ⌘⇧Z — le geste revient ; s'il avait emporté des objets, ils repartent (avec leur « Annuler »). */
+  const refaire = () => {
+    const suivant = histoireRef.current.futur[0];
+    if (!suivant) return;
+    setHistoire(retablir);
+    const jetes = jetsParEtat.current.get(suivant);
+    if (jetes) void emporter(suivant, jetes);
   };
 
   /** Un message court dans l'en-tête, qui s'efface seul. */
-  const dire = (texte: string) => {
+  const dire = (texte: string, duree = 3000) => {
     setMessage(texte);
-    window.setTimeout(() => setMessage(null), 3000);
+    window.setTimeout(() => setMessage((m) => (m === texte ? null : m)), duree);
+  };
+
+  /**
+   * ⭐ TYPER AU CLIC DROIT CRÉE L'OBJET TOUT DE SUITE (retour d'Antonin,
+   * 2026-09-29 : « choisir directement, sans confirmation par une fenêtre »).
+   * Le rangement vient de la carte (`planDirect`, pur et testé) ; une ligne dans
+   * l'en-tête dit APRÈS coup où l'objet est allé. Seule une étape sans aucun
+   * objectif au-dessus pose encore une question : lequel.
+   */
+  const typerDirect = async (id: string, type: TypeDirect) => {
+    const n = noeudDe(courante, id);
+    const titre = n?.texte.trim() ?? "";
+    if (!n || !titre || !donnees || typageEnCours.current) return;
+    const goals = donnees.data.goals;
+    const plan = planDirect(courante, id, type, goals);
+    if (plan.quoi === "choisir-objectif") {
+      setTypage({ genre: plan.genre, id });
+      return;
+    }
+    const nom = (g: { title: string }) => g.title.trim() || t("Sans titre");
+    typageEnCours.current = true;
+    try {
+      if (plan.quoi === "tache") {
+        const ref = await typerEnTache(titre, plan.goal);
+        if (!ref) return;
+        modifier((c) => poserReference(c, id, ref, titre));
+        dire(
+          plan.goal
+            ? t("Tâche rattachée à « {objectif} ».", { objectif: nom(plan.goal) })
+            : t("Tâche libre, dans Tâches : aucun objectif au-dessus d'elle."),
+          5000,
+        );
+      } else if (plan.quoi === "etape") {
+        const r = await typerEnEtape(titre, plan.parent, plan.genre, goals);
+        if (!r) return;
+        modifier((c) => poserReference(c, id, r.ref, titre, r.genre));
+        const phase = plan.genre === "jalon";
+        dire(
+          plan.repli
+            ? phase
+              ? t("Phase rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.", { objectif: nom(plan.parent) })
+              : t("Sous-objectif rangé sous « {objectif} » : la feuille de route n'a que trois niveaux.", { objectif: nom(plan.parent) })
+            : phase
+              ? t("Phase ajoutée à « {objectif} ».", { objectif: nom(plan.parent) })
+              : t("Sous-objectif ajouté à « {objectif} ».", { objectif: nom(plan.parent) }),
+          5000,
+        );
+      } else {
+        const lien = plan.rattacher ? { sous: plan.rattacher.sous, cible: plan.rattacher.cible } : null;
+        const ref = await typerEnHabitude(titre, lien, goals);
+        if (!ref) return;
+        modifier((c) => poserReference(c, id, ref, titre));
+        dire(
+          plan.rattacher
+            ? t("Habitude dans le Journal, comptée sur {n} jours dans « {objectif} ».", {
+                n: plan.rattacher.cible,
+                objectif: nom(plan.rattacher.sous),
+              })
+            : t("Habitude dans le Journal."),
+          5000,
+        );
+      }
+      setSelection(id);
+    } catch (e) {
+      dire(e instanceof Error ? e.message : String(e), 6000);
+    } finally {
+      typageEnCours.current = false;
+    }
   };
 
   /**
@@ -1411,7 +1555,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       : actuel === "citation"
         ? { raison: t("Ce nœud cite déjà un objet : repasse-le en Idée d'abord.") }
         : { raison: t("Un nœud typé EST son objet : repasse-le en Idée pour lui donner un autre type.") };
-    const ouvrir = (type: TypeDonnable) => () => setTypage({ type, id });
+    // Un nœud sans nom n'a pas de titre à donner à l'objet.
+    const bloque =
+      raison ??
+      (!n.texte.trim() ? { raison: t("Donne d'abord un nom au nœud : c'est lui qui deviendra le titre.") } : undefined);
+    const direct = (type: TypeDirect) => () => void typerDirect(id, type);
     return [
       {
         id: "idee",
@@ -1420,9 +1568,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         desactive: libre ? { raison: t("C'est déjà une idée : du texte libre.") } : undefined,
         executer: () => modifier((c) => poserReference(c, id, null, n.texte)),
       },
-      { id: "etape", libelle: t("Étape…"), icone: <IconFolder />, desactive: raison, executer: ouvrir("etape") },
-      { id: "tache", libelle: t("Tâche…"), icone: <IconCheckCircle />, desactive: raison, executer: ouvrir("tache") },
-      { id: "habitude", libelle: t("Habitude…"), icone: <IconFlame />, desactive: raison, executer: ouvrir("habitude") },
+      // Les MÊMES quatre mots que l'ajout dans la carte d'un objectif (règle 18).
+      { id: "phase", libelle: t("Phase"), icone: <IconFolder />, desactive: bloque, executer: direct("phase") },
+      { id: "sous-objectif", libelle: t("Sous-objectif"), icone: <IconTarget />, desactive: bloque, executer: direct("sous-objectif") },
+      { id: "tache", libelle: t("Tâche"), icone: <IconCheckCircle />, desactive: bloque, executer: direct("tache") },
+      { id: "habitude", libelle: t("Habitude"), icone: <IconFlame />, desactive: bloque, executer: direct("habitude") },
     ];
   };
 
@@ -1544,7 +1694,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           <>
           <button
             type="button"
-            onClick={() => setHistoire(annuler)}
+            onClick={defaire}
             disabled={histoire.passe.length === 0}
             data-tip={t("Annuler")}
             data-tip-kbd={kbd("⌘Z")}
@@ -1554,7 +1704,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           </button>
           <button
             type="button"
-            onClick={() => setHistoire(retablir)}
+            onClick={refaire}
             disabled={histoire.futur.length === 0}
             data-tip={t("Rétablir")}
             data-tip-kbd={kbd("⌘⇧Z")}
@@ -2210,29 +2360,22 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
       {typage && !lecture && donnees && (
         <PanneauType
-          type={typage.type}
+          genre={typage.genre}
           carte={courante}
           noeudId={typage.id}
           goals={donnees.data.goals}
-          ajout={!!objectif}
-          onFermer={() => {
-            // Carte d'objectif : l'habitude en attente renonce, son nœud part.
-            const attente = attenteRef.current;
-            if (objectif && attente?.id === typage.id) retirerAttente(attente);
-            setTypage(null);
-          }}
-          onCree={(ref, titreObjet, genre) => {
+          onFermer={() => setTypage(null)}
+          onCree={(ref, titreObjet, genre, sous) => {
             const id = typage.id;
-            const attente = attenteRef.current;
             setTypage(null);
-            // Carte d'objectif : l'objet existe, la carte re-dérivée le montre —
-            // le nœud provisoire n'a plus de raison d'être.
-            if (objectif && attente?.id === id) {
-              retirerAttente(attente);
-              return;
-            }
             modifier((c) => poserReference(c, id, ref, titreObjet, genre));
             setSelection(id);
+            dire(
+              genre === "phase"
+                ? t("Phase ajoutée à « {objectif} ».", { objectif: sous })
+                : t("Sous-objectif ajouté à « {objectif} ».", { objectif: sous }),
+              5000,
+            );
           }}
         />
       )}

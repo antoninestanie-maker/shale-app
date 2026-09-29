@@ -114,6 +114,75 @@ export async function jeter(
   return true;
 }
 
+/** Ce qu'un jet a réellement emporté — la cible fermée de son « Annuler » (règle 15). */
+export interface Jete {
+  kind: KindCorbeille;
+  id: number;
+}
+
+/**
+ * ⭐ PLUSIEURS OBJETS, UN SEUL TOAST — le nœud d'une carte qui part avec sa
+ * tâche, son étape et ce qui pend dessous (2026-09-29). Trois `jeter()` à la
+ * suite feraient trois toasts, chacun remplaçant le précédent : seul le
+ * dernier « Annuler » resterait, et il ne rendrait qu'un objet sur trois.
+ *
+ * `surAnnuler` : ce que l'appelant défait en plus (la carte remet ses nœuds).
+ * Rend ce qui est vraiment parti, pour qu'un ⌘Z puisse le rendre sans toast.
+ */
+export async function jeterPlusieurs(
+  elements: readonly (Jete & { titre: string })[],
+  apres: () => unknown,
+  surAnnuler?: () => void,
+): Promise<Jete[]> {
+  const partis: (Jete & { titre: string })[] = [];
+  let total = 0;
+  for (const e of elements) {
+    const lot = await mettreEnCorbeille(e.kind, e.id);
+    if (lot.ids.length === 0) continue;
+    partis.push(e);
+    total += lot.ids.length;
+  }
+  if (partis.length === 0) return [];
+  await apres();
+
+  const nom = titreCourt(titreAffiche(partis[0]));
+  const autres = total - 1;
+  const jetes = partis.map(({ kind, id }) => ({ kind, id }));
+  afficherToast({
+    msg:
+      autres > 0
+        ? tp(
+            autres,
+            "« {titre} » et 1 élément sont dans Supprimés récemment",
+            "« {titre} » et {n} éléments sont dans Supprimés récemment",
+            { titre: nom },
+          )
+        : t("« {titre} » est dans Supprimés récemment", { titre: nom }),
+    icone: iconeCorbeille,
+    actionLabel: t("Annuler"),
+    onAction: () => {
+      void (async () => {
+        await restaurerJetes(jetes);
+        await apres();
+        surAnnuler?.();
+      })();
+    },
+    lienLabel: t("Voir"),
+    onLien: () => allerVers("corbeille"),
+    duree: DUREE_ANNULER,
+  });
+  return jetes;
+}
+
+/**
+ * Rend ce qu'un `jeterPlusieurs` a emporté, dans l'ordre INVERSE — une étape
+ * revient avant la tâche qui s'y rattachait. Sans toast : c'est le ⌘Z de la
+ * carte, ou l'« Annuler » du toast lui-même.
+ */
+export async function restaurerJetes(jetes: readonly Jete[]): Promise<void> {
+  for (const j of [...jetes].reverse()) await restaurer(j.kind, j.id);
+}
+
 /** Ouvre l'objet restauré là où il vit — l'objet lui-même quand il se lie, sinon son module. */
 export function voirObjet(kind: KindCorbeille, uid: string | null): void {
   if (uid && LIABLES.includes(kind)) void ouvrirObjet(kind as LinkKind, uid);

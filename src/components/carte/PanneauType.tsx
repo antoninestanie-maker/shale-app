@@ -1,65 +1,47 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { Carte, GenreRef, RefNoeud, TypeDonnable } from "../../lib/carte";
+import type { Carte, GenreRef, RefNoeud } from "../../lib/carte";
 import { t } from "../../lib/i18n";
 import { menuContextuelOuvert } from "../../lib/menu/tactile";
-import { aideDeGenre, nomDeGenre } from "../../lib/objectifs/libelles";
-import type { GenreEtape } from "../../lib/objectifs/structure";
-import { genresPour, objectifsAccueillants, planEtape, planHabitude, planTache } from "../../lib/objectifs/typage";
-import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
+import { peutAjouterEtape, type GenreEtape } from "../../lib/objectifs/structure";
+import { objectifsAccueillants } from "../../lib/objectifs/typage";
+import { typerEnEtape } from "../../lib/objectifs/typer";
 import type { Goal } from "../../lib/types";
 
 /**
- * ⭐ DONNER UN TYPE À UN NŒUD — le panneau qui ANNONCE avant d'écrire.
+ * ⭐ « SOUS QUEL OBJECTIF ? » — la seule question qui reste au typage direct.
  *
- * Chantier du 2026-09-29, esprit de « En faire un objectif » (`DepuisCarte`) :
- * typer un nœud CRÉE un vrai objet dans l'app — une tâche dans Tâches, une
- * étape dans une feuille de route, une habitude dans le Journal. Personne ne
- * doit le découvrir après coup : le panneau dit ce qui va naître, et OÙ, avant
- * le moindre clic d'écriture.
- *
- * Le rangement vient de la hiérarchie de la carte (`lib/objectifs/typage.ts`,
- * pur et testé) ; l'écriture de `typer.ts`. Ici, on montre et on transmet.
+ * Jusqu'au soir du 2026-09-29, ce panneau s'ouvrait à CHAQUE typage pour
+ * annoncer ce qui allait être créé, avec un bouton « Créer ». Antonin, après
+ * essai : « on doit pouvoir choisir directement sans avoir de confirmation par
+ * une fenêtre ». Le menu « Type » crée donc l'objet d'un clic (`planDirect`),
+ * et ce panneau ne s'ouvre plus que quand la carte ne dit pas OÙ ranger une
+ * étape — aucun ancêtre du nœud n'est un objectif. Ce n'est pas une
+ * confirmation, c'est un choix : un clic sur l'objectif crée l'étape.
  */
-
 export default function PanneauType(props: {
-  type: TypeDonnable;
+  genre: GenreEtape;
   carte: Carte;
   noeudId: string;
   /** Les objectifs VIVANTS, lus par l'éditeur. */
   goals: readonly Goal[];
-  /** Carte d'objectif : on AJOUTE un nœud neuf, on ne transforme pas un nœud existant. */
-  ajout?: boolean;
   onFermer: () => void;
-  /** L'objet est créé : le nœud devient sa référence. */
-  onCree: (ref: RefNoeud, titre: string, genre?: GenreRef) => void;
+  /** L'étape est créée : le nœud devient sa référence. `sous` : le titre de l'objectif qui l'accueille. */
+  onCree: (ref: RefNoeud, titre: string, genre: GenreRef, sous: string) => void;
 }) {
-  const { type, carte, noeudId, goals } = props;
+  const { genre, carte, noeudId, goals } = props;
   const titre = (carte.noeuds.find((n) => n.id === noeudId)?.texte ?? "").trim();
-
-  const tache = useMemo(() => planTache(carte, noeudId, goals), [carte, noeudId, goals]);
-  const etape = useMemo(() => planEtape(carte, noeudId, goals), [carte, noeudId, goals]);
-  const habitude = useMemo(() => planHabitude(carte, noeudId, goals), [carte, noeudId, goals]);
-  const accueillants = useMemo(() => objectifsAccueillants(goals), [goals]);
-
-  // Étape : le parent choisi (celui de la carte, ou celui du sélecteur) et son genre.
-  const [parentId, setParentId] = useState<number | null>(etape.parent?.id ?? null);
-  const parent = goals.find((g) => g.id === parentId) ?? null;
-  const genres = parent ? genresPour(parent, goals) : [];
-  const [genre, setGenre] = useState<GenreEtape>(etape.genres.includes("sous-objectif") ? "sous-objectif" : (etape.genres[0] ?? "sous-objectif"));
-  const genreRetenu: GenreEtape | null = genres.includes(genre) ? genre : (genres[0] ?? null);
-
-  // Habitude : le rattachement est PROPOSÉ (case cochée), jamais imposé.
-  const [rattacher, setRattacher] = useState(!!habitude.propose);
-  const [cible, setCible] = useState("");
-  const cibleValide = Number.isFinite(Number(cible)) && Math.round(Number(cible)) >= 1;
-
+  // Une phase ne va que sous un objectif racine ; un sous-objectif, sous une racine ou une phase.
+  const accueillants = useMemo(
+    () => objectifsAccueillants(goals).filter(({ goal }) => peutAjouterEtape(goal, genre, goals)),
+    [goals, genre],
+  );
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-  const bouton = useRef<HTMLButtonElement>(null);
+  const premier = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    bouton.current?.focus();
+    premier.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -75,29 +57,15 @@ export default function PanneauType(props: {
     return () => window.removeEventListener("keydown", touche, true);
   }, [props]);
 
-  const possible =
-    !!titre &&
-    !occupe &&
-    (type === "tache" ||
-      (type === "etape" && !!parent && !!genreRetenu) ||
-      (type === "habitude" && (!rattacher || !habitude.propose || cibleValide)));
+  const nomObjectif = (g: Goal) => g.title.trim() || t("Sans titre");
 
-  const creer = async () => {
-    if (!possible) return;
+  const choisir = async (parent: Goal) => {
+    if (occupe || !titre) return;
     setOccupe(true);
     setErreur(null);
     try {
-      if (type === "tache") {
-        const ref = await typerEnTache(titre, tache.goal);
-        if (ref) props.onCree(ref, titre);
-      } else if (type === "etape" && parent && genreRetenu) {
-        const r = await typerEnEtape(titre, parent, genreRetenu, goals);
-        if (r) props.onCree(r.ref, titre, r.genre);
-      } else if (type === "habitude") {
-        const lien = rattacher && habitude.propose ? { sous: habitude.propose.sous, cible: Number(cible) } : null;
-        const ref = await typerEnHabitude(titre, lien, goals);
-        if (ref) props.onCree(ref, titre);
-      }
+      const r = await typerEnEtape(titre, parent, genre, goals);
+      if (r) props.onCree(r.ref, titre, r.genre, nomObjectif(parent));
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
     } finally {
@@ -105,161 +73,53 @@ export default function PanneauType(props: {
     }
   };
 
-  const titres: Record<TypeDonnable, string> = props.ajout
-    ? { etape: t("Ajouter une étape"), tache: t("Ajouter une tâche"), habitude: t("Ajouter une habitude") }
-    : { etape: t("En faire une étape"), tache: t("En faire une tâche"), habitude: t("En faire une habitude") };
-  const nomObjectif = (g: Goal) => g.title.trim() || t("Sans titre");
-  const champ = "rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-blue focus:outline-none";
+  const entete =
+    genre === "jalon" ? t("Phase « {titre} » : sous quel objectif ?", { titre }) : t("Sous-objectif « {titre} » : sous quel objectif ?", { titre });
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-      <div role="dialog" aria-label={titres[type]} className="card card-solid w-full max-w-sm rounded-[16px] p-4 shadow-2xl">
-        <h4 className="font-display text-base font-bold text-text">{titres[type]}</h4>
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4" onClick={props.onFermer}>
+      <div
+        role="dialog"
+        aria-label={entete}
+        className="card card-solid flex max-h-[78vh] w-full max-w-sm flex-col rounded-[16px] p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h4 className="font-display text-base font-bold text-text">{entete}</h4>
+        <p className="mt-1 text-xs text-text-dim">{t("Aucun objectif au-dessus de ce nœud sur la carte : choisis celui qui l'accueille.")}</p>
 
-        {!titre ? (
-          <p className="mt-2 text-sm text-text-dim">{t("Donne d'abord un nom au nœud : c'est lui qui deviendra le titre.")}</p>
+        {accueillants.length === 0 ? (
+          <p className="mt-3 text-sm text-text-dim">
+            {t("Tu n'as encore aucun objectif. Crée-le d'abord, dans Objectifs ou avec « En faire un objectif ».")}
+          </p>
         ) : (
-          <>
-            {type === "etape" && (
-              <div className="mt-3 flex flex-col gap-2">
-                {etape.repli && (
-                  <p className="text-xs text-text-dim">
-                    {t("« {voulu} » est déjà un sous-objectif : la feuille de route n'a que trois niveaux. L'étape ira sous « {retenu} ».", {
-                      voulu: nomObjectif(etape.repli.voulu),
-                      retenu: nomObjectif(etape.repli.retenu),
-                    })}
-                  </p>
-                )}
-                {!etape.parent && (
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-text-dim">
-                      {t("Aucun objectif au-dessus de ce nœud : sous lequel la ranger ?")}
-                    </span>
-                    {accueillants.length === 0 ? (
-                      <span className="text-xs text-text-dim">{t("Tu n'as encore aucun objectif. Crée-le d'abord, dans Objectifs ou avec « En faire un objectif ».")}</span>
-                    ) : (
-                      <select
-                        value={parentId ?? ""}
-                        onChange={(e) => setParentId(e.target.value ? Number(e.target.value) : null)}
-                        className={`w-full ${champ}`}
-                      >
-                        <option value="">{t("Choisir un objectif…")}</option>
-                        {accueillants.map(({ goal, niveau }) => (
-                          <option key={goal.id} value={goal.id}>
-                            {niveau > 0 ? "   ↳ " : ""}
-                            {nomObjectif(goal)}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </label>
-                )}
-                {parent && genres.length > 1 && (
-                  <div>
-                    <div className="flex gap-1.5">
-                      {genres.map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setGenre(g)}
-                          aria-pressed={genreRetenu === g}
-                          className={`pill cible-tactile-ligne border px-3 py-1 text-xs font-medium transition-colors ${
-                            genreRetenu === g ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
-                          }`}
-                        >
-                          {nomDeGenre(g)}
-                        </button>
-                      ))}
-                    </div>
-                    {/* La même phrase que la feuille de route : un mot sans son explication ne fait que déplacer la question. */}
-                    {genreRetenu && <p className="mt-1 text-[11px] text-text-dim">{aideDeGenre(genreRetenu)}</p>}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {type === "habitude" && habitude.propose && (
-              <div className="mt-3 flex flex-col gap-2">
-                <label className="flex items-start gap-2 text-sm text-text">
-                  <input type="checkbox" checked={rattacher} onChange={(e) => setRattacher(e.target.checked)} className="mt-1" />
-                  <span>
-                    {t("La rattacher à « {objectif} »", { objectif: nomObjectif(habitude.propose.voulu) })}
-                    <span className="block text-[11px] text-text-dim">
-                      {t("Une étape comptera les jours où tu la tiens, à partir d'aujourd'hui. Décoche pour une habitude seule.")}
-                    </span>
-                  </span>
-                </label>
-                {rattacher && (
-                  <label className="flex items-center gap-2 pl-6 text-xs text-text-dim">
-                    <span>{t("Cible")}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={cible}
-                      onChange={(e) => setCible(e.target.value)}
-                      placeholder="30"
-                      aria-label={t("Cible en jours")}
-                      className={`w-20 ${champ} py-1`}
-                    />
-                    <span>{t("jours")}</span>
-                  </label>
-                )}
-              </div>
-            )}
-
-            {/* ⭐ CE QUI VA ÊTRE ÉCRIT, en toutes lettres, avant d'écrire. */}
-            <div className="mt-3 rounded-[10px] bg-surface-2/60 px-3 py-2 text-xs text-text-dim">
-              <p className="hud-label mb-1.5">{t("Ce qui va être créé")}</p>
-              {type === "tache" && (
-                <p>
-                  {tache.goal
-                    ? t("La tâche « {titre} », rattachée à « {objectif} ».", { titre, objectif: nomObjectif(tache.goal) })
-                    : t("La tâche « {titre} », libre : aucun objectif au-dessus d'elle sur la carte. Tu pourras la rattacher plus tard.", { titre })}
-                </p>
-              )}
-              {type === "etape" && (
-                <p>
-                  {parent && genreRetenu
-                    ? t("{genre} « {titre} », en dernier sous « {objectif} ».", { genre: nomDeGenre(genreRetenu), titre, objectif: nomObjectif(parent) })
-                    : t("Choisis d'abord l'objectif qui l'accueille.")}
-                </p>
-              )}
-              {type === "habitude" && (
-                <p>
-                  {rattacher && habitude.propose
-                    ? t("L'habitude « {titre} » dans le Journal, et un sous-objectif « {titre} » sous « {objectif} », compté en jours tenus.", {
-                        titre,
-                        objectif: nomObjectif(habitude.propose.sous),
-                      })
-                    : t("L'habitude « {titre} », dans le Journal.", { titre })}
-                </p>
-              )}
-              {!props.ajout && (
-                <p className="mt-1.5">{t("Le nœud devient un lien vers cet objet : son titre et son état viendront de lui.")}</p>
-              )}
-            </div>
-          </>
+          <ul className="mt-3 flex min-h-0 flex-col gap-0.5 overflow-y-auto">
+            {accueillants.map(({ goal, niveau }, i) => (
+              <li key={goal.id}>
+                <button
+                  ref={i === 0 ? premier : undefined}
+                  type="button"
+                  disabled={occupe}
+                  onClick={() => void choisir(goal)}
+                  className={`cible-tactile-ligne block w-full truncate rounded-[10px] px-3 py-2 text-left text-sm text-text hover:bg-surface-2 focus-visible:bg-surface-2 disabled:opacity-40 ${
+                    niveau > 0 ? "pl-7 text-text-dim" : ""
+                  }`}
+                >
+                  {nomObjectif(goal)}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
         {erreur && <p className="mt-2 text-xs text-red">{erreur}</p>}
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-3 flex justify-end">
           <button
             type="button"
             onClick={props.onFermer}
             className="pill cible-tactile-ligne px-3 py-1.5 text-sm font-medium text-text-dim hover:text-text"
           >
             {t("Annuler")}
-          </button>
-          <button
-            ref={bouton}
-            type="button"
-            onClick={() => void creer()}
-            disabled={!possible}
-            className="pill cible-tactile-ligne fill-primary px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
-          >
-            {t("Créer")}
           </button>
         </div>
       </div>
