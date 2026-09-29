@@ -139,11 +139,8 @@ export const EN: Record<string, string> = {
   "Actions du calendrier": "Calendar actions",
   "Elle part avec 1 sous-étape dans Supprimés récemment. Ses tâches restent.": "It goes to Recently Deleted with 1 sub-step. Its tasks stay.",
   "Elle part avec ses {n} sous-étapes dans Supprimés récemment. Ses tâches restent.": "It goes to Recently Deleted with its {n} sub-steps. Its tasks stay.",
-  "Il reste 30 jours dans Supprimés récemment. Ses tâches restent.": "It stays in Recently Deleted for 30 days. Its tasks stay.",
   "Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.": "It goes to Recently Deleted with 1 step. Its tasks stay.",
   "Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.": "It goes to Recently Deleted with its {n} steps. Its tasks stay.",
-  "Il part avec 1 étape dans Supprimés récemment, 30 jours. Ses tâches restent.": "It goes to Recently Deleted for 30 days with 1 step. Its tasks stay.",
-  "Il part avec ses {n} étapes dans Supprimés récemment, 30 jours. Ses tâches restent.": "It goes to Recently Deleted for 30 days with its {n} steps. Its tasks stay.",
   "Copier le numéro": "Copy number",
   "Supprimer le brouillon": "Delete draft",
   "Un document émis ne se supprime pas : il s'annule par un avoir, depuis sa fenêtre.": "An issued document can't be deleted: cancel it with a credit note, from its window.",
@@ -196,8 +193,6 @@ export const EN: Record<string, string> = {
   "« {titre} » et ses {n} branches quittent la note.": "“{titre}” and its {n} branches leave the note.",
   "La carte et sa branche quittent la note.": "The map and its branch leave the note.",
   "La carte et ses {n} branches quittent la note.": "The map and its {n} branches leave the note.",
-  "Supprimer « {titre} » ? Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.": "Delete “{titre}”? It goes to Recently Deleted with 1 step. Its tasks stay.",
-  "Supprimer « {titre} » ? Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.": "Delete “{titre}”? It goes to Recently Deleted with its {n} steps. Its tasks stay.",
   "Actions sur le tag « {name} »": "Actions on tag “{name}”",
   "Ne plus filtrer": "Stop filtering",
   "Filtrer les tâches": "Filter tasks",
@@ -369,8 +364,6 @@ export const EN: Record<string, string> = {
   "Nouvel objectif": "New goal",
   "+ Nouvel objectif": "+ New goal",
   "Modifier l'objectif": "Edit goal",
-  "Modifier l’objectif": "Edit goal",
-  "Supprimer l’objectif": "Delete goal",
   "Titre de l'objectif": "Goal title",
   "Objectif parent": "Parent goal",
   "+ sous-objectif": "+ sub-goal",
@@ -1139,8 +1132,6 @@ export const EN: Record<string, string> = {
   "Objectif : {title}": "Goal: {title}",
   "Focus sur {label}": "Focus on {label}",
   "Ouvrir « {label} »": "Open “{label}”",
-  "Modifier {title}": "Edit {title}",
-  "Supprimer {title}": "Delete {title}",
   "Supprimer {label}": "Delete {label}",
   "Supprimer {name}": "Delete {name}",
   "Confirmer la suppression de {label}": "Confirm deletion of {label}",
@@ -2683,8 +2674,6 @@ export const EN: Record<string, string> = {
   "saisie à la main": "set by hand",
   "mesurée": "measured",
   "Mesurée sur ce qui est fait : ses étapes, ses tâches, ses nombres à atteindre.": "Measured on what is done: its steps, its tasks, its numbers to reach.",
-  "Progression saisie à la main : la feuille de route n’est pas lue.": "Progress set by hand: the roadmap is not read.",
-  "Mesurer depuis la feuille de route": "Measure from the roadmap",
   "Rattaché directement": "Attached directly",
   "Ajouter une première étape": "Add a first step",
   "Ajouter une étape": "Add a step",
@@ -2749,13 +2738,8 @@ export const EN: Record<string, string> = {
   "{faits}/{n} éléments": "{faits}/{n} items",
   "{n} vide, non comptée": "{n} empty, not counted",
   "{n} vides, non comptées": "{n} empty, not counted",
-  "Replier la feuille de route de « {titre} »": "Collapse the roadmap of “{titre}”",
-  "Déplier la feuille de route de « {titre} »": "Expand the roadmap of “{titre}”",
-  "+ Ajouter une étape": "+ Add a step",
   "Suivre à la main": "Track by hand",
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
-  "ou suivre à la main": "or track by hand",
-  "Ajouter une étape à {title}": "Add a step to {title}",
   "Un titre suffit. La feuille de route viendra quand tu en auras besoin.": "A title is enough. The roadmap will come when you need it.",
   "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).": "No goals yet. Start with the long term, then break it into steps when you need to. Sort them by category (Trading, Training…).",
   "Rien de rattaché pour l’instant.": "Nothing attached yet.",
@@ -2842,8 +2826,6 @@ export const EN: Record<string, string> = {
   "phase vide, non comptée": "empty phase, not counted",
   "Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.":
     "This phase doesn’t count yet. Add a sub-goal, attach a task or set a number to reach.",
-  "Une phase ou un sous-objectif, en une ligne. Entrée pour enchaîner.":
-    "A phase or a sub-goal, in one line. Enter to keep going.",
 
   // L'en-tête du bloc, et l'échéance qui se pose sur place.
   "Feuille de route": "Roadmap",
@@ -2871,8 +2853,6 @@ export const EN: Record<string, string> = {
   // première et Finance se mettait à parler de cartes mentales — signalé par
   // `i18n:check`, qui dénonce les clés en double.
   "Carte|carte mentale": "Map",
-  "Toute la feuille de route d’un coup d’œil. Un clic sur un nœud ouvre l’étape ou la tâche.":
-    "The whole roadmap at a glance. Clicking a node opens the step or the task.",
   "La carte se lit": "This map is read-only",
   "Elle est dessinée depuis la feuille de route : c'est là qu'on la modifie.":
     "It is drawn from the roadmap: that’s where you change it.",
@@ -3006,4 +2986,12 @@ export const EN: Record<string, string> = {
   "Ajouter une habitude": "Add a habit",
   "Appui long": "Long press",
   "les actions du nœud": "the node's actions",
+  // ─── Vue Objectifs en maître-détail (chantier carte-objectifs, phase D, 2026-09-29) ──
+  "Mes objectifs": "My goals",
+  "Tous les objectifs": "All goals",
+  "Atteint": "Reached",
+  "Pas encore de feuille de route.": "No roadmap yet.",
+  "Saisi à la main : la feuille de route ne compte pas.": "Set by hand: the roadmap doesn't count.",
+  "La faire compter": "Make it count",
+  "La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.": "The same roadmap, as a mind map. What you change there changes here too.",
 };

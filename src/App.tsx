@@ -58,6 +58,9 @@ const EVT_MODULE: Partial<Record<LinkKind, string>> = {
   // Depuis le 2026-09-23 : une mention de tâche, ou « Modifier… » dans le menu
   // d'une tâche du widget d'Aujourd'hui, ouvre son éditeur dans les Tâches.
   task: "sb:open-task",
+  // Depuis le 2026-09-29 : la vue Objectifs est en maître-détail, elle montre
+  // la fiche de l'objectif demandé (celle de sa racine, pour une étape).
+  goal: "sb:open-goal",
 };
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));

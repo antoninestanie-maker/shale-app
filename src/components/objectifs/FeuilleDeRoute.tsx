@@ -38,7 +38,7 @@ import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
-import { IconCarte, IconCheck, IconChevronDown, IconChevronRight, IconNote, IconPlus, IconX } from "../icons";
+import { IconCheck, IconChevronDown, IconChevronRight, IconFlame, IconFolder, IconNote, IconPlus, IconTarget, IconX } from "../icons";
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { placer as placerMenu } from "../../lib/menu/placement";
@@ -74,11 +74,16 @@ export interface PropsFeuille {
   ajoutOuvert: boolean;
   onFermerAjout: () => void;
   onModifier: (goal: Goal) => void;
-  /** Ouvre la feuille de route en carte mentale (lecture). */
-  onCarte: (goal: Goal) => void;
   refresh: () => Promise<void>;
 }
 
+/**
+ * ⚠️ Depuis la vue en maître-détail (phase D, 2026-09-29), la feuille de route
+ * vit dans la FICHE de l'objectif (`GoalsView`) : le bouton « Carte » et la
+ * phrase « saisi à la main… » sont montés dans l'en-tête de la fiche. Le bandeau
+ * d'ici disait « la feuille de route n'est pas lue » juste sous un chiffre qui
+ * disait « saisi à la main » : deux vérités pour un seul objectif (audit D1).
+ */
 export default function FeuilleDeRoute(p: PropsFeuille) {
   const { racine, data, refresh } = p;
   const etapes = etapesTriees(racine.id, data.goals);
@@ -87,48 +92,10 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
     rattachementsDe(uidDeLigne("goal", racine), p.contexte).length;
 
   return (
-    <div className="ml-2 border-l border-border pb-1 pl-2 sm:ml-4 sm:pl-3">
-      {/* ⭐ Le bloc dit SON NOM. Sans cet en-tête, la zone indentée sous un
-          objectif était un empilement d'étapes sans titre : on ne savait pas
-          qu'on regardait « la feuille de route », donc on ne savait pas
-          davantage ce qu'on pouvait y ajouter. Le compte tient le même rôle
-          qu'ailleurs dans l'app (une pastille de nombre par catégorie). */}
-      {etapes.length > 0 && (
-        <div className="mb-1 flex flex-wrap items-center gap-2 px-1">
-          <h3 className="hud-label">{t("Feuille de route")}</h3>
-          <span className="pill bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-            {tp(etapes.length, "{n} étape", "{n} étapes")}
-          </span>
-          <button
-            type="button"
-            onClick={() => p.onCarte(racine)}
-            className="cible-tactile-ligne ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
-            data-tip={t("Voir en carte mentale")}
-            data-tip-sub={t("Toute la feuille de route d’un coup d’œil. Un clic sur un nœud ouvre l’étape ou la tâche.")}
-          >
-            <IconCarte className="h-3.5 w-3.5" />
-            {t("Carte|carte mentale")}
-          </button>
-        </div>
-      )}
-
-      {!!racine.manual_progress && etapes.length > 0 && (
-        <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-surface-2 px-3 py-2 text-xs text-text-dim">
-          <span className="min-w-0 flex-1 basis-[14rem]">
-            {t("Progression saisie à la main : la feuille de route n’est pas lue.")}
-          </span>
-          <button
-            type="button"
-            className="cible-tactile pill border border-blue px-2.5 py-1 font-medium text-blue hover:bg-blue/10"
-            onClick={async () => {
-              await majFeuilleDeRoute(racine.id, { manual_progress: 0 });
-              await refresh();
-            }}
-          >
-            {t("Mesurer depuis la feuille de route")}
-          </button>
-        </div>
-      )}
+    <div className="mt-6">
+      {/* ⭐ Le bloc dit SON NOM : sans lui, on ne savait pas qu'on regardait
+          « la feuille de route », donc pas davantage ce qu'on pouvait y ajouter. */}
+      {etapes.length > 0 && <h3 className="hud-label mb-1 px-1">{t("Feuille de route")}</h3>}
 
       <ListeEtapes {...p} parent={racine} etapes={etapes} />
 
@@ -268,6 +235,7 @@ function LigneEtape(p: PropsLigne) {
   const [renommer, setRenommer] = useState(false);
   const pct = m?.pct ?? null;
   const termine = !!m && estAcheve(m);
+  const compteePar = sourceNommee(etape, data);
 
   return (
     <div
@@ -323,6 +291,20 @@ function LigneEtape(p: PropsLigne) {
             {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
           </button>
 
+          {/* ⭐ L'ICÔNE DIT LE NIVEAU — le vocabulaire de la carte (DESIGN.md,
+              « Les types de nœud ») : dossier pour la phase, cible atténuée pour
+              le sous-objectif. Elle remplace la pastille « PHASE », qui était
+              la seule différence visible entre les deux (audit D1, point 1). */}
+          <span
+            role="img"
+            aria-label={nomDeGenre(estJalon ? "jalon" : "sous-objectif")}
+            data-tip={nomDeGenre(estJalon ? "jalon" : "sous-objectif")}
+            data-tip-sub={aideDeGenre(estJalon ? "jalon" : "sous-objectif")}
+            className={`flex h-7 w-4 shrink-0 items-center justify-center ${estJalon ? "text-text" : "text-text-dim"}`}
+          >
+            {estJalon ? <IconFolder className="h-3.5 w-3.5" /> : <IconTarget className="h-3.5 w-3.5" />}
+          </span>
+
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
             {renommer ? (
               <ChampLigne
@@ -349,24 +331,31 @@ function LigneEtape(p: PropsLigne) {
                 {etape.title}
               </button>
             )}
-            {estJalon && (
-              <span
-                className="pill shrink-0 bg-violet/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet"
-                data-tip={t("Phase")}
-                data-tip-sub={aideDeGenre("jalon")}
-              >
-                {nomDeGenre("jalon")}
-              </span>
-            )}
             {etape.deadline && (
               <span className="pill shrink-0 bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-dim">
                 {formaterJour(etape.deadline)}
               </span>
             )}
             {m && (
-              <span className={`w-full truncate text-[11px] ${m.pct == null ? "italic text-text-dim" : "text-text-dim"}`}>
-                {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
-                {origineEnClair(m, estJalon)}
+              <span className={`flex w-full min-w-0 items-center gap-1 text-[11px] ${m.pct == null ? "italic text-text-dim" : "text-text-dim"}`}>
+                {/* `max-w-full` + `truncate` : l'origine garde sa place, et se
+                    coupe elle-même si elle dépasse la ligne (390 pt). */}
+                <span className="max-w-full shrink-0 truncate">
+                  {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
+                  {origineEnClair(m, estJalon)}
+                </span>
+                {/* ⭐ CE QUI COMPTE, nommé (audit D1, point 3) : une étape
+                    comptée par une habitude ne la montrait nulle part — il
+                    fallait ouvrir l'étape, puis « Atteindre un nombre », puis
+                    le menu déroulant. La flamme et le carré sont les icônes de
+                    l'habitude et de la tâche sur la carte (DESIGN.md). */}
+                {compteePar && (
+                  <span className="flex min-w-0 items-center gap-1" data-tip={compteePar.aide}>
+                    <span className="shrink-0">·</span>
+                    {compteePar.habitude ? <IconFlame className="h-3 w-3 shrink-0" /> : <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] border border-current" aria-hidden />}
+                    <span className="truncate">{compteePar.nom}</span>
+                  </span>
+                )}
               </span>
             )}
         </div>
@@ -1201,6 +1190,26 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
 }
 
 // ─── Utilitaires ────────────────────────────────────────────────────────────
+
+/**
+ * L'habitude ou la tâche récurrente qui compte une étape, relue par son uid —
+ * jamais devinée. `null` si l'étape ne compte pas par une source nommée : suivie
+ * à la main, sans cible, ou source supprimée (l'origine dit alors « source
+ * introuvable »).
+ */
+function sourceNommee(etape: Goal, data: AppData): { nom: string; habitude: boolean; aide: string } | null {
+  if (etape.manual_progress || etape.target_count == null || !etape.count_ref_uid) return null;
+  const source = sourceDe(etape);
+  if (source === "habit") {
+    const h = data.habits.find((x) => uidDeLigne("habit", x) === etape.count_ref_uid);
+    return h ? { nom: h.name, habitude: true, aide: t("L’habitude qui compte") } : null;
+  }
+  if (source === "task") {
+    const x = data.tasks.find((y) => uidDeLigne("task", y) === etape.count_ref_uid);
+    return x ? { nom: x.label, habitude: false, aide: t("La tâche qui compte") } : null;
+  }
+  return null;
+}
 
 /** Les champs de la fiche, pour `updateGoal` — qui n'écrit que ceux-là. */
 export function ficheDe(g: Goal): GoalInput {

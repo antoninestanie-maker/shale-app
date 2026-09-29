@@ -1,29 +1,51 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GoalModal from "../components/GoalModal";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
-import { IconChevronDown, IconChevronRight } from "../components/icons";
+import { IconCarte, IconPencil, IconPlus, IconTrash } from "../components/icons";
 import { todayStr } from "../lib/logic";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
-import { CONTEXTE_VIDE, rattachementsDe, type ContexteObjectifs } from "../lib/objectifs/contexte";
-import { uidDeLigne } from "../lib/objectifs/progression";
+import { prochaineAction, type ProchaineAction } from "../lib/objectifs/prochaineAction";
+import { CONTEXTE_VIDE, type ContexteObjectifs } from "../lib/objectifs/contexte";
 import { fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
 import { descendantsVivants } from "../lib/corbeille/lots";
 import { jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
-import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
-import { IconPencil, IconPlus, IconTrash } from "../components/icons";
+import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
+import { consommerDemande } from "../lib/naviguer";
+import { useIsPhone } from "../lib/platform";
 import type { EntreePossible } from "../lib/menu/entrees";
 import type { AppData, Goal } from "../lib/types";
-import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { pick, t, tp } from "../lib/i18n";
+import { formatDate, pick, t, tp } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
 }
+
+/**
+ * ⭐ LA VUE OBJECTIFS EN MAÎTRE-DÉTAIL — phase D du chantier carte-objectifs,
+ * direction B choisie à l'arrêt 3 (2026-09-29), « mais épure un peu encore ».
+ *
+ * À gauche, la liste : un objectif par ligne, son pourcentage, et UNE ligne
+ * dessous — sa prochaine action (`prochaineAction.ts`), sinon son échéance.
+ * À droite, la fiche de l'objectif choisi : une phrase d'origine unique, puis
+ * la feuille de route. Sur iPhone, le motif des Notes : la liste OU la fiche,
+ * avec un retour.
+ *
+ * Ce que l'épure a retiré par rapport à la maquette B : la frise décorative,
+ * les colonnes « Tâches / Habitudes » (l'habitude qui compte se lit dans la
+ * ligne de son étape), l'encadré « Ensuite » répété dans la fiche (il est dans
+ * la liste), la bascule Plan / Carte (un bouton « Carte » ouvre l'éditeur plein
+ * écran, qui a besoin de toute la place), les trois boutons au survol (un seul
+ * « ⋯ », visible), et les panneaux redimensionnables par catégorie — le
+ * réglage `layout.goals` qu'ils écrivaient est orphelin, sans effet.
+ *
+ * ⚠️ Aucune règle métier ne change ici : le chiffre vient de `mesurer`, la
+ * prochaine action n'est qu'une lecture.
+ */
 
 /**
  * Clés FRANÇAISES : la table est construite à l'import, donc `t()` y serait
@@ -45,6 +67,9 @@ const SCOPE_ORDER: Record<Goal["scope"], number> = {
 /** Les choix de repliement de la vue — géométrie d'écran, hors synchronisation. */
 const CLE_REPLIS = "layout.goals.replis";
 
+/** L'événement qu'`App.tsx` réémet quand on demande d'ouvrir un objectif déjà à l'écran. */
+const EVT_OUVRIR_OBJECTIF = "sb:open-goal";
+
 function deadlineInfo(deadline: string | null): {
   label: string;
   urgent: boolean;
@@ -60,16 +85,32 @@ function deadlineInfo(deadline: string | null): {
   return { label: `${pick("J", "D")}−${days}`, urgent: days <= 7 };
 }
 
+/** `Intl` dans la langue de l'app ; midi, pour rester dans la bonne journée (PIEGES § 4.1). */
+function jourLong(jour: string): string {
+  const [a, m, j] = jour.split("-").map(Number);
+  return formatDate(new Date(a, m - 1, j, 12), { day: "numeric", month: "long" });
+}
+
+/** « hier », « demain », sinon « mar. 22 sept. » — la date d'un champ, en minuscule au fil d'une ligne. */
+function auFilDeLaLigne(jour: string, aujourdHui: string): string {
+  const relatif = libelleRelatif(jour, aujourdHui);
+  return relatif ? relatif.toLocaleLowerCase() : formaterChamp(jour, aujourdHui);
+}
+
 export default function GoalsView({ data, refresh }: Props) {
+  const isPhone = useIsPhone();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
-  const [parentForNew, setParentForNew] = useState<number | null>(null);
-  /** L'objectif dont on demande la suppression (il a des étapes : la question est posée dans la ligne). */
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par son bouton. */
+  /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par le menu. */
   const [ajoutPour, setAjoutPour] = useState<number | null>(null);
-  /** L'objectif regardé en carte mentale (lecture) — un seul à la fois, plein écran. */
+  /** L'objectif regardé en carte mentale — un seul à la fois, plein écran. */
   const [enCarte, setEnCarte] = useState<Goal | null>(null);
+  /**
+   * L'objectif montré dans la fiche. `null` : le premier de la liste sur le
+   * bureau, la LISTE sur iPhone — présélectionner y cacherait l'écran d'accueil
+   * du module derrière son détail (même règle que les Notes).
+   */
+  const [choisiId, setChoisiId] = useState<number | null>(null);
 
   /**
    * ⭐ Le repliement a une MÉMOIRE : seuls les choix explicites sont rangés,
@@ -84,20 +125,82 @@ export default function GoalsView({ data, refresh }: Props) {
   }, []);
   const onReplier = useCallback((cle: string, ouvert: boolean) => {
     setReplis((r) => {
+      if (r[cle] === ouvert) return r;
       const suivant = { ...r, [cle]: ouvert };
       void setSetting(CLE_REPLIS, JSON.stringify(suivant));
       return suivant;
     });
   }, []);
 
+  const { goals, tasks, completions } = data;
+  const goalsRef = useRef(goals);
+  goalsRef.current = goals;
+
+  /**
+   * Un objectif créé devient l'objectif montré. `GoalModal` ne rend pas l'`id`
+   * écrit : on retient les objectifs d'avant, et le premier objectif racine
+   * inconnu qui apparaît après le rafraîchissement est le nouveau.
+   */
+  const avantCreation = useRef<Set<number> | null>(null);
+  const nouvelObjectif = useCallback(() => {
+    avantCreation.current = new Set(goalsRef.current.map((g) => g.id));
+    setCreating(true);
+  }, []);
+  useEffect(() => {
+    const avant = avantCreation.current;
+    if (!avant) return;
+    const neuf = goals.find((g) => g.parent_goal_id === null && !avant.has(g.id));
+    if (neuf) {
+      avantCreation.current = null;
+      setChoisiId(neuf.id);
+    }
+  }, [goals]);
+
   // action palette "Nouvel objectif" → ouvre le formulaire
   useEffect(() => {
-    const onNew = () => setCreating(true);
-    window.addEventListener("sb:new-goal", onNew);
-    return () => window.removeEventListener("sb:new-goal", onNew);
-  }, []);
+    window.addEventListener("sb:new-goal", nouvelObjectif);
+    return () => window.removeEventListener("sb:new-goal", nouvelObjectif);
+  }, [nouvelObjectif]);
 
-  const { goals, tasks, completions } = data;
+  /**
+   * ⭐ « Voir l'objectif » depuis ailleurs (une mention, « En faire un objectif »
+   * d'une carte) montre SA fiche — la liste montrait tout, la fiche n'en montre
+   * qu'un : sans ceci on arriverait devant le premier objectif venu.
+   *
+   * ⚠️ Au MONTAGE aussi : la vue est chargée en `lazy`, l'événement est parti
+   * avant elle (`lib/naviguer.ts`). Et la demande ATTEND l'objectif : celui
+   * qu'une carte vient de créer n'est pas encore dans `data` quand elle arrive.
+   */
+  const [demande, setDemande] = useState<number | null>(null);
+  useEffect(() => {
+    const surDemande = (e: Event) => {
+      const id = (e as CustomEvent<number>).detail;
+      if (id) setDemande(id);
+    };
+    window.addEventListener(EVT_OUVRIR_OBJECTIF, surDemande);
+    const enAttente = consommerDemande("goal");
+    if (enAttente) setDemande(enAttente);
+    return () => window.removeEventListener(EVT_OUVRIR_OBJECTIF, surDemande);
+  }, []);
+  useEffect(() => {
+    if (demande == null) return;
+    const cible = goals.find((g) => g.id === demande);
+    if (!cible) return;
+    // La chaîne jusqu'à la racine ; ses étapes intermédiaires se déplient pour
+    // que la cible soit VUE, pas seulement présente.
+    const chaine: Goal[] = [cible];
+    const vus = new Set([cible.id]);
+    for (let g = cible; g.parent_goal_id != null; ) {
+      const parent = goals.find((x) => x.id === g.parent_goal_id);
+      if (!parent || vus.has(parent.id)) break;
+      vus.add(parent.id);
+      chaine.push(parent);
+      g = parent;
+    }
+    setChoisiId(chaine[chaine.length - 1].id);
+    for (const g of chaine.slice(1, -1)) onReplier(`g${g.id}`, true);
+    setDemande(null);
+  }, [demande, goals, onReplier]);
 
   /**
    * Les arêtes, événements et titres cités par les objectifs — HORS d'`AppData`,
@@ -143,6 +246,17 @@ export default function GoalsView({ data, refresh }: Props) {
         (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"),
     );
 
+  /** La prochaine action de chaque objectif racine — une lecture, jamais écrite. */
+  const suites = useMemo(() => {
+    const m = new Map<number, ProchaineAction | null>();
+    const acheve = (id: number) => {
+      const x = mesures.get(id);
+      return !!x && estAcheve(x);
+    };
+    for (const g of goals) if (g.parent_goal_id === null) m.set(g.id, prochaineAction(g, sources, acheve));
+    return m;
+  }, [goals, sources, mesures]);
+
   // Regroupe les objectifs racines par catégorie (« Sans catégorie » en dernier).
   const NONE = "__none__";
   const groups = new Map<string, Goal[]>();
@@ -155,6 +269,13 @@ export default function GoalsView({ data, refresh }: Props) {
     if (b === NONE) return -1;
     return a.localeCompare(b);
   });
+  // Des intertitres seulement s'ils disent quelque chose : un seul groupe
+  // « Sans catégorie » n'en a pas besoin.
+  const avecIntertitres = orderedCategories.some((c) => c !== NONE);
+
+  const choisi =
+    roots.find((g) => g.id === choisiId) ??
+    (isPhone ? null : (orderedCategories.flatMap((c) => groups.get(c)!)[0] ?? null));
 
   /**
    * Combien d'étapes (phases et sous-objectifs, à toute profondeur) partiraient
@@ -167,37 +288,21 @@ export default function GoalsView({ data, refresh }: Props) {
     ).length - 1;
 
   /**
-   * ⭐ Corbeille (migration 027) — et un CHANGEMENT DE COMPORTEMENT, décidé à
-   * l'arrêt 1 : un objectif part désormais AVEC ses phases et sous-objectifs
-   * (avant : ils remontaient d'un niveau). Ses tâches restent, détachées tant
-   * qu'il est en corbeille, et le retrouvent à la restauration.
-   *
-   * La confirmation en deux clics ne reste QUE pour le cas lourd — un objectif
-   * qui emporte des étapes — et elle dit combien. Sans étape, la corbeille et
-   * son « Annuler » suffisent.
+   * ⭐ Corbeille (migration 027) : un objectif part AVEC ses phases et
+   * sous-objectifs ; ses tâches restent, détachées tant qu'il est en corbeille.
+   * La confirmation ne reste que pour le cas lourd — il emporte des étapes —
+   * et elle dit combien. Sans étape, la corbeille et son « Annuler » suffisent.
    */
   const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
-  /**
-   * Le bouton de la ligne. Avec des étapes, la question est posée DANS la
-   * ligne (`ConfirmationEnLigne`), comme le menu la pose dans le menu — plus de
-   * double-clic « sûr ? », qui ne disait pas ce qui partait (2026-09-24).
-   */
-  const handleDelete = async (goal: Goal) => {
-    if (etapesDe(goal) > 0) {
-      setDeletingId(goal.id);
-      return;
-    }
-    await supprimerObjectif(goal);
-  };
 
   const ajouterEtape = (goal: Goal) => {
+    setChoisiId(goal.id);
     setAjoutPour(goal.id);
-    onReplier(`g${goal.id}`, true);
   };
 
-  // ─── Le menu contextuel d'un objectif ─────────────────────────────────────
-  // Les MÊMES gestes que les trois boutons de la ligne (règle 18). Les étapes,
-  // elles, ont déjà leur menu « ⋯ » dans la feuille de route (`MenuEtape`).
+  // ─── Le menu d'un objectif ────────────────────────────────────────────────
+  // Clic droit sur une ligne de la liste, ou le « ⋯ » de la fiche — le MÊME
+  // menu (règle 18). Les étapes ont le leur dans la feuille de route (`MenuEtape`).
   const menu = useMenuContextuel<Goal>();
   const entreesObjectif = (goal: Goal): EntreePossible[] => {
     const n = etapesDe(goal);
@@ -209,8 +314,6 @@ export default function GoalsView({ data, refresh }: Props) {
         libelle: t("Supprimer"),
         icone: <IconTrash />,
         danger: true,
-        // Cas LOURD : il emporte des étapes. La confirmation reste, et dit
-        // combien (cahier des charges, phase 3).
         confirmation:
           n > 0
             ? {
@@ -227,198 +330,189 @@ export default function GoalsView({ data, refresh }: Props) {
     ];
   };
 
-  const renderGoal = (goal: Goal) => {
+  // ─── Une ligne de la liste ────────────────────────────────────────────────
+
+  const ligneListe = (goal: Goal) => {
     const m = mesures.get(goal.id)!;
-    const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
-    const aDesTaches =
-      tasks.some((x) => x.goal_id === goal.id) || rattachementsDe(uidDeLigne("goal", goal), contexte).length > 0;
-    const avecFeuille = aDesEtapes || aDesTaches || ajoutPour === goal.id;
-    const cle = `g${goal.id}`;
-    // Déplié d'office s'il a une feuille de route : c'est ce que montrait la vue
-    // d'avant, qui imbriquait toujours les sous-objectifs. Un objectif qui n'a
-    // que des tâches rattachées reste replié — elles se lisent dans « 1/2
-    // éléments », et les déplier chez tout le monde au premier lancement ne
-    // serait que du bruit.
-    const ouvert = replis[cle] ?? (aDesEtapes || ajoutPour === goal.id);
+    const acheve = estAcheve(m);
+    const suite = suites.get(goal.id) ?? null;
     const dl = deadlineInfo(goal.deadline);
+    const actif = choisi?.id === goal.id;
+    return (
+      <li
+        key={goal.id}
+        onContextMenu={(e) => menu.ouvrirAuPoint(e, goal)}
+        onKeyDown={(e) => void menu.ouvrirAuClavier(e, goal)}
+      >
+        <button
+          type="button"
+          onClick={() => setChoisiId(goal.id)}
+          aria-current={actif ? "true" : undefined}
+          className={`block w-full rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+            actif ? "bg-surface-2" : "hover:bg-surface-2/50"
+          }`}
+        >
+          <span className="flex items-baseline gap-3">
+            <span className={`min-w-0 flex-1 truncate text-sm font-medium ${acheve ? "text-text-dim line-through" : "text-text"}`}>
+              {goal.title}
+            </span>
+            <span className="shrink-0 font-display text-sm font-bold text-text">
+              {m.pct == null ? "—" : `${m.pct}%`}
+            </span>
+          </span>
+          {/* UNE ligne, jamais deux : la prochaine action si elle existe (le
+              carré est l'icône de la tâche, DESIGN.md « Les types de nœud »),
+              sinon l'échéance de l'objectif. */}
+          {acheve ? (
+            <span className="mt-0.5 block text-xs text-success">{t("Atteint")}</span>
+          ) : suite ? (
+            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">
+              {/* L'espace avant les deux-points est française : l'anglais n'en met pas. */}
+              <span className="sr-only">{t("Prochaine action")}{pick(" :", ":")}</span>
+              <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] border border-current" aria-hidden />
+              <span className="min-w-0 truncate">{suite.tache.label}</span>
+              {suite.tache.due_date && (
+                <>
+                  <span className="shrink-0" aria-hidden>·</span>
+                  <span className={`shrink-0 ${suite.enRetard ? "font-medium text-red" : ""}`}>
+                    {auFilDeLaLigne(suite.tache.due_date, sources.maintenant.slice(0, 10))}
+                  </span>
+                </>
+              )}
+            </span>
+          ) : dl ? (
+            <span className={`mt-0.5 block text-xs ${dl.urgent ? "font-medium text-red" : "text-text-dim"}`}>{dl.label}</span>
+          ) : null}
+        </button>
+      </li>
+    );
+  };
+
+  // ─── La fiche ─────────────────────────────────────────────────────────────
+
+  const fiche = (goal: Goal) => {
+    const m = mesures.get(goal.id)!;
+    const acheve = estAcheve(m);
+    const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
     // ⭐ Un objectif MESURÉ qui n'a encore rien à mesurer n'affiche pas un faux
-    // 0 % : il propose l'action. C'est l'état vide qui parle.
+    // 0 % : il le dit, et la feuille de route dessous propose la première étape.
     const sansMesure = m.pct == null && !goal.manual_progress && !aDesEtapes;
+    const dl = deadlineInfo(goal.deadline);
     const pct = m.pct;
+    const menuOuvert = menu.ouvert && menu.cible?.id === goal.id;
 
     return (
-      <div key={goal.id}>
-        <div
-          className="group flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-3 hover:bg-surface-2"
-          onContextMenu={(e) => menu.ouvrirAuPoint(e, goal)}
-          onKeyDown={(e) => void menu.ouvrirAuClavier(e, goal)}
-        >
-          {avecFeuille && !(ajoutPour === goal.id && !aDesEtapes && !aDesTaches) ? (
+      // `key` : changer d'objectif repart d'une fiche neuve — sinon un champ
+      // « ajouter une étape » ouvert sur l'un resterait ouvert sur l'autre.
+      <div key={goal.id} className="flex min-h-0 flex-col">
+        {/* ⚠️ Le retour vit HORS de la zone qui défile : posé dans la fiche, il
+            partait avec le contenu dès qu'on descendait dans la feuille de
+            route — vu à l'écran à 390 pt le 2026-09-29. */}
+        {isPhone && (
+          <button
+            type="button"
+            onClick={() => setChoisiId(null)}
+            className="cible-tactile-ligne -ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+          >
+            ← {t("Tous les objectifs")}
+          </button>
+        )}
+        <section className="card min-h-0 flex-1 overflow-y-auto p-4 lg:p-6" aria-label={goal.title}>
+          <div className="flex items-start gap-2">
+            <h2 className="min-w-0 flex-1 font-display text-2xl font-extrabold text-text [overflow-wrap:anywhere]">
+              {goal.title}
+            </h2>
             <button
               type="button"
-              onClick={() => onReplier(cle, !ouvert)}
-              className="cible-tactile -ml-1 flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:text-text"
-              aria-expanded={ouvert}
-              aria-label={
-                ouvert
-                  ? t("Replier la feuille de route de « {titre} »", { titre: goal.title })
-                  : t("Déplier la feuille de route de « {titre} »", { titre: goal.title })
-              }
+              onClick={() => setEnCarte(goal)}
+              className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
+              data-tip={t("Voir en carte mentale")}
+              data-tip-sub={t("La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.")}
             >
-              {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
+              <IconCarte className="h-3.5 w-3.5" />
+              {t("Carte|carte mentale")}
             </button>
-          ) : (
-            <span className="-ml-1 w-6 shrink-0" aria-hidden />
-          )}
-
-          {/* basis-[14rem] : base flex qui déclenche le repli. En fenêtre
-              étroite la barre de progression et les actions passent à la ligne
-              au lieu de sortir du panneau (clippées = incliquables). En plein
-              écran tout tient sur une ligne : rendu inchangé. */}
-          <div className="min-w-0 flex-1 basis-[14rem]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`truncate text-sm ${estAcheve(m) ? "text-text-dim line-through" : "text-text"}`}
-              >
-                {goal.title}
-              </span>
-              <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-                {t(SCOPE_LABEL[goal.scope])}
-              </span>
-              {dl && (
-                <span
-                  className={`pill shrink-0 px-2 py-0.5 text-[10px] font-medium ${
-                    dl.urgent ? "bg-red/15 text-red" : "bg-surface-2 text-text-dim"
-                  }`}
-                >
-                  {dl.label}
-                </span>
-              )}
-            </div>
-            {goal.description && (
-              <p className="mt-0.5 truncate text-xs text-text-dim">
-                {goal.description}
-              </p>
-            )}
-            {!sansMesure && (
-              <p className="mt-0.5 truncate text-[11px] text-text-dim">{origineEnClair(m)}</p>
-            )}
+            <button
+              type="button"
+              onClick={(e) => menu.ouvrirSousLeBouton(e, goal)}
+              aria-haspopup="menu"
+              aria-expanded={menuOuvert}
+              aria-label={t("Actions sur « {titre} »", { titre: goal.title })}
+              data-tip={t("Actions")}
+              className="cible-tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                <circle cx="5" cy="12" r="1.8" />
+                <circle cx="12" cy="12" r="1.8" />
+                <circle cx="19" cy="12" r="1.8" />
+              </svg>
+            </button>
           </div>
 
+          <p className="mt-1 text-xs text-text-dim">
+            {t(SCOPE_LABEL[goal.scope])}
+            {goal.deadline && <> · {jourLong(goal.deadline)}</>}
+            {dl?.urgent && !acheve && <span className="font-medium text-red"> · {dl.label}</span>}
+          </p>
+          {goal.description && <p className="mt-2 text-sm text-text-dim">{goal.description}</p>}
+
           {sansMesure ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
-              {ajoutPour !== goal.id && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAjoutPour(goal.id);
-                    onReplier(cle, true);
-                  }}
-                  className="cible-tactile pill border border-border px-2.5 py-1 font-medium text-text hover:bg-surface"
-                >
-                  {t("+ Ajouter une étape")}
-                </button>
-              )}
+            <p className="mt-4 text-sm text-text-dim">
+              {t("Pas encore de feuille de route.")}{" "}
               <button
                 type="button"
                 onClick={async () => {
                   await majFeuilleDeRoute(goal.id, { manual_progress: 1 });
                   await refresh();
                 }}
-                className="cible-tactile px-1 text-text-dim hover:text-text hover:underline"
-                data-tip={t("Suivre à la main")}
-                data-tip-sub={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
+                className="cible-tactile-ligne font-medium text-blue hover:underline"
+                data-tip={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
               >
-                {t("ou suivre à la main")}
+                {t("Suivre à la main")}
               </button>
-            </div>
+            </p>
           ) : (
-            <div className="flex w-44 shrink-0 items-center gap-2">
-              <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
-                {pct != null && (
-                  <div
-                    className={`pill h-full transition-[width] duration-500 ${estAcheve(m) ? "bg-success" : "bg-[image:var(--gradient-brand)]"}`}
-                    style={{ width: `${Math.min(pct, 100)}%` }}
-                  />
-                )}
+            <>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
+                  {pct != null && (
+                    <div
+                      className={`pill h-full transition-[width] duration-500 ${acheve ? "bg-success" : "bg-[image:var(--gradient-brand)]"}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  )}
+                </div>
+                {/* Une feuille de route encore vide affiche « — », jamais un faux 0 %. */}
+                <span className="shrink-0 font-display text-3xl font-extrabold text-text">
+                  {pct == null ? "—" : `${pct}%`}
+                </span>
               </div>
-              {/* Une feuille de route encore vide affiche « — », jamais un faux 0 %. */}
-              <span className="w-12 text-right font-display text-sm font-bold text-text">
-                {pct == null ? "—" : `${pct}%`}
-              </span>
-            </div>
+              {/* ⭐ UNE phrase d'origine. L'audit (D1, point 2) : « 45 % saisi à
+                  la main » sur la ligne, et juste dessous « la feuille de route
+                  n'est pas lue » dans un bandeau — deux vérités pour un chiffre.
+                  Le bandeau a quitté la feuille de route ; la phrase dit les deux. */}
+              <p className="mt-1 text-xs text-text-dim">
+                {goal.manual_progress && aDesEtapes ? (
+                  <>
+                    {t("Saisi à la main : la feuille de route ne compte pas.")}{" "}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await majFeuilleDeRoute(goal.id, { manual_progress: 0 });
+                        await refresh();
+                      }}
+                      className="cible-tactile-ligne font-medium text-blue hover:underline"
+                    >
+                      {t("La faire compter")}
+                    </button>
+                  </>
+                ) : (
+                  origineEnClair(m)
+                )}
+              </p>
+            </>
           )}
 
-          {/* ⚠️ Visibles au focus clavier et en permanence au doigt : aucune
-              action ne doit exister uniquement au survol. */}
-          <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
-            <button
-              type="button"
-              onClick={() => ajouterEtape(goal)}
-              className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
-              aria-label={t("Ajouter une étape à {title}", { title: goal.title })}
-              data-tip={t("Ajouter une étape")}
-              data-tip-sub={t("Une phase ou un sous-objectif, en une ligne. Entrée pour enchaîner.")}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(goal)}
-              className="cible-tactile rounded-md p-1.5 text-text-dim hover:bg-surface hover:text-text"
-              aria-label={t("Modifier {title}", { title: goal.title })}
-              data-tip={t("Modifier l’objectif")}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(goal)}
-              className="cible-tactile rounded-md p-1.5 text-text-dim transition-colors hover:bg-surface hover:text-red"
-              aria-label={t("Supprimer {title}", { title: goal.title })}
-              data-tip={t("Supprimer l’objectif")}
-              // ⚠️ Cette bulle disait « les sous-objectifs remontent d'un
-              // niveau » : faux depuis la corbeille, ils partent avec lui.
-              data-tip-sub={
-                etapesDe(goal) > 0
-                  ? tp(
-                      etapesDe(goal),
-                      "Il part avec 1 étape dans Supprimés récemment, 30 jours. Ses tâches restent.",
-                      "Il part avec ses {n} étapes dans Supprimés récemment, 30 jours. Ses tâches restent.",
-                    )
-                  : t("Il reste 30 jours dans Supprimés récemment. Ses tâches restent.")
-              }
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-              </svg>
-            </button>
-          </span>
-        </div>
-
-        {deletingId === goal.id && (
-          <ConfirmationEnLigne
-            className="mx-3 mb-2"
-            question={tp(
-              etapesDe(goal),
-              "Supprimer « {titre} » ? Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.",
-              "Supprimer « {titre} » ? Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.",
-              { titre: goal.title },
-            )}
-            libelle={t("Supprimer")}
-            onRenoncer={() => setDeletingId(null)}
-            onConfirmer={async () => {
-              setDeletingId(null);
-              await supprimerObjectif(goal);
-            }}
-          />
-        )}
-
-        {avecFeuille && ouvert && (
           <FeuilleDeRoute
             racine={goal}
             data={data}
@@ -430,66 +524,60 @@ export default function GoalsView({ data, refresh }: Props) {
             ajoutOuvert={ajoutPour === goal.id}
             onFermerAjout={() => setAjoutPour((a) => (a === goal.id ? null : a))}
             onModifier={setEditing}
-            onCarte={setEnCarte}
             refresh={refresh}
           />
-        )}
+        </section>
       </div>
     );
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
-      <header className="view-head">
-        <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          data-tip={t("Nouvel objectif")}
-          data-tip-sub={t("Un titre suffit. La feuille de route viendra quand tu en auras besoin.")}
-          className="pill fill-primary px-4 py-2 text-sm font-semibold"
-        >
-          {t("+ Nouvel objectif")}
-        </button>
-      </header>
+    <div className="mx-auto flex h-full max-w-6xl flex-col p-4 lg:p-8">
+      {/* Sur iPhone, la fiche prend l'écran : l'en-tête du module laisse la
+          place au retour, comme la barre de navigation d'iOS. */}
+      {!(isPhone && choisi) && (
+        <header className="view-head shrink-0">
+          <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
+          <button
+            type="button"
+            onClick={nouvelObjectif}
+            data-tip={t("Nouvel objectif")}
+            data-tip-sub={t("Un titre suffit. La feuille de route viendra quand tu en auras besoin.")}
+            className="pill fill-primary px-4 py-2 text-sm font-semibold"
+          >
+            {t("+ Nouvel objectif")}
+          </button>
+        </header>
+      )}
 
       {roots.length === 0 ? (
-        <ResizableGrid gridId="goals" className="mt-6">
-        <ResizablePanel id="goals-list" defaultW={12}>
-        <section className="card p-3">
+        <section className="card mt-6 p-3">
           <p className="py-10 text-center text-sm text-text-dim">
             {t(
               "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).",
             )}
           </p>
         </section>
-        </ResizablePanel>
-        </ResizableGrid>
       ) : (
-        <ResizableGrid gridId="goals" className="mt-6">
-          {orderedCategories.map((cat) => {
-            const list = groups.get(cat)!;
-            const label = cat === NONE ? t("Sans catégorie") : cat;
-            return (
-              <ResizablePanel
-                key={cat}
-                id={`goals-cat-${cat}`}
-                title={label}
-                defaultW={12}
-              >
-                <section className="card p-3">
-                  <div className="mb-1 flex items-center gap-2 px-2 pt-1">
-                    <h2 className="hud-label">{label}</h2>
-                    <span className="pill bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-                      {list.length}
-                    </span>
-                  </div>
-                  {list.map((g) => renderGoal(g))}
-                </section>
-              </ResizablePanel>
-            );
-          })}
-        </ResizableGrid>
+        <div
+          className={`grid min-h-0 flex-1 gap-4 ${isPhone && choisi ? "" : "mt-6"} ${
+            isPhone ? "grid-cols-1" : "grid-cols-[minmax(220px,300px)_minmax(0,1fr)]"
+          }`}
+        >
+          {(!isPhone || !choisi) && (
+            <nav aria-label={t("Mes objectifs")} className="min-h-0 overflow-y-auto">
+              {orderedCategories.map((cat) => (
+                <div key={cat} className="mb-3">
+                  {avecIntertitres && (
+                    <h2 className="hud-label px-3 pb-1 pt-1">{cat === NONE ? t("Sans catégorie") : cat}</h2>
+                  )}
+                  <ul className="flex flex-col gap-0.5">{groups.get(cat)!.map(ligneListe)}</ul>
+                </div>
+              ))}
+            </nav>
+          )}
+          {choisi && fiche(choisi)}
+        </div>
       )}
 
       {enCarte && (
@@ -504,26 +592,24 @@ export default function GoalsView({ data, refresh }: Props) {
         />
       )}
 
-      {(creating || editing || parentForNew !== null) && (
+      {(creating || editing) && (
         <GoalModal
           goal={editing}
           goals={goals}
-          defaultParentId={parentForNew}
           onClose={() => {
+            avantCreation.current = null;
             setCreating(false);
             setEditing(null);
-            setParentForNew(null);
           }}
           onSaved={async () => {
             await refresh();
             setCreating(false);
             setEditing(null);
-            setParentForNew(null);
           }}
         />
       )}
 
-      {/* Un seul menu pour toute la liste, recalculé depuis les objectifs frais :
+      {/* Un seul menu pour toute la vue, recalculé depuis les objectifs frais :
           un objectif effacé par la synchronisation le ferme au lieu d'y agir. */}
       <MenuContextuel
         etat={menu}
