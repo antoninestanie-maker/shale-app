@@ -1173,12 +1173,22 @@ Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
   § 24.11), sous une charge de ~95 (rendu After Effects + `cargo` iOS) : 1583,
   et 3 EXPIRATIONS toutes dans `sync/` (§ 9.11) — ces deux fichiers rejoués
   avec un délai large : **49 / 49**.
-- ✅ `cargo check --all-targets` (code 0) et `cargo check --target
-  aarch64-apple-ios` (code 0, 29 min à cache vide). Aucun Rust touché.
+- ✅ `cargo check --all-targets`, `--target aarch64-apple-ios` et `--target
+  aarch64-apple-ios-sim` : code 0 tous les trois (29 et 11 min à cache vide,
+  machine chargée). Aucun Rust touché.
+- ✅ **Installé le 2026-09-29 à 23:22** — un seul build, groupé avec « iOS
+  connexion seule » (`d195774`, jamais construit). mobile-ios `faa7b5b`, build
+  code 0 ; témoins de la nouvelle vue dans `dist/assets` (et 0 pour les phrases
+  de l'ancienne) ; sha256 installée = source (`b7465140…`), ≠ ancienne
+  (`a270fd00…`). Aucune migration : base en 28 avant et après, integrity ok,
+  0 violation de clé étrangère, comptes identiques à la sauvegarde
+  `Shale-chantiers/sauvegardes/avant-carte-objectifs-20260929-2322/`.
+  ⛔ Le trousseau peut redemander l'accès : « Toujours autoriser ».
 
 **Ce qui ne l'est pas.**
-- ⛔ Pas d'app installée (aucun build) ; pas de WKWebView ; pas d'iPhone réel ni de
-  simulateur (dettes : `MOBILE.md` § 26).
+- ⛔ Rien n'a été essayé À LA MAIN dans l'app installée (WKWebView) : toutes les
+  preuves à l'écran sont en Chrome, en démo. Pas d'iPhone réel ni de simulateur
+  (dettes : `MOBILE.md` § 26).
 - ⚠️ Une version antérieure de l'app qui RÉÉCRIT une carte en efface les positions
   et les nœuds-habitudes (`PIEGES.md` § 24.1) : tous les appareils à la même
   version avant de s'en servir.
