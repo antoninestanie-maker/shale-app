@@ -1239,7 +1239,12 @@ Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
   `planDirect` (7 tests) et `objetsEmportes` (7 tests) : sept mutations vues
   rouges. Ligne de base sans le patch de démo (23:51) : `tsc`, `test:types`,
   `i18n:check` (2233 : 19 phrases de l'ancien panneau retirées), `i18n:durs`
-  (0), build Vite, vitest **1600 / 1600**.
+  (0), build Vite, vitest **1600 / 1600** ; rebasé sur le Timer (`9276471`) :
+  **1619 / 1619**.
+- ✅ **Installé le 2026-09-30 à 00:03** (mobile-ios `85dd58d`) : témoins du
+  typage direct dans `dist/assets`, 0 pour l'ancien panneau ; sha256 installée
+  = source (`755990c9…`) ; base en 28 avant et après, integrity ok, comptes
+  identiques à `sauvegardes/avant-retours-cartes-20260930-0003/`.
 
 **Ce qui reste.** Essayer à la main dans l'app installée (Antonin n'a rien pu
 essayer en démo — arrêt 2). iPhone : `MOBILE.md` § 26, dont la vue Objectifs à
