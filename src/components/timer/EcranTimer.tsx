@@ -3,8 +3,18 @@
 // vidéo d'Antonin : le genre de séance en haut à gauche, les volets au centre,
 // une pastille « Pause » dessous — et les gestes de fenêtre, discrets, en haut
 // à droite (toujours visibles : rien n'apparaît au seul survol, AMELIORATIONS-UI § B).
-import { useEffect, type ReactNode } from "react";
+//
+// ⭐ Mode ÉPURÉ (2026-09-29, demande d'Antonin après le premier essai) : en
+// plein écran, « seul le timer est affiché — pas de bouton pause, rien ; on
+// sort avec Échap et c'est tout, là on retrouve les boutons ». Donc ni en-tête,
+// ni jauge, ni bouton, et le curseur s'efface quand la souris ne bouge plus.
+// Espace reste une pause silencieuse (le chiffre s'efface à moitié). Sans
+// clavier (iPhone, iPad), un toucher fait office d'Échap ; à la souris, un
+// double-clic aussi — jamais un simple clic, qui sert à redonner la main à une
+// fenêtre posée sur un autre écran.
+import { useEffect, useState, type ReactNode } from "react";
 import { t } from "../../lib/i18n";
+import { IS_IOS } from "../../lib/platform";
 import { afficheLesHeures } from "../../lib/timerFenetre";
 import { IconPause, IconPlay, IconStop } from "../icons";
 import HorlogeVolets from "./HorlogeVolets";
@@ -29,6 +39,31 @@ interface Props {
   onEchap?: () => void;
   /** Un fond qui sert de poignée pour déplacer la fenêtre (fenêtre séparée). */
   poignee?: boolean;
+  /** Plein écran : l'horloge seule. */
+  epure?: boolean;
+}
+
+/** Vrai quand la souris n'a pas bougé depuis `delaiMs` — pour effacer le curseur. */
+function useSourisImmobile(actif: boolean, delaiMs = 2000): boolean {
+  const [immobile, setImmobile] = useState(false);
+  useEffect(() => {
+    if (!actif) {
+      setImmobile(false);
+      return;
+    }
+    let id = window.setTimeout(() => setImmobile(true), delaiMs);
+    const surMouvement = () => {
+      setImmobile(false);
+      window.clearTimeout(id);
+      id = window.setTimeout(() => setImmobile(true), delaiMs);
+    };
+    window.addEventListener("mousemove", surMouvement);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("mousemove", surMouvement);
+    };
+  }, [actif, delaiMs]);
+  return immobile;
 }
 
 /** Espace ne doit pas basculer deux fois quand un bouton a le focus. */
@@ -47,7 +82,9 @@ export default function EcranTimer({
   retraitPastilles = false,
   onEchap,
   poignee = false,
+  epure = false,
 }: Props) {
+  const curseurCache = useSourisImmobile(epure);
   const estPause = seance.kind === "break";
   const totalSec = seance.plannedMin * 60;
   const progression = totalSec > 0 ? Math.min(1, Math.max(0, 1 - restantSec / totalSec)) : 0;
@@ -67,6 +104,24 @@ export default function EcranTimer({
     window.addEventListener("keydown", surTouche);
     return () => window.removeEventListener("keydown", surTouche);
   }, [onBasculerPause, onEchap]);
+
+  if (epure) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center px-[4vw]"
+        style={{ cursor: curseurCache ? "none" : undefined }}
+        onDoubleClick={onEchap}
+        onClick={IS_IOS ? onEchap : undefined}
+      >
+        <HorlogeVolets
+          restantSec={restantSec}
+          avecHeures={afficheLesHeures(seance.plannedMin)}
+          enPause={enPause}
+          hauteurMax="min(calc(100vh - 6rem), 46rem)"
+        />
+      </div>
+    );
+  }
 
   return (
     <div

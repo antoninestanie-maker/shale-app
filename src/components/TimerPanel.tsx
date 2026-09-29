@@ -140,7 +140,7 @@ export default function TimerPanel({ data, focus }: Props) {
             type="button"
             onClick={() => focus.setOverlayOpen(true)}
             data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le compte à rebours à l’écran.")}
+            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
             className={`mt-2 font-mono text-6xl font-semibold text-text ${
               paused ? "opacity-50" : ""
             }`}

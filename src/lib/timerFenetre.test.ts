@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   afficheLesHeures,
+  delaiAvantProchaineSeconde,
   decouperTemps,
   estCommande,
   etatDepuisFocus,
@@ -108,5 +109,49 @@ describe("estCommande", () => {
     expect(estCommande("supprimer-tout")).toBe(false);
     expect(estCommande(42)).toBe(false);
     expect(estCommande(null)).toBe(false);
+  });
+});
+
+describe("delaiAvantProchaineSeconde", () => {
+  const fin = 10_000_000;
+
+  it("se réveille juste après la prochaine frontière d'arrondi", () => {
+    // Reste 36,6 s : affiché 37, passe à 36 quand le reste franchit 36,5 s.
+    const d = delaiAvantProchaineSeconde(fin, fin - 36_600);
+    expect(d).toBeGreaterThan(100);
+    expect(d).toBeLessThan(130);
+    expect(restantDepuisEtat({ session: { label: "", kind: "focus", plannedMin: 1 }, finMs: fin, restantFigeSec: null }, fin - 36_600 + d)).toBe(36);
+  });
+
+  it("sur une frontière exacte, attend quelques millisecondes, pas une seconde", () => {
+    expect(delaiAvantProchaineSeconde(fin, fin - 36_500)).toBeLessThan(50);
+  });
+
+  it("aucune seconde sautée ni doublée, quel que soit l'instant de départ et le retard des réveils", () => {
+    const etat = { session: { label: "", kind: "focus" as const, plannedMin: 25 }, finMs: fin, restantFigeSec: null };
+    for (let depart = 0; depart < 1000; depart += 37) {
+      let t = fin - 90_000 - depart;
+      const vus: number[] = [restantDepuisEtat(etat, t)];
+      for (let i = 0; i < 60; i++) {
+        // Un réveil de minuteur arrive toujours EN RETARD, jamais en avance :
+        // de 0 à 40 ms ici, selon un motif fixe.
+        t += delaiAvantProchaineSeconde(fin, t) + ((i * 13) % 41);
+        vus.push(restantDepuisEtat(etat, t));
+      }
+      for (let i = 1; i < vus.length; i++) expect(vus[i - 1] - vus[i]).toBe(1);
+    }
+  });
+
+  it("un battement fixe d'une seconde, lui, saute des secondes (la raison d'être de ce calcul)", () => {
+    const etat = { session: { label: "", kind: "focus" as const, plannedMin: 25 }, finMs: fin, restantFigeSec: null };
+    // Départ à 3 ms d'une frontière, puis setInterval(1000) avec quelques ms de gigue.
+    let t = fin - 90_503;
+    const vus = [restantDepuisEtat(etat, t)];
+    for (let i = 0; i < 60; i++) {
+      t += 1000 + (i % 2 === 0 ? 4 : -2);
+      vus.push(restantDepuisEtat(etat, t));
+    }
+    const ecarts = vus.slice(1).map((v, i) => vus[i] - v);
+    expect(ecarts.some((e) => e !== 1)).toBe(true);
   });
 });

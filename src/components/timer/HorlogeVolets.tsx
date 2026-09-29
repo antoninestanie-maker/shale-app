@@ -7,13 +7,18 @@
 // l'app, dans sa largeur ÉTROITE (axe `wdth` à 75) — la même famille, pas une
 // police de plus.
 //
-// ⚠️ AUCUN `animationend` ici, exprès (PIEGES § 11.4 et 11.5). Chaque volet
-// animé est MONTÉ avec la nouvelle valeur pour clé et tient sa position finale
-// par `animation-fill-mode: both` : la bascule rejoue d'elle-même au changement
+// ⭐ Refaite le même soir, après le premier essai (« ça manque de fluidité ») :
+// un volet d'un seul tenant à deux faces qui tourne de 0 à −180°, un rebond,
+// des ombres qui suivent la bascule, une vraie charnière. Le détail est dans
+// `volets.css`.
+//
+// ⚠️ AUCUN `animationend` ici, exprès (PIEGES § 11.4 et 11.5). Le volet animé
+// est MONTÉ avec la nouvelle valeur pour clé et tient sa position finale par
+// `animation-fill-mode: both` : la bascule rejoue d'elle-même au changement
 // suivant, et un mouvement réduit (durée ramenée à ~0 par la règle globale)
 // tombe directement sur l'état final — rien n'attend un événement qui
 // pourrait ne jamais venir.
-import { useState, type CSSProperties } from "react";
+import { memo, useState, type CSSProperties } from "react";
 import { decouperTemps } from "../../lib/timerFenetre";
 import "./volets.css";
 
@@ -50,8 +55,14 @@ export default function HorlogeVolets({
   );
 }
 
-/** Une carte : deux moitiés fixes, et deux volets qui basculent au changement. */
-function Volet({ valeur }: { valeur: string }) {
+/**
+ * Une carte : deux moitiés fixes, et le volet qui bascule au changement.
+ *
+ * `memo` : l'app entière se re-rend à chaque seconde (la séance vit dans
+ * `App`). La carte des minutes n'a rien à refaire cinquante-neuf fois sur
+ * soixante.
+ */
+const Volet = memo(function Volet({ valeur }: { valeur: string }) {
   // L'état « valeur précédente » est dérivé PENDANT le rendu (le motif React
   // pour mémoriser le rendu d'avant) : pas d'effet, donc pas une image de retard
   // où l'ancienne valeur s'afficherait entière.
@@ -62,24 +73,31 @@ function Volet({ valeur }: { valeur: string }) {
 
   return (
     <div className="volet" aria-hidden>
-      {/* Fixe en haut : déjà la NOUVELLE valeur, que le volet qui tombe découvre. */}
+      {/* Fixe en haut : déjà la NOUVELLE valeur, que le volet découvre en tombant. */}
       <div className="volet-moitie volet-haut">
         <span>{actuelle}</span>
+        {bascule && <i key={`revele-${actuelle}`} className="volet-ombre volet-ombre-revele" />}
       </div>
       {/* Fixe en bas : encore l'ANCIENNE, jusqu'à ce que le volet la recouvre. */}
       <div className="volet-moitie volet-bas">
         <span>{bascule ? precedente : actuelle}</span>
+        {bascule && <i key={`portee-${actuelle}`} className="volet-ombre volet-ombre-portee" />}
       </div>
       {bascule && (
-        <>
-          <div key={`tombe-${actuelle}`} className="volet-moitie volet-haut volet-tombe">
+        <div key={`clapet-${actuelle}`} className="volet-clapet">
+          {/* Devant : le haut de l'ancien chiffre. Derrière : le bas du nouveau. */}
+          <div className="volet-face volet-face-avant">
             <span>{precedente}</span>
+            <i className="volet-ombre volet-ombre-avant" />
           </div>
-          <div key={`arrive-${actuelle}`} className="volet-moitie volet-bas volet-arrive">
+          <div className="volet-face volet-face-dos">
             <span>{actuelle}</span>
+            <i className="volet-ombre volet-ombre-dos" />
           </div>
-        </>
+        </div>
       )}
+      <i className="volet-pivot volet-pivot-g" />
+      <i className="volet-pivot volet-pivot-d" />
     </div>
   );
-}
+});

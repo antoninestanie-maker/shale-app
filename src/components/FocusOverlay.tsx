@@ -1,15 +1,14 @@
 import { createPortal } from "react-dom";
 import type { FocusController } from "../lib/useFocus";
-import { IS_IOS } from "../lib/platform";
 import { themeAuDemarrage, FONDS } from "../lib/theme";
 import { afficherToast } from "../lib/toast";
 import {
-  fenetreSepareeDisponible,
   ouvrirFenetreTimer,
+  usePleinEcranNatif,
   usePontFenetreTimer,
 } from "../lib/timerFenetre";
-import EcranTimer, { ActionFenetre } from "./timer/EcranTimer";
-import { IconExternal, IconPause } from "./icons";
+import EcranTimer from "./timer/EcranTimer";
+import { IconPause } from "./icons";
 
 import { t } from "../lib/i18n";
 function fmt(sec: number): string {
@@ -29,14 +28,19 @@ export async function detacherLeTimer(focus: FocusController): Promise<void> {
 }
 
 /**
- * Mode session : plein écran (l'horloge à volets) + pastille compacte quand
- * réduit. Héberge aussi le pont vers la fenêtre séparée du Timer : c'est ici
- * que vit l'affichage de la séance, et ce composant est monté une seule fois,
- * au niveau d'`App`.
+ * Mode session : plein écran (l'horloge à volets, SEULE) + pastille compacte
+ * quand réduit. Héberge aussi le pont vers la fenêtre séparée du Timer : c'est
+ * ici que vit l'affichage de la séance, et ce composant est monté une seule
+ * fois, au niveau d'`App`.
+ *
+ * Le plein écran n'a plus aucun bouton (demande d'Antonin, 2026-09-29) : Échap
+ * le referme, et les boutons se retrouvent dans la vue Timer. La fenêtre
+ * séparée s'ouvre depuis la vue Timer.
  */
 export default function FocusOverlay({ focus }: { focus: FocusController }) {
   // ⚠️ Avant tout `return` : un crochet ne se saute pas.
   usePontFenetreTimer(focus);
+  usePleinEcranNatif(focus.overlayOpen && focus.session !== null);
 
   const { session, remainingSec, paused, overlayOpen, setOverlayOpen, stop, pause, resume } =
     focus;
@@ -73,36 +77,14 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
   return createPortal(
     <div className="fixed inset-0 z-[80] bg-bg">
       <EcranTimer
+        epure
         seance={session}
         restantSec={remainingSec}
         enPause={paused}
         onBasculerPause={paused ? resume : pause}
         onTerminer={() => void stop()}
         onEchap={() => setOverlayOpen(false)}
-        // La barre de titre de la fenêtre principale est transparente : les
-        // pastilles de macOS sont posées sur ce coin (pas sur iPhone/iPad).
-        retraitPastilles={!IS_IOS}
-        actions={
-          <>
-            {fenetreSepareeDisponible() && (
-              <ActionFenetre
-                onClick={() => void detacherLeTimer(focus)}
-                label={t("Fenêtre séparée")}
-                tipSub={t("Ouvre le chrono dans sa propre fenêtre, à poser sur un autre écran.")}
-              >
-                <IconExternal className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("Fenêtre séparée")}</span>
-              </ActionFenetre>
-            )}
-            <ActionFenetre
-              onClick={() => setOverlayOpen(false)}
-              label={t("Réduire")}
-              tipSub={t("Le chrono continue. Raccourci : Échap")}
-            >
-              {t("Réduire")}
-            </ActionFenetre>
-          </>
-        }
+        actions={null}
       />
     </div>,
     document.body,

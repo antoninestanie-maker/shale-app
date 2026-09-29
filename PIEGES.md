@@ -4332,3 +4332,59 @@ montre.
 - **zsh ne découpe pas `$F`** : `git checkout -- $F` avec `F="a b c"` cherche UN fichier nommé « a b c ». Utiliser un tableau, `F=(a b c)`.
 - **`git stash` est commun à tous les worktrees** : pour une contre-épreuve, passer par `git diff -- fichiers > x.patch`, `git checkout -- fichiers`, puis `git apply x.patch`.
 - **puppeteer « Attempted to use detached Frame »** au premier passage sur un serveur Vite neuf : Vite ré-optimise ses dépendances et recharge la page. Relancer le script, ce n'est pas l'app.
+
+# 26 (suite). Timer, second passage (2026-09-30, fusionné le 2026-10-11)
+## 26.3 ⚠️⚠️ `backface-visibility: hidden` ne cache pas le dos d'un volet dans WebKit
+
+**Symptôme.** Volet à deux faces (`preserve-3d`, dos en `rotateX(180deg)`) :
+dans WebKit, le dos — le bas du NOUVEAU chiffre, à l'envers — recouvre le devant
+dès le départ, et le bas reste grisé à l'arrivée. Chrome rend la même page
+juste. Mesuré le 2026-09-30 sur la page d'essai des volets.
+
+**Cause.** Au moins dans le chemin de capture de `webkit-pilote` (voir 26.5),
+la culture des faces arrière n'est pas appliquée ; on ne peut pas exclure que
+l'app la perde aussi dans certains cas (les faces contiennent des couches
+animées, que WebKit compose à part).
+
+**Parade.** Ne pas dépendre de `backface-visibility` seule : chaque face est
+aussi ÉTEINTE / ALLUMÉE (`visibility`, en paliers) à l'instant où le volet
+passe la verticale — il est alors vu par la tranche, rien ne se voit. L'instant
+se calcule sur la courbe (46,2 % ici) ; recalculer si la courbe change.
+
+**Payé.** Une version fausse aurait été installée sans la page d'essai.
+
+## 26.4 ⚠️ Un `setInterval(1000)` fait sauter et doubler des secondes à l'écran
+
+**Symptôme.** Sur une horloge à volets, de temps en temps deux bascules
+collées puis une seconde sans bascule.
+
+**Cause.** Le chiffre change quand le reste franchit une demi-seconde (arrondi).
+Un battement fixe calé à quelques millisecondes de cette frontière, avec la
+gigue normale des minuteurs, la voit tantôt avant, tantôt après.
+
+**Parade.** Se réveiller juste APRÈS chaque frontière :
+`delaiAvantProchaineSeconde` (`lib/timerFenetre.ts`), utilisé par `useFocus`
+et la fenêtre séparée. Un test simule la gigue et prouve les deux sens.
+
+**Payé.** Probablement une bonne part du « manque de fluidité » constaté par
+Antonin au premier essai.
+
+## 26.5 Outil — regarder une animation 3D image par image
+
+**Trois pièges, une recette.**
+1. Figer une animation en changeant `animation-delay` (négatif) + `paused`
+   **ne marche pas** sur une animation déjà finie : elle reste finie, toutes les
+   images sont identiques. Piloter le temps par l'API Web Animations :
+   `document.getAnimations().forEach(a => { a.pause(); a.currentTime = t })`.
+2. La capture de `webkit-pilote` (`takeSnapshot`) passe par le **rendu
+   logiciel** : pas de perspective, et la face arrière n'y est pas cachée (26.3).
+   Elle dit l'ordre et le contenu des faces, pas le relief.
+3. Chrome sans interface (`--headless=new --screenshot`) rend par le vrai
+   compositeur — mais **un profil par capture** (`--user-data-dir` distinct) et
+   une alarme (`perl -e 'alarm 25; exec @ARGV' …`) : une instance qui ne se
+   referme pas garde le profil verrouillé, et les suivantes attendent pour
+   toujours. Ne tuer que ses propres processus (motif = son dossier de profil).
+
+La page d'essai elle-même : le balisage RÉEL du composant (rendu happy-dom dans
+un test jetable, jamais commité), son CSS réel, les jetons du thème recopiés
+d'`index.css`, la police en `data:`. Rien de l'app, rien de l'authentification.

@@ -129,6 +129,25 @@ export function decouperTemps(sec: number, avecHeures: boolean): string[] {
   return [deux(Math.floor(s / 60)), deux(s % 60)];
 }
 
+/**
+ * Millisecondes jusqu'au prochain changement du chiffre affiché.
+ *
+ * ⭐ Pourquoi pas `setInterval(1000)` : le chiffre change quand le reste
+ * franchit une demi-seconde (arrondi de `useFocus`), à un instant qui n'a
+ * aucune raison de tomber sur le battement d'un minuteur. Un battement réglé à
+ * quelques millisecondes d'une frontière la voit tantôt avant, tantôt après :
+ * une seconde sautée, puis une seconde affichée deux fois. Sur une horloge à
+ * volets, ça se VOIT — deux bascules collées, puis un trou. On se réveille donc
+ * juste après chaque frontière.
+ */
+export function delaiAvantProchaineSeconde(finMs: number, maintenantMs: number): number {
+  const reste = finMs - maintenantMs;
+  // Le chiffre passe de n à n − 1 quand le reste franchit (n − 0,5) s.
+  const jusquA = (((reste - 500) % 1000) + 1000) % 1000;
+  // Une marge : se réveiller juste APRÈS la frontière, jamais juste avant.
+  return jusquA + 12;
+}
+
 /** Trois volets dès qu'une session prévoit une heure ou plus. */
 export function afficheLesHeures(plannedMin: number): boolean {
   return plannedMin >= 60;
@@ -295,14 +314,75 @@ export async function ouvrirFenetreTimer(fondCss: string): Promise<boolean> {
   }
 }
 
-/** Ferme la fenêtre séparée depuis ELLE-MÊME. */
+const attendre = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
+/**
+ * Ferme la fenêtre séparée depuis ELLE-MÊME — et la ferme pour de bon.
+ *
+ * ⭐ `destroy()`, pas `close()` (2026-09-29, premier essai d'Antonin : « la
+ * fenêtre ne se referme pas »). `close()` n'est qu'une DEMANDE, que n'importe
+ * quel écouteur peut retenir ; `destroy()` ne se discute pas.
+ *
+ * ⚠️ Et jamais en plein écran : macOS range une fenêtre en plein écran dans son
+ * propre espace. La détruire au milieu de l'animation de sortie risque l'espace
+ * fantôme que la fenêtre principale a déjà connu (`CLAUDE.md`, 2026-07-26). On
+ * sort d'abord, on laisse l'animation finir, puis on détruit.
+ */
 export async function fermerCetteFenetre(): Promise<void> {
   if (!estTauri()) {
     window.close();
     return;
   }
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
-  await getCurrentWindow().close();
+  const w = getCurrentWindow();
+  try {
+    if (await w.isFullscreen()) {
+      await w.setFullscreen(false);
+      // L'animation de sortie de macOS dure ~0,7 s.
+      for (let i = 0; i < 20 && (await w.isFullscreen()); i++) await attendre(100);
+      await attendre(700);
+    }
+  } catch (e) {
+    console.error("timer : sortie du plein écran avant fermeture", e);
+  }
+  await w.destroy();
+}
+
+/**
+ * Le plein écran de l'app (`FocusOverlay`) passe la fenêtre principale en VRAI
+ * plein écran macOS tant qu'il est ouvert : sans lui, la barre des menus et les
+ * pastilles de la fenêtre restaient posées sur l'horloge, et Antonin a demandé
+ * que « seul le timer soit affiché ».
+ *
+ * ⚠️ Si la fenêtre était DÉJÀ en plein écran, on n'y touche ni à l'entrée ni à
+ * la sortie. Et on ne sort que du plein écran qu'on a soi-même ouvert.
+ */
+export function usePleinEcranNatif(actif: boolean): void {
+  useEffect(() => {
+    if (!actif || !estTauri() || IS_IOS) return;
+    let annule = false;
+    let entre = false;
+    const fenetre = () => import("@tauri-apps/api/window").then((m) => m.getCurrentWindow());
+    void (async () => {
+      const w = await fenetre();
+      if (annule || (await w.isFullscreen())) return;
+      await w.setFullscreen(true);
+      entre = true;
+      // Refermé pendant qu'on y entrait : on ressort aussitôt.
+      if (annule) {
+        entre = false;
+        await w.setFullscreen(false);
+      }
+    })().catch((e) => console.error("timer : plein écran impossible", e));
+    return () => {
+      annule = true;
+      if (entre) {
+        void fenetre()
+          .then((w) => w.setFullscreen(false))
+          .catch((e) => console.error("timer : sortie du plein écran impossible", e));
+      }
+    };
+  }, [actif]);
 }
 
 /** Ramène la fenêtre principale devant (appelé DANS la fenêtre principale). */

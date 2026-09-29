@@ -62,7 +62,7 @@ export default function TimerCard({ data, focus }: Props) {
             type="button"
             onClick={() => focus.setOverlayOpen(true)}
             data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le compte à rebours à l’écran.")}
+            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
             className={`font-mono text-5xl font-semibold text-text ${paused ? "opacity-50" : ""}`}
           >
             {fmt(remainingSec)}

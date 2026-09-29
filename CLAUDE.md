@@ -7428,3 +7428,69 @@ Cinq défauts relevés le 2026-10-09 en filmant la démo en anglais (reel 018). 
 - **Une date dans une phrase passe par `formaterDansPhrase`** (`lib/calendrier/champDate.ts`) : « 6 octobre », “October 6”, l'année si elle diffère. Jamais « Hier » (la phrase porte déjà « prévue le »), jamais la chaîne de la base.
 - **La maxime du bandeau ne cite plus de chiffre** (décision d'Antonin, 2026-10-10) : « Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre. » « Cinq fois » contredisait le « repoussée 2 fois » écrit juste avant (`SEUIL_REPORT = 2`). Ne pas y remettre de nombre.
 - **Non fait, signalé seulement** : en anglais, les durées gardent le format français (« 1 h 05 ») ; Tâches écrit « 14:00–15:30 » en dur là où le Calendrier passe par `formatHeure` ; Tâches dit “postponed” et le Calendrier “pushed back” pour le même compteur.
+
+## 2026-09-30 — Timer, second passage (fusionné le 2026-10-11)
+### 2026-09-30 — Timer, second passage, après le premier essai d'Antonin
+
+Ses trois retours : « la fenêtre s'ouvre bien mais ne se referme pas » ; « en
+plein écran, seul le timer affiché, pas de bouton pause, rien — on sort avec
+Échap et c'est tout, là on retrouve les boutons » ; les volets « manquent
+énormément de fluidité et de petits détails sur le milieu, inspire-toi de ce
+qui se fait de mieux ».
+
+**Plein écran = l'horloge seule** (`EcranTimer`, prop `epure`). Ni en-tête, ni
+jauge, ni bouton ; le curseur s'efface après 2 s d'immobilité. Échap sort ;
+à la souris un double-clic aussi, au doigt un toucher (iPhone/iPad n'ont pas
+d'Échap). ⚠️ **Jamais un simple clic** : c'est le geste qui redonne la main à
+une fenêtre posée sur un autre écran, il ferait sortir du plein écran par
+accident. Espace reste une pause SILENCIEUSE — invisible, donc fidèle au
+« rien », et les chiffres s'effacent à moitié. Le plein écran de l'app passe
+désormais la fenêtre principale en **vrai plein écran macOS**
+(`usePleinEcranNatif`) : en superposition seule, la barre des menus et les
+pastilles restaient sur l'horloge. Il n'y touche pas si la fenêtre y était
+déjà, et ne sort que du plein écran qu'il a ouvert. ⚠️ Conséquence connue :
+fermer la fenêtre principale PENDANT ce plein écran quitte l'app (règle du
+2026-07-26 sur la fermeture en plein écran), comme avant pour tout plein écran.
+La fenêtre séparée ne s'ouvre plus depuis le plein écran, seulement depuis la
+vue Timer.
+
+**Fermeture de la fenêtre séparée.** Cause NON identifiée : ni le Rust
+(`on_window_event` rend la main pour tout autre libellé que `main`) ni le JS
+(aucun écouteur `tauri://close-requested`, lu dans les sources de Tauri
+2.11.5 : c'est la seule chose qui retient une fermeture) n'expliquent un bouton
+rouge sans effet, et une fermeture automatique en fin de séance a bien eu lieu
+(séance 11, 23:40 → 23:43, fenêtre disparue ensuite). Plutôt que de deviner :
+un bouton « Fermer la fenêtre » (×) et ⌘W dans la fenêtre, et
+`fermerCetteFenetre()` passe de `close()` (une demande) à `destroy()` (sans
+appel), après être sortie du plein écran et avoir laissé finir l'animation de
+macOS — détruire une fenêtre au milieu de sa sortie d'espace, c'est l'espace
+fantôme de 2026-07-26.
+
+**Les volets, refaits sur ce que font les meilleurs** (les afficheurs Solari et
+leurs reprises web : volet d'un seul tenant, rebond, ombres, fente) :
+- un volet d'UNE pièce à deux faces, qui tourne de 0 à −180° d'un seul
+  mouvement. La première version enchaînait deux demi-volets de 90° sur deux
+  courbes différentes : l'à-coup au passage de la verticale revenait chaque
+  seconde ;
+- chute qui accélère, impact à 60 %, rebond de 10°, repos (620 ms) ;
+- ombres synchronisées : la face qui se détourne s'assombrit, le haut découvert
+  s'éclaire, le bas reçoit l'ombre portée ; leur couleur est tirée du fond du
+  thème (noir sur l'encre, gris sur le clair — un noir pur grisait toute la
+  carte en clair) ;
+- au milieu : une vraie fente entre les deux moitiés, une ombre de chaque côté,
+  un liseré de lumière sous la fente, deux pivots sur les bords ;
+- des chiffres plus grands (96 % de la hauteur de carte), comme sur la vidéo ;
+- **la cadence** : `useFocus` et la fenêtre séparée se réveillent juste après
+  chaque changement de chiffre (`delaiAvantProchaineSeconde`), plus sur un
+  `setInterval(1000)` qui, calé près d'une frontière d'arrondi, sautait une
+  seconde puis en montrait une deux fois — deux bascules collées puis un trou.
+  C'est probablement une bonne part du « manque de fluidité ». Un test le prouve
+  dans les deux sens (l'ancien battement saute, le nouveau jamais).
+
+**Vu à l'écran, cette fois — sur une page d'essai, pas dans l'app.** La page ne
+contient que le balisage réel du composant (produit par un rendu happy-dom),
+son CSS réel et les jetons du thème ; le temps de l'animation est figé par
+l'API Web Animations. Rendue dans WebKit (`tools/webkit-pilote.swift`) et dans
+Chrome sans interface. C'est ce contrôle qui a trouvé le défaut du § 26.3 de
+PIEGES. ⚠️ Ce qui reste NON vu : le mouvement continu en temps réel, et tout
+ce qui se passe dans l'app (plein écran natif, fenêtre, fermeture).
