@@ -3452,3 +3452,138 @@ dans le journal. Après la session, supprimer le `src-tauri/target` du worktree
 
 **Payé.** 2026-09-29 : le parcours « compte sans abonnement » n'a pas pu être vu
 au simulateur (`MOBILE.md` § 25.5).
+
+---
+
+# 24. Chantier « cartes déplaçables et typées · carte d'objectif éditable » (2026-09-29)
+
+*Les pièges payés pendant les phases A à C. Tous trouvés à l'écran (Chrome sans
+fenêtre, mode démo) ou en écrivant les tests — aucun par un test au vert.*
+
+## 24.1 ⚠️⚠️ `lireCarte` JETTE les champs qu'il ne connaît pas — une version antérieure EFFACE ce qu'elle réécrit
+
+**Symptôme (attendu, jamais vu faute d'appareil ancien).** Un nœud posé à la
+main, ou un nœud-habitude, redevient automatique / une idée sur un appareil
+resté en version antérieure — puis PARTOUT, dès que cet appareil réécrit le bloc.
+
+**Cause.** `lireCarte` reconstruit chaque nœud champ par champ
+(`lib/carte.ts`). Ce qui n'est pas dans sa liste n'est pas recopié : `pos`,
+une `ref` de famille `habit` (écartée par `estKindDeCarte` d'une version qui
+ne la connaît pas), `genre`. Le cadrage disait « une version antérieure ignore
+le champ » : vrai à la LECTURE, faux à l'ÉCRITURE. `cote`/`teinte` ont eu
+exactement ce sort le 2026-09-08, et personne ne l'avait écrit.
+
+**Parade.** Aucune côté nouveau code — le vieux code est figé. Tous les
+appareils à la même version (dette écrite dans `MOBILE.md`, chantier iOS).
+▶️ **Tout champ ajouté à `Noeud` hérite de ce risque** : le dire dans son
+commentaire, comme `pos` le fait.
+
+**Payé.** Rien encore : trouvé en lisant `lireCarte` pendant l'audit (phase 0).
+
+## 24.2 ⚠️ `onClick={fonction}` passe l'ÉVÉNEMENT comme premier argument — « Tout voir » zoomait à NaN
+
+**Symptôme.** Le bouton « Tout voir » de l'éditeur de carte ne cadre plus rien.
+
+**Cause.** `<Outil onClick={toutVoir}>` : le bouton appelle `toutVoir(event)`.
+Le 2026-09-20, `toutVoir` a reçu un paramètre facultatif (`plancher`) — et
+l'événement de clic est devenu le plancher : `Math.max(event, …)` = `NaN`.
+Rien ne l'a dit : le type de `onClick` est `() => void`, qu'une fonction à
+paramètre facultatif satisfait.
+
+**Parade.** `onClick={() => toutVoir()}` dès qu'une fonction a un paramètre,
+même facultatif. Et ajouter un paramètre à une fonction déjà branchée sur un
+`onClick` = relire tous ses `onClick`.
+
+**Payé.** Déduit du code le 2026-09-29 (non reproduit : corrigé avant d'ouvrir
+l'écran). Le bouton cadre bien après correction.
+
+## 24.3 ⚠️ Une clé i18n à deux sens : « annuler » voulait dire « undo », et le pied disait « Esc undo »
+
+**Symptôme.** App en anglais, suppression d'un nœud armée : « **Esc undo** ».
+
+**Cause.** `"annuler": "undo"` sert à ⌘Z. Sous Échap, « annuler » veut dire
+RENONCER. Même famille que « Carte » = « Card » (§ 18.3), sauf qu'ici la clé
+n'était pas en double : elle était juste FAUSSE dans un contexte. Aucun outil
+ne le voit — la clé existe, elle est traduite.
+
+**Parade.** Le discriminant de contexte : `t("annuler|renoncer")` → « cancel ».
+Corrigé aux trois pieds (suppression en deux temps, qui l'avait depuis le
+2026-09-22, « Réorganiser » et le rattachement).
+
+**Payé.** Vu à l'écran pendant le parcours en anglais, 2026-09-29.
+
+## 24.4 ⚠️ Une classe Tailwind qui n'existe pas ne dit rien : `gradient-brand`
+
+**Symptôme.** La jauge d'une étape, dans la couche vivante de la carte, aurait
+été invisible.
+
+**Cause.** Le dégradé de marque n'est pas une classe mais un token
+(`--gradient-brand`). La forme du dépôt est `bg-[image:var(--gradient-brand)]`.
+C'est le § 6.3, sous une autre forme : une classe inconnue échoue EN SILENCE.
+
+**Parade.** Avant d'écrire une classe de couleur neuve, la chercher dans une
+vue qui l'emploie déjà (`grep -rn "gradient-brand" src/views`).
+
+**Payé.** Attrapé en relisant avant la mise à l'écran.
+
+## 24.5 ⚠️ Deux écouteurs clavier EN CAPTURE sur `window` : l'ordre est celui du dernier réabonné
+
+**Symptôme (évité).** Échap dans un panneau ouvert sur la carte (« Type »,
+« En faire un objectif ») fermerait la carte ENTIÈRE.
+
+**Cause.** L'éditeur et le panneau écoutent tous deux `keydown` en capture sur
+`window`. L'éditeur se désabonne et se réabonne à chaque changement de ses
+dépendances : selon ce qui a bougé en dernier, il passe AVANT le panneau.
+
+**Parade.** Un garde explicite en tête de l'écouteur de l'éditeur :
+`if (typage || versObjectif) return;` — le panneau ouvert a les touches. Ne
+jamais compter sur l'ordre d'abonnement.
+
+**Payé.** Vu en écrivant le panneau « Type » ; « En faire un objectif » avait
+le même trou depuis le 2026-09-20.
+
+## 24.6 ⚠️ Outil — puppeteer : `{ clickCount: 2 }` n'envoie PAS de `dblclick`
+
+**Symptôme.** Un double-clic piloté sur un bloc de carte ne rouvre pas
+l'éditeur. On croit le geste cassé.
+
+**Cause.** Dans `puppeteer-core` récent, `clickCount` fixe le `detail` de
+l'événement, pas le NOMBRE de clics. `{ count: 2 }` fait deux clics, donc un
+`dblclick`.
+
+**Parade.** `page.mouse.click(x, y, { count: 2 })`.
+
+**Payé.** 2026-09-29, une fausse alerte.
+
+## 24.7 ⚠️ Outil — une émulation CDP (`setDeviceMetricsOverride`) meurt avec la session qui l'a posée
+
+**Symptôme.** Un parcours « au doigt » à 390 pt produit des captures en
+largeur bureau, avec des coordonnées hors de l'écran (x = 597 sur 390).
+
+**Cause.** L'émulation vit dans la session DevTools du script. `browser.
+disconnect()` à la fin d'un script la referme — et l'émulation avec elle. Les
+gestes tactiles, eux, arrivent bien (`pointerType: "touch"`).
+
+**Parade.** Émuler, agir et mesurer DANS LE MÊME script ; rendre la main par
+`clearDeviceMetricsOverride` à la fin.
+
+**Payé.** 2026-09-29, une série de mesures à refaire.
+
+## 24.8 ⚠️ Outil — le rechargement à chaud de Vite VIDE la démo au milieu d'un parcours
+
+**Symptôme.** Après une modification de code, le parcours piloté ne trouve
+plus la carte qu'il venait de créer.
+
+**Cause.** Modifier certains modules (ici `EditeurCarte`, `CarteObjectif`)
+provoque un rechargement COMPLET de la page ; les données de la démo vivent
+en mémoire (`demo.ts`) : elles repartent de zéro, et l'accueil de connexion
+revient.
+
+**Parade.** Un script de remise en place (`connexion → module → données`) à
+rejouer avant chaque scénario qui suit une modification.
+
+## 24.9 Rappel mesuré : le patch de démo fait tomber `licence/transport.test.ts`
+
+Deux échecs (« une ligne → profil », « aucune ligne → aucun ») avec
+`SUPABASE_URL = ""`. Sans le patch : 13/13. C'est le § 1.2 ter, pour une
+suite de plus. **Rejouer ce fichier sans le patch avant de conclure.**

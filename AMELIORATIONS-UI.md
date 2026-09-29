@@ -536,3 +536,24 @@ c'est voulu ou à venir :
   propre menu ») était FAUSSE : ils n'avaient que la barre et le clavier.
 - Les **exemples** de démarrage partent d'un clic, sans question : ce ne sont
   que des contenus jamais touchés (en modifier un le rend sien).
+
+## Écarté du chantier « cartes déplaçables et typées » (2026-09-29)
+
+- **Sélection multiple** dans une carte (déplacer plusieurs nœuds d'un geste) —
+  hors périmètre V1, décidé au cadrage.
+- **Convertir un objet d'un type à l'autre** (une tâche en étape…) : une
+  transformation de données, pas un typage. Aujourd'hui : repasser en Idée, puis
+  retyper (un NOUVEL objet naît, l'ancien vit toujours).
+- **Déplacer un nœud au clavier** (flèches + modificateur) : non fait ; ⌥←/→ reste
+  « changer de côté ».
+- **⌘Z dans la carte d'un objectif** : ce qui s'y fait est écrit dans les objets ;
+  un historique d'actions inverses serait un chantier (la corbeille rattrape une
+  suppression, le reste se refait à la main).
+- **Positions « par nœud » dans le réglage d'un objectif** (plutôt qu'un bloc) :
+  éviterait le last-write-wins entre deux appareils, au prix d'une ligne de
+  `settings` par nœud et d'orphelins à purger. Pas justifié à un appareil actif.
+- **Une habitude rattachée à un SOUS-objectif** va sous la phase au-dessus (la
+  feuille de route n'a que trois niveaux) ; mesurer le sous-objectif lui-même par
+  l'habitude serait une autre règle.
+- **Le trou laissé par un nœud glissé** dans l'empilement de ses frères : voulu
+  (aucun voisin ne bouge pendant qu'on déplace) ; « Réorganiser » le comble.

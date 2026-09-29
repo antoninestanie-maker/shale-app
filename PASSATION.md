@@ -237,10 +237,10 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Tâches** | tâches, sous-tâches, récurrence, dates, rattachement à un objectif | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre |
 | **Calendrier** | le 13ᵉ module (2026-09-02). Événements, multi-jours, récurrence, saisie à la minute, roulette d'heure | migrations 020 et 021. « journée entière » s'annonce encore comme « 1 tâche sans horaire » — mot faux, compte juste, **non corrigé faute de mandat** |
 | **Timer** | Pomodoro, sessions de focus, plein écran | |
-| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus | migration 026. Voir § 11 (2026-09-16) — c'est le dernier gros chantier |
+| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29 (branche `chantier/carte-objectifs`, pas encore fusionnée)** : sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
 | **Performance** | métriques personnalisées, habitudes, séries, graphiques (recharts) | |
 | **Finance** | remplace Benchmark (2026-08-25). Comptes, soldes, positions, cours, récurrents — **et la facturation** depuis le 2026-09-10 | migrations 018, 019, 023. ⚠️ Deux écrans manquent pour un usage réel : **l'émetteur** (identité, SIRET, régime) et **les tiers**. Sans eux, aucune facture ne peut être adressée à quelqu'un |
-| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. ⛔ Les pièces jointes ne sont **pas encore dans l'app installée** : aucun build natif, donc la migration 028 n'a jamais tourné sur la vraie base |
+| **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG ; depuis le 2026-09-29, sur la branche `chantier/carte-objectifs` : nœuds **déplaçables** à la main et **typés** — étape, tâche, habitude), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. ⛔ Les pièces jointes ne sont **pas encore dans l'app installée** : aucun build natif, donc la migration 028 n'a jamais tourné sur la vraie base |
 | **Journal** | entrées datées | |
 | **Savoir** | base de connaissances. ⭐ **Un seul objet depuis le 2026-09-07 : le SUJET** — les « thèmes » et les « objets » ont fusionné (migration 022) | le chiffre qui a tranché : 5 jours après la livraison des objets, 4 thèmes utilisés, **0 objet** |
 | **Trading** | journal de trades en R, modes live / backtest | verrouillé hors offre trading |
@@ -1107,4 +1107,65 @@ dossier des migrations avant tout build) reste valable.
   migrations sont compatibles dans les deux sens, vérifié.
 - Une pièce jointe supprimée **ne passe pas par la corbeille** (`files` n'a pas
   de `deleted_at`) — couture laissée au chantier qui possède ce motif.
+
+### 11.z Le 2026-09-29 — cartes déplaçables et typées, carte d'objectif éditable
+
+Cadrage `PROMPT-CARTE-OBJECTIFS.md`. Branche **`chantier/carte-objectifs`** (worktree
+`~/Desktop/Shale-chantiers/carte-objectifs`), depuis `mobile-ios` `340bdf4`.
+**⛔ À l'arrêt 2** : phases A, B, C faites et commitées ; **NON fusionnée, NON
+poussée, AUCUN build natif** — rien de tout ceci n'est dans `/Applications/Shale.app`.
+Phases D (vue Objectifs, arrêt 3) et E (ligne de base, build) restent à faire.
+Aucune migration. Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
+
+**Ce qui a changé à l'écran.**
+- Carte de note / du Savoir : **glisser déplace un nœud à l'écran** (et sa
+  descendance) sans rien changer d'autre ; **⌥ + glisser** ou **« Rattacher à un
+  autre nœud… »** le rattache ailleurs ; **« Réorganiser »** en deux temps (le
+  premier montre la carte rangée) ; un bouton **« Actions » (⋯)** dans la barre.
+- **Menu « Type »** d'un nœud (clic droit, « Actions », ⌥T) : Étape / Tâche /
+  Habitude créent le vrai objet, rangé d'après la hiérarchie de la carte, après
+  un panneau qui annonce ce qui va être écrit. Icône de type dans la note et
+  l'export ; coche, échéance, série et % en direct dans l'éditeur. Détyper.
+- **« En faire un objectif »** ne recopie plus une étape citée et ne déplace plus
+  une tâche rattachée ailleurs.
+- **Carte d'un objectif éditable** : Tab ajoute un enfant TYPÉ, renommer renomme
+  l'objet, cocher coche, supprimer met en corbeille (une note rattachée se
+  détache) ; glisser ne change que la place, rangée dans le réglage synchronisé
+  `carte.objectif.<uid>`. Le texte des nœuds est le titre seul (plus de « · 42 % »
+  ni de « ✓ » figés dans l'export).
+
+**Ce qui est prouvé.**
+- ✅ 12 empreintes du rendu relevées AVANT le chantier : une carte sans position
+  se dessine au caractère près comme avant (une seule changée exprès : une tâche
+  citée prend son icône — un test prouve que c'est la seule différence).
+- ✅ Test § 9.13 (huit gestes, aucune position manuelle ne bouge) ; test
+  d'identité (deux états opposés, un même bloc) ; rattachement par la hiérarchie ;
+  positions d'objectif (clé synchronisée, aller-retour, fusion). Mutations vues
+  rouges sur chacun.
+- ✅ À l'écran (Chrome sans fenêtre, démo) : le nœud suit le curseur au pixel ;
+  les trois typages ; la tâche cochée depuis la carte (50 % en direct) ; les
+  objets présents dans Objectifs, Tâches, Journal ; les **quatre preuves** de la
+  carte d'objectif (créer → feuille de route ; renommer dans la feuille de route →
+  la carte suit, et l'inverse ; supprimer → corbeille → restaurer → de retour ;
+  glisser → ordre de la feuille de route inchangé, position retrouvée).
+- ✅ App en **anglais** : aucune clé manquante au journal de `t()` ; **thème
+  clair** ; **390 × 844 au doigt** en émulation.
+- ✅ Ligne de base au 2026-09-29 13:31 : `tsc`, `test:types`, `i18n:check` (2252),
+  `i18n:durs` (0), build ; vitest **1575 / 1577** — les 2 rouges sont
+  `licence/transport.test.ts`, qui tombe avec le patch de démo et passe sans
+  (13/13, vérifié). `cargo check` non rejoué (aucun Rust touché) : phase E.
+
+**Ce qui ne l'est pas.**
+- ⛔ Pas d'app installée (aucun build) ; pas de WKWebView ; pas d'iPhone réel ni de
+  simulateur (dettes : `MOBILE.md` § 26).
+- ⚠️ Une version antérieure de l'app qui RÉÉCRIT une carte en efface les positions
+  et les nœuds-habitudes (`PIEGES.md` § 24.1) : tous les appareils à la même
+  version avant de s'en servir.
+- ⚠️ Deux appareils qui déplacent deux nœuds de la même carte d'objectif au même
+  instant : l'un des deux déplacements est perdu (last-write-wins sur le réglage).
+
+**Ce qui reste.** Arrêt 2 (Antonin essaie, `~/Desktop/Essayer les cartes.command`),
+puis phase D (vue Objectifs, directions à l'arrêt 3), phase E (ligne de base
+complète, `cargo check` iOS, build natif groupé), fusion. Site : `DETTE-SITE.md`
+entrée S. Écarté : `AMELIORATIONS-UI.md` (fin de fichier).
 

@@ -595,3 +595,19 @@ font), pas un argument ; la vendre comme une fonctionnalité sonnerait faux.
 `vitrine/src/components/Demo.astro` n'a ni menu contextuel ni corbeille. Rien à
 faire tant qu'elle ne montre pas de suppression.
 
+
+## S — Cartes déplaçables et typées, carte d'objectif éditable (app, 2026-09-29)
+
+L'app sait maintenant, et le site ne le dit nulle part :
+- **déplacer un nœud à la main** sur une carte mentale (il ne bouge plus tout
+  seul) ; « Réorganiser » remet tout en ordre ;
+- **transformer un nœud en vraie tâche, étape ou habitude** — l'objet naît dans
+  Tâches, dans la feuille de route ou dans le Journal ; son état (coche, échéance,
+  série, %) se lit sur la carte ;
+- **modifier un objectif depuis sa carte** : ajouter, renommer, cocher,
+  supprimer — la feuille de route suit.
+
+À répercuter : la page Notes/Savoir (section cartes mentales) et la page
+Objectifs du site ; la capture `shots/v2/dark-objectifs.webp` était déjà
+périmée (entrée M), elle l'est davantage. **La vue Objectifs va encore changer
+(phase D du chantier) : régénérer les captures APRÈS elle, pas avant.**

@@ -3041,3 +3041,46 @@ pendant une vérification de mise à jour.
 
 L'aide-mémoire d'Antonin (étapes, fiche App Store, note au testeur) est **hors
 dépôt** : `~/Desktop/Shale-projet/administratif/App Store iPhone/`.
+
+## 26. ⭐ Dettes pour le chantier iOS — cartes déplaçables, typées, carte d'objectif éditable (2026-09-29)
+
+*Écrit pour la session iOS qui suit le chantier `carte-objectifs` (desktop
+seulement). Ce qui est VU, ce qui est seulement SUPPOSÉ — séparés.*
+
+### Vu en émulation Chrome (390 × 844, `pointer: coarse`, vrais événements tactiles)
+
+- l'**appui long** (400 ms, inchangé) arme désormais le DÉPLACEMENT d'un nœud (il
+  armait le re-parentage) ; un glisser rapide sur un nœud fait défiler la vue ;
+- le bouton **« Actions »** (⋯) de la barre ouvre le menu du nœud sélectionné —
+  c'était jusque-là le seul menu de l'app absent au doigt (`ouvrirAuPoint` ignore
+  le doigt : l'appui long appartient au glisser) ;
+- barre en icônes seules, aucun débordement horizontal ; pied d'aide tactile
+  (« Appui long déplacer un nœud · Glisser se déplacer · ⋯ les actions du nœud ·
+  les loupes zooment ») pour les cartes de note ET la carte d'objectif.
+
+### Jamais vu — la dette
+
+1. **Le glisser libre au doigt contre le défilement** (§ 7.4 ter de `PIEGES.md`) :
+   400 ms reste une valeur choisie par analogie avec le calendrier, jamais
+   éprouvée à la main sur un vrai iPhone. Le re-parentage au doigt passe par
+   « Actions » → « Rattacher à un autre nœud… » → toucher la cible : jamais vu.
+2. **Le pincement** : toujours absent (la scène porte `touch-action: none`). Les
+   deux loupes restent le seul zoom.
+3. **Ajouter un nœud sans clavier** : Tab et ⌘↵ n'existent pas ; les boutons
+   « Sous-nœud » / « Nœud voisin » de la barre existent, mais la saisie du nom
+   ouvre le clavier logiciel au-dessus d'une carte qui ne se recadre pas sur lui
+   (`visualViewport` non écouté par l'éditeur).
+4. **Le typage au doigt** : « Actions » → « Type » → panneau. ⌥T n'existe pas.
+   Le panneau est centré dans l'éditeur, non plafonné à 78vh : vérifier qu'il ne
+   passe pas sous la barre d'onglets (§ 18.4 de `PIEGES.md`).
+5. **La case d'une tâche dans la carte** : 18 px posés sur l'icône, SOUS le
+   zoom de la scène — à 50 % de zoom (plancher tactile), elle fait 9 px : trop
+   petite pour un doigt. À mesurer, probablement à agrandir sous `pointer: coarse`.
+6. **Les pastilles d'état** (échéance, %, série) en `text-[10px]` sous le zoom :
+   illisibles à 50 %. Même remarque.
+7. **La nouvelle vue Objectifs à 390 pt** : phase D du chantier, pas encore faite.
+8. ⚠️⚠️ **Compatibilité de version** (PIEGES § 24.1) : un iPhone resté sur une
+   version antérieure relit une carte sans ses positions ni ses nœuds-habitudes —
+   et s'il RÉÉCRIT le bloc, il les efface pour tout le monde. **Mettre l'iPhone à
+   la même version avant qu'Antonin ne déplace ou ne type des nœuds sur le Mac.**
+9. `cargo check` iOS : à rejouer en phase E du chantier (aucun Rust touché).

@@ -6388,3 +6388,120 @@ ailleurs (`PIEGES.md` § 23.1).
 
 Vérifié : tsc, test:types, 1513 tests, i18n:check, build. Parcours simulateur :
 voir `MOBILE.md` § 25.5.
+
+## 2026-09-29 — ⭐ Cartes mentales déplaçables et typées, carte d'objectif éditable
+
+Cadrage `PROMPT-CARTE-OBJECTIFS.md` ; audit `~/Desktop/Shale-chantiers/CARTE-OBJECTIFS-phase0.md` ;
+pièges `PIEGES.md` § 24. Branche `chantier/carte-objectifs`. **Aucune migration,
+aucun Rust, aucune dépendance.** Les six arbitrages de l'arrêt 1 (A à F), acceptés
+par Antonin (« ok sur tout »), sont les recommandations du rapport.
+
+### A — « Déplacer » veut dire visuellement : le glisser ne re-parente plus
+
+Demande d'Antonin, en ses mots : le nœud change de place à l'écran, **rien d'autre
+ne change**. Or le glisser d'avant CHANGEAIT le parent (`deplacer`), c'est-à-dire
+exactement ce qu'il ne voulait pas. Le re-parentage ne disparaît pas pour autant —
+retirer une capacité sans la rendre ailleurs, c'est le point 2 du § 9.13 de
+`PIEGES.md` : **⌥ + glisser** (l'ancien geste, sa pastille « Déposer sous… »), et
+**« Rattacher à un autre nœud… »** dans le menu du nœud, un mode de choix (clic,
+ou flèches + Entrée). Ce second chemin est celui du doigt, où ⌥ n'existe pas. Les
+deux écrivent le même `deplacer` (règle 18).
+
+**Pourquoi un champ `pos` dans le repère de la RACINE, pas celui d'`agencer`.** Les
+coordonnées que rend `agencer` sont RECADRÉES (tout ramené dans le premier
+quadrant) : elles glissent toutes dès qu'un nœud déborde plus à gauche ou plus
+haut. Une position rangée là bougerait à chaque insertion ailleurs — le § 9.13
+lui-même. La racine est l'origine (0, 0), elle ne se glisse pas ; l'éditeur
+compense son panoramique quand l'origine du recadrage bouge (`Agencement.
+origine`), sinon la carte entière sautait sous le curseur.
+
+**Pourquoi la place du nœud dans l'empilement reste réservée.** Retirer un nœud
+glissé de la pile de ses frères les aurait fait bouger PENDANT qu'on en déplace un
+— « rien d'autre ne change » serait faux dès le premier geste. Le trou laissé se
+comble par « Réorganiser ».
+
+**Pourquoi « Réorganiser » MONTRE avant de confirmer.** Même principe que la
+suppression en deux temps : une confirmation qui ne montre rien n'ajoute qu'un
+clic. Armé, on voit la carte rangée ; Échap la rend ; le second appui l'écrit.
+
+**Pourquoi un nœud rattaché ailleurs perd sa position**, et pourquoi « Changer de
+côté » passe une branche posée en MIROIR : garder la position laisserait le nœud à
+l'autre bout de la carte, relié par une longue arête ; ignorer le miroir ferait
+qu'une branche posée ne changerait jamais visiblement de côté.
+
+### B — Les positions d'une carte d'objectif dans un RÉGLAGE, pas sur les lignes
+
+`carte.objectif.<uid>`, synchronisé, par `kind:uid`. Sur les lignes d'objectif, un
+glisser réécrirait la ligne, et le last-write-wins écraserait un renommage fait
+sur l'autre appareil. Pas sous `layout.*`, exclu de la synchro parce qu'il dépend
+de l'écran — les positions sont LOGIQUES, elles valent sur tous les écrans.
+Vérifié EN EXÉCUTANT `settingSynchronisable`, avec deux contre-épreuves, et un
+test le garde. Prix assumé : last-write-wins sur le bloc entier — deux appareils
+qui déplacent deux nœuds au même instant, l'un gagne. De la mise en page, jamais
+une donnée. Écrit seulement quand il change (clés triées), pour ne pas remplir la
+file de synchronisation à chaque ouverture.
+
+### C — Une habitude se rattache par l'étape qui la compte (aucune migration)
+
+`habit` n'est PAS une famille de lien (`LINK_KINDS`) — le cadrage supposait
+`object_links`, c'était faux. En faire une neuvième famille coûtait une migration
+ET un risque : un appareil resté en ≤ 027 porte encore le `CHECK` de la 020, et une
+arête `habit` reçue y arrête TOUT le cycle de synchronisation (§ 3.4) ; c'est la
+raison pour laquelle la 028 garde les arêtes `file` sur la machine. Et une habitude
+rattachée par une arête ne compterait rien (« écrire n'est pas avancer »). Le
+chemin retenu existe depuis la 026 : un sous-objectif `count_source = 'habit'`,
+avec une cible en jours et `count_since` à aujourd'hui. C'est aussi le seul où
+l'habitude FAIT AVANCER l'objectif. Conséquence : une ref `habit` vit dans le JSON
+de la carte, et `refsDeCarte` l'écarte des arêtes.
+
+### Typer un nœud : l'objet est créé, le nœud devient sa référence
+
+Pas de double vérité : titre et état viennent de l'objet. Il n'y a donc pas de
+champ « type » — `typeDeNoeud` le déduit de la `ref` (un `@` vers une tâche EST une
+tâche, sans geste). Seul `genre` (objectif / phase / sous-objectif) est copié sur le
+nœud, **comme `texte`** : c'est la légende de son icône dans le bloc enregistré,
+qui est une chaîne produite sans accès à la base ; il se relit au chargement
+(`infosDeCartes`).
+
+Le rangement suit la hiérarchie de la carte (`lib/objectifs/typage.ts`, pur,
+testé) ; sous un sous-objectif, une étape ne peut pas naître (trois niveaux) : elle
+va sous la phase au-dessus, et **le panneau le dit**. Le panneau annonce tout avant
+d'écrire — l'esprit de « En faire un objectif ». Détyper rend l'idée, l'objet vit.
+Convertir un objet d'un type à l'autre est HORS périmètre : une transformation de
+données, pas un typage — l'entrée grisée dit de repasser en Idée d'abord.
+
+**Pourquoi ⌥T.** Une lettre seule est impossible : toute frappe imprimable ouvre
+l'édition du nœud. ⌥ n'était pris que par ⌥←/→. Et `e.code`, pas `e.key` : sur Mac,
+⌥T tape « † ».
+
+### L'état vivant est une couche, jamais le dessin
+
+Coche, échéance (rouge si passée), série, pourcentage : `lib/carteEtat.ts` (pur),
+dessinés en HTML PAR-DESSUS le SVG dans l'éditeur (`EtatsVivants.tsx`). Le bloc
+écrit dans la note et l'export ne portent que l'icône — une coche figée mentirait
+dès la première tâche décochée ailleurs. Garde-fou sur le modèle de `peril` : deux
+états opposés, un seul et même bloc. L'éditeur lit lui-même ses données
+(`fetchAll` + `sb:data-changed`) : ses deux hôtes n'ont pas les mêmes (le Savoir
+ne reçoit pas `data`). La série d'une habitude sort de `JournalView` vers
+`lib/habitudes.ts`, à l'identique — deux calculs auraient divergé.
+
+### D — « En faire un objectif » ne recopie ni ne déplace ce qui appartient ailleurs
+
+Avant : un nœud citant une étape devenait une étape NEUVE (doublon), et une tâche
+citée quittait son objectif sans que le panneau le dise (`rattacherTache` réécrit
+`goal_id`). Désormais : laissés en place, comptés à part ; une habitude citée se
+rattache sur demande, avec une cible ; une carte dont le centre est déjà un
+objectif propose de l'ouvrir. Deux tests du 2026-09-20 ont été changés EXPRÈS,
+avec leur date.
+
+### E et F — la carte d'objectif éditable
+
+C'est une seconde vue de la feuille de route : chaque geste écrit un objet par le
+chemin normal (`typer.ts`, `renommerObjectif`/`Tache`/`Habitude`, `jeter`), la carte
+est re-dérivée, jamais stockée ; `fusionnerCarteObjectif` garde les replis, les
+positions et le nœud en saisie. **E** : une note rattachée se DÉTACHE (`deleteLink`,
+le ✕ de la feuille de route) — la supprimer aurait détruit une note parce qu'elle
+éclairait un objectif. **F** : « · 42 % » et « ✓ » sortent du texte des nœuds — ils
+étaient figés dans l'export. ⌘Z ne défait rien dans cette carte (tout y est écrit
+dans les objets ; une suppression se rattrape par la corbeille), et ⌥ y déplace
+seulement : l'ordre des étapes ne change que dans la feuille de route.

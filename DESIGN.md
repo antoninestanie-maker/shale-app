@@ -774,3 +774,29 @@ carte reste dans sa note, la reconvertir créerait un second objectif. Une carte
 branchée sur les objectifs devrait répondre à « que se passe-t-il quand on
 supprime un nœud ? », et la seule réponse honnête serait « on supprime
 l'objectif » — un geste destructeur derrière un geste de dessin.
+
+## Les types de nœud — un vocabulaire pour la carte ET la vue Objectifs (2026-09-29)
+
+Principe : **la FORME dit le niveau, l'ICÔNE dit la famille, la couleur reste celle
+de la branche.** On ne peint pas les types : `--color-green` et les couleurs choisies
+ne bougent pas, `HABIT_COLORS` (`lib/habitudes.ts`) est intacte (PIEGES § 21.9).
+Seules les icônes déjà présentes (`components/icons.tsx`) servent.
+
+| Type | Icône | Forme | État vivant (éditeur seulement) |
+|---|---|---|---|
+| **Objectif** | cible (`IconTarget`) | boîte teintée, comme la racine | pourcentage + jauge (dégradé de marque, `bg-success` achevé) ; échéance |
+| **Phase** | dossier (`IconFolder`) | double filet — c'est un contenant | idem |
+| **Sous-objectif** | cible, en `text-dim` | boîte simple | idem |
+| **Tâche** | carré de coche | boîte simple | case `CaseACocher` sur l'icône (réussi à l'ENCRE), titre barré ; échéance passée en `text-red` |
+| **Habitude** | flamme (`IconFlame`, déjà la série ailleurs) | pilule (`rx = h/2`) | « 🔥 12 j », `text-success` |
+| **Idée** | aucune | boîte simple | — |
+| Note, fiche, événement cités | pastille (point) | boîte simple | — |
+
+⚠️ **Le bloc enregistré dans la note et l'export ne portent QUE l'icône et la
+forme** — jamais l'état. L'état est une couche HTML par-dessus le SVG.
+
+Les pastilles d'état s'accrochent au coin haut-droit de la boîte (bordure,
+`text-[10px]`), `pointer-events-none` : elles ne volent jamais le glisser.
+
+▶️ La vue Objectifs (phase D du chantier) reprendra ce même tableau, pour qu'une
+ligne de feuille de route et un nœud de carte se lisent pareil.
