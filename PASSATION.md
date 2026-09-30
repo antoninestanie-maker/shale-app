@@ -70,10 +70,16 @@ par abonnement, accompagnée d'un site qui la présente, la vend et la distribue
     Performance, **Finance**, Notes, Journal, Savoir ;
   - *Trading (3)* — Trading, Market-Brain, Position ;
   - *hors catégorie* — Réglages, Personnaliser (admin), Console.
+  ⭐ **Depuis le 2026-09-30, le trading est MIS DE CÔTÉ** : les trois modules
+  trading sont ABSENTS de l'app pour tout le monde (ni cadenas, ni paywall) —
+  **dix modules visibles**. Le code et les données restent ; un interrupteur,
+  `TRADING_ACTIF` dans `src/lib/features.ts`, les rallume (§ 11.x du
+  2026-09-30, `CLAUDE.md` section du même jour).
   ⚠️ Le compte est passé de douze à treize le 2026-09-02 (Calendrier), et
   Benchmark a été **remplacé** par Finance le 2026-08-25. Tout document qui dit
   « douze modules » est antérieur à septembre.
-- **Le morceau singulier, c'est le Market Brain** : un agent qui génère deux
+- **Le morceau singulier, c'était le Market Brain** *(mis de côté avec le
+  trading le 2026-09-30 : son planificateur ne tourne plus)* : un agent qui génère deux
   briefings par jour (8 h pré-Londres, 14 h pré-NY, heure de Paris) sur EUR/USD,
   GBP/USD, XAU/USD, NAS100, BTC/USD. Toutes les données de marché sont **sans
   clé** (Yahoo Finance, ForexFactory, RSS, Binance) ; seule la **rédaction**
@@ -169,6 +175,7 @@ connue derrière laquelle se cacher.
 npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
 npm test                                      ✅   1494 tests, 109 fichiers, 46 s  (2026-09-26)
+                                                   1686 tests, 124 fichiers, 49 s  (2026-09-30, chantier sans-trading)
 npm run i18n:check                            ✅   0 clé manquante, 0 doublon, 2021 entrées
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
@@ -249,9 +256,9 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG ; depuis le 2026-09-29 : nœuds **déplaçables** à la main et **typés** — étape, tâche, habitude), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. Les pièces jointes sont installées depuis le build du 2026-09-26 (la vraie base est en 028 : carnet de coordination, entrée [V-filet]) ; leur clic n'a jamais été vérifié à la main |
 | **Journal** | entrées datées | |
 | **Savoir** | base de connaissances. ⭐ **Un seul objet depuis le 2026-09-07 : le SUJET** — les « thèmes » et les « objets » ont fusionné (migration 022) | le chiffre qui a tranché : 5 jours après la livraison des objets, 4 thèmes utilisés, **0 objet** |
-| **Trading** | journal de trades en R, modes live / backtest | verrouillé hors offre trading |
-| **Market-Brain** | les deux briefings quotidiens (§ 1) | verrouillé hors offre trading |
-| **Position** | calculateur de taille de position, alertes, historique | verrouillé hors offre trading |
+| **Trading** | journal de trades en R, modes live / backtest | ⏸ **mis de côté le 2026-09-30** — absent pour tous (`TRADING_ACTIF`). Avant : verrouillé hors offre trading |
+| **Market-Brain** | les deux briefings quotidiens (§ 1) | ⏸ **mis de côté le 2026-09-30** — absent, planificateur arrêté |
+| **Position** | calculateur de taille de position, alertes, historique | ⏸ **mis de côté le 2026-09-30** — absent |
 
 Et les trois vues qui ne sont pas des modules : **Réglages** (langue, apparence,
 densité, sauvegardes, synchronisation, raccourcis), **Personnaliser** (admin :
@@ -337,7 +344,7 @@ encaissé puis remboursé.
 | Offre | Code | Mensuel | Annuel | Contenu |
 |---|---|---|---|---|
 | Shale | `shale` | 12 € | 96 € (8 €/mois) | les modules de productivité |
-| **Shale Pro** | `shale_pro` | 19 € | 180 € (15 €/mois) | + le trading |
+| **Shale Pro** | `shale_pro` | 19 € | 180 € (15 €/mois) | ~~+ le trading~~ — périmé : depuis le 2026-09-15 le site vend Pro pour le support prioritaire et l'accès anticipé, et le trading est mis de côté depuis le 2026-09-30. Le chantier [X-ia-pro] y met l'IA (non fusionné au 2026-09-30) |
 | **Shale Business** | `shale_business` | 29 €/siège | 288 €/siège (24 €/mois) | 2 à 5 sièges en ligne, au-delà sur devis |
 | *Shale Trade* | `shale_trade` | — | — | **ancienne** offre, encore reconnue par l'app, **plus vendue par le site** |
 
@@ -1354,3 +1361,42 @@ démo, vu rouge sans la règle).
 n'emporte rien : seuls « Supprimer la carte » et la suppression de la page le
 font (`CLAUDE.md`). iPhone : `MOBILE.md` § 27. Site : `DETTE-SITE.md` entrée V
 (deux captures). Écarté ou reporté : `AMELIORATIONS-UI.md` (fin de fichier).
+
+### 11.x Le 2026-09-30 — ⭐ le trading est mis de côté (app et site)
+
+**Demandé par Antonin** au passage en pré-lancement. **Un interrupteur**,
+`TRADING_ACTIF = false` (`src/lib/features.ts`) : Trading, Market-Brain et
+Position sont **absents** pour tout le monde, sur toutes les plateformes —
+aucun cadenas, aucun paywall, aucun « Passer à Shale Trade ». **Rien n'est
+supprimé** : ni code, ni tables, ni les trades de la vraie base (1 trade au
+2026-09-18), qui se synchronisent comme avant. Le pourquoi, la liste de ce qui
+débordait des modules, et ce qu'il faut savoir avant de rallumer : `CLAUDE.md`,
+section du 2026-09-30. Les pièges : `PIEGES.md` § 28.
+
+**Ce qui change à l'écran** (en plus des trois modules) : plus de pastille des
+sessions de marché ni de « trading os » dans la barre ; plus de trades dans la
+jauge d'énergie ; Personnaliser ne liste plus les modules trading ; le
+Calendrier **propose enfin des créneaux en semaine** (il n'en proposait aucun,
+pour personne, `PIEGES.md` § 28.2) ; la catégorie Finance « Trading » et le type
+Savoir « Setup de trading » (semés dans chaque base) ne se proposent plus, sauf
+à qui s'en sert ; les exemples des formulaires ne parlent plus de trading.
+**Le jeu de démo devient celui d'un indépendant** (design) : il fait les
+captures du site.
+
+**Prouvé.** Ligne de base : 1686/1686 (`trading-de-cote.test.ts` : 15 tests,
+les règles dans les deux positions de l'interrupteur ; le filet « aucun mot de
+trading dans la démo » vu rouge sur l'ancienne démo), `tsc`, `test:types`,
+`i18n:check` (0 manquante), `i18n:durs` (0 sûrement française), `vite build`.
+Aucune ligne de Rust touchée, aucune migration.
+
+**⛔ Pas prouvé.** **Rien n'a été vu à l'écran** : le patch de démo du § 13.2 a
+été refusé par le mode automatique (`PIEGES.md` § 26.2, § 28.3). Et les **26
+captures du site montrent encore la démo trader** — même refus
+(`DETTE-SITE.md` § W.1).
+
+**Site** (dépôt du site, branche `chantier/sans-trading-site`) : encadré de fin
+des articles (« calcul de position, sessions de marché »), exemple « 50
+backtests », 113 traductions orphelines retirées, `shoot-v2.mjs` ne réécrit
+plus la démo en libellés de trading. L'avertissement juridique des mentions
+légales est **proposé, pas écrit** (`DETTE-SITE.md` § W.2).
+

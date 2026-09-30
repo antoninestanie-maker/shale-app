@@ -3027,7 +3027,10 @@ tant que … », « Aucun abonnement actif n'est associé à ce compte. », et
 ### 25.6 Le compte de démonstration pour Apple : un compte « Shale » classique, sans clé LLM (2026-09-29)
 
 Décidé avec Antonin. **Pas de Shale Trade, pas de clé Gemini/Groq** :
-- le module Trading sera retiré avant le lancement ;
+- le module Trading sera retiré avant le lancement ; *(fait le 2026-09-30 :
+  le trading est mis de côté, absent de l'app sur toutes les plateformes —
+  `CLAUDE.md` section du 2026-09-30. Sur iPhone rien ne change à l'écran pour
+  un compte sans Trade : les modules y étaient déjà absents.)*
 - les clés LLM ne se synchronisent pas (`market.*_key` est exclu dans
   `sync/scope.ts`, elles vivent au trousseau de l'appareil) : le testeur ne les
   aurait de toute façon pas sur son iPhone ;

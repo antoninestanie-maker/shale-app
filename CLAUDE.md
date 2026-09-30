@@ -6810,3 +6810,91 @@ toujours cités ailleurs. Le geste explicite est « Supprimer la carte ».
   les boutons au survol.
 - ⚠️ Au doigt, les « · » de la méta disparaissent (une ligne repliée commençait
   par un point) et le tag passe dans la méta (`PIEGES.md` § 27.2).
+
+## 2026-09-30 — ⭐ Le trading est MIS DE CÔTÉ : un interrupteur, pas une suppression
+
+**La demande d'Antonin**, au passage en pré-lancement : « enlever tout ce qui est
+en rapport avec le trading dans l'app et sur le site […] je ne veux pas de
+modules trading dans l'app commercialisable pour l'instant, on met tout ça de
+côté ». La décision de principe existait (`MOBILE.md` § 25.6, 2026-09-29 : « le
+module Trading sera retiré avant le lancement ») ; elle est exécutée ici.
+
+### Ce qui a été décidé, et pourquoi
+
+1. **Un interrupteur, `TRADING_ACTIF = false` dans `lib/features.ts`, et pas une
+   suppression.** « Pour l'instant » et « mettre de côté » disent que ça
+   reviendra. Supprimer trois modules, Market Brain (17 fichiers), les
+   migrations 006-012 et leurs tests aurait coûté un chantier à défaire, et
+   rendu irrécupérables les trades déjà saisis. Le code reste, les tables
+   restent, **les trades de la vraie base restent et se synchronisent**. Passer
+   à `true` rallume tout à l'identique — les tests le vérifient dans les deux
+   positions (`trading-de-cote.test.ts`).
+2. **Absent, pas verrouillé.** Éteint, `presenceModule` rend `absent` pour les
+   trois modules sur TOUTES les plateformes (plus seulement iOS). Un cadenas
+   sur macOS aurait ouvert un paywall « Passer à Shale Trade » : vendre une
+   offre qui n'est plus en vente. `entitlementsOf` rend `hasTrading` faux même
+   quand le serveur dit vrai (l'essai, l'ancien palier `shale_trade`) — le
+   serveur décrit ce que le compte a payé, l'app décide de ce qu'elle montre.
+   ⚠️ **Rien n'a été touché côté Supabase / Stripe** : `has_trading` et les
+   prix Trade existent toujours, ils ne pilotent simplement plus rien.
+3. **L'empreinte du trading débordait des trois modules — c'était le vrai
+   travail.** Ce que la frontière de `features.ts` ne couvrait pas :
+   - le **planificateur de Market Brain** tournait au niveau d'`App.tsx` pour
+     TOUT LE MONDE, et rédigeait un briefing à 8 h / 14 h dès qu'une clé était
+     enregistrée, offre Trade ou non → `useMarketBrain(actif)` ;
+   - la **pastille des sessions de marché** au pied de la barre, pour tout le
+     monde → `sessionsMarche` ;
+   - le **sous-titre « trading os »** sous « Shale » → vide, comme le site (qui
+     n'affiche que « Shale ») ; un réglage déjà sauvegardé avec cette valeur
+     retombe sur le défaut (`ANCIEN_SOUS_TITRE`). Pas de nouvelle formule
+     inventée : un sous-titre est du texte de vente, c'est à Antonin ;
+   - « **Passer à Shale Trade** » dans Réglages → Compte → n'apparaît que là où
+     le module serait vendu (`presenceModule(...) === "verrouille"`) ;
+   - la **jauge d'énergie** comptait les trades du jour et Réglages exposait un
+     « coût par trade » ;
+   - **Personnaliser** listait les trois modules et le widget Position (même
+     défaut pour un compte Shale sans Trade avant ce chantier) ; les flèches
+     sautent désormais les modules non listés ;
+   - ⚠️ **un vrai défaut, pour tout le monde** : le Calendrier ne proposait
+     aucun créneau libre pendant une session de marché ouverte
+     (`eviterMarche: true` en dur). Sydney, Tokyo, Londres et New York se
+     relaient de 23 h à 23 h, heure de Paris : **plus aucune proposition du
+     lundi au vendredi**, Trade ou non. Réservé désormais à qui a Market Brain
+     (`PIEGES.md` § 28.2) ;
+   - **deux lignes semées dans CHAQUE base** : la catégorie Finance « Trading »
+     (migration 018) et le type Savoir « Setup de trading » (migration 020).
+     Masquées dans les menus, **pas supprimées** — sauf pour qui s'en sert
+     déjà : un flux qui porte la catégorie la garde, un type qui porte des
+     sujets reste proposé (`typePropose`). Une migration de suppression aurait
+     été irréversible et aurait voyagé par la synchronisation ;
+   - les **exemples** des formulaires (catégories d'objectif, première étape,
+     première tâche, unité de mesure, méthode du Timer, thèmes suggérés du
+     Savoir, compte Finance « Trading » pour un nouveau compte).
+4. **Le jeu de démo change de personnage : d'un trader à un indépendant
+   (design).** Il n'alimente pas que la démo navigateur : les 26 captures du
+   site en sont tirées, et la page d'accueil de shaleapp.com montrait « Passer
+   trader full-time », « Revue des trades de la veille », Notes ouvert sur
+   « Setup cassure H4 ». Le nouveau jeu (clients, devis, certification,
+   LinkedIn, facturation) colle à « Tenez votre activité dans une seule
+   fenêtre » du site. La structure est inchangée (mêmes ids, récurrences,
+   reports, liaisons, soldes) : seuls les textes changent. ⚠️ C'est un choix
+   de contenu visible : Antonin peut le reprendre, `demo.ts` + le bloc démo
+   de `en.ts`.
+5. **Ce qui n'a PAS été fait, exprès.**
+   - Les tests d'infrastructure (mentions, carte, recherche) gardent leurs
+     fixtures « Plan de risque » / « Setup cassure » : ce sont des données de
+     test, jamais affichées.
+   - Les libellés de l'offre (`tierLabel`, « Shale Trade ») restent : un
+     abonné porte encore ce palier en production et doit voir son nom.
+   - Les offres Pro / Business ne sont pas retouchées : le site dit déjà que
+     Pro « n'ajoute pas de fonctions », et le chantier [X-ia-pro] redéfinit Pro
+     autour de l'IA (non fusionné à cette date).
+
+### ⚠️ À savoir avant de rallumer
+- `TRADING_ACTIF = true` suffit côté app. Il faudra en plus : un texte
+  d'offre sur le site, l'avertissement juridique (resté en place, cf.
+  `DETTE-SITE.md` § W), et revoir `eviterMarche` — même rallumé, la règle
+  « aucune session ouverte » ne laisse aucun créneau en semaine.
+- Le jeu de démo ne contient plus de contexte trading hors des tables
+  trading elles-mêmes : un audit du module rallumé montrera des trades sans
+  objectif ni note qui en parlent.

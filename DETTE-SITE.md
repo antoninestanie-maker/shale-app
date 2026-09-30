@@ -665,3 +665,48 @@ régénérer avec le générateur de captures v2 quand l'app installée porte la
 
 « Rangées par moment : en retard, aujourd'hui, à venir » — à trancher par
 Antonin (règle : chercher avant d'écrire du texte de vente).
+
+## W — Le trading mis de côté (app ET site, 2026-09-30)
+
+L'app n'affiche plus rien de trading (`TRADING_ACTIF = false`, `CLAUDE.md`
+section du 2026-09-30). Le site a été nettoyé le même jour (branche
+`chantier/sans-trading-site` du dépôt du site) : encadré de fin des articles,
+exemple « 50 backtests » de Fonctionnalités → Avancer, 113 traductions
+orphelines, table de relabellisation de `shoot-v2.mjs`. Ce qui reste :
+
+### W.1 — ⛔ Les 26 captures `public/shots/v2/` montrent encore la démo TRADER
+
+Accueil, Fonctionnalités, Modules : « Passer trader full-time », « Revue des
+trades de la veille », tag « Trading », Notes ouvert sur « Setup cassure H4 »,
+lien rapide TradingView… C'est aujourd'hui **la trace de trading la plus
+visible du site**. La démo de l'app est prête (un indépendant) et
+`shoot-v2.mjs` est à jour ; il ne manque que la génération, qui demande l'app
+en mode démo — **refusé par le mode automatique** (`PIEGES.md` § 26.2 et
+§ 28.3). Geste : une session autorisée lance l'app en démo sur :5199 et
+`node tools/shoot-v2.mjs`. Profiter du même passage pour V.2 (vue Tâches) et
+U.3 (Timer).
+
+### W.2 — ⛔ PROPOSÉ, pas écrit : l'avertissement des mentions légales
+
+`legal.json` / `legal.en.json`, mentions légales, section « Avertissement sur
+les marchés financiers » : « logiciel de préparation, de calcul et de
+journalisation », « Les décisions de marché… », « Le trading comporte un risque
+de perte en capital ». Non touché : c'est un texte juridique protecteur, et
+Finance affiche encore des positions et des cours (Yahoo, Binance) — « pas un
+conseil en investissement » reste utile. Proposition à trancher par Antonin :
+garder la section, retitrer « Avertissement sur les placements financiers »,
+remplacer « décisions de marché » par « décisions d'investissement » et « Le
+trading comporte » par « Investir comporte ». ⚠️ La session `precommande`
+modifie `legal.json` le même jour (liste d'attente) : faire la retouche après
+sa fusion.
+
+### W.3 — Phrases trading qui survivent ailleurs que dans les pages
+
+- `SHALE.md` (racine du projet) : « app de bureau de productivité et de
+  trading » — corrigé en datant, le 2026-09-30.
+- `public/shots/full-marketbrain.png`, `full-position.png`, `card-position.png`
+  : plus liés par aucune page publiée (seuls des articles en brouillon citent
+  `card-position.png`), mais toujours servis à leur adresse. Laissés en place
+  avec les brouillons — c'est « mis de côté », pas supprimé.
+- Les trois articles en brouillon parlent de trading ; les republier demandera
+  de les relire.

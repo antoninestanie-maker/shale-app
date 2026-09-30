@@ -3846,3 +3846,56 @@ joints par une clé traduite (`"{a} et {b}"`).
 **Parade.** Attendre que le bouton « Passer » existe (il paraît après la
 connexion), puis le cliquer par son TEXTE exact (`textContent === "Passer"`),
 en boucle tant qu'il reste.
+
+---
+
+# 28. Mettre une fonction de côté (le trading, 2026-09-30)
+
+## 28.1 ⭐ Une fonction ne vit pas que dans son module : graines de migration, démo, exemples, planificateurs
+
+**Constat.** `features.ts` se présentait comme LA frontière du trading (« toute
+la logique de gating lit CE fichier »). Elle couvrait les trois modules, le
+widget, deux panneaux et la palette. Elle ne couvrait pas : le planificateur de
+Market Brain (monté dans `App.tsx`, actif pour tous), la pastille des sessions
+de marché, le sous-titre « trading os », « Passer à Shale Trade » des Réglages,
+la jauge d'énergie, Personnaliser, un filtre du Calendrier, **deux lignes semées
+par les migrations 018 et 020 dans chaque base**, les placeholders de quatre
+formulaires, et le jeu de démo — qui fait les captures du site.
+
+**Parade.** Avant de dire « c'est retiré », chercher la fonction par son
+VOCABULAIRE, pas par son drapeau : `grep -rniE "trad(e|ing)|backtest|market|
+briefing|session|pips|setup|prop firm"` dans `src/`, `src-tauri/migrations/`
+(les `INSERT` de graines), `src/lib/demo.ts`, et `en.ts` (une phrase traduite
+est une phrase affichée quelque part). Et le filet : `trading-de-cote.test.ts`
+refuse tout mot de trading dans la démo.
+
+**Payé.** Rien en données. Sans la recherche par vocabulaire, l'accueil du site
+aurait continué d'afficher « Passer trader full-time » après la « suppression ».
+
+## 28.2 ⚠️ Un filtre « aucune session de marché ouverte » ne laisse AUCUN créneau en semaine
+
+**Symptôme.** Le Calendrier ne proposait jamais de créneau libre du lundi au
+vendredi — pour tout le monde, offre Trade ou non. Trouvé en lisant le code le
+2026-09-30, jamais signalé à l'écran (le bandeau de propositions restait vide,
+ce qui ressemble à une semaine pleine).
+
+**Cause.** `creneauxLibres(…, { eviterMarche: true })` en dur dans
+`CalendarView`, et `marcheOuvertPendant` teste `activeSessions(d).length > 0`.
+Sydney 7-16 h, Tokyo 9-18 h, Londres 8-17 h, New York 8-17 h, chacune à son
+heure locale : à Paris, elles se relaient de 23 h à 23 h. Le commentaire parlait
+de « l'ouverture de Londres » ; le code testait « n'importe quelle session ».
+
+**Parade.** `eviterMarche` suit `afficheModule("market")`. Si le trading revient,
+restreindre la règle aux ouvertures (Londres, New York) plutôt qu'aux sessions.
+
+## 28.3 ⚠️ Outil — le refus du patch de démo (§ 26.2) bloque AUSSI les captures du site
+
+**Constat (2026-09-30, deuxième occurrence du § 26.2).** Même refus du mode
+automatique. Ce que le § 26.2 ne disait pas : `vitrine/tools/shoot-v2.mjs`
+force le même mode démo à la volée (il réécrit `auth/config.ts` servi par
+vite) — le refus couvre donc aussi la régénération des 26 captures du site.
+Ne pas le contourner.
+
+**Conséquence.** Un chantier qui change ce que montrent les captures (ici : la
+démo trader devenue indépendant) laisse le site en retard tant qu'Antonin n'a
+pas autorisé l'action. Le dire dans `DETTE-SITE.md`, pas seulement ici.
