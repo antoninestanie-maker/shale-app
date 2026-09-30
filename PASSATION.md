@@ -1337,6 +1337,19 @@ avant la règle), `lots.test.ts`, `emportes.test.ts` (8 vus rouges),
 `tachesVue.test.ts` (mutations vues rouges), `geste.test.ts` (note + carte en
 démo, vu rouge sans la règle).
 
+- ✅ **Installé le 2026-09-30 à 10:49** (mobile-ios `3a6ed9f`, build groupé avec
+  le fond de fenêtre `6bcab1c`) : témoins dans `dist/assets` (« Ajouter une
+  tâche… » 4, « Il part dans Supprimés récemment avec {liste}. » 2, « Carte
+  retirée de la note, et » 2), 0 pour « Ses tâches restent » et l'ancien filtre ;
+  `plugin:window|set_background_color` dans le binaire : 1 ; sha256 installée =
+  source (`3c28746c…`, ancienne `755990c9…`) ; base en 28 avant et après,
+  integrity ok, FK 0, comptes identiques à `sauvegardes/avant-taches-20260930-1047/`.
+- ⚠️ **Constaté dans la vraie base, sans y toucher** : 51 tâches parties dans
+  « Supprimés récemment » le 30/09 entre 00:14:00 et 00:14:08 (heure de Paris),
+  une par une — la signature d'UN geste qui en emporte beaucoup (suppression
+  d'un nœud de carte typé, build de 00:03). 42 appartenaient à des objectifs
+  supprimés les 26–27/09. Restaurables jusqu'au 29/10 ; décision à Antonin.
+
 **Ce qui reste.** Retirer une carte au CLAVIER (sélection puis ⌫, ou couper)
 n'emporte rien : seuls « Supprimer la carte » et la suppression de la page le
 font (`CLAUDE.md`). iPhone : `MOBILE.md` § 27. Site : `DETTE-SITE.md` entrée V
