@@ -27,7 +27,7 @@ describe("presenceModule", () => {
   it("un module productivité est toujours ouvert, sur les deux plateformes", () => {
     for (const commerce of [true, false]) {
       expect(presenceModule("tasks", false, commerce)).toBe("ouvert");
-      expect(presenceModule("finance", false, commerce)).toBe("ouvert");
+      expect(presenceModule("notes", false, commerce)).toBe("ouvert"); // Finance : mise de côté, voir finance-de-cote.test.ts
     }
   });
 

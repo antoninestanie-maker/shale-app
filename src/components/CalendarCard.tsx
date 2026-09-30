@@ -9,6 +9,7 @@ import { chargeDuJour } from "../lib/calendrier/charge";
 import { profilDisponibilite } from "../lib/calendrier/disponibilite";
 import { fetchCalendarEvents, fetchFacturation, fetchRecurringEvents } from "../lib/repo";
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
+import { FINANCE_ACTIF } from "../lib/features";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
 import { IconCalendar } from "./icons";
@@ -40,7 +41,8 @@ export default function CalendarCard({ data }: { data: AppData }) {
       if (annule) return;
       const vus = new Set(duJour.map((e) => e.id));
       setEvents([...duJour, ...recurrents.filter((e) => !vus.has(e.id))]);
-      if (facturation)
+      // Finance mise de côté (`FINANCE_ACTIF`) : aucune échéance de facture sur la carte.
+      if (facturation && FINANCE_ACTIF)
         setEcheances(
           echeancesDuCalendrier(
             facturation.factures,

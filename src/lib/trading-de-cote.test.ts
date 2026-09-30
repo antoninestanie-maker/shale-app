@@ -39,7 +39,7 @@ describe("presenceModule — trading éteint", () => {
   });
 
   it("la productivité n'est pas touchée", () => {
-    for (const id of ["today", "tasks", "calendar", "finance", "performance", "notes"])
+    for (const id of ["today", "tasks", "calendar", "performance", "notes"])
       expect(presenceModule(id, false, true, false)).toBe("ouvert");
   });
 

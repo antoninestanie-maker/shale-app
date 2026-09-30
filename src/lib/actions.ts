@@ -1,6 +1,7 @@
 // Registre d'actions central : consommé par la palette ⌘K et la quick capture.
 // Une action = un id stable + un exécuteur.
 import type { View } from "../components/Sidebar";
+import { FINANCE_ACTIF, isFinanceView } from "./features";
 import { todayStr, todayTasks } from "./logic";
 import { createNote, createTask, setMetricValue, setTaskDone } from "./repo";
 import type { AppData } from "./types";
@@ -375,6 +376,8 @@ export function searchActions(
   const pool = ACTIONS.filter(
     (a) =>
       (hasTrading || a.requires !== "trading") &&
+      // Finance mise de côté (2026-10-01) : ses actions sortent avec elle.
+      (FINANCE_ACTIF || !isFinanceView(a.module)) &&
       !masques?.has(a.module),
   );
   const q = norm(query.trim());

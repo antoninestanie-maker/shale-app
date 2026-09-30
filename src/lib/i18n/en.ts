@@ -26,6 +26,11 @@ export const EN: Record<string, string> = {
   "Personnaliser": "Customize",
   "Admin": "Admin",
   "Productivité": "Productivity",
+  // Catégories par intention de la barre latérale (2026-10-01), mêmes mots que le site.
+  "Décider quoi faire": "Decide what to do",
+  "Avancer et mesurer": "Move forward and measure",
+  "Penser et retenir": "Think and remember",
+  "Tenir les comptes": "Keep the books",
   "Système": "System",
 
   "Tableau de bord du jour : tâches, énergie, discipline, performance.":

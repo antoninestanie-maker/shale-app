@@ -110,7 +110,11 @@ export const CLES_LIBELLES_PROFIL = [
   "Trading",
   "Market-Brain",
   "Position",
-  "Productivité",
+  // Les catégories par intention (2026-10-01) — les mêmes que le site.
+  "Décider quoi faire",
+  "Avancer et mesurer",
+  "Penser et retenir",
+  "Tenir les comptes",
 ] as const;
 
 const ENSEMBLE_CLES: ReadonlySet<string> = new Set(CLES_LIBELLES_PROFIL);

@@ -19,6 +19,7 @@ import {
   type SourcesAgenda,
 } from "../lib/calendrier/agenda";
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
+import { FINANCE_ACTIF } from "../lib/features";
 import { chargeDuJour, joursSurcharges } from "../lib/calendrier/charge";
 import {
   capaciteDuJour,
@@ -240,7 +241,8 @@ export default function CalendarView({ data, refresh }: Props) {
     void (async () => {
       const f = await fetchFacturation().catch(() => null);
       if (annule || !f) return;
-      setEcheances(echeancesDuCalendrier(f.factures, f.paiements, f.tiers, aujourdhui));
+      // Finance mise de côté (`FINANCE_ACTIF`) : aucune échéance de facture dans l'agenda.
+      setEcheances(FINANCE_ACTIF ? echeancesDuCalendrier(f.factures, f.paiements, f.tiers, aujourdhui) : []);
     })();
     return () => {
       annule = true;

@@ -21,7 +21,7 @@ import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
 import { normaliserTier } from "./auth/supabase";
 import type { ModuleProfil } from "./licence/catalogue";
 import { moduleVisible, resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
-import { isTradingView, TRADING_ACTIF } from "./features";
+import { FINANCE_ACTIF, isFinanceView, isTradingView, TRADING_ACTIF } from "./features";
 import type { LigneProfil } from "./licence/signature";
 import { useEtatProfil } from "./licence/useProfil";
 
@@ -131,7 +131,9 @@ export function resolveEntitlements(
   const palier = entitlementsOf(sub);
   const profil = resoudreProfil({ ...entree, tier: palier.tier });
   const afficheModule = (m: ModuleProfil) =>
-    moduleVisible(profil, m) && (palier.hasTrading || !isTradingView(m));
+    moduleVisible(profil, m) &&
+    (palier.hasTrading || !isTradingView(m)) &&
+    (FINANCE_ACTIF || !isFinanceView(m));
   return { ...palier, profil, afficheModule };
 }
 

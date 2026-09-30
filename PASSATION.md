@@ -1528,3 +1528,45 @@ charge machine de 118 : les deux échecs sont les tests de volume de
 
 **Aucun build natif** : la démo ne sert que hors Tauri (`repo.ts`, `isTauri`).
 Les captures du site ne changent pas (prises un 30, hors de la fenêtre).
+### 11.i Le 2026-10-01 — ⭐ la barre latérale par intention ; Finance mise de côté
+
+*Branche `chantier/intentions`, worktree `~/Desktop/Shale-chantiers/intentions`.
+Tests et types verts ; **pas encore fusionnée, pas encore construite en natif**
+(le build se groupe avec le prochain, une fenêtre de trousseau par build).*
+
+Demande d'Antonin, sur le site refait : « j'aime bien le groupé par intention,
+et ce serait bien que ce soit vrai dans l'app aussi. Supprime Finance, et
+remplace Productivité par les trois items du site. »
+
+- **`CATEGORIES` (`Sidebar.tsx`)** : « Productivité » (neuf modules en vrac)
+  devient **Décider quoi faire** (Tâches, Calendrier) · **Avancer et mesurer**
+  (Timer, Objectifs, Performance) · **Penser et retenir** (Notes, Journal,
+  Savoir) — les trois groupes de `vitrine/src/views/refonte/Modules.astro`, dans
+  le même ordre. Aujourd'hui reste hors catégorie, au-dessus. La feuille
+  « Plus » de l'iPhone suit (elle lit `CATEGORIES`). Les réglages de repli
+  enregistrés sous l'ancien identifiant `prod` sont simplement ignorés : les
+  trois groupes s'ouvrent dépliés.
+- **Finance mise de côté**, même mécanique que le trading (§ 11.x) :
+  `FINANCE_ACTIF = false` dans `lib/features.ts`. Rien n'est supprimé — code,
+  tables, comptes, factures, relevés restent et se synchronisent. Éteinte,
+  Finance est **absente**, jamais verrouillée : `presenceModule` rend `absent`
+  (barre latérale, feuille « Plus », garde de navigation), `afficheModule`
+  faux, la palette ⌘K n'offre plus « Aller à Finance » ni ses raccourcis, et
+  le calendrier (vue et carte) ne pose plus les échéances de factures. Un
+  quatrième groupe **« Tenir les comptes »** (`comptes`) ne porte que Finance :
+  sans membre visible il ne se dessine pas ; rallumer Finance le fait
+  réapparaître après « Penser et retenir ».
+- **Profils de licence** : les quatre libellés de catégorie entrent dans
+  `CLES_LIBELLES_PROFIL` (`licence/catalogue.ts`), « Productivité » en sort ;
+  `catalogue.test.ts` vérifie les nouveaux identifiants.
+- **Tests** : `lib/finance-de-cote.test.ts` (interrupteur, présence dans les
+  deux positions, palette, forme exacte de `CATEGORIES` lue dans le source) ;
+  `trading-de-cote.test.ts` ne compte plus Finance parmi la productivité.
+- **Site** : `Modules.astro` et l'accueil n'ont plus Finance ni « Tenir les
+  comptes » (chantier `accueil-epure` du site, même jour) — l'app et le site
+  disent la même chose.
+
+⚠️ Le trading et Finance sont **deux interrupteurs indépendants**. Un nouvel
+endroit qui montre Finance lit `presenceModule` / `afficheModule`, pas la
+constante (sauf sans accès aux droits, comme pour le trading).
+
