@@ -16,6 +16,9 @@ import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
 import { ORDRE_SECTIONS, correspond, ranger, type CleSection, type LigneVue } from "../lib/tachesVue";
+// Le contour de la case dit la priorité — la règle de toute l'app, écrite une fois.
+import { couleurPriorite, phrasePriorite } from "../lib/priorite";
+import { PastillePriorite } from "../components/Priorite";
 
 interface Props {
   data: AppData;
@@ -44,16 +47,6 @@ interface Props {
  * non plus — une liste se lit en une colonne, comme la vue Objectifs refaite
  * la veille.
  */
-
-/**
- * Le contour de la case selon la priorité. Basse = la case de tout le monde.
- * ⚠️ Des `var(...)`, jamais d'hex : ce sont les tokens des deux thèmes.
- */
-const ANNEAU: Record<Priority, string | undefined> = {
-  high: "var(--color-red)",
-  medium: "var(--color-yellow)",
-  low: undefined,
-};
 
 /** Les couleurs proposées pour un nouveau tag. ⚠️ Accordées aux tokens (DESIGN.md). */
 const TAG_COLORS = [
@@ -141,6 +134,7 @@ export default function TasksView({ data, refresh }: Props) {
   /** Les tâches qu'on vient de cocher ou de rouvrir restent un instant à leur place. */
   const [garder, setGarder] = useState<ReadonlyMap<number, CleSection>>(new Map());
   const [brouillon, setBrouillon] = useState("");
+  const [prioriteNouvelle, setPrioriteNouvelle] = useState<Priority>("medium");
   const menu = useMenuContextuel<LigneVue>();
 
   const [newTagName, setNewTagName] = useState("");
@@ -275,7 +269,10 @@ export default function TasksView({ data, refresh }: Props) {
     const label = brouillon.trim();
     if (!label) return;
     setBrouillon("");
-    const id = await createTask({ label, tag: tagFilter, priority: "medium", recurrence: "none", goal_id: null });
+    const id = await createTask({ label, tag: tagFilter, priority: prioriteNouvelle, recurrence: "none", goal_id: null });
+    // Chaque tâche repart « moyenne » : une priorité restée collée d'un ajout à
+    // l'autre en ferait passer cinq en élevée sans qu'on l'ait voulu.
+    setPrioriteNouvelle("medium");
     // Elle doit se VOIR arriver : sa section se déplie, la recherche s'efface.
     setRecherche("");
     setReplis((r) => {
@@ -415,7 +412,6 @@ export default function TasksView({ data, refresh }: Props) {
 
   const ligne = (task: LigneVue, section: CleSection) => {
     const infos = meta(task, section);
-    const priorite = task.priority === "high" ? t("Haute") : task.priority === "low" ? t("Basse") : t("Moyenne");
     return (
       /* ⚠️ Clic droit et touches de LIGNE sur le <li> : ils marchent que le
          focus soit sur la case, sur le libellé ou sur « ⋯ ». F2 renomme
@@ -441,9 +437,9 @@ export default function TasksView({ data, refresh }: Props) {
             cochee={task.done}
             onBascule={() => void handleToggle(task)}
             libelle={task.label}
-            anneau={ANNEAU[task.priority]}
+            anneau={couleurPriorite(task.priority)}
             tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
-            tipSub={t("Priorité {p}", { p: pick(priorite.toLocaleLowerCase("fr"), priorite) })}
+            tipSub={phrasePriorite(task.priority)}
           />
         </span>
 
@@ -611,7 +607,9 @@ export default function TasksView({ data, refresh }: Props) {
           void ajouter();
         }}
       >
-        <label className="flex items-center gap-2.5 rounded-[12px] border border-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-blue">
+        {/* Un <div>, plus un <label> : la pastille de priorité en est un, et un
+            <label> dans un <label> n'est pas du HTML. */}
+        <div className="flex items-center gap-2.5 rounded-[12px] border border-border bg-surface py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-blue">
           <IconPlus className="h-4 w-4 shrink-0 text-text-dim" />
           <input
             value={brouillon}
@@ -635,7 +633,8 @@ export default function TasksView({ data, refresh }: Props) {
               {t("Entrée")}
             </kbd>
           )}
-        </label>
+          <PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />
+        </div>
       </form>
 
       {/* Les filtres : les tags, et une recherche. */}

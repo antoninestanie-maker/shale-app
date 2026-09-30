@@ -82,7 +82,11 @@ export interface Goal {
   is_milestone: number; // SQLite: 0 | 1
   /** Ordre croissant entre frères ; à égalité, échéance puis id. */
   position: number;
-  /** Poids dans la moyenne du parent. ≤ 0 se lit comme 1. */
+  /**
+   * Poids dans la moyenne du parent. ≤ 0 se lit comme 1.
+   * ⚠️ Plus rien ne l'affiche depuis le 2026-09-30 : la priorité (migration 030)
+   * a remplacé le repli « Avancé / Poids ». Il vaut 1 partout.
+   */
   weight: number;
   /** Cible chiffrée, ENTIÈRE. `null` = le sous-objectif avance par ses éléments. */
   target_count: number | null;
@@ -98,6 +102,13 @@ export interface Goal {
   count_since: string | null;
   /** 1 = suggéré par l'accueil (même règle que la migration 024). */
   is_example: number; // SQLite: 0 | 1
+
+  /**
+   * Migration 030 — la priorité d'une ÉTAPE, les mêmes valeurs que celle d'une
+   * tâche. Pas de CHECK en base : lire par `prioriteDe` (lib/priorite.ts), qui
+   * rend « moyenne » pour une valeur inconnue.
+   */
+  priority: Priority | string;
 }
 
 /** Les trois sources d'une cible chiffrée (migration 026). */

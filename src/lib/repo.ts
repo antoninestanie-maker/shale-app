@@ -1328,6 +1328,21 @@ export async function renommerTache(taskId: number, label: string): Promise<void
   await adopter("tasks", taskId);
 }
 
+/**
+ * Change la priorité d'une tâche, et RIEN d'autre (menu contextuel, 2026-09-30)
+ * — même règle, et même raison, que `renommerTache` juste au-dessus.
+ */
+export async function prioriserTache(taskId: number, priorite: Priority): Promise<void> {
+  if (!isTauri) {
+    await demo.prioriserTache(taskId, priorite);
+    await adopter("tasks", taskId);
+    return;
+  }
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET priority = $1 WHERE id = $2 AND priority IS NOT $1", [priorite, taskId]);
+  await adopter("tasks", taskId);
+}
+
 export async function deleteTask(id: number): Promise<void> {
   if (!isTauri) return demo.deleteTask(id);
   const db = await getDb();
@@ -1403,6 +1418,8 @@ export interface GoalInput {
   is_milestone?: number;
   position?: number;
   is_example?: number;
+  /** Migration 030 — lue À LA CRÉATION ; ensuite, `majFeuilleDeRoute`. Défaut : « moyenne ». */
+  priority?: Priority;
 }
 
 /** Les champs de feuille de route modifiables après coup (migration 026). */
@@ -1417,6 +1434,7 @@ export type FeuilleDeRoutePatch = Partial<
     | "manual_count"
     | "count_ref_uid"
     | "manual_progress"
+    | "priority"
   >
 >;
 
@@ -1424,7 +1442,7 @@ export async function createGoal(input: GoalInput): Promise<number> {
   if (!isTauri) return demo.createGoal(input);
   const db = await getDb();
   const res = await db.execute(
-    "INSERT INTO goals (title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress, created_at, is_milestone, position, is_example) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+    "INSERT INTO goals (title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress, created_at, is_milestone, position, is_example, priority) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
     [
       input.title,
       input.description,
@@ -1438,6 +1456,7 @@ export async function createGoal(input: GoalInput): Promise<number> {
       input.is_milestone ?? 0,
       input.position ?? 0,
       input.is_example ?? 0,
+      input.priority ?? "medium",
     ],
   );
   return res.lastInsertId ?? 0;
@@ -1459,6 +1478,7 @@ const CHAMPS_FEUILLE_DE_ROUTE = [
   "manual_count",
   "count_ref_uid",
   "manual_progress",
+  "priority",
 ] as const satisfies readonly (keyof FeuilleDeRoutePatch)[];
 
 export async function majFeuilleDeRoute(id: number, patch: FeuilleDeRoutePatch): Promise<void> {

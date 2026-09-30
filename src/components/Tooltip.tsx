@@ -13,6 +13,8 @@
 //   data-tip-sub  — 2ᵉ ligne explicative (optionnelle)
 //   data-tip-kbd  — raccourci clavier affiché en pastille (optionnel)
 //   data-tip-side — côté préféré : top | bottom | left | right (défaut : top)
+//   data-tip-attente="longue" — une EXPLICATION, pas un nom : elle n'apparaît
+//                   qu'au survol prolongé (ATTENTE_LONGUE), jamais « à chaud ».
 //
 // Comportements « natifs » reproduits :
 //   - délai à froid (on n'interrompt pas un geste), quasi nul à chaud
@@ -39,6 +41,14 @@ interface TipData {
 const COLD_DELAY = 400; // 1ᵉʳ survol : laisse l'utilisateur agir sans être interrompu
 const WARM_DELAY = 60; // survol enchaîné : la bulle « suit » d'un élément à l'autre
 const WARM_WINDOW = 550; // fenêtre pendant laquelle on reste « chaud » après une fermeture
+/**
+ * ⭐ Les explications de la feuille de route (2026-09-30). Antonin : « ça ne
+ * doit pas être tout le temps là. À la limite, si on laisse le curseur trois
+ * secondes sur quelque chose, ça peut l'expliquer ». Deux secondes : assez pour
+ * ne jamais surgir en passant, pas assez pour croire qu'il n'y a rien. Et pas
+ * de « chaud » : balayer une liste ne doit pas faire défiler ses explications.
+ */
+const ATTENTE_LONGUE = 2000;
 const OUT_MS = 110; // durée de la disparition (doit rester ≤ la transition CSS)
 const IN_MS = 240; // durée de l'entrée (doit rester ≥ la transition CSS)
 const GAP = 8; // distance bulle ↔ élément
@@ -114,6 +124,7 @@ export default function TooltipLayer() {
         side: isSide(attrSide) ? attrSide : "top",
       };
       const warm = Date.now() - lastHideAt.current < WARM_WINDOW;
+      const longue = el.getAttribute("data-tip-attente") === "longue";
       window.clearTimeout(showTimer.current);
       showTimer.current = window.setTimeout(
         () => {
@@ -122,7 +133,7 @@ export default function TooltipLayer() {
           setShown(false);
           setTip(next);
         },
-        immediat ? 0 : warm ? WARM_DELAY : COLD_DELAY,
+        immediat ? 0 : longue ? ATTENTE_LONGUE : warm ? WARM_DELAY : COLD_DELAY,
       );
     },
     [],

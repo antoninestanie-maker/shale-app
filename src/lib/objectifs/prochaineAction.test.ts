@@ -132,3 +132,55 @@ describe("prochaineAction", () => {
     expect(prochaine(atteint, sources([atteint], [tache({ id: 10, goal_id: 1, due_date: "2026-09-01" })]))).toBeNull();
   });
 });
+
+describe("⭐ prochaineAction — la priorité départage (2026-09-30)", () => {
+  it("sans date : la tâche ÉLEVÉE passe avant la première de la feuille de route", () => {
+    const s = sources(
+      [racine, phase1, phase2],
+      [
+        tache({ id: 10, goal_id: 2, label: "première, moyenne" }),
+        tache({ id: 11, goal_id: 3, label: "plus loin, élevée", priority: "high" }),
+      ],
+    );
+    expect(prochaine(racine, s)!.tache.label).toBe("plus loin, élevée");
+  });
+
+  it("une tâche FAIBLE cède sa place, même première", () => {
+    const s = sources(
+      [racine, phase1],
+      [tache({ id: 10, goal_id: 2, label: "faible", priority: "low" }), tache({ id: 11, goal_id: 2, label: "moyenne" })],
+    );
+    expect(prochaine(racine, s)!.tache.label).toBe("moyenne");
+  });
+
+  it("à priorité de tâche égale, l'étape la plus prioritaire l'emporte", () => {
+    const urgente = objectif({ ...phase2, priority: "high" });
+    const s = sources(
+      [racine, phase1, urgente],
+      [tache({ id: 10, goal_id: 2, label: "phase moyenne" }), tache({ id: 11, goal_id: 3, label: "phase élevée" })],
+    );
+    expect(prochaine(racine, s)!.tache.label).toBe("phase élevée");
+  });
+
+  it("⚠️ la date reste reine : une tâche en retard passe avant une élevée sans date", () => {
+    const s = sources(
+      [racine, phase1],
+      [
+        tache({ id: 10, goal_id: 2, label: "élevée", priority: "high" }),
+        tache({ id: 11, goal_id: 2, label: "en retard, faible", priority: "low", due_date: "2026-09-20" }),
+      ],
+    );
+    expect(prochaine(racine, s)!.tache.label).toBe("en retard, faible");
+  });
+
+  it("le même jour, la priorité départage deux échéances", () => {
+    const s = sources(
+      [racine, phase1],
+      [
+        tache({ id: 10, goal_id: 2, label: "demain, moyenne", due_date: "2026-09-30" }),
+        tache({ id: 11, goal_id: 2, label: "demain, élevée", due_date: "2026-09-30", priority: "high" }),
+      ],
+    );
+    expect(prochaine(racine, s)!.tache.label).toBe("demain, élevée");
+  });
+});

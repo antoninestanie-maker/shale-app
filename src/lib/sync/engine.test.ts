@@ -122,6 +122,19 @@ describe("clés étrangères traduites", () => {
   });
 });
 
+describe("la priorité d'une étape (migration 030)", () => {
+  it("⭐ traverse telle quelle, et une valeur inconnue passe sans casser le cycle (pas de CHECK)", async () => {
+    const racine = a.ecrire("INSERT INTO goals (title, scope) VALUES ('Lancer la chaîne', 'long')").lastInsertRowid;
+    a.ecrire("INSERT INTO goals (title, scope, parent_goal_id, priority) VALUES ('Tourner', 'short', ?, 'high')", racine);
+    a.ecrire("INSERT INTO goals (title, scope, parent_goal_id, priority) VALUES ('Monter', 'short', ?, 'urgent')", racine);
+    await converger();
+    expect(b.lire("SELECT title, priority FROM goals WHERE parent_goal_id IS NOT NULL ORDER BY title")).toEqual([
+      { title: "Monter", priority: "urgent" },
+      { title: "Tourner", priority: "high" },
+    ]);
+  });
+});
+
 describe("feuille de route des objectifs (migration 026)", () => {
   it("un jalon et sa cible chiffrée traversent intacts, uid de la source compris", async () => {
     // Des numéros locaux DÉCALÉS : sans eux, `parent_goal_id` tomberait juste

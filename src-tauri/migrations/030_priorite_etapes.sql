@@ -1,0 +1,34 @@
+-- ============================================================================
+-- 030 — LA PRIORITÉ D'UNE ÉTAPE (2026-09-30)
+-- ============================================================================
+--
+-- Antonin : « donner un ordre de priorité aux étapes et aux tâches dès la
+-- création […] faible, moyenne, élevée […] pas un mode avancé avec un poids ».
+--
+-- Les TÂCHES ont une priorité depuis la 001 (`tasks.priority`). Les objectifs
+-- n'en avaient pas : le seul réglage d'importance d'une étape était `weight`
+-- (026), caché sous « Avancé », que plus rien n'affiche. On ajoute la même
+-- colonne, avec les mêmes valeurs, pour qu'une étape et une tâche parlent la
+-- même langue (`src/lib/priorite.ts`).
+--
+-- ⚠️ `weight` RESTE en base, à 1 partout (vérifié sur la vraie base le
+-- 2026-09-30 : 79 objectifs sur 79). Le supprimer demanderait de reconstruire
+-- la table ; il ne coûte rien à garder, et l'avancement continue de le lire.
+--
+-- ⚠️ PAS DE CHECK, exprès (même raison que `count_source`, 026). Un appareil
+-- resté en version antérieure qui recevrait un jour une valeur qu'il ne connaît
+-- pas la REFUSERAIT par son CHECK, et verrait son cycle de synchronisation
+-- échouer indéfiniment (voir l'en-tête de la 027). L'app lit une valeur inconnue
+-- comme 'medium' (`prioriteDe`).
+--
+-- Aucun trigger à recréer : ceux de la 016 (`goals_out_upd`…) se déclenchent
+-- sur TOUTE mise à jour de la ligne, sans liste de colonnes. La synchronisation
+-- lit la ligne entière et ignore les colonnes qu'elle ne connaît pas
+-- (`sync/local.ts`) : un appareil plus ancien reçoit la ligne sans la colonne.
+--
+-- ⚠️ `ALTER TABLE ADD COLUMN` n'accepte que des défauts littéraux (PIEGES § 3.3).
+-- Numérotée 030 et non 029 : la 029 est réservée par le chantier IA de Shale
+-- Pro (`029_ia_contenus.sql`), pas encore fusionné. sqlx applique une migration
+-- manquante quel que soit son rang : la 029 passera après la 030 sans erreur.
+
+ALTER TABLE goals ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';

@@ -28,6 +28,8 @@ import m25 from "../../../src-tauri/migrations/025_licence_profil.sql?raw";
 import m26 from "../../../src-tauri/migrations/026_feuille_de_route.sql?raw";
 import m27 from "../../../src-tauri/migrations/027_corbeille.sql?raw";
 import m28 from "../../../src-tauri/migrations/028_pieces_jointes.sql?raw";
+// ⚠️ Pas de 029 ici tant que le chantier IA de Shale Pro n'est pas fusionné (en-tête de la 030).
+import m30 from "../../../src-tauri/migrations/030_priorite_etapes.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -44,7 +46,7 @@ export const MIGRATIONS: readonly string[] = [
   // liste est de nouveau contiguë. Compatibles dans les deux sens — la 027
   // n'ajoute que des colonnes `deleted_at` et aucun trigger ; la 028 recrée les
   // sept triggers de ménage d'`object_links`.
-  m19, m20, m21, m22, m23, m24, m25, m26, m27, m28,
+  m19, m20, m21, m22, m23, m24, m25, m26, m27, m28, m30,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

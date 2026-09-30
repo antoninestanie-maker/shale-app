@@ -569,6 +569,15 @@ function EtapeObjectif({
           />
         ))}
       </div>
+      {/* ⭐ CE QUE LA FEUILLE DE ROUTE NE DIT PLUS À L'ÉCRAN (2026-09-30).
+          Antonin : « ça doit être expliqué dans l'onboarding et pas marqué dans
+          l'app tout le temps ». Les phrases retirées de la feuille de route
+          (« Rien à mesurer pour l'instant… », « vide, non comptée ») tiennent
+          ici en deux lignes, lues une fois ; dans l'app, elles attendent dans
+          des bulles au survol prolongé. */}
+      <p className="mt-3 text-xs leading-relaxed text-text-dim">
+        {t("Une étape avance quand tu coches ses tâches, ou quand tu atteins un nombre que tu t'es fixé (50 séances, 10 pages…). Sa priorité — faible, moyenne ou élevée — dit par où commencer.")}
+      </p>
     </Bloc>
   );
 }

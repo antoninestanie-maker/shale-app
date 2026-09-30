@@ -34,8 +34,20 @@ export function aideDeGenre(genre: GenreEtape): string {
     : t("Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.");
 }
 
-/** « 3/7 tâches », « 12/50 backtests », « saisi à la main », « phase vide, non comptée ». */
-export function origineEnClair(m: Mesure, estJalon = false): string {
+/**
+ * « 3/7 éléments », « 12/50 séances », « saisi à la main » — ou RIEN.
+ *
+ * ⭐ 2026-09-30 — UNE ÉTAPE VIDE SE TAIT. Chaque ligne vide disait « vide, non
+ * comptée », « phase aux étapes vides, non comptée », et le total ajoutait
+ * « · 2 vides, non comptées ». Antonin : « vide non compté, ça ne sert à rien ».
+ * La barre montre déjà « — » ; le POURQUOI (`pourquoiVide`) passe dans la bulle
+ * de cette barre, au survol prolongé.
+ *
+ * ⚠️ Une PANNE, elle, reste écrite : une source supprimée ou une cible à zéro
+ * ne sont pas des étapes vides, ce sont des réglages cassés qu'on ne devinerait
+ * pas.
+ */
+export function origineEnClair(m: Mesure): string {
   const o = m.origine;
   switch (o.type) {
     case "manuel":
@@ -50,19 +62,16 @@ export function origineEnClair(m: Mesure, estJalon = false): string {
       if (o.elementsTotal > 0) {
         morceaux.push(tp(o.elementsTotal, "{faits}/{n} élément", "{faits}/{n} éléments", { faits: o.elementsFaits }));
       }
-      if (m.vides > 0) morceaux.push(tp(m.vides, "{n} vide, non comptée", "{n} vides, non comptées"));
       return morceaux.join(" · ");
     }
     case "vide":
       switch (o.raison) {
         case "cible-nulle":
-          return t("cible à zéro, non comptée");
+          return t("cible à zéro");
         case "source-introuvable":
-          return t("source introuvable, non comptée");
-        case "etapes-vides":
-          return estJalon ? t("phase aux étapes vides, non comptée") : t("étapes vides, non comptées");
+          return t("source introuvable");
         default:
-          return estJalon ? t("phase vide, non comptée") : t("vide, non compté");
+          return "";
       }
   }
 }
@@ -70,6 +79,10 @@ export function origineEnClair(m: Mesure, estJalon = false): string {
 /**
  * ⭐ Un état vide PARLE : il dit pourquoi l'étape ne compte pas et ce qui la
  * ferait compter. Un cadre gris n'apprend rien (audit UI du 2026-08-28).
+ *
+ * ⚠️ Depuis le 2026-09-30, il parle DANS UNE BULLE (celle de la barre « — »),
+ * plus dans un paragraphe sous l'étape dépliée : « ça doit être expliqué dans
+ * l'onboarding et pas marqué tout le temps dans l'app » (Antonin).
  */
 export function pourquoiVide(m: Mesure, estJalon: boolean): string | null {
   if (m.origine.type !== "vide") return null;
@@ -85,14 +98,6 @@ export function pourquoiVide(m: Mesure, estJalon: boolean): string | null {
         ? t("Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.")
         : t("Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.");
   }
-}
-
-/** Ce que change le poids, en toutes lettres — jamais un champ muet. */
-export function effetDuPoids(poids: number, parent: Pick<Goal, "title"> | null): string {
-  const p = poids > 0 ? poids : 1;
-  const titre = parent?.title ?? t("l’objectif");
-  if (p === 1) return t("Poids 1 : cette étape pèse autant que ses sœurs dans « {titre} ».", { titre });
-  return t("Poids {p} : cette étape compte {p} fois plus qu’une étape de poids 1 dans « {titre} ».", { p, titre });
 }
 
 // ─── Repliement ─────────────────────────────────────────────────────────────

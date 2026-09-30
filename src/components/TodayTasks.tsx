@@ -8,6 +8,7 @@ import { renommerTache } from "../lib/repo";
 import { ouvrirParId } from "../lib/naviguer";
 
 import { t } from "../lib/i18n";
+import { phrasePriorite } from "../lib/priorite";
 interface Props {
   tasks: TodayTask[];
   tags: Tag[];
@@ -143,7 +144,8 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: PRIORITY_COLOR[task.priority] }}
-                title={t("Priorité {p}", { p: task.priority })}
+                // Disait « Priorité high » : la valeur brute de la base, jamais traduite.
+                title={phrasePriorite(task.priority)}
               />
 
               {/* min-w-0 + clamp : un libellé très long ne pousse jamais les

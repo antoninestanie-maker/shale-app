@@ -87,6 +87,7 @@ import type {
   ObjectLink,
   ObjectType,
   PositionSizeCalc,
+  Priority,
   QuickLink,
   Tag,
   Task,
@@ -168,6 +169,7 @@ const FEUILLE_VIDE = {
   count_ref_uid: null,
   count_since: null,
   is_example: 0,
+  priority: "medium",
 } as const satisfies Partial<Goal>;
 
 const goals: Goal[] = [
@@ -1935,6 +1937,11 @@ export const demo = {
     if (task) task.label = label;
   },
 
+  async prioriserTache(taskId: number, priorite: Priority): Promise<void> {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) task.priority = priorite;
+  },
+
   async deleteTask(id: number): Promise<void> {
     const i = tasks.findIndex((t) => t.id === id);
     if (i >= 0) tasks.splice(i, 1);
@@ -1970,6 +1977,7 @@ export const demo = {
       is_milestone: input.is_milestone ?? 0,
       position: input.position ?? 0,
       is_example: input.is_example ?? 0,
+      priority: input.priority ?? "medium",
       id,
       created_at: todayStr(),
     });

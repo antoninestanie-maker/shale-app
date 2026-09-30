@@ -18,7 +18,6 @@ import {
   aideDeGenre,
   deplacer,
   deplieParDefaut,
-  effetDuPoids,
   indexDInsertion,
   nomDeGenre,
   origineEnClair,
@@ -46,6 +45,13 @@ import { bilanDeDepart } from "../../lib/corbeille/lots";
 import { annonceDepart, jeter } from "../corbeille/geste";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 import { BarreAjout } from "./RattacherElement";
+import { couleurPriorite, phrasePriorite, rangPriorite } from "../../lib/priorite";
+import { ChoixPriorite, PastillePriorite } from "../Priorite";
+import type { Priority } from "../../lib/types";
+import MenuContextuel from "../menu/MenuContextuel";
+import { useMenuContextuel } from "../menu/useMenuContextuel";
+import { entreesTache, gestesCommunsTache, type GestesTache } from "../menu/catalogue/tache";
+import { ouvrirParId } from "../../lib/naviguer";
 
 /**
  * ⭐ La feuille de route d'un objectif — révélée par un geste, jamais imposée.
@@ -55,9 +61,17 @@ import { BarreAjout } from "./RattacherElement";
  *   • tant qu'un objectif n'a pas d'étape, rien d'ici n'apparaît à l'écran ;
  *   • une étape se crée EN UNE LIGNE : `Entrée` valide et rouvre la ligne
  *     suivante, `Échap` referme — jamais une fenêtre par étape ;
- *   • les poids sont MASQUÉS dans un repli « avancé », et disent en toutes
- *     lettres ce qu'ils changent ;
- *   • chaque ligne dit d'où vient son pourcentage (`origineEnClair`) ;
+ *   • chaque ligne dit d'où vient son pourcentage (`origineEnClair`) — sauf
+ *     une étape VIDE, qui se tait : la barre montre « — » ;
+ *   • ⭐ 2026-09-30 — L'ÉCRAN NE S'EXPLIQUE PLUS EN TOUTES LETTRES. Antonin :
+ *     « c'est trop de texte […] ça doit être expliqué dans l'onboarding et pas
+ *     marqué dans l'app tout le temps. À la limite, si on laisse le curseur
+ *     trois secondes sur quelque chose, ça peut l'expliquer ». Les phrases
+ *     d'aide (« Rien à mesurer pour l'instant… », « vide, non comptée »,
+ *     « récurrente, non comptée », l'aide sous le champ de saisie) sont
+ *     passées dans des bulles `data-tip-attente="longue"` (deux secondes de
+ *     survol, `Tooltip.tsx`) ; le repli « Avancé / Poids » est retiré, et la
+ *     PRIORITÉ le remplace (`lib/priorite.ts`) ;
  *   • AUCUNE action n'existe uniquement au survol : l'iPhone n'en a pas. Tout
  *     passe par le menu « ⋯ » de la ligne, visible en permanence.
  */
@@ -236,6 +250,7 @@ function LigneEtape(p: PropsLigne) {
   const pct = m?.pct ?? null;
   const termine = !!m && estAcheve(m);
   const compteePar = sourceNommee(etape, data);
+  const origine = m ? origineEnClair(m) : "";
 
   return (
     <div
@@ -295,12 +310,17 @@ function LigneEtape(p: PropsLigne) {
               « Les types de nœud ») : dossier pour la phase, cible atténuée pour
               le sous-objectif. Elle remplace la pastille « PHASE », qui était
               la seule différence visible entre les deux (audit D1, point 1). */}
+          {/* ⭐ LA COULEUR DIT LA PRIORITÉ (2026-09-30) — la règle du contour de
+              la case d'une tâche : rouge élevée, jaune moyenne, neutre faible.
+              La FORME dit toujours le niveau. Aucun élément de plus sur la ligne. */}
           <span
             role="img"
-            aria-label={nomDeGenre(estJalon ? "jalon" : "sous-objectif")}
-            data-tip={nomDeGenre(estJalon ? "jalon" : "sous-objectif")}
+            aria-label={`${nomDeGenre(estJalon ? "jalon" : "sous-objectif")} · ${phrasePriorite(etape.priority)}`}
+            data-tip={`${nomDeGenre(estJalon ? "jalon" : "sous-objectif")} · ${phrasePriorite(etape.priority)}`}
             data-tip-sub={aideDeGenre(estJalon ? "jalon" : "sous-objectif")}
-            className={`flex h-7 w-4 shrink-0 items-center justify-center ${estJalon ? "text-text" : "text-text-dim"}`}
+            data-tip-attente="longue"
+            className="flex h-7 w-4 shrink-0 items-center justify-center text-text-dim"
+            style={{ color: couleurPriorite(etape.priority) }}
           >
             {estJalon ? <IconFolder className="h-3.5 w-3.5" /> : <IconTarget className="h-3.5 w-3.5" />}
           </span>
@@ -336,13 +356,13 @@ function LigneEtape(p: PropsLigne) {
                 {formaterJour(etape.deadline)}
               </span>
             )}
-            {m && (
-              <span className={`flex w-full min-w-0 items-center gap-1 text-[11px] ${m.pct == null ? "italic text-text-dim" : "text-text-dim"}`}>
+            {m && (origine || compteePar) && (
+              <span className="flex w-full min-w-0 items-center gap-1 text-[11px] text-text-dim">
                 {/* `max-w-full` + `truncate` : l'origine garde sa place, et se
                     coupe elle-même si elle dépasse la ligne (390 pt). */}
                 <span className="max-w-full shrink-0 truncate">
                   {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
-                  {origineEnClair(m, estJalon)}
+                  {origine}
                 </span>
                 {/* ⭐ CE QUI COMPTE, nommé (audit D1, point 3) : une étape
                     comptée par une habitude ne la montrait nulle part — il
@@ -351,7 +371,7 @@ function LigneEtape(p: PropsLigne) {
                     l'habitude et de la tâche sur la carte (DESIGN.md). */}
                 {compteePar && (
                   <span className="flex min-w-0 items-center gap-1" data-tip={compteePar.aide}>
-                    <span className="shrink-0">·</span>
+                    {origine && <span className="shrink-0">·</span>}
                     {compteePar.habitude ? <IconFlame className="h-3 w-3 shrink-0" /> : <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] border border-current" aria-hidden />}
                     <span className="truncate">{compteePar.nom}</span>
                   </span>
@@ -363,7 +383,7 @@ function LigneEtape(p: PropsLigne) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <BarreMesure pct={pct} acheve={termine} />
+          <BarreMesure pct={pct} acheve={termine} pourquoi={m ? pourquoiVide(m, estJalon) : null} />
 
           <MenuEtape
             etape={etape}
@@ -391,9 +411,6 @@ function LigneEtape(p: PropsLigne) {
             if (replis[cle] === undefined) onReplier(cle, true);
           }}
         >
-          {m && m.pct == null && (
-            <p className="px-1 pb-1 text-xs text-text-dim">{pourquoiVide(m, estJalon)}</p>
-          )}
           {enfants.length > 0 && <ListeEtapes {...p} parent={etape} etapes={enfants} />}
           {peutAjouterEtape(etape, "sous-objectif", data.goals) && (
             <AjoutEtape
@@ -405,16 +422,26 @@ function LigneEtape(p: PropsLigne) {
             />
           )}
           <EcheanceEtape etape={etape} maintenant={p.sources.maintenant} refresh={refresh} />
-          <PanneauMesure goal={etape} parent={data.goals.find((g) => g.id === etape.parent_goal_id) ?? null} {...p} />
+          <PanneauMesure goal={etape} {...p} />
         </div>
       )}
     </div>
   );
 }
 
-function BarreMesure({ pct, acheve }: { pct: number | null; acheve: boolean }) {
+/**
+ * `pourquoi` : ce qui ferait compter une étape vide. Il était écrit en
+ * paragraphe sous l'étape dépliée ; depuis le 2026-09-30, il attend dans la
+ * bulle du « — », au survol prolongé.
+ */
+function BarreMesure({ pct, acheve, pourquoi }: { pct: number | null; acheve: boolean; pourquoi: string | null }) {
   return (
-    <div className="flex w-28 shrink-0 items-center gap-2">
+    <div
+      className="flex w-28 shrink-0 items-center gap-2"
+      data-tip={pct == null && pourquoi ? t("Pas encore mesurée") : undefined}
+      data-tip-sub={pct == null && pourquoi ? pourquoi : undefined}
+      data-tip-attente="longue"
+    >
       <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
         {pct != null && (
           <div
@@ -544,14 +571,32 @@ function MenuEtape(props: {
         <div
           ref={panneau}
           role="menu"
-          className="card-solid fixed z-50 w-56 rounded-[12px] border border-border p-1 shadow-lg"
+          className="card-solid fixed z-50 w-64 rounded-[12px] border border-border p-1 shadow-lg"
           style={place ? { top: place.top, left: place.left } : { top: 0, left: 0, visibility: "hidden" }}
         >
+          {/* ⭐ LA PRIORITÉ AU CLIC DROIT (2026-09-30) : le clic droit d'une
+              étape ouvre CE menu. Le menu reste ouvert : on voit le choix pris. */}
+          <div className="px-2 pb-1.5 pt-1">
+            <p className="mb-1 px-1 text-[11px] text-text-dim">{t("Priorité")}</p>
+            <ChoixPriorite
+              compact
+              role="menuitemradio"
+              valeur={etape.priority}
+              onChange={async (priorite) => {
+                if (priorite === etape.priority) return;
+                await majFeuilleDeRoute(etape.id, { priority: priorite });
+                await refresh();
+              }}
+            />
+          </div>
+          <div className="my-1 h-px bg-border" />
           <button type="button" role="menuitem" className={entree} onClick={agir(props.onRenommer)}>
             {t("Renommer")}
           </button>
+          {/* Disait « Échéance et description… » : la fenêtre porte aussi la
+              priorité depuis le 2026-09-30. */}
           <button type="button" role="menuitem" className={entree} onClick={agir(props.onModifier)}>
-            {t("Échéance et description…")}
+            {t("Modifier…")}
           </button>
           <button type="button" role="menuitem" className={entree} disabled={props.index === 0} onClick={agir(() => props.onDeplacer(-1))}>
             {t("Monter")}
@@ -636,6 +681,7 @@ function AjoutEtape(props: {
   const { parent, goals, genres, refresh } = props;
   const [ouvert, setOuvert] = useState(!!props.ouvertDOffice);
   const [genre, setGenre] = useState<GenreEtape>(genres[0]);
+  const [priorite, setPriorite] = useState<Priority>("medium");
   const [cle, setCle] = useState(0);
 
   useEffect(() => {
@@ -679,6 +725,10 @@ function AjoutEtape(props: {
               // bascule le genre, on continue de taper.
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => setGenre(g)}
+              // ⭐ L'aide, qui était une phrase sous le champ, attend ici (2026-09-30).
+              data-tip={nomDeGenre(g)}
+              data-tip-sub={aideDeGenre(g)}
+              data-tip-attente="longue"
               className={`cible-tactile px-2 py-1 font-medium ${genreActif === g ? "bg-blue/15 text-blue" : "text-text-dim hover:text-text"}`}
             >
               {nomDeGenre(g)}
@@ -706,18 +756,23 @@ function AjoutEtape(props: {
             manual_progress: 0,
             is_milestone: genreActif === "jalon" ? 1 : 0,
             position: soeurs.reduce((mx, s) => Math.max(mx, (s.position ?? 0) + 1), soeurs.length),
+            priority: priorite,
           });
           // La ligne suivante s'ouvre, vide : cinq phases se tapent d'affilée.
+          // Et « moyenne » : une priorité collée d'une ligne à l'autre en
+          // ferait passer cinq en élevée sans qu'on l'ait voulu.
           setCle((c) => c + 1);
+          setPriorite("medium");
           await refresh();
         }}
         onAnnuler={fermer}
       />
+      {/* ⭐ LA PRIORITÉ DÈS LA CRÉATION (2026-09-30). Elle ne prend pas le focus :
+          le champ, qui valide en le perdant, reste celui qui reçoit la frappe. */}
+      <PastillePriorite valeur={priorite} onChange={setPriorite} />
       </div>
-      {/* ⭐ Le mot seul ne suffit pas. « Phase » et « Sous-objectif » côte à
-          côte posent une question à qui ouvre l'écran pour la première fois ;
-          une phrase sous le champ y répond, et disparaît avec lui. */}
-      <p className="mt-1 text-[11px] text-text-dim">{aideDeGenre(genreActif)}</p>
+      {/* L'aide « Une phase regroupe… », écrite ici sous le champ jusqu'au
+          2026-09-30, est dans la bulle des boutons « Phase / Sous-objectif ». */}
     </div>
   );
 }
@@ -804,8 +859,8 @@ function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => 
 
 // ─── Comment une étape se mesure ────────────────────────────────────────────
 
-function PanneauMesure(props: PropsFeuille & { goal: Goal; parent: Goal | null }) {
-  const { goal, parent, data, sources, refresh } = props;
+function PanneauMesure(props: PropsFeuille & { goal: Goal }) {
+  const { goal, data, sources, refresh } = props;
   const aCible = goal.target_count != null;
   const [mode, setMode] = useState<"elements" | "nombre">(aCible ? "nombre" : "elements");
   useEffect(() => setMode(aCible ? "nombre" : "elements"), [aCible]);
@@ -849,6 +904,13 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal; parent: Goal | null }
                 }
               }}
               className={`cible-tactile px-2.5 py-1 font-medium ${mode === x ? "bg-blue/15 text-blue" : "text-text-dim hover:text-text"}`}
+              data-tip={x === "elements" ? t("Compter des éléments") : t("Atteindre un nombre")}
+              data-tip-sub={
+                x === "elements"
+                  ? t("L’étape avance à chaque tâche cochée parmi celles qui lui sont rattachées.")
+                  : t("L’étape avance vers un nombre que tu fixes : 50 séances, 10 pages… compté à la main, par une tâche récurrente ou par une habitude.")
+              }
+              data-tip-attente="longue"
             >
               {x === "elements" ? t("Compter des éléments") : t("Atteindre un nombre")}
             </button>
@@ -862,30 +924,10 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal; parent: Goal | null }
         <ReglageCible goal={goal} data={data} sources={sources} refresh={refresh} />
       )}
 
-      {goal.parent_goal_id != null && (
-        <details className="mt-2 text-xs text-text-dim">
-          <summary className="cible-tactile-ligne cursor-pointer select-none">{t("Avancé")}</summary>
-          <label className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span>{t("Poids")}</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              defaultValue={goal.weight > 0 ? goal.weight : 1}
-              onBlur={async (e) => {
-                const v = Math.max(1, Math.round(Number(e.currentTarget.value) || 1));
-                e.currentTarget.value = String(v);
-                if (v !== goal.weight) {
-                  await majFeuilleDeRoute(goal.id, { weight: v });
-                  await refresh();
-                }
-              }}
-              className="w-16 rounded-[8px] border border-border bg-surface px-2 py-1 text-text"
-            />
-          </label>
-          <p className="mt-1">{effetDuPoids(goal.weight, parent)}</p>
-        </details>
-      )}
+      {/* Le repli « Avancé / Poids » est retiré le 2026-09-30 : « pas un mode
+          avancé avec un poids, on ne sait pas forcément ce que ça veut dire »
+          (Antonin). La priorité le remplace (menu « ⋯ », clic droit, Modifier…).
+          La colonne `weight` reste en base, à 1 partout. */}
     </div>
   );
 }
@@ -901,17 +943,39 @@ function ListeElements(props: {
   const { goal, data, contexte, refresh } = props;
   const faites = useMemo(() => new Set(data.completions.filter((c) => c.done).map((c) => c.task_id)), [data.completions]);
   const { etat, basculer } = useCochesOptimistes();
-  const taches = data.tasks.filter((x) => x.goal_id === goal.id);
+  // ⭐ L'élevée en haut (2026-09-30) ; à priorité égale, l'ordre d'avant (tri stable).
+  const taches = data.tasks
+    .filter((x) => x.goal_id === goal.id)
+    .sort((a, b) => rangPriorite(a.priority) - rangPriorite(b.priority));
   const rattaches = rattachementsDe(uidDeLigne("goal", goal), contexte);
-  const vide = taches.length === 0 && rattaches.length === 0;
+
+  /**
+   * ⭐ LE CLIC DROIT D'UNE TÂCHE, ICI AUSSI (2026-09-30) — le MÊME menu que
+   * dans Tâches, Aujourd'hui et le Calendrier (règle 18) : c'est lui qui porte
+   * « Priorité ▸ ». Renommer en place n'existe pas sur cette ligne : l'entrée
+   * est omise ; « Modifier… » ouvre la tâche dans Tâches, comme le widget
+   * d'Aujourd'hui.
+   */
+  const menu = useMenuContextuel<Task>();
+  const cocher = (tache: Task, faite: boolean) =>
+    void basculer(`t${tache.id}`, faite, async (fait) => {
+      await basculerTache(tache, todayStr(), fait);
+      await refresh();
+    });
+  const gestes: GestesTache = {
+    ...gestesCommunsTache(refresh),
+    basculer: (tache) => cocher(tache, etat(`t${tache.id}`, faites.has(tache.id))),
+    renommer: () => undefined,
+    modifier: (tache) => ouvrirParId("task", tache.id),
+  };
 
   const bouton = "cible-tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text";
 
   return (
     <div>
-      {vide && props.avecRattachement && (
-        <p className="px-1 pb-1 text-xs text-text-dim">{t("Rien de rattaché pour l’instant.")}</p>
-      )}
+      {/* « Rien de rattaché pour l'instant. » était écrit ici : retiré le
+          2026-09-30, les boutons « Tâche » et « Rattacher » juste dessous le
+          disent déjà. */}
       <ul>
         {taches.map((tache) => {
           const recurrente = estRecurrente(tache);
@@ -929,7 +993,11 @@ function ListeElements(props: {
                iPhone 390 pt le 2026-09-18 : « Backtesti / ng 1h ».
                Une base flex, jamais `min-w-0` seul : ce dernier ne déclenche
                pas le repli, il comprime (règle du 2026-07-26). */
-            <li key={`t${tache.id}`} className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+            <li
+              key={`t${tache.id}`}
+              className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface"
+              onContextMenu={(e) => menu.ouvrirAuPoint(e, tache)}
+            >
               {recurrente ? (
                 <Coche faite={false} />
               ) : (
@@ -937,13 +1005,10 @@ function ListeElements(props: {
                   taille="sm"
                   cochee={faite}
                   libelle={tache.label}
+                  anneau={couleurPriorite(tache.priority)}
                   tip={faite ? t("Marquer à faire") : t("Marquer faite")}
-                  onBascule={() =>
-                    void basculer(`t${tache.id}`, faite, async (fait) => {
-                      await basculerTache(tache, todayStr(), fait);
-                      await refresh();
-                    })
-                  }
+                  tipSub={phrasePriorite(tache.priority)}
+                  onBascule={() => cocher(tache, faite)}
                 />
               )}
               <span className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
@@ -951,12 +1016,17 @@ function ListeElements(props: {
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
               {recurrente ? (
+                /* Disait « récurrente, non comptée » en toutes lettres : le ↻
+                    suffit, le pourquoi attend dans la bulle (2026-09-30). */
                 <span
-                  className="shrink-0 text-[10px] text-text-dim"
+                  className="shrink-0 text-xs text-text-dim"
+                  role="img"
+                  aria-label={t("Une tâche récurrente n’est jamais « finie »")}
                   data-tip={t("Une tâche récurrente n’est jamais « finie »")}
                   data-tip-sub={t("Elle ne compte pas comme une unité. Pour la compter, fixe un nombre à atteindre et choisis-la comme source.")}
+                  data-tip-attente="longue"
                 >
-                  {t("récurrente, non comptée")}
+                  ↻
                 </span>
               ) : (
                 tache.due_date && (
@@ -1004,8 +1074,13 @@ function ListeElements(props: {
               {r.kind === "event" ? (
                 <Coche faite={passe} />
               ) : (
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center text-text-dim" aria-hidden>
-                  <IconNote className="h-3.5 w-3.5" />
+                <span
+                  className="flex h-4 w-4 shrink-0 items-center justify-center text-text-dim"
+                  data-tip={t("Écrire n’est pas avancer")}
+                  data-tip-sub={t("Une note ou une fiche éclaire l’objectif, elle ne le fait pas progresser.")}
+                  data-tip-attente="longue"
+                >
+                  <IconNote className="h-3.5 w-3.5" aria-hidden />
                 </span>
               )}
               {/* Une ressource s'OUVRE : c'est tout ce qu'elle apporte à l'objectif. */}
@@ -1018,23 +1093,18 @@ function ListeElements(props: {
                 {r.titre || t("Sans titre")}
               </button>
               <span className="ml-auto flex shrink-0 items-center gap-2">
-              <span
-                className="shrink-0 text-[10px] text-text-dim"
-                data-tip={r.kind === "event" ? undefined : t("Écrire n’est pas avancer")}
-                data-tip-sub={
-                  r.kind === "event" ? undefined : t("Une note ou une fiche éclaire l’objectif, elle ne le fait pas progresser.")
-                }
-              >
-                {r.kind === "event"
-                  ? recurrent
-                    ? t("récurrent, non compté")
-                    : evenement
-                      ? formaterJour(evenement.date)
-                      : ""
-                  : r.kind === "note"
-                    ? t("note, ne compte pas")
-                    : t("fiche, ne compte pas")}
-              </span>
+              {/* « note, ne compte pas », « fiche, ne compte pas », « récurrent,
+                  non compté » : retirés le 2026-09-30. L'icône de note porte le
+                  pourquoi dans sa bulle ; un événement garde sa date. */}
+              {r.kind === "event" && (
+                <span
+                  className="shrink-0 text-[10px] text-text-dim"
+                  data-tip={recurrent ? t("Un événement qui revient ne compte pas") : undefined}
+                  data-tip-attente="longue"
+                >
+                  {recurrent ? "↻" : evenement ? formaterJour(evenement.date) : ""}
+                </span>
+              )}
               <button
                 type="button"
                 className={bouton}
@@ -1052,6 +1122,16 @@ function ListeElements(props: {
         })}
       </ul>
       {props.avecRattachement && <BarreAjout goal={goal} data={data} contexte={contexte} refresh={refresh} />}
+      <MenuContextuel
+        etat={menu}
+        libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
+        entrees={(() => {
+          const fraiche = menu.cible && data.tasks.find((x) => x.id === menu.cible!.id);
+          if (!fraiche) return [];
+          const faite = !estRecurrente(fraiche) && etat(`t${fraiche.id}`, faites.has(fraiche.id));
+          return entreesTache(fraiche, gestes, { faite, objectifs: data.goals, renommable: false });
+        })()}
+      />
     </div>
   );
 }
@@ -1089,6 +1169,9 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
             min={1}
             step={1}
             autoFocus={goal.target_count == null}
+            data-tip={t("Le nombre à atteindre")}
+            data-tip-sub={t("L’étape commence à compter dès qu’il existe.")}
+            data-tip-attente="longue"
             defaultValue={goal.target_count ?? ""}
             placeholder="50"
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
@@ -1129,9 +1212,9 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
         </label>
       </div>
 
-      {goal.target_count == null ? (
-        <p>{t("Saisis le nombre à atteindre : l’étape commence à compter dès qu’il existe.")}</p>
-      ) : source === "manual" ? (
+      {/* « Saisis le nombre à atteindre… » était écrit ici : il est dans la
+          bulle du champ « Cible » depuis le 2026-09-30. */}
+      {goal.target_count == null ? null : source === "manual" ? (
         <div className="flex items-center gap-2">
           <button
             type="button"

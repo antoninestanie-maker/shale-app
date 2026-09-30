@@ -33,6 +33,7 @@ export const objectif = (p: Partial<Goal> = {}): Goal => ({
   count_ref_uid: null,
   count_since: null,
   is_example: 0,
+  priority: "medium",
   ...p,
 });
 

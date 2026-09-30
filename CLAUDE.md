@@ -6898,3 +6898,23 @@ module Trading sera retiré avant le lancement ») ; elle est exécutée ici.
 - Le jeu de démo ne contient plus de contexte trading hors des tables
   trading elles-mêmes : un audit du module rallumé montrera des trades sans
   objectif ni note qui en parlent.
+
+## 2026-09-30 — La priorité remplace le poids ; la feuille de route ne s'explique plus en toutes lettres
+
+- **Trois niveaux, un vocabulaire** : Faible · Moyenne · Élevée
+  (`src/lib/priorite.ts`), pour les tâches ET les étapes (migration 030,
+  `goals.priority`, sans CHECK). Pas de quatrième niveau : `tasks.priority` a
+  un CHECK depuis la 001. « Haute / Basse » ne doivent pas revenir.
+- **La priorité ne change pas l'avancement.** Elle colore le repère (rouge,
+  jaune, neutre — `couleurPriorite`, une seule règle), trie les tâches d'une
+  étape et départage la prochaine action. Ne pas la brancher sur `weight`.
+- **`weight` n'est plus affiché** (demande d'Antonin : « pas un mode avancé avec
+  un poids »). Ne pas remettre de réglage de poids.
+- **Pas de phrase d'aide permanente dans la feuille de route** : une
+  explication va dans une bulle `data-tip-attente="longue"` (2 s) et, si elle
+  est fondamentale, dans l'écran « objectif » de l'accueil. Une étape vide se
+  tait (`origineEnClair` rend `""`) ; une panne reste écrite.
+- **Priorité à la création = `PastillePriorite`**, un bouton qui tourne et ne
+  prend pas le focus (PIEGES § 29.1). Elle repart « moyenne » après chaque
+  ajout. `ChoixPriorite` (trois boutons) dans les fenêtres et le menu d'étape.
+

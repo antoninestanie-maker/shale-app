@@ -251,7 +251,7 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | **Tâches** | tâches, récurrence, dates, rattachement à un objectif. ⭐ **Depuis le 2026-09-30** : rangées **par moment** (En retard, Aujourd'hui, À venir, Sans date, Routines, Faites), **ajout rapide** (Entrée), recherche, une ligne de méta par tâche (échéance, créneau, rythme, objectif cliquable, report) | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre. ⭐ **Depuis le 2026-09-30, un objectif supprimé EMPORTE ses tâches** (même lot de corbeille), et une carte mentale supprimée emporte les objets de ses nœuds — § 11.z du 2026-09-30 |
 | **Calendrier** | le 13ᵉ module (2026-09-02). Événements, multi-jours, récurrence, saisie à la minute, roulette d'heure | migrations 020 et 021. « journée entière » s'annonce encore comme « 1 tâche sans horaire » — mot faux, compte juste, **non corrigé faute de mandat** |
 | **Timer** | Pomodoro, sessions de focus, plein écran ; *(2026-09-29)* **horloge à volets** et **fenêtre séparée** | ✅ fusionné et **installé le 2026-09-29 à 23:40** — ⛔ **jamais vu à l'écran** par une session : Antonin est le premier à le regarder. § 11.x du 2026-09-29 |
-| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29** : la vue est en **maître-détail** — la liste (chaque objectif avec sa **prochaine action**) et la fiche de celui qu'on choisit (une phrase d'origine, la feuille de route, une icône par niveau) ; sur iPhone, la liste OU la fiche. Sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
+| **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29** : la vue est en **maître-détail** — la liste (chaque objectif avec sa **prochaine action**) et la fiche de celui qu'on choisit (une phrase d'origine, la feuille de route, une icône par niveau) ; sur iPhone, la liste OU la fiche. Sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit. ⭐ **Depuis le 2026-09-30** : une **priorité** (faible, moyenne, élevée) sur les étapes comme sur les tâches — à la création, au clic droit, dans « Modifier… » ; le repli « Avancé / Poids » et les phrases d'aide de la feuille de route sont partis (bulles au survol de deux secondes) | migrations 026 et 030. Voir § 11 (2026-09-16), § 11.z (2026-09-29) et § 11.p (2026-09-30) |
 | **Performance** | métriques personnalisées, habitudes, séries, graphiques (recharts) | |
 | **Finance** | remplace Benchmark (2026-08-25). Comptes, soldes, positions, cours, récurrents — **et la facturation** depuis le 2026-09-10 | migrations 018, 019, 023. ⚠️ Deux écrans manquent pour un usage réel : **l'émetteur** (identité, SIRET, régime) et **les tiers**. Sans eux, aucune facture ne peut être adressée à quelqu'un |
 | **Notes** | éditeur riche, recherche plein texte (FTS5), mentions `@`, **cartes mentales** (SVG, export PNG/SVG ; depuis le 2026-09-29 : nœuds **déplaçables** à la main et **typés** — étape, tâche, habitude), **pièces jointes** depuis le 2026-09-23 | le chantier H (2026-09-06) a corrigé une **perte de données** : le contenu d'une note s'écrivait dans une autre. Les pièces jointes sont installées depuis le build du 2026-09-26 (la vraie base est en 028 : carnet de coordination, entrée [V-filet]) ; leur clic n'a jamais été vérifié à la main |
@@ -298,6 +298,7 @@ qui n'accuse pas la migration.
 | 026 | feuille_de_route | ⭐ dix colonnes, **zéro table nouvelle** : un jalon EST un objectif |
 | 027 | corbeille | ⭐ une colonne `deleted_at` sur dix tables, **aucun trigger** : « Supprimés récemment », 30 jours. Lue en bas de `repo.ts` (`VIVANT`) et dans `notifications/data.rs` (`filtre_vivant`, qui vérifie que la colonne existe) |
 | 028 | pieces_jointes | la table `files` (signalement ; les octets vivent dans `<app_data>/pieces-jointes/`), et `object_links` RECRÉÉE sans son `CHECK` pour accueillir la 8ᵉ famille `file`. Répétée le 2026-09-24 sur une copie de la vraie base en 27 : integrity ok, outbox à 0 |
+| 030 | priorite_etapes | ⭐ **une colonne** `goals.priority` (`'medium'` par défaut, **sans CHECK**) : la priorité d'une étape, les mêmes valeurs que `tasks.priority`. Numérotée 030 avant la 029, réservée par le chantier IA de Shale Pro et pas encore fusionnée — sqlx applique une migration manquante quel que soit son rang (vérifié dans `sqlx-core` 0.8.6, `migrator.rs`) |
 
 ⚠️ **Avant tout build natif qui porte une migration : sauvegarder la base avec
 `sqlite3 .backup`, JAMAIS avec `cp`** — la base est en WAL, une copie de fichier
@@ -1419,3 +1420,49 @@ backtests », 113 traductions orphelines retirées, `shoot-v2.mjs` ne réécrit
 plus la démo en libellés de trading. L'avertissement juridique des mentions
 légales est **proposé, pas écrit** (`DETTE-SITE.md` § W.2).
 
+### 11.p Le 2026-09-30 — la priorité des étapes et des tâches ; la feuille de route épurée
+
+**Demandé par Antonin** : « donner un ordre de priorité aux étapes et aux
+tâches dès la création […] faible, moyenne, élevée […] pas un mode avancé avec
+un poids » ; et « c'est trop de texte […] ça doit être expliqué dans
+l'onboarding et pas marqué dans l'app tout le temps ». Chantier
+`chantier/priorites`.
+
+- **Trois niveaux, pas quatre** (il proposait « très élevée ») :
+  `tasks.priority` porte un `CHECK` depuis la 001, un quatrième niveau
+  demanderait de reconstruire la table des tâches, synchronisation comprise.
+  Un seul vocabulaire partout, **Faible · Moyenne · Élevée** (« Haute / Basse »
+  retirés) : `src/lib/priorite.ts`.
+- **Migration 030** : `goals.priority`, sans CHECK. `weight` reste en base (à 1
+  sur les 79 objectifs de la vraie base, vérifié en lecture seule) ; plus rien
+  ne l'affiche.
+- **Où se pose la priorité** : à la création (pastille qui tourne d'un clic à
+  côté du champ — étape, tâche de la feuille de route, ajout rapide de Tâches ;
+  elle repart « moyenne » après chaque ajout), au **clic droit** (menu « ⋯ »
+  d'une étape ; « Priorité ▸ » dans le menu de toute tâche, y compris dans la
+  feuille de route, qui gagne ce menu), et dans **« Modifier… »** (fenêtre de
+  l'étape, qui s'appelait « Échéance et description… » ; fenêtre de la tâche).
+- **Ce qu'elle change** : la couleur du repère (contour de la case d'une tâche,
+  icône d'une étape — rouge, jaune, neutre), l'ordre des tâches d'une étape,
+  et la **prochaine action** d'un objectif (à date égale, la plus prioritaire ;
+  la date reste reine). **Pas l'avancement** : chaque étape compte pour une.
+- **Retiré de l'écran** : « Rien à mesurer pour l'instant… », « vide, non
+  comptée » (et « · n vides, non comptées »), « Rien de rattaché pour
+  l'instant. », « récurrente, non comptée » (un ↻), « note / fiche, ne compte
+  pas », l'aide sous le champ de saisie d'une étape, « Saisis le nombre à
+  atteindre… », le repli « Avancé / Poids ». Les explications vivent dans des
+  bulles `data-tip-attente="longue"` (2 s de survol, jamais « à chaud »,
+  `Tooltip.tsx`) et dans l'écran « objectif » de l'accueil (deux lignes).
+  Une PANNE reste écrite (« source introuvable », « cible à zéro »).
+
+**Vérifié** : 1714/1714 tests, dont ceux du chantier, vus rouges avant le code
+(données natif ET démo, sync, menu, prochaine action, bulle longue), `tsc`, types des
+tests, i18n (0 manquante, 22 orphelines retirées), `vite build`. **À l'écran en
+démo** : clair/FR et sombre/EN à 1280, iPhone émulé à 390 ; changer la priorité
+au clic droit d'une étape (l'icône passe au rouge), « Priorité ▸ » d'une tâche,
+la pastille qui ne vole pas le focus du champ (étape créée « élevée », tâche
+créée « faible »).
+
+**Pas vérifié** : l'app installée à la main par Antonin ; la bulle de deux
+secondes sous un vrai curseur (testée en happy-dom seulement) ; l'iPhone réel.
+Pièges : `PIEGES.md` § 29.

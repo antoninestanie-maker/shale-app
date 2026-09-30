@@ -3952,3 +3952,39 @@ sans points de suspension. C'est l'écran de l'app, pas l'outil de capture.
 **Parade provisoire.** Les captures iPhone du site ouvrent « Tarifs 2026 »,
 qui tient. **Non corrigé dans l'app** : l'en-tête devrait passer les actions
 sous le titre, ou au moins tronquer avec « … ».
+
+# 29. La priorité des étapes et des tâches (2026-09-30)
+
+## 29.1 ⚠️ Un `<select>` à côté d'un champ qui valide en perdant le focus crée l'objet avant qu'on ait choisi
+
+`ChampLigne` (feuille de route) valide quand il perd le focus — « on ne perd
+jamais une frappe en cliquant ailleurs ». Un `<select>` natif doit PRENDRE le
+focus pour ouvrir son menu : cliquer la priorité après avoir tapé le titre
+créait l'étape en « moyenne », et la cliquer avant de taper refermait le champ
+vide. **Règle** : à côté d'un champ qui valide au `blur`, un contrôle est un
+bouton qui empêche `pointerdown` (`PastillePriorite`, les boutons « Phase /
+Sous-objectif ») — jamais un `<select>`, un `<input>` ni un menu qui prend le
+focus. Vérifié en démo : après deux clics sur la pastille, le focus est
+toujours dans le champ.
+
+## 29.2 Outil — écrire dans la démo par `repo` ne rafraîchit pas la vue
+
+Planter des données en démo par `import("/src/lib/repo.ts")` dans la page les
+écrit dans le magasin en mémoire, mais la vue affichée garde ses données : il
+faut `window.dispatchEvent(new CustomEvent("sb:data-changed"))` (`App.tsx`).
+Et la phase EN COURS s'ouvre d'office (`deplieParDefaut`) : cliquer son
+chevron la REFERME — ne cliquer que ceux dont `aria-expanded="false"`, choisis
+par leur libellé (« Déplier « … » »), pas le premier `button[aria-expanded]`
+de la ligne, qui peut être le « ⋯ ».
+
+## 29.3 Une migration peut passer avant une migration réservée
+
+La 029 est réservée par le chantier IA de Shale Pro, non fusionné ; la
+priorité a pris la 030. sqlx (`sqlx-core` 0.8.6, `Migrator::run_direct`)
+n'impose aucun ordre : il refuse une migration APPLIQUÉE absente du code ou
+dont l'empreinte a changé, mais applique toute migration manquante quel que
+soit son rang. La 029 passera donc après la 030. **Ce qu'il faut tenir** :
+`lib.rs` et `sync/schema.testutil.ts` doivent lister les migrations dans le
+même ordre que le code les déclare, et le chantier qui fusionne la 029 l'insère
+AVANT la 030 dans les deux (conflit d'ajout trivial).
+

@@ -1,3 +1,4 @@
+import { rangPriorite } from "../priorite";
 import type { Goal, Task } from "../types";
 import { elementsDe, enfantsDe, uidDeLigne, type SourcesProgression } from "./progression";
 
@@ -19,6 +20,12 @@ import { elementsDe, enfantsDe, uidDeLigne, type SourcesProgression } from "./pr
  *
  * Une tâche datée se propose même dans une étape achevée : une échéance passée
  * reste en retard, quoi que dise le pourcentage.
+ *
+ * ⭐ LA PRIORITÉ DÉPARTAGE (2026-09-30, « un ordre de priorité ») : à date égale
+ * — et entre toutes les tâches sans date —, la tâche la plus prioritaire passe
+ * d'abord ; à égalité, celle de l'étape la plus prioritaire ; puis l'ordre de la
+ * feuille de route. La date reste reine : une tâche en retard, même faible,
+ * passe avant une élevée sans échéance.
  *
  * ⚠️ Les tâches viennent d'`elementsDe`, la règle même du calcul d'avancement :
  * ponctuelles seulement (une récurrente n'est jamais « à faire ensuite », elle
@@ -55,10 +62,14 @@ export function prochaineAction(
   };
   parcourir(racine, null, true);
 
+  const parPriorite = (a: (typeof candidates)[number], b: (typeof candidates)[number]) =>
+    rangPriorite(a.tache.priority) - rangPriorite(b.tache.priority) ||
+    rangPriorite((a.etape ?? racine).priority) - rangPriorite((b.etape ?? racine).priority) ||
+    a.rang - b.rang;
   const datees = candidates
     .filter((c) => !!c.tache.due_date)
-    .sort((a, b) => a.tache.due_date!.localeCompare(b.tache.due_date!) || a.rang - b.rang);
-  const choisie = datees[0] ?? candidates.find((c) => c.ouverte);
+    .sort((a, b) => a.tache.due_date!.localeCompare(b.tache.due_date!) || parPriorite(a, b));
+  const choisie = datees[0] ?? candidates.filter((c) => c.ouverte).sort(parPriorite)[0];
   if (!choisie) return null;
   return {
     tache: choisie.tache,

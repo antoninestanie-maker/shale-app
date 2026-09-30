@@ -14,6 +14,7 @@ import type { Goal, Priority, Tag, Task } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import ChampDate from "./ChampDate";
+import { ChoixPriorite } from "./Priorite";
 interface Props {
   task: Task | null; // null = création
   tags: Tag[];
@@ -21,12 +22,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => Promise<void>;
 }
-
-const priorities = (): { value: Priority; label: string; color: string }[] => [
-  { value: "high", label: t("Haute"), color: "var(--color-red)" },
-  { value: "medium", label: t("Moyenne"), color: "var(--color-yellow)" },
-  { value: "low", label: t("Basse"), color: "var(--color-text-dim)" },
-];
 
 const recModes = (): { value: ModeRecurrence; label: string }[] => [
   { value: "none", label: t("Une fois") },
@@ -150,26 +145,9 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Priorité")}</p>
-            <div className="flex gap-1.5">
-              {priorities().map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setPriority(p.value)}
-                  className={`pill flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    priority === p.value
-                      ? "border-text/30 bg-surface-2 text-text"
-                      : "border-border text-text-dim hover:text-text"
-                  }`}
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            {/* « Haute / Moyenne / Basse » jusqu'au 2026-09-30 : un seul
+                vocabulaire désormais, celui des étapes (`lib/priorite.ts`). */}
+            <ChoixPriorite valeur={priority} onChange={setPriority} />
           </div>
 
           <div>

@@ -443,6 +443,15 @@ pub fn run() {
             sql: include_str!("../migrations/028_pieces_jointes.sql"),
             kind: MigrationKind::Up,
         },
+        // ⚠️ 030 avant 029 : la 029 est réservée par le chantier IA de Shale Pro,
+        // pas encore fusionné (en-tête de la 030). sqlx applique une migration
+        // manquante quel que soit son rang.
+        Migration {
+            version: 30,
+            description: "priorite_etapes",
+            sql: include_str!("../migrations/030_priorite_etapes.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

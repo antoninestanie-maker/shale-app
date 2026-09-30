@@ -7,6 +7,7 @@
  *   • Dater ▸            → `setTaskSchedule`, ce qu'écrit le glisser-déposer du
  *                          calendrier (le créneau horaire est gardé, comme
  *                          quand on fait glisser une tâche d'un jour à l'autre) ;
+ *   • Priorité ▸         → `prioriserTache`, qui n'écrit que la priorité (règle 16) ;
  *   • Rattacher ▸        → `rattacherTache`, celle de la feuille de route ;
  *   • Modifier…          → le même éditeur que le crayon ;
  *   • Supprimer          → `jeter()`, la corbeille, comme le bouton.
@@ -21,12 +22,14 @@
 import { IconCalendar, IconCheck, IconPencil, IconPlay, IconTarget, IconTrash, IconX } from "../../icons";
 import { IconDupliquer } from "../icones";
 import { formatDate, t } from "../../../lib/i18n";
-import { createTask, rattacherTache, setTaskSchedule } from "../../../lib/repo";
+import { createTask, prioriserTache, rattacherTache, setTaskSchedule } from "../../../lib/repo";
+import { nomDePriorite, PRIORITES, prioriteDe } from "../../../lib/priorite";
+import { IconePriorite } from "../../Priorite";
 import { afficherToast } from "../../../lib/toast";
 import { jeter, titreCourt } from "../../corbeille/geste";
 import { addDays, todayStr, weekdayOf } from "../../../lib/logic";
 import type { EntreeMenu, EntreePossible } from "../../../lib/menu/entrees";
-import type { Goal, Task } from "../../../lib/types";
+import type { Goal, Priority, Task } from "../../../lib/types";
 
 export interface GestesTache {
   /** Exactement ce que fait la case à cocher de la vue. */
@@ -36,6 +39,8 @@ export interface GestesTache {
   /** Le même éditeur que le crayon. */
   modifier: (task: Task) => void;
   dater: (task: Task, date: string | null) => Promise<void>;
+  /** Faible, moyenne, élevée — la même écriture que la fenêtre de la tâche. */
+  prioriser: (task: Task, priorite: Priority) => Promise<void>;
   rattacher: (task: Task, goalId: number | null) => Promise<void>;
   dupliquer: (task: Task) => Promise<void>;
   supprimer: (task: Task) => Promise<void>;
@@ -131,6 +136,15 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
     },
   ];
 
+  // La coche dit la priorité ACTUELLE ; la choisir de nouveau n'écrit rien.
+  const actuelle = prioriteDe(task);
+  const priorites: EntreeMenu[] = PRIORITES.map((p) => ({
+    id: `priorite-${p}`,
+    libelle: nomDePriorite(p),
+    icone: p === actuelle ? <IconCheck /> : <IconePriorite priorite={p} className="h-[1em] w-[1em]" />,
+    executer: () => (p === actuelle ? undefined : gestes.prioriser(task, p)),
+  }));
+
   const arbre = objectifsEnArbre(ctx.objectifs);
   const rattachements: EntreeMenu[] = [
     {
@@ -182,6 +196,12 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
         : undefined,
     },
     {
+      id: "priorite",
+      libelle: t("Priorité"),
+      icone: <IconePriorite priorite={actuelle} className="h-[1em] w-[1em]" />,
+      sousMenu: priorites,
+    },
+    {
       id: "rattacher",
       libelle: t("Rattacher à un objectif"),
       icone: <IconTarget />,
@@ -206,13 +226,13 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
 
 
 /**
- * Dater, rattacher, dupliquer, supprimer : écrits UNE fois, pour les Tâches,
+ * Dater, prioriser, rattacher, dupliquer, supprimer : écrits UNE fois, pour les Tâches,
  * Aujourd'hui et le Calendrier. Les trois autres gestes (cocher, renommer,
  * modifier) appartiennent à chaque vue, qui les a déjà.
  */
 export function gestesCommunsTache(
   refresh: () => Promise<void>,
-): Pick<GestesTache, "dater" | "rattacher" | "dupliquer" | "supprimer"> {
+): Pick<GestesTache, "dater" | "prioriser" | "rattacher" | "dupliquer" | "supprimer"> {
   return {
     async dater(task, date) {
       // Le créneau horaire est GARDÉ quand on change de jour — c'est ce que fait
@@ -229,6 +249,10 @@ export function gestesCommunsTache(
             })
           : t("« {titre} » n'a plus de date", { titre: titreCourt(task.label) }),
       });
+    },
+    async prioriser(task, priorite) {
+      await prioriserTache(task.id, priorite);
+      await refresh();
     },
     async rattacher(task, goalId) {
       await rattacherTache(task.id, goalId);

@@ -1,6 +1,7 @@
 import { isDueOn } from "./logic";
+import { rangPriorite } from "./priorite";
 import { estRecurrente } from "./taches";
-import type { Completion, Priority, Task } from "./types";
+import type { Completion, Task } from "./types";
 
 /**
  * ⭐ LA VUE TÂCHES, RANGÉE PAR MOMENT (refonte du 2026-09-30).
@@ -37,9 +38,6 @@ export interface LigneVue extends Task {
   /** Le jour de la coche qui la dit faite — pour ranger les faites, la plus récente d'abord. */
   faiteLe: string | null;
 }
-
-const RANG_PRIORITE: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
-const rangPriorite = (p: Priority) => RANG_PRIORITE[p] ?? 1;
 
 /**
  * Faite, au sens de la vue : une RÉCURRENTE l'est si elle est cochée

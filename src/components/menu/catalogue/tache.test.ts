@@ -15,6 +15,7 @@ function gestes(focus?: GestesTache["focus"]): GestesTache {
     rattacher: rien,
     dupliquer: rien,
     supprimer: rien,
+    prioriser: rien,
     focus,
   };
 }
@@ -38,5 +39,31 @@ describe("« Focus 25 min » dans le menu d'une tâche", () => {
 
   it("absent des vues qui n'ont pas de ▶ (Tâches, Calendrier)", () => {
     expect(ids(gestes())).not.toContain("focus");
+  });
+});
+
+describe("⭐ « Priorité ▸ » dans le menu d'une tâche (2026-09-30)", () => {
+  const sousMenu = (task: Task, g: GestesTache) =>
+    ordonner(entreesTache(task, g, { faite: false, objectifs: [] })).find((e) => e.id === "priorite")?.sousMenu ?? [];
+
+  it("trois choix, de la plus faible à la plus élevée, juste après « Dater »", () => {
+    const g = gestes();
+    const liste = ids(g);
+    expect(liste.indexOf("priorite")).toBe(liste.indexOf("dater") + 1);
+    expect(sousMenu({ ...tache, priority: "medium" }, g).map((e) => e.id)).toEqual([
+      "priorite-low",
+      "priorite-medium",
+      "priorite-high",
+    ]);
+  });
+
+  it("choisir appelle `prioriser` avec la valeur ; la priorité actuelle ne réécrit rien", () => {
+    const g = gestes();
+    const task = { ...tache, priority: "medium" } as Task;
+    const entrees = sousMenu(task, g);
+    entrees.find((e) => e.id === "priorite-high")!.executer!();
+    expect(g.prioriser).toHaveBeenCalledWith(task, "high");
+    entrees.find((e) => e.id === "priorite-medium")!.executer!();
+    expect(g.prioriser).toHaveBeenCalledTimes(1);
   });
 });

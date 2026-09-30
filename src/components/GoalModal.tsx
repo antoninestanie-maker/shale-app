@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { descendantIds } from "../lib/logic";
 import { niveauDe } from "../lib/objectifs/structure";
-import { createGoal, createTask, updateGoal, type GoalInput } from "../lib/repo";
+import { createGoal, createTask, majFeuilleDeRoute, updateGoal, type GoalInput } from "../lib/repo";
+import { prioriteDe } from "../lib/priorite";
+import { ChoixPriorite } from "./Priorite";
 import {
   etapesACreer,
   lignesAffichees,
@@ -10,7 +12,7 @@ import {
   tachesAffichees,
   type LigneTache,
 } from "../lib/objectifs/creation";
-import type { Goal } from "../lib/types";
+import type { Goal, Priority } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import ChampDate from "./ChampDate";
@@ -59,7 +61,14 @@ export default function GoalModal({
   // 001 : c'est l'app qui écrit la colonne, toujours.
   const [manual, setManual] = useState((goal?.manual_progress ?? 0) === 1);
   const [progress, setProgress] = useState(goal?.progress_pct ?? 0);
+  const [priorite, setPriorite] = useState<Priority>(prioriteDe(goal ?? {}));
   const [saving, setSaving] = useState(false);
+  /**
+   * ⭐ La priorité n'a de sens que pour une ÉTAPE (2026-09-30) : un objectif
+   * racine n'a pas de sœur à devancer. Elle s'affiche dès qu'un parent est
+   * choisi — y compris quand on range un objectif sous un autre.
+   */
+  const estEtape = parentId != null;
 
   /**
    * ⭐ LE PREMIER JET — des étapes et des tâches, dans l'écran qui crée
@@ -146,13 +155,16 @@ export default function GoalModal({
     };
     if (goal) {
       await updateGoal(goal.id, input);
+      // ⚠️ Pas par `updateGoal`, qui n'écrit que la fiche et ne connaît pas la
+      // priorité (même règle que la feuille de route, `majFeuilleDeRoute`).
+      if (estEtape && priorite !== prioriteDe(goal)) await majFeuilleDeRoute(goal.id, { priority: priorite });
     } else {
       // ⚠️ L'ORDRE COMPTE : les étapes et les tâches ont besoin de l'`id` de la
       // racine, qui n'existe qu'une fois la ligne écrite. Aucune transaction
       // (`repo.ts` n'en expose pas) : une interruption laisse un objectif
       // partiellement garni, visible et modifiable — jamais une donnée
       // fantôme.
-      const racineId = await createGoal(input);
+      const racineId = await createGoal(estEtape ? { ...input, priority: priorite } : input);
       const base = { scope: input.scope, category: input.category };
       for (const etape of etapesACreer(base, etapes, racineId)) await createGoal(etape);
       for (const t of tachesACreer(taches, racineId)) await createTask(t);
@@ -180,7 +192,7 @@ export default function GoalModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg text-text">
-          {goal ? t("Modifier l'objectif") : t("Nouvel objectif")}
+          {goal ? (estEtape ? t("Modifier l'étape") : t("Modifier l'objectif")) : t("Nouvel objectif")}
         </h2>
 
         <form
@@ -205,6 +217,13 @@ export default function GoalModal({
             rows={2}
             className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
           />
+
+          {estEtape && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Priorité")}</p>
+              <ChoixPriorite valeur={priorite} onChange={setPriorite} />
+            </div>
+          )}
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-text-dim">Horizon</p>

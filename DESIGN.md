@@ -840,3 +840,14 @@ flamme, l'habitude qui la compte.
   fois » en `text-yellow`), tag en pilule `color-mix` à droite, « ⋯ ».
 - **Au doigt** : pas de « · » dans la méta, le tag y passe (point de couleur).
 - Pas de dégradé, pas de pastille de compte, pas d'action au survol seul.
+
+### La priorité — une couleur, pas un élément (2026-09-30)
+
+- **Le repère existant prend la couleur** : contour de la case d'une tâche,
+  icône (dossier / cible) d'une étape. Rouge = élevée, jaune = moyenne, neutre
+  = faible (`couleurPriorite`). Aucun badge ni drapeau ajouté sur la ligne.
+- **L'icône de priorité** (`IconePriorite`) : trois barres qui montent, autant
+  de pleines que de niveaux — dans les menus et les pastilles seulement.
+- **Les explications attendent** : `data-tip-attente="longue"` (2 s) pour une
+  bulle qui EXPLIQUE ; la bulle ordinaire (400 ms) pour un NOM.
+

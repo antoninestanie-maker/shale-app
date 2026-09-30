@@ -6,7 +6,8 @@ import { uidDeLigne } from "../../lib/objectifs/progression";
 import { createLink, createTask, rattacherTache, rechercherPartout } from "../../lib/repo";
 import { planificationDeSaisie } from "../../lib/taches";
 import ChampDate from "../ChampDate";
-import type { AppData, Goal, LinkKind } from "../../lib/types";
+import type { AppData, Goal, LinkKind, Priority } from "../../lib/types";
+import { PastillePriorite } from "../Priorite";
 import { IconLink, IconPlus, IconX } from "../icons";
 
 /**
@@ -248,11 +249,16 @@ export function BarreAjout(props: {
 /**
  * ⭐ Une tâche en une ligne : son nom, et sa date si elle en a une.
  *
- * ⚠️ PAS de priorité, PAS de créneau, PAS de récurrence. Ce n'est pas un
- * formulaire réduit, c'est le geste de la feuille de route : nommer ce qu'il
- * reste à faire. Le reste se règle dans Tâches, où le formulaire complet vit
- * déjà — y recopier ses cinq contrôles rendrait une carte de grille illisible
- * et ferait diverger deux écrans de saisie pour la même table.
+ * ⚠️ PAS de créneau, PAS de récurrence. Ce n'est pas un formulaire réduit,
+ * c'est le geste de la feuille de route : nommer ce qu'il reste à faire. Le
+ * reste se règle dans Tâches, où le formulaire complet vit déjà — y recopier
+ * ses cinq contrôles rendrait une carte de grille illisible et ferait diverger
+ * deux écrans de saisie pour la même table.
+ *
+ * ⭐ LA PRIORITÉ, ELLE, Y EST depuis le 2026-09-30 — décision retournée à la
+ * demande d'Antonin : « donner un ordre de priorité aux étapes et aux tâches
+ * dès la création ». Une pastille qui tourne d'un clic (`PastillePriorite`),
+ * pas un contrôle de formulaire : la rangée garde sa taille.
  *
  * ⚠️ Et la planification passe par `planificationDeSaisie`, jamais par une
  * écriture directe de `due_date` : la frontière datée / récurrente est tenue à
@@ -261,6 +267,7 @@ export function BarreAjout(props: {
 function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFermer: () => void }) {
   const [label, setLabel] = useState("");
   const [echeance, setEcheance] = useState("");
+  const [priorite, setPriorite] = useState<Priority>("medium");
   const [occupe, setOccupe] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
 
@@ -276,11 +283,14 @@ function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFerm
       await createTask({
         label: nom,
         tag: null,
-        priority: "medium",
+        priority: priorite,
         recurrence: "none",
         goal_id: props.goal.id,
         ...planificationDeSaisie("none", echeance, "", ""),
       });
+      // La priorité, elle, repart « moyenne » : collée, elle en ferait passer
+      // trois en élevée sans qu'on l'ait voulu.
+      setPriorite("medium");
       /**
        * On vide le nom et on GARDE l'échéance : découper une étape donne
        * souvent trois tâches pour la même date, et la redemander à chaque fois
@@ -328,6 +338,7 @@ function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFerm
         placeholder={t("Sans échéance")}
         className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
       />
+      <PastillePriorite valeur={priorite} onChange={setPriorite} />
       {/* ⚠️ LES DEUX BOUTONS DANS UN SEUL BLOC. Séparés, la croix se retrouvait
           SEULE sur une troisième ligne, loin de tout — vue à l'écran sur
           iPhone 390 pt le 2026-09-18, elle se lisait comme un contrôle égaré.

@@ -8,7 +8,6 @@ let aideDeGenre: Libelles["aideDeGenre"];
 let nomDeGenre: Libelles["nomDeGenre"];
 let deplacer: Libelles["deplacer"];
 let deplieParDefaut: Libelles["deplieParDefaut"];
-let effetDuPoids: Libelles["effetDuPoids"];
 let indexDInsertion: Libelles["indexDInsertion"];
 let lireReplis: Libelles["lireReplis"];
 let origineEnClair: Libelles["origineEnClair"];
@@ -23,7 +22,7 @@ let pourquoiVide: Libelles["pourquoiVide"];
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ aideDeGenre, deplacer, deplieParDefaut, effetDuPoids, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiVide } =
+  ({ aideDeGenre, deplacer, deplieParDefaut, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiVide } =
     await import("./libelles"));
 });
 
@@ -55,18 +54,19 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
     expect(f(0, 1)).toBe("0/1 élément");
   });
 
-  it("des étapes, des éléments et des vides se lisent ensemble", () => {
+  it("⭐ des étapes et des éléments se lisent ensemble — les vides se TAISENT (2026-09-30)", () => {
+    // Antonin : « vide, non compté, ça ne sert à rien ». Disait « … · 2 vides, non comptées ».
     const m = mesure({ pct: 60, vides: 2, origine: { type: "feuille", elementsFaits: 1, elementsTotal: 2, etapesComptees: 3 } });
-    expect(origineEnClair(m)).toBe("3 étapes · 1/2 éléments · 2 vides, non comptées");
+    expect(origineEnClair(m)).toBe("3 étapes · 1/2 éléments");
   });
 
   it("le manuel se dit manuel", () => {
     expect(origineEnClair(mesure({ pct: 45, origine: { type: "manuel" } }))).toBe("saisi à la main");
   });
 
-  it("une phase vide dit qu'elle ne compte pas — et pourquoi", () => {
+  it("⭐ une étape vide ne dit RIEN sur sa ligne ; le pourquoi attend dans la bulle", () => {
     const m = mesure({});
-    expect(origineEnClair(m, true)).toBe("phase vide, non comptée");
+    expect(origineEnClair(m)).toBe("");
     expect(pourquoiVide(m, true)).toMatch(/Ajoute-lui un sous-objectif/);
     expect(pourquoiVide(m, false)).toMatch(/Rattache une tâche/);
   });
@@ -75,12 +75,16 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
     expect(pourquoiVide(mesure({ pct: 10, origine: { type: "manuel" } }), false)).toBeNull();
   });
 
-  it("chaque raison de vide a sa phrase", () => {
+  it("chaque raison de vide a sa phrase — dans la bulle", () => {
     for (const raison of ["cible-nulle", "source-introuvable", "etapes-vides", "rien-a-mesurer"] as const) {
-      const m = mesure({ origine: { type: "vide", raison } });
-      expect(origineEnClair(m)).not.toBe("");
-      expect(pourquoiVide(m, false)).not.toBeNull();
+      expect(pourquoiVide(mesure({ origine: { type: "vide", raison } }), false)).not.toBeNull();
     }
+  });
+
+  it("⚠️ une PANNE reste dite sur la ligne : une source supprimée n'est pas une étape vide", () => {
+    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "source-introuvable" } }))).toBe("source introuvable");
+    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "cible-nulle" } }))).toBe("cible à zéro");
+    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "etapes-vides" } }))).toBe("");
   });
 });
 
@@ -104,15 +108,6 @@ describe("le vocabulaire d'une étape", () => {
     expect(aideDeGenre("jalon")).toMatch(/regroupe/);
     expect(aideDeGenre("sous-objectif")).toMatch(/atteindre/);
     expect(aideDeGenre("jalon")).not.toBe(aideDeGenre("sous-objectif"));
-  });
-});
-
-describe("le poids dit ce qu'il change, en toutes lettres", () => {
-  it("poids 1, poids 3, poids absurde", () => {
-    const parent = objectif({ title: "Passer prop firm" });
-    expect(effetDuPoids(1, parent)).toBe("Poids 1 : cette étape pèse autant que ses sœurs dans « Passer prop firm ».");
-    expect(effetDuPoids(3, parent)).toBe("Poids 3 : cette étape compte 3 fois plus qu’une étape de poids 1 dans « Passer prop firm ».");
-    expect(effetDuPoids(0, parent)).toMatch(/^Poids 1 /);
   });
 });
 
