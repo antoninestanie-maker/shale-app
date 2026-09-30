@@ -24,7 +24,11 @@ import {
   planObjectif,
   planSimple,
   racinesDeLot,
+  tachesDansUnLot,
+  tachesDuLot,
+  tachesEmportees,
   type LigneObjectif,
+  type LigneTache,
   type PlanRestauration,
 } from "./lots";
 
@@ -42,11 +46,21 @@ export interface Lot {
   stamp: string;
   /** Les `id` mis en corbeille, la racine en premier. Vide si rien n'a bougé. */
   ids: number[];
+  /**
+   * Pour un objectif seulement : les TÂCHES parties avec lui, sous le même
+   * horodatage (2026-09-30, voir `lots.ts`). Absent pour les autres familles.
+   */
+  taches?: number[];
 }
 
 /** Tous les objectifs, réduits à ce qu'il faut pour raisonner sur les lots. */
 async function lignesObjectifs(db: BaseCorbeille): Promise<LigneObjectif[]> {
   return db.select<LigneObjectif[]>("SELECT id, parent_goal_id, deleted_at FROM goals");
+}
+
+/** Les tâches rattachées à un objectif, vivantes ou non — les seules qu'un lot peut emporter. */
+async function lignesTaches(db: BaseCorbeille): Promise<LigneTache[]> {
+  return db.select<LigneTache[]>("SELECT id, goal_id, deleted_at FROM tasks WHERE goal_id IS NOT NULL");
 }
 
 const jokersDes = (ids: readonly number[], depuis: number) =>
@@ -85,13 +99,23 @@ export async function mettreEnCorbeilleDans(
       await db.select<{ id: number }[]>(`SELECT id FROM ${table} WHERE id = $1 AND ${VIVANT}${garde}`, [id])
     ).map((r) => r.id);
   }
-  if (ids.length === 0) return { stamp, ids: [] };
+  if (ids.length === 0) return kind === "goal" ? { stamp, ids: [], taches: [] } : { stamp, ids: [] };
 
   await db.execute(`UPDATE ${table} SET deleted_at = $1 WHERE id IN (${jokersDes(ids, 2)}) AND ${VIVANT}`, [
     stamp,
     ...ids,
   ]);
-  return { stamp, ids };
+  if (kind !== "goal") return { stamp, ids };
+
+  // ⭐ Ses tâches partent avec lui, sous le même horodatage (`lots.ts`).
+  const taches = tachesEmportees(await lignesTaches(db), ids);
+  if (taches.length > 0) {
+    await db.execute(`UPDATE tasks SET deleted_at = $1 WHERE id IN (${jokersDes(taches, 2)}) AND ${VIVANT}`, [
+      stamp,
+      ...taches,
+    ]);
+  }
+  return { stamp, ids, taches };
 }
 
 // ─── Restaurer ───────────────────────────────────────────────────────────────
@@ -111,7 +135,7 @@ export async function planRestaurationDans(
   kind: KindCorbeille,
   id: number,
 ): Promise<PlanRestauration | null> {
-  if (kind === "goal") return planObjectif(await lignesObjectifs(db), id);
+  if (kind === "goal") return planObjectif(await lignesObjectifs(db), id, await lignesTaches(db));
   const { table } = TABLE_DE[kind];
   const ligne = (
     await db.select<{ deleted_at: string | null }[]>(`SELECT deleted_at FROM ${table} WHERE id = $1`, [id])
@@ -137,6 +161,7 @@ export async function restaurerDans(
   if (!plan) return null;
   const { table } = TABLE_DE[kind];
   const lignes = kind === "goal" ? await lignesObjectifs(db) : [];
+  const taches = kind === "goal" ? await lignesTaches(db) : [];
 
   for (const etape of plan.etapes) {
     const ids = kind === "goal" ? lotObjectif(lignes, etape.id, etape.stamp) : [etape.id];
@@ -145,6 +170,14 @@ export async function restaurerDans(
       `UPDATE ${table} SET deleted_at = NULL WHERE id IN (${jokersDes(ids, 2)}) AND deleted_at = $1`,
       [etape.stamp, ...ids],
     );
+    // Les tâches du lot reviennent avec lui — même garde contre la course.
+    const t = kind === "goal" ? tachesDuLot(taches, ids, etape.stamp) : [];
+    if (t.length > 0) {
+      await db.execute(
+        `UPDATE tasks SET deleted_at = NULL WHERE id IN (${jokersDes(t, 2)}) AND deleted_at = $1`,
+        [etape.stamp, ...t],
+      );
+    }
   }
   return plan;
 }
@@ -169,14 +202,18 @@ export interface ElementCorbeille {
 /** Tout ce qui est en corbeille, le plus récent d'abord ; un lot par sa racine. */
 export async function lireCorbeilleDans(db: BaseCorbeille): Promise<ElementCorbeille[]> {
   const out: ElementCorbeille[] = [];
+  const objectifs = await lignesObjectifs(db);
+  const taches = await lignesTaches(db);
+  // Une tâche partie AVEC son objectif est dans son lot : pas de ligne à part.
+  const tachesCouvertes = tachesDansUnLot(taches, objectifs);
   for (const kind of Object.keys(TABLE_DE) as KindCorbeille[]) {
     const { table, titre } = TABLE_DE[kind];
     const rows = await db.select<{ id: number; uid: string | null; titre: unknown; deleted_at: string }[]>(
       `SELECT id, uid, ${titre} AS titre, deleted_at FROM ${table} WHERE deleted_at IS NOT NULL`,
     );
-    const tailles =
-      kind === "goal" ? new Map(racinesDeLot(await lignesObjectifs(db)).map((r) => [r.id, r.taille])) : null;
+    const tailles = kind === "goal" ? new Map(racinesDeLot(objectifs, taches).map((r) => [r.id, r.taille])) : null;
     for (const r of rows) {
+      if (kind === "task" && tachesCouvertes.has(r.id)) continue; // dans le lot de son objectif
       const taille = tailles ? tailles.get(r.id) : 1;
       if (taille == null) continue; // dans le lot de son parent
       out.push({
@@ -245,6 +282,10 @@ export async function lotAPurgerDans(
   if (kind !== "goal") return [{ kind, id }];
 
   const lignes = await lignesObjectifs(db);
-  const lot = new Set(lotObjectif(lignes, id, ligne.deleted_at));
-  return ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }));
+  const ids = lotObjectif(lignes, id, ligne.deleted_at);
+  const lot = new Set(ids);
+  // Ses tâches D'ABORD : effacé avant elles, l'objectif les délierait
+  // (`deleteGoal`), et elles resteraient seules dans la corbeille.
+  const taches = tachesDuLot(await lignesTaches(db), ids, ligne.deleted_at).map((t) => ({ kind: "task" as const, id: t }));
+  return [...taches, ...ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }))];
 }

@@ -24,6 +24,24 @@ export function carteDuBloc(figure: HTMLElement | null): Carte | null {
 }
 
 /**
+ * Toutes les cartes lisibles d'un corps de note, lu comme une CHAÎNE — celui
+ * qui sort de la base, pas le DOM affiché. Sert à supprimer une note avec les
+ * objets que ses cartes ont créés (2026-09-30). `<template>` détaché, comme
+ * `rafraichirBlocs` : rien ne s'exécute, rien ne s'affiche.
+ */
+export function cartesDuHtml(html: string | null | undefined): Carte[] {
+  if (!html || !html.includes(ATTRIBUT_CARTE)) return [];
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const out: Carte[] = [];
+  tpl.content.querySelectorAll<HTMLElement>(`figure[${ATTRIBUT_CARTE}]`).forEach((figure) => {
+    const c = carteDuBloc(figure);
+    if (c) out.push(c);
+  });
+  return out;
+}
+
+/**
  * Réécrit un bloc EN PLACE : son graphe et son rendu, sans le déplacer.
  *
  * ⚠️ EN PLACE, ET SURTOUT PAS PAR `outerHTML`. Remplacer l'`outerHTML` DÉTACHE

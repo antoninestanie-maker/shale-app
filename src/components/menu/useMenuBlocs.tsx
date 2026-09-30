@@ -31,7 +31,8 @@ import { pointeurGrossier } from "../../lib/menu/tactile";
 import type { EntreePossible } from "../../lib/menu/entrees";
 import { afficherToast } from "../../lib/toast";
 import { t, tp } from "../../lib/i18n";
-import { DUREE_ANNULER, titreCourt } from "../corbeille/geste";
+import { DUREE_ANNULER, elementsDesCartes, jeterPlusieurs, titreCourt } from "../corbeille/geste";
+import { compteEmportable } from "../../lib/objectifs/emportes";
 
 export interface GestesBlocs {
   /** La racine `contenteditable` de l'éditeur. */
@@ -89,6 +90,44 @@ export function useMenuBlocs(g: GestesBlocs): {
     return true;
   };
 
+  /** Le bloc n'a pas pu être remis : la note a bougé entre-temps. */
+  const direEchec = () =>
+    afficherToast({
+      msg: t("La note a changé entre-temps : le bloc n'a pas pu être remis."),
+      // Un échec : pas la coche verte du toast par défaut.
+      icone: <IconAlert className="h-5 w-5 shrink-0 text-yellow" />,
+    });
+
+  /**
+   * ⭐ RETIRER UNE CARTE EMPORTE CE QUE SES NŒUDS ONT CRÉÉ (2026-09-30).
+   *
+   * Un nœud typé EST son objet : supprimer la carte entière, c'est supprimer sa
+   * racine (`objetsDesCartes`). Les tâches, étapes et habitudes partent dans
+   * « Supprimés récemment » ; un seul toast, et son « Annuler » rend les objets
+   * PUIS remet le bloc à sa place. Sans objet, rien ne change.
+   */
+  const retirerCarte = async (bloc: BlocNote) => {
+    const c = carteDuBloc(bloc.element);
+    const emportes = c ? await elementsDesCartes([c]) : [];
+    if (emportes.length === 0) return retirer(bloc);
+    const remettre = retirerBloc(bloc);
+    g.enregistrer();
+    await jeterPlusieurs(
+      emportes,
+      () => window.dispatchEvent(new Event("sb:data-changed")),
+      () => {
+        if (remettre()) g.enregistrer();
+        else direEchec();
+      },
+      (n) =>
+        tp(
+          n,
+          "Carte retirée de la note, et 1 élément dans Supprimés récemment",
+          "Carte retirée de la note, et {n} éléments dans Supprimés récemment",
+        ),
+    );
+  };
+
   const retirer = (bloc: BlocNote) => {
     const remettre = retirerBloc(bloc);
     g.enregistrer();
@@ -102,11 +141,7 @@ export function useMenuBlocs(g: GestesBlocs): {
           g.enregistrer();
           return;
         }
-        afficherToast({
-          msg: t("La note a changé entre-temps : le bloc n'a pas pu être remis."),
-          // Un échec : pas la coche verte du toast par défaut.
-          icone: <IconAlert className="h-5 w-5 shrink-0 text-yellow" />,
-        });
+        direEchec();
       },
     });
   };
@@ -120,7 +155,7 @@ export function useMenuBlocs(g: GestesBlocs): {
       danger: true,
       desactive: figee,
       confirmation,
-      executer: () => retirer(bloc),
+      executer: () => (bloc.type === "carte" ? void retirerCarte(bloc) : retirer(bloc)),
     });
 
     switch (bloc.type) {
@@ -128,6 +163,14 @@ export function useMenuBlocs(g: GestesBlocs): {
         const c = carteDuBloc(bloc.element);
         const branches = Math.max(0, (c?.noeuds.length ?? 1) - 1);
         const titre = titreDeCarte(c);
+        // Ce que ses nœuds typés emporteraient — dit, jamais compté ici : le
+        // compte exact vient de la base, dans le toast d'après.
+        const emporte = c ? compteEmportable(c) > 0 : false;
+        const quitte = branches > 0
+          ? titre
+            ? tp(branches, "« {titre} » et sa branche quittent la note.", "« {titre} » et ses {n} branches quittent la note.", { titre: titreCourt(titre, 30) })
+            : tp(branches, "La carte et sa branche quittent la note.", "La carte et ses {n} branches quittent la note.")
+          : t("La carte quitte la note.");
         return [
           c && {
             id: "modifier",
@@ -139,12 +182,12 @@ export function useMenuBlocs(g: GestesBlocs): {
           supprimer(
             t("Supprimer la carte"),
             // Une carte vide se retire sans question : il n'y a rien à perdre.
-            branches > 0
+            branches > 0 || emporte
               ? {
                   libelle: t("Supprimer la carte"),
-                  detail: titre
-                    ? tp(branches, "« {titre} » et sa branche quittent la note.", "« {titre} » et ses {n} branches quittent la note.", { titre: titreCourt(titre, 30) })
-                    : tp(branches, "La carte et sa branche quittent la note.", "La carte et ses {n} branches quittent la note.")
+                  detail: emporte
+                    ? `${quitte} ${t("Ses tâches, étapes et habitudes partent aussi dans Supprimés récemment.")}`
+                    : quitte,
                 }
               : undefined,
           ),

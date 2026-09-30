@@ -35,15 +35,15 @@ import {
 } from "../../lib/objectifs/structure";
 import { estRecurrente } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
-import type { AppData, Goal } from "../../lib/types";
+import type { AppData, Goal, Task } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
 import { IconCheck, IconChevronDown, IconChevronRight, IconFlame, IconFolder, IconNote, IconPlus, IconTarget, IconX } from "../icons";
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { placer as placerMenu } from "../../lib/menu/placement";
-import { descendantsVivants } from "../../lib/corbeille/lots";
-import { jeter } from "../corbeille/geste";
+import { bilanDeDepart } from "../../lib/corbeille/lots";
+import { annonceDepart, jeter } from "../corbeille/geste";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 import { BarreAjout } from "./RattacherElement";
 
@@ -368,6 +368,7 @@ function LigneEtape(p: PropsLigne) {
           <MenuEtape
             etape={etape}
             goals={data.goals}
+            tasks={data.tasks}
             index={p.index}
             nbFreres={freres.length}
             onRenommer={() => setRenommer(true)}
@@ -434,6 +435,8 @@ function BarreMesure({ pct, acheve }: { pct: number | null; acheve: boolean }) {
 function MenuEtape(props: {
   etape: Goal;
   goals: Goal[];
+  /** Pour annoncer les tâches qui partiraient avec elle (2026-09-30). */
+  tasks: readonly Task[];
   index: number;
   nbFreres: number;
   onRenommer: () => void;
@@ -444,12 +447,8 @@ function MenuEtape(props: {
   const { etape, goals, refresh } = props;
   const [ouvert, setOuvert] = useState(false);
   const [confirmer, setConfirmer] = useState(false);
-  /** Combien de sous-étapes partiraient AVEC elle — la règle même de la corbeille. */
-  const nSous =
-    descendantsVivants(
-      goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
-      etape.id,
-    ).length - 1;
+  /** Ce qui partirait AVEC elle — sous-étapes et tâches, la règle même de la corbeille. */
+  const bilan = bilanDeDepart(goals, props.tasks, etape.id);
   const racine = useRef<HTMLDivElement>(null);
   const panneau = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
@@ -598,10 +597,10 @@ function MenuEtape(props: {
             role="menuitem"
             className={`${entree} ${confirmer ? "bg-red/15 font-semibold text-red" : "text-red"}`}
             onClick={async () => {
-              // Une étape SANS sous-étape part d'un clic : la corbeille et son
-              // « Annuler » suffisent. La confirmation reste pour le cas lourd,
-              // et dit combien.
-              if (!confirmer && nSous > 0) return setConfirmer(true);
+              // Une étape sans sous-étape NI tâche part d'un clic : la corbeille
+              // et son « Annuler » suffisent. La confirmation reste pour le cas
+              // lourd, et dit combien.
+              if (!confirmer && bilan.etapes + bilan.taches > 0) return setConfirmer(true);
               setOuvert(false);
               await jeter("goal", etape.id, etape.title, refresh);
             }}
@@ -611,12 +610,9 @@ function MenuEtape(props: {
           {confirmer && (
             <p className="px-3 pb-1 pt-0.5 text-[11px] text-text-dim">
               {/* Disait « ses sous-objectifs remontent d'un niveau » : faux
-                  depuis la corbeille (migration 027), ils partent avec elle. */}
-              {tp(
-                nSous,
-                "Elle part avec 1 sous-étape dans Supprimés récemment. Ses tâches restent.",
-                "Elle part avec ses {n} sous-étapes dans Supprimés récemment. Ses tâches restent.",
-              )}
+                  depuis la corbeille (migration 027), ils partent avec elle.
+                  Puis « Ses tâches restent » : faux depuis le 2026-09-30. */}
+              {annonceDepart("etape", bilan)}
             </p>
           )}
         </div>,

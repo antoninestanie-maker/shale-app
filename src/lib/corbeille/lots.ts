@@ -82,6 +82,73 @@ export function lotObjectif(lignes: readonly LigneObjectif[], racine: number, st
   return parcourir(lignes, racine, (l) => l.deleted_at === stamp);
 }
 
+// ─── Les tâches d'un objectif ────────────────────────────────────────────────
+//
+// ⭐ UN OBJECTIF QUI PART EMPORTE SES TÂCHES (demande d'Antonin, 2026-09-30).
+//
+// Jusque-là, une tâche rattachée restait vivante, liée à un objectif que plus
+// rien n'affichait : elle continuait de peser dans la journée sans dire d'où
+// elle venait. Antonin : « si un objectif est supprimé, les tâches liées le
+// soient aussi ». Elles partent donc sous le MÊME horodatage que lui : elles
+// sont de son lot, reviennent avec lui, et la corbeille ne les montre pas à
+// part — restaurer une tâche seule la rendrait à un objectif absent.
+//
+// ⚠️ Le rattachement `goal_id` n'est JAMAIS effacé : c'est lui qui les rend à
+// leur objectif. Une tâche jetée AVANT pour son compte garde son horodatage,
+// donc son propre lot — exactement la règle des sous-objectifs.
+
+/** Le strict nécessaire d'une tâche pour savoir si elle part avec un objectif. */
+export interface LigneTache {
+  id: number;
+  goal_id: number | null;
+  deleted_at: string | null;
+}
+
+/** Les tâches VIVANTES rattachées à l'un de ces objectifs — ce qu'ils emportent en partant. */
+export function tachesEmportees(taches: readonly LigneTache[], objectifs: readonly number[]): number[] {
+  const ids = new Set(objectifs);
+  return taches.filter((t) => t.deleted_at == null && t.goal_id != null && ids.has(t.goal_id)).map((t) => t.id);
+}
+
+/** Les tâches d'un lot : rattachées à l'un de ses objectifs, et jetées au MÊME instant. */
+export function tachesDuLot(taches: readonly LigneTache[], objectifs: readonly number[], stamp: string): number[] {
+  const ids = new Set(objectifs);
+  return taches.filter((t) => t.deleted_at === stamp && t.goal_id != null && ids.has(t.goal_id)).map((t) => t.id);
+}
+
+/**
+ * Ce que jeter un objectif VIVANT emporterait — ses étapes, ses tâches — pour
+ * l'ANNONCER avant (les menus). La même règle que `mettreEnCorbeilleDans`,
+ * appliquée aux données déjà en mémoire (elles sont vivantes par construction).
+ */
+export function bilanDeDepart(
+  goals: readonly { id: number; parent_goal_id: number | null }[],
+  taches: readonly { id: number; goal_id: number | null }[],
+  id: number,
+): { etapes: number; taches: number } {
+  const ids = descendantsVivants(
+    goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
+    id,
+  );
+  if (ids.length === 0) return { etapes: 0, taches: 0 };
+  const lignes = taches.map((t) => ({ id: t.id, goal_id: t.goal_id, deleted_at: null }));
+  return { etapes: ids.length - 1, taches: tachesEmportees(lignes, ids).length };
+}
+
+/**
+ * Les tâches en corbeille qui sont DANS le lot d'un objectif. La vue ne les
+ * montre pas à part, exactement comme un sous-objectif parti avec son parent.
+ */
+export function tachesDansUnLot(taches: readonly LigneTache[], lignes: readonly LigneObjectif[]): Set<number> {
+  const stampDe = new Map(lignes.map((l) => [l.id, l.deleted_at]));
+  const out = new Set<number>();
+  for (const t of taches) {
+    if (!t.deleted_at || t.goal_id == null) continue;
+    if (stampDe.get(t.goal_id) === t.deleted_at) out.add(t.id);
+  }
+  return out;
+}
+
 // ─── La restauration ─────────────────────────────────────────────────────────
 
 /** Une étape de restauration : un lot, désigné par sa racine et son horodatage. */
@@ -114,7 +181,12 @@ export interface PlanRestauration {
  * lot, du plus haut au plus bas, en sautant un lot déjà couvert : un
  * sous-objectif jeté AVEC son parent revient avec lui, pas une seconde fois.
  */
-export function planObjectif(lignes: readonly LigneObjectif[], id: number): PlanRestauration | null {
+export function planObjectif(
+  lignes: readonly LigneObjectif[],
+  id: number,
+  /** Les tâches rattachées : celles du lot reviennent avec lui, et comptent. */
+  taches: readonly LigneTache[] = [],
+): PlanRestauration | null {
   const parId = new Map(lignes.map((l) => [l.id, l]));
   const cible = parId.get(id);
   if (!cible?.deleted_at) return null;
@@ -136,7 +208,8 @@ export function planObjectif(lignes: readonly LigneObjectif[], id: number): Plan
     if (couverts.has(maillon.id)) continue;
     const ids = lotObjectif(lignes, maillon.id, maillon.deleted_at!);
     ids.forEach((x) => couverts.add(x));
-    etapes.push({ id: maillon.id, stamp: maillon.deleted_at!, taille: ids.length });
+    const nTaches = tachesDuLot(taches, ids, maillon.deleted_at!).length;
+    etapes.push({ id: maillon.id, stamp: maillon.deleted_at!, taille: ids.length + nTaches });
   }
   return { kind: "goal", etapes, remonte: chaine.length > 1, total: etapes.reduce((s, e) => s + e.taille, 0) };
 }
@@ -156,14 +229,18 @@ export function planSimple(kind: KindCorbeille, id: number, deletedAt: string | 
  * « dans » son parent. Le montrer deux fois ferait croire qu'on peut le
  * restaurer seul sans conséquence — alors que le restaurer remonte au parent.
  */
-export function racinesDeLot(lignes: readonly LigneObjectif[]): { id: number; taille: number }[] {
+export function racinesDeLot(
+  lignes: readonly LigneObjectif[],
+  taches: readonly LigneTache[] = [],
+): { id: number; taille: number }[] {
   const parId = new Map(lignes.map((l) => [l.id, l]));
   const out: { id: number; taille: number }[] = [];
   for (const l of lignes) {
     if (!l.deleted_at) continue;
     const parent = l.parent_goal_id != null ? parId.get(l.parent_goal_id) : undefined;
     if (parent?.deleted_at === l.deleted_at) continue; // il est dans le lot de son parent
-    out.push({ id: l.id, taille: lotObjectif(lignes, l.id, l.deleted_at).length });
+    const lot = lotObjectif(lignes, l.id, l.deleted_at);
+    out.push({ id: l.id, taille: lot.length + tachesDuLot(taches, lot, l.deleted_at).length });
   }
   return out;
 }

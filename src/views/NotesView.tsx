@@ -8,7 +8,7 @@ import { createNote, searchNotes, updateNote } from "../lib/repo";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
-import { jeter } from "../components/corbeille/geste";
+import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import {
   ecritureAcceptable,
   graineDeNote,
@@ -260,10 +260,15 @@ export default function NotesView({ data, refresh }: Props) {
    * ⚠️ Une sauvegarde encore en attente (`scheduleSave`, 700 ms) s'écrira
    * quand même : la note existe toujours, en corbeille. Rien de ce qui a été
    * tapé ne se perd, et la restauration rend la dernière version.
+   *
+   * ⭐ Ses cartes mentales emportent ce que leurs nœuds ont créé — tâches,
+   * étapes, habitudes (2026-09-30) : un seul toast, un seul « Annuler ».
+   * Ouverte, la note est lue dans l'éditeur, plus frais que la base.
    */
   const jeterNote = async (note: Note) => {
     const etaitOuverte = note.id === selectedId;
-    await jeter("note", note.id, note.title, async () => {
+    const corps = etaitOuverte ? body : note.body;
+    await jeterAvecSesCartes("note", note.id, note.title, corps, async () => {
       await refresh();
       if (etaitOuverte) setSelectedId(null);
     });

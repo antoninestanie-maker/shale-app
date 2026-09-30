@@ -9,8 +9,8 @@ import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib
 import { prochaineAction, type ProchaineAction } from "../lib/objectifs/prochaineAction";
 import { CONTEXTE_VIDE, type ContexteObjectifs } from "../lib/objectifs/contexte";
 import { fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
-import { descendantsVivants } from "../lib/corbeille/lots";
-import { jeter } from "../components/corbeille/geste";
+import { bilanDeDepart } from "../lib/corbeille/lots";
+import { annonceDepart, jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
@@ -19,7 +19,7 @@ import { useIsPhone } from "../lib/platform";
 import type { EntreePossible } from "../lib/menu/entrees";
 import type { AppData, Goal } from "../lib/types";
 
-import { formatDate, pick, t, tp } from "../lib/i18n";
+import { formatDate, pick, t } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -278,20 +278,11 @@ export default function GoalsView({ data, refresh }: Props) {
     (isPhone ? null : (orderedCategories.flatMap((c) => groups.get(c)!)[0] ?? null));
 
   /**
-   * Combien d'étapes (phases et sous-objectifs, à toute profondeur) partiraient
-   * AVEC cet objectif — la règle même de la corbeille (`descendantsVivants`).
-   */
-  const etapesDe = (goal: Goal) =>
-    descendantsVivants(
-      goals.map((g) => ({ id: g.id, parent_goal_id: g.parent_goal_id, deleted_at: null })),
-      goal.id,
-    ).length - 1;
-
-  /**
    * ⭐ Corbeille (migration 027) : un objectif part AVEC ses phases et
-   * sous-objectifs ; ses tâches restent, détachées tant qu'il est en corbeille.
-   * La confirmation ne reste que pour le cas lourd — il emporte des étapes —
-   * et elle dit combien. Sans étape, la corbeille et son « Annuler » suffisent.
+   * sous-objectifs — et, depuis le 2026-09-30, avec ses TÂCHES (demande
+   * d'Antonin ; `corbeille/lots.ts`). La confirmation ne reste que pour le cas
+   * lourd — il emporte des étapes ou des tâches — et elle dit combien. Sinon,
+   * la corbeille et son « Annuler » suffisent.
    */
   const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
 
@@ -305,7 +296,7 @@ export default function GoalsView({ data, refresh }: Props) {
   // menu (règle 18). Les étapes ont le leur dans la feuille de route (`MenuEtape`).
   const menu = useMenuContextuel<Goal>();
   const entreesObjectif = (goal: Goal): EntreePossible[] => {
-    const n = etapesDe(goal);
+    const bilan = bilanDeDepart(goals, data.tasks, goal.id);
     return [
       { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterEtape(goal) },
       { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => setEditing(goal) },
@@ -315,15 +306,8 @@ export default function GoalsView({ data, refresh }: Props) {
         icone: <IconTrash />,
         danger: true,
         confirmation:
-          n > 0
-            ? {
-                libelle: t("Confirmer la suppression"),
-                detail: tp(
-                  n,
-                  "Il part avec 1 étape dans Supprimés récemment. Ses tâches restent.",
-                  "Il part avec ses {n} étapes dans Supprimés récemment. Ses tâches restent.",
-                ),
-              }
+          bilan.etapes + bilan.taches > 0
+            ? { libelle: t("Confirmer la suppression"), detail: annonceDepart("objectif", bilan) }
             : undefined,
         executer: () => supprimerObjectif(goal),
       },

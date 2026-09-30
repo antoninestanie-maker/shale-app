@@ -1,5 +1,5 @@
 import { sousArbre, type Carte } from "../carte";
-import type { Goal } from "../types";
+import type { Goal, Habit, Task } from "../types";
 import { uidDeLigne } from "./progression";
 
 /**
@@ -56,9 +56,16 @@ export function objetsEmportes(carte: Carte, id: string, goals: readonly Goal[])
     }
   }
 
-  // Une étape dont un ANCÊTRE part aussi est déjà dans son lot : la corbeille
-  // l'emporte avec lui (`descendantsVivants`). La jeter à part ferait deux lots,
-  // et « Annuler » restaurerait deux fois.
+  return sansDoublonDeLot(out, goals);
+}
+
+/**
+ * Une étape dont un ANCÊTRE part aussi est déjà dans son lot : la corbeille
+ * l'emporte avec lui (`descendantsVivants`). La jeter à part ferait deux lots,
+ * et « Annuler » restaurerait deux fois.
+ */
+function sansDoublonDeLot(out: readonly ObjetEmporte[], goals: readonly Goal[]): ObjetEmporte[] {
+  const parUid = new Map(goals.map((g) => [uidDeLigne("goal", g), g]));
   const partants = new Set(out.filter((o) => o.kind === "goal").map((o) => parUid.get(o.uid)?.id));
   const aUnAncetrePartant = (g: Goal) => {
     const vusG = new Set<number>([g.id]);
@@ -75,4 +82,68 @@ export function objetsEmportes(carte: Carte, id: string, goals: readonly Goal[])
     const g = parUid.get(o.uid);
     return !g || !aUnAncetrePartant(g);
   });
+}
+
+/**
+ * ⭐ UNE CARTE QUI DISPARAÎT EN ENTIER — sa note supprimée, sa fiche du Savoir
+ * supprimée, ou « Supprimer la carte » sur son bloc (2026-09-30).
+ *
+ * Antonin : « si une carte mentale liée à un objectif est supprimée, les tâches
+ * liées le soient aussi ». C'est la règle du nœud, appliquée à la racine :
+ * retirer toute la carte emporte exactement ce que supprimer sa racine
+ * emporterait. Rien de plus — jamais l'objectif racine cité, jamais une note
+ * ou une fiche citée (décision E).
+ *
+ * Plusieurs cartes (une note peut en porter plusieurs) : chaque objet une fois.
+ */
+export function objetsDesCartes(cartes: readonly Carte[], goals: readonly Goal[]): ObjetEmporte[] {
+  const out: ObjetEmporte[] = [];
+  const vus = new Set<string>();
+  for (const carte of cartes) {
+    const racine = carte.noeuds.find((n) => n.parent === null);
+    if (!racine) continue;
+    for (const o of objetsEmportes(carte, racine.id, goals)) {
+      const cle = `${o.kind}:${o.uid}`;
+      if (vus.has(cle)) continue;
+      vus.add(cle);
+      out.push(o);
+    }
+  }
+  return sansDoublonDeLot(out, goals);
+}
+
+/**
+ * Combien d'objets une carte emporterait — lu dans la carte SEULE, sans la
+ * base. Sert à la confirmation du menu, qui doit se construire sans attendre :
+ * elle dit QU'il y a des objets, jamais combien (le toast d'après donne le
+ * compte exact, lu en base). Un objectif cité avec le genre « objectif » est
+ * une racine : il reste.
+ */
+export function compteEmportable(carte: Carte): number {
+  return carte.noeuds.filter((n) => {
+    if (!n.ref || n.mort) return false;
+    if (n.ref.kind === "task" || n.ref.kind === "habit") return true;
+    return n.ref.kind === "goal" && (n.genre === "phase" || n.genre === "sous-objectif");
+  }).length;
+}
+
+/** Des objets emportés (par uid) aux lignes locales que la corbeille attend, avec leur titre. */
+export function resoudreEmportes(
+  objets: readonly ObjetEmporte[],
+  data: { goals: readonly Goal[]; tasks: readonly Task[]; habits: readonly Habit[] },
+): { kind: ObjetEmporte["kind"]; id: number; titre: string }[] {
+  const out: { kind: ObjetEmporte["kind"]; id: number; titre: string }[] = [];
+  for (const o of objets) {
+    if (o.kind === "goal") {
+      const g = data.goals.find((x) => uidDeLigne("goal", x) === o.uid);
+      if (g) out.push({ kind: "goal", id: g.id, titre: g.title });
+    } else if (o.kind === "task") {
+      const x = data.tasks.find((y) => uidDeLigne("task", y) === o.uid);
+      if (x) out.push({ kind: "task", id: x.id, titre: x.label });
+    } else {
+      const h = data.habits.find((y) => uidDeLigne("habit", y) === o.uid);
+      if (h) out.push({ kind: "habit", id: h.id, titre: h.name });
+    }
+  }
+  return out;
 }

@@ -75,30 +75,27 @@ describe.each([
   const titresObjectifs = async () =>
     (await repo.fetchAll("2000-01-01")).goals.map((g) => g.title).filter((x) => x.startsWith("Arbre"));
 
-  it("⭐ un objectif part AVEC ses phases, et sa tâche reste — son lien dort", async () => {
+  it("⭐ un objectif part AVEC ses phases ET ses tâches — une seule ligne dans la corbeille", async () => {
+    // Retourné le 2026-09-30, à la demande d'Antonin : la tâche restait, rattachée
+    // à un objectif que plus rien n'affichait.
     const a = await arbre();
     const lot = await repo.mettreEnCorbeille("goal", a.racine);
     expect([...lot.ids].sort()).toEqual([a.racine, a.p1, a.p2, a.s1].sort());
+    expect(lot.taches).toEqual([a.t]);
 
     const d = await repo.fetchAll("2000-01-01");
     expect(d.goals.some((g) => g.title.startsWith("Arbre"))).toBe(false);
-    const tache = d.tasks.find((x) => x.id === a.t);
-    expect(tache).toBeDefined();
-    // Le rattachement DORT : l'objectif n'est plus dans `goals`, rien ne
-    // l'affiche, mais le lien est là — la restauration n'a rien à reconstruire.
-    expect(tache!.goal_id).toBe(a.p1);
+    expect(d.tasks.some((x) => x.id === a.t)).toBe(false);
 
     const c = await repo.lireCorbeille();
-    expect(c.filter((x) => x.kind === "goal")).toEqual([
-      expect.objectContaining({ id: a.racine, titre: "Arbre-racine", taille: 4 }),
-    ]);
+    expect(c).toEqual([expect.objectContaining({ kind: "goal", id: a.racine, titre: "Arbre-racine", taille: 5 })]);
   });
 
-  it("⭐ restaurer la racine rend le lot, ET rend à la tâche son rattachement", async () => {
+  it("⭐ restaurer la racine rend le lot, ET la tâche avec son rattachement", async () => {
     const a = await arbre();
     await repo.mettreEnCorbeille("goal", a.racine);
     const plan = await repo.restaurer("goal", a.racine);
-    expect(plan?.total).toBe(4);
+    expect(plan?.total).toBe(5);
     expect((await titresObjectifs()).sort()).toEqual(
       ["Arbre-phase-1", "Arbre-phase-2", "Arbre-racine", "Arbre-sous"],
     );
@@ -112,11 +109,19 @@ describe.each([
     // partir de ce que la fenêtre a LU. Si la lecture masquait l'objectif
     // (`goal_id` à null), la modification écrivait ce null en base — et
     // restaurer l'objectif ne lui rendait plus sa tâche.
+    //
+    // Depuis le 2026-09-30, la tâche part AVEC son objectif. Le cas reste réel
+    // par la synchronisation : une tâche créée sur un autre appareil sous cet
+    // objectif, avant qu'il ne reçoive la mise en corbeille. On le reproduit en
+    // la créant APRÈS le jet.
     const a = await arbre();
     await repo.mettreEnCorbeille("goal", a.racine);
-    const lue = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t)!;
+    const t = await repo.createTask({
+      label: "Arbre-tâche venue d'ailleurs", tag: null, priority: "low", recurrence: "none", goal_id: a.p1,
+    });
+    const lue = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === t)!;
     // Exactement ce qu'envoie `TaskModal` : tout, à partir de ce qu'elle a lu.
-    await repo.updateTask(a.t, {
+    await repo.updateTask(t, {
       label: "Arbre-tâche renommée",
       tag: lue.tag,
       priority: lue.priority,
@@ -127,7 +132,7 @@ describe.each([
       end_at: lue.end_at,
     });
     await repo.restaurer("goal", a.racine);
-    const apres = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t)!;
+    const apres = (await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === t)!;
     expect(apres.label).toBe("Arbre-tâche renommée");
     expect(apres.goal_id).toBe(a.p1);
   });
@@ -136,7 +141,7 @@ describe.each([
     const a = await arbre();
     await repo.mettreEnCorbeille("goal", a.racine);
     const plan = await repo.planRestauration("goal", a.s1);
-    expect(plan).toMatchObject({ remonte: true, total: 4 });
+    expect(plan).toMatchObject({ remonte: true, total: 5 });
     expect(await titresObjectifs()).toEqual([]); // rien n'a bougé
     await repo.restaurer("goal", a.s1);
     expect((await titresObjectifs()).length).toBe(4);
@@ -197,13 +202,14 @@ describe.each([
 
     const a = await arbre();
     await repo.mettreEnCorbeille("goal", a.racine);
-    expect(await repo.supprimerDefinitivement("goal", a.racine)).toBe(4);
+    expect(await repo.supprimerDefinitivement("goal", a.racine)).toBe(5);
     expect(await repo.lireCorbeille()).toEqual([]);
     // ⭐ Les enfants ne sont PAS remontés vivants : ils sont partis avec lui.
     expect(await titresObjectifs()).toEqual([]);
     expect(await repo.restaurer("goal", a.racine)).toBeNull();
-    // Et la tâche rattachée a perdu son objectif pour de bon, comme avant la 027.
-    expect((await repo.fetchAll("2000-01-01")).tasks.find((x) => x.id === a.t)?.goal_id).toBeNull();
+    // Et la tâche est partie avec lui, pour de bon — elle ne remonte pas vivante.
+    expect((await repo.fetchAll("2000-01-01")).tasks.some((x) => x.id === a.t)).toBe(false);
+    expect(await repo.restaurer("task", a.t)).toBeNull();
   });
 
   it("⭐ la purge attend 30 jours pleins, puis efface", async () => {
@@ -219,7 +225,7 @@ describe.each([
   it("⭐ la purge d'un arbre ne fait remonter AUCUN enfant", async () => {
     const a = await arbre();
     await repo.mettreEnCorbeille("goal", a.racine);
-    expect(await repo.purgerCorbeille(new Date(Date.now() + 31 * JOUR))).toBe(4);
+    expect(await repo.purgerCorbeille(new Date(Date.now() + 31 * JOUR))).toBe(5);
     expect(await titresObjectifs()).toEqual([]);
   });
 

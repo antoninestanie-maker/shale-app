@@ -115,7 +115,7 @@ import BadgeExemple from "../components/onboarding/BadgeExemple";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuContextuel";
 import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu/catalogue/savoir";
-import { jeter } from "../components/corbeille/geste";
+import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
 
 /**
@@ -486,7 +486,9 @@ export default function KnowledgeView() {
       await load();
     },
     supprimer: async (f) => {
-      await jeter("knowledge", f.id, f.title, load);
+      // La liste ne charge pas le corps : on le lit, pour ses cartes (2026-09-30).
+      const corps = (await fetchKnowledgeEntry(f.id))?.body ?? null;
+      await jeterAvecSesCartes("knowledge", f.id, f.title, corps, load);
     },
   };
 
@@ -985,7 +987,9 @@ function TopicGrid({
             // `pendingDelete` est capturé ICI, pas relu après l'await (règle 15).
             const sujet = pendingDelete;
             setPendingDelete(null);
-            await jeter("object", sujet.id, sujet.name, reload);
+            // Sa page peut porter des cartes : elles emportent leurs objets.
+            const corps = (await fetchSujet(sujet.id))?.body ?? null;
+            await jeterAvecSesCartes("object", sujet.id, sujet.name, corps, reload);
           }}
         />
       )}
@@ -2236,7 +2240,9 @@ function Reader({
                 const { id, title } = entry;
                 await flush();
                 onClose();
-                await jeter("knowledge", id, title, onChanged);
+                // Relue APRÈS `flush` : le corps contient la dernière carte écrite.
+                const corps = (await fetchKnowledgeEntry(id))?.body ?? null;
+                await jeterAvecSesCartes("knowledge", id, title, corps, onChanged);
               }}
               aria-label={t("Supprimer la note")}
               data-tip={t("Supprimer la note")}

@@ -17,10 +17,15 @@
 import { IconTrash } from "../icons";
 import { formatDate, t, tp } from "../../lib/i18n";
 import {
+  fetchAll,
   mettreEnCorbeille,
   restaurer,
   supprimerDefinitivement,
 } from "../../lib/repo";
+import { todayStr } from "../../lib/logic";
+import type { Carte } from "../../lib/carte";
+import { cartesDuHtml } from "../../lib/carteDom";
+import { objetsDesCartes, resoudreEmportes } from "../../lib/objectifs/emportes";
 import type { KindCorbeille } from "../../lib/corbeille/regles";
 import type { ElementCorbeille } from "../../lib/corbeille/base";
 import { afficherToast } from "../../lib/toast";
@@ -87,7 +92,9 @@ export async function jeter(
   // `titreAffiche` : une entrée de journal se nomme par sa date, écrite en
   // toutes lettres — jamais « 2026-09-23 » dans un toast.
   const nom = titreCourt(titreAffiche({ kind, titre }));
-  const autres = lot.ids.length - 1;
+  // Un objectif emporte ses étapes ET ses tâches (2026-09-30) : le toast dit
+  // tout ce qui est parti, pas seulement les objectifs.
+  const autres = lot.ids.length + (lot.taches?.length ?? 0) - 1;
   afficherToast({
     msg:
       autres > 0
@@ -133,6 +140,12 @@ export async function jeterPlusieurs(
   elements: readonly (Jete & { titre: string })[],
   apres: () => unknown,
   surAnnuler?: () => void,
+  /**
+   * Le message du toast, quand le geste n'est pas « supprimer le premier
+   * élément » — retirer une carte de sa note, par exemple. Reçoit le nombre
+   * total d'objets partis dans la corbeille.
+   */
+  message?: (total: number) => string,
 ): Promise<Jete[]> {
   const partis: (Jete & { titre: string })[] = [];
   let total = 0;
@@ -140,7 +153,7 @@ export async function jeterPlusieurs(
     const lot = await mettreEnCorbeille(e.kind, e.id);
     if (lot.ids.length === 0) continue;
     partis.push(e);
-    total += lot.ids.length;
+    total += lot.ids.length + (lot.taches?.length ?? 0);
   }
   if (partis.length === 0) return [];
   await apres();
@@ -149,8 +162,9 @@ export async function jeterPlusieurs(
   const autres = total - 1;
   const jetes = partis.map(({ kind, id }) => ({ kind, id }));
   afficherToast({
-    msg:
-      autres > 0
+    msg: message
+      ? message(total)
+      : autres > 0
         ? tp(
             autres,
             "« {titre} » et 1 élément sont dans Supprimés récemment",
@@ -181,6 +195,69 @@ export async function jeterPlusieurs(
  */
 export async function restaurerJetes(jetes: readonly Jete[]): Promise<void> {
   for (const j of [...jetes].reverse()) await restaurer(j.kind, j.id);
+}
+
+/**
+ * Les objets qu'emporterait la disparition de ces cartes, résolus en lignes
+ * locales. Lit la base elle-même : les vues qui suppriment une note n'ont pas
+ * toutes les habitudes sous la main (le Savoir n'a pas `AppData`).
+ */
+export async function elementsDesCartes(cartes: readonly Carte[]): Promise<(Jete & { titre: string })[]> {
+  if (cartes.length === 0) return [];
+  const data = await fetchAll(todayStr());
+  return resoudreEmportes(objetsDesCartes(cartes, data.goals), data);
+}
+
+/**
+ * ⭐ JETER UNE NOTE, UNE FICHE OU UN SUJET AVEC CE QUE SES CARTES ONT CRÉÉ
+ * (demande d'Antonin, 2026-09-30 : « si une carte mentale liée à un objectif
+ * est supprimée, les tâches liées le soient aussi »).
+ *
+ * Un nœud typé EST son objet (`objectifs/emportes.ts`) : supprimer la page qui
+ * porte la carte emporte donc les tâches, étapes et habitudes que ses nœuds
+ * désignent — un seul toast, un seul « Annuler » qui rend tout. Sans carte,
+ * c'est exactement `jeter()`.
+ *
+ * `corps` : le HTML le plus frais qu'a l'appelant (l'éditeur ouvert), ou `null`
+ * s'il ne l'a pas — c'est alors à lui de le lire avant.
+ */
+export async function jeterAvecSesCartes(
+  kind: "note" | "knowledge" | "object",
+  id: number,
+  titre: string,
+  corps: string | null | undefined,
+  apres: () => unknown,
+): Promise<boolean> {
+  const emportes = await elementsDesCartes(cartesDuHtml(corps));
+  if (emportes.length === 0) return jeter(kind, id, titre, apres);
+  const jetes = await jeterPlusieurs([{ kind, id, titre }, ...emportes], apres);
+  return jetes.length > 0;
+}
+
+/**
+ * La phrase qu'une confirmation dit avant de jeter un objectif ou une étape :
+ * « Il part dans Supprimés récemment avec 2 étapes et 5 tâches. » Depuis le
+ * 2026-09-30, les tâches partent avec lui — la confirmation le DIT.
+ *
+ * Deux morceaux au plus : le « et » est une clé de traduction, pas une
+ * conjonction recollée à la main (`Intl.ListFormat` n'est pas dans la `lib`
+ * TypeScript du projet).
+ */
+export function annonceDepart(
+  genre: "objectif" | "etape",
+  bilan: { etapes: number; taches: number },
+): string {
+  const morceaux = [
+    bilan.etapes > 0 &&
+      (genre === "objectif"
+        ? tp(bilan.etapes, "{n} étape", "{n} étapes")
+        : tp(bilan.etapes, "{n} sous-étape", "{n} sous-étapes")),
+    bilan.taches > 0 && tp(bilan.taches, "{n} tâche", "{n} tâches"),
+  ].filter((x): x is string => !!x);
+  const liste = morceaux.length === 2 ? t("{a} et {b}", { a: morceaux[0], b: morceaux[1] }) : (morceaux[0] ?? "");
+  return genre === "objectif"
+    ? t("Il part dans Supprimés récemment avec {liste}.", { liste })
+    : t("Elle part dans Supprimés récemment avec {liste}.", { liste });
 }
 
 /** Ouvre l'objet restauré là où il vit — l'objet lui-même quand il se lie, sinon son module. */

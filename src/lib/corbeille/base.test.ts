@@ -37,6 +37,12 @@ function arbre() {
   return { racine, p1, p2, s1 };
 }
 
+/** Une tâche vivante, rattachée à `goal` (ou à rien). */
+const tache = (goal: number | null) =>
+  ins("INSERT INTO tasks (label, priority, recurrence, goal_id, created_at) VALUES ('t', 'low', 'none', ?, 'x')", goal);
+const goalDe = (t: number) =>
+  (sqlite.prepare("SELECT goal_id FROM tasks WHERE id = ?").get(t) as { goal_id: number | null }).goal_id;
+
 describe("mettre en corbeille", () => {
   it("date la ligne, sans rien supprimer", async () => {
     const id = ins("INSERT INTO notes (title, body, created_at, updated_at) VALUES ('n', '', 'x', 'x')");
@@ -76,13 +82,53 @@ describe("mettre en corbeille", () => {
     expect((await mettreEnCorbeilleDans(db, "invoice", brouillon, T1)).ids).toEqual([brouillon]);
   });
 
-  it("n'emporte pas les tâches rattachées — elles ne sont pas des enfants", async () => {
+  it("⭐ emporte les tâches de l'objectif ET de ses étapes, sous le même horodatage (2026-09-30)", async () => {
+    // Antonin : « si un objectif est supprimé, les tâches liées le soient aussi ».
+    // Jusque-là elles restaient, rattachées à un objectif que plus rien n'affichait.
     const a = arbre();
-    const t = ins("INSERT INTO tasks (label, priority, recurrence, goal_id, created_at) VALUES ('t', 'low', 'none', ?, 'x')", a.p1);
-    await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
-    expect(lireStamp("tasks", t)).toBeNull();
-    // Et son rattachement est INTACT en base : c'est ce qui permet de le rendre.
-    expect((sqlite.prepare("SELECT goal_id FROM tasks WHERE id = ?").get(t) as { goal_id: number }).goal_id).toBe(a.p1);
+    const tRacine = tache(a.racine);
+    const tSous = tache(a.s1);
+    const lot = await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    expect([...(lot.taches ?? [])].sort()).toEqual([tRacine, tSous].sort());
+    expect(lireStamp("tasks", tRacine)).toBe(T1);
+    expect(lireStamp("tasks", tSous)).toBe(T1);
+    // Le rattachement reste ÉCRIT : c'est lui qui la rendra avec son objectif.
+    expect(goalDe(tSous)).toBe(a.s1);
+  });
+
+  it("n'emporte ni une tâche sans objectif, ni celle d'un autre objectif", async () => {
+    const a = arbre();
+    const autre = ins("INSERT INTO goals (title, scope, created_at) VALUES ('Autre', 'long', 'x')");
+    const libre = tache(null);
+    const ailleurs = tache(autre);
+    const lot = await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    expect(lot.taches).toEqual([]);
+    expect(lireStamp("tasks", libre)).toBeNull();
+    expect(lireStamp("tasks", ailleurs)).toBeNull();
+  });
+
+  it("jeter une PHASE n'emporte que ses tâches, pas celles de sa racine", async () => {
+    const a = arbre();
+    const tRacine = tache(a.racine);
+    const tPhase = tache(a.p1);
+    const tSous = tache(a.s1);
+    const lot = await mettreEnCorbeilleDans(db, "goal", a.p1, T1);
+    expect([...(lot.taches ?? [])].sort()).toEqual([tPhase, tSous].sort());
+    expect(lireStamp("tasks", tRacine)).toBeNull();
+  });
+
+  it("⭐ laisse HORS du lot une tâche jetée avant pour son compte", async () => {
+    const a = arbre();
+    const t = tache(a.p1);
+    await mettreEnCorbeilleDans(db, "task", t, T1);
+    const lot = await mettreEnCorbeilleDans(db, "goal", a.racine, T2);
+    expect(lot.taches).toEqual([]);
+    expect(lireStamp("tasks", t)).toBe(T1); // elle garde SON horodatage
+  });
+
+  it("une tâche jetée seule n'emporte rien d'autre", async () => {
+    const t = tache(null);
+    expect(await mettreEnCorbeilleDans(db, "task", t, T1)).toEqual({ stamp: T1, ids: [t] });
   });
 });
 
@@ -121,6 +167,38 @@ describe("restaurer", () => {
     const plan = await restaurerDans(db, "goal", a.racine);
     expect(plan?.total).toBe(4);
     for (const id of [a.racine, a.p1, a.p2, a.s1]) expect(lireStamp("goals", id)).toBeNull();
+  });
+
+  it("⭐ rend AUSSI les tâches parties avec l'objectif — et le plan les compte", async () => {
+    const a = arbre();
+    const tPhase = tache(a.p1);
+    const tSous = tache(a.s1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    expect((await planRestaurationDans(db, "goal", a.racine))?.total).toBe(6);
+    await restaurerDans(db, "goal", a.racine);
+    expect(lireStamp("tasks", tPhase)).toBeNull();
+    expect(lireStamp("tasks", tSous)).toBeNull();
+    expect(goalDe(tSous)).toBe(a.s1);
+  });
+
+  it("⭐⭐ ne ressuscite pas une tâche jetée pour son compte avant le lot", async () => {
+    const a = arbre();
+    const t = tache(a.p1);
+    await mettreEnCorbeilleDans(db, "task", t, T1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T2);
+    await restaurerDans(db, "goal", a.racine);
+    expect(lireStamp("goals", a.racine)).toBeNull();
+    expect(lireStamp("tasks", t)).toBe(T1); // toujours en corbeille, à part
+  });
+
+  it("restaurer un sous-objectif qui remonte à son parent rend les tâches du lot entier", async () => {
+    const a = arbre();
+    const tRacine = tache(a.racine);
+    const tSous = tache(a.s1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    await restaurerDans(db, "goal", a.s1);
+    expect(lireStamp("tasks", tRacine)).toBeNull();
+    expect(lireStamp("tasks", tSous)).toBeNull();
   });
 
   it("⭐⭐ ne ressuscite JAMAIS ce qui avait été jeté avant le lot", async () => {
@@ -212,6 +290,26 @@ describe("lire la corbeille", () => {
     expect(c[0]).toMatchObject({ kind: "goal", id: a.racine, titre: "Lancer la chaîne", taille: 4 });
   });
 
+  it("⭐ une tâche partie AVEC son objectif n'apparaît pas seule — la taille du lot la compte", async () => {
+    const a = arbre();
+    tache(a.p1);
+    tache(a.s1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    const c = await lireCorbeilleDans(db);
+    expect(c).toHaveLength(1);
+    expect(c[0]).toMatchObject({ kind: "goal", id: a.racine, taille: 6 });
+  });
+
+  it("une tâche jetée pour son compte, AVANT son objectif, reste une ligne à part", async () => {
+    const a = arbre();
+    const t = tache(a.p1);
+    await mettreEnCorbeilleDans(db, "task", t, T1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T2);
+    const c = await lireCorbeilleDans(db);
+    expect(c.map((x) => `${x.kind}:${x.id}`).sort()).toEqual([`goal:${a.racine}`, `task:${t}`].sort());
+    expect(c.find((x) => x.kind === "goal")?.taille).toBe(4);
+  });
+
   it("montre à part un enfant jeté pour son compte", async () => {
     const a = arbre();
     await mettreEnCorbeilleDans(db, "goal", a.p2, T1);
@@ -259,6 +357,16 @@ describe("ce qu'il faut purger", () => {
   it("⭐ la suppression définitive d'un élément ne vise JAMAIS un objet vivant", async () => {
     const id = ins("INSERT INTO notes (title, body, created_at, updated_at) VALUES ('n', '', 'x', 'x')");
     expect(await lotAPurgerDans(db, "note", id)).toEqual([]);
+  });
+
+  it("⭐ la suppression définitive d'un objectif efface aussi ses tâches, AVANT lui", async () => {
+    const a = arbre();
+    const t = tache(a.p1);
+    await mettreEnCorbeilleDans(db, "goal", a.racine, T1);
+    const lot = await lotAPurgerDans(db, "goal", a.racine);
+    expect(lot).toHaveLength(5);
+    expect(lot[0]).toEqual({ kind: "task", id: t });
+    expect(lot[lot.length - 1]).toEqual({ kind: "goal", id: a.racine });
   });
 
   it("la suppression définitive d'un objectif emporte son lot, enfants d'abord", async () => {

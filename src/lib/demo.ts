@@ -8,7 +8,11 @@ import {
   planObjectif,
   planSimple,
   racinesDeLot,
+  tachesDansUnLot,
+  tachesDuLot,
+  tachesEmportees,
   type LigneObjectif,
+  type LigneTache,
 } from "./corbeille/lots";
 import type { APurger, ElementCorbeille, Lot, PlanRestauration } from "./corbeille/base";
 import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
@@ -1349,6 +1353,16 @@ function lignesObjectifsDemo(): LigneObjectif[] {
       parent_goal_id: (g.parent_goal_id as number | null) ?? null,
       deleted_at: g.deleted_at,
     })),
+  ];
+}
+
+/** Les tâches rattachées, vivantes ET jetées — ce qu'un lot d'objectif peut emporter. */
+function lignesTachesDemo(): LigneTache[] {
+  return [
+    ...tasks.filter((t) => t.goal_id != null).map((t) => ({ id: t.id, goal_id: t.goal_id, deleted_at: null })),
+    ...jetesDe("task")
+      .filter((t) => t.goal_id != null)
+      .map((t) => ({ id: t.id, goal_id: t.goal_id as number, deleted_at: t.deleted_at })),
   ];
 }
 
@@ -2800,11 +2814,14 @@ export const demo = {
       ids = vivantsDe(kind).some((x) => x.id === id) ? [id] : [];
     }
     ids = ids.filter((x) => ranger(kind, x, stamp));
-    return { stamp, ids };
+    if (kind !== "goal") return { stamp, ids };
+    // ⭐ Ses tâches partent avec lui, sous le même horodatage (`corbeille/lots.ts`).
+    const taches = tachesEmportees(lignesTachesDemo(), ids).filter((x) => ranger("task", x, stamp));
+    return { stamp, ids, taches };
   },
 
   async planRestauration(kind: KindCorbeille, id: number): Promise<PlanRestauration | null> {
-    if (kind === "goal") return planObjectif(lignesObjectifsDemo(), id);
+    if (kind === "goal") return planObjectif(lignesObjectifsDemo(), id, lignesTachesDemo());
     return planSimple(kind, id, jetesDe(kind).find((x) => x.id === id)?.deleted_at ?? null);
   },
 
@@ -2812,19 +2829,24 @@ export const demo = {
     const plan = await demo.planRestauration(kind, id);
     if (!plan) return null;
     const lignes = kind === "goal" ? lignesObjectifsDemo() : [];
+    const taches = kind === "goal" ? lignesTachesDemo() : [];
     for (const etape of plan.etapes) {
       const ids = kind === "goal" ? lotObjectif(lignes, etape.id, etape.stamp) : [etape.id];
       for (const x of ids) remettre(kind, x, etape.stamp);
+      for (const x of tachesDuLot(taches, ids, etape.stamp)) remettre("task", x, etape.stamp);
     }
     return plan;
   },
 
   async lireCorbeille(): Promise<ElementCorbeille[]> {
     const out: ElementCorbeille[] = [];
+    const objectifs = lignesObjectifsDemo();
+    const taches = lignesTachesDemo();
+    const tachesCouvertes = tachesDansUnLot(taches, objectifs);
     for (const kind of KINDS_CORBEILLE) {
-      const tailles =
-        kind === "goal" ? new Map(racinesDeLot(lignesObjectifsDemo()).map((r) => [r.id, r.taille])) : null;
+      const tailles = kind === "goal" ? new Map(racinesDeLot(objectifs, taches).map((r) => [r.id, r.taille])) : null;
       for (const l of jetesDe(kind)) {
+        if (kind === "task" && tachesCouvertes.has(l.id)) continue; // dans le lot de son objectif
         const taille = tailles ? tailles.get(l.id) : 1;
         if (taille == null) continue; // dans le lot de son parent
         out.push({
@@ -2845,8 +2867,11 @@ export const demo = {
     if (!ligne) return []; // jamais un objet vivant
     if (kind !== "goal") return [{ kind, id }];
     const lignes = lignesObjectifsDemo();
-    const lot = new Set(lotObjectif(lignes, id, ligne.deleted_at));
-    return ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }));
+    const ids = lotObjectif(lignes, id, ligne.deleted_at);
+    const lot = new Set(ids);
+    // Ses tâches d'abord — comme le natif (`corbeille/base.ts`).
+    const taches = tachesDuLot(lignesTachesDemo(), ids, ligne.deleted_at).map((t) => ({ kind: "task" as const, id: t }));
+    return [...taches, ...ordreDePurge(lignes.filter((l) => lot.has(l.id))).map((x) => ({ kind, id: x }))];
   },
 
   aPurger(seuil: string): APurger[] {

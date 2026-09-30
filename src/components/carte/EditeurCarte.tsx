@@ -31,8 +31,7 @@ import {
   type RefNoeud,
 } from "../../lib/carte";
 import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
-import { objetsEmportes } from "../../lib/objectifs/emportes";
-import { uidDeLigne } from "../../lib/objectifs/progression";
+import { objetsEmportes, resoudreEmportes } from "../../lib/objectifs/emportes";
 import type { GenreEtape } from "../../lib/objectifs/structure";
 import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
@@ -1289,21 +1288,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   /** Les objets qu'emporterait la suppression de `id`, avec leur numéro local et leur titre. */
   const elementsEmportes = (id: string): (Jete & { titre: string })[] => {
     if (!donnees) return [];
-    const { goals, tasks, habits } = donnees.data;
-    const out: (Jete & { titre: string })[] = [];
-    for (const o of objetsEmportes(courante, id, goals)) {
-      if (o.kind === "goal") {
-        const g = goals.find((x) => uidDeLigne("goal", x) === o.uid);
-        if (g) out.push({ kind: "goal", id: g.id, titre: g.title });
-      } else if (o.kind === "task") {
-        const x = tasks.find((y) => uidDeLigne("task", y) === o.uid);
-        if (x) out.push({ kind: "task", id: x.id, titre: x.label });
-      } else {
-        const h = habits.find((y) => uidDeLigne("habit", y) === o.uid);
-        if (h) out.push({ kind: "habit", id: h.id, titre: h.name });
-      }
-    }
-    return out;
+    return resoudreEmportes(objetsEmportes(courante, id, donnees.data.goals), donnees.data);
   };
 
   /**
