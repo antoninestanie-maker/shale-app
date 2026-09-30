@@ -1463,6 +1463,14 @@ au clic droit d'une étape (l'icône passe au rouge), « Priorité ▸ » d'une 
 la pastille qui ne vole pas le focus du champ (étape créée « élevée », tâche
 créée « faible »).
 
+**Installé le 2026-09-30 à 21:47** (build de `60366b8`, 21:31 → 21:46, code 0) :
+sha256 installée = source (`3f338570…`, ancienne `d14a5c11…`), `diff -r`
+identique. Sauvegardes `Shale-chantiers/sauvegardes/avant-priorites-20260930-2131/`
+(app ouverte, puis app fermée). **Migration 030 jouée sur la vraie base** :
+version 28 → 30, integrity ok, FK 0, 79 objectifs tous « medium », comptes
+identiques (56 tâches, 21 notes, 4 habitudes). Fenêtre de trousseau ouverte :
+« Toujours autoriser » attend Antonin.
+
 **Pas vérifié** : l'app installée à la main par Antonin ; la bulle de deux
 secondes sous un vrai curseur (testée en happy-dom seulement) ; l'iPhone réel.
 Pièges : `PIEGES.md` § 29.
