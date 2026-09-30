@@ -43,6 +43,7 @@ export type CodeIa =
   | "ai_unavailable"
   | "bad_output"
   | "refused"
+  | "already_done"
   // Locaux :
   | "network" //  pas de réponse du serveur
   | "disabled"; // l'IA, ou sa famille, est éteinte dans les Réglages
@@ -61,6 +62,7 @@ const CODES_SERVEUR: ReadonlySet<string> = new Set([
   "ai_unavailable",
   "bad_output",
   "refused",
+  "already_done",
 ]);
 
 export interface UsageIa {

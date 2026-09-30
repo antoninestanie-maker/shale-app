@@ -30,6 +30,9 @@ import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
 
 import { localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
+import { CarteBrief } from "../components/ia/CarteBrief";
+import { useIa } from "../lib/ia/useIa";
+import { iaAutorisee } from "../lib/ia/reglages";
 
 /** Largeur par défaut (en colonnes /12) de chaque widget du dashboard. */
 const WIDGET_DEFAULT_W: Record<string, number> = {
@@ -43,6 +46,7 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
   tasks: 8,
   goals: 8,
   calendar: 8,
+  "brief-ia": 12,
 };
 /** Largeur MINIMALE (colonnes /12) : sous ce seuil le contenu se chevaucherait.
     Calé sur ce que chaque widget peut afficher lisiblement. Le moteur de grille
@@ -58,6 +62,7 @@ const WIDGET_MIN_W: Record<string, number> = {
   tasks: 4,
   goals: 4,
   calendar: 4,
+  "brief-ia": 4,
 };
 
 /** Hauteur MINIMALE (px) des widgets dont le contenu sait défiler : sous cette
@@ -103,6 +108,10 @@ interface Props {
 export default function TodayView({ data, refresh, focus, navigate, config }: Props) {
   const today = todayStr();
   const { hasTrading, afficheModule } = useEntitlements();
+  // L'IA de Shale Pro : la carte du brief n'existe que pour un compte Pro dont
+  // l'IA et la famille « brief » sont allumées (et jamais sur iOS, V1).
+  const ia = useIa();
+  const briefIa = ia.visible && ia.aLeDroit && !!ia.prefs && iaAutorisee(ia.prefs, "brief");
 
   // La case bascule AU CLIC ; l'anneau de discipline suit la même liste, donc
   // il bouge avec elle au lieu d'attendre la relecture de la base.
@@ -217,6 +226,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
       </section>
     ),
     calendar: () => <CalendarCard key="calendar" data={data} />,
+    "brief-ia": () => (briefIa ? <CarteBrief key="brief-ia" data={data} refresh={refresh} /> : null),
   };
 
   // Ordre d'affichage dans la grille : bannières pleine largeur, puis les widgets des

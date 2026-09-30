@@ -128,5 +128,12 @@ export function depotPGlite(db: PGlite): Depot {
     async purger() {
       return Number(await un<number>("select public.ai_purger_evenements() as r", []));
     },
+    async dejaServi(userId, feature, depuis) {
+      const { rows } = await db.query(
+        "select 1 from public.ai_events where user_id = $1 and feature = $2 and status = 'ok' and created_at >= $3 limit 1",
+        [userId, feature, depuis.toISOString()],
+      );
+      return rows.length > 0;
+    },
   };
 }

@@ -43,6 +43,9 @@ export const TABLES_SYNC = [
   // de synchronisation échouer indéfiniment. Lire l'en-tête de la 027 avant d'y
   // toucher.
   "files",
+  // Brief, clôture, revue rédigés par l'IA de Shale Pro (migration 029). Aucune
+  // clé étrangère : un contenu, pas un objet relié.
+  "ia_contenus",
   "journal_entries",
   "trades",
   "position_size_calculations",

@@ -1584,8 +1584,20 @@ datée. Pièges : `PIEGES.md` § 25.
 | Phase | État |
 |---|---|
 | 0 — audit | ✅ validé par Antonin le 2026-09-29 (Business SANS IA ; recommandations retenues) |
-| A — serveur | ✅ écrit et testé, ⛔ **non déployé** — en attente de validation |
-| B à H | pas commencées |
+| A — serveur | ✅ écrit et testé, validé par Antonin (« ok on continue », 2026-09-29). **Migration Supabase 008 JOUÉE en production** (sauvegarde JSON `shale-backups/avant-ia-008-20260929-2332/`). ⛔ **Fonction `ai` NON déployée, secret de budget NON posé** : refusés par le garde-fou de permissions (déploiement en production) |
+| B — socle app | ✅ commitée (`cbdeb61`) |
+| C — brief et clôture | ✅ écrite, testée, vue à l'écran en démo (WebKit piloté) — ⛔ arrêt obligatoire : validation d'Antonin |
+| D à H | pas commencées |
+
+**⚠️ Migration SQLite 029 (`ia_contenus`) sur la branche** : jamais jouée sur la
+vraie base. Elle partira avec le prochain build natif APRÈS fusion — sauvegarder
+avant (`sqlite3 .backup`).
+
+**Pour voir la phase C en démo** : patch `AUDIT-TEMP` (§ 13.2), offre simulée
+`shale_pro` (`localStorage["shale.demo.tier"]`), Réglages → IA → Activer, puis
+un sujet et l'heure du brief avant l'heure courante. Chrome étant souvent non
+connecté, le pilote `tools/webkit-pilote.swift` suffit — les clics se font en
+JavaScript (`.click()`), son pas `{"clic"}` ne produisant aucun événement DOM.
 
 **Ce qui existe (dépôt du SITE, branche `chantier/ia-pro`, non poussée)** :
 `supabase/migrations/008_ia.sql` (tables `ai_config`, `ai_usage`, `ai_events`,

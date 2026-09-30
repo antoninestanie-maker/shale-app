@@ -24,7 +24,7 @@ import type { AreteVoulue } from "./liens";
 // ⚠️ `import type`, jamais un import de valeur : `repo.ts` importe déjà ce
 // module en retour. Un type est effacé à la compilation, donc le cycle n'existe
 // pas à l'exécution — un import de valeur, lui, en créerait un vrai.
-import type { PieceJointeLigne } from "./repo";
+import type { ContenuIa, GenreContenuIa, PieceJointeLigne } from "./repo";
 import { plainText } from "./richtext";
 import { poserCleDemo } from "./licence/cles";
 import {
@@ -1426,6 +1426,8 @@ function titreDemo(kind: KindCorbeille, l: LigneJetee): string | null {
   return v == null ? null : String(v);
 }
 
+const contenusIa = new Map<string, ContenuIa>();
+
 export const demo = {
   async fetchAll(): Promise<AppData> {
     // Les objets jetés sont déjà hors de leurs tableaux ; restent les FEUILLES
@@ -1861,6 +1863,21 @@ export const demo = {
 
   async setSetting(key: string, value: string): Promise<void> {
     settings.set(key, value);
+  },
+
+  // ── Contenus rédigés par l'IA (migration 029) — en mémoire ────────────────
+  async lireContenuIa(kind: GenreContenuIa, jour: string): Promise<ContenuIa | null> {
+    return contenusIa.get(`${kind}:${jour}`) ?? null;
+  },
+
+  async ecrireContenuIa(kind: GenreContenuIa, jour: string, contenu: unknown): Promise<void> {
+    const uid = `${kind}:${jour}`;
+    contenusIa.set(uid, { uid, kind, jour, contenu, cree_le: new Date().toISOString(), lu_le: null });
+  },
+
+  async marquerContenuIaLu(kind: GenreContenuIa, jour: string): Promise<void> {
+    const c = contenusIa.get(`${kind}:${jour}`);
+    if (c && !c.lu_le) contenusIa.set(c.uid, { ...c, lu_le: new Date().toISOString() });
   },
 
   // ── Profil de licence (migration 025) ─────────────────────────────────────

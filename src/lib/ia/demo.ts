@@ -10,13 +10,28 @@
 // (`contrats.ts`) : `demo.test.ts` le vérifie pour toutes.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { t } from "../i18n";
+import { t, tp } from "../i18n";
 import type { ContratsIa, FonctionIa, PayloadDe, SortieDe } from "./contrats";
 
 /** Le délai d'une vraie réponse, à peu près : l'état « l'IA rédige » se voit. */
 export const DELAI_DEMO_MS = 900;
 
 type Factices = { [F in FonctionIa]: (payload: PayloadDe<F>) => SortieDe<F> };
+
+function lendemainDe(jour: string): string {
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Une adresse de démonstration sur le site du premier flux du sujet. */
+function lienDemo(flux: string[], i: number): string {
+  try {
+    return `${new URL(flux[0]).origin}/`;
+  } catch {
+    return `https://www.shaleapp.com/#demo-${i}`;
+  }
+}
 
 const FACTICES: Factices = {
   resumer: (p) => ({
@@ -32,6 +47,40 @@ const FACTICES: Factices = {
           t("La prochaine étape est datée."),
         ]
       : [],
+  }),
+  brief: (p) => ({
+    sujets: p.sujets.map((s, i) => ({
+      nom: s.nom,
+      points: s.flux.length
+        ? [
+            { texte: t("Démonstration : ici, un fait tiré d'un article de tes sources, en une ou deux phrases."), lien: lienDemo(s.flux, i) },
+            { texte: t("Démonstration : chaque point renvoie à l'article dont il vient."), lien: lienDemo(s.flux, i) },
+            { texte: t("Démonstration : aucune source n'est inventée, le serveur le vérifie."), lien: lienDemo(s.flux, i) },
+          ]
+        : [],
+    })),
+    journee: p.journee.surcharge
+      ? t("Ta journée est chargée : {n} tâches prévues. Commence par « {p} », et choisis ce qui peut attendre.", {
+          n: p.journee.tachesPrevues,
+          p: p.journee.priorites[0]?.titre ?? t("ta priorité"),
+        })
+      : p.journee.priorites.length
+        ? t("Journée tenable. Ta priorité : « {p} ».", { p: p.journee.priorites[0].titre })
+        : t("Rien d'inscrit aujourd'hui : une journée libre à organiser."),
+  }),
+  cloture: (p) => ({
+    bilan: `${tp(p.faites.length, "{n} tâche faite aujourd'hui.", "{n} tâches faites aujourd'hui.")} ${tp(
+      p.restantes.length,
+      "{n} tâche reste.",
+      "{n} tâches restent.",
+    )}`,
+    propositions: p.restantes.map((r) =>
+      r.priorite !== "high" && r.reports >= 3
+        ? { id: r.id, action: "supprimer" as const, date: null, raison: t("Reportée plusieurs fois : peut-être plus d'actualité.") }
+        : r.priorite === "high"
+          ? { id: r.id, action: "demain" as const, date: null, raison: t("Prioritaire : à reprendre dès demain.") }
+          : { id: r.id, action: "date" as const, date: lendemainDe(lendemainDe(p.jour)), raison: t("Peut attendre deux jours.") },
+    ),
   }),
 };
 

@@ -53,6 +53,11 @@ export function messageIa(code: CodeIa, resetsAt?: string | null, enEssai = fals
         texte: t("L'IA n'a pas pu produire une réponse utilisable. Aucune action n'a été décomptée."),
         geste: "reessayer",
       };
+    case "already_done":
+      return {
+        texte: t("Le brief de ce matin a déjà été rédigé sur un autre appareil : il arrive avec la synchronisation."),
+        geste: "aucun",
+      };
     case "bad_request":
     case "bad_payload":
     case "unknown_feature":

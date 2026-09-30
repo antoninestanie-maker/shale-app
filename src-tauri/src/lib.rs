@@ -443,9 +443,17 @@ pub fn run() {
             sql: include_str!("../migrations/028_pieces_jointes.sql"),
             kind: MigrationKind::Up,
         },
-        // ⚠️ 030 avant 029 : la 029 est réservée par le chantier IA de Shale Pro,
-        // pas encore fusionné (en-tête de la 030). sqlx applique une migration
-        // manquante quel que soit son rang.
+        // 029 PUIS 030 dans le code, mais la vraie base a reçu la 030 d'abord
+        // (le 2026-09-30, avant la fusion du chantier IA) : sqlx applique une
+        // migration manquante quel que soit son rang (PIEGES § 29.3), donc la
+        // 029 y passera APRÈS la 030. Sans risque : la 029 crée une table neuve
+        // (`ia_contenus`), la 030 ne touche que `goals` et `tasks`.
+        Migration {
+            version: 29,
+            description: "ia_contenus",
+            sql: include_str!("../migrations/029_ia_contenus.sql"),
+            kind: MigrationKind::Up,
+        },
         Migration {
             version: 30,
             description: "priorite_etapes",

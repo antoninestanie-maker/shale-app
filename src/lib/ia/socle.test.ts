@@ -63,6 +63,7 @@ describe("messages", () => {
     const codes: CodeIa[] = [
       "unauthorized", "not_pro", "bad_request", "unknown_feature", "bad_payload", "too_large", "quota_exhausted",
       "rate_limited", "ai_paused", "ai_busy", "ai_unavailable", "bad_output", "refused", "network", "disabled",
+      "already_done",
     ];
     for (const c of codes) expect(messageIa(c).texte.length, c).toBeGreaterThan(10);
     expect(messageIa("not_pro").geste).toBe("pro");

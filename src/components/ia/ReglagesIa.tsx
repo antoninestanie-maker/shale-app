@@ -27,6 +27,7 @@ import { usePrefsIa } from "../../lib/ia/useIa";
 import { isTauri } from "../../lib/repo";
 import { useSession } from "../auth/AuthGate";
 import UpgradeModal from "../UpgradeModal";
+import { SujetsBrief } from "./SujetsBrief";
 
 function libelleFamille(f: FamilleIa): { titre: string; desc: string } {
   switch (f) {
@@ -231,6 +232,8 @@ export default function ReglagesIa() {
           );
         })}
       </div>
+
+      {active && prefs?.familles.brief && <SujetsBrief />}
 
       {active && (
         <p className="mt-3 px-2 text-xs text-text-dim">

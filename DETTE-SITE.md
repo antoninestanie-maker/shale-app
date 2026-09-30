@@ -758,3 +758,9 @@ phase H du chantier, **chaque phrase soumise à Antonin avant d'être écrite** 
 - ⚠️ Le cahier des charges cite `SPECS` et `content.json` : `SPECS` n'existe plus
   dans le site ; les textes vivent dans le dictionnaire i18n et
   `views/refonte/*.astro`.
+
+### T.1 — Ce que la phase C ajoute (2026-09-30), toujours ⛔ rien à publier avant livraison
+- Le brief du matin (sujets choisis, sources RSS, « ta journée ») et la clôture
+  du soir (bilan + reports à valider) : à décrire tels quels, avec la limite de
+  cinq sujets et le lien de chaque source.
+- Le quota en ACTIONS (400 par mois, 60 pendant l'essai), jamais en jetons.

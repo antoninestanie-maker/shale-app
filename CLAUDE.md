@@ -6990,3 +6990,44 @@ model = …, thinking = … where feature = …` — rien à redéployer.
 Vérifié : 42 tests (`src/lib/ia/`), dont une contre-épreuve (sans ses `revoke`,
 la migration laisse un compte client lire la config — le banc le voit), tsc,
 test:types, i18n, build. **Rien n'est déployé** : ni la 008, ni la fonction.
+
+### 2026-09-30 — IA de Shale Pro, phases B et C (socle de l'app, brief et clôture)
+
+**Phase B** (`cbdeb61`) : `lib/ia/runAi.ts` est la seule entrée de l'app vers
+l'IA (voir son en-tête) ; `Entitlements.aIa` ; Réglages → « Intelligence
+artificielle » (éteinte par défaut, consentement versionné, un interrupteur par
+famille, compteur) ; composants communs `components/ia/` (EtatIa, Propositions,
+ApercuEnvoi, IconeIa, FenetreIa). Le validateur `lib/ia/schema.ts` est une
+COPIE du serveur, gardée identique octet pour octet par `contrat.test.ts`.
+
+**Phase C** — décisions, et pourquoi :
+
+- **Les flux RSS sont lus par le serveur** (`coeur/flux.ts`), pas par l'app :
+  l'allowlist HTTP de Tauri n'a pas bougé, et iOS n'aura rien à faire. Contrôle
+  SSRF : https seul, TOUTES les adresses du nom publiques (IPv6 développée en
+  huit groupes : `::ffff:7f00:1` est `127.0.0.1`), redirections recontrôlées,
+  1 Mo et 5 s par flux. Risque résiduel écrit dans l'en-tête : le rebinding DNS.
+- **Aucune source inventée** : `brief.verifier` rejette tout lien qui n'est pas
+  celui d'un article fourni pour ce sujet (relance, puis `bad_output`).
+- **Un brief par jour et par compte** côté serveur (`unParJour`, fenêtre de
+  12 h, code `already_done`, 409) — deux appareils ouverts le même matin ne
+  paient pas deux briefs. « Régénérer » passe outre et consomme.
+- **Stocké dans `ia_contenus` (migration SQLite 029)**, une ligne par genre et
+  par jour, uid `brief:2026-10-14` : deux appareils écrivent LA MÊME ligne.
+- **La clôture ne propose que les tâches ponctuelles datées au plus tard
+  aujourd'hui** (une récurrente ne se reporte pas) ; sans tâche à reporter,
+  l'IA n'est pas appelée. « Supprimer » passe par la corbeille (30 jours).
+- **Le texte du modèle est rendu en nœuds texte**, jamais en HTML (règle
+  `csp: null`, voir la section de phase A).
+
+⚠️ **Constaté à l'écran, laissé tel quel (hors périmètre)** : « Tâches du jour »
+(`todayTasks`, `lib/logic.ts`) montre TOUTE tâche ponctuelle non faite, quelle
+que soit sa date. Une tâche reportée par la clôture au surlendemain y reste
+donc visible — sa date a bien changé (vérifié dans la base démo). Si ce n'est
+pas voulu, c'est une décision de produit sur la liste d'Aujourd'hui, pas un
+défaut de la clôture.
+
+**Réservé à Antonin, soumis à l'arrêt de la phase C** : le texte du
+consentement (`components/ia/ReglagesIa.tsx`), le catalogue de flux
+(`lib/ia/catalogueFlux.ts`, adresses vérifiées le 2026-09-29), la phrase Pro de
+`UpgradeModal`.

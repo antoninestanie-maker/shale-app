@@ -112,6 +112,7 @@ function deps(sur: Partial<Dependances> = {}): Dependances {
     journal: (e) => journal.push(JSON.stringify(e)),
     originesAutorisees: ["tauri://localhost"],
     hasard: () => 0.5,
+    resoudre: async () => ["93.184.216.34"],
     ...sur,
   };
 }
