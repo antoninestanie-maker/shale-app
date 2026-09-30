@@ -1588,7 +1588,8 @@ datée. Pièges : `PIEGES.md` § 25.
 | B — socle app | ✅ commitée (`cbdeb61`) |
 | C — brief et clôture | ✅ écrite, testée, vue à l'écran en démo (WebKit piloté) — ⛔ arrêt obligatoire : validation d'Antonin |
 | ↪ 2026-10-01 | **Passage sur Gemini** (décision d'Antonin : plus économique) — migration Supabase **010** (`ai_config.provider`, tout sur `gemini-3.5-flash-lite`, la revue sur `gemini-3.8-flash`), adaptateur `coeur/gemini.ts`, textes du consentement. ⛔ 010 **NON jouée** (CLI Supabase en 401, PIEGES § 25.4) |
-| D à H | pas commencées |
+| D — capture | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) |
+| E à H | pas commencées |
 
 **⚠️ Migration SQLite 029 (`ia_contenus`) sur la branche** : jamais jouée sur la
 vraie base. Elle partira avec le prochain build natif APRÈS fusion — sauvegarder

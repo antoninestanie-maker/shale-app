@@ -33,6 +33,28 @@ export interface JourneeBrief {
 export type PrioriteIa = "low" | "medium" | "high";
 export type ActionCloture = "demain" | "date" | "plus_tard" | "supprimer";
 
+/** Un élément extrait d'un texte ou d'un fichier (#5). */
+export interface ElementExtrait {
+  type: "tache" | "evenement" | "note" | "achat";
+  titre: string;
+  date: string | null;
+  heure: string | null;
+  priorite: PrioriteIa | null;
+  etiquette: string | null;
+  texte: string | null;
+  achat: {
+    fournisseur: string;
+    numero: string | null;
+    date: string | null;
+    echeance: string | null;
+    ht: number | null;
+    tva: number | null;
+    ttc: number | null;
+    devise: "EUR" | "USD" | "GBP" | "CHF" | "CAD" | "JPY";
+  } | null;
+  confiance: "haute" | "moyenne" | "basse";
+}
+
 export interface ContratsIa {
   resumer: {
     payload: { lang: LangIa; titre: string; texte: string };
@@ -63,6 +85,24 @@ export interface ContratsIa {
       propositions: Array<{ id: string; action: ActionCloture; date: string | null; raison: string }>;
     };
   };
+  extraire: {
+    payload: { lang: LangIa; jour: string; texte: string; etiquettes: string[] };
+    sortie: { elements: ElementExtrait[] };
+  };
+  extraire_fichier: {
+    payload: {
+      lang: LangIa;
+      jour: string;
+      fichier: { media_type: "application/pdf" | "image/png" | "image/jpeg" | "image/webp"; data: string };
+      contexte: string;
+      etiquettes: string[];
+    };
+    sortie: { elements: ElementExtrait[] };
+  };
+  vider_tete: {
+    payload: { lang: LangIa; jour: string; texte: string; etiquettes: string[] };
+    sortie: { taches: Array<{ titre: string; priorite: PrioriteIa; etiquette: string | null; date: string | null }> };
+  };
 }
 
 export type FonctionIa = keyof ContratsIa;
@@ -73,9 +113,61 @@ export const FAMILLE_DE: Readonly<Record<FonctionIa, FamilleIa>> = {
   resumer: "notes",
   brief: "brief",
   cloture: "brief",
+  extraire: "capture",
+  extraire_fichier: "capture",
+  vider_tete: "capture",
 };
 
 const DATE: Schema = { type: "string", format: "date" };
+const PRIORITE: Schema = { type: "string", enum: ["low", "medium", "high"] };
+const MONTANT: Schema = { anyOf: [{ type: "number", minimum: 0, maximum: 1_000_000_000 }, { type: "null" }] };
+
+const SORTIE_EXTRAIRE: Schema = {
+  type: "object",
+  properties: {
+    elements: {
+      type: "array",
+      maxItems: 30,
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["tache", "evenement", "note", "achat"] },
+          titre: { type: "string", maxLength: 200 },
+          date: { anyOf: [DATE, { type: "null" }] },
+          heure: { anyOf: [{ type: "string", maxLength: 5 }, { type: "null" }] },
+          priorite: { anyOf: [PRIORITE, { type: "null" }] },
+          etiquette: { anyOf: [{ type: "string", maxLength: 60 }, { type: "null" }] },
+          texte: { anyOf: [{ type: "string", maxLength: 4000 }, { type: "null" }] },
+          achat: {
+            anyOf: [
+              {
+                type: "object",
+                properties: {
+                  fournisseur: { type: "string", maxLength: 120 },
+                  numero: { anyOf: [{ type: "string", maxLength: 60 }, { type: "null" }] },
+                  date: { anyOf: [DATE, { type: "null" }] },
+                  echeance: { anyOf: [DATE, { type: "null" }] },
+                  ht: MONTANT,
+                  tva: MONTANT,
+                  ttc: MONTANT,
+                  devise: { type: "string", enum: ["EUR", "USD", "GBP", "CHF", "CAD", "JPY"] },
+                },
+                required: ["fournisseur", "numero", "date", "echeance", "ht", "tva", "ttc", "devise"],
+                additionalProperties: false,
+              },
+              { type: "null" },
+            ],
+          },
+          confiance: { type: "string", enum: ["haute", "moyenne", "basse"] },
+        },
+        required: ["type", "titre", "date", "heure", "priorite", "etiquette", "texte", "achat", "confiance"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["elements"],
+  additionalProperties: false,
+};
 
 /** Les schémas de sortie — revalidés ici, même si le serveur l'a fait. */
 export const SORTIES: Readonly<Record<FonctionIa, Schema>> = {
@@ -139,6 +231,30 @@ export const SORTIES: Readonly<Record<FonctionIa, Schema>> = {
       },
     },
     required: ["bilan", "propositions"],
+    additionalProperties: false,
+  },
+  extraire: SORTIE_EXTRAIRE,
+  extraire_fichier: SORTIE_EXTRAIRE,
+  vider_tete: {
+    type: "object",
+    properties: {
+      taches: {
+        type: "array",
+        maxItems: 40,
+        items: {
+          type: "object",
+          properties: {
+            titre: { type: "string", maxLength: 200 },
+            priorite: PRIORITE,
+            etiquette: { anyOf: [{ type: "string", maxLength: 60 }, { type: "null" }] },
+            date: { anyOf: [DATE, { type: "null" }] },
+          },
+          required: ["titre", "priorite", "etiquette", "date"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["taches"],
     additionalProperties: false,
   },
 };

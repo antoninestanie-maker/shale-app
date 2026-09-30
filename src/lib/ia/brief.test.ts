@@ -175,6 +175,9 @@ describe("démo", () => {
         surcharge: true,
       }, false),
       cloture: payloadCloture("fr", JOUR, donnees([tache(1, { priority: "high" }), tache(2, { postponed_count: 4, priority: "low" }), tache(3)])),
+      extraire: { lang: "fr", jour: JOUR, texte: "Un e-mail.", etiquettes: ["Admin"] },
+      extraire_fichier: { lang: "fr", jour: JOUR, fichier: { media_type: "image/png", data: "AAAA" }, contexte: "", etiquettes: [] },
+      vider_tete: { lang: "fr", jour: JOUR, texte: "plein de choses", etiquettes: ["Admin"] },
     };
     for (const f of Object.keys(payloads) as FonctionIa[]) {
       const r = reponseDemo(f, payloads[f] as never);

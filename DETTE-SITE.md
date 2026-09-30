@@ -770,3 +770,8 @@ Partout où le § T parlait d'Anthropic, lire **Google**. Politique de
 confidentialité : Google comme sous-traitant (API Gemini, palier payant). ⚠️ Le
 site est en LISTE D'ATTENTE depuis le 2026-09-30 : toute mention de l'IA dans Pro
 se rend sous `LISTE_ATTENTE` comme le reste de la vente.
+
+### T.3 — 2026-10-01 : la capture (phase D)
+Coller un e-mail, déposer un PDF ou la photo d'un reçu : l'IA propose tâches,
+rendez-vous, notes et achats (facture d'achat en brouillon, montants à vérifier) ;
+« Vide ta tête » transforme du vrac en tâches. Tout se valide avant d'être écrit.

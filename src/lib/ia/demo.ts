@@ -82,7 +82,39 @@ const FACTICES: Factices = {
           : { id: r.id, action: "date" as const, date: lendemainDe(lendemainDe(p.jour)), raison: t("Peut attendre deux jours.") },
     ),
   }),
+  extraire: (p) => ({ elements: elementsDemo(p.jour, p.texte.trim().length > 0) }),
+  extraire_fichier: (p) => ({ elements: elementsDemo(p.jour, true) }),
+  vider_tete: (p) => ({
+    taches: p.texte.trim()
+      ? [
+          { titre: t("Appeler le comptable"), priorite: "high" as const, etiquette: p.etiquettes[0] ?? null, date: lendemainDe(p.jour) },
+          { titre: t("Préparer la réunion de lundi"), priorite: "medium" as const, etiquette: null, date: null },
+          { titre: t("Trier les photos de vacances"), priorite: "low" as const, etiquette: null, date: null },
+        ]
+      : [],
+  }),
 };
+
+/** Un e-mail type : une tâche, un rendez-vous, une facture (dont le TTC ne
+ *  colle pas — la démo montre l'avertissement du contrôle local). */
+function elementsDemo(jour: string, plein: boolean): ContratsIa["extraire"]["sortie"]["elements"] {
+  if (!plein) return [];
+  return [
+    { type: "tache", titre: t("Renvoyer le contrat signé"), date: lendemainDe(jour), heure: null, priorite: "high", etiquette: null, texte: null, achat: null, confiance: "haute" },
+    { type: "evenement", titre: t("Point avec l'agence"), date: lendemainDe(lendemainDe(jour)), heure: "10:30", priorite: null, etiquette: null, texte: null, achat: null, confiance: "moyenne" },
+    {
+      type: "achat",
+      titre: t("Facture hébergement"),
+      date: jour,
+      heure: null,
+      priorite: null,
+      etiquette: null,
+      texte: null,
+      achat: { fournisseur: "Hébergeur Démo", numero: "F-2026-0412", date: jour, echeance: null, ht: 20, tva: 4, ttc: 24.5, devise: "EUR" },
+      confiance: "haute",
+    },
+  ];
+}
 
 export function reponseDemo<F extends FonctionIa>(feature: F, payload: PayloadDe<F>): ContratsIa[F]["sortie"] {
   return (FACTICES[feature] as (p: PayloadDe<F>) => SortieDe<F>)(payload);

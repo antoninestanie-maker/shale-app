@@ -7074,3 +7074,32 @@ avec le schéma complet — un lien mal formé est toujours rejeté.
 **État** : 93 tests IA verts (dont 10 pour Gemini). La 010 n'est **pas jouée** en
 production (la CLI Supabase a répondu 401, PIEGES § 25.4) ; sans conséquence tant
 que la fonction `ai` n'est pas déployée.
+
+### 2026-10-01 — IA de Shale Pro, phase D : la capture (#5, #6)
+
+Ouverte par ⌘K « Capturer avec l'IA… » (action `requires: "pro"` — `requires`
+accepte désormais `"trading" | "pro"`, et `searchActions` prend `aIa`) ou par le
+bouton « Capturer » de la vue Tâches. Deux modes : « Coller ou déposer » (texte,
+PDF, image — `extraire` / `extraire_fichier`) et « Vide ta tête » (`vider_tete`).
+
+**Décisions, et pourquoi :**
+
+- **Le modèle lit, l'app vérifie et écrit.** Un achat affiche ses montants TELS
+  QU'EXTRAITS, « à vérifier », et `ecartTotaux` signale sur la ligne un HT + TVA
+  qui ne donne pas le TTC. Validé, il devient une **facture d'achat en brouillon**
+  dont les totaux sont RECALCULÉS par `totauxFacture` depuis sa ligne — le TTC du
+  modèle n'est jamais écrit. Fournisseur retrouvé par son nom (sans casse) ou créé ;
+  numéro du fournisseur dans l'objet (le `numero` d'une facture est celui que Shale
+  attribue à l'émission). Taux de TVA recalé sur un taux usuel à 0,2 point près.
+- **Le fichier d'origine n'est PAS joint** : les pièces jointes (028) ne vont
+  qu'aux notes ; le cahier des charges interdit d'inventer ce rattachement.
+- **Les fichiers sont préparés AVANT l'envoi** (`lib/ia/fichierCapture.ts`) : PDF
+  compté par `pdf-lib` (10 Mo, 20 pages), HEIC réencodé en JPEG par la WebView,
+  image réduite à 2 000 px. Le serveur recompte.
+- **Une note créée par la capture est ÉCHAPPÉE** (`corpsDeNote`) — `csp: null`.
+- Les étiquettes existantes partent comme liste de choix ; le modèle n'en invente
+  pas pour « vider sa tête ».
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : saisie + aperçu,
+brouillons (écart de 0,50 € signalé), validation → tâche créée, facture d'achat en
+brouillon à 24,00 € TTC recalculés. Captures : `~/Desktop/Shale-chantiers/captures-ia/`.

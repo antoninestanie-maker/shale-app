@@ -38,7 +38,7 @@ export interface AppAction {
    * Benchmark (retiré le 2026-08-25). Garder la déclaration explicite coûte une
    * ligne et évite qu'un futur cas du même genre soit verrouillé par accident.
    */
-  requires?: "trading";
+  requires?: "trading" | "pro";
   /**
    * Le module auquel l'action appartient. Un profil de licence qui masque ce
    * module retire l'action de la palette.
@@ -247,7 +247,20 @@ export const ACTIONS: AppAction[] = [
       // laisser la vue se monter avant d'ouvrir le modal
       setTimeout(() => emitUI("sb:new-task"), 50);
     },
+  },  {
+    // L'IA de Shale Pro (#5, #6) : réservée à Pro, absente sans le droit.
+    id: "capture.ia",
+    module: "tasks",
+    title: "Capturer avec l'IA…",
+    category: "tâches",
+    keywords: ["capture", "extraire", "facture", "recu", "pdf", "email", "vider sa tete", "ia"],
+    requires: "pro",
+    run: (ctx) => {
+      ctx.navigate("tasks");
+      setTimeout(() => emitUI("sb:capture-ia"), 50);
+    },
   },
+
   {
     id: "task.complete",
     module: "tasks",
@@ -369,6 +382,8 @@ export function searchActions(
   query: string,
   hasTrading = true,
   masques?: ReadonlySet<string>,
+  /** L'IA de Shale Pro (2026-10-01) : Pro ou essai Pro, et pas sur iOS (V1). */
+  aIa = false,
 ): AppAction[] {
   // `masques` : modules retirés par le profil de licence. Toute action du module
   // disparaît — y compris celles qui écrivent sans naviguer (« Ajouter une
@@ -378,6 +393,7 @@ export function searchActions(
       (hasTrading || a.requires !== "trading") &&
       // Finance mise de côté (2026-10-01) : ses actions sortent avec elle.
       (FINANCE_ACTIF || !isFinanceView(a.module)) &&
+      (aIa || a.requires !== "pro") &&
       !masques?.has(a.module),
   );
   const q = norm(query.trim());
