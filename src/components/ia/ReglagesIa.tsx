@@ -83,7 +83,7 @@ function Interrupteur({
   );
 }
 
-/** L'écran de consentement — proposition v1, soumise à Antonin. */
+/** L’écran de consentement — proposition v1, soumise à Antonin. Il NOMME le fournisseur (Google, depuis le 2026-10-01) : changer de fournisseur pour de bon, c’est changer ce texte ET monter `VERSION_CONSENTEMENT`. */
 function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnnuler: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,7 +98,7 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
   }, [onAnnuler]);
 
   const points = [
-    t("Quand tu utilises une fonction d'IA, le contenu concerné — la note, les tâches, le fichier que tu choisis — part vers Shale, puis vers Anthropic, qui rédige la réponse avec son modèle Claude."),
+    t("Quand tu utilises une fonction d'IA, le contenu concerné — la note, les tâches, le fichier que tu choisis — part vers Shale, puis vers Google, qui rédige la réponse avec son modèle Gemini."),
     t("Pendant cet envoi, ce contenu ne profite pas du chiffrement de bout en bout : le modèle doit pouvoir le lire pour répondre. Le reste de tes données n'est pas concerné."),
     t("Shale ne conserve ni ce qui part ni ce qui revient. Seul un compteur d'actions est gardé, sans aucun texte."),
     t("L'IA ne modifie rien seule : chaque proposition attend ta validation."),
@@ -204,13 +204,13 @@ export default function ReglagesIa() {
     <section className="card p-5">
       <h2 className="hud-label">{t("intelligence artificielle")}</h2>
       <p className="mt-2 text-sm leading-relaxed text-text-dim">
-        {t("Désactivée par défaut. Quand elle est active, seul le contenu que tu soumets à une fonction d'IA part vers Anthropic, le temps de la réponse ; Shale n'en garde rien.")}
+        {t("Désactivée par défaut. Quand elle est active, seul le contenu que tu soumets à une fonction d'IA part vers Google, le temps de la réponse ; Shale n'en garde rien.")}
       </p>
 
       <div className="mt-3">
         <Interrupteur
           titre={t("Activer l'IA")}
-          desc={t("Rédigée par Claude, avec la clé de Shale : tu n'as rien à configurer.")}
+          desc={t("Rédigée par Gemini, le modèle de Google, avec la clé de Shale : tu n'as rien à configurer.")}
           valeur={active}
           inactif={!prefs}
           onChange={basculer}

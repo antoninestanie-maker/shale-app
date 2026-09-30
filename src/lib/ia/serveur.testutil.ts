@@ -17,10 +17,11 @@ import { PGlite } from "@electric-sql/pglite";
 
 import schemaSql from "../../../../shale-site/supabase/schema.sql?raw";
 import iaSql from "../../../../shale-site/supabase/migrations/008_ia.sql?raw";
+import geminiSql from "../../../../shale-site/supabase/migrations/010_ia_gemini.sql?raw";
 import { configDeLigne, reservationDe } from "../../../../shale-site/supabase/functions/ai/coeur/depot.ts";
 import type { Depot } from "../../../../shale-site/supabase/functions/ai/coeur/types.ts";
 
-export { iaSql };
+export { iaSql, geminiSql };
 
 const AMORCE = `
 create role anon;
@@ -52,6 +53,9 @@ export async function bancIa(): Promise<PGlite> {
   await db.exec(AMORCE);
   await db.exec(schemaSql);
   await db.exec(iaSql);
+  // La 010 (passage sur Gemini) est jouée en production depuis le 2026-10-01 :
+  // le banc la joue aussi, sinon il validerait une config qui n'existe plus.
+  await db.exec(geminiSql);
   return db;
 }
 

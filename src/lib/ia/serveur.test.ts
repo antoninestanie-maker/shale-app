@@ -99,7 +99,7 @@ function deps(sur: Partial<Dependances> = {}): Dependances {
     fonctions: { ...FONCTIONS, test_fichier: avecFichier },
     verifierJeton: async (j) => JETONS[j] ?? null,
     fetch: fetchSimule,
-    cleAnthropic: "cle-de-test",
+    cles: { google: "cle-gemini-de-test", anthropic: "cle-de-test" },
     budgetGlobalMicro: 50_000_000,
     maintenant: () => MAINTENANT,
     compterPages: async (o) => {
@@ -152,12 +152,14 @@ beforeAll(async () => {
   await compte(db, ESSAI, { status: "trialing", tier: "shale_pro", trialEndsAt: "2026-10-20T00:00:00Z" });
   await compte(db, SHALE, { status: "active", tier: "shale" });
   await compte(db, BUSINESS, { status: "active", tier: "shale_business" });
+  // Ce fichier éprouve le cœur À TRAVERS l'adaptateur Claude (le fournisseur
+  // simulé parle Anthropic) ; Gemini a son propre fichier, serveur.gemini.test.ts.
   await db.query(
-    "update public.ai_config set enabled = true where feature = 'resumer'",
+    "update public.ai_config set enabled = true, provider = 'anthropic', model = 'claude-haiku-4-5-20251001' where feature = 'resumer'",
   );
   await db.query(
-    `insert into public.ai_config (feature, model, max_tokens, weight, enabled)
-     values ('test_fichier', 'claude-haiku-4-5-20251001', 500, 3, true)`,
+    `insert into public.ai_config (feature, provider, model, max_tokens, weight, enabled)
+     values ('test_fichier', 'anthropic', 'claude-haiku-4-5-20251001', 500, 3, true)`,
   );
 });
 
@@ -384,7 +386,7 @@ describe("ai — chaque refus (cahier des charges § A.4)", () => {
   });
 
   it("clé du fournisseur absente → 503 ai_unavailable, avant toute réservation", async () => {
-    expect((await appel(RESUMER, "jeton-pro", { cleAnthropic: null })).corps.code).toBe("ai_unavailable");
+    expect((await appel(RESUMER, "jeton-pro", { cles: { google: "g", anthropic: null } })).corps.code).toBe("ai_unavailable");
     expect(await usage(PRO, "2026-10")).toBeNull();
   });
 });
@@ -420,7 +422,7 @@ describe("ai — ce qui ne sort jamais", () => {
     await appel(RESUMER);
     await appel(RESUMER);
     await appel(RESUMER);
-    await appel(RESUMER, "jeton-pro", { cleAnthropic: null });
+    await appel(RESUMER, "jeton-pro", { cles: { google: null, anthropic: null } });
     await appel(RESUMER, "jeton-pro", {
       depot: { ...depotPGlite(db), reserver: () => Promise.reject(new Error(`boom ${SECRET}`)) },
     });

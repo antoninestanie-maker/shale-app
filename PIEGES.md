@@ -4088,3 +4088,24 @@ refusent `tool_choice` `any` / `tool`. Même famille : `thinking:
 les modèles en service ; et le réglage de réflexion dans `ai_config.thinking`,
 à changer **avec** `model`. Un test (`serveur.test.ts`, « changer de modèle et
 de réflexion ») le garde.
+
+## 25.4 La CLI Supabase perd son autorisation — et `2>/dev/null` la rend muette
+
+**Symptôme.** `npx supabase db query --linked … --output-format json "…" 2>/dev/null
+> sauvegarde.json` « réussit » : le fichier existe, la suite de la commande ne dit
+rien. Le fichier contient en fait
+`{"_tag":"Error","error":{"code":"DbConfigLoginRoleStatusError","message":"unexpected login role status 401 …"}}`.
+
+**Cause.** Le jeton d'accès personnel rangé par `Connecter Supabase.command` n'est
+plus accepté (expiré ou révoqué — il marchait la veille, 2026-09-29). La CLI écrit
+l'erreur en JSON sur la sortie standard, pas sur l'erreur standard : le
+`2>/dev/null` ne la cache pas, il fait croire qu'une sauvegarde a été écrite.
+
+**Parade.** Avant toute écriture en production : une requête témoin SANS
+redirection, et vérifier qu'elle rend des lignes (`"rows":[…]`), pas `"_tag":"Error"`.
+Ne jamais juger une sauvegarde à l'existence de son fichier : lire son contenu.
+Pour rétablir : Antonin double-clique `Connecter Supabase.command` (il colle un
+jeton `sbp_…`, rien d'autre à taper).
+
+**Payé.** 2026-10-01 : la migration 010 n'a pas pu être jouée ; une « sauvegarde »
+vide a été créée puis retirée. Rien n'a été écrit en base.

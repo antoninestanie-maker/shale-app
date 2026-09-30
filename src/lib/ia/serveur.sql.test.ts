@@ -11,7 +11,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { bancIa, commeRole, compte, depotPGlite, iaSql } from "./serveur.testutil";
+import { bancIa, commeRole, compte, depotPGlite, geminiSql, iaSql } from "./serveur.testutil";
 
 const PRO = "10000000-0000-0000-0000-000000000001";
 const ESSAI = "10000000-0000-0000-0000-000000000002";
@@ -193,22 +193,31 @@ describe("008 — réserver et régler", () => {
 });
 
 describe("008 — la migration elle-même", () => {
-  it("inscrit les dix-neuf fonctions de la V1, toutes éteintes", async () => {
+  it("inscrit les dix-neuf fonctions de la V1, toutes éteintes, toutes sur Gemini (010)", async () => {
     const { rows } = await db.query<{ n: number; allumees: number }>(
       "select count(*)::int as n, count(*) filter (where enabled)::int as allumees from public.ai_config",
     );
     expect(rows[0]).toEqual({ n: 19, allumees: 0 });
+    const { rows: fournisseurs } = await db.query<{ provider: string; n: number }>(
+      "select provider, count(*)::int as n from public.ai_config group by provider",
+    );
+    expect(fournisseurs).toEqual([{ provider: "google", n: 19 }]);
     const revue = await depotPGlite(db).config("revue");
-    expect(revue?.model).toBe("claude-sonnet-5");
-    expect(revue?.thinking).toEqual({ type: "disabled" });
+    expect(revue).toMatchObject({ provider: "google", model: "gemini-3.8-flash", thinking: { thinkingLevel: "low" } });
+    expect((await depotPGlite(db).config("brief"))?.model).toBe("gemini-3.5-flash-lite");
   });
 
   it("se rejoue sans erreur et sans écraser un réglage changé", async () => {
-    await db.query("update public.ai_config set enabled = true, model = 'claude-haiku-4-5' where feature = 'resumer'");
+    await db.query("update public.ai_config set enabled = true, model = 'gemini-3.1-flash-lite' where feature = 'resumer'");
     await db.exec(iaSql);
+    await db.exec(geminiSql);
     const c = await depotPGlite(db).config("resumer");
     expect(c?.enabled).toBe(true);
-    expect(c?.model).toBe("claude-haiku-4-5");
+    expect(c?.model).toBe("gemini-3.1-flash-lite");
+    // Le fournisseur n'accepte que deux valeurs.
+    await expect(db.query("update public.ai_config set provider = 'openai' where feature = 'resumer'")).rejects.toThrow(
+      /ai_config_provider_check/,
+    );
     // …et les privilèges sont toujours retirés après le rejeu.
     await expect(
       commeRole(db, "authenticated", PRO, () => db.query("select * from public.ai_config")),

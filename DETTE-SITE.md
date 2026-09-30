@@ -764,3 +764,9 @@ phase H du chantier, **chaque phrase soumise à Antonin avant d'être écrite** 
   du soir (bilan + reports à valider) : à décrire tels quels, avec la limite de
   cinq sujets et le lien de chaque source.
 - Le quota en ACTIONS (400 par mois, 60 pendant l'essai), jamais en jetons.
+
+### T.2 — 2026-10-01 : le fournisseur est Google (Gemini), plus Anthropic
+Partout où le § T parlait d'Anthropic, lire **Google**. Politique de
+confidentialité : Google comme sous-traitant (API Gemini, palier payant). ⚠️ Le
+site est en LISTE D'ATTENTE depuis le 2026-09-30 : toute mention de l'IA dans Pro
+se rend sous `LISTE_ATTENTE` comme le reste de la vente.

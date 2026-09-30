@@ -144,7 +144,7 @@ function deps(): Dependances {
     fonctions: FONCTIONS,
     verifierJeton: async (j) => (j === "jeton-pro" ? PRO : null),
     fetch: fetchMixte,
-    cleAnthropic: "cle",
+    cles: { google: "cle-g", anthropic: "cle" },
     budgetGlobalMicro: 50_000_000,
     maintenant: () => new Date(),
     compterPages: async () => 1,
@@ -197,7 +197,11 @@ const SORTIE_BRIEF = JSON.stringify({
 beforeAll(async () => {
   db = await bancIa();
   await compte(db, PRO, { status: "active", tier: "shale_pro" });
-  await db.query("update public.ai_config set enabled = true where feature in ('brief', 'cloture')");
+  // Ce fichier éprouve la LOGIQUE du brief et de la clôture ; le fournisseur
+  // simulé parle Anthropic. Le transport Gemini a son propre fichier.
+  await db.query(
+    "update public.ai_config set enabled = true, provider = 'anthropic', model = 'claude-haiku-4-5-20251001' where feature in ('brief', 'cloture')",
+  );
 });
 
 afterAll(async () => {

@@ -7031,3 +7031,46 @@ défaut de la clôture.
 consentement (`components/ia/ReglagesIa.tsx`), le catalogue de flux
 (`lib/ia/catalogueFlux.ts`, adresses vérifiées le 2026-09-29), la phrase Pro de
 `UpgradeModal`.
+
+### 2026-10-01 — L'IA de Shale Pro passe sur Gemini (Google)
+
+**Décision d'Antonin** (« je veux changer la clé Claude par une clé Gemini, pour
+avoir quelque chose de plus économique »). Elle remplace la ligne « Fournisseur :
+Anthropic uniquement » du cahier des charges.
+
+**Tarifs relevés le même jour** (ai.google.dev/gemini-api/docs/pricing, palier
+payant, par million de jetons) : `gemini-3.5-flash-lite` 0,30 $ / 2,50 $, contre
+1 $ / 5 $ pour Claude Haiku 4.5 ; `gemini-3.8-flash` 0,75 $ / 3,75 $ jusqu'au
+31/12/2026, puis 1,50 $ / 7,50 $ (annoncé), contre 2 $ / 10 $ pour Sonnet 5.
+Un mois très actif passe de ~2,6 $ à ~1 $.
+
+**Choix des modèles, et pourquoi** : `gemini-3.5-flash-lite` pour tout — stable,
+sans date de retrait annoncée, et sa réflexion est ÉTEINTE par défaut (aucun jeton
+de réflexion facturé). `gemini-3.1-flash-lite` est un peu moins cher mais retiré le
+7 mai 2027. `gemini-3.8-flash` pour la revue (plus de jugement), réflexion « low ».
+
+**Le fournisseur est un réglage, pas un choix de code** : `ai_config.provider`
+(`google` | `anthropic`, migration Supabase **010**). L'adaptateur Claude reste
+(`coeur/anthropic.ts`) : revenir à Claude pour UNE fonction où Gemini déçoit est un
+`update` d'`ai_config`, sans redéployer. `coeur/modele.ts` fait l'aiguillage ;
+`coeur/gemini.ts` parle `generateContent` (clé en en-tête `x-goog-api-key`, jamais
+dans l'URL ; sortie par `responseJsonSchema` ; `inlineData` pour PDF et images ;
+coût depuis `usageMetadata`, cache et réflexion compris ; filtres de Google →
+`refused`).
+
+⚠️ **Palier payant obligatoire** : sur le palier gratuit, Google peut réutiliser le
+contenu pour améliorer ses produits. La clé `GEMINI_API_KEY` doit venir d'un projet
+Google AVEC facturation. Le consentement ne le dit pas encore (« Google ne s'en sert
+pas ») : c'est à Antonin de décider s'il l'écrit, une fois la facturation vérifiée.
+
+⚠️ **Le consentement NOMME le fournisseur** (Google, Gemini) : changer de
+fournisseur pour de bon, c'est changer ce texte ET monter `VERSION_CONSENTEMENT`.
+Resté en `v1` ici parce qu'aucun utilisateur ne l'a encore vu.
+
+⚠️ **Gemini ne connaît que les formats `date`, `date-time`, `time`** dans un schéma :
+`pourGemini` retire les autres (`uri`) avant l'envoi, et le cœur revalide la sortie
+avec le schéma complet — un lien mal formé est toujours rejeté.
+
+**État** : 93 tests IA verts (dont 10 pour Gemini). La 010 n'est **pas jouée** en
+production (la CLI Supabase a répondu 401, PIEGES § 25.4) ; sans conséquence tant
+que la fonction `ai` n'est pas déployée.
