@@ -1474,3 +1474,25 @@ identiques (56 tâches, 21 notes, 4 habitudes). Fenêtre de trousseau ouverte :
 **Pas vérifié** : l'app installée à la main par Antonin ; la bulle de deux
 secondes sous un vrai curseur (testée en happy-dom seulement) ; l'iPhone réel.
 Pièges : `PIEGES.md` § 29.
+
+### 11.p bis Le 2026-10-01 — un liseré par type dans la feuille de route
+
+Antonin trouvait encore qu'on s'y perdait : « de légers liserés autour des
+étapes, d'autres pour les tâches ». Quatre maquettes proposées (cartes
+emboîtées, arborescence, bandeaux, un liseré par type) ; **il a choisi la D**,
+et demandé qu'une légende dise quelle icône est quoi.
+
+- **Phase** : cadre marqué (1,5 px, `border-strong`, 14 px d'arrondi, fond
+  `surface`). **Sous-objectif** : cadre en **pointillé**. **Tâche** (et note,
+  fiche, événement rattachés) : sa propre **pastille** au liseré fin, fond
+  `overlay` (`PASTILLE_ELEMENT`). Le panneau « Compter des éléments / Atteindre
+  un nombre » a perdu son fond gris : les pastilles suffisent.
+- **Légende** en tête, à côté de « Feuille de route » : dossier = Phase,
+  cible = Sous-objectif, case = Tâche (`Legende`). Un nom par icône, pas
+  d'explication.
+
+**Vérifié** en démo : clair/FR, sombre/EN à 1280, iPhone émulé à 390. `tsc`,
+i18n (2281), `vite build`. Tests : 1713/1714 — l'échec restant
+(`finance/facturation/demo.test.ts`, « le solde composé MONTE ») **existe aussi
+sans ce changement** : il dépend du jour du mois (vu le 1er octobre). Proposé
+en session séparée.

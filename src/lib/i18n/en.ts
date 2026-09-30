@@ -3049,4 +3049,7 @@ export const EN: Record<string, string> = {
   "source introuvable": "source not found",
   "Une étape avance quand tu coches ses tâches, ou quand tu atteins un nombre que tu t'es fixé (50 séances, 10 pages…). Sa priorité — faible, moyenne ou élevée — dit par où commencer.":
     "A step moves forward when you check off its tasks, or when you reach a number you set (50 sessions, 10 pages…). Its priority — low, medium or high — tells you where to start.",
+
+  // ── Un liseré par type dans la feuille de route (2026-10-01) ──
+  "Légende": "Legend",
 };

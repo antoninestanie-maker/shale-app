@@ -109,7 +109,12 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
     <div className="mt-6">
       {/* ⭐ Le bloc dit SON NOM : sans lui, on ne savait pas qu'on regardait
           « la feuille de route », donc pas davantage ce qu'on pouvait y ajouter. */}
-      {etapes.length > 0 && <h3 className="hud-label mb-1 px-1">{t("Feuille de route")}</h3>}
+      {etapes.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1">
+          <h3 className="hud-label">{t("Feuille de route")}</h3>
+          <Legende />
+        </div>
+      )}
 
       <ListeEtapes {...p} parent={racine} etapes={etapes} />
 
@@ -256,7 +261,16 @@ function LigneEtape(p: PropsLigne) {
     <div
       data-frere-de={etape.parent_goal_id ?? ""}
       data-etape={etape.id}
-      className={`rounded-[10px] ${p.enGlissement != null ? "relative z-10 bg-surface-2 shadow-lg" : ""}`}
+      /* ⭐ UN LISERÉ PAR TYPE (2026-10-01, variante D choisie par Antonin sur
+         quatre maquettes : « pour bien voir la distinction entre chaque item
+         sans se perdre »). Phase : cadre marqué ; sous-objectif : cadre en
+         pointillé ; tâche : sa propre pastille (`ListeElements`). La légende
+         en tête de la feuille de route dit lequel est lequel. */
+      className={`mb-2 px-1.5 py-1 ${
+        estJalon
+          ? "rounded-[14px] border-[1.5px] border-border-strong bg-surface"
+          : "rounded-[10px] border border-dashed border-border-strong"
+      } ${p.enGlissement != null ? "relative z-10 bg-surface-2 shadow-lg" : ""}`}
       style={p.enGlissement != null ? { transform: `translateY(${p.enGlissement}px)` } : undefined}
     >
       {/* ⭐ Deux blocs, et le repli se fait ENTRE eux, jamais dedans : poignée,
@@ -401,7 +415,7 @@ function LigneEtape(p: PropsLigne) {
 
       {ouvert && (
         <div
-          className="ml-5 pb-2 sm:ml-12"
+          className="ml-3 pb-1.5 sm:ml-9"
           /* ⚠️ Toucher à une étape ouverte D'OFFICE fige son ouverture. Sans ça,
              rattacher l'élément qui la termine la replie sous les doigts, champ
              de saisie compris — vu à l'écran le 2026-09-15 : on tapait dans un
@@ -884,7 +898,7 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal }) {
   }
 
   return (
-    <div className="mt-1 rounded-[10px] bg-surface-2/60 px-2 py-2">
+    <div className="mt-1 px-1 py-1">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-[8px] border border-border text-[11px]" role="radiogroup" aria-label={t("Comment cette étape avance")}>
           {(["elements", "nombre"] as const).map((x) => (
@@ -995,7 +1009,7 @@ function ListeElements(props: {
                pas le repli, il comprime (règle du 2026-07-26). */
             <li
               key={`t${tache.id}`}
-              className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface"
+              className={PASTILLE_ELEMENT}
               onContextMenu={(e) => menu.ouvrirAuPoint(e, tache)}
             >
               {recurrente ? (
@@ -1070,7 +1084,7 @@ function ListeElements(props: {
           return (
             /* Même repli que la ligne de tâche, et pour la même raison : son
                libellé de droite (« note, ne compte pas ») est plus long encore. */
-            <li key={`${r.kind}:${r.uid}`} className="flex flex-wrap items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface">
+            <li key={`${r.kind}:${r.uid}`} className={PASTILLE_ELEMENT}>
               {r.kind === "event" ? (
                 <Coche faite={passe} />
               ) : (
@@ -1265,6 +1279,40 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Le liseré des éléments, et sa légende ───────────────────────────────────
+
+/**
+ * La pastille d'une tâche (ou d'une note, d'un événement rattachés) : son
+ * propre liseré fin, sur un fond à peine teinté — ce qui la distingue d'une
+ * étape au premier coup d'œil (variante D, 2026-10-01).
+ */
+const PASTILLE_ELEMENT =
+  "my-1 flex flex-wrap items-center gap-2 rounded-[8px] border border-border bg-overlay px-2 py-1 text-sm transition-colors hover:border-border-strong";
+
+/**
+ * ⭐ LA LÉGENDE — demandée par Antonin avec la variante D : « il faut que
+ * quelque part soit noté que le rond est […] le fichier une étape ». Les mêmes
+ * icônes que les lignes (dossier, cible, case), une seule fois, en tête.
+ * Un NOM pour chaque icône, pas une explication : celles-là restent dans les
+ * bulles longues.
+ */
+function Legende() {
+  const item = "inline-flex items-center gap-1";
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim" aria-label={t("Légende")}>
+      <span className={item}>
+        <IconFolder className="h-3.5 w-3.5" aria-hidden /> {nomDeGenre("jalon")}
+      </span>
+      <span className={item}>
+        <IconTarget className="h-3.5 w-3.5" aria-hidden /> {nomDeGenre("sous-objectif")}
+      </span>
+      <span className={item}>
+        <span className="h-3 w-3 rounded-[3px] border-[1.5px] border-current" aria-hidden /> {t("Tâche")}
+      </span>
+    </p>
   );
 }
 

@@ -851,3 +851,10 @@ flamme, l'habitude qui la compte.
 - **Les explications attendent** : `data-tip-attente="longue"` (2 s) pour une
   bulle qui EXPLIQUE ; la bulle ordinaire (400 ms) pour un NOM.
 
+### La feuille de route — un liseré par type (2026-10-01)
+
+Choisie par Antonin (variante D sur quatre). **Phase** = cadre plein marqué,
+**sous-objectif** = cadre en pointillé, **tâche** = pastille au liseré fin sur
+fond `overlay`. Une légende (dossier, cible, case) en tête de la feuille de
+route. Ne pas ajouter de fond gris aux panneaux internes : l'emboîtement de
+cadres suffit, un fond de plus brouille les niveaux.
