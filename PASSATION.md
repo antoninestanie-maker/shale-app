@@ -137,6 +137,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | Arbre | ✅ **propre** |
 | Poussé ? | ✅ **oui**, `origin/mobile-ios` à jour au 2026-09-18 (le dépôt du site aussi). Pour pousser sans Terminal : double-cliquer `Envoyer sur GitHub.command` |
 | App installée | ✅ `/Applications/Shale.app`, binaire du **2026-09-16 à 10:38**, 21,2 Mo. C'est la version qui porte la feuille de route des objectifs |
+| App installée — mise à jour | ⭐ **2026-09-30 à 11:25**, mobile-ios `0467fa8` : trading mis de côté (§ 11.x du 2026-09-30) |
 | App en fonctionnement | ✅ **elle tourne** (processus `shale`, vue le 2026-09-18) |
 | Base de données | ✅ **version 27** (`_sqlx_migrations`, 027 `corbeille` jouée le 2026-09-23 à 19:20 sur la vraie base : integrity ok, 0 violation FK, comptes identiques à la sauvegarde `shale-backups/avant-menus-corbeille-20260923-1914/`), 47 tables |
 | Contenu réel | ✅ 3 objectifs · 2 tâches · 14 notes · 1 trade · 0 profil de licence |
@@ -1389,8 +1390,21 @@ trading dans la démo » vu rouge sur l'ancienne démo), `tsc`, `test:types`,
 `i18n:check` (0 manquante), `i18n:durs` (0 sûrement française), `vite build`.
 Aucune ligne de Rust touchée, aucune migration.
 
+- ✅ **Installé le 2026-09-30 à 11:25** (mobile-ios `0467fa8`, build seul :
+  rien d'autre n'était prêt) : témoins dans `dist/assets` (« Règle son point de
+  départ et son rythme » 2, « séances, €, pages » 2, « Prospection 1 h » 2),
+  0 pour « ex. Backtester 1 h », « Passer trader full-time », « Setup cassure
+  H4 » ; sha256 installée = source (`d14a5c11…`, ancienne `3c28746c…`) ; base
+  en 28 avant et après, integrity ok, FK 0, comptes identiques (1 trade,
+  78 objectifs, 52 tâches, 21 notes) à `Shale-chantiers/sauvegardes/
+  avant-sans-trading-20260930-1121/` (copie aussi sur Crucial X6).
+  ⚠️ L'app ouverte attendait depuis 10:50 la fenêtre de trousseau du build
+  Tâches : arrêtée et relancée (`PIEGES.md` § 28.4). **Une fenêtre de trousseau
+  attend Antonin** (« Toujours autoriser »).
+
 **⛔ Pas prouvé.** **Rien n'a été vu à l'écran** : le patch de démo du § 13.2 a
-été refusé par le mode automatique (`PIEGES.md` § 26.2, § 28.3). Et les **26
+été refusé par le mode automatique (`PIEGES.md` § 26.2, § 28.3), et l'app
+installée n'a pas été regardée non plus. Et les **26
 captures du site montrent encore la démo trader** — même refus
 (`DETTE-SITE.md` § W.1).
 

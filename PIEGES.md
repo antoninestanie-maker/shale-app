@@ -3899,3 +3899,26 @@ Ne pas le contourner.
 **Conséquence.** Un chantier qui change ce que montrent les captures (ici : la
 démo trader devenue indépendant) laisse le site en retard tant qu'Antonin n'a
 pas autorisé l'action. Le dire dans `DETTE-SITE.md`, pas seulement ici.
+
+## 28.4 ⚠️⚠️ « Quitter » ne répond pas quand une fenêtre de trousseau attend — et l'installation part quand même
+
+**Symptôme.** 2026-09-30, 11:24 : `osascript -e 'tell application "Shale" to
+quit'` échoue après deux minutes (« Délai dépassé pour un AppleEvent »,
+-1712). La commande enchaînée par `;` a lancé `ditto` quand même : le binaire
+a été remplacé sous une app encore ouverte.
+
+**Cause.** Le build précédent (10:49) avait changé le binaire ; au lancement,
+macOS a ouvert sa fenêtre de trousseau, et personne n'avait cliqué. L'app
+était **bloquée derrière elle** depuis 10:50 : elle ne traitait aucun
+AppleEvent, et n'avait même pas ouvert la base (`lsof -p <pid> | grep
+shale.db` : 0). Deux builds dans la même matinée, et Antonin absent.
+
+**Parade.** Avant d'installer : `pgrep -l SecurityAgent` et `lsof -p $(pgrep -x
+shale) | grep -c shale.db`. Si une fenêtre attend et que la base n'est pas
+ouverte, `kill <pid>` est sans risque (rien à écrire), et relancer sur la
+neuve remplace DEUX fenêtres à venir par une seule. **Enchaîner l'installation
+par `&&` après une vérification « fermée », jamais par `;`.**
+
+**Payé.** Rien : l'app n'avait pas la base ouverte, et `ditto` a écrit une
+copie complète (condensat vérifié). Mais sur une app qui écrivait, ce `;`
+remplaçait le binaire sous ses pieds.
