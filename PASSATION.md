@@ -1496,3 +1496,9 @@ i18n (2281), `vite build`. Tests : 1713/1714 — l'échec restant
 (`finance/facturation/demo.test.ts`, « le solde composé MONTE ») **existe aussi
 sans ce changement** : il dépend du jour du mois (vu le 1er octobre). Proposé
 en session séparée.
+
+**Installé le 2026-10-01 à 00:41** (build de `4cdc44a`, code 0) : sha256
+installée = source (`b2a72863…`, ancienne `3f338570…`), `diff -r` identique.
+Sauvegarde `Shale-chantiers/sauvegardes/avant-liseres-20261001-0033/`. Aucune
+migration : base en 30 avant et après, integrity ok, FK 0, 79 objectifs,
+56 tâches. Fenêtre de trousseau ouverte : « Toujours autoriser » attend Antonin.
