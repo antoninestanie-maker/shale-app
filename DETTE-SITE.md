@@ -641,7 +641,14 @@ ligne doit s'ajouter, c'est dans la liste du Timer de `Fonctionsavancer.astro`,
 descriptive : « Le chrono dans sa propre fenêtre, à poser sur un second écran. »
 À n'écrire **qu'après** le build natif qui l'installe.
 
-### U.3 — Une capture « séance en cours » manque
+### U.3 — ✅ Capture FAITE le 2026-09-30 au soir — ⛔ pas branchée
+
+*`shoot-v2.mjs` lance une séance en dernier et écrit `dark-timer-seance.webp`
+et `light-timer-seance.webp` (horloge à volets 24 | 56, Pause, Terminer, Plein
+écran, Fenêtre séparée). En ligne à leur adresse, mais **aucune page ne les
+affiche** : `timer.webp` reste le lanceur, que la fiche du module décrit
+(« TIMER · 25 · 5 », `Modules.astro`). Où la montrer est une décision de page,
+à prendre avec Antonin. Ce qui suit est le constat d'origine.*
 
 L'horloge à volets est la partie la plus montrable du module, et aucune capture
 du site ne montre une séance lancée. À ajouter au générateur de captures v2
@@ -655,7 +662,10 @@ quand l'app installée la porte.
 étiquettes », « Chaque tâche peut être rattachée à un objectif », « Ce qui est
 coché part tout seul dans le journal » — tout reste vrai.
 
-### V.2 — Deux captures sont périmées
+### V.2 — ✅ FAIT le 2026-09-30 au soir (avec W.1, site `7be4f7d`)
+
+*`dark-taches.webp` et `light-taches.webp` montrent la vue rangée par moment
+(En retard / Aujourd'hui / Faites). Ce qui suit est le constat d'origine.*
 
 `public/shots/v2/dark-taches.webp` et `light-taches.webp` montrent l'ancienne
 liste plate (filtres de statut, point de priorité, panneau des tags). À
@@ -674,7 +684,16 @@ section du 2026-09-30). Le site a été nettoyé le même jour (branche
 exemple « 50 backtests » de Fonctionnalités → Avancer, 113 traductions
 orphelines, table de relabellisation de `shoot-v2.mjs`. Ce qui reste :
 
-### W.1 — ⛔ Les 26 captures `public/shots/v2/` montrent encore la démo TRADER
+### W.1 — ✅ FAIT le 2026-09-30 au soir (site `7be4f7d`, en ligne)
+
+*Patch démo autorisé par Antonin pour la session ; retiré ensuite (`grep -r
+AUDIT-TEMP src/` = 0, `git diff --exit-code src/lib/auth/` passe). Les 26
+captures refaites depuis mobile-ios `b35974d` — la démo d'un indépendant — et
+**regardées une par une**, avec les deux nouvelles de U.3 : 28 images, clair
+et sombre, bureau et iPhone, aucun mot de trading, aucun mur de connexion,
+aucun « mode démo ». Sur www.shaleapp.com, les images servies sont identiques
+octet pour octet (condensat comparé). Détail : JOURNAL du site, 2026-09-30
+(soir). Ce qui suit est le constat tel qu'il avait été écrit.*
 
 Accueil, Fonctionnalités, Modules : « Passer trader full-time », « Revue des
 trades de la veille », tag « Trading », Notes ouvert sur « Setup cassure H4 »,

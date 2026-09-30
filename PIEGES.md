@@ -3922,3 +3922,33 @@ par `&&` après une vérification « fermée », jamais par `;`.**
 **Payé.** Rien : l'app n'avait pas la base ouverte, et `ditto` a écrit une
 copie complète (condensat vérifié). Mais sur une app qui écrivait, ce `;`
 remplaçait le binaire sous ses pieds.
+
+## 28.5 ⚠️ Outil — sous vite, un module chargé à la demande se photographie « Ouverture du module… »
+
+**Symptôme.** 2026-09-30, première passe de `shale-site/vitrine/tools/shoot-v2.mjs`
+sur l'app en démo : `light-taches.webp` écrit, coché ✓… et l'image montre une
+page vide avec « Ouverture du module… » au centre. L'outil n'a rien signalé.
+
+**Cause.** Les vues sont en `React.lazy`. Sous `npx vite` (dev), le premier
+affichage d'un module compile et charge son code à la volée : plusieurs
+secondes, bien plus que les 900 ms que l'outil attendait après le clic. Une
+fois chargé, le même module s'affiche d'un coup — d'où une passe « à moitié
+bonne » qui passe inaperçue si on ne regarde pas CHAQUE image.
+
+**Parade.** Après chaque changement de module, attendre que le texte
+« Ouverture du module » ait disparu de la page (fait dans `shoot-v2.mjs`,
+20 s au plus, sinon arrêt sans écrire). Et toujours ouvrir les images avant de
+les publier : le ✓ de l'outil dit qu'un fichier existe, pas ce qu'il montre.
+
+**Payé.** Rien : vu à la relecture, avant tout commit.
+
+## 28.6 Une note sur iPhone coupe son titre à ~14 caractères
+
+**Constat (2026-09-30, captures iPhone du site).** Dans l'éditeur de note en
+largeur téléphone (390 px), le titre partage sa ligne avec « ENREGISTRÉE » et
+« supprimer » : « Méthode de devis » s'affiche « Méthode de de », coupé net,
+sans points de suspension. C'est l'écran de l'app, pas l'outil de capture.
+
+**Parade provisoire.** Les captures iPhone du site ouvrent « Tarifs 2026 »,
+qui tient. **Non corrigé dans l'app** : l'en-tête devrait passer les actions
+sous le titre, ou au moins tronquer avec « … ».

@@ -1407,6 +1407,11 @@ Aucune ligne de Rust touchée, aucune migration.
 installée n'a pas été regardée non plus. Et les **26
 captures du site montrent encore la démo trader** — même refus
 (`DETTE-SITE.md` § W.1).
+✅ *Corrigé le 2026-09-30 au soir : patch démo autorisé par Antonin, les 26
+captures refaites, regardées et en ligne (site `7be4f7d`, `DETTE-SITE.md`
+§ W.1). Du même coup, l'interface sans trading a été VUE en mode démo — dix
+modules, deux thèmes, bureau et iPhone. L'app installée, elle, ne l'a
+toujours pas été.*
 
 **Site** (dépôt du site, branche `chantier/sans-trading-site`) : encadré de fin
 des articles (« calcul de position, sessions de marché »), exemple « 50
