@@ -686,7 +686,12 @@ en mode démo — **refusé par le mode automatique** (`PIEGES.md` § 26.2 et
 `node tools/shoot-v2.mjs`. Profiter du même passage pour V.2 (vue Tâches) et
 U.3 (Timer).
 
-### W.2 — ⛔ PROPOSÉ, pas écrit : l'avertissement des mentions légales
+### W.2 — ✅ FAIT le 2026-09-30 (validé par Antonin) : l'avertissement des mentions légales
+
+*Écrit et mis en ligne le soir même, avec une correction d'exactitude en plus
+(« exclusivement sur les valeurs saisies » était faux pour Finance) et la
+version affichée montée à 1.3 — détail dans le JOURNAL du site. Ce qui suit est
+la proposition telle qu'elle avait été faite.*
 
 `legal.json` / `legal.en.json`, mentions légales, section « Avertissement sur
 les marchés financiers » : « logiciel de préparation, de calcul et de
