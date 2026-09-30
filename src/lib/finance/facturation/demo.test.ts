@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { demo } from "../../demo";
 import { todayStr } from "../../logic";
 import { burnMensuel } from "../burn";
 import { patrimoineAu } from "../patrimoine";
-import { runway } from "../runway";
+import { moisAffiches, runway } from "../runway";
 import { collisionsNumeros, compteursEnRetard } from "./collisions";
 import { encours } from "./creances";
 import { runwayAvecCreances, echeancesAttendues } from "./runway-creances";
@@ -195,6 +195,99 @@ describe("⭐ la démo de facturation est COHÉRENTE avec les soldes de démo", 
     expect(clients.nbEnRetard).toBeGreaterThan(0);
     expect(fournisseurs.totalCents).toBeGreaterThan(0);
   });
+});
+
+/**
+ * Les jours à balayer : chaque jour d'une année entière (tous les débuts et fins
+ * de mois, 28, 30 et 31 jours, le passage d'année), plus la fin de février d'une
+ * année bissextile.
+ */
+function joursABalayer(): string[] {
+  const out: string[] = [];
+  const ajouter = (debut: Date, n: number) => {
+    for (let i = 0; i < n; i++) {
+      const d = new Date(debut.getFullYear(), debut.getMonth(), debut.getDate() + i);
+      out.push(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      );
+    }
+  };
+  ajouter(new Date(2026, 9, 1), 365);
+  ajouter(new Date(2028, 1, 25), 10);
+  return out;
+}
+
+describe("⭐ la démo tient À N'IMPORTE QUEL JOUR du mois (PIEGES § 30)", () => {
+  // Sans ce balayage, le test du solde composé est tombé le 1er octobre 2026
+  // SANS qu'une ligne de code ait changé : les relevés de la démo étaient datés
+  // du 1er du mois courant, et les encaissements récents (J-3, J-5) tombaient
+  // AVANT eux du 1er au 4 de chaque mois. Les tests du haut ne vérifient que
+  // le jour où ils tournent ; celui-ci vérifie tous les jours.
+  //
+  // Seule `Date` est simulée : les timers restent réels. Le module de démo est
+  // rechargé pour chaque jour, puisqu'il construit son jeu à l'import.
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+    vi.resetModules();
+  });
+
+  it("solde composé, runway, encours et situations — jour par jour", async () => {
+    const fautifs: string[] = [];
+
+    for (const jour of joursABalayer()) {
+      vi.setSystemTime(new Date(`${jour}T12:00:00`));
+      vi.resetModules();
+      const { demo: d } = await import("../../demo");
+      const fin = await d.fetchFinance();
+      const fac = await d.fetchFacturation();
+      const auj = todayStr();
+      expect(auj).toBe(jour);
+
+      const { mouvements } = mouvementsDeTresorerie(fac.factures, fac.paiements, fin.comptes);
+      const nu = patrimoineAu(fin.comptes, fin.balances, auj);
+      const compose = patrimoineAu(fin.comptes, fin.balances, auj, undefined, mouvements);
+      const burn = burnMensuel(fin.recurrents, auj);
+      const prudent = runway(compose.liquideCents, burn, auj);
+      const avec = runwayAvecCreances(
+        compose.liquideCents,
+        burn,
+        echeancesAttendues(fac.factures, fac.paiements, auj),
+        auj,
+      );
+      const nuRunway = runway(nu.liquideCents, burn, auj);
+      const clients = encours(fac.factures, fac.paiements, "vente", auj);
+      const fournisseurs = encours(fac.factures, fac.paiements, "achat", auj);
+      const statuts = fac.factures.map((x) =>
+        etatFacture(x, fac.paiements.filter((p) => p.invoice_id === x.id), auj),
+      );
+
+      const echecs = [
+        compose.liquideCents > nu.liquideCents || "solde composé = solde nu",
+        (nu.sansReleve === 0 && nu.lignes.every((l) => !l.perime)) || "relevé manquant ou périmé",
+        (prudent.etat === "ok" && avec.etat === "ok") || "runway incalculable",
+        (avec.mois as number) > (prudent.mois as number) || "runway avec créances pas meilleur",
+        (nuRunway.etat === "ok" &&
+          moisAffiches(nuRunway.mois as number) > 5 &&
+          moisAffiches(nuRunway.mois as number) < 11) ||
+          "runway de la démo Finance hors fourchette",
+        (clients.totalCents > 0 && clients.nbEnRetard > 0 && fournisseurs.totalCents > 0) ||
+          "encours vide",
+        (statuts.some((e) => e.statut === "encaissee") &&
+          statuts.some((e) => e.statut === "partiellement_encaissee") &&
+          statuts.some((e) => e.enRetard)) ||
+          "situation de facture manquante",
+      ].filter((r): r is string => typeof r === "string");
+
+      if (echecs.length) fautifs.push(`${jour} : ${echecs.join(", ")}`);
+    }
+
+    // Un seul `expect` pour la liste entière : un échec montre TOUS les jours
+    // fautifs d'un coup, pas seulement le premier.
+    expect(fautifs).toEqual([]);
+  }, 60_000);
 });
 
 describe("les écritures de démo ont la MÊME SÉMANTIQUE que le natif", () => {

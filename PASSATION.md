@@ -1502,3 +1502,29 @@ installée = source (`b2a72863…`, ancienne `3f338570…`), `diff -r` identique
 Sauvegarde `Shale-chantiers/sauvegardes/avant-liseres-20261001-0033/`. Aucune
 migration : base en 30 avant et après, integrity ok, FK 0, 79 objectifs,
 56 tâches. Fenêtre de trousseau ouverte : « Toujours autoriser » attend Antonin.
+
+### 11.d Le 2026-10-01 — la démo Finance tient n'importe quel jour du mois
+
+`finance/facturation/demo.test.ts` (« le solde composé MONTE ») tombait du 1er
+au 4 de chaque mois, sans changement de code : les relevés de la démo étaient
+datés du 1er du mois courant, et les encaissements récents (J-3, J-5) tombaient
+avant eux, donc absorbés par le solde composé (PIEGES § 30.1).
+
+- **`demo.ts`** : le dernier relevé de chaque compte a toujours au moins une
+  semaine (`debutDeMois(addDays(todayStr(), -7))`). Du 8 à la fin du mois,
+  rien ne change ; du 1er au 7, la courbe s'arrête au 1er du mois précédent.
+- **Le test** balaie chaque jour du 01/10/2026 au 30/09/2027, plus du 25/02 au
+  05/03/2028 (bissextile) : solde composé > solde nu, aucun relevé manquant ni
+  périmé, runway calculable et meilleur avec créances, runway de la démo
+  Finance entre 5 et 11 mois, encours non vides, les trois situations de
+  facture. Contre-épreuve : l'ancienne datation y fait lister 52 jours
+  (1 à 4 de chaque mois), et rien d'autre.
+
+**Vérifié** : les quatre fichiers de test qui lisent la démo passent sous six
+dates simulées (01/10, 07/10, 15/10, 31/10/2026, 29/02 et 01/03/2028). `tsc`,
+`test:types`, i18n (2281), `vite build`. Suite complète 1713/1715 sous une
+charge machine de 118 : les deux échecs sont les tests de volume de
+`sync/engine.test.ts` (expirés à 35 s), 33/33 relancés seuls.
+
+**Aucun build natif** : la démo ne sert que hors Tauri (`repo.ts`, `isTauri`).
+Les captures du site ne changent pas (prises un 30, hors de la fenêtre).

@@ -3988,3 +3988,51 @@ soit son rang. La 029 passera donc après la 030. **Ce qu'il faut tenir** :
 même ordre que le code les déclare, et le chantier qui fusionne la 029 l'insère
 AVANT la 030 dans les deux (conflit d'ajout trivial).
 
+
+# 30. Un test de démo qui dépend du jour du mois (2026-10-01)
+
+## 30.1 ⚠️ Des données datées « depuis aujourd'hui » et d'autres calées sur le 1er du mois se croisent une fois par mois
+
+**Symptôme.** Le 1er octobre 2026, `finance/facturation/demo.test.ts` tombe sur
+« le solde composé MONTE par rapport au solde nu » (`expected 1056967 to be
+greater than 1056967`) sans qu'une ligne de code ait changé — y compris sur
+origin/mobile-ios vierge. Deux chantiers l'ont vu la même nuit et l'ont pris
+pour une régression de l'autre. En démo, la section Facturation de Finance ne
+montrait rien ces jours-là.
+
+**Cause.** Dans `demo.ts`, les relevés de solde étaient datés du **1er du mois
+courant** (`debutDeMois(todayStr())`), les encaissements **depuis aujourd'hui**
+(J-3, J-5, J-25, J-38). `patrimoineAu` n'ajoute que les mouvements
+**strictement après** le dernier relevé. Du 1er au 4 de **chaque** mois,
+l'encaissement le plus récent (J-3) tombait au plus tard le jour du relevé :
+tout était absorbé, solde composé = solde nu. Balayage sur 375 jours simulés :
+exactement les jours 1 à 4 de chaque mois, et aucun autre test touché.
+
+**Parade.** Le dernier relevé de la démo a toujours au moins une semaine
+(`debutDeMois(addDays(todayStr(), -7))`) : du 1er au 7, c'est celui du mois
+précédent (37 jours au plus, sous le seuil de péremption de 45). Et le test
+balaie désormais **chaque jour d'une année** plus la fin de février 2028
+(`vi.useFakeTimers({ toFake: ["Date"] })`, `vi.resetModules()` puis
+`await import("../../demo")` par jour — la démo construit son jeu à l'import).
+Contre-épreuve faite : remis à l'ancienne datation, le balayage liste les 52
+jours fautifs et eux seuls. **Règle générale** : un jeu de données qui mélange
+des dates relatives à aujourd'hui et des dates calées sur un calendrier
+(1er du mois, lundi, 1er janvier) a des jours où leur ordre s'inverse. Le test
+qui les compare doit tourner sur tous les jours, pas sur celui où on le lance.
+
+**Payé.** Une nuit de pipelines rouges pour deux chantiers ([P-priorites],
+[X-ia-pro]), chacun vérifiant que ce n'était pas le sien.
+
+## 30.2 Outil — faire tourner vitest sous une date simulée
+
+`vitest run --setupFiles …` n'existe pas en ligne de commande (vitest 3.2 :
+« Unknown option »). Passer par une config enveloppe hors du dépôt
+(`mergeConfig` de `vitest.config.ts`, `root` = le worktree,
+`test.setupFiles` = un fichier qui fait `vi.useFakeTimers({ toFake: ["Date"] })`
+puis `vi.setSystemTime(...)`). ⚠️ Si l'enveloppe vit hors du dépôt (scratchpad),
+elle ne trouve pas le paquet `vitest` : lui donner un lien `node_modules`.
+⚠️ **Ne pas lancer un processus vitest par date en parallèle** : six à la fois
+ont poussé la charge de la machine au-delà de 100 et fait expirer les tests de
+volume (`sync/engine.test.ts`, 35 s) des autres sessions. Pour balayer beaucoup
+de jours, boucler **dans un seul test** avec `vi.resetModules()` (§ 30.1 :
+375 jours en 5 s).

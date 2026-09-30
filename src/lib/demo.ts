@@ -661,14 +661,22 @@ const financeAccounts: FinanceAccount[] = (
 }));
 
 /**
- * Treize relevés mensuels par compte, du plus ancien à ce mois-ci.
- * Le compte courant descend (on brûle), le livret s'entame doucement, le PEA
- * monte : c'est ce que la courbe du patrimoine doit raconter.
+ * Treize relevés mensuels par compte, datés du 1er, du plus ancien au plus
+ * récent. Le compte courant descend (on brûle), le livret s'entame doucement,
+ * le PEA monte : c'est ce que la courbe du patrimoine doit raconter.
+ *
+ * ⚠️ Le plus récent a TOUJOURS au moins une semaine (PIEGES § 30). Le solde
+ * composé n'ajoute que les encaissements STRICTEMENT APRÈS le dernier relevé ;
+ * or ceux de la démo sont datés depuis aujourd'hui (J-3, J-5…). Calé sur le 1er
+ * du mois courant, le relevé les avalait du 1er au 4 : la section Facturation
+ * ne montrait rien, et `facturation/demo.test.ts` tombait. Du 1er au 7, le
+ * dernier relevé est donc celui du mois précédent — 37 jours au plus, sous le
+ * seuil de péremption de 45 (`patrimoineAu`).
  */
 const financeBalances: FinanceBalance[] = (() => {
-  const debut = debutDeMois(todayStr());
+  const debut = debutDeMois(addDays(todayStr(), -7));
   const trajectoires: Record<number, [number, number]> = {
-    // id de compte → [solde il y a 12 mois, solde ce mois-ci], en centimes
+    // id de compte → [solde 12 mois avant le dernier relevé, solde au dernier relevé], en centimes
     1: [1_020_000, 385_000],
     2: [780_000, 450_000],
     3: [190_000, 240_000],
