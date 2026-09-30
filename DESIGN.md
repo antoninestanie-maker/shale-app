@@ -824,3 +824,19 @@ flamme, l'habitude qui la compte.
   `text-red`) ; barre fine + pourcentage `text-3xl font-extrabold` ; UNE phrase
   d'origine ; puis la feuille de route, sans retrait ni filet à gauche.
 - Pas de dégradé, pas de pastille de compte, pas d'action au survol seul.
+
+### La vue Tâches — rangée par moment (2026-09-30)
+
+- **Colonne unique** `max-w-4xl`, sans grille : en-tête (titre + UNE ligne de
+  résumé « 4 tâches aujourd'hui · 1 en retard »), ligne d'ajout rapide (surface,
+  `+` en `text-dim`, bordure bleue au focus), rangée de filtres (tags en pilules
+  avec leur point de couleur, « Gérer », recherche à droite), puis UNE `card`.
+- **Sections** : intertitre `hud-label` + compte en `text-xs text-dim` + chevron ;
+  « En retard » en `text-red`. Toutes repliables ; « Faites » repliée d'office.
+- **Ligne** : case (contour = priorité : `--color-red` haute, `--color-yellow`
+  moyenne, neutre basse ; cochée, `bg-success` comme partout), libellé
+  `text-sm` qui ouvre la tâche, UNE ligne `text-xs text-dim` dessous (échéance
+  — en rouge si passée —, créneau, ↻ rythme, cible + objectif, « reportée n
+  fois » en `text-yellow`), tag en pilule `color-mix` à droite, « ⋯ ».
+- **Au doigt** : pas de « · » dans la méta, le tag y passe (point de couleur).
+- Pas de dégradé, pas de pastille de compte, pas d'action au survol seul.

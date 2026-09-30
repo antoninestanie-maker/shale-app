@@ -3118,3 +3118,16 @@ l'habitude « Méditation », « 1/30 · 🔥 Méditation »).
    le retour tout en haut — à vérifier sous la Dynamic Island, sur l'appareil.
 5. Le menu « ⋯ » de la fiche (Ajouter une étape, Modifier…, Supprimer) est le
    menu contextuel commun : vu en anglais au bureau, pas au doigt.
+
+## 27. Dettes iOS — la vue Tâches rangée par moment (2026-09-30)
+
+Vue à 390 pt **en émulation seulement** (Chrome piloté), jamais sur un iPhone.
+
+1. **La rangée des tags défile à l'horizontale** ; « Gérer » est au bout, hors
+   de l'écran quand il y a plus de trois tags. À vérifier qu'on le trouve.
+2. **Toucher le libellé ouvre la tâche** (`TaskModal`) : vérifier qu'un défilement
+   qui commence sur une ligne ne l'ouvre pas.
+3. La coche qui reste 1,2 s avant de rejoindre « Faites » : vérifier que le
+   défilement ne saute pas quand la ligne part.
+4. Le tag passe dans la méta au doigt, les « · » y disparaissent (`PIEGES.md`
+   § 27.2).

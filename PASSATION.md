@@ -240,7 +240,7 @@ sont pas des régressions (`PIEGES.md` § 1.2 ter).
 | Module | Ce qu'il fait | À savoir |
 |---|---|---|
 | **Aujourd'hui** | le tableau de bord : widgets redimensionnables sur une grille, tâches du jour, charge, objectifs, horloge de marché | c'est l'écran qui s'ouvre. Les widgets ont une structure et des contraintes propres (`CLAUDE.md`, 2026-07-21) |
-| **Tâches** | tâches, sous-tâches, récurrence, dates, rattachement à un objectif | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre |
+| **Tâches** | tâches, récurrence, dates, rattachement à un objectif. ⭐ **Depuis le 2026-09-30** : rangées **par moment** (En retard, Aujourd'hui, À venir, Sans date, Routines, Faites), **ajout rapide** (Entrée), recherche, une ligne de méta par tâche (échéance, créneau, rythme, objectif cliquable, report) | une tâche récurrente ne compte pas « en binaire » pour un objectif : elle alimente un nombre. ⭐ **Depuis le 2026-09-30, un objectif supprimé EMPORTE ses tâches** (même lot de corbeille), et une carte mentale supprimée emporte les objets de ses nœuds — § 11.z du 2026-09-30 |
 | **Calendrier** | le 13ᵉ module (2026-09-02). Événements, multi-jours, récurrence, saisie à la minute, roulette d'heure | migrations 020 et 021. « journée entière » s'annonce encore comme « 1 tâche sans horaire » — mot faux, compte juste, **non corrigé faute de mandat** |
 | **Timer** | Pomodoro, sessions de focus, plein écran ; *(2026-09-29)* **horloge à volets** et **fenêtre séparée** | ✅ fusionné et **installé le 2026-09-29 à 23:40** — ⛔ **jamais vu à l'écran** par une session : Antonin est le premier à le regarder. § 11.x du 2026-09-29 |
 | **Objectifs** | ⭐ **refondu le 2026-09-16** : un objectif se découpe en jalons ordonnés, puis en sous-objectifs ; le pourcentage se **déduit**, il ne se saisit plus. ⭐ **Depuis le 2026-09-29** : la vue est en **maître-détail** — la liste (chaque objectif avec sa **prochaine action**) et la fiche de celui qu'on choisit (une phrase d'origine, la feuille de route, une icône par niveau) ; sur iPhone, la liste OU la fiche. Sa carte mentale est ÉDITABLE — ajouter (typé), renommer, cocher, supprimer depuis la carte, la feuille de route suit | migration 026. Voir § 11 (2026-09-16) et § 11.z (2026-09-29) |
@@ -1288,3 +1288,56 @@ essayer en démo — arrêt 2). iPhone : `MOBILE.md` § 26, dont la vue Objectif
 Écarté : `AMELIORATIONS-UI.md` (fin de fichier). Le réglage `layout.goals`
 (géométrie des anciens panneaux par catégorie) est orphelin, sans effet.
 
+### 11.z Le 2026-09-30 — la vue Tâches rangée par moment ; un objectif ou une carte supprimés emportent leurs tâches
+
+Demande directe d'Antonin : « améliore le design de l'onglet Tâches, son
+intuitivité », puis « si une carte mentale liée à un objectif ou un objectif
+seul est supprimé, les tâches liées le soient aussi ». Branche
+**`chantier/taches`** (worktree `~/Desktop/Shale-chantiers/taches`), depuis
+`mobile-ios` `b6e9443`. Aucune migration, aucun Rust. Le pourquoi :
+`CLAUDE.md` (section du 2026-09-30) ; pièges : `PIEGES.md` § 27.
+
+**Ce qui a changé à l'écran.**
+- **Tâches** : une ligne d'**ajout rapide** en haut (un libellé, Entrée — sans
+  date, avec le tag qu'on regarde) ; les tâches **rangées par moment** —
+  En retard (en rouge), Aujourd'hui, À venir, Sans date, Routines (récurrentes
+  qui ne tombent pas aujourd'hui), Faites (repliées, 20 puis « Afficher les
+  autres ») ; sous chaque tâche UNE ligne de méta : échéance relative
+  (« hier », « ven. 2 oct. »), créneau, rythme, **objectif cliquable** (ouvre sa
+  fiche, étape comprise), « reportée n fois » ; la **priorité colore le contour
+  de la case** (haute rouge, moyenne ambre) au lieu d'un point de 6 px ;
+  **toucher une tâche l'ouvre** ; cochée, elle reste 1,2 s barrée à sa place
+  puis rejoint « Faites » ; filtres = les tags + une recherche (libellé, tag,
+  objectif ; sans accents) ; la gestion des tags derrière « Gérer ».
+  Retirés : les filtres « Toutes / À faire / Faites », le filtre « échéance »
+  (un jour précis — le Calendrier le fait), la grille redimensionnable, les
+  deux boutons au survol (le « ⋯ » et le clic droit portent les mêmes gestes).
+- **Un objectif supprimé emporte ses tâches** — les siennes et celles de ses
+  étapes — sous le même horodatage : une seule ligne dans « Supprimés
+  récemment », restaurées avec lui. Les confirmations le disent (« Il part dans
+  Supprimés récemment avec 2 étapes et 5 tâches ») et apparaissent aussi quand
+  il n'emporte que des tâches. Cela vaut pour TOUS les chemins (menu, feuille de
+  route, carte d'objectif, nœud d'une carte) : la règle est dans les données.
+- **Une carte mentale supprimée emporte ce que ses nœuds ont créé** (tâches,
+  étapes, habitudes — jamais l'objectif racine cité, jamais une note ou une
+  fiche citée) : la note, la fiche du Savoir ou le sujet qui la porte, et
+  « Supprimer la carte » sur le bloc. Un toast, un « Annuler » qui rend tout.
+- Au passage (même défaut que les rythmes) : le **graphique de la semaine**
+  nommait ses jours en français dans l'app anglaise.
+
+**Prouvé.** En démo (Chrome piloté), clair et sombre, français et anglais,
+1360 et 390 pt : sections, ajout rapide (sa section se déplie, la ligne se
+surligne), coche qui reste puis part, recherche « revis », « Gérer », menu clic
+droit ; objectif racine supprimé → « … et 7 éléments », il ne reste que les
+2 tâches étrangères, « Annuler » rend les 7 ; bloc « Supprimer la carte » →
+confirmation qui annonce, « Carte retirée de la note, et 2 éléments… »,
+« Annuler » remet bloc et tâches ; note ouverte supprimée → « … et 2 éléments ».
+Tests : corbeille natif ET démo (`api.test.ts`, `base.test.ts` — 17 vus rouges
+avant la règle), `lots.test.ts`, `emportes.test.ts` (8 vus rouges),
+`tachesVue.test.ts` (mutations vues rouges), `geste.test.ts` (note + carte en
+démo, vu rouge sans la règle).
+
+**Ce qui reste.** Retirer une carte au CLAVIER (sélection puis ⌫, ou couper)
+n'emporte rien : seuls « Supprimer la carte » et la suppression de la page le
+font (`CLAUDE.md`). iPhone : `MOBILE.md` § 27. Site : `DETTE-SITE.md` entrée V
+(deux captures). Écarté ou reporté : `AMELIORATIONS-UI.md` (fin de fichier).

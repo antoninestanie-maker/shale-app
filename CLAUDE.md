@@ -6748,3 +6748,65 @@ sur un faux pont IPC : il montre le `{ color }` de la 2.11, puis tient
 refus et le suivi de macOS — ancien code remis : 4 échecs. Côté Rust :
 `cargo test --test permissions_fenetres` (3), qui NE tourne PAS avec
 `cargo test --lib`.
+
+## La vue Tâches rangée par moment ; un objectif ou une carte supprimés emportent leurs tâches (2026-09-30)
+
+Demande d'Antonin, en deux temps : « améliore le design de l'onglet Tâches, son
+intuitivité », puis « si une carte mentale liée à un objectif ou un objectif
+seul est supprimé, les tâches liées le soient aussi ». Branche
+`chantier/taches`. État et preuves : `PASSATION.md` § 11.z (2026-09-30).
+
+### ⚠️ Une décision RETOURNÉE : « Ses tâches restent » (027, 2026-09-22)
+
+La corbeille avait décidé qu'un objectif partait avec ses étapes mais PAS ses
+tâches (« le lien dort »). Antonin l'a retournée : les tâches partent avec
+lui. Ce qui ne se devine pas :
+- **La règle est dans les DONNÉES** (`corbeille/lots.ts` : `tachesEmportees`,
+  `tachesDuLot`, `tachesDansUnLot`, `bilanDeDepart` ; `base.ts` et `demo.ts`
+  les appellent), pas dans les vues : un objectif part par cinq chemins (menu,
+  feuille de route, carte d'objectif, nœud de carte, suppression d'une page qui
+  cite une étape). Les tâches prennent l'HORODATAGE du lot — elles reviennent
+  avec lui, ne s'affichent pas à part, et la suppression définitive les efface
+  AVANT l'objectif (sinon `deleteGoal` les délierait et elles resteraient
+  seules dans la corbeille).
+- **`goal_id` n'est jamais effacé** : c'est lui qui les rend à leur objectif.
+  Une tâche jetée avant pour son compte garde son horodatage, donc son lot.
+- **Le « lien qui dort » existe encore** : une tâche arrivée par la
+  synchronisation sous un objectif déjà jeté ici reste vivante, rattachée. Le
+  test `MODIFIER une tâche par sa fenêtre…` le reproduit ainsi.
+
+### Une carte qui disparaît = sa racine supprimée
+
+« Carte mentale liée à un objectif » : une carte dont les nœuds désignent des
+objets (typés ou cités). La règle retenue est celle du nœud (2026-09-29),
+appliquée à la racine : `objetsDesCartes` = ce que supprimer la racine
+emporterait — tâches, habitudes, étapes (un objectif qui a un parent) ; jamais
+l'objectif racine cité, jamais une note, une fiche, un événement (décision E).
+Branchée sur la suppression d'une note, d'une fiche, d'un sujet
+(`jeterAvecSesCartes`) et sur « Supprimer la carte » du bloc. **Au niveau de
+l'interface, pas des données** : le lien vit dans le JSON d'un corps HTML, que
+la couche SQL ne lit pas ; un seul toast, un seul « Annuler » (`jeterPlusieurs`,
+qui prend maintenant un message). Dans « Supprimés récemment », la note et ses
+objets sont des lignes séparées.
+
+⚠️ **Limite assumée** : retirer une carte au CLAVIER (sélection puis ⌫, couper)
+n'emporte rien. L'intercepter demanderait de comparer les cartes avant/après
+chaque saisie, et un couper-coller vers une autre note ferait jeter des objets
+toujours cités ailleurs. Le geste explicite est « Supprimer la carte ».
+
+### La vue Tâches — ce qui a été choisi, et pourquoi
+
+- **Rangée par moment** (`lib/tachesVue.ts`) : la question de l'écran est
+  « qu'est-ce que je fais maintenant ? ». Une récurrente manquée n'est jamais
+  « en retard » (`lib/taches.ts`) : elle attend dans « Routines ».
+- **L'ajout rapide crée une tâche SANS date**, comme la ligne d'Aujourd'hui :
+  la dater est un geste du menu (Aujourd'hui / Demain / Lundi prochain).
+- **La priorité colore le contour de la case** (`CaseACocher` : `anneau`) ;
+  cochée, la case redevient celle de tout le monde — le réussi est à l'encre.
+- **Toucher le libellé ouvre la tâche** : avant, il ne répondait à rien.
+- **Supprimés** : le filtre « échéance » (un jour précis ; le Calendrier le
+  fait), les filtres de statut (remplacés par les sections), la grille
+  redimensionnable (une liste se lit en une colonne — comme la vue Objectifs),
+  les boutons au survol.
+- ⚠️ Au doigt, les « · » de la méta disparaissent (une ligne repliée commençait
+  par un point) et le tag passe dans la méta (`PIEGES.md` § 27.2).

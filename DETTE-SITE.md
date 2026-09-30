@@ -646,3 +646,22 @@ descriptive : « Le chrono dans sa propre fenêtre, à poser sur un second écra
 L'horloge à volets est la partie la plus montrable du module, et aucune capture
 du site ne montre une séance lancée. À ajouter au générateur de captures v2
 quand l'app installée la porte.
+
+## V — Vue Tâches rangée par moment ; suppressions en cascade (app, 2026-09-30)
+
+### V.1 — Rien de FAUX sur le site, vérifié
+
+`Fonctionsdecider.astro`, section « 02 Tâches » : « Tâches, récurrences et
+étiquettes », « Chaque tâche peut être rattachée à un objectif », « Ce qui est
+coché part tout seul dans le journal » — tout reste vrai.
+
+### V.2 — Deux captures sont périmées
+
+`public/shots/v2/dark-taches.webp` et `light-taches.webp` montrent l'ancienne
+liste plate (filtres de statut, point de priorité, panneau des tags). À
+régénérer avec le générateur de captures v2 quand l'app installée porte la vue.
+
+### V.3 — ⛔ PROPOSÉ, pas écrit : une puce
+
+« Rangées par moment : en retard, aujourd'hui, à venir » — à trancher par
+Antonin (règle : chercher avant d'écrire du texte de vente).

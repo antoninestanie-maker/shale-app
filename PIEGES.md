@@ -3794,3 +3794,55 @@ dans l'empreinte de ses artefacts, et cargo verrouille le dossier par profil (un
 `PASSATION.md`).
 
 **Payé.** Rien — mesuré avant de lancer.
+
+## 27.1 ⚠️ `DAY_SHORT` vivait encore dans deux écrans — et les deux outils i18n restaient verts
+
+**Symptôme.** Dans l'app anglaise, les rythmes des Tâches s'affichaient
+« quotidien », « lun–ven », « lun, mer, ven », et l'axe du graphique de la
+semaine « lun, mar… ». Vu en refaisant la vue Tâches, 2026-09-30.
+
+**Cause.** `recurrenceLabel` renvoyait deux mots en dur et tirait les jours de
+`DAY_SHORT`, table française ; `WeekChart` aussi. C'est exactement le § 5.2 bis :
+`i18n:check` ne voit que les clés écrites, `i18n:durs` ne suit pas la donnée.
+
+**Parade.** Les mots du formulaire (`t("Quotidien")`, `t("Lun–ven")`) et
+`nomCourtDuJour` (Intl), lundi d'abord (`ORDRE_SEMAINE`). Test en anglais dans
+`tachesVue.test.ts`. `grep -rn DAY_SHORT src` ne rend plus que sa définition.
+
+## 27.2 Un séparateur « · » collé à un morceau qu'on masque : le morceau part, le point reste
+
+**Symptôme.** Toutes les lignes de méta finissaient par « · » au bureau.
+
+**Cause.** Le tag, masqué au bureau (`sm:hidden`), portait la classe sur SON
+contenu ; le séparateur, posé avant lui dans l'enveloppe, restait affiché.
+
+**Parade.** La classe responsive va sur l'enveloppe qui contient le morceau ET
+son séparateur. Et une ligne qui se replie (au doigt) ne doit pas porter de
+séparateurs du tout : le point tombe en tête de ligne.
+
+## 27.3 ⭐ Retourner une décision : elle vivait dans quatre phrases à l'écran, deux commentaires et deux tests
+
+**Constat.** « Un objectif part sans ses tâches » (027) était écrit dans quatre
+confirmations (« … Ses tâches restent. »), deux commentaires de code et deux
+tests qui l'AFFIRMAIENT. Changer la règle sans chercher ces phrases aurait
+laissé l'app annoncer le contraire de ce qu'elle fait.
+
+**Parade.** Avant de retourner une décision : `grep` le texte affiché (et sa
+traduction dans `en.ts`), les commentaires, et les tests qui l'affirment ; les
+tests se RETOURNENT d'abord, se voient rouges, puis la règle change.
+
+## 27.4 `Intl.ListFormat` n'est pas dans la `lib` TypeScript du projet
+
+**Symptôme.** `tsc` : « Property 'ListFormat' does not exist on type 'typeof Intl' ».
+
+**Parade.** Ne pas toucher `tsconfig` pour une phrase : deux morceaux au plus,
+joints par une clé traduite (`"{a} et {b}"`).
+
+## 27.5 ⚠️ Outil — l'accueil de la démo revient à chaque rechargement
+
+**Symptôme.** Un script de capture qui recharge la page photographie l'accueil
+(« Bienvenue dans Shale ») par-dessus la vue.
+
+**Parade.** Attendre que le bouton « Passer » existe (il paraît après la
+connexion), puis le cliquer par son TEXTE exact (`textContent === "Passer"`),
+en boucle tant qu'il reste.

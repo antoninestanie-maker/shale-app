@@ -587,3 +587,15 @@ c'est voulu ou à venir :
   libérer le nœud en gardant l'objet. Pour supprimer les deux : « Supprimer ».
 - **Emporter un objectif RACINE cité** : jamais depuis une carte — ce n'est pas
   un morceau d'objectif, c'est l'objectif ; il se supprime dans Objectifs.
+
+## Vue Tâches (2026-09-30) — écarté ou reporté
+
+- **Une date dans l'ajout rapide** (« demain », « lundi » tapés dans le libellé) :
+  reporté — l'analyse d'une date en langue naturelle, dans deux langues, est un
+  chantier à elle seule ; le menu « Dater » fait le geste en deux clics.
+- **Un « + » par section** (ajouter directement dans « Aujourd'hui ») : reporté,
+  pour garder UNE entrée d'ajout.
+- **Réordonner à la main** : écarté — l'ordre se déduit (heure, échéance,
+  priorité), comme le pourcentage d'un objectif.
+- **Retirer une carte au clavier emporte ses objets** : écarté, voir `CLAUDE.md`
+  (2026-09-30) — un couper-coller jetterait des objets encore cités.
