@@ -52,6 +52,7 @@ import {
 import { entreesTache, gestesCommunsTache } from "../components/menu/catalogue/tache";
 import { jeter } from "../components/corbeille/geste";
 import { ouvrirParId } from "../lib/naviguer";
+import { useEntitlements } from "../lib/entitlements";
 import { afficherToast } from "../lib/toast";
 import type { EntreePossible } from "../lib/menu/entrees";
 
@@ -263,6 +264,12 @@ export default function CalendarView({ data, refresh }: Props) {
   );
 
   const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
+  // Éviter les sessions de marché n'a de sens que pour qui a Market Brain.
+  // ⚠️ Corrigé le 2026-09-30 : c'était `true` pour TOUT LE MONDE. Or Sydney,
+  // Tokyo, Londres et New York se relaient sans trou du lundi au vendredi
+  // (heure de Paris : 23 h → 23 h), donc aucune proposition de créneau en
+  // semaine, pour personne — y compris sans l'offre Trade.
+  const eviterMarche = useEntitlements().afficheModule("market");
   const surcharges = useMemo(() => joursSurcharges(parJour, profil), [parJour, profil]);
   const peril = useMemo(
     () =>
@@ -287,12 +294,12 @@ export default function CalendarView({ data, refresh }: Props) {
     return jours.flatMap((jour) =>
       creneauxLibres(profil, parJour.get(jour) ?? [], jour, {
         dureeMin: 60,
-        eviterMarche: true,
+        eviterMarche,
         limite: mode === "jour" ? 3 : 1,
         pasAvant: jour === aujourdhui ? heureCourante() : undefined,
       }).map((c) => ({ jour, debut: c.debut, fin: c.fin })),
     );
-  }, [mode, jours, parJour, profil, aujourdhui]);
+  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche]);
 
   // ─── Gestes ────────────────────────────────────────────────────────────────
 

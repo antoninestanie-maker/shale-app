@@ -85,6 +85,7 @@ import {
 import {
   champsDuType,
   fusionnerValeurs,
+  typePropose,
   valeursDeLObjet,
   valeursOrphelines,
   validerObjet,
@@ -130,7 +131,7 @@ type Status = "loading" | "ready" | "error";
 const newTitle = () => t("Nouvelle note");
 
 /** Thèmes proposés à qui n'en a aucun — créés en un seul clic. */
-const suggestions = () => [t("Productivité"), t("Trading"), t("Lectures")];
+const suggestions = () => [t("Productivité"), t("Lectures"), t("Idées")];
 
 /** Une note appartient-elle au périmètre demandé ? */
 function inScope(entry: KnowledgeEntryLite, scope: Scope): boolean {
@@ -213,7 +214,9 @@ export default function KnowledgeView() {
       const [data, ts] = await Promise.all([fetchKnowledge(), fetchObjectTypes()]);
       setTopics(data.topics);
       setEntries(data.entries);
-      setTypes(ts);
+      // Le type livré « Setup de trading » ne se propose plus tant que le
+      // trading est mis de côté, sauf à qui s'en sert (`lib/objets.ts`).
+      setTypes(ts.filter((x) => typePropose(x, data.topics)));
       setStatus("ready");
     } catch {
       // Écrire d'abord en local, lire d'abord en local : un échec ici est un

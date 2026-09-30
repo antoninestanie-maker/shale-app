@@ -232,7 +232,7 @@ export default function GoalModal({
               list="goal-categories"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder={t("ex. Trading, Formation, Santé… (optionnel)")}
+              placeholder={t("ex. Formation, Santé, Finances… (optionnel)")}
               className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
             />
             <datalist id="goal-categories">
@@ -355,7 +355,7 @@ export default function GoalModal({
                       setEtapes(lignesEtapes.map((v, k) => (k === i ? e.target.value : v)))
                     }
                     onKeyDown={ligneSuivante(i)}
-                    placeholder={i === 0 ? t("ex. Préparer le plan de trading") : t("Étape suivante…")}
+                    placeholder={i === 0 ? t("ex. Préparer le plan de révision") : t("Étape suivante…")}
                     aria-label={t("Étape {n}", { n: i + 1 })}
                     className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
                   />
@@ -380,7 +380,7 @@ export default function GoalModal({
                         )
                       }
                       onKeyDown={ligneSuivante(i)}
-                      placeholder={i === 0 ? t("ex. Backtester 1 h") : t("Tâche suivante…")}
+                      placeholder={i === 0 ? t("ex. Réviser 1 h") : t("Tâche suivante…")}
                       aria-label={t("Tâche {n}", { n: i + 1 })}
                       className="min-w-0 flex-1 basis-[9rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
                     />

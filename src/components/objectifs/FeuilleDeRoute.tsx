@@ -1106,7 +1106,7 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
           <span>{t("Unité")}</span>
           <input
             defaultValue={goal.target_unit ?? ""}
-            placeholder={t("backtests, €, pages…")}
+            placeholder={t("séances, €, pages…")}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             onBlur={(e) => {
               const v = e.currentTarget.value.trim() || null;

@@ -298,7 +298,9 @@ function App() {
   }, [profil, view]);
 
   const focus = useFocus(refresh);
-  const market = useMarketBrain();
+  // Le planificateur de Market Brain ne tourne que si le module est affiché :
+  // sans l'offre Trade, ou trading mis de côté, aucun briefing ne se rédige.
+  const market = useMarketBrain(briefingActif);
   const ui = useUiConfig();
 
   // La configuration AFFICHÉE : celle de Personnaliser, bornée par le profil de
@@ -592,6 +594,7 @@ function App() {
           config={configAffichee}
           profil={profil}
           hasTrading={hasTrading}
+          sessionsMarche={briefingActif}
           onLocked={setPaywallFor}
         />
       )}
@@ -711,7 +714,7 @@ function App() {
           ) : view === "sizing" ? (
             <SizingView navigate={navigate} />
           ) : view === "admin" ? (
-            <AdminView config={ui.config} save={ui.save} profil={profil} />
+            <AdminView config={ui.config} save={ui.save} profil={profil} hasTrading={hasTrading} />
           ) : view === "console" ? (
             <ConsoleView />
           ) : view === "corbeille" ? (

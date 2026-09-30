@@ -48,6 +48,13 @@ interface Props {
   profil?: ProfilEffectif;
   /** Offre Shale Trade (ou essai en cours). Faux ⇒ modules trading verrouillés. */
   hasTrading?: boolean;
+  /**
+   * Afficher la pastille des sessions de marché (Sydney, Tokyo, Londres, New
+   * York) au pied de la barre. C'est du contenu Market Brain : `App.tsx` passe
+   * `afficheModule("market")`. Faux depuis que le trading est mis de côté
+   * (2026-09-30) — avant, elle s'affichait pour tout le monde, offre Trade ou non.
+   */
+  sessionsMarche?: boolean;
   /** Clic sur un module verrouillé — ouvre le paywall. */
   onLocked?: (view: View) => void;
 }
@@ -330,6 +337,7 @@ export default function Sidebar({
   config,
   profil,
   hasTrading = true,
+  sessionsMarche = false,
   onLocked,
 }: Props) {
   /** Libellé d'une clé i18n : celui du profil de licence s'il en impose un. */
@@ -619,7 +627,7 @@ export default function Sidebar({
       <div className="flex flex-col gap-3 px-2 pb-5 pt-4 lg:px-5">
         <div className="hidden lg:contents">
           <Clock />
-          <SessionIndicator />
+          {sessionsMarche && <SessionIndicator />}
         </div>
         <SyncIndicator onOuvrirReglages={() => onNavigate("settings")} />
         {demoMode && (

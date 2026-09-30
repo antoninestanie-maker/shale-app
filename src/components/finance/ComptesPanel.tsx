@@ -20,6 +20,7 @@ import {
   type FinanceAccountInput,
 } from "../../lib/repo";
 import type { FinanceAccount, FinanceAccountKind } from "../../lib/types";
+import { TRADING_ACTIF } from "../../lib/features";
 import { formatDate, localeTag, t } from "../../lib/i18n";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
@@ -545,7 +546,10 @@ export function FormulaireCompte({
                 setForm((f) => ({ ...f, kind: e.target.value as FinanceAccountKind }))
               }
             >
-              {NATURES.map((n) => (
+              {/* « Trading » ne se propose plus depuis que le trading est mis de
+                  côté (2026-09-30) — sauf au compte qui l'a déjà : sans son
+                  option, le menu afficherait une autre nature que la sienne. */}
+              {NATURES.filter((n) => TRADING_ACTIF || n.id !== "trading" || form.kind === "trading").map((n) => (
                 <option key={n.id} value={n.id}>
                   {t(n.label)}
                 </option>

@@ -143,13 +143,13 @@ interface OpenPositionInput {
 const created = addDays(todayStr(), -30);
 
 const tasks: Task[] = [
-  { id: 1, label: "Backtesting 1h", tag: t("Trading"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 2, label: t("Session trading (Londres)"), tag: t("Trading"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 3, label: t("Publier un reel ChartCore"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 4, label: t("Réviser module BTS"), tag: "BTS", priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 5, label: t("Préparer script reel Moov"), tag: t("Contenu"), priority: "low", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 6, label: t("Ouvrir le compte prop firm"), tag: t("Trading"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 7, label: t("Rédiger le plan de risque"), tag: t("Trading"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
+  { id: 1, label: t("Prospection 1 h"), tag: t("Clients"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 2, label: t("Production client (matin)"), tag: t("Clients"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 3, label: t("Publier un post LinkedIn"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 4, label: t("Réviser un module de la certification"), tag: t("Formation"), priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 5, label: t("Présenter les maquettes au client"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 6, label: t("Envoyer le devis à Studio Hélice"), tag: t("Clients"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 7, label: t("Mettre à jour le portfolio"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
 ];
 
 /**
@@ -171,17 +171,17 @@ const FEUILLE_VIDE = {
 } as const satisfies Partial<Goal>;
 
 const goals: Goal[] = [
-  { id: 1, title: t("Passer trader full-time"), description: t("Transition complète en septembre"), scope: "long", category: t("Trading"), parent_goal_id: null, deadline: "2026-09-01", progress_pct: 45, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
-  { id: 2, title: t("10k abonnés ChartCore.fx"), description: null, scope: "medium", category: t("Contenu"), parent_goal_id: null, deadline: "2026-12-31", progress_pct: 62, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
-  { id: 3, title: t("Valider le semestre BTS"), description: null, scope: "short", category: t("Formation"), parent_goal_id: 1, deadline: "2026-07-30", progress_pct: 80, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
+  { id: 1, title: t("Vivre de mon activité d'indépendant"), description: t("100 % du revenu en freelance d'ici septembre"), scope: "long", category: t("Activité"), parent_goal_id: null, deadline: "2026-09-01", progress_pct: 45, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
+  { id: 2, title: t("5 000 abonnés LinkedIn"), description: null, scope: "medium", category: t("Contenu"), parent_goal_id: null, deadline: "2026-12-31", progress_pct: 62, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
+  { id: 3, title: t("Valider la certification UX"), description: null, scope: "short", category: t("Formation"), parent_goal_id: 1, deadline: "2026-07-30", progress_pct: 80, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
   // progression auto : moyenne des tâches liées (id 6 faite, id 7 non → 50%)
-  { id: 4, title: t("Préparer le passage full-time"), description: null, scope: "medium", category: t("Trading"), parent_goal_id: 1, deadline: "2026-08-15", progress_pct: 0, manual_progress: 0, created_at: created, ...FEUILLE_VIDE },
+  { id: 4, title: t("Signer deux clients récurrents"), description: null, scope: "medium", category: t("Activité"), parent_goal_id: 1, deadline: "2026-08-15", progress_pct: 0, manual_progress: 0, created_at: created, ...FEUILLE_VIDE },
 ];
 
 const tags: Tag[] = [
-  { id: 1, name: t("Trading"), color: "#2e7ff2" },
+  { id: 1, name: t("Clients"), color: "#2e7ff2" },
   { id: 2, name: t("Contenu"), color: "#33d17a" },
-  { id: 3, name: "BTS", color: "#f2b13d" },
+  { id: 3, name: t("Formation"), color: "#f2b13d" },
 ];
 
 // Historique : 12 derniers jours plutôt disciplinés (streak en cours),
@@ -199,13 +199,13 @@ for (let i = 12; i >= 1; i--) {
 }
 // Aujourd'hui : une partie déjà faite
 completions.push({ id: compId++, task_id: 1, date: today, done: 1 });
-// One-off "compte prop firm" faite il y a 3 jours (progression auto du goal 4)
+// One-off « devis » faite il y a 3 jours (progression auto du goal 4)
 completions.push({ id: compId++, task_id: 6, date: addDays(today, -3), done: 1 });
 
 const metrics: CustomMetric[] = [
-  { id: 1, name: t("Heures de backtesting"), unit: "h" },
-  { id: 2, name: t("Trades pris"), unit: "trades" },
-  { id: 3, name: t("Reels publiés"), unit: "reels" },
+  { id: 1, name: t("Heures facturées"), unit: "h" },
+  { id: 2, name: t("Appels clients"), unit: t("appels") },
+  { id: 3, name: t("Posts publiés"), unit: "posts" },
 ];
 
 // 14 derniers jours de valeurs, motif déterministe
@@ -215,7 +215,7 @@ for (let i = 14; i >= 0; i--) {
   const date = addDays(today, -i);
   const wd = weekdayOf(date);
   metricEntries.push(
-    { id: entryId++, metric_id: 1, date, value: wd === 0 ? 0 : 1 + (i % 3) * 0.5 },
+    { id: entryId++, metric_id: 1, date, value: wd === 0 || wd === 6 ? 0 : 4 + (i % 3) },
     { id: entryId++, metric_id: 2, date, value: wd >= 1 && wd <= 5 ? (i % 4) + 1 : 0 },
     { id: entryId++, metric_id: 3, date, value: [1, 3, 5].includes(wd) ? 1 : 0 },
   );
@@ -247,16 +247,16 @@ let nextGoalId = goals.length + 1;
 let nextMetricId = metrics.length + 1;
 
 const quickLinks: QuickLink[] = [
-  { id: 1, label: "TradingView", url: "https://tradingview.com", position: 0 },
-  { id: 2, label: "CapCut", url: "https://capcut.com", position: 1 },
-  { id: 3, label: "IG ChartCore", url: "https://instagram.com/chartcore.fx", position: 2 },
-  { id: 4, label: "YouTube Studio", url: "https://studio.youtube.com", position: 3 },
+  { id: 1, label: "Figma", url: "https://figma.com", position: 0 },
+  { id: 2, label: "Malt", url: "https://malt.fr", position: 1 },
+  { id: 3, label: "LinkedIn", url: "https://linkedin.com", position: 2 },
+  { id: 4, label: "Google Agenda", url: "https://calendar.google.com", position: 3 },
 ];
 let nextLinkId = quickLinks.length + 1;
 
 const settings = new Map<string, string>();
 
-// Sessions de focus des 7 derniers jours (motif régulier, trading le matin)
+// Sessions de focus des 7 derniers jours (motif régulier, prospection le matin)
 const focusSessions: FocusSession[] = [];
 let fsId = 1;
 for (let i = 7; i >= 1; i--) {
@@ -285,24 +285,24 @@ focusSessions.push({
 const notes: Note[] = [
   {
     id: 1,
-    title: t("Setup cassure H4"),
-    body: t("Règles du setup :\n- attendre la cassure du range H4\n- retest + rejet\n- SL sous la mèche, TP 2R minimum\n\nVoir aussi [[Plan de risque]] pour le sizing."),
+    title: t("Méthode de devis"),
+    body: t("Structure d'un devis :\n- le contexte et le besoin du client\n- les livrables, en trois lignes au plus\n- le planning et les jalons\n- le prix, avec 30 % d'acompte\n\nVoir aussi [[Tarifs 2026]] pour les montants."),
     is_example: 0,
     created_at: `${addDays(today, -12)} 10:00:00`,
     updated_at: `${addDays(today, -2)} 21:30:00`,
   },
   {
     id: 2,
-    title: t("Plan de risque"),
-    body: t("Max 1% par trade. Max 3 trades/jour. Stop à -2R quotidien.\n\nRappel : la discipline > le setup. [[Setup cassure H4]]"),
+    title: t("Tarifs 2026"),
+    body: t("Jour : 450 €. Demi-journée : 250 €. Audit UX : forfait de 1 200 €.\n\nRappel : on ne négocie pas le prix, on négocie le périmètre. [[Méthode de devis]]"),
     is_example: 0,
     created_at: `${addDays(today, -12)} 10:05:00`,
     updated_at: `${addDays(today, -5)} 18:00:00`,
   },
   {
     id: 3,
-    title: t("Idées de reels"),
-    body: t("- 3 erreurs de débutant en trading\n- POV : ta première prop firm\n- Breakdown d'un trade perdant (transparence)"),
+    title: t("Idées de posts"),
+    body: t("- 3 erreurs sur un premier devis\n- Avant / après d'une refonte\n- Ce qu'un brief clair change au planning"),
     is_example: 0,
     created_at: `${addDays(today, -7)} 20:00:00`,
     updated_at: `${addDays(today, -1)} 22:10:00`,
@@ -333,7 +333,7 @@ const SKETCH_DEMO =
  */
 const sujets: Sujet[] = [
   {
-    id: 1, uid: "demo:object:1", name: t("Trading"), color: "#4d8dff", position: 0,
+    id: 1, uid: "demo:object:1", name: t("Clients"), color: "#4d8dff", position: 0,
     type_id: null, body: null, field_values: "{}", is_example: 0,
     created_at: `${addDays(today, -30)} 09:00:00`, updated_at: `${addDays(today, -30)} 09:00:00`,
   },
@@ -348,15 +348,15 @@ const sujets: Sujet[] = [
     created_at: `${addDays(today, -30)} 09:02:00`, updated_at: `${addDays(today, -30)} 09:02:00`,
   },
   {
-    id: 4, uid: "demo:object:4", name: "Silver Bullet", color: "#f0b341", position: 3,
+    id: 4, uid: "demo:object:4", name: "Studio Hélice", color: "#f0b341", position: 3,
     type_id: 4, body: null, is_example: 0,
-    field_values: JSON.stringify({ f1: "EURUSD", f2: "Long", f3: t("Balayage puis retour dans le range"), f4: 3 }),
+    field_values: JSON.stringify({ f1: t("Architecture"), f2: t("Actif"), f3: t("Refonte du site vitrine"), f4: 450 }),
     created_at: created, updated_at: created,
   },
   {
-    id: 5, uid: "demo:object:5", name: "Trading in the Zone", color: "#41c9e2", position: 4,
+    id: 5, uid: "demo:object:5", name: "Deep Work", color: "#41c9e2", position: 4,
     type_id: 2, body: null, is_example: 0,
-    field_values: JSON.stringify({ f1: t("Livre"), f2: "Mark Douglas", f4: addDays(todayStr(), -40) }),
+    field_values: JSON.stringify({ f1: t("Livre"), f2: "Cal Newport", f4: addDays(todayStr(), -40) }),
     created_at: created, updated_at: created,
   },
 ];
@@ -369,17 +369,17 @@ const knowledgeEntries: KnowledgeEntry[] = [
     id: 1,
     topic_id: 1,
     kind: "note",
-    title: t("Anatomie d'une cassure propre"),
+    title: t("Anatomie d'un bon brief"),
     body:
-      `<h2>${t("Les 3 conditions")}</h2><ul><li>${t("Range H4 net, au moins 3 touches")}</li>` +
-      `<li>${t("Cassure avec <b>volume</b> et clôture hors du range")}</li>` +
-      `<li>${t("Retest qui tient, mèche de rejet")}</li></ul>` +
-      `<p>${t("Si l'une manque : on passe. Le manque de patience coûte plus cher que le manque de setups.")}</p>`,
+      `<h2>${t("Les 3 questions")}</h2><ul><li>${t("Quel problème le client veut-il régler ?")}</li>` +
+      `<li>${t("Qui décide, et <b>avant quelle date</b> ?")}</li>` +
+      `<li>${t("À quoi verra-t-on que c'est réussi ?")}</li></ul>` +
+      `<p>${t("S'il manque une réponse : on rappelle avant de chiffrer. Un devis sur un brief flou coûte plus cher qu'un appel de plus.")}</p>`,
     text:
-      `${t("Les 3 conditions")} ${t("Range H4 net, au moins 3 touches")} ${t("Cassure avec volume et clôture hors du range")} ` +
-      `${t("Retest qui tient, mèche de rejet")} ${t("Si l'une manque : on passe. Le manque de patience coûte plus cher que le manque de setups.")}`,
+      `${t("Les 3 questions")} ${t("Quel problème le client veut-il régler ?")} ${t("Qui décide, et avant quelle date ?")} ` +
+      `${t("À quoi verra-t-on que c'est réussi ?")} ${t("S'il manque une réponse : on rappelle avant de chiffrer. Un devis sur un brief flou coûte plus cher qu'un appel de plus.")}`,
     url: null, media: null, thumb: null, data: null,
-    tags: "setup, price action",
+    tags: "brief, méthode",
     pinned: 1,
     is_example: 0,
     created_at: `${addDays(today, -20)} 11:00:00`,
@@ -389,13 +389,13 @@ const knowledgeEntries: KnowledgeEntry[] = [
     id: 2,
     topic_id: 1,
     kind: "note",
-    title: t("Schéma : cassure + retest"),
+    title: t("Schéma : déroulé d'une mission"),
     body:
-      `<figure><img src="${SKETCH_DEMO}" alt="cassure + retest"></figure>` +
-      "<p>Le croquis de référence à revoir avant chaque session de Londres.</p>",
-    text: t("Le croquis de référence à revoir avant chaque session de Londres."),
+      `<figure><img src="${SKETCH_DEMO}" alt="${t("déroulé d'une mission")}"></figure>` +
+      `<p>${t("Le croquis de référence à revoir avant chaque premier rendez-vous.")}</p>`,
+    text: t("Le croquis de référence à revoir avant chaque premier rendez-vous."),
     url: null, media: null, thumb: SKETCH_DEMO, data: null,
-    tags: "setup",
+    tags: "méthode",
     pinned: 0,
     is_example: 0,
     created_at: `${addDays(today, -14)} 08:30:00`,
@@ -405,13 +405,13 @@ const knowledgeEntries: KnowledgeEntry[] = [
     id: 3,
     topic_id: 2,
     kind: "note",
-    title: t("Après une perte : le protocole"),
+    title: t("Après un refus : le protocole"),
     body:
-      `<p>${t("1. Fermer la plateforme 20 minutes.")}<br>${t("2. Noter le trade dans le journal, sans jugement.")}<br>` +
-      `${t("3. Relire le plan de risque à voix haute.")}</p><blockquote>${t("Le revenge trading n'est pas un problème de marché, c'est un problème d'ego.")}</blockquote>`,
+      `<p>${t("1. Relire le devis à froid, le lendemain.")}<br>${t("2. Demander au client ce qui a pesé, sans se justifier.")}<br>` +
+      `${t("3. Noter la leçon dans le journal.")}</p><blockquote>${t("Un refus n'est pas un verdict sur ton travail, c'est une information sur le besoin.")}</blockquote>`,
     text:
-      `${t("1. Fermer la plateforme 20 minutes.")} ${t("2. Noter le trade dans le journal, sans jugement.")} ` +
-      `${t("3. Relire le plan de risque à voix haute.")} ${t("Le revenge trading n'est pas un problème de marché, c'est un problème d'ego.")}`,
+      `${t("1. Relire le devis à froid, le lendemain.")} ${t("2. Demander au client ce qui a pesé, sans se justifier.")} ` +
+      `${t("3. Noter la leçon dans le journal.")} ${t("Un refus n'est pas un verdict sur ton travail, c'est une information sur le besoin.")}`,
     url: null, media: null, thumb: null, data: null,
     tags: "discipline, psychologie",
     pinned: 0,
@@ -423,16 +423,16 @@ const knowledgeEntries: KnowledgeEntry[] = [
     id: 4,
     topic_id: 3,
     kind: "note",
-    title: t("Calendrier économique ForexFactory"),
+    title: t("Déclarer son chiffre d'affaires"),
     body:
-      `<p>${t("La source du bloc « no-trade » du Market-Brain :")} ` +
-      '<a href="https://www.forexfactory.com/calendar">forexfactory.com/calendar</a></p>' +
-      `<p>${t("À ouvrir chaque dimanche soir pour repérer les annonces de la semaine.")}</p>`,
+      `<p>${t("Le portail officiel des déclarations de micro-entrepreneur :")} ` +
+      '<a href="https://www.autoentrepreneur.urssaf.fr">autoentrepreneur.urssaf.fr</a></p>' +
+      `<p>${t("À ouvrir à chaque échéance, avant le dernier jour du mois.")}</p>`,
     text:
-      `${t("La source du bloc « no-trade » du Market-Brain :")} forexfactory.com/calendar ` +
-      t("À ouvrir chaque dimanche soir pour repérer les annonces de la semaine."),
+      `${t("Le portail officiel des déclarations de micro-entrepreneur :")} autoentrepreneur.urssaf.fr ` +
+      t("À ouvrir à chaque échéance, avant le dernier jour du mois."),
     url: null, media: null, thumb: null, data: null,
-    tags: "outil, macro",
+    tags: "outil, administratif",
     pinned: 0,
     is_example: 0,
     created_at: `${addDays(today, -6)} 10:00:00`,
@@ -449,7 +449,7 @@ for (let i = 5; i >= 1; i--) {
     date: addDays(today, -i),
     mood: 3 + ((i + 1) % 3),
     energy: 2 + (i % 3),
-    body: i === 1 ? t("Bonne session de backtesting, le setup H4 se confirme.") : "",
+    body: i === 1 ? t("Bonne journée de production, les maquettes avancent.") : "",
   });
 }
 
@@ -641,7 +641,7 @@ const financeAccounts: FinanceAccount[] = (
   [
     ["Compte courant", "courant", 1, "Boursorama"],
     ["Livret A", "epargne", 1, "Boursorama"],
-    ["Compte de trading", "trading", 1, "IBKR"],
+    ["Compte-titres", "investissement", 1, "Fortuneo"],
     ["Carte de crédit", "credit", 1, "Boursorama"],
     ["PEA", "investissement", 0, "Bourse Direct"],
   ] as const
@@ -751,10 +751,10 @@ const financeHoldings: FinanceHolding[] = [
   {
     id: nextFinHoldingId++,
     account_id: 3,
-    symbol: "BTCUSDT",
-    quantity_e8: 1_200_000, // 0,012 BTC
-    cost_basis_cents: 98_000,
-    source: "binance",
+    symbol: "VT",
+    quantity_e8: 1_000_000_000, // 10 parts
+    cost_basis_cents: 110_000,
+    source: "yahoo",
     created_at: todayStr(),
     updated_at: todayStr(),
   },
@@ -769,10 +769,10 @@ const financeQuotes: FinanceQuote[] = [
     fetched_at: new Date().toISOString(),
   },
   {
-    symbol: "BTCUSDT",
-    price_e8: 10_423_812_000_000, // 104 238,12 $
+    symbol: "VT",
+    price_e8: 13_045_000_000, // 130,45 $
     currency: "USD",
-    source: "binance",
+    source: "yahoo",
     fetched_at: new Date().toISOString(),
   },
 ];
@@ -1117,12 +1117,12 @@ function retirerLiens(kind: LinkKind, uid: string): void {
 let calendarEventId = 100;
 const calendarEvents: CalendarEvent[] = [
   {
-    id: 1, title: t("Point hebdo prop firm"), body: null, date: todayStr(),
+    id: 1, title: t("Point hebdo client"), body: null, date: todayStr(),
     end_date: null, start_at: "09:30", end_at: "10:00", all_day: 0, color: "blue",
     recurrence: "none", created_at: created, updated_at: created,
   },
   {
-    id: 2, title: t("Clôture mensuelle du journal"), body: null,
+    id: 2, title: t("Clôture mensuelle des comptes"), body: null,
     date: addDays(todayStr(), 3), end_date: null, start_at: null, end_at: null, all_day: 1,
     color: "violet", recurrence: "none", created_at: created, updated_at: created,
   },
@@ -1140,15 +1140,18 @@ const calendarEvents: CalendarEvent[] = [
     // jeu de données qui prouve d'un coup d'œil les deux moitiés de la
     // fonctionnalité — la barre CONTINUE sur les jours qu'elle couvre, et le
     // chevron « ▶ » qui dit qu'elle est COUPÉE par le bord de la fenêtre.
-    id: 4, title: t("Séminaire prop firm"), body: null, date: addDays(todayStr(), -1),
+    id: 4, title: t("Séminaire design"), body: null, date: addDays(todayStr(), -1),
     end_date: addDays(todayStr(), 2),
     start_at: null, end_at: null, all_day: 1, color: "yellow",
     recurrence: "none", created_at: created, updated_at: created,
   },
 ];
 
-// Les quatre types livrés par la migration, à l'identique — un écran de galerie
-// vide ne prouverait rien.
+// Les types livrés par la migration, à l'identique — un écran de galerie vide ne
+// prouverait rien. ⚠️ Sauf le quatrième, « Setup de trading » : depuis que le
+// trading est mis de côté (2026-09-30), l'app le masque (`typePropose` dans
+// `lib/objets.ts`). La démo montre à sa place un type créé à la main, « Client »,
+// ce qu'un indépendant se serait fait lui-même.
 let objectTypeId = 100;
 const objectTypes: ObjectType[] = [
   {
@@ -1180,12 +1183,12 @@ const objectTypes: ObjectType[] = [
     created_at: created, updated_at: created,
   },
   {
-    id: 4, name: t("Setup de trading"), icon: "chart", color: "yellow", builtin: 1, position: 4,
+    id: 4, name: t("Client"), icon: null, color: "yellow", builtin: 0, position: 4,
     fields: JSON.stringify([
-      { id: "f1", name: t("Paire"), type: "text", required: 0 },
-      { id: "f2", name: t("Biais"), type: "choice", required: 1, options: ["Long", "Short", t("Neutre")] },
-      { id: "f3", name: t("Règle d'entrée"), type: "text", required: 0 },
-      { id: "f4", name: t("R visé"), type: "number", required: 0 },
+      { id: "f1", name: t("Secteur"), type: "text", required: 0 },
+      { id: "f2", name: t("Statut"), type: "choice", required: 1, options: [t("Prospect"), t("Actif"), t("En pause"), t("Terminé")] },
+      { id: "f3", name: t("Besoin"), type: "text", required: 0 },
+      { id: "f4", name: t("TJM (€)"), type: "number", required: 0 },
     ]),
     created_at: created, updated_at: created,
   },

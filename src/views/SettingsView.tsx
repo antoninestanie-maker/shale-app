@@ -11,7 +11,7 @@ import {
   type TrackerSettings,
 } from "../lib/repo";
 import { captureShortcutLabel, IS_IOS, kbd } from "../lib/platform";
-import { COMMERCE_AUTORISE } from "../lib/boutique";
+import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { loadTheme, saveTheme, type ThemePref } from "../lib/theme";
 import {
   chargerAnimationEntree,
@@ -456,7 +456,9 @@ export default function SettingsView() {
                     ].join(" · ")
                   : t("Session locale")}
             </p>
-            {!hasTrading && COMMERCE_AUTORISE && (
+            {/* Proposé seulement là où le module Trading serait VENDU (cadenas) :
+                ni sur iOS, ni tant que le trading est mis de côté (2026-09-30). */}
+            {presenceModule("trading", hasTrading) === "verrouille" && (
               <button
                 type="button"
                 onClick={() => openExternal(ACCOUNT_PAGES.home)}
@@ -630,7 +632,9 @@ export default function SettingsView() {
               data-tip-sub={
                 it.id === "system"
                   ? t("Suit la langue de macOS ; anglais si elle n'est ni française ni anglaise.")
-                  : t("La langue des briefings du Market-Brain suit ce réglage.")
+                  : afficheMarche
+                    ? t("La langue des briefings du Market-Brain suit ce réglage.")
+                    : undefined
               }
               className={`pill px-4 py-1.5 text-xs font-medium transition-colors ${
                 langPref === it.id ? "bg-overlay-2 text-text" : "text-text-dim hover:text-text"
@@ -1114,7 +1118,9 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("charge mentale — énergie restante")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.")}
+          {afficheTracker
+            ? t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.")
+            : t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse avec le temps passé devant l'écran aujourd'hui. Règle son point de départ et son rythme.")}
         </p>
         <div className="auto-tiles-lg mt-4 gap-3">
           <label className="block">
@@ -1127,6 +1133,9 @@ export default function SettingsView() {
               className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
             />
           </label>
+          {/* Le coût d'un trade ne se règle que là où les trades se saisissent :
+              sans le module Trading, la jauge ne les compte pas (MentalLoadGauge). */}
+          {afficheTracker && (
           <label className="block">
             <span className="hud-label">{t("coût par trade")}</span>
             <input
@@ -1137,6 +1146,7 @@ export default function SettingsView() {
               className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
             />
           </label>
+          )}
           <label className="block">
             <span className="hud-label">{t("coût / heure d'écran")}</span>
             <input

@@ -38,7 +38,14 @@ export interface MarketBrainState {
   clearFlash: () => void;
 }
 
-export function useMarketBrain(): MarketBrainState {
+/**
+ * `actif` : Market Brain est affiché pour ce compte (`afficheModule("market")`
+ * dans `App.tsx`). Faux, le planificateur ne tourne PAS — ni lecture, ni
+ * génération, ni appel réseau. Ajouté le 2026-09-30 avec la mise de côté du
+ * trading : jusque-là, il tournait pour tout le monde et rédigeait un briefing
+ * à 8 h et 14 h dès qu'une clé était enregistrée, même sans l'offre Trade.
+ */
+export function useMarketBrain(actif = true): MarketBrainState {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,12 +110,13 @@ export function useMarketBrain(): MarketBrainState {
   }, [isDemo, generate]);
 
   useEffect(() => {
+    if (!actif) return;
     // catch : un échec DB/réseau dans l'intervalle ne doit pas casser le scheduler.
     const tick = () => refresh().catch((e) => console.error("market refresh:", e));
     tick();
     const id = window.setInterval(tick, CHECK_MS);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refresh, actif]);
 
   const regenerate = useCallback(async () => {
     await generate(currentSession());

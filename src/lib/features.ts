@@ -16,6 +16,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { View } from "../components/Sidebar";
 
+/**
+ * ⭐ L'INTERRUPTEUR DU TRADING — le trading est MIS DE CÔTÉ depuis le 2026-09-30.
+ *
+ * Décision d'Antonin, au passage en pré-lancement : l'app commercialisée ne
+ * porte pas de modules trading « pour l'instant ». Rien n'est supprimé — ni le
+ * code, ni les tables, ni les trades déjà saisis (ils restent en base et se
+ * synchronisent comme avant). Passer à `true` rallume tout, à l'identique.
+ *
+ * Éteint, le trading est ABSENT, pas verrouillé : aucun cadenas, aucun paywall,
+ * aucun « Passer à Shale Trade » — on ne vend pas une offre qui n'existe plus.
+ * Concrètement, `hasTrading` est faux pour tout le monde (essai et ancien
+ * palier `shale_trade` compris), et `presenceModule` rend `absent` pour les
+ * trois modules sur toutes les plateformes. Tout ce qui lit `hasTrading` ou
+ * `afficheModule()` suit : barre latérale, garde de navigation, palette ⌘K,
+ * widgets et panneaux, sections de Réglages, rappel de briefing, planificateur
+ * de Market Brain, horloge des sessions de marché.
+ *
+ * ⚠️ Un nouvel endroit qui montre du trading doit lire `hasTrading` ou
+ * `afficheModule()`, pas cette constante — sauf s'il n'a pas accès aux droits
+ * (recherche, personnalisation, placeholder), et alors il la lit ici.
+ */
+export const TRADING_ACTIF = false;
+
 /** Modules (onglets de la sidebar) réservés à l'offre Shale Trade. */
 export const TRADING_VIEWS = ["trading", "market", "sizing"] as const;
 

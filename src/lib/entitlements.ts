@@ -21,7 +21,7 @@ import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
 import { normaliserTier } from "./auth/supabase";
 import type { ModuleProfil } from "./licence/catalogue";
 import { moduleVisible, resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
-import { isTradingView } from "./features";
+import { isTradingView, TRADING_ACTIF } from "./features";
 import type { LigneProfil } from "./licence/signature";
 import { useEtatProfil } from "./licence/useProfil";
 
@@ -35,6 +35,8 @@ export interface Entitlements {
    * Pendant l'essai, TOUT est ouvert — c'est le levier de conversion vers
    * Shale Trade : on ne vend pas une fonctionnalité que l'utilisateur n'a
    * jamais pu voir.
+   * ⚠️ Toujours FAUX depuis le 2026-09-30 : le trading est mis de côté
+   * (`TRADING_ACTIF` dans `features.ts`), essai compris.
    */
   hasTrading: boolean;
   /** Périodicité de facturation, `null` pendant l'essai sans choix exprimé. */
@@ -43,8 +45,20 @@ export interface Entitlements {
   trialDaysLeft: number | null;
 }
 
-/** Version pure, sans React : sert au hook et se teste seule. */
-export function entitlementsOf(sub: Subscription | null | undefined): Entitlements {
+/**
+ * Version pure, sans React : sert au hook et se teste seule.
+ *
+ * `tradingActif` : le trading est mis de côté (`TRADING_ACTIF` dans
+ * `features.ts`, 2026-09-30). Éteint, `hasTrading` est faux quoi que dise le
+ * serveur — `has_trading` y reste vrai pendant l'essai et pour l'ancien palier
+ * `shale_trade`, et ce n'est pas une erreur : le serveur décrit ce que le
+ * compte a payé, l'app décide de ce qu'elle montre. Le paramètre n'existe que
+ * pour que les tests couvrent les deux positions.
+ */
+export function entitlementsOf(
+  sub: Subscription | null | undefined,
+  tradingActif: boolean = TRADING_ACTIF,
+): Entitlements {
   // Sans mur de paiement, il n'y a rien à doser : tout compte dispose de tout.
   // `isTrialing` reste faux exprès — un bandeau « 5 jours restants » au-dessus
   // d'un produit qu'on ne peut pas encore acheter n'annonce qu'une échéance
@@ -53,7 +67,7 @@ export function entitlementsOf(sub: Subscription | null | undefined): Entitlemen
     return {
       tier: "shale_trade",
       isTrialing: false,
-      hasTrading: true,
+      hasTrading: tradingActif,
       billingPeriod: null,
       trialDaysLeft: null,
     };
@@ -67,9 +81,10 @@ export function entitlementsOf(sub: Subscription | null | undefined): Entitlemen
     // `has_trading` absent = base d'avant la migration 001 (la colonne n'existe
     // pas) : on recalcule la même règle côté client plutôt que de tout verrouiller.
     hasTrading:
-      typeof sub?.has_trading === "boolean"
+      tradingActif &&
+      (typeof sub?.has_trading === "boolean"
         ? sub.has_trading
-        : tier === "shale_trade" || isTrialing,
+        : tier === "shale_trade" || isTrialing),
     billingPeriod: sub?.billing_period ?? null,
     trialDaysLeft: isTrialing ? (sub?.trial_days_left ?? null) : null,
   };

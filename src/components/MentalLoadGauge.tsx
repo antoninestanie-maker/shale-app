@@ -1,5 +1,7 @@
 // Jauge « énergie restante » (charge mentale) pour le dashboard. Baisse au fil de la
-// journée selon les trades pris et le temps d'écran ; couleur verte → jaune → rouge.
+// journée selon le temps d'écran — et les trades pris, quand le module Trading est
+// affiché (plus le cas depuis que le trading est mis de côté, 2026-09-30) ;
+// couleur verte → jaune → rouge.
 import { useEffect, useState } from "react";
 import {
   computeMentalLoad,
@@ -11,6 +13,7 @@ import {
   type MentalLoadConfig,
 } from "../lib/mentalLoad";
 import { IconAlert } from "./icons";
+import { useEntitlements } from "../lib/entitlements";
 import type { AppData } from "../lib/types";
 
 import { t, tp } from "../lib/i18n";
@@ -32,6 +35,7 @@ function fmtMin(min: number): string {
 export default function MentalLoadGauge({ data }: { data: AppData }) {
   const [cfg, setCfg] = useState<MentalLoadConfig>(MENTAL_LOAD_DEFAULTS);
   const [screenMin, setScreenMin] = useState(0);
+  const compteTrades = useEntitlements().afficheModule("trading");
 
   useEffect(() => {
     const refreshCfg = () => loadMentalLoadConfig().then(setCfg);
@@ -49,7 +53,7 @@ export default function MentalLoadGauge({ data }: { data: AppData }) {
     };
   }, []);
 
-  const load: MentalLoad = computeMentalLoad(data, screenMin, cfg);
+  const load: MentalLoad = computeMentalLoad(data, screenMin, cfg, compteTrades);
   const color = colorFor(load.energy);
   const pct = Math.round(load.energy);
 
@@ -75,10 +79,12 @@ export default function MentalLoadGauge({ data }: { data: AppData }) {
 
       {/* Décomposition */}
       <div className="mt-3 flex items-center justify-between text-[11px] text-text-dim">
-        <span>
-          {tp(load.trades, "{n} trade", "{n} trades")}
-          <span className="ml-1 font-mono">−{Math.round(load.drainTrades)}%</span>
-        </span>
+        {compteTrades && (
+          <span>
+            {tp(load.trades, "{n} trade", "{n} trades")}
+            <span className="ml-1 font-mono">−{Math.round(load.drainTrades)}%</span>
+          </span>
+        )}
         <span>
           {t("{duree} écran", { duree: fmtMin(load.screenMin) })}
           <span className="ml-1 font-mono">−{Math.round(load.drainTime)}%</span>

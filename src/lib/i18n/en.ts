@@ -354,8 +354,8 @@ export const EN: Record<string, string> = {
   "Ajouter un sous-objectif": "Add a sub-goal",
   "Les sous-objectifs remontent d’un niveau, les tâches liées sont déliées.":
     "Sub-goals move up one level and linked tasks are unlinked.",
-  "ex. Trading, Formation, Santé… (optionnel)":
-    "e.g. Trading, Learning, Health… (optional)",
+  "ex. Formation, Santé, Finances… (optionnel)":
+    "e.g. Learning, Health, Money… (optional)",
   "Aucun objectif en cours.": "No goal in progress.",
   "Crée-en un dans l'onglet Objectifs.": "Create one in the Goals tab.",
   "objectif quotidien": "daily goal",
@@ -404,8 +404,8 @@ export const EN: Record<string, string> = {
   "ultradien": "ultradian",
   "— tâches courtes, démarrage difficile : la friction minimale.":
     "— short tasks, hard starts: the least possible friction.",
-  "— backtesting, montage : assez long pour entrer dans le flow.":
-    "— backtesting, editing: long enough to reach flow.",
+  "— rédaction, montage : assez long pour entrer dans le flow.":
+    "— writing, editing: long enough to reach flow.",
   "— aligné sur les cycles d'énergie naturels, pour les gros blocs du soir.":
     "— aligned with natural energy cycles, for the big evening blocks.",
   "Le mode « sur mesure » laisse fixer librement les durées travail et pause (1–240 min), mémorisées pour la prochaine session.":
@@ -657,7 +657,6 @@ export const EN: Record<string, string> = {
   "Exécution propre": "Clean execution",
   "Exécute proprement": "Execute cleanly",
   "Entré trop tôt": "Entered too early",
-  "Plan de risque": "Risk plan",
 
   // ── Tracker live ──────────────────────────────────────────────────────────
   "tracker live — en attente de dénouement": "live tracker — awaiting outcome",
@@ -1225,61 +1224,76 @@ export const EN: Record<string, string> = {
   // ── Jeu de démonstration (mode démo / captures du site) ───────────────────
   // Le jeu est construit au chargement du module : en mode démo, changer de
   // langue recharge la fenêtre (cf. SettingsView::changeLang).
-  "Publier un reel ChartCore": "Publish a ChartCore reel",
-  "Réviser module BTS": "Revise BTS module",
-  "Préparer script reel Moov": "Draft Moov reel script",
-  "Rédiger le plan de risque": "Write the risk plan",
-  "Session trading (Londres)": "Trading session (London)",
+  // ⚠️ Réécrit le 2026-09-30 (trading mis de côté) : le jeu était celui d'un
+  // trader, et il alimente les captures du site. C'est désormais celui d'un
+  // indépendant (design), cohérent avec « Tenez votre activité » du site.
+  "Prospection 1 h": "Prospecting, 1 h",
+  "Production client (matin)": "Client work (morning)",
+  "Publier un post LinkedIn": "Publish a LinkedIn post",
+  "Réviser un module de la certification": "Study a certification module",
+  "Présenter les maquettes au client": "Present the mockups to the client",
+  "Envoyer le devis à Studio Hélice": "Send the quote to Studio Hélice",
+  "Mettre à jour le portfolio": "Update the portfolio",
+  "Clients": "Clients",
   "Contenu": "Content",
   "Formation": "Learning",
-  "BTS": "BTS",
-  "Passer trader full-time": "Go full-time as a trader",
-  "Transition complète en septembre": "Full transition in September",
-  "10k abonnés ChartCore.fx": "10k ChartCore.fx followers",
-  "Valider le semestre BTS": "Pass the BTS semester",
-  "Préparer le passage full-time": "Prepare the move to full-time",
-  "Reels publiés": "Reels published",
-  "Heures de backtesting|démo": "Backtesting hours",
+  "Activité": "Business",
+  "Vivre de mon activité d'indépendant": "Make a living as a freelancer",
+  "100 % du revenu en freelance d'ici septembre": "100% of income from freelancing by September",
+  "5 000 abonnés LinkedIn": "5,000 LinkedIn followers",
+  "Valider la certification UX": "Pass the UX certification",
+  "Signer deux clients récurrents": "Sign two recurring clients",
+  "Heures facturées": "Billed hours",
+  "Appels clients": "Client calls",
+  "appels": "calls",
+  "Posts publiés": "Posts published",
   "Méditation": "Meditation",
   "Sport": "Exercise",
   "Lecture": "Reading",
-  "Idées de reels": "Reel ideas",
-  "Après une perte : le protocole": "After a loss: the protocol",
-  "Anatomie d'une cassure propre": "Anatomy of a clean breakout",
-  "Setup cassure H4": "H4 breakout setup",
-  "Plan de risque|démo": "Risk plan",
-  "Les 3 conditions": "The 3 conditions",
-  "Range H4 net, au moins 3 touches": "Clean H4 range, at least 3 touches",
-  "Cassure avec <b>volume</b> et clôture hors du range":
-    "Break on <b>volume</b>, closing outside the range",
-  "Cassure avec volume et clôture hors du range":
-    "Break on volume, closing outside the range",
-  "Retest qui tient, mèche de rejet": "Retest that holds, rejection wick",
-  "Si l'une manque : on passe. Le manque de patience coûte plus cher que le manque de setups.":
-    "If one is missing: skip it. Impatience costs more than a shortage of setups.",
-  "Schéma : cassure + retest": "Diagram: breakout + retest",
-  "Calendrier économique ForexFactory": "ForexFactory economic calendar",
-  "Bonne session de backtesting, le setup H4 se confirme.":
-    "Good backtesting session, the H4 setup is holding up.",
-  "À ouvrir chaque dimanche soir pour repérer les annonces de la semaine.":
-    "Open it every Sunday evening to spot the week’s releases.",
-  "Le croquis de référence à revoir avant chaque session de Londres.":
-    "The reference sketch to review before every London session.",
-  "La source du bloc « no-trade » du Market-Brain :":
-    "The source of Market Brain’s “no-trade” block:",
-  "1. Fermer la plateforme 20 minutes.": "1. Close the platform for 20 minutes.",
-  "2. Noter le trade dans le journal, sans jugement.":
-    "2. Log the trade in the journal, without judgement.",
-  "3. Relire le plan de risque à voix haute.":
-    "3. Read the risk plan out loud.",
-  "Le revenge trading n'est pas un problème de marché, c'est un problème d'ego.":
-    "Revenge trading isn’t a market problem, it’s an ego problem.",
-  "- 3 erreurs de débutant en trading\n- POV : ta première prop firm\n- Breakdown d'un trade perdant (transparence)":
-    "- 3 beginner trading mistakes\n- POV: your first prop firm\n- Breakdown of a losing trade (transparency)",
-  "Max 1% par trade. Max 3 trades/jour. Stop à -2R quotidien.\n\nRappel : la discipline > le setup. [[Setup cassure H4]]":
-    "Max 1% per trade. Max 3 trades/day. Daily stop at -2R.\n\nReminder: discipline > setup. [[H4 breakout setup]]",
-  "Règles du setup :\n- attendre la cassure du range H4\n- retest + rejet\n- SL sous la mèche, TP 2R minimum\n\nVoir aussi [[Plan de risque]] pour le sizing.":
-    "Setup rules:\n- wait for the H4 range to break\n- retest + rejection\n- SL below the wick, TP 2R minimum\n\nSee also [[Risk plan]] for sizing.",
+  "Méthode de devis": "Quote method",
+  "Tarifs 2026": "2026 rates",
+  "Idées de posts": "Post ideas",
+  "Structure d'un devis :\n- le contexte et le besoin du client\n- les livrables, en trois lignes au plus\n- le planning et les jalons\n- le prix, avec 30 % d'acompte\n\nVoir aussi [[Tarifs 2026]] pour les montants.":
+    "How a quote is built:\n- the client’s context and need\n- the deliverables, in three lines at most\n- the schedule and milestones\n- the price, with a 30% deposit\n\nSee also [[2026 rates]] for the amounts.",
+  "Jour : 450 €. Demi-journée : 250 €. Audit UX : forfait de 1 200 €.\n\nRappel : on ne négocie pas le prix, on négocie le périmètre. [[Méthode de devis]]":
+    "Day: €450. Half day: €250. UX audit: €1,200 flat fee.\n\nReminder: don’t negotiate the price, negotiate the scope. [[Quote method]]",
+  "- 3 erreurs sur un premier devis\n- Avant / après d'une refonte\n- Ce qu'un brief clair change au planning":
+    "- 3 mistakes on a first quote\n- Before / after a redesign\n- What a clear brief changes to the schedule",
+  "Architecture": "Architecture",
+  "Refonte du site vitrine": "Showcase website redesign",
+  "Anatomie d'un bon brief": "Anatomy of a good brief",
+  "Les 3 questions": "The 3 questions",
+  "Quel problème le client veut-il régler ?": "What problem does the client want solved?",
+  "Qui décide, et <b>avant quelle date</b> ?": "Who decides, and <b>by what date</b>?",
+  "Qui décide, et avant quelle date ?": "Who decides, and by what date?",
+  "À quoi verra-t-on que c'est réussi ?": "How will we know it worked?",
+  "S'il manque une réponse : on rappelle avant de chiffrer. Un devis sur un brief flou coûte plus cher qu'un appel de plus.":
+    "If an answer is missing: call back before pricing. A quote on a vague brief costs more than one more call.",
+  "Schéma : déroulé d'une mission": "Diagram: how a project unfolds",
+  "déroulé d'une mission": "how a project unfolds",
+  "Le croquis de référence à revoir avant chaque premier rendez-vous.":
+    "The reference sketch to review before every first meeting.",
+  "Après un refus : le protocole": "After a rejection: the protocol",
+  "1. Relire le devis à froid, le lendemain.": "1. Reread the quote with fresh eyes, the next day.",
+  "2. Demander au client ce qui a pesé, sans se justifier.":
+    "2. Ask the client what tipped the balance, without justifying yourself.",
+  "3. Noter la leçon dans le journal.": "3. Write the lesson down in the journal.",
+  "Un refus n'est pas un verdict sur ton travail, c'est une information sur le besoin.":
+    "A rejection isn’t a verdict on your work, it’s information about the need.",
+  "Déclarer son chiffre d'affaires": "Declaring your turnover",
+  "Le portail officiel des déclarations de micro-entrepreneur :":
+    "The official portal for micro-entrepreneur declarations:",
+  "À ouvrir à chaque échéance, avant le dernier jour du mois.":
+    "Open it at every deadline, before the last day of the month.",
+  "Bonne journée de production, les maquettes avancent.":
+    "Good production day, the mockups are coming along.",
+  "Point hebdo client": "Weekly client check-in",
+  "Clôture mensuelle des comptes": "Monthly accounts close",
+  "Séminaire design": "Design seminar",
+  "Secteur": "Sector",
+  "Prospect": "Prospect",
+  "Besoin": "Need",
+  "TJM (€)": "Day rate (€)",
 
   // ── Market Brain : jeu de démonstration ───────────────────────────────────
   "Dollar fort — thème baissier aligné sur EUR/USD, GBP/USD et Or.":
@@ -2689,7 +2703,7 @@ export const EN: Record<string, string> = {
   "Détacher « {titre} »": "Detach “{titre}”",
   "Cible": "Target",
   "Unité": "Unit",
-  "backtests, €, pages…": "backtests, $, pages…",
+  "séances, €, pages…": "sessions, $, pages…",
   "Compté": "Counted",
   "par une tâche récurrente": "by a recurring task",
   "par une habitude": "by a habit",
@@ -2725,7 +2739,7 @@ export const EN: Record<string, string> = {
   "Suivre à la main": "Track by hand",
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
   "Un titre suffit. La feuille de route viendra quand tu en auras besoin.": "A title is enough. The roadmap will come when you need it.",
-  "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).": "No goals yet. Start with the long term, then break it into steps when you need to. Sort them by category (Trading, Training…).",
+  "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Formation, Santé…).": "No goals yet. Start with the long term, then break it into steps when you need to. Sort them by category (Learning, Health…).",
   "Rien de rattaché pour l’instant.": "Nothing attached yet.",
   "Écrire n’est pas avancer": "Writing is not progressing",
   "Une note ou une fiche éclaire l’objectif, elle ne le fait pas progresser.": "A note or a card sheds light on the goal; it doesn’t move it forward.",
@@ -2819,10 +2833,10 @@ export const EN: Record<string, string> = {
   "Facultatif : tout se complète ensuite dans la feuille de route.":
     "Optional: everything else goes in the roadmap later.",
   "Premières étapes": "First steps",
-  "ex. Préparer le plan de trading": "e.g. Prepare the trading plan",
+  "ex. Préparer le plan de révision": "e.g. Prepare the study plan",
   "Étape {n}": "Step {n}",
   "Premières tâches": "First tasks",
-  "ex. Backtester 1 h": "e.g. Backtest for 1 h",
+  "ex. Réviser 1 h": "e.g. Study for 1 h",
   "Tâche suivante…": "Next task…",
   "Tâche {n}": "Task {n}",
   "Échéance de la tâche {n}": "Due date for task {n}",
@@ -3028,4 +3042,12 @@ export const EN: Record<string, string> = {
   "reportée {n} fois": "postponed {n} times",
   "Afficher la dernière": "Show the last one",
   "Afficher les {n} autres": "Show {n} more",
+
+  // ── Trading mis de côté (chantier sans-trading, 2026-09-30) ─────────────
+  // Variantes affichées quand `TRADING_ACTIF` est faux ; les phrases d'origine,
+  // avec le trading, restent plus haut pour le jour où il revient.
+  "Bandeau performance (streak, focus)": "Performance strip (streak, focus)",
+  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse avec le temps passé devant l'écran aujourd'hui. Règle son point de départ et son rythme.":
+    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the screen time spent today. Set where it starts and how fast it drops.",
+  "Idées": "Ideas",
 };

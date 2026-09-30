@@ -27,7 +27,7 @@
 // part ailleurs.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Subscription } from "./auth/supabase";
-import { isTradingView } from "./features";
+import { isTradingView, TRADING_ACTIF } from "./features";
 import { IS_IOS } from "./platform";
 
 /**
@@ -57,6 +57,9 @@ export const COMMERCE_AUTORISE = commerceAutorisePour(IS_IOS);
  *   - `absent`     : il n'existe pas pour ce compte. Sur iOS, un module hors
  *                    palier est traité comme un module masqué par le profil :
  *                    pas de cadenas, pas de message, pas de trace commerciale.
+ *                    Et PARTOUT tant que le trading est mis de côté
+ *                    (`TRADING_ACTIF`, 2026-09-30) : un cadenas vendrait une
+ *                    offre qui n'est plus en vente.
  */
 export type PresenceModule = "ouvert" | "verrouille" | "absent";
 
@@ -64,8 +67,11 @@ export function presenceModule(
   id: string,
   hasTrading: boolean,
   commerce: boolean = COMMERCE_AUTORISE,
+  tradingActif: boolean = TRADING_ACTIF,
 ): PresenceModule {
-  if (hasTrading || !isTradingView(id)) return "ouvert";
+  if (!isTradingView(id)) return "ouvert";
+  if (!tradingActif) return "absent";
+  if (hasTrading) return "ouvert";
   return commerce ? "verrouille" : "absent";
 }
 

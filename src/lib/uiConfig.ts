@@ -4,6 +4,7 @@
 // au chargement pour rester compatibles quand de nouveaux modules apparaissent.
 import { useCallback, useEffect, useState } from "react";
 import type { View } from "../components/Sidebar";
+import { TRADING_ACTIF } from "./features";
 import { IS_IOS } from "./platform";
 import { getSetting, setSetting } from "./repo";
 
@@ -52,7 +53,8 @@ export const MODULE_IDS: View[] = [
 ];
 
 export const WIDGET_LABELS: Record<string, string> = {
-  perf: "Bandeau performance (streak, focus, trading)",
+  // Le trading sorti (2026-09-30), le bandeau n'en montre plus : le libellé suit.
+  perf: TRADING_ACTIF ? "Bandeau performance (streak, focus, trading)" : "Bandeau performance (streak, focus)",
   discipline: "Anneau discipline",
   energy: "Énergie restante (charge mentale)",
   timer: "Timer rapide",
@@ -85,8 +87,16 @@ const DEFAULTS: UiConfig = {
   window: null,
   zoom: 100,
   brandTitle: "Shale",
-  brandSubtitle: "trading os",
+  // ⚠️ Vide depuis le 2026-09-30 (trading mis de côté). C'était « trading os » :
+  // sous le nom, c'était la première chose qui disait ce que vend Shale — et ça
+  // disait « trading ». Le site n'affiche que « Shale », l'app fait pareil.
+  brandSubtitle: "",
 };
+
+/** L'ancien sous-titre par défaut, recopié dans les réglages de quiconque avait
+ *  enregistré Personnaliser avant le 2026-09-30 : `mergeConfig` le remplace par
+ *  le défaut du moment, comme s'il n'avait jamais été sauvegardé. */
+const ANCIEN_SOUS_TITRE = "trading os";
 
 export function defaultUiConfig(): UiConfig {
   return JSON.parse(JSON.stringify(DEFAULTS)) as UiConfig;
@@ -117,7 +127,10 @@ function mergeConfig(raw: unknown): UiConfig {
         : null,
     zoom: typeof c.zoom === "number" && c.zoom >= 80 && c.zoom <= 130 ? c.zoom : 100,
     brandTitle: typeof c.brandTitle === "string" && c.brandTitle.trim() ? c.brandTitle : d.brandTitle,
-    brandSubtitle: typeof c.brandSubtitle === "string" ? c.brandSubtitle : d.brandSubtitle,
+    brandSubtitle:
+      typeof c.brandSubtitle === "string" && c.brandSubtitle !== ANCIEN_SOUS_TITRE
+        ? c.brandSubtitle
+        : d.brandSubtitle,
   };
 }
 

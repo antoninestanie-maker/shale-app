@@ -12,7 +12,8 @@ import {
   IconReset,
 } from "../components/icons";
 import { IS_IOS } from "../lib/platform";
-import { COMMERCE_AUTORISE } from "../lib/boutique";
+import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
+import { isTradingWidget } from "../lib/features";
 import { isTauri } from "../lib/repo";
 import {
   applyZoom,
@@ -39,15 +40,34 @@ interface Props {
    * qu'on sauvegarde, jamais la version bornée.
    */
   profil?: ProfilEffectif;
+  /**
+   * Offre Trade, telle que `useEntitlements()` la rend. Un module ou un widget
+   * trading ABSENT pour ce compte (iOS hors palier, trading mis de côté le
+   * 2026-09-30) n'est pas listé : le proposer ici ferait réapparaître par la
+   * personnalisation ce que la barre et l'accueil ont retiré.
+   */
+  hasTrading?: boolean;
 }
 
-/** Déplace l'élément i d'une liste vers le haut (-1) ou le bas (+1). */
-function move<T>(list: T[], i: number, delta: -1 | 1): T[] {
-  const j = i + delta;
+/**
+ * Déplace l'élément i vers son voisin LISTÉ le plus proche, vers le haut (-1)
+ * ou le bas (+1). Les éléments non listés (module absent, masqué par la
+ * licence) sont sautés : sinon la flèche échangerait avec un élément invisible
+ * et semblerait ne rien faire.
+ */
+function move<T>(list: T[], i: number, delta: -1 | 1, liste: (x: T) => boolean = () => true): T[] {
+  let j = i + delta;
+  while (j >= 0 && j < list.length && !liste(list[j])) j += delta;
   if (j < 0 || j >= list.length) return list;
   const next = [...list];
   [next[i], next[j]] = [next[j], next[i]];
   return next;
+}
+
+/** Premier et dernier index listés, pour griser les flèches aux deux bouts. */
+function bornes<T>(list: T[], liste: (x: T) => boolean): [number, number] {
+  const idx = list.flatMap((x, k) => (liste(x) ? [k] : []));
+  return [idx[0] ?? 0, idx[idx.length - 1] ?? list.length - 1];
 }
 
 function ArrowButton({
@@ -105,16 +125,20 @@ function WidgetList({
   title,
   list,
   onChange,
+  liste = () => true,
 }: {
   title: string;
   list: WidgetConfig[];
   onChange: (next: WidgetConfig[]) => void;
+  /** Le widget est-il proposé à ce compte ? (un widget trading absent ne l'est pas) */
+  liste?: (w: WidgetConfig) => boolean;
 }) {
+  const [premier, dernier] = bornes(list, liste);
   return (
     <div>
       <p className="hud-label mb-2">{title}</p>
       <div className="flex flex-col gap-1">
-        {list.map((w, i) => (
+        {list.map((w, i) => !liste(w) ? null : (
           <div
             key={w.id}
             className={`flex items-center gap-2 rounded-xl border border-border px-3 py-2 ${
@@ -136,11 +160,11 @@ function WidgetList({
             >
               {t(WIDGET_LABELS[w.id] ?? w.id)}
             </span>
-            <ArrowButton up onClick={() => onChange(move(list, i, -1))} disabled={i === 0} />
+            <ArrowButton up onClick={() => onChange(move(list, i, -1, liste))} disabled={i === premier} />
             <ArrowButton
               up={false}
-              onClick={() => onChange(move(list, i, 1))}
-              disabled={i === list.length - 1}
+              onClick={() => onChange(move(list, i, 1, liste))}
+              disabled={i === dernier}
             />
           </div>
         ))}
@@ -149,7 +173,7 @@ function WidgetList({
   );
 }
 
-export default function AdminView({ config, save, profil }: Props) {
+export default function AdminView({ config, save, profil, hasTrading = true }: Props) {
   const [sizeMsg, setSizeMsg] = useState<string | null>(null);
   const [texts, setTexts] = useState<AppTexts>(loadTexts);
   // Lu au rendu, pas mémorisé : revenir sur cette page après avoir changé la
@@ -157,6 +181,11 @@ export default function AdminView({ config, save, profil }: Props) {
   const facteurSysteme = facteurDynamicType(tailleTexteSysteme());
 
   const set = (patch: Partial<UiConfig>) => save({ ...config, ...patch });
+  // Ce qui est proposé ici suit ce que la barre et l'accueil affichent.
+  const moduleListe = (m: { id: string }) =>
+    (!profil || moduleVisible(profil, m.id)) && presenceModule(m.id, hasTrading) !== "absent";
+  const widgetListe = (w: WidgetConfig) => hasTrading || !isTradingWidget(w.id);
+  const [premierModule, dernierModule] = bornes(config.modules, moduleListe);
   const setText = (patch: Partial<AppTexts>) => {
     setTexts((t) => ({ ...t, ...patch }));
     saveTexts(patch); // persiste + notifie les écrans (login, onboarding…) en direct
@@ -434,7 +463,7 @@ export default function AdminView({ config, save, profil }: Props) {
         )}
         <div className="mt-3 flex flex-col gap-1">
           {config.modules.map((m, i) => {
-            if (profil && !moduleVisible(profil, m.id)) return null;
+            if (!moduleListe(m)) return null;
             const impose = profil ? libelleProfil(profil, MODULE_LABELS[m.id], getLang()) : null;
             return (
             <div
@@ -470,13 +499,13 @@ export default function AdminView({ config, save, profil }: Props) {
               />
               <ArrowButton
                 up
-                onClick={() => set({ modules: move(config.modules, i, -1) })}
-                disabled={i === 0}
+                onClick={() => set({ modules: move(config.modules, i, -1, moduleListe) })}
+                disabled={i === premierModule}
               />
               <ArrowButton
                 up={false}
-                onClick={() => set({ modules: move(config.modules, i, 1) })}
-                disabled={i === config.modules.length - 1}
+                onClick={() => set({ modules: move(config.modules, i, 1, moduleListe) })}
+                disabled={i === dernierModule}
               />
             </div>
             );
@@ -503,6 +532,7 @@ export default function AdminView({ config, save, profil }: Props) {
             title={t("bandeaux (pleine largeur)")}
             list={config.dashTop}
             onChange={(l) => set({ dashTop: l })}
+            liste={widgetListe}
           />
           {/* ⚠️ Sur téléphone il n'y a PAS deux colonnes : `TodayView` fait
               `interleave(dashLeft, dashRight)`, donc les deux groupes
@@ -512,11 +542,13 @@ export default function AdminView({ config, save, profil }: Props) {
             title={IS_IOS ? t("groupe 1") : t("colonne gauche")}
             list={config.dashLeft}
             onChange={(l) => set({ dashLeft: l })}
+            liste={widgetListe}
           />
           <WidgetList
             title={IS_IOS ? t("groupe 2") : t("colonne droite")}
             list={config.dashRight}
             onChange={(l) => set({ dashRight: l })}
+            liste={widgetListe}
           />
         </div>
       </section>

@@ -315,7 +315,7 @@ export default function TimerView({ data, focus }: Props) {
               </li>
               <li>
                 <span className="font-semibold text-text">50·10 {t("deep work")}</span>{" "}
-                {t("— backtesting, montage : assez long pour entrer dans le flow.")}
+                {t("— rédaction, montage : assez long pour entrer dans le flow.")}
               </li>
               <li>
                 <span className="font-semibold text-text">90·15 {t("ultradien")}</span>{" "}

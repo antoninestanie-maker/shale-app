@@ -31,16 +31,19 @@ describe("presenceModule", () => {
     }
   });
 
+  // Les deux cas suivants décrivent le trading ALLUMÉ (4ᵉ argument à `true`) :
+  // depuis le 2026-09-30 il est mis de côté, et absent partout — c'est
+  // `trading-de-cote.test.ts` qui tient cette position-là.
   it("un module trading est ouvert pour qui y a droit, sur les deux plateformes", () => {
     for (const commerce of [true, false]) {
-      expect(presenceModule("trading", true, commerce)).toBe("ouvert");
+      expect(presenceModule("trading", true, commerce, true)).toBe("ouvert");
     }
   });
 
   it("⭐ hors palier : cadenas sur macOS, ABSENT sur iOS — jamais verrouillé", () => {
     for (const id of ["trading", "market", "sizing"]) {
-      expect(presenceModule(id, false, true)).toBe("verrouille");
-      expect(presenceModule(id, false, false)).toBe("absent");
+      expect(presenceModule(id, false, true, true)).toBe("verrouille");
+      expect(presenceModule(id, false, false, true)).toBe("absent");
     }
   });
 });

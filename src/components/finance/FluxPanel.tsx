@@ -22,6 +22,7 @@ import type {
   FinanceFrequency,
   FinanceRecurring,
 } from "../../lib/types";
+import { TRADING_ACTIF } from "../../lib/features";
 import { formatDate, t } from "../../lib/i18n";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
@@ -322,7 +323,15 @@ export function FormulaireFlux({
   );
   const [confirmeSuppression, setConfirmeSuppression] = useState(suppressionDemandee && !!flux);
 
-  const catsDuSens = categories.filter((c) => c.kind === form.direction);
+  // « Trading » est l'une des sept catégories semées par la migration 018 dans
+  // CHAQUE base. Tant que le trading est mis de côté (2026-09-30), elle ne se
+  // propose plus — sauf au flux qui la porte déjà : sans son option, le menu
+  // afficherait une autre catégorie que la sienne. Masquée, pas supprimée.
+  const catsDuSens = categories.filter(
+    (c) =>
+      c.kind === form.direction &&
+      (TRADING_ACTIF || c.name !== "Trading" || c.id === form.category_id),
+  );
 
   const valider = async () => {
     if (!form.label.trim() || form.amount_cents <= 0) return;

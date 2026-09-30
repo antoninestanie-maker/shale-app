@@ -75,13 +75,22 @@ export interface MentalLoad {
   drainTime: number; // % d'énergie consommé par le temps d'écran
 }
 
+/**
+ * `compterTrades` : faux quand le module Trading n'est pas affiché (offre sans
+ * trading, trading mis de côté le 2026-09-30). Les trades déjà en base ne
+ * pèsent alors plus sur la jauge — un compte qui ne peut plus en saisir ne doit
+ * pas voir son énergie baisser à cause d'eux.
+ */
 export function computeMentalLoad(
   data: AppData,
   screenMin: number,
   cfg: MentalLoadConfig,
+  compterTrades = true,
 ): MentalLoad {
   const today = todayStr();
-  const trades = data.trades.filter((t) => t.mode === "live" && t.date === today).length;
+  const trades = compterTrades
+    ? data.trades.filter((t) => t.mode === "live" && t.date === today).length
+    : 0;
   const drainTradesAbs = trades * cfg.costPerTrade;
   const drainTimeAbs = (screenMin / 60) * cfg.costPerHour;
   const remainingAbs = cfg.startEnergy - drainTradesAbs - drainTimeAbs;

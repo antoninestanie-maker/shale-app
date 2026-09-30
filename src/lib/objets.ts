@@ -1,3 +1,4 @@
+import { TRADING_ACTIF } from "./features";
 import type { Sujet, FieldType, ObjectField, ObjectType } from "./types";
 
 /**
@@ -234,4 +235,28 @@ export function typeDeLObjet(
   types: readonly ObjectType[],
 ): ObjectType | undefined {
   return objet.type_id == null ? undefined : types.find((t) => t.id === objet.type_id);
+}
+
+/** Nom du type livré par la migration 020 pour le trading — semé dans CHAQUE base. */
+export const TYPE_LIVRE_TRADING = "Setup de trading";
+
+/**
+ * Ce type se propose-t-il dans le Savoir ?
+ *
+ * Non pour le type livré « Setup de trading » tant que le trading est mis de
+ * côté (`TRADING_ACTIF`, 2026-09-30) : la migration 020 l'a semé dans toutes
+ * les bases, y compris celles de gens qui n'ont jamais tradé. Masqué, pas
+ * supprimé — il revient avec le trading, et il se synchronise comme avant.
+ *
+ * ⚠️ SAUF s'il porte déjà des sujets : les leur retirer ferait disparaître leurs
+ * champs de la fiche. Un type créé à la main sous le même nom (`builtin = 0`)
+ * reste visible — c'est celui de l'utilisateur, pas le nôtre.
+ */
+export function typePropose(
+  type: Pick<ObjectType, "id" | "name" | "builtin">,
+  sujets: readonly Pick<Sujet, "type_id">[],
+  tradingActif: boolean = TRADING_ACTIF,
+): boolean {
+  if (tradingActif || type.builtin !== 1 || type.name !== TYPE_LIVRE_TRADING) return true;
+  return sujets.some((s) => s.type_id === type.id);
 }

@@ -538,7 +538,7 @@ export default function GoalsView({ data, refresh }: Props) {
         <section className="card mt-6 p-3">
           <p className="py-10 text-center text-sm text-text-dim">
             {t(
-              "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Trading, Formation…).",
+              "Aucun objectif. Commence par le long terme, puis découpe-le en étapes quand tu en as besoin. Range-les par catégorie (Formation, Santé…).",
             )}
           </p>
         </section>
