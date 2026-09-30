@@ -6,7 +6,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { DAY_SHORT, weekdayOf } from "../lib/logic";
+import { nomCourtDuJour, weekdayOf } from "../lib/logic";
 import { t } from "../lib/i18n";
 import type { DayStat } from "../lib/types";
 
@@ -37,7 +37,10 @@ export default function WeekChart({ stats }: { stats: DayStat[] }) {
   }
 
   const data = stats.map((s, i) => ({
-    label: DAY_SHORT[weekdayOf(s.date)],
+    // ⚠️ `nomCourtDuJour`, pas `DAY_SHORT` : la table est française, et
+    // l'axe restait « lun, mar… » dans l'app anglaise (même défaut que les
+    // rythmes des Tâches, 2026-09-30 — PIEGES § 5.2 bis).
+    label: nomCourtDuJour(weekdayOf(s.date)),
     pct: s.pct ?? 0,
     isToday: i === stats.length - 1,
   }));

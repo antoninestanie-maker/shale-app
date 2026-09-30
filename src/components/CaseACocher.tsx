@@ -14,11 +14,18 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 export function CocheVisuelle({
   cochee,
   couleur,
+  anneau,
   taille = "md",
 }: {
   cochee: boolean;
   /** Teinte de la boîte cochée (habitudes) ; vert par défaut. */
   couleur?: string;
+  /**
+   * Teinte du contour de la boîte NON cochée — la priorité d'une tâche, dans la
+   * vue Tâches (2026-09-30). Cochée, la boîte redevient celle de tout le monde :
+   * le réussi est à l'encre (DESIGN.md).
+   */
+  anneau?: string;
   taille?: "sm" | "md";
 }) {
   const boite = taille === "sm" ? "h-4 w-4 rounded" : "h-5 w-5 rounded-md";
@@ -42,9 +49,17 @@ export function CocheVisuelle({
           ? couleur
             ? "border-transparent"
             : "border-success bg-success"
-          : "border-text-dim/40 group-hover:border-text-dim"
+          : anneau
+            ? "border-[1.5px]"
+            : "border-text-dim/40 group-hover:border-text-dim"
       }`}
-      style={cochee && couleur ? { backgroundColor: couleur } : undefined}
+      style={
+        cochee && couleur
+          ? { backgroundColor: couleur }
+          : !cochee && anneau
+            ? { borderColor: anneau }
+            : undefined
+      }
     >
       {cochee && (
         <svg viewBox="0 0 12 12" className={taille === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} fill="none">
@@ -67,6 +82,7 @@ export function CaseACocher({
   onBascule,
   libelle,
   couleur,
+  anneau,
   taille,
   tip,
   tipSub,
@@ -76,6 +92,7 @@ export function CaseACocher({
   /** Lu par le lecteur d'écran : le NOM de l'élément, l'état vient d'`aria-checked`. */
   libelle: string;
   couleur?: string;
+  anneau?: string;
   taille?: "sm" | "md";
   tip?: string;
   tipSub?: string;
@@ -96,7 +113,7 @@ export function CaseACocher({
       }}
       className="cible-tactile group -m-1.5 flex shrink-0 items-center justify-center rounded-lg p-1.5 focus-visible:outline-2 focus-visible:outline-blue"
     >
-      <CocheVisuelle cochee={cochee} couleur={couleur} taille={taille} />
+      <CocheVisuelle cochee={cochee} couleur={couleur} anneau={anneau} taille={taille} />
     </button>
   );
 }

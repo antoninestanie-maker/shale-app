@@ -1,5 +1,5 @@
 
-import { localeTag } from "./i18n";
+import { localeTag, t } from "./i18n";
 import { sansExemples } from "./onboarding/exemples";
 import { mesurer, type ContexteProgression } from "./objectifs/progression";
 import type {
@@ -81,24 +81,23 @@ export function serialiserRecurrence(mode: ModeRecurrence, jours: number[]): str
   return mode === "custom" ? JSON.stringify([...jours].sort((a, b) => a - b)) : mode;
 }
 
-/** Libellé lisible d'une récurrence, null pour les tâches ponctuelles. */
+/**
+ * Libellé lisible d'une récurrence, `null` pour une tâche ponctuelle — dans la
+ * langue de l'utilisateur.
+ *
+ * ⚠️ Rendait « quotidien », « lun–ven », « lun, mer, ven » EN FRANÇAIS dans
+ * l'app anglaise : les deux premiers écrits en dur, les jours tirés de
+ * `DAY_SHORT`. Vu en refaisant la vue Tâches, 2026-09-30 (PIEGES § 5.2 bis :
+ * aucun des deux outils i18n ne le voit). Les mots sont ceux du formulaire
+ * (`TaskModal`), les jours viennent d'`Intl`, lundi d'abord.
+ */
 export function recurrenceLabel(rec: Recurrence): string | null {
-  if (!rec || rec === "none") return null;
-  if (rec === "daily") return "quotidien";
-  if (rec === "weekdays") return "lun–ven";
-  try {
-    const days = JSON.parse(rec);
-    if (Array.isArray(days) && days.length > 0) {
-      return days
-        .slice()
-        .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
-        .map((d) => DAY_SHORT[d])
-        .join(", ");
-    }
-  } catch {
-    // récurrence illisible → traitée comme ponctuelle
-  }
-  return null;
+  const { mode, jours } = parseRecurrence(rec);
+  if (mode === "none") return null;
+  if (mode === "daily") return t("Quotidien");
+  if (mode === "weekdays") return t("Lun–ven");
+  const tries = ORDRE_SEMAINE.filter((d) => jours.includes(d));
+  return tries.length > 0 ? tries.map(nomCourtDuJour).join(", ") : null;
 }
 
 /** Date locale au format YYYY-MM-DD (pas d'UTC : la journée bascule à minuit local). */
