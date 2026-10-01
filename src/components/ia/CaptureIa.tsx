@@ -24,6 +24,7 @@ import {
 } from "../../lib/ia/capture";
 import type { ElementExtrait, SortieDe } from "../../lib/ia/contrats";
 import { ACCEPTE, preparerFichier, type FichierPrepare } from "../../lib/ia/fichierCapture";
+import { useEntitlements } from "../../lib/entitlements";
 import { useIa } from "../../lib/ia/useIa";
 import { todayStr } from "../../lib/logic";
 import type { AppData } from "../../lib/types";
@@ -59,7 +60,7 @@ function raisonFichier(r: Exclude<FichierPrepare, { ok: true }>["raison"]): stri
   }
 }
 
-function Element({ e, maj }: { e: ElementExtrait; maj: (n: ElementExtrait) => void }) {
+function Element({ e, maj, finance }: { e: ElementExtrait; maj: (n: ElementExtrait) => void; finance: boolean }) {
   const ecart = ecartTotaux(e.achat);
   return (
     <div className="flex flex-col gap-1.5">
@@ -122,7 +123,9 @@ function Element({ e, maj }: { e: ElementExtrait; maj: (n: ElementExtrait) => vo
             </p>
           )}
           <p className="mt-1 text-text-dim">
-            {t("Deviendra une facture d'achat en brouillon, dans Finance → Facturation. Montants à vérifier.")}
+            {finance
+              ? t("Deviendra une facture d'achat en brouillon, dans Finance → Facturation. Montants à vérifier.")
+              : t("Deviendra une note qui garde ces montants, à vérifier.")}
           </p>
         </div>
       )}
@@ -142,6 +145,8 @@ export function CaptureIa({
   onOuvrirReglages?: () => void;
 }) {
   const { run } = useIa();
+  // Finance mise de côté : un achat devient une note, pas une facture invisible.
+  const finance = useEntitlements().afficheModule("finance");
   const [mode, setMode] = useState<Mode>("document");
   const [texte, setTexte] = useState("");
   const [fichier, setFichier] = useState<Extract<FichierPrepare, { ok: true }> | null>(null);
@@ -221,10 +226,10 @@ export function CaptureIa({
           vide={t("L'IA n'a rien trouvé à extraire de ce contenu.")}
           onAnnuler={onFermer}
           onValider={async (choisis) => {
-            for (const e of choisis) await appliquerElement(e, jour);
+            for (const e of choisis) await appliquerElement(e, jour, finance);
             await fin();
           }}
-          rendu={(e, maj) => <Element e={e} maj={maj} />}
+          rendu={(e, maj) => <Element e={e} maj={maj} finance={finance} />}
         />
       </FenetreIa>
     );

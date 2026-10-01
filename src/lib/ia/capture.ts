@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { totalLigneHtCents, totauxFacture, TAUX_TVA_USUELS } from "../finance/facturation/totaux";
+import { FINANCE_ACTIF } from "../features";
 import { t } from "../i18n";
 import {
   createCalendarEvent,
@@ -157,7 +158,32 @@ async function creerAchat(e: ElementExtrait, jour: string): Promise<void> {
 }
 
 /** Écrit UN élément validé par l'utilisateur. */
-export async function appliquerElement(e: ElementExtrait, jour: string): Promise<void> {
+/**
+ * ⭐ Finance est MISE DE CÔTÉ depuis le 2026-10-01 (`FINANCE_ACTIF`). Un achat
+ * capturé ne peut plus devenir une facture d'achat : elle naîtrait dans un
+ * module que personne ne voit. Il devient une NOTE, qui porte ce que le
+ * document disait — fournisseur, numéro, dates, montants TELS QU'EXTRAITS (rien
+ * n'est recalculé : il n'y a plus de ligne de facture pour le faire).
+ */
+export function texteDAchat(e: ElementExtrait): string {
+  const a = e.achat;
+  if (!a) return e.texte ?? "";
+  const m = (x: number | null) => (centimes(x) === null ? "—" : `${(centimes(x)! / 100).toFixed(2)} ${a.devise}`);
+  return [
+    `${t("Fournisseur")} : ${a.fournisseur}`,
+    a.numero ? `${t("Numéro")} : ${a.numero}` : null,
+    a.date ? `${t("Date")} : ${a.date}` : null,
+    a.echeance ? `${t("Échéance")} : ${a.echeance}` : null,
+    `${t("HT")} : ${m(a.ht)}`,
+    `${t("TVA")} : ${m(a.tva)}`,
+    `${t("TTC")} : ${m(a.ttc)}`,
+    t("Saisie par l'IA à partir d'un document : montants à vérifier."),
+  ]
+    .filter((l): l is string => l !== null)
+    .join("\n\n");
+}
+
+export async function appliquerElement(e: ElementExtrait, jour: string, finance: boolean = FINANCE_ACTIF): Promise<void> {
   switch (e.type) {
     case "tache":
       await createTask({
@@ -186,7 +212,8 @@ export async function appliquerElement(e: ElementExtrait, jour: string): Promise
       await createNote(e.titre, corpsDeNote(e.texte));
       return;
     case "achat":
-      await creerAchat(e, jour);
+      if (finance) await creerAchat(e, jour);
+      else await createNote(e.titre, corpsDeNote(texteDAchat(e)));
       return;
   }
 }

@@ -29,12 +29,17 @@ import { useSession } from "../auth/AuthGate";
 import UpgradeModal from "../UpgradeModal";
 import { SujetsBrief } from "./SujetsBrief";
 
-function libelleFamille(f: FamilleIa): { titre: string; desc: string } {
+function libelleFamille(f: FamilleIa, finance: boolean): { titre: string; desc: string } {
   switch (f) {
     case "brief":
       return { titre: t("Brief du matin et clôture du soir"), desc: t("Tes sujets suivis, ta journée, et le bilan du soir.") };
     case "capture":
-      return { titre: t("Capture"), desc: t("Un texte, un PDF ou une image devient des tâches, des événements ou une facture à valider.") };
+      return {
+        titre: t("Capture"),
+        desc: finance
+          ? t("Un texte, un PDF ou une image devient des tâches, des événements ou une facture à valider.")
+          : t("Un texte, un PDF ou une image devient des tâches, des événements ou des notes à valider."),
+      };
     case "taches":
       return { titre: t("Tâches et objectifs"), desc: t("Découper, estimer, décomposer, proposer des étapes.") };
     case "notes":
@@ -148,7 +153,8 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
 }
 
 export default function ReglagesIa() {
-  const { aIa, isTrialing } = useEntitlements();
+  const { aIa, isTrialing, afficheModule } = useEntitlements();
+  const finance = afficheModule("finance");
   const { subscription, jetonFrais } = useSession();
   const prefs = usePrefsIa();
   const [consentement, setConsentement] = useState(false);
@@ -218,8 +224,10 @@ export default function ReglagesIa() {
       </div>
 
       <div className={`mt-2 border-t border-border pt-2 ${active ? "" : "opacity-60"}`}>
-        {FAMILLES.map((f) => {
-          const l = libelleFamille(f);
+        {/* Finance mise de côté (2026-10-01) : sa famille sort avec elle — et
+            aucune fonction d'IA n'y est branchée (#39 reportée avec le module). */}
+        {FAMILLES.filter((f) => f !== "finance" || finance).map((f) => {
+          const l = libelleFamille(f, finance);
           return (
             <Interrupteur
               key={f}

@@ -3344,4 +3344,11 @@ export const EN: Record<string, string> = {
   "(reformulé)": "(rephrased)",
   "Démonstration : ici, l'IA rédige deux à cinq phrases qui développent cette puce, sans rien ajouter qui n'y figure pas.": "Demo: here, AI writes two to five sentences expanding this bullet, adding nothing that isn't in it.",
   "Précision": "Detail",
+  // ── IA sans Finance (2026-10-01) ───────────────────────────────────────────
+  "Deviendra une note qui garde ces montants, à vérifier.": "Will become a note that keeps these amounts, to check.",
+  "Un texte, un PDF ou une image devient des tâches, des événements ou des notes à valider.": "A text, a PDF or an image becomes tasks, events or notes for you to approve.",
+  "Fournisseur": "Supplier",
+  "Numéro": "Number",
+  "HT": "Excl. tax",
+  "TTC": "Incl. tax",
 };

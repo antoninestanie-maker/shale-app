@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { FONCTIONS } from "../../../../shale-site/supabase/functions/ai/coeur/fonctions.ts";
 import { valider as validerServeur } from "../../../../shale-site/supabase/functions/ai/coeur/schema.ts";
 import { fetchAll, fetchCalendarEvents, fetchFacturation } from "../repo";
-import { appliquerElement, appliquerTache, corpsDeNote, ecartTotaux, tauxTvaE4 } from "./capture";
+import { appliquerElement, appliquerTache, corpsDeNote, ecartTotaux, tauxTvaE4, texteDAchat } from "./capture";
 import type { ElementExtrait } from "./contrats";
 import { preparerFichier, typeDe } from "./fichierCapture";
 
@@ -69,17 +69,29 @@ describe("capture — écriture de ce qui a été validé (démo)", () => {
     expect(data.notes.find((n) => n.title === "Codes Wi-Fi")?.body).toBe("<p>Réseau &lt;b&gt;invité&lt;/b&gt;</p>");
   });
 
-  it("un achat devient une facture d'achat EN BROUILLON, totaux recalculés depuis la ligne — pas repris du modèle", async () => {
+  it("Finance allumée : un achat devient une facture d'achat EN BROUILLON, totaux recalculés depuis la ligne — pas repris du modèle", async () => {
     // Le modèle annonce un TTC faux (24,50) : le brouillon porte le TTC calculé (24,00).
-    await appliquerElement(element({ type: "achat", titre: "Cartes de visite", achat: { ...ACHAT, ttc: 24.5 } }), JOUR);
+    await appliquerElement(element({ type: "achat", titre: "Cartes de visite", achat: { ...ACHAT, ttc: 24.5 } }), JOUR, true);
     const fac = await fetchFacturation();
     const f = fac.factures.find((x) => x.objet?.startsWith("Cartes de visite") && x.objet.includes("F-12"));
     expect(f).toMatchObject({ sens: "achat", statut: "brouillon", numero: null, total_ht_cents: 2000, total_tva_cents: 400, total_ttc_cents: 2400 });
     const tiers = fac.tiers.filter((p) => p.nom === "Imprimerie Test");
     expect(tiers).toHaveLength(1);
     // Un second achat chez le même fournisseur le RETROUVE au lieu d'en créer un autre.
-    await appliquerElement(element({ type: "achat", titre: "Flyers", achat: { ...ACHAT, fournisseur: "imprimerie test ", numero: null } }), JOUR);
+    await appliquerElement(element({ type: "achat", titre: "Flyers", achat: { ...ACHAT, fournisseur: "imprimerie test ", numero: null } }), JOUR, true);
     expect((await fetchFacturation()).tiers.filter((p) => p.nom.trim().toLowerCase() === "imprimerie test")).toHaveLength(1);
+  });
+
+  it("⭐ Finance mise de côté : un achat devient une NOTE qui garde les montants extraits — aucune facture ne naît dans un module absent", async () => {
+    const avant = (await fetchFacturation()).factures.length;
+    await appliquerElement(element({ type: "achat", titre: "Reçu taxi <b>", achat: { ...ACHAT, fournisseur: "Taxi G7", numero: null, tva: null } }), JOUR, false);
+    expect((await fetchFacturation()).factures).toHaveLength(avant);
+    const note = (await fetchAll("2000-01-01")).notes.find((n) => n.title === "Reçu taxi <b>");
+    expect(note?.body).toContain("Taxi G7");
+    expect(note?.body).toContain("24.00 EUR");
+    expect(note?.body).toContain("—"); // la TVA absente reste absente, jamais calculée
+    expect(note?.body).not.toContain("<b>");
+    expect(texteDAchat(element({ type: "note", texte: "libre" }))).toBe("libre");
   });
 
   it("vider sa tête : une tâche par proposition validée", async () => {
