@@ -7071,9 +7071,9 @@ Resté en `v1` ici parce qu'aucun utilisateur ne l'a encore vu.
 `pourGemini` retire les autres (`uri`) avant l'envoi, et le cœur revalide la sortie
 avec le schéma complet — un lien mal formé est toujours rejeté.
 
-**État** : 93 tests IA verts (dont 10 pour Gemini). La 010 n'est **pas jouée** en
-production (la CLI Supabase a répondu 401, PIEGES § 25.4) ; sans conséquence tant
-que la fonction `ai` n'est pas déployée.
+**État** : 93 tests IA verts (dont 10 pour Gemini). La 010 a été **jouée en production le
+2026-10-01 au soir** (CLI reconnectée, sauvegarde `shale-backups/avant-ia-010-20261001-2218/`,
+contrôle relu : 19 lignes en `google`, tout éteint). La fonction `ai` n'est toujours pas déployée.
 
 ### 2026-10-01 — IA de Shale Pro, phase D : la capture (#5, #6)
 

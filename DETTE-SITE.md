@@ -805,6 +805,13 @@ mais la confidentialité, les questions et l'accueil sont publics. Deux lots.
 
 **Lot A — à faire AVANT de déployer la fonction `ai` (pages publiques aujourd'hui).**
 
+> **Point du 2026-10-01 au soir.** Migration 010 jouée ; fonction `ai` toujours non
+> déployée (geste d'Antonin). Lot A **non appliqué** : `chantier/accueil-epure` (site,
+> non fusionnée) modifie les deux mêmes fichiers (`legal.json`, `Questions.astro`) —
+> l'appliquer APRÈS sa fusion. La vraie borne n'est pas le déploiement (tout est
+> éteint, rien ne part chez Google) mais **l'allumage de la première fonction dans
+> `ai_config`** : pas d'`enabled = true` tant que le Lot A n'est pas en ligne.
+
 | # | Fichier | Aujourd'hui | Proposé | Pourquoi |
 |---|---|---|---|---|
 | A1 | `lib/legal.json` → Confidentialité, « Sous-traitants » (tableau) | cinq prestataires | + une ligne : « Fonctions d'IA (Shale Pro, sur activation) — Google (API Gemini) — États-Unis » | Google devient sous-traitant dès le premier appel (RGPD art. 28). |

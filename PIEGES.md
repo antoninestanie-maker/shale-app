@@ -4108,7 +4108,14 @@ Pour rétablir : Antonin double-clique `Connecter Supabase.command` (il colle un
 jeton `sbp_…`, rien d'autre à taper).
 
 **Payé.** 2026-10-01 : la migration 010 n'a pas pu être jouée ; une « sauvegarde »
-vide a été créée puis retirée. Rien n'a été écrit en base.
+vide a été créée puis retirée. Rien n'a été écrit en base. Le soir même, CLI
+reconnectée : 010 jouée, après une sauvegarde RELUE (19 lignes). ⚠️ Deuxième façon
+de fabriquer une fausse sauvegarde : `--project-ref` sans `--linked` rend
+`DbQueryMutuallyExclusiveFlagsError` — écrit dans le fichier si l'on redirige.
+
+**Et ce que Claude Code ne fera pas, même avec l'accord d'Antonin** (garde-fou des
+permissions, 2026-10-01) : `supabase secrets set …` et `supabase functions deploy …`.
+Ce sont des gestes d'Antonin — lui donner la commande, ne pas chercher un détour.
 
 ## 25.5 ⚠️ Une borne de date DÉJÀ PASSÉE rend toute réponse du modèle inacceptable
 
