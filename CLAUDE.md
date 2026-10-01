@@ -7103,3 +7103,52 @@ PDF, image — `extraire` / `extraire_fichier`) et « Vide ta tête » (`vider_t
 Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : saisie + aperçu,
 brouillons (écart de 0,50 € signalé), validation → tâche créée, facture d'achat en
 brouillon à 24,00 € TTC recalculés. Captures : `~/Desktop/Shale-chantiers/captures-ia/`.
+
+### 2026-10-01 — IA de Shale Pro, phase E : tâches et objectifs (#7, #8, #11, #12, #13)
+
+Cinq fonctions, famille « tâches », toutes dans **une seule fenêtre** montée dans
+`App` (`components/ia/ActionsIa.tsx`), ouverte par un événement
+(`demanderIa()`, `lib/ia/demande.ts`) — le menu d'une tâche vit dans quatre vues
+et celui d'une étape cinq niveaux sous la vue Objectifs : un événement évite de
+percer des props partout (même patron que « sb:capture-ia »).
+
+| Fonction | Où | Ce que fait le local | Ce que fait le modèle |
+|---|---|---|---|
+| `decouper` (#7) | menu d'une tâche ponctuelle pas faite | crée des tâches ordinaires, même objectif et même étiquette, **reliées** à l'origine (`object_links`, `manual`) | propose 3 à 7 étapes |
+| `estimer` (#8) | menu d'une tâche | choisit ≤ 30 comparables (`comparablesDe`), **calcule la fourchette** (`fourchette`) | retient des identifiants, justifie — **aucun chiffre** |
+| `decomposer_objectif` (#11) | « ⋯ » d'un objectif ou d'une phase | crée des sous-objectifs après les étapes existantes | propose 3 à 6 sous-objectifs datés |
+| `etapes_objectif` (#12) | « ⋯ » d'un objectif ou d'une étape | crée des tâches rattachées à l'objectif ou à l'étape désignée | propose des tâches datées |
+| `objectif_peril` (#13) | bandeau du Calendrier, « ⋯ » d'un objectif en péril | détecte (`calendrier/peril.ts`), envoie les faits + le rythme des 14 jours | explique, propose un plan daté |
+
+**Décisions, et pourquoi :**
+
+- **Les entrées d'IA sont OMISES sans Shale Pro, jamais grisées** (`useIaPossible`,
+  `ContexteTache.ia`) : une entrée « réservée à Pro » à chaque clic droit serait
+  une publicité permanente. Sur iOS, rien (hors périmètre V1).
+- **Estimer : le modèle ne donne aucun nombre.** Le schéma de sortie n'a pas de
+  champ de durée ; la fourchette est l'écart min–max jusqu'à trois comparables
+  retenus, l'interquartile ensuite, arrondie à 5 min vers l'extérieur. Moins de
+  **trois** comparables → « pas assez d'historique », **sans appel** (aucune action
+  consommée). Un comparable = une ponctuelle FINIE (temps total) ou une routine
+  (médiane par occurrence). ⚠️ Les durées Timer incluent les pauses (elles ne sont
+  pas enregistrées) : l'écran le dit. Lecture dédiée `repo.historiqueFocus` (un an).
+- **⚠️ Une échéance DÉJÀ PASSÉE ne borne plus rien** (`dateDansFenetre`, serveur).
+  Trouvé à l'écran en démo : un objectif en retard recevait des sous-objectifs
+  datés de son échéance passée — que le serveur réel aurait rejetés deux fois
+  (`bad_output`). La règle est dans le prompt, dans `verifier`, dans la démo et
+  dans le texte de la fenêtre.
+- **Le péril se relit à l'ouverture** : un objectif sorti du péril entre le clic
+  et la fenêtre l'affiche, au lieu d'expliquer un fait périmé. Plan de rattrapage :
+  toutes les tâches datées, dans la fenêtre jusqu'à l'échéance (ou 30 jours si
+  elle est passée — `limitePeril`, copie côté app gardée par un test).
+- **La charge du calendrier** (tâches datées pas faites + événements, par jour,
+  ≤ 62 jours) part avec #11, #12, #13 pour que les dates évitent les jours pleins.
+- Décomposer n'est offert que là où la feuille de route accepte une étape
+  (`peutAjouterEtape`) : jamais sous un sous-objectif.
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : menu d'une tâche,
+découper → 3 tâches créées, estimer → « pas assez d'historique (1 sur 3) », menu
+d'un objectif et d'une étape, décomposer → 3 sous-objectifs, tâches d'un objectif,
+bandeau « Pourquoi, et que faire ? » → explication + plan. ⚠️ La démo n'a pas assez
+d'historique Timer pour montrer une fourchette : ce chemin n'est couvert que par
+les tests (`planifier.test.ts`, 23 tests).

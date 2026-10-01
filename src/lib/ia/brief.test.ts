@@ -178,6 +178,19 @@ describe("démo", () => {
       extraire: { lang: "fr", jour: JOUR, texte: "Un e-mail.", etiquettes: ["Admin"] },
       extraire_fichier: { lang: "fr", jour: JOUR, fichier: { media_type: "image/png", data: "AAAA" }, contexte: "", etiquettes: [] },
       vider_tete: { lang: "fr", jour: JOUR, texte: "plein de choses", etiquettes: ["Admin"] },
+      decouper: { lang: "fr", jour: JOUR, tache: { titre: "Refaire le site", priorite: "medium", echeance: null, etiquette: null, objectif: null } },
+      estimer: { lang: "fr", tache: { titre: "Devis", etiquette: null }, comparables: [{ id: "1", titre: "Devis A", etiquette: null, minutes: 40, recurrente: false }] },
+      decomposer_objectif: { lang: "fr", jour: JOUR, objectif: { titre: "Lancer le site", description: null, echeance: "2026-12-01", horizon: "medium" as const }, existantes: [], charge: [] },
+      etapes_objectif: { lang: "fr", jour: JOUR, objectif: { titre: "Lancer le site", description: null, echeance: "2026-12-01", horizon: "medium" as const }, etapes: [{ id: "7", titre: "Maquette", echeance: null }], taches: [], charge: [] },
+      objectif_peril: {
+        lang: "fr",
+        jour: JOUR,
+        objectif: { titre: "Lancer le site", echeance: JOUR, joursRestants: 0, progression: 40, declaratif: false, raison: "rythme-insuffisant", racine: null },
+        etapesRestantes: [{ id: "7", titre: "Maquette", echeance: null }],
+        tachesRestantes: [],
+        rythme: { tachesFaites14j: 2, joursActifs14j: 2 },
+        charge: [],
+      },
     };
     for (const f of Object.keys(payloads) as FonctionIa[]) {
       const r = reponseDemo(f, payloads[f] as never);

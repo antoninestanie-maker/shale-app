@@ -47,6 +47,16 @@ export function usePrefsIa(): PrefsIa | null {
   return prefs;
 }
 
+/**
+ * Un écran peut-il PROPOSER une action d'IA ? Shale Pro (ou son essai), hors
+ * iOS. Pour les menus : une entrée d'IA n'y apparaît que si c'est vrai — elle
+ * n'est jamais grisée « réservée à Pro » (ce serait une publicité à chaque clic).
+ */
+export function useIaPossible(): boolean {
+  const { aIa } = useEntitlements();
+  return !IS_IOS && aIa;
+}
+
 export interface Ia {
   /** L'écran peut-il montrer une action d'IA ? Faux sur iOS (V1). */
   visible: boolean;

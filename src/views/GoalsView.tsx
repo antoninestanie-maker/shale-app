@@ -17,6 +17,11 @@ import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
 import { consommerDemande } from "../lib/naviguer";
 import { useIsPhone } from "../lib/platform";
 import type { EntreePossible } from "../lib/menu/entrees";
+import { useIaPossible } from "../lib/ia/useIa";
+import { demanderIa } from "../lib/ia/demande";
+import { peutDecomposer } from "../lib/ia/planifier";
+import { objectifsEnPeril } from "../lib/calendrier/peril";
+import { IconeIa } from "../components/ia/IconeIa";
 import type { AppData, Goal } from "../lib/types";
 
 import { formatDate, pick, t } from "../lib/i18n";
@@ -295,10 +300,43 @@ export default function GoalsView({ data, refresh }: Props) {
   // Clic droit sur une ligne de la liste, ou le « ⋯ » de la fiche — le MÊME
   // menu (règle 18). Les étapes ont le leur dans la feuille de route (`MenuEtape`).
   const menu = useMenuContextuel<Goal>();
+  const ia = useIaPossible();
+  // Les objectifs en péril, pour offrir « Pourquoi, et que faire ? » (#13) à
+  // ceux-là seulement. Même détection que le Calendrier, relue ici.
+  const enPeril = useMemo(
+    () =>
+      ia
+        ? new Set(
+            objectifsEnPeril(goals, data.tasks, completions, todayStr(), {
+              habits: data.habits,
+              habitChecks: data.habitChecks,
+            }).map((p) => p.goal.id),
+          )
+        : new Set<number>(),
+    [ia, goals, data.tasks, completions, data.habits, data.habitChecks],
+  );
   const entreesObjectif = (goal: Goal): EntreePossible[] => {
     const bilan = bilanDeDepart(goals, data.tasks, goal.id);
     return [
       { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterEtape(goal) },
+      ia && peutDecomposer(goal, goals) && {
+        id: "ia-decomposer",
+        libelle: t("Décomposer avec l'IA…"),
+        icone: <IconeIa className="h-[1em] w-[1em]" />,
+        executer: () => demanderIa({ action: "decomposer", goalId: goal.id }),
+      },
+      ia && {
+        id: "ia-taches",
+        libelle: t("Proposer des tâches avec l'IA…"),
+        icone: <IconeIa className="h-[1em] w-[1em]" />,
+        executer: () => demanderIa({ action: "taches", goalId: goal.id }),
+      },
+      ia && enPeril.has(goal.id) && {
+        id: "ia-peril",
+        libelle: t("Pourquoi, et que faire ?"),
+        icone: <IconeIa className="h-[1em] w-[1em]" />,
+        executer: () => demanderIa({ action: "peril", goalId: goal.id }),
+      },
       { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => setEditing(goal) },
       {
         id: "supprimer",

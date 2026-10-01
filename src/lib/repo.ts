@@ -3314,3 +3314,42 @@ export async function marquerContenuIaLu(kind: GenreContenuIa, jour: string): Pr
     [`${kind}:${jour}`],
   );
 }
+
+export interface LigneHistoriqueFocus {
+  task_id: number;
+  jour: string;
+  minutes: number;
+}
+
+export interface HistoriqueFocus {
+  sessions: LigneHistoriqueFocus[];
+  faites: number[];
+}
+
+/**
+ * L'historique Timer, jour par jour et par tâche — pour estimer une durée (#8).
+ *
+ * ⚠️ `fetchAll` ne charge que les sessions RÉCENTES : l'estimation a besoin de
+ * l'année. Seules les sessions de FOCUS terminées et rattachées à une tâche
+ * comptent. ⚠️ La pause n'est pas enregistrée (`useFocus`) : une durée inclut
+ * ses pauses, et l'écran le dit.
+ *
+ * `faites` : les tâches cochées au moins une fois, à n'importe quelle date —
+ * une tâche ponctuelle pas encore finie n'a qu'une durée PARTIELLE.
+ */
+export async function historiqueFocus(depuis: string): Promise<HistoriqueFocus> {
+  if (!isTauri) return demo.historiqueFocus(depuis);
+  const db = await getDb();
+  const sessions = await db.select<LigneHistoriqueFocus[]>(
+    `SELECT task_id, substr(started_at, 1, 10) AS jour,
+            SUM((julianday(ended_at) - julianday(started_at)) * 1440.0) AS minutes
+       FROM focus_sessions
+      WHERE kind = 'focus' AND ended_at IS NOT NULL AND task_id IS NOT NULL AND started_at >= $1
+      GROUP BY task_id, jour`,
+    [depuis],
+  );
+  const faites = await db.select<{ task_id: number }[]>(
+    "SELECT DISTINCT task_id FROM task_completions WHERE done = 1",
+  );
+  return { sessions, faites: faites.map((f) => f.task_id) };
+}

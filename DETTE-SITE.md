@@ -775,3 +775,11 @@ se rend sous `LISTE_ATTENTE` comme le reste de la vente.
 Coller un e-mail, déposer un PDF ou la photo d'un reçu : l'IA propose tâches,
 rendez-vous, notes et achats (facture d'achat en brouillon, montants à vérifier) ;
 « Vide ta tête » transforme du vrac en tâches. Tout se valide avant d'être écrit.
+
+### T.4 — 2026-10-01 : tâches et objectifs (phase E)
+Découper une tâche floue en étapes ; estimer une durée à partir de son propre
+historique Timer (la fourchette est calculée par l'app, pas par l'IA) ; décomposer
+un objectif en sous-objectifs ; proposer ses prochaines tâches, datées selon le
+calendrier ; expliquer un objectif en péril et proposer un plan de rattrapage.
+⚠️ Ne pas promettre « l'IA estime tes tâches » sans dire qu'il faut un historique
+Timer (trois tâches comparables au moins).

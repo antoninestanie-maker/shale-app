@@ -4109,3 +4109,22 @@ jeton `sbp_…`, rien d'autre à taper).
 
 **Payé.** 2026-10-01 : la migration 010 n'a pas pu être jouée ; une « sauvegarde »
 vide a été créée puis retirée. Rien n'a été écrit en base.
+
+## 25.5 ⚠️ Une borne de date DÉJÀ PASSÉE rend toute réponse du modèle inacceptable
+
+**Symptôme.** Une fonction d'IA qui date ses propositions « entre aujourd'hui et
+l'échéance » finit en `bad_output` (deux appels payés, rien d'affiché) — mais
+seulement sur les objectifs EN RETARD. En démo : des sous-objectifs tous datés du
+1er septembre, un 1er octobre.
+
+**Cause.** Le contrôle de sortie exige `jour ≤ date ≤ échéance`. Échéance passée :
+l'intervalle est vide, aucune date ne passe. La réponse factice de la démo, elle,
+« rabattait » sur l'échéance — donc dans le passé.
+
+**Parade.** `dateDansFenetre` (`coeur/fonctions.ts`) : une limite antérieure au
+jour ne borne plus rien. Le prompt le dit au modèle, la démo suit la même règle,
+et la fenêtre l'écrit (« l'échéance est déjà passée : datés à partir d'aujourd'hui »).
+Toute nouvelle fonction qui borne une date passe par `dateDansFenetre`, et son
+test compte un cas « en retard ».
+
+**Payé.** 2026-10-01, phase E — vu sur la capture de la démo, avant tout appel réel.

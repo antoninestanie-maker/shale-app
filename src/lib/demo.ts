@@ -24,7 +24,7 @@ import type { AreteVoulue } from "./liens";
 // ⚠️ `import type`, jamais un import de valeur : `repo.ts` importe déjà ce
 // module en retour. Un type est effacé à la compilation, donc le cycle n'existe
 // pas à l'exécution — un import de valeur, lui, en créerait un vrai.
-import type { ContenuIa, GenreContenuIa, PieceJointeLigne } from "./repo";
+import type { ContenuIa, GenreContenuIa, HistoriqueFocus, LigneHistoriqueFocus, PieceJointeLigne } from "./repo";
 import { plainText } from "./richtext";
 import { poserCleDemo } from "./licence/cles";
 import {
@@ -1878,6 +1878,23 @@ export const demo = {
   async marquerContenuIaLu(kind: GenreContenuIa, jour: string): Promise<void> {
     const c = contenusIa.get(`${kind}:${jour}`);
     if (c && !c.lu_le) contenusIa.set(c.uid, { ...c, lu_le: new Date().toISOString() });
+  },
+
+  /** Même agrégat que le natif (`repo.historiqueFocus`). */
+  async historiqueFocus(depuis: string): Promise<HistoriqueFocus> {
+    const jetees = idsJetes("task");
+    const parCle = new Map<string, LigneHistoriqueFocus>();
+    for (const f of focusSessions) {
+      if (f.kind !== "focus" || !f.ended_at || f.task_id == null || f.started_at < depuis || jetees.has(f.task_id)) continue;
+      const jour = f.started_at.slice(0, 10);
+      const minutes = (Date.parse(f.ended_at.replace(" ", "T")) - Date.parse(f.started_at.replace(" ", "T"))) / 60_000;
+      const cle = `${f.task_id}:${jour}`;
+      const l = parCle.get(cle) ?? { task_id: f.task_id, jour, minutes: 0 };
+      l.minutes += minutes;
+      parCle.set(cle, l);
+    }
+    const faites = [...new Set(completions.filter((c) => c.done).map((c) => c.task_id))];
+    return { sessions: [...parCle.values()], faites };
   },
 
   // ── Profil de licence (migration 025) ─────────────────────────────────────

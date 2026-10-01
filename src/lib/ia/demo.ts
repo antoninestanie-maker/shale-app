@@ -93,6 +93,77 @@ const FACTICES: Factices = {
         ]
       : [],
   }),
+  decouper: (p) => {
+    // Étalées jusqu'à l'échéance quand il y en a une, comme le demande le prompt.
+    const dates = [p.jour, lendemainDe(p.jour), lendemainDe(lendemainDe(p.jour))].map((d) =>
+      p.tache.echeance ? (d <= p.tache.echeance ? d : p.tache.echeance) : null,
+    );
+    return {
+      etapes: [
+        { titre: t("Lister ce qui est déjà prêt et ce qui manque"), priorite: p.tache.priorite, date: dates[0] },
+        { titre: t("Préparer la première version en 45 minutes"), priorite: p.tache.priorite, date: dates[1] },
+        { titre: t("Relire, corriger et envoyer"), priorite: p.tache.priorite, date: dates[2] },
+      ],
+    };
+  },
+  estimer: (p) => ({
+    // La démo retient les trois premiers : la fourchette affichée reste calculée par l'app.
+    retenus: p.comparables.slice(0, 3).map((c) => c.id),
+    justification: t("Démonstration : ces tâches passées portent la même étiquette et un travail de même ampleur."),
+  }),
+  decomposer_objectif: (p) => {
+    // Une échéance déjà passée ne borne plus rien (même règle que le serveur).
+    const fin = p.objectif.echeance && p.objectif.echeance >= p.jour ? p.objectif.echeance : null;
+    const date = (jours: number) => {
+      const d = new Date(`${p.jour}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + jours);
+      const iso = d.toISOString().slice(0, 10);
+      return fin && iso > fin ? fin : iso;
+    };
+    return {
+      etapes: [
+        { titre: t("Périmètre défini et validé"), priorite: "high" as const, echeance: date(7) },
+        { titre: t("Première version livrée"), priorite: "medium" as const, echeance: date(21) },
+        { titre: t("Retours intégrés, version finale"), priorite: "medium" as const, echeance: date(35) },
+      ],
+    };
+  },
+  etapes_objectif: (p) => ({
+    taches: [
+      { titre: t("Bloquer une heure pour faire le point"), priorite: "high" as const, date: p.jour, etape: null },
+      { titre: t("Préparer la prochaine étape"), priorite: "medium" as const, date: lendemainDe(p.jour), etape: p.etapes[0]?.id ?? null },
+      {
+        titre: t("Demander un retour à une personne concernée"),
+        priorite: "low" as const,
+        date: lendemainDe(lendemainDe(p.jour)),
+        etape: p.etapes[1]?.id ?? p.etapes[0]?.id ?? null,
+      },
+    ].map((x) =>
+      p.objectif.echeance && p.objectif.echeance >= p.jour && x.date > p.objectif.echeance ? { ...x, date: p.objectif.echeance } : x,
+    ),
+  }),
+  objectif_peril: (p) => {
+    // En démo, un objectif dépassé reçoit des dates dans les jours qui suivent.
+    const borne = (d: string) => (p.objectif.echeance >= p.jour && d > p.objectif.echeance ? p.objectif.echeance : d);
+    return {
+      explication:
+        p.objectif.joursRestants < 0
+          ? t("Démonstration : l'échéance est passée et l'objectif est à {pct} %. Au rythme des quatorze derniers jours (tâches faites : {f}), il faut soit décaler l'échéance, soit réduire le périmètre.", {
+              pct: p.objectif.progression,
+              f: p.rythme.tachesFaites14j,
+            })
+          : t("Démonstration : l'échéance approche (jours restants : {j}) et l'objectif est à {pct} %. Au rythme des quatorze derniers jours (tâches faites : {f}), le compte ne tombe pas : il faut concentrer l'effort sur l'essentiel.", {
+              j: p.objectif.joursRestants,
+              pct: p.objectif.progression,
+              f: p.rythme.tachesFaites14j,
+            }),
+      plan: [
+        { titre: t("Choisir les deux étapes qui comptent vraiment"), priorite: "high" as const, date: p.jour, etape: null },
+        { titre: t("Avancer la première étape restante"), priorite: "high" as const, date: borne(lendemainDe(p.jour)), etape: p.etapesRestantes[0]?.id ?? null },
+        { titre: t("Décider : décaler l'échéance ou réduire le périmètre"), priorite: "medium" as const, date: borne(lendemainDe(lendemainDe(p.jour))), etape: null },
+      ],
+    };
+  },
 };
 
 /** Un e-mail type : une tâche, un rendez-vous, une facture (dont le TTC ne

@@ -55,6 +55,27 @@ export interface ElementExtrait {
   confiance: "haute" | "moyenne" | "basse";
 }
 
+/** Charge du calendrier transmise aux fonctions qui datent (#11, #12, #13). */
+export type ChargeJour = { jour: string; elements: number };
+
+/** Ce que l'app dit d'un objectif aux fonctions #11 et #12. */
+export interface ObjectifPourIa {
+  titre: string;
+  description: string | null;
+  echeance: string | null;
+  horizon: "short" | "medium" | "long";
+}
+
+/** Une tâche proposée pour un objectif (#12, #13) : `etape` est l'id d'une étape fournie. */
+export interface TacheProposee {
+  titre: string;
+  priorite: PrioriteIa;
+  date: string | null;
+  etape: string | null;
+}
+
+export type RaisonPeril = "depassee" | "trop-peu-de-jours" | "rythme-insuffisant";
+
 export interface ContratsIa {
   resumer: {
     payload: { lang: LangIa; titre: string; texte: string };
@@ -103,6 +124,57 @@ export interface ContratsIa {
     payload: { lang: LangIa; jour: string; texte: string; etiquettes: string[] };
     sortie: { taches: Array<{ titre: string; priorite: PrioriteIa; etiquette: string | null; date: string | null }> };
   };
+  decouper: {
+    payload: {
+      lang: LangIa;
+      jour: string;
+      tache: { titre: string; priorite: PrioriteIa; echeance: string | null; etiquette: string | null; objectif: string | null };
+    };
+    sortie: { etapes: Array<{ titre: string; priorite: PrioriteIa; date: string | null }> };
+  };
+  estimer: {
+    payload: {
+      lang: LangIa;
+      tache: { titre: string; etiquette: string | null };
+      comparables: Array<{ id: string; titre: string; etiquette: string | null; minutes: number; recurrente: boolean }>;
+    };
+    sortie: { retenus: string[]; justification: string };
+  };
+  decomposer_objectif: {
+    payload: { lang: LangIa; jour: string; objectif: ObjectifPourIa; existantes: Array<{ titre: string }>; charge: ChargeJour[] };
+    sortie: { etapes: Array<{ titre: string; priorite: PrioriteIa; echeance: string | null }> };
+  };
+  etapes_objectif: {
+    payload: {
+      lang: LangIa;
+      jour: string;
+      objectif: ObjectifPourIa;
+      etapes: Array<{ id: string; titre: string; echeance: string | null }>;
+      taches: Array<{ titre: string; date: string | null; faite: boolean }>;
+      charge: ChargeJour[];
+    };
+    sortie: { taches: TacheProposee[] };
+  };
+  objectif_peril: {
+    payload: {
+      lang: LangIa;
+      jour: string;
+      objectif: {
+        titre: string;
+        echeance: string;
+        joursRestants: number;
+        progression: number;
+        declaratif: boolean;
+        raison: RaisonPeril;
+        racine: string | null;
+      };
+      etapesRestantes: Array<{ id: string; titre: string; echeance: string | null }>;
+      tachesRestantes: Array<{ titre: string; date: string | null }>;
+      rythme: { tachesFaites14j: number; joursActifs14j: number };
+      charge: ChargeJour[];
+    };
+    sortie: { explication: string; plan: TacheProposee[] };
+  };
 }
 
 export type FonctionIa = keyof ContratsIa;
@@ -116,11 +188,34 @@ export const FAMILLE_DE: Readonly<Record<FonctionIa, FamilleIa>> = {
   extraire: "capture",
   extraire_fichier: "capture",
   vider_tete: "capture",
+  decouper: "taches",
+  estimer: "taches",
+  decomposer_objectif: "taches",
+  etapes_objectif: "taches",
+  objectif_peril: "taches",
 };
 
 const DATE: Schema = { type: "string", format: "date" };
 const PRIORITE: Schema = { type: "string", enum: ["low", "medium", "high"] };
 const MONTANT: Schema = { anyOf: [{ type: "number", minimum: 0, maximum: 1_000_000_000 }, { type: "null" }] };
+
+function tachesProposees(maxItems: number): Schema {
+  return {
+    type: "array",
+    maxItems,
+    items: {
+      type: "object",
+      properties: {
+        titre: { type: "string", maxLength: 200 },
+        priorite: PRIORITE,
+        date: { anyOf: [DATE, { type: "null" }] },
+        etape: { anyOf: [{ type: "string", maxLength: 40 }, { type: "null" }] },
+      },
+      required: ["titre", "priorite", "date", "etape"],
+      additionalProperties: false,
+    },
+  };
+}
 
 const SORTIE_EXTRAIRE: Schema = {
   type: "object",
@@ -255,6 +350,61 @@ export const SORTIES: Readonly<Record<FonctionIa, Schema>> = {
       },
     },
     required: ["taches"],
+    additionalProperties: false,
+  },
+  decouper: {
+    type: "object",
+    properties: {
+      etapes: {
+        type: "array",
+        maxItems: 8,
+        items: {
+          type: "object",
+          properties: { titre: { type: "string", maxLength: 200 }, priorite: PRIORITE, date: { anyOf: [DATE, { type: "null" }] } },
+          required: ["titre", "priorite", "date"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["etapes"],
+    additionalProperties: false,
+  },
+  estimer: {
+    type: "object",
+    properties: {
+      retenus: { type: "array", maxItems: 30, items: { type: "string", maxLength: 40 } },
+      justification: { type: "string", maxLength: 400 },
+    },
+    required: ["retenus", "justification"],
+    additionalProperties: false,
+  },
+  decomposer_objectif: {
+    type: "object",
+    properties: {
+      etapes: {
+        type: "array",
+        maxItems: 8,
+        items: {
+          type: "object",
+          properties: { titre: { type: "string", maxLength: 200 }, priorite: PRIORITE, echeance: { anyOf: [DATE, { type: "null" }] } },
+          required: ["titre", "priorite", "echeance"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["etapes"],
+    additionalProperties: false,
+  },
+  etapes_objectif: {
+    type: "object",
+    properties: { taches: tachesProposees(12) },
+    required: ["taches"],
+    additionalProperties: false,
+  },
+  objectif_peril: {
+    type: "object",
+    properties: { explication: { type: "string", maxLength: 800 }, plan: tachesProposees(8) },
+    required: ["explication", "plan"],
     additionalProperties: false,
   },
 };

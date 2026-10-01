@@ -899,7 +899,7 @@ export default function TasksView({ data, refresh }: Props) {
         libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
         entrees={(() => {
           const fraiche = menu.cible && lignes.find((r) => r.id === menu.cible!.id);
-          return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: data.goals }) : [];
+          return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: data.goals, ia: ia.visible && ia.aLeDroit }) : [];
         })()}
       />
       {capture && <CaptureIa data={data} refresh={refresh} onFermer={() => setCapture(false)} />}
