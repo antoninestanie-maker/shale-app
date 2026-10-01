@@ -1591,7 +1591,8 @@ datée. Pièges : `PIEGES.md` § 25.
 | D — capture | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) |
 | E — tâches et objectifs | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : découper, estimer, décomposer, proposer des tâches, objectif en péril — `components/ia/ActionsIa.tsx`, `lib/ia/planifier.ts` |
 | F — notes | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : résumer, réécrire (⌘Z), liens @, développer, traduire (nouvelle note liée), carte mentale — `components/ia/NoteIa.tsx`, `lib/ia/texteNote.ts`. ⚠️ Notes seulement : le Savoir (`NoteComposer`) n'a pas le bouton |
-| G, H | pas commencées |
+| G — revue hebdomadaire | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : carte dans Performance, règle de notification Rust `weekly_review`. ⚠️ **#39 (runway « et si… ») NON construite : Finance est mise de côté** |
+| H — site, docs, recette | ⛔ **ARRÊT** (2026-10-01) : recette écrite (`~/Desktop/Shale-chantiers/RECETTE-IA.md`), mode d'emploi dans `CLAUDE.md`, liste des changements du site à valider (`DETTE-SITE.md` § T.7) — **rien n'est appliqué au site, rien n'est déployé, rien n'est fusionné** |
 
 **⚠️ Migration SQLite 029 (`ia_contenus`) sur la branche** : jamais jouée sur la
 vraie base. Elle partira avec le prochain build natif APRÈS fusion — sauvegarder

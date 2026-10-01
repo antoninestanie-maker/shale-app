@@ -3306,6 +3306,14 @@ export async function ecrireContenuIa(kind: GenreContenuIa, jour: string, conten
   );
 }
 
+/** Les jours qui portent un contenu de ce genre, du plus récent au plus ancien. */
+export async function listerContenusIa(kind: GenreContenuIa, limite = 12): Promise<string[]> {
+  if (!isTauri) return demo.listerContenusIa(kind, limite);
+  const db = await getDb();
+  const rows = await db.select<{ jour: string }[]>("SELECT jour FROM ia_contenus WHERE kind = $1 ORDER BY jour DESC LIMIT $2", [kind, limite]);
+  return rows.map((r) => r.jour);
+}
+
 export async function marquerContenuIaLu(kind: GenreContenuIa, jour: string): Promise<void> {
   if (!isTauri) return demo.marquerContenuIaLu(kind, jour);
   const db = await getDb();

@@ -789,3 +789,47 @@ Dans une note : résumer, réécrire (plus clair, plus court, ton professionnel,
 avant/après et annulation), suggérer des liens vers ses propres objets, développer
 des puces, traduire dans une nouvelle note, faire une carte mentale modifiable.
 ⚠️ Dans les Notes seulement — pas (encore) dans les fiches du Savoir.
+
+### T.6 — 2026-10-01 : la revue hebdomadaire (phase G), et PAS de Finance
+Chaque semaine, dans Performance : ce qui a tenu, ce qui a glissé, trois
+ajustements à transformer en tâches. Générée à la demande (un rappel le dimanche
+soir, réglable). Le Journal n'y entre que sur accord explicite, et seulement par
+ses notes d'humeur et d'énergie.
+⚠️ **Ne rien écrire sur le runway, les scénarios « et si… » ni les factures** :
+Finance est mise de côté dans l'app (2026-10-01), ces fonctions d'IA n'existent pas.
+
+### T.7 — 2026-10-01 : ⛔ les changements du site, À VALIDER (phase H) — RIEN N'EST APPLIQUÉ
+
+Le site est en liste d'attente (`LISTE_ATTENTE = true`) : les tarifs sont cachés,
+mais la confidentialité, les questions et l'accueil sont publics. Deux lots.
+
+**Lot A — à faire AVANT de déployer la fonction `ai` (pages publiques aujourd'hui).**
+
+| # | Fichier | Aujourd'hui | Proposé | Pourquoi |
+|---|---|---|---|---|
+| A1 | `lib/legal.json` → Confidentialité, « Sous-traitants » (tableau) | cinq prestataires | + une ligne : « Fonctions d'IA (Shale Pro, sur activation) — Google (API Gemini) — États-Unis » | Google devient sous-traitant dès le premier appel (RGPD art. 28). |
+| A2 | même page, « Le principe » | « Vos données d'usage vivent sur votre Mac. Ce qui est synchronisé entre vos appareils est chiffré chez vous, et nous ne pouvons pas le lire. » | garder, et ajouter un paragraphe : « Exception, et seulement si vous l'activez : les fonctions d'IA de Shale Pro envoient le texte concerné (la note à résumer, le document à lire…) à nos serveurs puis à notre fournisseur de modèle, le temps de la réponse. Ce texte n'est ni conservé par nous, ni utilisé pour entraîner un modèle. L'application montre ce qui part avant chaque envoi. » | La phrase actuelle reste vraie de la SYNCHRO ; elle devient trompeuse si elle est la seule. |
+| A3 | même page, « Transferts hors Union européenne » | cite Stripe, Resend, Vercel | + Google, pour les fonctions d'IA | cohérence avec A1. |
+| A4 | `views/refonte/Questions.astro`, « Mes données partent-elles quelque part ? » | « … Nous stockons donc des données que nous ne pouvons pas lire. » | + une phrase : « Seule exception : les fonctions d'IA de Shale Pro, éteintes par défaut. Quand vous en lancez une, le texte concerné part le temps de la réponse, sans être conservé. » | même raison. |
+| A5 | `views/compte/Accueil.astro` | « … seule une copie chiffrée part pour la synchronisation. » | « … une copie chiffrée part pour la synchronisation. » (retirer « seule ») | « seule » devient faux pour un Pro qui a allumé l'IA. |
+| A6 | `content.json` | version des textes légaux 1.3 · 30.09.2026 | 1.4 · date du jour de publication | la confidentialité change. |
+
+Les phrases « le serveur ne peut pas lire vos données » qui parlent
+EXPLICITEMENT de la copie de synchronisation (Accueil l. 114, Modules l. 169,
+Notes de version, Tarifs l. 132) restent vraies : **non touchées**.
+
+**Lot B — à faire AVANT de rouvrir les tarifs (`LISTE_ATTENTE = false`).**
+
+| # | Fichier | Aujourd'hui | Proposé |
+|---|---|---|---|
+| B1 | `views/refonte/Tarifs.astro` l. 32 | « La première formule contient l'application entière. Pro n'ajoute pas de fonctions : il ajoute le support prioritaire et l'accès anticipé aux nouveautés. … » | Pro ajoute désormais les fonctions d'IA : la phrase est FAUSSE. Texte à écrire avec Antonin (règle « chercher avant d'écrire du texte de vente »). |
+| B2 | même fichier, carte Pro | « Le même produit, avec une ligne directe et les nouveautés en premier. » · « deux différences — pas une de plus » · deux puces | trois différences : + « Fonctions d'IA : 400 actions par mois » avec la liste réelle (brief, capture, découper/estimer, objectifs, notes, revue). |
+| B3 | même fichier, carte Business | — | dire que Business n'inclut PAS l'IA (décision Q2 du 2026-09-29). |
+| B4 | « Shale, c'est tout le produit. » (titre) et « INCLUS, SANS EXCEPTION » | — | à relire : ils promettent que la première formule contient tout. |
+| B5 | pages Fonctions (décider / avancer / penser) | pas d'IA | une mention sobre par page, quand la fonction est réellement allumée — pas avant. |
+| B6 | CGV | — | l'IA : quota en actions, pas de garantie de résultat, fournisseur tiers. |
+
+⚠️ Abonnés Pro existants : la promesse « Pro n'ajoute pas de fonctions » leur a
+été faite. L'IA est un ajout, pas un retrait — mais B1 doit être corrigé le jour
+même où l'IA s'ouvre. ⚠️ Le chantier `accueil-epure` (autre session, non fusionné)
+réécrit l'accueil : appliquer ce lot PAR-DESSUS, pas avant.

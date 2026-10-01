@@ -1,3 +1,5 @@
+import { RevueHebdo } from "../components/ia/RevueHebdo";
+import { useIaPossible } from "../lib/ia/useIa";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -79,6 +81,7 @@ function fmtMinutes(min: number): string {
 }
 
 export default function PerformanceView({ data, refresh }: Props) {
+  const iaPossible = useIaPossible();
   // Palier ET profil de licence : le panneau suit le module Trading.
   const hasTrading = useEntitlements().afficheModule("trading");
   const today = todayStr();
@@ -246,6 +249,15 @@ export default function PerformanceView({ data, refresh }: Props) {
         ))}
       </div>
       </ResizablePanel>
+
+      {/* La revue hebdomadaire (IA de Shale Pro, phase G). RETIRÉE de la grille
+          sans Shale Pro et sur iOS — pas seulement masquée : un panneau caché
+          resterait dans les chips « + <titre> » sous la grille. */}
+      {iaPossible && (
+        <ResizablePanel id="perf-revue-ia" defaultW={12}>
+          <RevueHebdo data={data} refresh={refresh} />
+        </ResizablePanel>
+      )}
 
       {/* Complétion des tâches */}
       <ResizablePanel id="perf-completion" defaultW={12}>

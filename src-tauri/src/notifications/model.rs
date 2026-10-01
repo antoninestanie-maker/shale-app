@@ -302,6 +302,15 @@ pub struct Completion {
     pub done: bool,
 }
 
+/// L'IA de Shale Pro, vue de la règle « revue de la semaine » (`rules/revue.rs`).
+#[derive(Debug, Clone, Default)]
+pub struct RevueIa {
+    /// L'IA est allumée, consentie, et sa famille « revue » n'est pas décochée.
+    pub active: bool,
+    /// Les semaines qui ont déjà leur revue : le LUNDI de chacune, `YYYY-MM-DD`.
+    pub semaines: Vec<String>,
+}
+
 /// Ce que les règles savent de l'app à un instant donné. Fabriqué par `data.rs`
 /// en natif, à la main dans les tests.
 #[derive(Debug, Clone, Default)]
@@ -316,6 +325,8 @@ pub struct Snapshot {
     /// Ce qui est daté dans les jours qui viennent. Vide sur une base ancienne
     /// (migration 020 absente) : la règle reste alors inerte, elle n'échoue pas.
     pub calendar: Vec<CalendarItem>,
+    /// Inerte par défaut (IA éteinte, ou base d'avant la migration 029).
+    pub revue_ia: RevueIa,
 }
 
 impl Snapshot {

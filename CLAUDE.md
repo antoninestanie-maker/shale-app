@@ -7203,3 +7203,128 @@ Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : menu, résumé ins
 ⌘Z / rétablir, réécriture avant/après acceptée puis ⌘Z, 9 candidats → 3
 suggestions → lien posé, traduction créée dans la liste, carte insérée en fin de
 note, développement sur une sélection. Tests : `texteNote.test.ts` (16).
+
+### 2026-10-01 — ⭐ L'IA sans Finance ; phase G : la revue hebdomadaire (#18)
+
+**Finance est mise de côté** (`FINANCE_ACTIF = false`, chantier `intentions`,
+`7c4b813`). Antonin, 2026-10-01 : « Finance sera enlevée de l'app. » La branche
+`chantier/ia-pro` est **rebasée sur `chantier/intentions`** — la fusionner emporte
+donc la barre latérale par intention. Conséquences pour l'IA :
+
+- **#39 (runway « et si… », « explique mon runway ») n'est PAS construite.** Ni
+  définition serveur, ni écran. Les lignes `ai_config` `runway_scenario` et
+  `runway_expliquer` (migration 008) restent éteintes. La famille « finance »
+  existe encore dans `FAMILLES` (type), mais `ReglagesIa` ne la montre que si le
+  module Finance est affiché — et aucune fonction n'y est branchée.
+- **Un achat capturé devient une NOTE** (`texteDAchat`, `appliquerElement(…,
+  finance)`), plus une facture d'achat : elle naîtrait dans un module absent.
+  Montants TELS QU'EXTRAITS (aucune ligne de facture pour les recalculer). Le
+  chemin « facture d'achat en brouillon » est gardé, testé, pour le jour où
+  `FINANCE_ACTIF` repasse à `true`.
+
+**La revue hebdomadaire** (`lib/ia/revue.ts`, `components/ia/RevueHebdo.tsx`, une
+carte de Performance retirée de la grille sans Shale Pro) :
+
+- **Les faits sont calculés ici** (`payloadRevue`) : complétion par jour (prévu =
+  routines dues + tâches datées du jour ; fait = coché ce jour-là ; plus les
+  tâches faites hors prévu), focus (séances de FOCUS terminées, et la semaine
+  d'avant pour comparer), objectifs racines (avancement mesuré, tâches faites sur
+  tout l'arbre, en péril), tâches reportées non faites. Le modèle rédige « ce qui
+  a tenu », « ce qui a glissé », et **exactement trois ajustements** (le serveur
+  rejette 2 ou 4), chacun transformable en tâche d'un clic.
+- **⭐ Le Journal ne part pas par défaut.** Case décochée (`ia.revue.journal`).
+  Cochée, seules les **notes chiffrées** (humeur, énergie, 1 à 5) partent — jamais
+  `body`. Le schéma serveur n'a pas de champ de texte : un client modifié qui en
+  enverrait serait refusé (400). Le prompt interdit tout avis psychologique ou
+  médical. Un test cherche le texte privé dans le payload sérialisé.
+- **Quelle semaine** (`semaineDeRevue`) : le dimanche, celle qui s'achève ; les
+  autres jours, la dernière semaine complète. Stockée dans `ia_contenus`
+  (`revue:<lundi>`) — la table prévue par la décision Q9, PAS une table
+  `ai_reviews` — synchronisée ; les semaines passées restent consultables.
+- **Jamais générée seule.** Elle pèse 5 actions (`POIDS_REVUE`, gardé contre la
+  migration 008 par un test) : l'écran le dit avant, et « Régénérer (5 actions) ».
+- **Notification « ta revue est prête »** : règle Rust `weekly_review`
+  (`src-tauri/src/notifications/rules/revue.rs`), le dimanche à partir de 18 h,
+  heure réglable, désactivable. Elle se tait si l'IA est éteinte, non consentie,
+  la famille « revue » décochée, ou si la revue de la semaine existe déjà ; et sur
+  iOS (pas d'écran d'IA). ⚠️ Le Rust ne connaît pas l'abonnement : un ancien Pro
+  qui a laissé l'IA allumée la recevrait encore — l'écran dit alors pourquoi.
+  Dans les Réglages, la règle n'est montrée qu'à qui a l'IA (`REGLES_IA`).
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : barre latérale sans
+Finance, famille Finance absente des réglages d'IA, carte de revue (aperçu avec
+et sans Journal), génération, ajustement → tâche visible dans Tâches, revue relue
+après navigation. Tests : `revue.test.ts` (13), `capture.test.ts` (11), Rust
+`notifications` (122, dont 9 nouveaux).
+
+### 2026-10-01 — ⭐ L'IA de Shale Pro : MODE D'EMPLOI (phase H)
+
+*La section à lire avant de toucher à l'IA. Les sections datées au-dessus disent
+POURQUOI ; celle-ci dit OÙ et COMMENT. Recette : `~/Desktop/Shale-chantiers/RECETTE-IA.md`.*
+
+**Trois principes, qui ne se discutent pas.** (1) Le local calcule, le modèle
+rédige : tout chiffre affiché vient de l'app. (2) L'IA propose, l'utilisateur
+valide : rien ne s'écrit en base sans un clic sur ce qu'il a vu. (3) Honnêteté
+sur les données : IA éteinte par défaut, consentement, « Ce qui sera envoyé »
+avant chaque appel, rien de stocké côté serveur.
+
+**Architecture.**
+
+```
+écran ──► useIa().run(feature, payload) ──► runAi ──► POST …/functions/v1/ai
+          (droit Pro, IA allumée,             │        (dépôt du SITE)
+           famille allumée)                   │        coeur/traiter.ts :
+                                              │        JWT → offre Pro → config
+   démo (hors Tauri) : lib/ia/demo.ts ◄───────┘        → payload validé → réserve
+   réponse factice, aucune requête                     → modèle (≤ 2 essais)
+                                                       → sortie validée + verifier
+                                                       → règle (rembourse si échec)
+```
+
+- **Serveur** (`shale-site/supabase/functions/ai/`) : `index.ts` (entrée Deno,
+  secrets) ; `coeur/` en TypeScript pur, dépendances injectées, **testé par
+  vitest depuis CE dépôt** (`src/lib/ia/serveur*.test.ts`, banc PGlite).
+  `fonctions.ts` = le registre ; `gemini.ts` / `anthropic.ts` = les adaptateurs.
+- **Base Supabase** : `ai_config` (une ligne par fonction : fournisseur, modèle,
+  jetons, poids, allumée, version du prompt), `ai_usage` (compteur), `ai_events`
+  (journal SANS contenu). Migrations 008 et 010.
+- **App** : `lib/ia/` (contrats, `runAi`, réglages, logique par phase),
+  `components/ia/` (écrans). Stockage local : réglages `ia.*` dans `settings`,
+  et `ia_contenus` (migration SQLite 029 : brief, clôture, revue — synchronisée).
+
+**Ajouter une fonction — cinq endroits, dans cet ordre.**
+
+1. **Serveur** — une `DefFonction` dans `coeur/fonctions.ts` : schéma du payload
+   (avec `lang`), schéma de sortie BORNÉ (`maxLength`, `maxItems`), prompt `"1"`,
+   `consigne`, `donnees`, et un `verifier` pour tout ce que le schéma ne dit pas
+   (identifiants fournis, dates dans la fenêtre — `dateDansFenetre`). L'inscrire
+   dans `FONCTIONS`. Une ligne `ai_config` (migration du site), éteinte.
+2. **Contrat** — `lib/ia/contrats.ts` : entrée dans `ContratsIa`, `SORTIES`
+   (copie EXACTE du schéma serveur — `contrat.test.ts` compare), `FAMILLE_DE`.
+3. **Démo** — `lib/ia/demo.ts` : une réponse factice qui passe le schéma ET le
+   `verifier` du serveur (tester : `reponseDemo` puis `verifier`).
+4. **Écran** — `useAppel(feature)` + `<Avant payload=…>` (`components/ia/communs.tsx`)
+   puis `<Propositions>` ; tout texte du modèle en nœuds texte. Une entrée de menu
+   d'IA est OMISE sans Shale Pro (`useIaPossible`), jamais grisée.
+5. **i18n et tests** — clés dans `en.ts` (`npm run i18n:check`), un cas dans
+   `brief.test.ts` (« chaque fonction a une réponse factice conforme »), un test
+   du `verifier`.
+
+**Changer de modèle** = une ligne, sans redéployer :
+`update public.ai_config set provider = 'google', model = '…', thinking = … where feature = '…';`
+⚠️ Un modèle absent de la table des prix (`coeur/limites.ts`) est compté au prix
+fort. ⚠️ Revenir à Claude, c'est aussi changer le texte de consentement, qui
+nomme Google. **Changer un prompt** = ajouter une version (`"2"`), puis basculer
+`ai_config.prompt_version` — jamais réécrire une version en service.
+
+**Allumer / éteindre.** `ai_config.enabled` par fonction ; le secret
+`AI_GLOBAL_MONTHLY_BUDGET_USD` est le coupe-circuit (absent = tout en pause).
+
+**Pièges rencontrés** (détail dans `PIEGES.md` § 25) : `timestamptz` rendu dans
+le fuseau de la session (25.1) ; CLI Supabase muette après expiration (25.4) ;
+borne de date déjà passée = aucune réponse acceptable (25.5) ; migration SQLite
+029 numérotée après la 030 (§ 29.3) ; une fenêtre qui ne prend pas le focus
+laisse l'info-bulle du bouton par-dessus (`FenetreIa`).
+
+**Ce qui n'existe pas** : #39 (Finance mise de côté), l'IA dans le Savoir, les
+écrans iOS, l'IA pour Shale Business.

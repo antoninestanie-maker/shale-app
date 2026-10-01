@@ -1,3 +1,4 @@
+import { useIaPossible } from "../lib/ia/useIa";
 import { useEffect, useState } from "react";
 import { todayStr } from "../lib/logic";
 import {
@@ -29,6 +30,7 @@ import {
   fetchStatus,
   formatWhen,
   formatWhenAhead,
+  REGLES_IA,
   ruleMeta,
   runNow,
   planNotifications,
@@ -160,6 +162,7 @@ function NumberField({
 export default function SettingsView() {
   const { session, subscription, signOut, changePassword } = useSession();
   const { tier, isTrialing, hasTrading, billingPeriod, afficheModule } = useEntitlements();
+  const iaPossible = useIaPossible();
   // Palier ET profil de licence : les réglages d'un module masqué disparaissent
   // avec lui, et le rappel de briefing ne se programme plus.
   const afficheMarche = afficheModule("market");
@@ -789,7 +792,7 @@ export default function SettingsView() {
 
             <h3 className="hud-label mt-6">{t("règles")}</h3>
             <div className="mt-2 flex flex-col gap-1">
-              {Object.entries(notif.rules).map(([id, rule]) => {
+              {Object.entries(notif.rules).filter(([id]) => iaPossible || !REGLES_IA.has(id)).map(([id, rule]) => {
                 const meta = ruleMeta()[id];
                 return (
                   <div key={id} className="rounded-[10px] border border-border p-1">

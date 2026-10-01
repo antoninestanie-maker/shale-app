@@ -1875,6 +1875,14 @@ export const demo = {
     contenusIa.set(uid, { uid, kind, jour, contenu, cree_le: new Date().toISOString(), lu_le: null });
   },
 
+  async listerContenusIa(kind: GenreContenuIa, limite: number): Promise<string[]> {
+    return [...contenusIa.values()]
+      .filter((c) => c.kind === kind)
+      .map((c) => c.jour)
+      .sort((a, b) => b.localeCompare(a))
+      .slice(0, limite);
+  },
+
   async marquerContenuIaLu(kind: GenreContenuIa, jour: string): Promise<void> {
     const c = contenusIa.get(`${kind}:${jour}`);
     if (c && !c.lu_le) contenusIa.set(c.uid, { ...c, lu_le: new Date().toISOString() });

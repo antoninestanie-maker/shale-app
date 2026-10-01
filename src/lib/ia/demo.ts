@@ -213,6 +213,35 @@ const FACTICES: Factices = {
       })),
     };
   },
+  revue: (p) => {
+    const taux = p.completion.prevues ? Math.round((p.completion.faites / p.completion.prevues) * 100) : 0;
+    const lundi = (() => {
+      const d = new Date(`${p.semaine.fin}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      const iso = d.toISOString().slice(0, 10);
+      return iso < p.jour ? p.jour : iso;
+    })();
+    return {
+      tenu: t("Démonstration : {f} tâches faites sur {p} prévues ({t} %), et {m} minutes de focus sur {j} jours.", {
+        f: p.completion.faites,
+        p: p.completion.prevues,
+        t: taux,
+        m: p.focus.minutes,
+        j: p.focus.joursActifs,
+      }),
+      glisse: p.reports.taches
+        ? t("Démonstration : des tâches ont glissé (nombre : {n}). La plus reportée : « {t} ».", {
+            n: p.reports.taches,
+            t: p.reports.plusReportees[0]?.titre ?? "",
+          })
+        : t("Démonstration : rien n'a glissé cette semaine."),
+      ajustements: [
+        { titre: t("Bloquer deux matinées de focus sans réunion"), pourquoi: t("Le focus tient mieux les jours où il est posé tôt."), date: lundi },
+        { titre: t("Décider du sort de la tâche la plus reportée"), pourquoi: t("Une tâche qui glisse chaque semaine est une décision à prendre."), date: lundi },
+        { titre: t("Choisir l'objectif de la semaine"), pourquoi: t("Un objectif nommé le lundi avance davantage."), date: null },
+      ],
+    };
+  },
 };
 
 /** Un e-mail type : une tâche, un rendez-vous, une facture (dont le TTC ne

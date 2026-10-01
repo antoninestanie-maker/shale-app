@@ -195,6 +195,24 @@ export interface ContratsIa {
     };
     sortie: { liens: Array<{ passage: string; id: string }> };
   };
+  revue: {
+    payload: {
+      lang: LangIa;
+      jour: string;
+      semaine: { debut: string; fin: string };
+      completion: { prevues: number; faites: number; faitesHorsPrevu: number; parJour: Array<{ jour: string; prevues: number; faites: number }> };
+      focus: { minutes: number; sessions: number; joursActifs: number; minutesSemainePrecedente: number };
+      objectifs: Array<{ titre: string; progression: number; tachesFaites: number; enPeril: boolean }>;
+      reports: { taches: number; plusReportees: Array<{ titre: string; reports: number }> };
+      /** `null` sauf accord explicite ; sinon des notes chiffrées SEULES, jamais de texte. */
+      journal: null | {
+        humeurMoyenne: number | null;
+        energieMoyenne: number | null;
+        parJour: Array<{ jour: string; humeur: number | null; energie: number | null }>;
+      };
+    };
+    sortie: { tenu: string; glisse: string; ajustements: Array<{ titre: string; pourquoi: string; date: string | null }> };
+  };
   carte: {
     payload: { lang: LangIa; titre: string; texte: string };
     sortie: {
@@ -225,6 +243,7 @@ export const FAMILLE_DE: Readonly<Record<FonctionIa, FamilleIa>> = {
   traduire: "notes",
   liens: "notes",
   carte: "notes",
+  revue: "revue",
 };
 
 const DATE: Schema = { type: "string", format: "date" };
@@ -516,6 +535,29 @@ export const SORTIES: Readonly<Record<FonctionIa, Schema>> = {
       },
     },
     required: ["racine", "branches"],
+    additionalProperties: false,
+  },
+  revue: {
+    type: "object",
+    properties: {
+      tenu: { type: "string", maxLength: 700 },
+      glisse: { type: "string", maxLength: 700 },
+      ajustements: {
+        type: "array",
+        maxItems: 3,
+        items: {
+          type: "object",
+          properties: {
+            titre: { type: "string", maxLength: 200 },
+            pourquoi: { type: "string", maxLength: 300 },
+            date: { anyOf: [DATE, { type: "null" }] },
+          },
+          required: ["titre", "pourquoi", "date"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["tenu", "glisse", "ajustements"],
     additionalProperties: false,
   },
 };

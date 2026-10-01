@@ -196,6 +196,16 @@ describe("démo", () => {
       traduire: { lang: "fr", cible: "en", titre: "Ma note", texte: "# Titre\nUn paragraphe." },
       liens: { lang: "fr", texte: "Revoir les tarifs avant mardi.", candidats: [{ id: "c1", genre: "note", titre: "Tarifs 2026" }] },
       carte: { lang: "fr", titre: "Lancer la boutique", texte: "Catalogue\nPaiement\nLivraison" },
+      revue: {
+        lang: "fr",
+        jour: JOUR,
+        semaine: { debut: "2026-10-05", fin: "2026-10-11" },
+        completion: { prevues: 10, faites: 6, faitesHorsPrevu: 1, parJour: [] },
+        focus: { minutes: 120, sessions: 4, joursActifs: 3, minutesSemainePrecedente: 90 },
+        objectifs: [],
+        reports: { taches: 1, plusReportees: [{ titre: "Devis", reports: 3 }] },
+        journal: null,
+      },
     };
     for (const f of Object.keys(payloads) as FonctionIa[]) {
       const r = reponseDemo(f, payloads[f] as never);
