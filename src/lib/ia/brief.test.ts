@@ -191,6 +191,11 @@ describe("démo", () => {
         rythme: { tachesFaites14j: 2, joursActifs14j: 2 },
         charge: [],
       },
+      reecrire: { lang: "fr", ton: "court", texte: "# Titre\nUn paragraphe.\n- une puce\n- deux puces" },
+      developper: { lang: "fr", titre: "Plan", puces: "- Premier point\n- Second point" },
+      traduire: { lang: "fr", cible: "en", titre: "Ma note", texte: "# Titre\nUn paragraphe." },
+      liens: { lang: "fr", texte: "Revoir les tarifs avant mardi.", candidats: [{ id: "c1", genre: "note", titre: "Tarifs 2026" }] },
+      carte: { lang: "fr", titre: "Lancer la boutique", texte: "Catalogue\nPaiement\nLivraison" },
     };
     for (const f of Object.keys(payloads) as FonctionIa[]) {
       const r = reponseDemo(f, payloads[f] as never);

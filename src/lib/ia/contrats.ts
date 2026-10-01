@@ -175,6 +175,33 @@ export interface ContratsIa {
     };
     sortie: { explication: string; plan: TacheProposee[] };
   };
+  reecrire: {
+    payload: { lang: LangIa; ton: "clair" | "court" | "pro"; texte: string };
+    sortie: { texte: string };
+  };
+  developper: {
+    payload: { lang: LangIa; titre: string; puces: string };
+    sortie: { texte: string };
+  };
+  traduire: {
+    payload: { lang: LangIa; cible: "fr" | "en" | "es" | "de" | "it" | "pt"; titre: string; texte: string };
+    sortie: { titre: string; texte: string };
+  };
+  liens: {
+    payload: {
+      lang: LangIa;
+      texte: string;
+      candidats: Array<{ id: string; genre: "note" | "knowledge" | "task" | "goal" | "event"; titre: string }>;
+    };
+    sortie: { liens: Array<{ passage: string; id: string }> };
+  };
+  carte: {
+    payload: { lang: LangIa; titre: string; texte: string };
+    sortie: {
+      racine: string;
+      branches: Array<{ texte: string; enfants: Array<{ texte: string; enfants: Array<{ texte: string }> }> }>;
+    };
+  };
 }
 
 export type FonctionIa = keyof ContratsIa;
@@ -193,11 +220,18 @@ export const FAMILLE_DE: Readonly<Record<FonctionIa, FamilleIa>> = {
   decomposer_objectif: "taches",
   etapes_objectif: "taches",
   objectif_peril: "taches",
+  reecrire: "notes",
+  developper: "notes",
+  traduire: "notes",
+  liens: "notes",
+  carte: "notes",
 };
 
 const DATE: Schema = { type: "string", format: "date" };
 const PRIORITE: Schema = { type: "string", enum: ["low", "medium", "high"] };
 const MONTANT: Schema = { anyOf: [{ type: "number", minimum: 0, maximum: 1_000_000_000 }, { type: "null" }] };
+
+const NOEUD_TEXTE: Schema = { type: "string", maxLength: 80 };
 
 function tachesProposees(maxItems: number): Schema {
   return {
@@ -405,6 +439,83 @@ export const SORTIES: Readonly<Record<FonctionIa, Schema>> = {
     type: "object",
     properties: { explication: { type: "string", maxLength: 800 }, plan: tachesProposees(8) },
     required: ["explication", "plan"],
+    additionalProperties: false,
+  },
+  reecrire: {
+    type: "object",
+    properties: { texte: { type: "string", maxLength: 24_000 } },
+    required: ["texte"],
+    additionalProperties: false,
+  },
+  developper: {
+    type: "object",
+    properties: { texte: { type: "string", maxLength: 12_000 } },
+    required: ["texte"],
+    additionalProperties: false,
+  },
+  traduire: {
+    type: "object",
+    properties: { titre: { type: "string", maxLength: 300 }, texte: { type: "string", maxLength: 24_000 } },
+    required: ["titre", "texte"],
+    additionalProperties: false,
+  },
+  liens: {
+    type: "object",
+    properties: {
+      liens: {
+        type: "array",
+        maxItems: 15,
+        items: {
+          type: "object",
+          properties: { passage: { type: "string", maxLength: 200 }, id: { type: "string", maxLength: 40 } },
+          required: ["passage", "id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["liens"],
+    additionalProperties: false,
+  },
+  carte: {
+    type: "object",
+    properties: {
+      racine: NOEUD_TEXTE,
+      branches: {
+        type: "array",
+        maxItems: 8,
+        items: {
+          type: "object",
+          properties: {
+            texte: NOEUD_TEXTE,
+            enfants: {
+              type: "array",
+              maxItems: 6,
+              items: {
+                type: "object",
+                properties: {
+                  texte: NOEUD_TEXTE,
+                  enfants: {
+                    type: "array",
+                    maxItems: 4,
+                    items: {
+                      type: "object",
+                      properties: { texte: NOEUD_TEXTE },
+                      required: ["texte"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["texte", "enfants"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["texte", "enfants"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["racine", "branches"],
     additionalProperties: false,
   },
 };

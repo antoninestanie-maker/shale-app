@@ -783,3 +783,9 @@ un objectif en sous-objectifs ; proposer ses prochaines tâches, datées selon l
 calendrier ; expliquer un objectif en péril et proposer un plan de rattrapage.
 ⚠️ Ne pas promettre « l'IA estime tes tâches » sans dire qu'il faut un historique
 Timer (trois tâches comparables au moins).
+
+### T.5 — 2026-10-01 : les notes (phase F)
+Dans une note : résumer, réécrire (plus clair, plus court, ton professionnel, avec
+avant/après et annulation), suggérer des liens vers ses propres objets, développer
+des puces, traduire dans une nouvelle note, faire une carte mentale modifiable.
+⚠️ Dans les Notes seulement — pas (encore) dans les fiches du Savoir.

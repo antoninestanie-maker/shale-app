@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { objectifsEnPeril } from "../../lib/calendrier/peril";
 import { formatDate, getLang, t, tp } from "../../lib/i18n";
-import type { FonctionIa, PayloadDe, SortieDe, TacheProposee } from "../../lib/ia/contrats";
+import type { TacheProposee } from "../../lib/ia/contrats";
 import { EVENEMENT_DEMANDE_IA, type DemandeIa } from "../../lib/ia/demande";
 import {
   appliquerDecoupage,
@@ -38,15 +38,12 @@ import {
   retenusParmi,
   type Comparable,
 } from "../../lib/ia/planifier";
-import { useIa } from "../../lib/ia/useIa";
 import { addDays, todayStr } from "../../lib/logic";
 import { fetchCalendarEvents, historiqueFocus } from "../../lib/repo";
 import { afficherToast } from "../../lib/toast";
 import type { AppData, Goal, Task } from "../../lib/types";
-import { ApercuEnvoi } from "./ApercuEnvoi";
-import { EtatIa, type EtatAppelIa } from "./EtatIa";
+import { Avant, useAppel } from "./communs";
 import { FenetreIa } from "./FenetreIa";
-import { IconeIa } from "./IconeIa";
 import { Propositions } from "./Propositions";
 
 const CHAMP = "rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm text-text";
@@ -84,54 +81,6 @@ export function ActionsIa({ data, refresh }: { data: AppData | null; refresh: ()
   if (!goal) return null;
   if (demande.action === "peril") return <Peril goal={goal} data={data} refresh={refresh} fermer={fermer} />;
   return <Objectif goal={goal} mode={demande.action} data={data} refresh={refresh} fermer={fermer} />;
-}
-
-// ── L'appel commun ──────────────────────────────────────────────────────────
-
-function useAppel<F extends FonctionIa>(feature: F) {
-  const { run } = useIa();
-  const [etat, setEtat] = useState<EtatAppelIa>({ etat: "repos" });
-  const [sortie, setSortie] = useState<SortieDe<F> | null>(null);
-  const lancer = async (payload: PayloadDe<F>) => {
-    setEtat({ etat: "chargement" });
-    const r = await run(feature, payload);
-    if (r.ok) setSortie(r.data);
-    setEtat(r.ok ? { etat: "repos" } : { etat: "erreur", code: r.code, resetsAt: r.resetsAt ?? null });
-  };
-  return { etat, sortie, lancer };
-}
-
-/** L'écran d'avant l'appel : ce qui va se passer, ce qui part, le bouton. */
-function Avant({
-  children,
-  payload,
-  libelle,
-  etat,
-  onLancer,
-}: {
-  children: ReactNode;
-  payload: unknown;
-  libelle: string;
-  etat: EtatAppelIa;
-  onLancer: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="text-sm leading-relaxed text-text-dim">{children}</div>
-      <ApercuEnvoi payload={payload} />
-      <EtatIa etat={etat} onReessayer={onLancer} />
-      {etat.etat !== "chargement" && (
-        <button
-          type="button"
-          onClick={onLancer}
-          className="pill fill-primary flex items-center gap-2 self-start px-4 py-2 text-sm font-semibold"
-        >
-          <IconeIa className="h-4 w-4" />
-          {libelle}
-        </button>
-      )}
-    </div>
-  );
 }
 
 function ChoixPriorite({ valeur, onChange }: { valeur: TacheProposee["priorite"]; onChange: (p: TacheProposee["priorite"]) => void }) {

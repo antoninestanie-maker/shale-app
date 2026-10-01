@@ -7152,3 +7152,54 @@ d'un objectif et d'une étape, décomposer → 3 sous-objectifs, tâches d'un ob
 bandeau « Pourquoi, et que faire ? » → explication + plan. ⚠️ La démo n'a pas assez
 d'historique Timer pour montrer une fourchette : ce chemin n'est couvert que par
 les tests (`planifier.test.ts`, 23 tests).
+
+### 2026-10-01 — IA de Shale Pro, phase F : les notes (#20, #21, #24, #25, #26, #27)
+
+**UN bouton « IA »** dans la barre existante de `RichNoteEditor` (pas de nouvelle
+barre — décision Q6), et derrière lui le catalogue `menu/catalogue/ia.tsx` :
+résumer, réécrire ▸ (plus clair, plus court, ton professionnel), développer la
+sélection, suggérer des liens @, traduire ▸ (six langues), faire une carte
+mentale. Tout se passe dans `components/ia/NoteIa.tsx`.
+
+**Décisions, et pourquoi :**
+
+- **Le modèle ne voit et ne rend que du TEXTE STRUCTURÉ** (`# `, `## `, `- `,
+  paragraphe — `lib/ia/texteNote.ts`). `texteDeHtml` retire les blocs (carte,
+  image, pièce jointe) ; `htmlDeTexte` **échappe tout** au retour (`csp: null`).
+  Prix assumé et écrit dans la fenêtre : le gras et les couleurs ne survivent pas
+  à une réécriture.
+- **Toute insertion de texte passe par `execCommand("insertHTML")`** : c'est la
+  pile d'annulation du navigateur, donc **⌘Z défait une réécriture acceptée**
+  (vérifié à l'écran : le texte d'avant revient, « rétablir » aussi). La carte
+  suit le chemin des cartes (`insererBloc`, annulation par l'éditeur de carte).
+- **La sélection est photographiée au clic sur le bouton**, avant que le menu et
+  la fenêtre ne prennent le focus — sinon elle est perdue.
+- **Réécrire la note ENTIÈRE est refusé si elle porte un bloc ou une mention**
+  (`aDesBlocs`) : ils seraient remplacés par du texte. La fenêtre dit de
+  sélectionner un passage.
+- **Liens @** : les candidats viennent de la recherche de l'app
+  (`rechercherPartout`, FTS5 + titres) sur les douze mots les plus présents de la
+  note, ≤ 40, hors la note elle-même et ce qu'elle cite déjà. Le modèle reçoit des
+  identifiants COURTS (`c1`…), jamais un uid. Zéro candidat → **aucun appel**. Le
+  lien est posé APRÈS le passage (le texte de l'utilisateur n'est pas remplacé),
+  un clic par lien.
+- **Traduire crée une NOUVELLE note**, reliée à l'originale (`object_links`,
+  `manual`) : rien n'est écrasé. Blocs non repris, mentions en texte — dit avant.
+- **Carte** : schéma borné à trois niveaux (8 × 6 × 4), coupé à 40 nœuds par
+  `carteDepuisIa` (largeur d'abord : ce sont les détails qui sautent), puis passé
+  par le lecteur EXISTANT `lireCarte`. Posée en fin de note, bloc normal.
+- **`FenetreIa` prend le focus à l'ouverture** : sinon le menu le rend à son
+  bouton, dont l'info-bulle s'affiche par-dessus la fenêtre (vu à l'écran).
+- `components/ia/communs.tsx` : `useAppel` et `Avant`, partagés par `ActionsIa`
+  et `NoteIa`.
+
+⚠️ **PAS FAIT : le Savoir (`NoteComposer`).** L'audit recommandait d'y poser le
+même bouton dans la bulle de sélection. Cette bulle se DÉMONTE dès que la
+sélection est perdue — donc à l'ouverture du menu : l'état de l'IA devrait vivre
+au-dessus d'elle. Et « traduire » y créerait une note, pas une fiche. À décider
+avec Antonin avant de le faire.
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : menu, résumé inséré puis
+⌘Z / rétablir, réécriture avant/après acceptée puis ⌘Z, 9 candidats → 3
+suggestions → lien posé, traduction créée dans la liste, carte insérée en fin de
+note, développement sur une sélection. Tests : `texteNote.test.ts` (16).

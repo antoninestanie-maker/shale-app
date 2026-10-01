@@ -436,6 +436,12 @@ export default function NotesView({ data, refresh }: Props) {
             source={uid ? { kind: "note", uid } : undefined}
             onOuvrirMention={(k, u) => ouvrirMention(k, u)}
             onChange={enregistrerDepuisEditeur}
+            titre={title}
+            onNoteCreee={async () => {
+              // Une traduction vient de naître : la liste la montre, la note
+              // ouverte reste l'originale.
+              await refresh();
+            }}
             placeholder={t("Écris ta note. Tape @ pour citer une note, une fiche, un objectif…")}
           />
 

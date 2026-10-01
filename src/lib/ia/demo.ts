@@ -164,6 +164,55 @@ const FACTICES: Factices = {
       ],
     };
   },
+  reecrire: (p) => {
+    // La démo ne « réécrit » pas : elle montre le parcours avant / après sur
+    // le texte fourni, raccourci à ses premières lignes pour « plus court ».
+    const lignes = p.texte.split("\n").filter((l) => l.trim());
+    const gardees = p.ton === "court" ? lignes.slice(0, Math.max(1, Math.ceil(lignes.length / 2))) : lignes;
+    return { texte: gardees.map((l) => (/^(#|-)/.test(l) ? l : `${l} ${t("(reformulé)")}`)).join("\n") };
+  },
+  developper: (p) => ({
+    texte: p.puces
+      .split("\n")
+      .map((l) => l.replace(/^[-#\s]+/, "").trim())
+      .filter(Boolean)
+      .map((puce) => `## ${puce}\n${t("Démonstration : ici, l'IA rédige deux à cinq phrases qui développent cette puce, sans rien ajouter qui n'y figure pas.")}`)
+      .join("\n"),
+  }),
+  traduire: (p) => ({
+    titre: `${p.titre} (${p.cible.toUpperCase()})`,
+    texte: p.texte
+      .split("\n")
+      .map((l) => {
+        const m = /^(##?\s|-\s)?(.*)$/.exec(l)!;
+        return `${m[1] ?? ""}[${p.cible}] ${m[2]}`;
+      })
+      .join("\n"),
+  }),
+  liens: (p) => {
+    // La démo propose le premier candidat dont un mot du titre figure dans la note.
+    const bas = p.texte.toLowerCase();
+    const out: Array<{ passage: string; id: string }> = [];
+    for (const c of p.candidats) {
+      const mot = c.titre.split(/\s+/).find((m) => m.length >= 4 && bas.includes(m.toLowerCase()));
+      if (!mot) continue;
+      const i = bas.indexOf(mot.toLowerCase());
+      out.push({ passage: p.texte.slice(i, i + mot.length), id: c.id });
+      if (out.length >= 3) break;
+    }
+    return { liens: out };
+  },
+  carte: (p) => {
+    const lignes = p.texte.split("\n").map((l) => l.replace(/^[-#\s]+/, "").trim()).filter(Boolean);
+    const court = (s: string) => s.split(/\s+/).slice(0, 5).join(" ").slice(0, 80);
+    return {
+      racine: court(p.titre || lignes[0] || t("Note")),
+      branches: lignes.slice(0, 5).map((l, i) => ({
+        texte: court(l),
+        enfants: i === 0 ? [{ texte: t("Détail"), enfants: [{ texte: t("Précision") }] }] : [],
+      })),
+    };
+  },
 };
 
 /** Un e-mail type : une tâche, un rendez-vous, une facture (dont le TTC ne
