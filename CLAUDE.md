@@ -7073,7 +7073,9 @@ avec le schéma complet — un lien mal formé est toujours rejeté.
 
 **État** : 93 tests IA verts (dont 10 pour Gemini). La 010 a été **jouée en production le
 2026-10-01 au soir** (CLI reconnectée, sauvegarde `shale-backups/avant-ia-010-20261001-2218/`,
-contrôle relu : 19 lignes en `google`, tout éteint). La fonction `ai` n'est toujours pas déployée.
+contrôle relu : 19 lignes en `google`, tout éteint). La fonction `ai` est **déployée** depuis le
+même soir (budget 50 $ posé), contrôlée SANS session seulement (401, CORS) : aucun appel
+authentifié, aucun appel à Gemini (pas de clé), rien d'allumé dans `ai_config`.
 
 ### 2026-10-01 — IA de Shale Pro, phase D : la capture (#5, #6)
 
