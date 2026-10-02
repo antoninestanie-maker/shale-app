@@ -811,6 +811,15 @@ mais la confidentialité, les questions et l'accueil sont publics. Deux lots.
 > l'appliquer APRÈS sa fusion. La vraie borne n'est pas le déploiement (tout est
 > éteint, rien ne part chez Google) mais **l'allumage de la première fonction dans
 > `ai_config`** : pas d'`enabled = true` tant que le Lot A n'est pas en ligne.
+>
+> **Relevé le 2026-10-02 (ai.google.dev/gemini-api/terms).** Services payants : Google
+> n'utilise ni les prompts ni les réponses pour améliorer ses produits, MAIS les garde
+> « a limited period of time » (durée non chiffrée) pour détecter les abus. La phrase
+> A2 dit « ni conservé par nous » — exact pour Shale ; à compléter d'un mot sur Google
+> (« notre fournisseur peut le garder brièvement pour détecter les abus ») plutôt que
+> de laisser croire que rien n'est gardé nulle part. Même remarque pour l'écran de
+> consentement de l'app. Pour un développeur de l'EEE, ces conditions « payantes »
+> valent aussi sur le palier gratuit — la facturation reste nécessaire pour les quotas.
 
 | # | Fichier | Aujourd'hui | Proposé | Pourquoi |
 |---|---|---|---|---|
