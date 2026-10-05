@@ -134,53 +134,74 @@ export function localNow(): string {
 export async function fetchAll(sinceDate: string): Promise<AppData> {
   if (!isTauri) return demo.fetchAll();
   const db = await getDb();
-  const tasksBruts = await db.select<Task[]>(`SELECT * FROM tasks WHERE ${VIVANT}`);
-  const completions = await db.select<Completion[]>(
-    `SELECT c.* FROM task_completions c LEFT JOIN tasks t ON t.id = c.task_id
-      WHERE c.date >= $1 AND ${vivant("t")}`,
-    [sinceDate],
-  );
-  const goalsBruts = await db.select<Goal[]>(`SELECT * FROM goals WHERE ${VIVANT}`);
-  const tags = await db.select<Tag[]>("SELECT * FROM tags");
-  const metrics = await db.select<CustomMetric[]>(`SELECT * FROM custom_metrics WHERE ${VIVANT}`);
-  const metricEntries = await db.select<MetricEntry[]>(
-    `SELECT e.* FROM metric_entries e LEFT JOIN custom_metrics m ON m.id = e.metric_id
-      WHERE e.date >= $1 AND ${vivant("m")}`,
-    [sinceDate],
-  );
-  const goalLog = await db.select<GoalProgressPoint[]>(
-    "SELECT * FROM goal_progress_log WHERE date >= $1",
-    [sinceDate],
-  );
-  const quickLinks = await db.select<QuickLink[]>(
-    "SELECT * FROM quick_links ORDER BY position, id",
-  );
-  const focusSessions = await db.select<FocusSession[]>(
-    "SELECT * FROM focus_sessions WHERE started_at >= $1",
-    [sinceDate],
-  );
-  const notes = await db.select<Note[]>(
-    `SELECT * FROM notes WHERE ${VIVANT} ORDER BY updated_at DESC`,
-  );
-  const journal = await db.select<JournalEntry[]>(
-    `SELECT * FROM journal_entries WHERE date >= $1 AND ${VIVANT}`,
-    [sinceDate],
-  );
-  const habits = await db.select<Habit[]>(
-    `SELECT * FROM habits WHERE archived = 0 AND ${VIVANT}`,
-  );
+  // ⚠️ En PARALLÈLE (2026-10-05) : quatorze lectures qui s'attendaient l'une
+  // l'autre, chacune un aller-retour entre la page et le Rust. C'est ce chargement
+  // que la transition d'entrée attend (`signalerAppPrete`) : chaque aller-retour
+  // gagné raccourcit le temps passé devant le logo. Les lectures sont
+  // indépendantes (aucune n'utilise le résultat d'une autre).
   // ⚠️ Les cases d'une habitude ARCHIVÉE restent rendues, comme avant la 027 :
-  // le filtre ne regarde que la corbeille, pas `archived`. On ne change pas ici
-  // une règle qui n'est pas celle de ce chantier.
-  const habitChecks = await db.select<HabitCheck[]>(
-    `SELECT c.* FROM habit_checks c LEFT JOIN habits h ON h.id = c.habit_id
-      WHERE c.date >= $1 AND ${vivant("h")}`,
-    [sinceDate],
-  );
-  const trades = await db.select<Trade[]>(
-    "SELECT * FROM trades WHERE date >= $1 ORDER BY date DESC, id DESC",
-    [sinceDate],
-  );
+  // le filtre ne regarde que la corbeille, pas `archived`.
+  const [
+    tasksBruts,
+    completions,
+    goalsBruts,
+    tags,
+    metrics,
+    metricEntries,
+    goalLog,
+    quickLinks,
+    focusSessions,
+    notes,
+    journal,
+    habits,
+    habitChecks,
+    trades,
+  ] = await Promise.all([
+    db.select<Task[]>(`SELECT * FROM tasks WHERE ${VIVANT}`),
+    db.select<Completion[]>(
+      `SELECT c.* FROM task_completions c LEFT JOIN tasks t ON t.id = c.task_id
+        WHERE c.date >= $1 AND ${vivant("t")}`,
+      [sinceDate],
+    ),
+    db.select<Goal[]>(`SELECT * FROM goals WHERE ${VIVANT}`),
+    db.select<Tag[]>("SELECT * FROM tags"),
+    db.select<CustomMetric[]>(`SELECT * FROM custom_metrics WHERE ${VIVANT}`),
+    db.select<MetricEntry[]>(
+      `SELECT e.* FROM metric_entries e LEFT JOIN custom_metrics m ON m.id = e.metric_id
+        WHERE e.date >= $1 AND ${vivant("m")}`,
+      [sinceDate],
+    ),
+    db.select<GoalProgressPoint[]>(
+      "SELECT * FROM goal_progress_log WHERE date >= $1",
+      [sinceDate],
+    ),
+    db.select<QuickLink[]>(
+      "SELECT * FROM quick_links ORDER BY position, id",
+    ),
+    db.select<FocusSession[]>(
+      "SELECT * FROM focus_sessions WHERE started_at >= $1",
+      [sinceDate],
+    ),
+    db.select<Note[]>(
+      `SELECT * FROM notes WHERE ${VIVANT} ORDER BY updated_at DESC`,
+    ),
+    db.select<JournalEntry[]>(
+      `SELECT * FROM journal_entries WHERE date >= $1 AND ${VIVANT}`,
+      [sinceDate],
+    ),
+    db.select<Habit[]>(
+      `SELECT * FROM habits WHERE archived = 0 AND ${VIVANT}`,
+    ),
+    db.select<HabitCheck[]>(
+      `SELECT c.* FROM habit_checks c LEFT JOIN habits h ON h.id = c.habit_id
+        WHERE c.date >= $1 AND ${vivant("h")}`,
+      [sinceDate],
+    ),
+    db.select<Trade[]>(
+      "SELECT * FROM trades WHERE date >= $1 ORDER BY date DESC, id DESC",
+      [sinceDate],
+    ),
+  ]);
   // Une tâche ou un sous-objectif vivants dont la cible est en corbeille se
   // lisent détachés — sans toucher à la base (voir `corbeille/orphelins.ts`).
   const { taches: tasks, objectifs: goals } = detacherDesJetes(tasksBruts, goalsBruts);

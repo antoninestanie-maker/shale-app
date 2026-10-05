@@ -1671,6 +1671,7 @@
   z-index: 400;
   pointer-events: none;
   transform-origin: center;
+  will-change: transform, opacity;
 }
 .entree-copie[data-phase="poser"] {
   animation: entree-tenir var(--dur-base) linear both;
@@ -1714,6 +1715,11 @@
   z-index: 300;
   overflow: hidden;
   transform-origin: center;
+  /* ⭐ 2026-10-05 (lenteur au démarrage) : toute l'app est découpée et grossie
+     pendant la traversée. Sans promotion en couche, le navigateur la repeint à
+     chaque image — et elle porte des flous d'arrière-plan. `will-change` ne vit
+     que pendant la transition : ces règles disparaissent avec `data-phase`. */
+  will-change: transform, clip-path, opacity;
 }
 .entree-app[data-phase="poser"],
 .entree-app[data-phase="approche"] {

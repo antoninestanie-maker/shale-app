@@ -43,43 +43,48 @@ const FOND: Record<Categorie, string> = {
 
 export default function GrilleSemaine({
   reglages,
-  compact = false,
 }: {
   reglages: ReglagesHoraires;
-  /** Cases plus basses — l'écran de l'accueil, où la grille partage la place. */
+  /** Gardé pour les appelants : la grille en cases a la même taille partout. */
   compact?: boolean;
 }) {
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
   const libres = heuresLibres(grille);
-  const hauteurCase = compact ? 9 : 13;
   const legende = LEGENDE();
 
+  // ⭐ 2026-10-05 (Antonin) : des CASES, pas de longs rectangles. Une ligne par
+  // jour, une case carrée par heure — comme les cases du Journal. Les jours en
+  // lignes et les heures en colonnes : 24 carrés tiennent en largeur, et la
+  // grille reste basse (sept lignes) au lieu de deux cents pixels de haut.
   return (
     <div>
       <div
-        className="grid gap-[1px] text-[10px]"
-        style={{ gridTemplateColumns: "auto repeat(7, minmax(0, 1fr))" }}
+        className="grid gap-[3px] text-[10px]"
+        style={{ gridTemplateColumns: "auto repeat(24, minmax(0, 1fr))" }}
         role="img"
         aria-label={t("Ta semaine, heure par heure — {n} h libres", { n: libres })}
       >
-        {/* Coin vide, puis les sept en-têtes de jour. */}
+        {/* Coin vide, puis un repère toutes les trois heures. */}
         <div />
-        {ORDRE_SEMAINE.map((j) => (
-          <div key={`tete-${j}`} className="pb-1 text-center text-text-dim">
-            {/* ⚠️ `nomCourtDuJour` (Intl) et jamais une table française :
-                PIEGES § 5.2 bis — une table de constantes est de la donnée, et
-                les deux outils i18n restent au vert en la laissant passer. */}
-            {nomCourtDuJour(j)}
+        {Array.from({ length: 24 }, (_, h) => (
+          <div
+            key={`h-${h}`}
+            className="relative h-3 text-text-dim tabular-nums"
+            aria-hidden="true"
+          >
+            {/* ⚠️ `formatHeure` et non 'HH:MM' : « 06:00 » est faux en anglais
+                (« 6 AM », PIEGES § 4.4). Le libellé déborde volontairement de sa
+                case : les deux voisines sont vides. */}
+            {h % 3 === 0 && (
+              <span className="absolute left-0 top-0 whitespace-nowrap text-[9px] leading-none">
+                {formatHeure(`${String(h).padStart(2, "0")}:00`)}
+              </span>
+            )}
           </div>
         ))}
 
-        {Array.from({ length: 24 }, (_, h) => (
-          <Ligne
-            key={h}
-            heure={h}
-            grille={grille}
-            hauteurCase={hauteurCase}
-          />
+        {ORDRE_SEMAINE.map((j) => (
+          <Jour key={j} jour={j} grille={grille} />
         ))}
       </div>
 
@@ -98,33 +103,18 @@ export default function GrilleSemaine({
   );
 }
 
-function Ligne({
-  heure,
-  grille,
-  hauteurCase,
-}: {
-  heure: number;
-  grille: Categorie[][];
-  hauteurCase: number;
-}) {
-  // ⚠️ Un repère toutes les trois heures, et pas vingt-quatre étiquettes :
-  // au-delà, l'axe devient illisible avant la grille elle-même.
-  const repere = heure % 3 === 0;
+function Jour({ jour, grille }: { jour: number; grille: Categorie[][] }) {
   return (
     <>
-      <div
-        className="pr-1.5 text-right leading-none text-text-dim tabular-nums"
-        style={{ height: hauteurCase, fontSize: 9 }}
-      >
-        {/* ⚠️ `formatHeure` et non la chaîne 'HH:MM' : « 06:00 » est juste en
-            français et faux en anglais, qui écrit « 6 AM » (PIEGES § 4.4). */}
-        {repere ? formatHeure(`${String(heure).padStart(2, "0")}:00`) : ""}
+      <div className="pr-1.5 text-right leading-none text-text-dim self-center">
+        {/* ⚠️ `nomCourtDuJour` (Intl), jamais une table française (§ 5.2 bis). */}
+        {nomCourtDuJour(jour)}
       </div>
-      {ORDRE_SEMAINE.map((j) => (
+      {Array.from({ length: 24 }, (_, h) => (
         <div
-          key={`${j}-${heure}`}
-          style={{ height: hauteurCase, background: FOND[grille[j][heure]] }}
-          className={repere ? "border-t border-border" : undefined}
+          key={`${jour}-${h}`}
+          style={{ background: FOND[grille[jour][h]], aspectRatio: "1 / 1" }}
+          className="rounded-[3px]"
         />
       ))}
     </>
