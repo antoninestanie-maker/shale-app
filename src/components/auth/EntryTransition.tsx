@@ -223,10 +223,16 @@ export function VoileEntree({
           onAnimationEnd={gererAnimation}
           aria-hidden
         >
-          <ShaleMark size="100%" />
-          {/* Le liseré bleu du reel 014 : un point de lumière qui fait le tour de
-              la plaque pendant l'arrêt. Voir `src/index.css`, `.entree-lisere`. */}
-          <span className="entree-lisere" aria-hidden>
+          {/* Le liseré : deux halos DERRIÈRE la plaque (seul ce qui en dépasse se
+              voit), puis le trait par-dessus. Même tour pour les trois : un éclat
+              sans `filter`, donc rien de flou à recalculer à chaque image. */}
+          {(["halo", "lueur"] as const).map((couche) => (
+            <span key={couche} className="entree-lisere" data-couche={couche} aria-hidden>
+              <span className="entree-lisere-comete" />
+            </span>
+          ))}
+          <ShaleMark size="100%" relief />
+          <span className="entree-lisere" data-couche="trait" aria-hidden>
             <span className="entree-lisere-comete" />
           </span>
         </div>

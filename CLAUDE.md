@@ -7362,3 +7362,4 @@ Antonin : « le mouvement manque vraiment de fluidité, et il commence trop peti
 - **La copie est dessinée à sa taille d'arrêt (3,4 × la marque, ~177 px) et RÉDUITE au départ** : nette pendant l'arrêt, floue seulement en vol.
 - **Parallaxe des strates retirée** (`PARALLAXE`, `entree-strate` ne sert plus).
 - Vérifié image par image en WebKit (animation figée à 9 instants). ⚠️ La fluidité réelle n'est jugeable que par Antonin.
+- **2026-10-06 (suite)** — Antonin : « liseré plus qualitatif, un peu plus gros ; le logo manque de contraste, ça fait trop dessin ». La copie animée prend un **relief** (`ShaleMark relief` : plaque en dégradé, filet de lumière en haut, barre d'accent au dégradé de marque, ombre portée et souffle bleu en `::before`) — la marque reste plate partout ailleurs. Le liseré passe à 3 px avec **deux halos derrière la plaque** (trois anneaux masqués, même tour) : un éclat sans `filter`.

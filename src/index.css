@@ -1744,7 +1744,7 @@
   position: absolute;
   inset: 0;
   border-radius: 22%;
-  padding: 2px;
+  padding: 3px;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -1753,16 +1753,45 @@
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
+/* Les deux halos débordent de la plaque et sont plus pâles : empilés sous le
+   trait, ils font l'éclat de la lumière sans aucun flou. */
+.entree-lisere[data-couche="lueur"] {
+  inset: -4px;
+  padding: 10px;
+  border-radius: 24%;
+  --lisere-force: 0.38;
+}
+.entree-lisere[data-couche="halo"] {
+  inset: -11px;
+  padding: 23px;
+  border-radius: 27%;
+  --lisere-force: 0.16;
+}
 .entree-lisere-comete {
   position: absolute;
   inset: -50%;
+  opacity: var(--lisere-force, 1);
+  /* La queue s'allonge sur un demi-tour ; la tête est presque blanche. */
   background: conic-gradient(
     from 0deg,
-    transparent 0deg 215deg,
-    color-mix(in srgb, var(--color-blue) 35%, transparent) 285deg,
-    var(--color-blue) 342deg,
-    #8fd0ff 360deg
+    transparent 0deg 150deg,
+    color-mix(in srgb, var(--gradient-brand-from) 22%, transparent) 235deg,
+    var(--gradient-brand-from) 318deg,
+    var(--gradient-brand-to) 348deg,
+    color-mix(in srgb, var(--gradient-brand-to) 35%, white) 352deg,
+    transparent 360deg
   );
+}
+/* La plaque a une ombre portée et un souffle bleu : elle flotte, elle n'est
+   pas posée à plat. Statiques — ils suivent la couche, rien n'est recalculé. */
+.entree-copie::before {
+  content: "";
+  position: absolute;
+  inset: 2%;
+  border-radius: 22%;
+  box-shadow:
+    0 22px 60px rgb(0 0 0 / 0.55),
+    0 0 90px color-mix(in srgb, var(--gradient-brand-from) 22%, transparent);
 }
 .entree-copie[data-phase="poser"] .entree-lisere {
   animation: entree-lisere-vie var(--entree-poser, 1000ms) linear both;

@@ -23,7 +23,15 @@ const BARS = [
 export default function ShaleMark({
   size = 40,
   parallaxe,
+  relief = false,
 }: {
+  /**
+   * La marque en VOLUME, pour la transition d'entrée seulement (2026-10-06,
+   * Antonin : « ça fait trop dessin ») : plaque en dégradé avec un filet de
+   * lumière en haut, barres franches, barre d'accent au dégradé de marque.
+   * Partout ailleurs la marque reste plate — c'est une marque, pas une icône.
+   */
+  relief?: boolean;
   /** Nombre de pixels, ou une longueur CSS (« 100% » pour la copie animée). */
   size?: number | string;
   /**
@@ -44,6 +52,23 @@ export default function ShaleMark({
       aria-hidden
       style={{ display: "block" }}
     >
+      {relief && (
+        <defs>
+          <linearGradient id="entree-plaque" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="color-mix(in srgb, var(--color-surface-2) 90%, white)" />
+            <stop offset="1" stopColor="var(--color-surface)" />
+          </linearGradient>
+          <linearGradient id="entree-filet" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="white" stopOpacity="0.34" />
+            <stop offset="0.45" stopColor="white" stopOpacity="0.07" />
+            <stop offset="1" stopColor="white" stopOpacity="0.03" />
+          </linearGradient>
+          <linearGradient id="entree-accent" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="var(--gradient-brand-from)" />
+            <stop offset="1" stopColor="var(--gradient-brand-to)" />
+          </linearGradient>
+        </defs>
+      )}
       {/* Plaque + filet : la marque doit rester lisible sur la surface de
           l'app, dans les deux thèmes. Le rect est rentré d'un demi-pixel pour
           que le trait de 1 tombe net. */}
@@ -53,9 +78,9 @@ export default function ShaleMark({
         width="23"
         height="23"
         rx="5"
-        fill="var(--color-surface-2)"
-        stroke="var(--color-border)"
-        strokeWidth="1"
+        fill={relief ? "url(#entree-plaque)" : "var(--color-surface-2)"}
+        stroke={relief ? "url(#entree-filet)" : "var(--color-border)"}
+        strokeWidth={relief ? "0.45" : "1"}
       />
       {BARS.map((b, i) => (
         <rect
@@ -69,7 +94,15 @@ export default function ShaleMark({
           width={b.w}
           height="3"
           rx="1.5"
-          fill={b.accent ? "var(--color-blue)" : "var(--color-text)"}
+          fill={
+            b.accent
+              ? relief
+                ? "url(#entree-accent)"
+                : "var(--color-blue)"
+              : relief
+                ? "var(--color-success)"
+                : "var(--color-text)"
+          }
         />
       ))}
     </svg>
