@@ -1664,20 +1664,71 @@
 /* ── La copie animée de la marque ──────────────────────────────────────────*/
 .entree-copie {
   position: fixed;
-  left: var(--entree-x, 0px);
-  top: var(--entree-y, 0px);
-  width: var(--entree-taille, 52px);
-  height: var(--entree-taille, 52px);
+  /* ⭐ 2026-10-06 : la copie est dessinée à sa taille d'ARRÊT (3,4 × la marque
+     de l'écran de connexion), centrée sur elle, et le vol la RÉDUIT pour partir
+     de la marque d'origine. Dessinée petite puis grossie, elle était floue
+     pendant l'arrêt — et c'est à l'arrêt qu'on la regarde. */
+  left: calc(var(--entree-x, 0px) - var(--entree-taille, 52px) * 1.2);
+  top: calc(var(--entree-y, 0px) - var(--entree-taille, 52px) * 1.2);
+  width: calc(var(--entree-taille, 52px) * 3.4);
+  height: calc(var(--entree-taille, 52px) * 3.4);
   z-index: 400;
   pointer-events: none;
   transform-origin: center;
   will-change: transform, opacity;
 }
+
+/* ── LE VOL : un seul mouvement, d'un bout à l'autre ────────────────────────
+   ⚠️ Avant, trois animations se relayaient (une par temps de la machine), et
+   chaque relais passait par un rendu React : la marque s'arrêtait net entre
+   deux temps, puis repartait de vitesse nulle. C'est ce qui manquait de
+   fluidité (Antonin, 2026-10-06).
+
+   Désormais UNE animation porte tout le mouvement, sur sa propre horloge. Les
+   animations de chaque temps (`entree-tenir`, `entree-approche`…) restent en
+   TÊTE de liste — ce sont les horloges de la machine, `temps.test.ts` les
+   lit — mais elles ne dessinent plus rien : le vol, déclaré après elles,
+   l'emporte sur `transform` et `opacity`. Une animation dont le nom reste dans
+   la liste n'est pas relancée quand le temps change : le vol ne voit pas les
+   relais.
+
+   Arrivée (ease-out) → arrêt, avec une dérive imperceptible pour que rien ne
+   se fige → départ vers nous (ease-in), qui s'efface en nous traversant. */
+@keyframes entree-vol {
+  0% {
+    transform: scale(var(--entree-depart, 0.294));
+    opacity: var(--entree-depart-opacite, 1);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  20% {
+    transform: scale(1);
+    opacity: 1;
+    animation-timing-function: linear;
+  }
+  58% {
+    transform: scale(1.05);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(9);
+    opacity: 0;
+  }
+}
+.entree-copie[data-origine="froid"] {
+  /* À froid, pas de marque d'origine à quitter : elle arrive de moins loin,
+     en apparaissant. */
+  --entree-depart: 0.72;
+  --entree-depart-opacite: 0;
+}
 .entree-copie[data-phase="poser"] {
-  animation: entree-tenir var(--entree-poser, 1000ms) linear both;
+  animation: entree-tenir var(--entree-poser, 1000ms) linear both, entree-vol var(--entree-vol, 1750ms) both;
 }
 .entree-copie[data-origine="froid"][data-phase="poser"] {
-  animation: entree-apparaitre var(--entree-poser, 1000ms) var(--ease-out-quint) both;
+  animation: entree-apparaitre var(--entree-poser, 1000ms) linear both, entree-vol var(--entree-vol, 1750ms) both;
 }
 
 /* ── Le liseré bleu (reel 014) ──────────────────────────────────────────────
@@ -1693,7 +1744,7 @@
   position: absolute;
   inset: 0;
   border-radius: 22%;
-  padding: 1.5px;
+  padding: 2px;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -1721,32 +1772,20 @@
 }
 /* L'arrêt (les 18 premiers %), le tour (jusqu'à 92 %), puis le liseré s'éteint. */
 @keyframes entree-lisere-vie {
-  0%, 16% { opacity: 0; }
-  24% { opacity: 1; }
-  88% { opacity: 1; }
+  0%, 26% { opacity: 0; }
+  36% { opacity: 1; }
+  86% { opacity: 1; }
   100% { opacity: 0; }
 }
 @keyframes entree-lisere-tour {
-  0%, 16% { transform: rotate(-120deg); }
+  0%, 26% { transform: rotate(-120deg); }
   100% { transform: rotate(240deg); }
 }
 .entree-copie[data-phase="approche"] {
-  /* ⚠️ ease IN, pas out : la marque ACCÉLÈRE vers l'écran. C'est la seule
-     courbe que le design system n'avait pas — d'où sa déclaration ici, locale
-     au composant, et non dans `@theme`. */
-  animation: entree-approche 400ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: entree-approche 400ms linear both, entree-vol var(--entree-vol, 1750ms) both;
 }
 .entree-copie[data-phase="traversee"] {
-  animation: entree-traversee-marque 300ms cubic-bezier(0.55, 0, 1, 0.45) both;
-}
-.entree-copie[data-phase="approche"] .entree-strate {
-  animation: entree-strate 400ms cubic-bezier(0.55, 0, 1, 0.45) both;
-  /* ⚠️ `view-box` et non `fill-box` : les quatre strates doivent grossir
-     autour du centre COMMUN de la marque, pas chacune autour du sien. Avec
-     `fill-box`, elles s'épaississent sur place au lieu de se décoller — on
-     perd toute la parallaxe, et le défaut est presque invisible en revue. */
-  transform-box: view-box;
-  transform-origin: center;
+  animation: entree-traversee-marque 300ms linear both, entree-vol var(--entree-vol, 1750ms) both;
 }
 
 /* ── L'app, découpée puis rendue à elle-même ───────────────────────────────
@@ -1793,6 +1832,7 @@
     clip-path: none;
     transform: none;
   }
+  .entree-copie[data-phase="poser"],
   .entree-copie[data-phase="approche"],
   .entree-copie[data-phase="traversee"],
   [data-entree="poser"] .entree-part {

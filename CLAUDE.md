@@ -7353,3 +7353,12 @@ Demande d'Antonin après avoir parcouru l'accueil en entier. État et preuves : 
 - Le liseré est un **anneau masqué** (`.entree-lisere`) dans lequel tourne un **dégradé conique** : seul le dégradé bouge, par `transform` — la règle « la transition n'anime que transform, opacity, clip-path » tient. Durée en une variable, `--entree-poser`.
 - ⚠️ **`entree-effacer` n'est plus une horloge** de la machine : le formulaire s'efface en 200 ms et aurait coupé le liseré net. Sa fin n'avance plus le temps 1 ; l'horloge est la copie de la marque. Le filet de sécurité passe de 2,5 s à **4,5 s**.
 - **Accueil (« Bienvenue dans Shale » trop long à s'afficher)** : `useAccueil` attendait jusqu'à 8 s un premier cycle de synchronisation, même quand la synchronisation ne pouvait pas en produire (inactive, verrouillée, orpheline). Désormais on n'attend que si elle est `active`, et au plus **3 s**.
+
+### 2026-10-06 — Le logo d'entrée : UN seul mouvement, et plus grand
+
+Antonin : « le mouvement manque vraiment de fluidité, et il commence trop petit ».
+- **Cause du manque de fluidité** : trois animations se relayaient (une par temps de la machine), chaque relais passant par un rendu React — arrêt net, puis redépart de vitesse nulle. Plus la parallaxe des strates, qui redessinait le SVG à chaque image.
+- **Désormais `entree-vol`** porte tout le mouvement (arrivée ease-out → arrêt avec une dérive de 5 % → départ ease-in, 1,75 s) sur sa propre horloge. Les animations par temps restent EN TÊTE de la liste `animation` (ce sont les horloges que `temps.test.ts` lit) mais ne dessinent plus : le vol, déclaré après, l'emporte. Une animation dont le nom reste dans la liste n'est pas relancée au changement de temps.
+- **La copie est dessinée à sa taille d'arrêt (3,4 × la marque, ~177 px) et RÉDUITE au départ** : nette pendant l'arrêt, floue seulement en vol.
+- **Parallaxe des strates retirée** (`PARALLAXE`, `entree-strate` ne sert plus).
+- Vérifié image par image en WebKit (animation figée à 9 instants). ⚠️ La fluidité réelle n'est jugeable que par Antonin.

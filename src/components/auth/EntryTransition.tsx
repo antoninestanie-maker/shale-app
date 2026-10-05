@@ -53,12 +53,6 @@ const ANIMATION_DE: Record<string, EtatEntree> = {
 const ECHELLE = 4.5;
 
 /**
- * Les quatre facteurs de la parallaxe des strates.
- * ⚠️ Dans l'ordre de `BARS` de `ShaleMark` : la troisième est l'accent.
- */
-const PARALLAXE = [1.0, 1.06, 1.12, 1.18] as const;
-
-/**
  * Le filet. Un chargement bloqué ne doit JAMAIS piéger quelqu'un derrière un
  * logo : au pire, on saute à l'état final et l'app apparaît telle qu'elle est.
  */
@@ -229,7 +223,7 @@ export function VoileEntree({
           onAnimationEnd={gererAnimation}
           aria-hidden
         >
-          <ShaleMark size="100%" parallaxe={PARALLAXE} />
+          <ShaleMark size="100%" />
           {/* Le liseré bleu du reel 014 : un point de lumière qui fait le tour de
               la plaque pendant l'arrêt. Voir `src/index.css`, `.entree-lisere`. */}
           <span className="entree-lisere" aria-hidden>
