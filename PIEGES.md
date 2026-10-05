@@ -4036,3 +4036,102 @@ ont poussé la charge de la machine au-delà de 100 et fait expirer les tests de
 volume (`sync/engine.test.ts`, 35 s) des autres sessions. Pour balayer beaucoup
 de jours, boucler **dans un seul test** avec `vi.resetModules()` (§ 30.1 :
 375 jours en 5 s).
+
+# 25. L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29)
+
+## 25.1 Un `timestamptz` passé par `jsonb_build_object` sort dans le fuseau de la SESSION
+
+**Symptôme.** Le test de l'essai Pro attend `resetsAt: "2026-10-20T00:00:00+00:00"`
+et reçoit `"2026-10-20T01:00:00+01:00"` — la même heure, écrite autrement.
+
+**Cause.** `jsonb_build_object('fin_essai', s.trial_ends_at)` sérialise le
+`timestamptz` dans le fuseau `TimeZone` de la session Postgres. PGlite prend
+celui de la machine (Paris) ; Supabase répond en UTC. Le même SQL rend donc
+deux textes selon l'endroit où il tourne — et l'app compare des chaînes.
+
+**Parade.** Ne jamais relayer tel quel un horodatage sorti de Postgres :
+`new Date(x).toISOString()` côté TypeScript (fait dans
+`reinitialisationDe`, `supabase/functions/ai/coeur/limites.ts`, dépôt du site).
+
+**Payé.** 2026-09-29, un test rouge — attrapé avant tout déploiement.
+
+## 25.2 Le cache de prompt ne fait RIEN sur Haiku 4.5 sous 4 096 jetons — sans erreur
+
+**Symptôme.** `cache_control` est posé sur le prompt système, la requête passe,
+et `usage.cache_read_input_tokens` reste à 0 à chaque appel.
+
+**Cause.** Le préfixe minimum cachable dépend du modèle : **4 096 jetons pour
+Haiku 4.5**, 1 024 pour `claude-sonnet-5`, 512 pour les plus récents. En
+dessous, l'API ignore le marqueur en silence (ni erreur, ni surcoût). Un prompt
+système de fonction Shale fait quelques centaines de jetons.
+
+**Parade.** Garder le marqueur (il ne coûte rien et servira sur un modèle au
+seuil plus bas), mais **ne compter aucune économie de cache** dans les calculs
+de coût tant que le prompt reste court. Le constater sur
+`cache_read_input_tokens`, jamais le supposer.
+
+**Payé.** Rien encore — relevé dans la référence de l'API pendant l'audit de la
+phase 0, avant d'écrire un calcul qui l'aurait supposé.
+
+## 25.3 L'outil imposé (`tool_choice`) casse en changeant de modèle
+
+**Symptôme (évité).** Une fonction qui force sa sortie JSON par
+`tool_choice: {type: "tool"}` marche sur Haiku 4.5 et `claude-sonnet-5`, puis
+renvoie **400** le jour où `ai_config.model` passe à `claude-sonnet-5-5`.
+
+**Cause.** Les modèles les plus récents (Sonnet 5.5, Opus 5.5, Fable 5.1)
+refusent `tool_choice` `any` / `tool`. Même famille : `thinking:
+{type: "disabled"}` est accepté par `claude-sonnet-5`, **refusé** par
+`claude-sonnet-5-5` (qui veut `between_tools`).
+
+**Parade.** Sortie par `output_config.format` (JSON Schema), accepté par tous
+les modèles en service ; et le réglage de réflexion dans `ai_config.thinking`,
+à changer **avec** `model`. Un test (`serveur.test.ts`, « changer de modèle et
+de réflexion ») le garde.
+
+## 25.4 La CLI Supabase perd son autorisation — et `2>/dev/null` la rend muette
+
+**Symptôme.** `npx supabase db query --linked … --output-format json "…" 2>/dev/null
+> sauvegarde.json` « réussit » : le fichier existe, la suite de la commande ne dit
+rien. Le fichier contient en fait
+`{"_tag":"Error","error":{"code":"DbConfigLoginRoleStatusError","message":"unexpected login role status 401 …"}}`.
+
+**Cause.** Le jeton d'accès personnel rangé par `Connecter Supabase.command` n'est
+plus accepté (expiré ou révoqué — il marchait la veille, 2026-09-29). La CLI écrit
+l'erreur en JSON sur la sortie standard, pas sur l'erreur standard : le
+`2>/dev/null` ne la cache pas, il fait croire qu'une sauvegarde a été écrite.
+
+**Parade.** Avant toute écriture en production : une requête témoin SANS
+redirection, et vérifier qu'elle rend des lignes (`"rows":[…]`), pas `"_tag":"Error"`.
+Ne jamais juger une sauvegarde à l'existence de son fichier : lire son contenu.
+Pour rétablir : Antonin double-clique `Connecter Supabase.command` (il colle un
+jeton `sbp_…`, rien d'autre à taper).
+
+**Payé.** 2026-10-01 : la migration 010 n'a pas pu être jouée ; une « sauvegarde »
+vide a été créée puis retirée. Rien n'a été écrit en base. Le soir même, CLI
+reconnectée : 010 jouée, après une sauvegarde RELUE (19 lignes). ⚠️ Deuxième façon
+de fabriquer une fausse sauvegarde : `--project-ref` sans `--linked` rend
+`DbQueryMutuallyExclusiveFlagsError` — écrit dans le fichier si l'on redirige.
+
+**Et ce que Claude Code ne fera pas, même avec l'accord d'Antonin** (garde-fou des
+permissions, 2026-10-01) : `supabase secrets set …` et `supabase functions deploy …`.
+Ce sont des gestes d'Antonin — lui donner la commande, ne pas chercher un détour.
+
+## 25.5 ⚠️ Une borne de date DÉJÀ PASSÉE rend toute réponse du modèle inacceptable
+
+**Symptôme.** Une fonction d'IA qui date ses propositions « entre aujourd'hui et
+l'échéance » finit en `bad_output` (deux appels payés, rien d'affiché) — mais
+seulement sur les objectifs EN RETARD. En démo : des sous-objectifs tous datés du
+1er septembre, un 1er octobre.
+
+**Cause.** Le contrôle de sortie exige `jour ≤ date ≤ échéance`. Échéance passée :
+l'intervalle est vide, aucune date ne passe. La réponse factice de la démo, elle,
+« rabattait » sur l'échéance — donc dans le passé.
+
+**Parade.** `dateDansFenetre` (`coeur/fonctions.ts`) : une limite antérieure au
+jour ne borne plus rien. Le prompt le dit au modèle, la démo suit la même règle,
+et la fenêtre l'écrit (« l'échéance est déjà passée : datés à partir d'aujourd'hui »).
+Toute nouvelle fonction qui borne une date passe par `dateDansFenetre`, et son
+test compte un cas « en retard ».
+
+**Payé.** 2026-10-01, phase E — vu sur la capture de la démo, avant tout appel réel.

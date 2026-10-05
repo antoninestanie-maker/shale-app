@@ -18,6 +18,7 @@ import { useMenuBlocs } from "./menu/useMenuBlocs";
 import { IconCarte, IconTrombone, IconX } from "./icons";
 import { requeteEnCours } from "../lib/mentions";
 import { remplacerParMention, rectDuCurseur, texteAvantCurseur } from "../lib/mentionsDom";
+import { NoteIa } from "./ia/NoteIa";
 import { rechercherPartout } from "../lib/repo";
 import type { Trouvaille } from "../lib/recherche";
 import type { LinkKind } from "../lib/types";
@@ -54,6 +55,14 @@ interface Props {
   source?: { kind: LinkKind; uid: string };
   /** Clic sur un jeton de mention. Sans elle, le jeton reste inerte. */
   onOuvrirMention?: (kind: LinkKind, uid: string) => void;
+  /**
+   * Le titre de la note — pour l'IA seulement (résumer, traduire, carte).
+   * Sans lui, le bouton « IA » n'apparaît pas : un éditeur qui ne le donne pas
+   * garde exactement le comportement d'avant.
+   */
+  titre?: string;
+  /** L'IA a créé une note (traduction) : l'appelant relit sa liste. */
+  onNoteCreee?: (id: number) => void | Promise<void>;
 }
 
 // Noms FRANÇAIS, traduits à l'affichage — comme toute table de libellés.
@@ -80,6 +89,8 @@ export default function RichNoteEditor({
   placeholder,
   source,
   onOuvrirMention,
+  titre,
+  onNoteCreee,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -437,6 +448,31 @@ export default function RichNoteEditor({
           title={t("Joindre un fichier")}
           onDo={() => void depot.joindre()}
         />
+        {/* L'IA (phase F) : UN bouton, et derrière lui un menu — pas de nouvelle
+            barre. Absent sans Shale Pro et sur iOS (`NoteIa` rend `null`). */}
+        {titre !== undefined && (
+          <NoteIa
+            titre={titre}
+            source={source}
+            onNoteCreee={onNoteCreee}
+            editeur={{
+              racine: () => ref.current,
+              // ⚠️ Même règle que les cartes et les pièces jointes : dire à
+              // l'éditeur que son contenu ne vient plus de la graine, PUIS émettre.
+              marquerModifie: () => {
+                aTape.current = true;
+                emit();
+              },
+              insererCarte: (c) => {
+                // Aucune sélection : `insererBloc` pose alors la carte EN FIN de
+                // note — c'est ce que la fenêtre annonce.
+                window.getSelection()?.removeAllRanges();
+                blocCarteRef.current = null;
+                enregistrerCarte(c);
+              },
+            }}
+          />
+        )}
       </div>
 
       {/* ⚠️ Le refus est affiché DANS l'éditeur, pas dans une alerte système :

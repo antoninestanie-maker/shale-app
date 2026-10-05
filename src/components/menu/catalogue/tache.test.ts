@@ -67,3 +67,30 @@ describe("⭐ « Priorité ▸ » dans le menu d'une tâche (2026-09-30)", () =>
     expect(g.prioriser).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("les actions d'IA dans le menu d'une tâche (phase E)", () => {
+  const avec = (task: Task, ctx: { faite?: boolean; ia?: boolean }) =>
+    ordonner(entreesTache(task, gestes(), { faite: ctx.faite ?? false, objectifs: [], ia: ctx.ia })).map((e) => e.id);
+
+  it("absentes sans Shale Pro (ou sur iOS) : jamais grisées, jamais une publicité", () => {
+    expect(avec(tache, {}).filter((id) => id.startsWith("ia-"))).toEqual([]);
+    expect(avec(tache, { ia: false }).filter((id) => id.startsWith("ia-"))).toEqual([]);
+  });
+
+  it("Découper et Estimer sur une tâche ponctuelle à faire ; une routine ou une tâche faite ne se découpe pas", () => {
+    expect(avec(tache, { ia: true }).filter((id) => id.startsWith("ia-"))).toEqual(["ia-decouper", "ia-estimer"]);
+    expect(avec({ ...tache, recurrence: "daily" }, { ia: true }).filter((id) => id.startsWith("ia-"))).toEqual(["ia-estimer"]);
+    expect(avec(tache, { ia: true, faite: true }).filter((id) => id.startsWith("ia-"))).toEqual(["ia-estimer"]);
+  });
+
+  it("l'entrée demande la fenêtre commune, avec l'identifiant de la tâche", () => {
+    const recu: unknown[] = [];
+    const ecoute = (e: Event) => recu.push((e as CustomEvent).detail);
+    const cible = new EventTarget();
+    vi.stubGlobal("window", { dispatchEvent: (e: Event) => cible.dispatchEvent(e) });
+    cible.addEventListener("sb:ia-action", ecoute);
+    ordonner(entreesTache(tache, gestes(), { faite: false, objectifs: [], ia: true })).find((e) => e.id === "ia-decouper")!.executer!();
+    vi.unstubAllGlobals();
+    expect(recu).toEqual([{ action: "decouper", taskId: 7 }]);
+  });
+});

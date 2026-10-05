@@ -18,6 +18,9 @@ import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
 import { ORDRE_SECTIONS, correspond, ranger, type CleSection, type LigneVue } from "../lib/tachesVue";
 // Le contour de la case dit la priorité — la règle de toute l'app, écrite une fois.
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
+import { CaptureIa } from "../components/ia/CaptureIa";
+import { IconeIa } from "../components/ia/IconeIa";
+import { useIa } from "../lib/ia/useIa";
 import { PastillePriorite } from "../components/Priorite";
 
 interface Props {
@@ -163,6 +166,15 @@ export default function TasksView({ data, refresh }: Props) {
     const enAttente = consommerDemande("task");
     if (enAttente) ouvrir(enAttente);
     return () => window.removeEventListener("sb:open-task", onOpen);
+  }, []);
+
+  // L'IA de Shale Pro : la capture (#5, #6), ouverte par ⌘K ou le bouton.
+  const ia = useIa();
+  const [capture, setCapture] = useState(false);
+  useEffect(() => {
+    const onCapture = () => setCapture(true);
+    window.addEventListener("sb:capture-ia", onCapture);
+    return () => window.removeEventListener("sb:capture-ia", onCapture);
   }, []);
 
   // action palette "Nouvelle tâche" → ouvre le formulaire
@@ -588,6 +600,21 @@ export default function TasksView({ data, refresh }: Props) {
             {resume.length > 0 ? resume.join(" · ") : t("Rien de prévu aujourd'hui.")}
           </p>
         </div>
+        {/* Les deux boutons ensemble, à droite : un enfant de plus dans l'en-tête
+            (`justify-between`) le poserait au milieu. */}
+        <div className="flex shrink-0 items-center gap-2">
+        {ia.visible && ia.aLeDroit && (
+          <button
+            type="button"
+            onClick={() => setCapture(true)}
+            data-tip={t("Capturer avec l'IA")}
+            data-tip-sub={t("Un e-mail, un PDF, une photo de reçu ou du vrac : l'IA propose des tâches, rendez-vous et achats à valider.")}
+            className="pill flex shrink-0 items-center gap-2 border border-border bg-surface-2 px-4 py-2 text-sm text-text hover:border-blue/50"
+          >
+            <IconeIa className="h-4 w-4" />
+            {t("Capturer")}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -597,6 +624,7 @@ export default function TasksView({ data, refresh }: Props) {
         >
           {t("+ Nouvelle tâche")}
         </button>
+        </div>
       </header>
 
       {/* ⭐ L'ajout rapide : un libellé, Entrée. */}
@@ -871,9 +899,10 @@ export default function TasksView({ data, refresh }: Props) {
         libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
         entrees={(() => {
           const fraiche = menu.cible && lignes.find((r) => r.id === menu.cible!.id);
-          return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: data.goals }) : [];
+          return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: data.goals, ia: ia.visible && ia.aLeDroit }) : [];
         })()}
       />
+      {capture && <CaptureIa data={data} refresh={refresh} onFermer={() => setCapture(false)} />}
     </div>
   );
 }

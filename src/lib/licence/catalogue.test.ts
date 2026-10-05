@@ -21,7 +21,7 @@ describe("catalogue des profils — concordance avec l'app", () => {
     const libelleDe = (id: string) =>
       new RegExp(`id: "${id}",\\s*label: "([^"]+)"`).exec(src)?.[1];
     const modules = MODULES_PROFIL.map(libelleDe);
-    const categories = ["prod", "trading"].map(libelleDe);
+    const categories = ["decider", "avancer", "penser", "comptes", "trading"].map(libelleDe);
     expect(modules.every(Boolean)).toBe(true);
     expect(new Set([...modules, ...categories])).toEqual(new Set(CLES_LIBELLES_PROFIL));
   });

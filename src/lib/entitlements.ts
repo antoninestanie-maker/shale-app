@@ -21,7 +21,7 @@ import type { BillingPeriod, Subscription, Tier } from "./auth/supabase";
 import { normaliserTier } from "./auth/supabase";
 import type { ModuleProfil } from "./licence/catalogue";
 import { moduleVisible, resoudreProfil, type ProfilEffectif } from "./licence/resoudre";
-import { isTradingView, TRADING_ACTIF } from "./features";
+import { FINANCE_ACTIF, isFinanceView, isTradingView, TRADING_ACTIF } from "./features";
 import type { LigneProfil } from "./licence/signature";
 import { useEtatProfil } from "./licence/useProfil";
 
@@ -43,6 +43,14 @@ export interface Entitlements {
   billingPeriod: BillingPeriod | null;
   /** Jours entiers restants avant la fin de l'essai (`null` hors essai). */
   trialDaysLeft: number | null;
+  /**
+   * L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29) : Pro payé, ou essai Pro
+   * en cours. Business ne l'a PAS (décision d'Antonin, 2026-09-29).
+   * ⚠️ Ce drapeau ne commande que l'AFFICHAGE : c'est la fonction `ai` qui fait
+   * foi (`ai_offre`, migration Supabase 008) — un client qui mentirait ici
+   * recevrait `not_pro`.
+   */
+  aIa: boolean;
 }
 
 /**
@@ -70,6 +78,7 @@ export function entitlementsOf(
       hasTrading: tradingActif,
       billingPeriod: null,
       trialDaysLeft: null,
+      aIa: true,
     };
 
   const isTrialing = sub?.status === "trialing";
@@ -87,6 +96,7 @@ export function entitlementsOf(
         : tier === "shale_trade" || isTrialing),
     billingPeriod: sub?.billing_period ?? null,
     trialDaysLeft: isTrialing ? (sub?.trial_days_left ?? null) : null,
+    aIa: tier === "shale_pro" && (sub?.status === "active" || isTrialing),
   };
 }
 
@@ -131,7 +141,9 @@ export function resolveEntitlements(
   const palier = entitlementsOf(sub);
   const profil = resoudreProfil({ ...entree, tier: palier.tier });
   const afficheModule = (m: ModuleProfil) =>
-    moduleVisible(profil, m) && (palier.hasTrading || !isTradingView(m));
+    moduleVisible(profil, m) &&
+    (palier.hasTrading || !isTradingView(m)) &&
+    (FINANCE_ACTIF || !isFinanceView(m));
   return { ...palier, profil, afficheModule };
 }
 

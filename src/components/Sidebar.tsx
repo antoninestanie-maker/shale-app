@@ -298,23 +298,23 @@ export const ITEMS_PIED: {
  * Catégories de la sidebar. « Aujourd'hui » reste hors catégorie (accueil) ;
  * Personnaliser/Réglages restent épinglés en bas (rôle « Système »).
  * L'ordre/visibilité DANS chaque catégorie suit la page Personnaliser.
+ *
+ * ⭐ Depuis le 2026-10-01, la barre est GROUPÉE PAR INTENTION, comme le site
+ * (`vitrine/src/views/refonte/Modules.astro`) : « Productivité » (neuf modules
+ * en vrac) est remplacée par les trois groupes du site, dans le même ordre.
+ * Antonin : « j'aime bien le groupé par intention, et ce serait bien que ce
+ * soit vrai dans l'app aussi ». Les libellés sont surchargeables par un profil
+ * de licence (`licence/catalogue.ts`, `CLES_LIBELLES_PROFIL`).
+ *
+ * « Tenir les comptes » ne porte que Finance, mise de côté (`FINANCE_ACTIF`) :
+ * sans membre visible, la catégorie ne se dessine pas ; rallumer Finance la
+ * fait réapparaître à sa place, après « Penser et retenir ».
  */
 export const CATEGORIES: { id: string; label: string; members: View[] }[] = [
-  {
-    id: "prod",
-    label: "Productivité",
-    members: [
-      "tasks",
-      "calendar",
-      "timer",
-      "goals",
-      "performance",
-      "finance",
-      "notes",
-      "journal",
-      "knowledge",
-    ],
-  },
+  { id: "decider", label: "Décider quoi faire", members: ["tasks", "calendar"] },
+  { id: "avancer", label: "Avancer et mesurer", members: ["timer", "goals", "performance"] },
+  { id: "penser", label: "Penser et retenir", members: ["notes", "journal", "knowledge"] },
+  { id: "comptes", label: "Tenir les comptes", members: ["finance"] },
   {
     id: "trading",
     label: "Trading",

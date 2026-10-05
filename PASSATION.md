@@ -1528,3 +1528,96 @@ charge machine de 118 : les deux échecs sont les tests de volume de
 
 **Aucun build natif** : la démo ne sert que hors Tauri (`repo.ts`, `isTauri`).
 Les captures du site ne changent pas (prises un 30, hors de la fenêtre).
+### 11.i Le 2026-10-01 — ⭐ la barre latérale par intention ; Finance mise de côté
+
+*Branche `chantier/intentions`, worktree `~/Desktop/Shale-chantiers/intentions`.
+Tests et types verts ; **pas encore fusionnée, pas encore construite en natif**
+(le build se groupe avec le prochain, une fenêtre de trousseau par build).*
+
+Demande d'Antonin, sur le site refait : « j'aime bien le groupé par intention,
+et ce serait bien que ce soit vrai dans l'app aussi. Supprime Finance, et
+remplace Productivité par les trois items du site. »
+
+- **`CATEGORIES` (`Sidebar.tsx`)** : « Productivité » (neuf modules en vrac)
+  devient **Décider quoi faire** (Tâches, Calendrier) · **Avancer et mesurer**
+  (Timer, Objectifs, Performance) · **Penser et retenir** (Notes, Journal,
+  Savoir) — les trois groupes de `vitrine/src/views/refonte/Modules.astro`, dans
+  le même ordre. Aujourd'hui reste hors catégorie, au-dessus. La feuille
+  « Plus » de l'iPhone suit (elle lit `CATEGORIES`). Les réglages de repli
+  enregistrés sous l'ancien identifiant `prod` sont simplement ignorés : les
+  trois groupes s'ouvrent dépliés.
+- **Finance mise de côté**, même mécanique que le trading (§ 11.x) :
+  `FINANCE_ACTIF = false` dans `lib/features.ts`. Rien n'est supprimé — code,
+  tables, comptes, factures, relevés restent et se synchronisent. Éteinte,
+  Finance est **absente**, jamais verrouillée : `presenceModule` rend `absent`
+  (barre latérale, feuille « Plus », garde de navigation), `afficheModule`
+  faux, la palette ⌘K n'offre plus « Aller à Finance » ni ses raccourcis, et
+  le calendrier (vue et carte) ne pose plus les échéances de factures. Un
+  quatrième groupe **« Tenir les comptes »** (`comptes`) ne porte que Finance :
+  sans membre visible il ne se dessine pas ; rallumer Finance le fait
+  réapparaître après « Penser et retenir ».
+- **Profils de licence** : les quatre libellés de catégorie entrent dans
+  `CLES_LIBELLES_PROFIL` (`licence/catalogue.ts`), « Productivité » en sort ;
+  `catalogue.test.ts` vérifie les nouveaux identifiants.
+- **Tests** : `lib/finance-de-cote.test.ts` (interrupteur, présence dans les
+  deux positions, palette, forme exacte de `CATEGORIES` lue dans le source) ;
+  `trading-de-cote.test.ts` ne compte plus Finance parmi la productivité.
+- **Site** : `Modules.astro` et l'accueil n'ont plus Finance ni « Tenir les
+  comptes » (chantier `accueil-epure` du site, même jour) — l'app et le site
+  disent la même chose.
+
+⚠️ Le trading et Finance sont **deux interrupteurs indépendants**. Un nouvel
+endroit qui montre Finance lit `presenceModule` / `afficheModule`, pas la
+constante (sauf sans accès aux droits, comme pour le trading).
+
+
+
+### 11.z Le 2026-09-29 — l'IA de Shale Pro (chantier en cours : phase A faite)
+
+Cahier des charges : `~/Desktop/Prompt en attente/prompt/PROMPT-IA-PRO.md`
+(phases 0, A à H, avec des arrêts obligatoires). Audit et réponses d'Antonin :
+`~/Desktop/Shale-chantiers/AUDIT-IA-PRO.md`. Décisions : `CLAUDE.md`, section
+datée. Pièges : `PIEGES.md` § 25.
+
+**Où en est-on.**
+
+| Phase | État |
+|---|---|
+| 0 — audit | ✅ validé par Antonin le 2026-09-29 (Business SANS IA ; recommandations retenues) |
+| A — serveur | ✅ écrit et testé, validé par Antonin (« ok on continue », 2026-09-29). **Migration Supabase 008 JOUÉE en production** (sauvegarde JSON `shale-backups/avant-ia-008-20260929-2332/`). ⛔ **Fonction `ai` NON déployée, secret de budget NON posé** : refusés par le garde-fou de permissions (déploiement en production) |
+| B — socle app | ✅ commitée (`cbdeb61`) |
+| C — brief et clôture | ✅ écrite, testée, vue à l'écran en démo (WebKit piloté) — ⛔ arrêt obligatoire : validation d'Antonin |
+| ↪ 2026-10-01 | **Passage sur Gemini** (décision d'Antonin : plus économique) — migration Supabase **010** (`ai_config.provider`, tout sur `gemini-3.5-flash-lite`, la revue sur `gemini-3.8-flash`), adaptateur `coeur/gemini.ts`, textes du consentement. ✅ 010 **jouée et contrôlée le 2026-10-01 au soir** (sauvegarde `shale-backups/avant-ia-010-20261001-2218/`) ; ✅ fonction `ai` **déployée** et budget posé (50 $) le même soir par Antonin — contrôlée sans session seulement (401, CORS) ; ⛔ pas de `GEMINI_API_KEY`, tout `enabled = false`, aucun appel authentifié jamais fait |
+| D — capture | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) |
+| E — tâches et objectifs | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : découper, estimer, décomposer, proposer des tâches, objectif en péril — `components/ia/ActionsIa.tsx`, `lib/ia/planifier.ts` |
+| F — notes | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : résumer, réécrire (⌘Z), liens @, développer, traduire (nouvelle note liée), carte mentale — `components/ia/NoteIa.tsx`, `lib/ia/texteNote.ts`. ⚠️ Notes seulement : le Savoir (`NoteComposer`) n'a pas le bouton |
+| G — revue hebdomadaire | ✅ écrite, testée, vue à l'écran en démo (2026-10-01) : carte dans Performance, règle de notification Rust `weekly_review`. ⚠️ **#39 (runway « et si… ») NON construite : Finance est mise de côté** |
+| H — site, docs, recette | ⛔ **ARRÊT** (2026-10-01) : recette écrite (`~/Desktop/Shale-chantiers/RECETTE-IA.md`), mode d'emploi dans `CLAUDE.md`, liste des changements du site à valider (`DETTE-SITE.md` § T.7) — **rien n'est appliqué au site, rien n'est déployé, rien n'est fusionné** |
+
+**⚠️ Migration SQLite 029 (`ia_contenus`) sur la branche** : jamais jouée sur la
+vraie base. Elle partira avec le prochain build natif APRÈS fusion — sauvegarder
+avant (`sqlite3 .backup`).
+
+**Pour voir la phase C en démo** : patch `AUDIT-TEMP` (§ 13.2), offre simulée
+`shale_pro` (`localStorage["shale.demo.tier"]`), Réglages → IA → Activer, puis
+un sujet et l'heure du brief avant l'heure courante. Chrome étant souvent non
+connecté, le pilote `tools/webkit-pilote.swift` suffit — les clics se font en
+JavaScript (`.click()`), son pas `{"clic"}` ne produisant aucun événement DOM.
+
+**Ce qui existe (dépôt du SITE, branche `chantier/ia-pro`, non poussée)** :
+`supabase/migrations/008_ia.sql` (tables `ai_config`, `ai_usage`, `ai_events`,
+fonctions `ai_offre`, `ai_reserver`, `ai_regler`, `ai_purger_evenements`) et
+`supabase/functions/ai/` (entrée Deno `index.ts` + cœur `coeur/`, une seule
+fonction servie : `resumer`). **Côté app (branche `chantier/ia-pro`)** : les
+tests seulement, `src/lib/ia/serveur.sql.test.ts` et `serveur.test.ts`
+(42 tests). Aucun écran, aucune migration SQLite, aucun Rust.
+
+**⚠️ Le checkout principal du site est sur `chantier/ia-pro`**, pas sur
+`sync-chiffree` — c'est lui que lisent les tests PGlite de l'app. À remettre sur
+`sync-chiffree` à la fusion.
+
+**Pour mettre en service (après accord d'Antonin)** : jouer la 008 (répétée
+d'abord sur le banc), déployer `ai` avec `--no-verify-jwt`, qu'Antonin pose
+**lui-même** `ANTHROPIC_API_KEY` dans Supabase → Edge Functions → Secrets, poser
+`AI_GLOBAL_MONTHLY_BUDGET_USD`, puis un premier appel réel (`index.ts` n'a jamais
+tourné : pas de Deno sur ce Mac).

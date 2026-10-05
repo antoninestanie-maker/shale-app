@@ -152,7 +152,17 @@ export const ruleMeta = (): Record<
     desc: t("Après plusieurs jours sans ouvrir une fiche du Savoir."),
     params: [{ key: "days", label: t("après"), min: 1, max: 60, suffix: t("jours") }],
   },
+  // L'IA de Shale Pro (phase G). La règle se tait d'elle-même tant que l'IA
+  // n'est pas allumée ; l'écran des Réglages ne la montre qu'à qui a l'IA.
+  weekly_review: {
+    label: t("Revue de la semaine"),
+    desc: t("Le dimanche soir, si la revue de la semaine n'a pas encore été générée. Elle ne se génère jamais seule."),
+    params: [{ key: "hour", label: t("heure du rappel"), min: 0, max: 23, suffix: "h" }],
+  },
 });
+
+/** Les règles qui n'ont de sens qu'avec l'IA de Shale Pro : masquées sinon. */
+export const REGLES_IA: ReadonlySet<string> = new Set(["weekly_review"]);
 
 export const DEFAULT_PREFS: NotifPrefs = {
   enabled: true,
@@ -167,6 +177,7 @@ export const DEFAULT_PREFS: NotifPrefs = {
     habits_pending: { enabled: true, cooldown_h: 20, hour: 20 },
     calendar_soon: { enabled: true, cooldown_h: 40, avant_min: 60, deadline_hour: 18 },
     inactivity: { enabled: true, cooldown_h: 48, days: 3 },
+    weekly_review: { enabled: true, cooldown_h: 20, hour: 18 },
   },
 };
 

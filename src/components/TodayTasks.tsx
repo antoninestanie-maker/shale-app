@@ -5,6 +5,7 @@ import MenuContextuel, { BoutonMenu } from "./menu/MenuContextuel";
 import { useMenuContextuel } from "./menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "./menu/catalogue/tache";
 import { renommerTache } from "../lib/repo";
+import { useIaPossible } from "../lib/ia/useIa";
 import { ouvrirParId } from "../lib/naviguer";
 
 import { t } from "../lib/i18n";
@@ -31,6 +32,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocus, refresh }: Props) {
+  const ia = useIaPossible();
   const [draft, setDraft] = useState("");
   const [renommeId, setRenommeId] = useState<number | null>(null);
   const menu = useMenuContextuel<TodayTask>();
@@ -220,7 +222,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
           libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
           entrees={(() => {
             const fraiche = menu.cible && tasks.find((x) => x.id === menu.cible!.id);
-            return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: goals ?? [] }) : [];
+            return fraiche ? entreesTache(fraiche, gestes, { faite: fraiche.done, objectifs: goals ?? [], ia }) : [];
           })()}
         />
       )}

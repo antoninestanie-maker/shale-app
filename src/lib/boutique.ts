@@ -27,7 +27,7 @@
 // part ailleurs.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Subscription } from "./auth/supabase";
-import { isTradingView, TRADING_ACTIF } from "./features";
+import { isTradingView, TRADING_ACTIF, FINANCE_ACTIF, isFinanceView } from "./features";
 import { IS_IOS } from "./platform";
 
 /**
@@ -68,7 +68,10 @@ export function presenceModule(
   hasTrading: boolean,
   commerce: boolean = COMMERCE_AUTORISE,
   tradingActif: boolean = TRADING_ACTIF,
+  financeActif: boolean = FINANCE_ACTIF,
 ): PresenceModule {
+  // Finance mise de côté (2026-10-01) : absente partout, jamais verrouillée.
+  if (isFinanceView(id)) return financeActif ? "ouvert" : "absent";
   if (!isTradingView(id)) return "ouvert";
   if (!tradingActif) return "absent";
   if (hasTrading) return "ouvert";

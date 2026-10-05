@@ -1,4 +1,6 @@
-// Paywall — s'ouvre quand un compte `shale` touche un module trading.
+// Paywall — s'ouvre quand un compte `shale` touche un module trading, ou
+// (depuis le 2026-09-29, chantier `ia-pro`) quand un compte sans Shale Pro
+// touche une fonction d'IA : `offre="pro"`.
 //
 // Le ton est celui d'une démonstration, pas d'un mur : l'utilisateur a déjà eu
 // accès à tout pendant son essai. On lui rappelle ce qu'il a laissé, on ne lui
@@ -15,10 +17,13 @@ import { IconExternal, IconLock, IconX } from "./icons";
 interface Props {
   /** Module qui a déclenché le paywall (titre de l'accroche). */
   moduleLabel?: string;
+  /** L'offre à présenter. `trade` par défaut — l'usage historique. */
+  offre?: "trade" | "pro";
   onClose: () => void;
 }
 
-export default function UpgradeModal({ moduleLabel, onClose }: Props) {
+export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: Props) {
+  const pro = offre === "pro";
   // Échap ferme, comme toutes les surfaces modales de l'app.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -52,7 +57,7 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={t("Passer à Shale Trade")}
+      aria-label={pro ? t("Passer à Shale Pro") : t("Passer à Shale Trade")}
     >
       <div
         className="card-solid animate-fade-up relative max-h-full w-full max-w-lg overflow-y-auto p-7"
@@ -69,33 +74,41 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
 
         <span className="inline-flex items-center gap-2 rounded-full border border-blue/30 bg-blue/10 px-3 py-1 text-[11px] font-semibold text-blue">
           <IconLock className="h-3.5 w-3.5" />
-          {t("Inclus dans Shale Trade")}
+          {pro ? t("Inclus dans Shale Pro") : t("Inclus dans Shale Trade")}
         </span>
 
         <h2 className="mt-4 text-[22px] font-bold leading-tight tracking-tight text-text">
           {/* Phrase paramétrée, jamais concaténée : l'ordre des mots change
               d'une langue à l'autre. */}
-          {moduleLabel
-            ? t("{module} fait partie de Shale Trade.", { module: t(moduleLabel) })
-            : t("Le cœur trading fait partie de Shale Trade.")}
+          {pro
+            ? t("L'intelligence artificielle fait partie de Shale Pro.")
+            : moduleLabel
+              ? t("{module} fait partie de Shale Trade.", { module: t(moduleLabel) })
+              : t("Le cœur trading fait partie de Shale Trade.")}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-text-dim">
-          {t(
-            "Ton offre Shale couvre toute la productivité. Shale Trade y ajoute les cinq modules que tu as utilisés pendant l'essai.",
-          )}
+          {pro
+            ? t(
+                "Avec Shale Pro, l'IA rédige des propositions à partir de tes notes, tâches et objectifs. Rien n'est modifié sans ton accord : tu valides chaque proposition.",
+              )
+            : t(
+                "Ton offre Shale couvre toute la productivité. Shale Trade y ajoute les cinq modules que tu as utilisés pendant l'essai.",
+              )}
         </p>
 
-        <ul className="mt-6 flex flex-col gap-4">
-          {TRADING_PITCH.map((item) => (
-            <li key={item.title} className="grid grid-cols-[auto_1fr] gap-3">
-              <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold text-text">{t(item.title)}</p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-text-dim">{t(item.body)}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {!pro && (
+          <ul className="mt-6 flex flex-col gap-4">
+            {TRADING_PITCH.map((item) => (
+              <li key={item.title} className="grid grid-cols-[auto_1fr] gap-3">
+                <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-semibold text-text">{t(item.title)}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-text-dim">{t(item.body)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mt-7 flex flex-wrap gap-3">
           <button
@@ -103,7 +116,7 @@ export default function UpgradeModal({ moduleLabel, onClose }: Props) {
             onClick={() => openExternal(ACCOUNT_PAGES.home)}
             className="pill flex flex-1 basis-[13rem] items-center justify-center gap-2 fill-primary py-2.5 text-sm font-semibold"
           >
-            {t("Passer à Shale Trade")}
+            {pro ? t("Passer à Shale Pro") : t("Passer à Shale Trade")}
             <IconExternal className="h-4 w-4" />
           </button>
           <button

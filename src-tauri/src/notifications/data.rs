@@ -24,7 +24,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{Connection, SqliteConnection};
 
-use super::model::{CalendarItem, Completion, Habit, HabitCheck, Snapshot, Task};
+use super::model::{CalendarItem, Completion, Habit, HabitCheck, RevueIa, Snapshot, Task};
 
 /// Clé de la table `settings` écrite par le front à l'ouverture d'une fiche du Savoir.
 pub const KNOWLEDGE_LAST_VIEWED: &str = "knowledge.last_viewed_at";
@@ -128,12 +128,13 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
 
     let knowledge_last_viewed = read_knowledge_last_viewed(&mut conn).await;
     let calendar = read_calendar(&mut conn, &today.format("%Y-%m-%d").to_string()).await;
+    let revue_ia = read_revue_ia(&mut conn).await;
 
     // On referme explicitement : la connexion est éphémère, ouverte le temps
     // d'un tick du planificateur.
     let _ = conn.close().await;
 
-    Ok(Snapshot { habits, habit_checks, tasks, completions, knowledge_last_viewed, calendar })
+    Ok(Snapshot { habits, habit_checks, tasks, completions, knowledge_last_viewed, calendar, revue_ia })
 }
 
 /// Le filtre de la corbeille (migration 027) pour une table — ou RIEN si la
@@ -230,6 +231,40 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
     }
 
     items
+}
+
+/// Une valeur de la table `settings`, ou `None` (clé absente, table illisible).
+async fn reglage(conn: &mut SqliteConnection, cle: &str) -> Option<String> {
+    sqlx::query_as::<_, (String,)>("SELECT value FROM settings WHERE key = ?1")
+        .bind(cle)
+        .fetch_optional(&mut *conn)
+        .await
+        .unwrap_or_default()
+        .map(|(v,)| v)
+}
+
+/// L'état de l'IA pour la règle « revue de la semaine » : les trois réglages
+/// écrits par le front (`lib/ia/reglages.ts`) et les revues déjà stockées.
+///
+/// Tolérant comme le reste du lecteur : un réglage absent = IA éteinte, une
+/// table `ia_contenus` absente (base d'avant la 029) = aucune revue.
+async fn read_revue_ia(conn: &mut SqliteConnection) -> RevueIa {
+    let allumee = reglage(conn, "ia.active").await.as_deref() == Some("1");
+    let consentie = reglage(conn, "ia.consentement").await.is_some_and(|v| !v.trim().is_empty());
+    // `ia.familles` : JSON { revue: false, … } — une famille ABSENTE est allumée.
+    let famille = reglage(conn, "ia.familles")
+        .await
+        .and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok())
+        .and_then(|j| j.get("revue").and_then(|r| r.as_bool()))
+        .unwrap_or(true);
+
+    let semaines = sqlx::query_as::<_, (String,)>("SELECT jour FROM ia_contenus WHERE kind = 'revue'")
+        .fetch_all(&mut *conn)
+        .await
+        .map(|rows| rows.into_iter().map(|(j,)| j).collect())
+        .unwrap_or_default();
+
+    RevueIa { active: allumee && consentie && famille, semaines }
 }
 
 /// Dernière consultation du Savoir. Repli sur la fiche modifiée le plus
@@ -371,6 +406,60 @@ mod tests {
             snap.knowledge_last_viewed.map(|d| d.to_string()),
             Some("2026-07-24 18:30:00".to_string())
         );
+    }
+
+    // ── L'IA, pour la règle « revue de la semaine » ──────────────────────────
+
+    const IA_ALLUMEE: &str = "INSERT INTO settings (key, value) VALUES ('ia.active', '1'), ('ia.consentement', 'v1|2026-07-01T10:00:00Z');";
+
+    #[tokio::test]
+    async fn ia_eteinte_par_defaut_et_sans_table_de_contenus() {
+        // Base d'avant la migration 029 : ni réglage, ni table `ia_contenus`.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(&path, "").await;
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        assert!(!snap.revue_ia.active);
+        assert!(snap.revue_ia.semaines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn ia_allumee_et_consentie_lit_les_revues_deja_stockees() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            &format!(
+                "{IA_ALLUMEE}
+                 CREATE TABLE ia_contenus (uid TEXT PRIMARY KEY, kind TEXT NOT NULL, jour TEXT NOT NULL, contenu TEXT NOT NULL);
+                 INSERT INTO ia_contenus VALUES ('revue:2026-07-20', 'revue', '2026-07-20', '{{}}'), ('brief:2026-07-27', 'brief', '2026-07-27', '{{}}');"
+            ),
+        )
+        .await;
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        assert!(snap.revue_ia.active);
+        assert_eq!(snap.revue_ia.semaines, vec!["2026-07-20".to_string()], "seulement les revues, pas les briefs");
+    }
+
+    #[tokio::test]
+    async fn ia_sans_consentement_ou_famille_revue_decochee_reste_inerte() {
+        let dir = tempfile::tempdir().unwrap();
+        let sans_consentement = dir.path().join("a.db");
+        seed(&sans_consentement, "INSERT INTO settings (key, value) VALUES ('ia.active', '1');").await;
+        assert!(!read_snapshot(&sans_consentement, today()).await.unwrap().revue_ia.active);
+
+        let decochee = dir.path().join("b.db");
+        seed(
+            &decochee,
+            &format!("{IA_ALLUMEE} INSERT INTO settings (key, value) VALUES ('ia.familles', '{{\"revue\":false,\"brief\":true}}');"),
+        )
+        .await;
+        assert!(!read_snapshot(&decochee, today()).await.unwrap().revue_ia.active);
+
+        // Une famille ABSENTE du JSON est allumée (règle de `lib/ia/reglages.ts`).
+        let absente = dir.path().join("c.db");
+        seed(&absente, &format!("{IA_ALLUMEE} INSERT INTO settings (key, value) VALUES ('ia.familles', '{{\"brief\":false}}');")).await;
+        assert!(read_snapshot(&absente, today()).await.unwrap().revue_ia.active);
     }
 
     #[tokio::test]

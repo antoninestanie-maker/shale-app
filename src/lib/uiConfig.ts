@@ -64,12 +64,17 @@ export const WIDGET_LABELS: Record<string, string> = {
   tasks: "Tâches du jour",
   goals: "Objectifs en cours",
   calendar: "Calendrier du jour",
+  "brief-ia": "Brief du jour (IA, Shale Pro)",
 };
 
 const DEFAULTS: UiConfig = {
   modules: MODULE_IDS.map((id) => ({ id, visible: true })),
   dashTop: [
     { id: "perf", visible: true },
+    // L'IA de Shale Pro (chantier `ia-pro`). Visible par défaut, mais TodayView
+    // ne la rend que si le compte a Pro ET que l'IA et sa famille « brief »
+    // sont allumées : pour tous les autres, elle n'occupe aucune place.
+    { id: "brief-ia", visible: true },
   ],
   dashLeft: [
     { id: "discipline", visible: true },

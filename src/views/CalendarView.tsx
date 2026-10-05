@@ -19,6 +19,7 @@ import {
   type SourcesAgenda,
 } from "../lib/calendrier/agenda";
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
+import { FINANCE_ACTIF } from "../lib/features";
 import { chargeDuJour, joursSurcharges } from "../lib/calendrier/charge";
 import {
   capaciteDuJour,
@@ -53,6 +54,9 @@ import { entreesTache, gestesCommunsTache } from "../components/menu/catalogue/t
 import { jeter } from "../components/corbeille/geste";
 import { ouvrirParId } from "../lib/naviguer";
 import { useEntitlements } from "../lib/entitlements";
+import { useIaPossible } from "../lib/ia/useIa";
+import { demanderIa } from "../lib/ia/demande";
+import { IconeIa } from "../components/ia/IconeIa";
 import { afficherToast } from "../lib/toast";
 import type { EntreePossible } from "../lib/menu/entrees";
 
@@ -240,7 +244,8 @@ export default function CalendarView({ data, refresh }: Props) {
     void (async () => {
       const f = await fetchFacturation().catch(() => null);
       if (annule || !f) return;
-      setEcheances(echeancesDuCalendrier(f.factures, f.paiements, f.tiers, aujourdhui));
+      // Finance mise de côté (`FINANCE_ACTIF`) : aucune échéance de facture dans l'agenda.
+      setEcheances(FINANCE_ACTIF ? echeancesDuCalendrier(f.factures, f.paiements, f.tiers, aujourdhui) : []);
     })();
     return () => {
       annule = true;
@@ -270,6 +275,7 @@ export default function CalendarView({ data, refresh }: Props) {
   // (heure de Paris : 23 h → 23 h), donc aucune proposition de créneau en
   // semaine, pour personne — y compris sans l'offre Trade.
   const eviterMarche = useEntitlements().afficheModule("market");
+  const ia = useIaPossible();
   const surcharges = useMemo(() => joursSurcharges(parJour, profil), [parJour, profil]);
   const peril = useMemo(
     () =>
@@ -414,7 +420,7 @@ export default function CalendarView({ data, refresh }: Props) {
           renommer: () => undefined, // omis : `renommable: false`
           modifier: (x) => ouvrirParId("task", x.id),
         },
-        { faite, objectifs: data.goals, renommable: false },
+        { faite, objectifs: data.goals, renommable: false, ia },
       );
     }
     return entreesCreneau(c.jour, c.heure, {
@@ -565,6 +571,7 @@ export default function CalendarView({ data, refresh }: Props) {
         entreesDuJourCourant={parJour.get(aujourdhui) ?? entreesDuJour(sources, aujourdhui, aujourdhui)}
         profil={profil}
         peril={peril}
+        onExpliquerPeril={ia ? (goalId) => demanderIa({ action: "peril", goalId }) : undefined}
         aDecider={aDecider}
         onFait={async (tache) => {
           await setTaskDone(tache.id, aujourdhui, true);
@@ -713,6 +720,7 @@ function BandeauIntelligence({
   onFait,
   onReplanifier,
   onSupprimer,
+  onExpliquerPeril,
 }: {
   aujourdhui: string;
   entreesDuJourCourant: EntreeAgenda[];
@@ -722,6 +730,8 @@ function BandeauIntelligence({
   onFait: (t: Task) => Promise<void>;
   onReplanifier: (t: Task, jour: string) => Promise<void>;
   onSupprimer: (t: Task) => Promise<void>;
+  /** « Pourquoi, et que faire ? » (IA, #13) — absent sans Shale Pro. */
+  onExpliquerPeril?: (goalId: number) => void;
 }) {
   const charge = chargeDuJour(entreesDuJourCourant, profil, aujourdhui);
   const rien = !charge.surchargee && peril.length === 0 && aDecider.length === 0;
@@ -780,6 +790,16 @@ function BandeauIntelligence({
             <span className="text-text-dim">
               {t("(progression déclarée à la main, pas mesurée)")}
             </span>
+          )}{" "}
+          {onExpliquerPeril && (
+            <button
+              type="button"
+              onClick={() => onExpliquerPeril(p.goal.id)}
+              className="pill cible-tactile-ligne ml-1 inline-flex items-center gap-1.5 border border-border px-2.5 py-0.5 text-xs hover:bg-overlay"
+            >
+              <IconeIa className="h-3.5 w-3.5" />
+              {t("Pourquoi, et que faire ?")}
+            </button>
           )}
         </Alerte>
       ))}

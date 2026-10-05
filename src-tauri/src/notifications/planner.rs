@@ -357,6 +357,7 @@ mod tests {
             completions: vec![],
             knowledge_last_viewed: None,
             calendar: vec![],
+            revue_ia: Default::default(),
         }
     }
 
@@ -412,6 +413,7 @@ mod tests {
             completions: vec![],
             knowledge_last_viewed: None,
             calendar: vec![],
+            revue_ia: Default::default(),
         };
         assert!(plan(at("2026-08-27 14:00:00"), &snap, &prefs(), &[]).is_empty());
     }

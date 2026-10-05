@@ -52,6 +52,10 @@ import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../menu/catalogue/tache";
 import { ouvrirParId } from "../../lib/naviguer";
+import { useIaPossible } from "../../lib/ia/useIa";
+import { demanderIa } from "../../lib/ia/demande";
+import { peutDecomposer } from "../../lib/ia/planifier";
+import { IconeIa } from "../ia/IconeIa";
 
 /**
  * ⭐ La feuille de route d'un objectif — révélée par un geste, jamais imposée.
@@ -490,6 +494,7 @@ function MenuEtape(props: {
   const [confirmer, setConfirmer] = useState(false);
   /** Ce qui partirait AVEC elle — sous-étapes et tâches, la règle même de la corbeille. */
   const bilan = bilanDeDepart(goals, props.tasks, etape.id);
+  const ia = useIaPossible();
   const racine = useRef<HTMLDivElement>(null);
   const panneau = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
@@ -649,6 +654,31 @@ function MenuEtape(props: {
             >
               {t("Redevenir un sous-objectif")}
             </button>
+          )}
+          {ia && (
+            <>
+              <div className="my-1 h-px bg-border" />
+              {peutDecomposer(etape, goals) && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`${entree} flex items-center gap-2`}
+                  onClick={agir(() => demanderIa({ action: "decomposer", goalId: etape.id }))}
+                >
+                  <IconeIa className="h-3.5 w-3.5 shrink-0" />
+                  {t("Décomposer avec l'IA…")}
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                className={`${entree} flex items-center gap-2`}
+                onClick={agir(() => demanderIa({ action: "taches", goalId: etape.id }))}
+              >
+                <IconeIa className="h-3.5 w-3.5 shrink-0" />
+                {t("Proposer des tâches avec l'IA…")}
+              </button>
+            </>
           )}
           <div className="my-1 h-px bg-border" />
           <button
@@ -971,6 +1001,7 @@ function ListeElements(props: {
    * d'Aujourd'hui.
    */
   const menu = useMenuContextuel<Task>();
+  const ia = useIaPossible();
   const cocher = (tache: Task, faite: boolean) =>
     void basculer(`t${tache.id}`, faite, async (fait) => {
       await basculerTache(tache, todayStr(), fait);
@@ -1143,7 +1174,7 @@ function ListeElements(props: {
           const fraiche = menu.cible && data.tasks.find((x) => x.id === menu.cible!.id);
           if (!fraiche) return [];
           const faite = !estRecurrente(fraiche) && etat(`t${fraiche.id}`, faites.has(fraiche.id));
-          return entreesTache(fraiche, gestes, { faite, objectifs: data.goals, renommable: false });
+          return entreesTache(fraiche, gestes, { faite, objectifs: data.goals, renommable: false, ia });
         })()}
       />
     </div>

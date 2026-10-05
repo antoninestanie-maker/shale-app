@@ -6918,3 +6918,415 @@ module Trading sera retiré avant le lancement ») ; elle est exécutée ici.
   prend pas le focus (PIEGES § 29.1). Elle repart « moyenne » après chaque
   ajout. `ChoixPriorite` (trois boutons) dans les fenêtres et le menu d'étape.
 
+## 2026-09-29 — L'IA de Shale Pro : le serveur (chantier `ia-pro`, phase A)
+
+**Le cahier des charges** : `~/Desktop/Prompt en attente/prompt/PROMPT-IA-PRO.md`.
+**L'audit et les réponses d'Antonin** : `~/Desktop/Shale-chantiers/AUDIT-IA-PRO.md`.
+Shale Pro reçoit des fonctions d'IA rédigées par Claude, avec une **clé Shale**
+que l'utilisateur ne voit jamais. Trois principes : le local calcule, le modèle
+rédige ; l'IA propose, l'utilisateur dispose (rien n'est écrit sans validation) ;
+IA désactivée par défaut, consentement explicite, rien de conservé par Shale.
+
+**Où vit le serveur : dans le dépôt du SITE**, pas ici —
+`shale-site/supabase/migrations/008_ia.sql` et `shale-site/supabase/functions/ai/`.
+Ses **tests vivent ICI** (`src/lib/ia/serveur*.test.ts`), comme ceux des autres
+migrations Supabase : l'app a vitest et PGlite, le site non. Ils lisent le code du
+site par le lien `../shale-site` → **le checkout principal du site**. ⚠️ Écrire la
+partie serveur dans un worktree du site la rendrait invisible aux tests.
+
+**Pourquoi un cœur TypeScript pur et une entrée Deno de quarante lignes** : ce
+Mac n'a ni Deno, ni Docker, ni la CLI Supabase installée. `coeur/` ne dépend de
+rien (réseau, base, horloge, clé, journal injectés) et se teste sous Node ;
+`index.ts` branche seulement Deno. ⚠️ Conséquence : `index.ts` n'a **jamais été
+exécuté**. Premier geste du déploiement : un appel réel.
+
+**Décisions, et pourquoi :**
+
+- **Sortie JSON par `output_config.format`, pas par un outil imposé.** Le prompt
+  d'origine demandait `tool_choice` ; il renvoie 400 sur `claude-sonnet-5-5`,
+  alors qu'`ai_config` existe précisément pour changer de modèle sans republier
+  (PIEGES § 25.3). Validé par Antonin (audit, Q3).
+- **`ai_config.thinking`** (jsonb, envoyé tel quel ou omis) : « pas de réflexion »
+  s'écrit `disabled` sur `claude-sonnet-5` et `between_tools` sur
+  `claude-sonnet-5-5`. Le réglage suit le modèle, donc il vit à côté de lui.
+- **Le payload est validé AVANT la réservation**, pas après comme dans l'ordre du
+  cahier des charges : un payload faux ne réserve rien. Seul effet : un compte à
+  court de quota qui envoie un payload faux lit `bad_payload`.
+- **Réserver puis régler** (`ai_reserver` / `ai_regler`), pas « vérifier puis
+  décompter » : quota, débit et budget global sont contrôlés ET l'action retenue
+  dans UNE transaction, sous verrou de la ligne du compte. Deux requêtes
+  simultanées ne passent pas toutes les deux sur la dernière action. Un appel qui
+  ne rend rien (sortie invalide, refus, panne) **rend l'action** mais **garde son
+  coût** — Anthropic l'a facturé.
+- **Période `essai`** : l'essai Pro a UN compteur de 60 actions pour tout l'essai.
+  Au mois, un essai à cheval sur deux mois aurait eu deux quotas.
+- **Business n'a PAS l'IA** (Antonin, 2026-09-29 : « pas de business pour
+  l'instant ») : `ai_offre` ne rend que Pro payé et essai Pro en cours. `past_due`
+  ne passe pas (même règle qu'`is_active`).
+- **Fermée par défaut** : sans `AI_GLOBAL_MONTHLY_BUDGET_USD` lisible, tout est
+  `ai_paused` ; sans `ANTHROPIC_API_KEY`, tout est `ai_unavailable`. Les dix-neuf
+  fonctions de la V1 sont inscrites **éteintes** dans `ai_config`.
+- **Le journal ne reçoit que `{code, feature, userId}`** — ni payload, ni réponse,
+  ni message d'erreur (un message peut porter un morceau de réponse). Un test y
+  cherche un texte secret après tous les chemins d'échec.
+- **Le corps d'une erreur Anthropic n'est jamais lu** : il peut citer le prompt.
+- **Purge des 90 jours par tirage** (une requête sur cent) : `pg_cron` n'est pas
+  garanti sur tous les plans Supabase.
+
+⚠️ **Règle pour les phases suivantes, venue de l'audit** : `tauri.conf.json` a
+`"csp": null`. Une sortie de modèle insérée en HTML dans la WebView (réécriture,
+résumé, brief) serait une XSS avec accès à l'IPC Tauri. **Le modèle rend du texte
+ou des structures, jamais du HTML ; c'est le client qui construit le HTML, en
+échappant.** Le socle du prompt le demande aussi, mais ce n'est pas lui la
+protection.
+
+**Ajouter une fonction côté serveur** : une `DefFonction` dans
+`coeur/fonctions.ts` (payload avec `lang`, sortie BORNÉE, prompt `"1"`,
+consigne construite sans texte libre du client), la ligne `ai_config` (présente
+pour la V1), un test. **Changer un prompt** = ajouter une version, puis basculer
+`ai_config.prompt_version`. **Changer de modèle** = `update public.ai_config set
+model = …, thinking = … where feature = …` — rien à redéployer.
+
+Vérifié : 42 tests (`src/lib/ia/`), dont une contre-épreuve (sans ses `revoke`,
+la migration laisse un compte client lire la config — le banc le voit), tsc,
+test:types, i18n, build. **Rien n'est déployé** : ni la 008, ni la fonction.
+
+### 2026-09-30 — IA de Shale Pro, phases B et C (socle de l'app, brief et clôture)
+
+**Phase B** (`cbdeb61`) : `lib/ia/runAi.ts` est la seule entrée de l'app vers
+l'IA (voir son en-tête) ; `Entitlements.aIa` ; Réglages → « Intelligence
+artificielle » (éteinte par défaut, consentement versionné, un interrupteur par
+famille, compteur) ; composants communs `components/ia/` (EtatIa, Propositions,
+ApercuEnvoi, IconeIa, FenetreIa). Le validateur `lib/ia/schema.ts` est une
+COPIE du serveur, gardée identique octet pour octet par `contrat.test.ts`.
+
+**Phase C** — décisions, et pourquoi :
+
+- **Les flux RSS sont lus par le serveur** (`coeur/flux.ts`), pas par l'app :
+  l'allowlist HTTP de Tauri n'a pas bougé, et iOS n'aura rien à faire. Contrôle
+  SSRF : https seul, TOUTES les adresses du nom publiques (IPv6 développée en
+  huit groupes : `::ffff:7f00:1` est `127.0.0.1`), redirections recontrôlées,
+  1 Mo et 5 s par flux. Risque résiduel écrit dans l'en-tête : le rebinding DNS.
+- **Aucune source inventée** : `brief.verifier` rejette tout lien qui n'est pas
+  celui d'un article fourni pour ce sujet (relance, puis `bad_output`).
+- **Un brief par jour et par compte** côté serveur (`unParJour`, fenêtre de
+  12 h, code `already_done`, 409) — deux appareils ouverts le même matin ne
+  paient pas deux briefs. « Régénérer » passe outre et consomme.
+- **Stocké dans `ia_contenus` (migration SQLite 029)**, une ligne par genre et
+  par jour, uid `brief:2026-10-14` : deux appareils écrivent LA MÊME ligne.
+- **La clôture ne propose que les tâches ponctuelles datées au plus tard
+  aujourd'hui** (une récurrente ne se reporte pas) ; sans tâche à reporter,
+  l'IA n'est pas appelée. « Supprimer » passe par la corbeille (30 jours).
+- **Le texte du modèle est rendu en nœuds texte**, jamais en HTML (règle
+  `csp: null`, voir la section de phase A).
+
+⚠️ **Constaté à l'écran, laissé tel quel (hors périmètre)** : « Tâches du jour »
+(`todayTasks`, `lib/logic.ts`) montre TOUTE tâche ponctuelle non faite, quelle
+que soit sa date. Une tâche reportée par la clôture au surlendemain y reste
+donc visible — sa date a bien changé (vérifié dans la base démo). Si ce n'est
+pas voulu, c'est une décision de produit sur la liste d'Aujourd'hui, pas un
+défaut de la clôture.
+
+**Réservé à Antonin, soumis à l'arrêt de la phase C** : le texte du
+consentement (`components/ia/ReglagesIa.tsx`), le catalogue de flux
+(`lib/ia/catalogueFlux.ts`, adresses vérifiées le 2026-09-29), la phrase Pro de
+`UpgradeModal`.
+
+### 2026-10-01 — L'IA de Shale Pro passe sur Gemini (Google)
+
+**Décision d'Antonin** (« je veux changer la clé Claude par une clé Gemini, pour
+avoir quelque chose de plus économique »). Elle remplace la ligne « Fournisseur :
+Anthropic uniquement » du cahier des charges.
+
+**Tarifs relevés le même jour** (ai.google.dev/gemini-api/docs/pricing, palier
+payant, par million de jetons) : `gemini-3.5-flash-lite` 0,30 $ / 2,50 $, contre
+1 $ / 5 $ pour Claude Haiku 4.5 ; `gemini-3.8-flash` 0,75 $ / 3,75 $ jusqu'au
+31/12/2026, puis 1,50 $ / 7,50 $ (annoncé), contre 2 $ / 10 $ pour Sonnet 5.
+Un mois très actif passe de ~2,6 $ à ~1 $.
+
+**Choix des modèles, et pourquoi** : `gemini-3.5-flash-lite` pour tout — stable,
+sans date de retrait annoncée, et sa réflexion est ÉTEINTE par défaut (aucun jeton
+de réflexion facturé). `gemini-3.1-flash-lite` est un peu moins cher mais retiré le
+7 mai 2027. `gemini-3.8-flash` pour la revue (plus de jugement), réflexion « low ».
+
+**Le fournisseur est un réglage, pas un choix de code** : `ai_config.provider`
+(`google` | `anthropic`, migration Supabase **010**). L'adaptateur Claude reste
+(`coeur/anthropic.ts`) : revenir à Claude pour UNE fonction où Gemini déçoit est un
+`update` d'`ai_config`, sans redéployer. `coeur/modele.ts` fait l'aiguillage ;
+`coeur/gemini.ts` parle `generateContent` (clé en en-tête `x-goog-api-key`, jamais
+dans l'URL ; sortie par `responseJsonSchema` ; `inlineData` pour PDF et images ;
+coût depuis `usageMetadata`, cache et réflexion compris ; filtres de Google →
+`refused`).
+
+⚠️ **Palier payant obligatoire** : sur le palier gratuit, Google peut réutiliser le
+contenu pour améliorer ses produits. La clé `GEMINI_API_KEY` doit venir d'un projet
+Google AVEC facturation. Le consentement ne le dit pas encore (« Google ne s'en sert
+pas ») : c'est à Antonin de décider s'il l'écrit, une fois la facturation vérifiée.
+
+⚠️ **Le consentement NOMME le fournisseur** (Google, Gemini) : changer de
+fournisseur pour de bon, c'est changer ce texte ET monter `VERSION_CONSENTEMENT`.
+Resté en `v1` ici parce qu'aucun utilisateur ne l'a encore vu.
+
+⚠️ **Gemini ne connaît que les formats `date`, `date-time`, `time`** dans un schéma :
+`pourGemini` retire les autres (`uri`) avant l'envoi, et le cœur revalide la sortie
+avec le schéma complet — un lien mal formé est toujours rejeté.
+
+**État** : 93 tests IA verts (dont 10 pour Gemini). La 010 a été **jouée en production le
+2026-10-01 au soir** (CLI reconnectée, sauvegarde `shale-backups/avant-ia-010-20261001-2218/`,
+contrôle relu : 19 lignes en `google`, tout éteint). La fonction `ai` est **déployée** depuis le
+même soir (budget 50 $ posé), contrôlée SANS session seulement (401, CORS) : aucun appel
+authentifié, aucun appel à Gemini (pas de clé), rien d'allumé dans `ai_config`.
+
+### 2026-10-01 — IA de Shale Pro, phase D : la capture (#5, #6)
+
+Ouverte par ⌘K « Capturer avec l'IA… » (action `requires: "pro"` — `requires`
+accepte désormais `"trading" | "pro"`, et `searchActions` prend `aIa`) ou par le
+bouton « Capturer » de la vue Tâches. Deux modes : « Coller ou déposer » (texte,
+PDF, image — `extraire` / `extraire_fichier`) et « Vide ta tête » (`vider_tete`).
+
+**Décisions, et pourquoi :**
+
+- **Le modèle lit, l'app vérifie et écrit.** Un achat affiche ses montants TELS
+  QU'EXTRAITS, « à vérifier », et `ecartTotaux` signale sur la ligne un HT + TVA
+  qui ne donne pas le TTC. Validé, il devient une **facture d'achat en brouillon**
+  dont les totaux sont RECALCULÉS par `totauxFacture` depuis sa ligne — le TTC du
+  modèle n'est jamais écrit. Fournisseur retrouvé par son nom (sans casse) ou créé ;
+  numéro du fournisseur dans l'objet (le `numero` d'une facture est celui que Shale
+  attribue à l'émission). Taux de TVA recalé sur un taux usuel à 0,2 point près.
+- **Le fichier d'origine n'est PAS joint** : les pièces jointes (028) ne vont
+  qu'aux notes ; le cahier des charges interdit d'inventer ce rattachement.
+- **Les fichiers sont préparés AVANT l'envoi** (`lib/ia/fichierCapture.ts`) : PDF
+  compté par `pdf-lib` (10 Mo, 20 pages), HEIC réencodé en JPEG par la WebView,
+  image réduite à 2 000 px. Le serveur recompte.
+- **Une note créée par la capture est ÉCHAPPÉE** (`corpsDeNote`) — `csp: null`.
+- Les étiquettes existantes partent comme liste de choix ; le modèle n'en invente
+  pas pour « vider sa tête ».
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : saisie + aperçu,
+brouillons (écart de 0,50 € signalé), validation → tâche créée, facture d'achat en
+brouillon à 24,00 € TTC recalculés. Captures : `~/Desktop/Shale-chantiers/captures-ia/`.
+
+### 2026-10-01 — IA de Shale Pro, phase E : tâches et objectifs (#7, #8, #11, #12, #13)
+
+Cinq fonctions, famille « tâches », toutes dans **une seule fenêtre** montée dans
+`App` (`components/ia/ActionsIa.tsx`), ouverte par un événement
+(`demanderIa()`, `lib/ia/demande.ts`) — le menu d'une tâche vit dans quatre vues
+et celui d'une étape cinq niveaux sous la vue Objectifs : un événement évite de
+percer des props partout (même patron que « sb:capture-ia »).
+
+| Fonction | Où | Ce que fait le local | Ce que fait le modèle |
+|---|---|---|---|
+| `decouper` (#7) | menu d'une tâche ponctuelle pas faite | crée des tâches ordinaires, même objectif et même étiquette, **reliées** à l'origine (`object_links`, `manual`) | propose 3 à 7 étapes |
+| `estimer` (#8) | menu d'une tâche | choisit ≤ 30 comparables (`comparablesDe`), **calcule la fourchette** (`fourchette`) | retient des identifiants, justifie — **aucun chiffre** |
+| `decomposer_objectif` (#11) | « ⋯ » d'un objectif ou d'une phase | crée des sous-objectifs après les étapes existantes | propose 3 à 6 sous-objectifs datés |
+| `etapes_objectif` (#12) | « ⋯ » d'un objectif ou d'une étape | crée des tâches rattachées à l'objectif ou à l'étape désignée | propose des tâches datées |
+| `objectif_peril` (#13) | bandeau du Calendrier, « ⋯ » d'un objectif en péril | détecte (`calendrier/peril.ts`), envoie les faits + le rythme des 14 jours | explique, propose un plan daté |
+
+**Décisions, et pourquoi :**
+
+- **Les entrées d'IA sont OMISES sans Shale Pro, jamais grisées** (`useIaPossible`,
+  `ContexteTache.ia`) : une entrée « réservée à Pro » à chaque clic droit serait
+  une publicité permanente. Sur iOS, rien (hors périmètre V1).
+- **Estimer : le modèle ne donne aucun nombre.** Le schéma de sortie n'a pas de
+  champ de durée ; la fourchette est l'écart min–max jusqu'à trois comparables
+  retenus, l'interquartile ensuite, arrondie à 5 min vers l'extérieur. Moins de
+  **trois** comparables → « pas assez d'historique », **sans appel** (aucune action
+  consommée). Un comparable = une ponctuelle FINIE (temps total) ou une routine
+  (médiane par occurrence). ⚠️ Les durées Timer incluent les pauses (elles ne sont
+  pas enregistrées) : l'écran le dit. Lecture dédiée `repo.historiqueFocus` (un an).
+- **⚠️ Une échéance DÉJÀ PASSÉE ne borne plus rien** (`dateDansFenetre`, serveur).
+  Trouvé à l'écran en démo : un objectif en retard recevait des sous-objectifs
+  datés de son échéance passée — que le serveur réel aurait rejetés deux fois
+  (`bad_output`). La règle est dans le prompt, dans `verifier`, dans la démo et
+  dans le texte de la fenêtre.
+- **Le péril se relit à l'ouverture** : un objectif sorti du péril entre le clic
+  et la fenêtre l'affiche, au lieu d'expliquer un fait périmé. Plan de rattrapage :
+  toutes les tâches datées, dans la fenêtre jusqu'à l'échéance (ou 30 jours si
+  elle est passée — `limitePeril`, copie côté app gardée par un test).
+- **La charge du calendrier** (tâches datées pas faites + événements, par jour,
+  ≤ 62 jours) part avec #11, #12, #13 pour que les dates évitent les jours pleins.
+- Décomposer n'est offert que là où la feuille de route accepte une étape
+  (`peutAjouterEtape`) : jamais sous un sous-objectif.
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : menu d'une tâche,
+découper → 3 tâches créées, estimer → « pas assez d'historique (1 sur 3) », menu
+d'un objectif et d'une étape, décomposer → 3 sous-objectifs, tâches d'un objectif,
+bandeau « Pourquoi, et que faire ? » → explication + plan. ⚠️ La démo n'a pas assez
+d'historique Timer pour montrer une fourchette : ce chemin n'est couvert que par
+les tests (`planifier.test.ts`, 23 tests).
+
+### 2026-10-01 — IA de Shale Pro, phase F : les notes (#20, #21, #24, #25, #26, #27)
+
+**UN bouton « IA »** dans la barre existante de `RichNoteEditor` (pas de nouvelle
+barre — décision Q6), et derrière lui le catalogue `menu/catalogue/ia.tsx` :
+résumer, réécrire ▸ (plus clair, plus court, ton professionnel), développer la
+sélection, suggérer des liens @, traduire ▸ (six langues), faire une carte
+mentale. Tout se passe dans `components/ia/NoteIa.tsx`.
+
+**Décisions, et pourquoi :**
+
+- **Le modèle ne voit et ne rend que du TEXTE STRUCTURÉ** (`# `, `## `, `- `,
+  paragraphe — `lib/ia/texteNote.ts`). `texteDeHtml` retire les blocs (carte,
+  image, pièce jointe) ; `htmlDeTexte` **échappe tout** au retour (`csp: null`).
+  Prix assumé et écrit dans la fenêtre : le gras et les couleurs ne survivent pas
+  à une réécriture.
+- **Toute insertion de texte passe par `execCommand("insertHTML")`** : c'est la
+  pile d'annulation du navigateur, donc **⌘Z défait une réécriture acceptée**
+  (vérifié à l'écran : le texte d'avant revient, « rétablir » aussi). La carte
+  suit le chemin des cartes (`insererBloc`, annulation par l'éditeur de carte).
+- **La sélection est photographiée au clic sur le bouton**, avant que le menu et
+  la fenêtre ne prennent le focus — sinon elle est perdue.
+- **Réécrire la note ENTIÈRE est refusé si elle porte un bloc ou une mention**
+  (`aDesBlocs`) : ils seraient remplacés par du texte. La fenêtre dit de
+  sélectionner un passage.
+- **Liens @** : les candidats viennent de la recherche de l'app
+  (`rechercherPartout`, FTS5 + titres) sur les douze mots les plus présents de la
+  note, ≤ 40, hors la note elle-même et ce qu'elle cite déjà. Le modèle reçoit des
+  identifiants COURTS (`c1`…), jamais un uid. Zéro candidat → **aucun appel**. Le
+  lien est posé APRÈS le passage (le texte de l'utilisateur n'est pas remplacé),
+  un clic par lien.
+- **Traduire crée une NOUVELLE note**, reliée à l'originale (`object_links`,
+  `manual`) : rien n'est écrasé. Blocs non repris, mentions en texte — dit avant.
+- **Carte** : schéma borné à trois niveaux (8 × 6 × 4), coupé à 40 nœuds par
+  `carteDepuisIa` (largeur d'abord : ce sont les détails qui sautent), puis passé
+  par le lecteur EXISTANT `lireCarte`. Posée en fin de note, bloc normal.
+- **`FenetreIa` prend le focus à l'ouverture** : sinon le menu le rend à son
+  bouton, dont l'info-bulle s'affiche par-dessus la fenêtre (vu à l'écran).
+- `components/ia/communs.tsx` : `useAppel` et `Avant`, partagés par `ActionsIa`
+  et `NoteIa`.
+
+⚠️ **PAS FAIT : le Savoir (`NoteComposer`).** L'audit recommandait d'y poser le
+même bouton dans la bulle de sélection. Cette bulle se DÉMONTE dès que la
+sélection est perdue — donc à l'ouverture du menu : l'état de l'IA devrait vivre
+au-dessus d'elle. Et « traduire » y créerait une note, pas une fiche. À décider
+avec Antonin avant de le faire.
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : menu, résumé inséré puis
+⌘Z / rétablir, réécriture avant/après acceptée puis ⌘Z, 9 candidats → 3
+suggestions → lien posé, traduction créée dans la liste, carte insérée en fin de
+note, développement sur une sélection. Tests : `texteNote.test.ts` (16).
+
+### 2026-10-01 — ⭐ L'IA sans Finance ; phase G : la revue hebdomadaire (#18)
+
+**Finance est mise de côté** (`FINANCE_ACTIF = false`, chantier `intentions`,
+`7c4b813`). Antonin, 2026-10-01 : « Finance sera enlevée de l'app. » La branche
+`chantier/ia-pro` est **rebasée sur `chantier/intentions`** — la fusionner emporte
+donc la barre latérale par intention. Conséquences pour l'IA :
+
+- **#39 (runway « et si… », « explique mon runway ») n'est PAS construite.** Ni
+  définition serveur, ni écran. Les lignes `ai_config` `runway_scenario` et
+  `runway_expliquer` (migration 008) restent éteintes. La famille « finance »
+  existe encore dans `FAMILLES` (type), mais `ReglagesIa` ne la montre que si le
+  module Finance est affiché — et aucune fonction n'y est branchée.
+- **Un achat capturé devient une NOTE** (`texteDAchat`, `appliquerElement(…,
+  finance)`), plus une facture d'achat : elle naîtrait dans un module absent.
+  Montants TELS QU'EXTRAITS (aucune ligne de facture pour les recalculer). Le
+  chemin « facture d'achat en brouillon » est gardé, testé, pour le jour où
+  `FINANCE_ACTIF` repasse à `true`.
+
+**La revue hebdomadaire** (`lib/ia/revue.ts`, `components/ia/RevueHebdo.tsx`, une
+carte de Performance retirée de la grille sans Shale Pro) :
+
+- **Les faits sont calculés ici** (`payloadRevue`) : complétion par jour (prévu =
+  routines dues + tâches datées du jour ; fait = coché ce jour-là ; plus les
+  tâches faites hors prévu), focus (séances de FOCUS terminées, et la semaine
+  d'avant pour comparer), objectifs racines (avancement mesuré, tâches faites sur
+  tout l'arbre, en péril), tâches reportées non faites. Le modèle rédige « ce qui
+  a tenu », « ce qui a glissé », et **exactement trois ajustements** (le serveur
+  rejette 2 ou 4), chacun transformable en tâche d'un clic.
+- **⭐ Le Journal ne part pas par défaut.** Case décochée (`ia.revue.journal`).
+  Cochée, seules les **notes chiffrées** (humeur, énergie, 1 à 5) partent — jamais
+  `body`. Le schéma serveur n'a pas de champ de texte : un client modifié qui en
+  enverrait serait refusé (400). Le prompt interdit tout avis psychologique ou
+  médical. Un test cherche le texte privé dans le payload sérialisé.
+- **Quelle semaine** (`semaineDeRevue`) : le dimanche, celle qui s'achève ; les
+  autres jours, la dernière semaine complète. Stockée dans `ia_contenus`
+  (`revue:<lundi>`) — la table prévue par la décision Q9, PAS une table
+  `ai_reviews` — synchronisée ; les semaines passées restent consultables.
+- **Jamais générée seule.** Elle pèse 5 actions (`POIDS_REVUE`, gardé contre la
+  migration 008 par un test) : l'écran le dit avant, et « Régénérer (5 actions) ».
+- **Notification « ta revue est prête »** : règle Rust `weekly_review`
+  (`src-tauri/src/notifications/rules/revue.rs`), le dimanche à partir de 18 h,
+  heure réglable, désactivable. Elle se tait si l'IA est éteinte, non consentie,
+  la famille « revue » décochée, ou si la revue de la semaine existe déjà ; et sur
+  iOS (pas d'écran d'IA). ⚠️ Le Rust ne connaît pas l'abonnement : un ancien Pro
+  qui a laissé l'IA allumée la recevrait encore — l'écran dit alors pourquoi.
+  Dans les Réglages, la règle n'est montrée qu'à qui a l'IA (`REGLES_IA`).
+
+Vu à l'écran en démo (WebKit piloté, patch retiré : 0) : barre latérale sans
+Finance, famille Finance absente des réglages d'IA, carte de revue (aperçu avec
+et sans Journal), génération, ajustement → tâche visible dans Tâches, revue relue
+après navigation. Tests : `revue.test.ts` (13), `capture.test.ts` (11), Rust
+`notifications` (122, dont 9 nouveaux).
+
+### 2026-10-01 — ⭐ L'IA de Shale Pro : MODE D'EMPLOI (phase H)
+
+*La section à lire avant de toucher à l'IA. Les sections datées au-dessus disent
+POURQUOI ; celle-ci dit OÙ et COMMENT. Recette : `~/Desktop/Shale-chantiers/RECETTE-IA.md`.*
+
+**Trois principes, qui ne se discutent pas.** (1) Le local calcule, le modèle
+rédige : tout chiffre affiché vient de l'app. (2) L'IA propose, l'utilisateur
+valide : rien ne s'écrit en base sans un clic sur ce qu'il a vu. (3) Honnêteté
+sur les données : IA éteinte par défaut, consentement, « Ce qui sera envoyé »
+avant chaque appel, rien de stocké côté serveur.
+
+**Architecture.**
+
+```
+écran ──► useIa().run(feature, payload) ──► runAi ──► POST …/functions/v1/ai
+          (droit Pro, IA allumée,             │        (dépôt du SITE)
+           famille allumée)                   │        coeur/traiter.ts :
+                                              │        JWT → offre Pro → config
+   démo (hors Tauri) : lib/ia/demo.ts ◄───────┘        → payload validé → réserve
+   réponse factice, aucune requête                     → modèle (≤ 2 essais)
+                                                       → sortie validée + verifier
+                                                       → règle (rembourse si échec)
+```
+
+- **Serveur** (`shale-site/supabase/functions/ai/`) : `index.ts` (entrée Deno,
+  secrets) ; `coeur/` en TypeScript pur, dépendances injectées, **testé par
+  vitest depuis CE dépôt** (`src/lib/ia/serveur*.test.ts`, banc PGlite).
+  `fonctions.ts` = le registre ; `gemini.ts` / `anthropic.ts` = les adaptateurs.
+- **Base Supabase** : `ai_config` (une ligne par fonction : fournisseur, modèle,
+  jetons, poids, allumée, version du prompt), `ai_usage` (compteur), `ai_events`
+  (journal SANS contenu). Migrations 008 et 010.
+- **App** : `lib/ia/` (contrats, `runAi`, réglages, logique par phase),
+  `components/ia/` (écrans). Stockage local : réglages `ia.*` dans `settings`,
+  et `ia_contenus` (migration SQLite 029 : brief, clôture, revue — synchronisée).
+
+**Ajouter une fonction — cinq endroits, dans cet ordre.**
+
+1. **Serveur** — une `DefFonction` dans `coeur/fonctions.ts` : schéma du payload
+   (avec `lang`), schéma de sortie BORNÉ (`maxLength`, `maxItems`), prompt `"1"`,
+   `consigne`, `donnees`, et un `verifier` pour tout ce que le schéma ne dit pas
+   (identifiants fournis, dates dans la fenêtre — `dateDansFenetre`). L'inscrire
+   dans `FONCTIONS`. Une ligne `ai_config` (migration du site), éteinte.
+2. **Contrat** — `lib/ia/contrats.ts` : entrée dans `ContratsIa`, `SORTIES`
+   (copie EXACTE du schéma serveur — `contrat.test.ts` compare), `FAMILLE_DE`.
+3. **Démo** — `lib/ia/demo.ts` : une réponse factice qui passe le schéma ET le
+   `verifier` du serveur (tester : `reponseDemo` puis `verifier`).
+4. **Écran** — `useAppel(feature)` + `<Avant payload=…>` (`components/ia/communs.tsx`)
+   puis `<Propositions>` ; tout texte du modèle en nœuds texte. Une entrée de menu
+   d'IA est OMISE sans Shale Pro (`useIaPossible`), jamais grisée.
+5. **i18n et tests** — clés dans `en.ts` (`npm run i18n:check`), un cas dans
+   `brief.test.ts` (« chaque fonction a une réponse factice conforme »), un test
+   du `verifier`.
+
+**Changer de modèle** = une ligne, sans redéployer :
+`update public.ai_config set provider = 'google', model = '…', thinking = … where feature = '…';`
+⚠️ Un modèle absent de la table des prix (`coeur/limites.ts`) est compté au prix
+fort. ⚠️ Revenir à Claude, c'est aussi changer le texte de consentement, qui
+nomme Google. **Changer un prompt** = ajouter une version (`"2"`), puis basculer
+`ai_config.prompt_version` — jamais réécrire une version en service.
+
+**Allumer / éteindre.** `ai_config.enabled` par fonction ; le secret
+`AI_GLOBAL_MONTHLY_BUDGET_USD` est le coupe-circuit (absent = tout en pause).
+
+**Pièges rencontrés** (détail dans `PIEGES.md` § 25) : `timestamptz` rendu dans
+le fuseau de la session (25.1) ; CLI Supabase muette après expiration (25.4) ;
+borne de date déjà passée = aucune réponse acceptable (25.5) ; migration SQLite
+029 numérotée après la 030 (§ 29.3) ; une fenêtre qui ne prend pas le focus
+laisse l'info-bulle du bouton par-dessus (`FenetreIa`).
+
+**Ce qui n'existe pas** : #39 (Finance mise de côté), l'IA dans le Savoir, les
+écrans iOS, l'IA pour Shale Business.

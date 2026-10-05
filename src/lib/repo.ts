@@ -3259,3 +3259,105 @@ async function effacerPourDeBon({ kind, id }: APurger): Promise<void> {
       return deleteHabit(id);
   }
 }
+
+// ─── Contenus rédigés par l'IA de Shale Pro (migration 029) ─────────────────
+// Brief du matin, clôture du soir, revue : UNE ligne par genre et par jour,
+// d'uid `<genre>:<jour>` — deux appareils qui génèrent le même brief écrivent
+// la même ligne (voir l'en-tête de la 029). `contenu` est du JSON.
+
+export type GenreContenuIa = "brief" | "cloture" | "revue";
+
+export interface ContenuIa {
+  uid: string;
+  kind: GenreContenuIa;
+  jour: string;
+  contenu: unknown;
+  cree_le: string;
+  lu_le: string | null;
+}
+
+function contenuIaDeLigne(l: { uid: string; kind: string; jour: string; contenu: string; cree_le: string; lu_le: string | null }): ContenuIa | null {
+  try {
+    return { ...l, kind: l.kind as GenreContenuIa, contenu: JSON.parse(l.contenu) };
+  } catch {
+    return null; // une ligne illisible est ignorée, elle sera réécrite
+  }
+}
+
+export async function lireContenuIa(kind: GenreContenuIa, jour: string): Promise<ContenuIa | null> {
+  if (!isTauri) return demo.lireContenuIa(kind, jour);
+  const db = await getDb();
+  const rows = await db.select<{ uid: string; kind: string; jour: string; contenu: string; cree_le: string; lu_le: string | null }[]>(
+    "SELECT uid, kind, jour, contenu, cree_le, lu_le FROM ia_contenus WHERE uid = $1",
+    [`${kind}:${jour}`],
+  );
+  return rows[0] ? contenuIaDeLigne(rows[0]) : null;
+}
+
+/** Écrit (ou remplace) le contenu du jour. Une réécriture le remet « non lu ». */
+export async function ecrireContenuIa(kind: GenreContenuIa, jour: string, contenu: unknown): Promise<void> {
+  if (!isTauri) return demo.ecrireContenuIa(kind, jour, contenu);
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO ia_contenus (uid, kind, jour, contenu, cree_le, lu_le)
+     VALUES ($1, $2, $3, $4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), NULL)
+     ON CONFLICT(uid) DO UPDATE SET contenu = excluded.contenu, cree_le = excluded.cree_le, lu_le = NULL`,
+    [`${kind}:${jour}`, kind, jour, JSON.stringify(contenu)],
+  );
+}
+
+/** Les jours qui portent un contenu de ce genre, du plus récent au plus ancien. */
+export async function listerContenusIa(kind: GenreContenuIa, limite = 12): Promise<string[]> {
+  if (!isTauri) return demo.listerContenusIa(kind, limite);
+  const db = await getDb();
+  const rows = await db.select<{ jour: string }[]>("SELECT jour FROM ia_contenus WHERE kind = $1 ORDER BY jour DESC LIMIT $2", [kind, limite]);
+  return rows.map((r) => r.jour);
+}
+
+export async function marquerContenuIaLu(kind: GenreContenuIa, jour: string): Promise<void> {
+  if (!isTauri) return demo.marquerContenuIaLu(kind, jour);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE ia_contenus SET lu_le = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE uid = $1 AND lu_le IS NULL",
+    [`${kind}:${jour}`],
+  );
+}
+
+export interface LigneHistoriqueFocus {
+  task_id: number;
+  jour: string;
+  minutes: number;
+}
+
+export interface HistoriqueFocus {
+  sessions: LigneHistoriqueFocus[];
+  faites: number[];
+}
+
+/**
+ * L'historique Timer, jour par jour et par tâche — pour estimer une durée (#8).
+ *
+ * ⚠️ `fetchAll` ne charge que les sessions RÉCENTES : l'estimation a besoin de
+ * l'année. Seules les sessions de FOCUS terminées et rattachées à une tâche
+ * comptent. ⚠️ La pause n'est pas enregistrée (`useFocus`) : une durée inclut
+ * ses pauses, et l'écran le dit.
+ *
+ * `faites` : les tâches cochées au moins une fois, à n'importe quelle date —
+ * une tâche ponctuelle pas encore finie n'a qu'une durée PARTIELLE.
+ */
+export async function historiqueFocus(depuis: string): Promise<HistoriqueFocus> {
+  if (!isTauri) return demo.historiqueFocus(depuis);
+  const db = await getDb();
+  const sessions = await db.select<LigneHistoriqueFocus[]>(
+    `SELECT task_id, substr(started_at, 1, 10) AS jour,
+            SUM((julianday(ended_at) - julianday(started_at)) * 1440.0) AS minutes
+       FROM focus_sessions
+      WHERE kind = 'focus' AND ended_at IS NOT NULL AND task_id IS NOT NULL AND started_at >= $1
+      GROUP BY task_id, jour`,
+    [depuis],
+  );
+  const faites = await db.select<{ task_id: number }[]>(
+    "SELECT DISTINCT task_id FROM task_completions WHERE done = 1",
+  );
+  return { sessions, faites: faites.map((f) => f.task_id) };
+}

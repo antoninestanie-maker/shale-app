@@ -14,6 +14,7 @@
 // que des candidats `user_key`. Voir `MANAGED_ENDPOINT` pour ce qu'il restera à
 // écrire le jour venu.
 // ─────────────────────────────────────────────────────────────────────────────
+import { SUPABASE_URL } from "../auth/config";
 import { getSetting } from "../repo";
 import { getSecret, setSecret } from "./secrets";
 
@@ -49,6 +50,14 @@ export interface LlmCredentials {
 /**
  * Point d'extension « clé Shale incluse ».
  *
+ * ✅ 2026-09-29 (chantier `ia-pro`) : la clé Shale existe, mais PAS comme le
+ * plan ci-dessous le prévoyait. Elle n'est pas un add-on (elle est incluse dans
+ * Shale Pro), et elle ne passe PAS par `resolveCredentials` : elle sert les
+ * fonctions d'IA de Pro par `lib/ia/runAi.ts`, qui appelle `MANAGED_ENDPOINT`
+ * (la fonction `ai`) avec `{feature, payload}` — jamais un prompt. Market Brain
+ * reste sur les clés de l'utilisateur, intouché. Le plan d'origine, périmé,
+ * reste lisible ci-dessous (on corrige en datant, on n'efface pas).
+ *
  * Le jour où l'add-on existe, il faudra :
  *   1. lire le droit (`useEntitlements()` gagnera un `hasManagedLlm`, alimenté
  *      par une colonne `addon_llm` de `subscriptions`) ;
@@ -60,7 +69,7 @@ export interface LlmCredentials {
  * Rien d'autre ne bouge : `market/llm.ts` consomme déjà une liste de candidats
  * et ne sait pas d'où vient l'autorisation.
  */
-export const MANAGED_ENDPOINT = null as string | null;
+export const MANAGED_ENDPOINT = `${SUPABASE_URL}/functions/v1/ai`;
 
 /** Préférence de fournisseur enregistrée. */
 export async function getVendorPref(): Promise<LlmVendorPref> {

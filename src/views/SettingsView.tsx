@@ -1,3 +1,4 @@
+import { useIaPossible } from "../lib/ia/useIa";
 import { useEffect, useState } from "react";
 import { todayStr } from "../lib/logic";
 import {
@@ -29,6 +30,7 @@ import {
   fetchStatus,
   formatWhen,
   formatWhenAhead,
+  REGLES_IA,
   ruleMeta,
   runNow,
   planNotifications,
@@ -54,6 +56,7 @@ import { choisirProfilDemo, profilDemoChoisi, type ProfilDemo } from "../lib/dem
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SyncSettings from "../components/SyncSettings";
 import Sauvegardes from "../components/Sauvegardes";
+import ReglagesIa from "../components/ia/ReglagesIa";
 
 import { pick, t } from "../lib/i18n";
 import { rejouerAccueil } from "../lib/onboarding/semer";
@@ -159,6 +162,7 @@ function NumberField({
 export default function SettingsView() {
   const { session, subscription, signOut, changePassword } = useSession();
   const { tier, isTrialing, hasTrading, billingPeriod, afficheModule } = useEntitlements();
+  const iaPossible = useIaPossible();
   // Palier ET profil de licence : les réglages d'un module masqué disparaissent
   // avec lui, et le rappel de briefing ne se programme plus.
   const afficheMarche = afficheModule("market");
@@ -549,6 +553,7 @@ export default function SettingsView() {
                 [
                   ["shale", "Shale"],
                   ["shale_trade", "Shale Trade"],
+                  ["shale_pro", "Shale Pro"],
                   ["trialing", t("essai en cours")],
                 ] as const
               ).map(([value, label]) => (
@@ -787,7 +792,7 @@ export default function SettingsView() {
 
             <h3 className="hud-label mt-6">{t("règles")}</h3>
             <div className="mt-2 flex flex-col gap-1">
-              {Object.entries(notif.rules).map(([id, rule]) => {
+              {Object.entries(notif.rules).filter(([id]) => iaPossible || !REGLES_IA.has(id)).map(([id, rule]) => {
                 const meta = ruleMeta()[id];
                 return (
                   <div key={id} className="rounded-[10px] border border-border p-1">
@@ -923,6 +928,15 @@ export default function SettingsView() {
         )}
       </section>
       </ResizablePanel>
+
+      {/* L'IA de Shale Pro (chantier `ia-pro`, 2026-09-29). Absente sur iOS :
+          ses écrans sont hors périmètre de la V1, et un réglage « réservé à
+          Pro » y serait un appel à l'achat (`lib/boutique.ts`). */}
+      {!IS_IOS && (
+      <ResizablePanel id="settings-ia" defaultW={12}>
+        <ReglagesIa />
+      </ResizablePanel>
+      )}
 
       {/* Clés IA + tracker : les deux ne servent qu'aux modules trading, donc
           réservés à Shale Trade. Rendu conditionnel plutôt que masquage, pour

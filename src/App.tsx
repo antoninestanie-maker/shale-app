@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
+import { ActionsIa } from "./components/ia/ActionsIa";
 import CommandPalette from "./components/CommandPalette";
 import FiletErreur from "./components/FiletErreur";
 import FocusOverlay from "./components/FocusOverlay";
@@ -569,6 +570,9 @@ function App() {
         hasTrading={hasTrading}
         masques={profil.masques}
       />
+      {/* Les actions d'IA sur une tâche ou un objectif (Phase E) : une seule
+          fenêtre pour toute l'app, ouverte par `demanderIa()`. */}
+      <ActionsIa data={data} refresh={refresh} />
       {/* Barre latérale sur bureau et tablette, barre d'onglets sur téléphone.
           L'une OU l'autre, jamais les deux : `useIsPhone()` exige un écran
           étroit ET un pointeur grossier, donc un Mac en Split View garde sa

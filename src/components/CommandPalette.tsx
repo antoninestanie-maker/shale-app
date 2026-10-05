@@ -9,6 +9,7 @@ import {
 import { rechercherPartout } from "../lib/repo";
 import { ouvrirObjet } from "../lib/naviguer";
 import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./liens/libelles";
+import { useIa } from "../lib/ia/useIa";
 import type { Trouvaille } from "../lib/recherche";
 
 interface Props {
@@ -30,7 +31,8 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
   const toastTimer = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = searchActions(query, hasTrading, masques);
+  const ia = useIa();
+  const results = searchActions(query, hasTrading, masques, ia.visible && ia.aLeDroit);
 
   /**
    * ⭐ La palette trouve désormais des CHOSES, pas seulement des actions.

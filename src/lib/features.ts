@@ -39,6 +39,30 @@ import type { View } from "../components/Sidebar";
  */
 export const TRADING_ACTIF = false;
 
+/**
+ * ⭐ L'INTERRUPTEUR DE FINANCE — Finance est MISE DE CÔTÉ depuis le 2026-10-01.
+ *
+ * Décision d'Antonin, en même temps que la barre latérale par intention : les
+ * trois groupes du site (Décider quoi faire · Avancer et mesurer · Penser et
+ * retenir) remplacent « Productivité », et Finance n'y a pas sa place. Même
+ * mécanique que le trading : rien n'est supprimé — ni le code, ni les tables,
+ * ni les comptes, factures et relevés déjà saisis. Passer à `true` rallume le
+ * module, dans sa catégorie « Tenir les comptes » (`CATEGORIES`, Sidebar.tsx).
+ *
+ * Éteinte, Finance est ABSENTE, pas verrouillée : `presenceModule("finance")`
+ * rend `absent` pour tout le monde, `afficheModule("finance")` est faux, la
+ * palette ⌘K ne propose plus ses actions, et le calendrier ne montre plus les
+ * échéances de factures.
+ */
+export const FINANCE_ACTIF = false;
+
+/** Modules (onglets de la sidebar) qui vont et viennent avec `FINANCE_ACTIF`. */
+export const FINANCE_VIEWS = ["finance"] as const;
+const FINANCE_SET = new Set<string>(FINANCE_VIEWS);
+
+/** Vrai si ce module fait partie de Finance. */
+export const isFinanceView = (v: View | string): boolean => FINANCE_SET.has(v);
+
 /** Modules (onglets de la sidebar) réservés à l'offre Shale Trade. */
 export const TRADING_VIEWS = ["trading", "market", "sizing"] as const;
 

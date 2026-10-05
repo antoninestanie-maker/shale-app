@@ -29,6 +29,8 @@ import { afficherToast } from "../../../lib/toast";
 import { jeter, titreCourt } from "../../corbeille/geste";
 import { addDays, todayStr, weekdayOf } from "../../../lib/logic";
 import type { EntreeMenu, EntreePossible } from "../../../lib/menu/entrees";
+import { demanderIa } from "../../../lib/ia/demande";
+import { IconeIa } from "../../ia/IconeIa";
 import type { Goal, Priority, Task } from "../../../lib/types";
 
 export interface GestesTache {
@@ -64,6 +66,12 @@ export interface ContexteTache {
    * affichée à chaque clic droit serait du bruit.
    */
   renommable?: boolean;
+  /**
+   * Les actions d'IA (Découper, Estimer) — vrai seulement quand l'écran PEUT
+   * les montrer : Shale Pro, hors iOS (`useIa`). Omises, pas grisées : une
+   * entrée « réservée à Pro » à chaque clic droit serait une publicité.
+   */
+  ia?: boolean;
 }
 
 /** Le lundi STRICTEMENT après aujourd'hui — « lundi prochain », même un lundi. */
@@ -209,6 +217,20 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
       desactive: arbre.length === 0 && task.goal_id == null
         ? { raison: t("Aucun objectif pour l'instant.") }
         : undefined,
+    },
+    // Découper : une tâche ponctuelle, pas encore faite. Une routine revient
+    // chaque jour — la découper créerait des étapes qui ne reviennent pas.
+    ctx.ia && !ctx.faite && !recurrente(task) && {
+      id: "ia-decouper",
+      libelle: t("Découper avec l'IA…"),
+      icone: <IconeIa className="h-[1em] w-[1em]" />,
+      executer: () => demanderIa({ action: "decouper", taskId: task.id }),
+    },
+    ctx.ia && {
+      id: "ia-estimer",
+      libelle: t("Estimer la durée…"),
+      icone: <IconeIa className="h-[1em] w-[1em]" />,
+      executer: () => demanderIa({ action: "estimer", taskId: task.id }),
     },
     { id: "dupliquer", libelle: t("Dupliquer"), icone: <IconDupliquer />, executer: () => gestes.dupliquer(task) },
     { id: "modifier", libelle: t("Modifier…"), icone: <IconPencil />, executer: () => gestes.modifier(task) },
