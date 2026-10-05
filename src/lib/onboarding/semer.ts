@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { addDays, todayStr } from "../logic";
 import { jetonMention } from "../mentions";
 import { plainText } from "../richtext";
 import {
@@ -15,6 +16,7 @@ import {
   synchroniserMentions,
   uidDe,
 } from "../repo";
+import { planificationDeSaisie } from "../taches";
 import { contenuExemples } from "./exemples";
 import { planDuPremierObjectif } from "./planification";
 import {
@@ -211,7 +213,7 @@ export async function creerObjectifPlanifie(
 /**
  * La première tâche, saisie sur le dernier écran. Une étape, pas un écran de fin.
  *
- * `goalId` la fait naître rattachée au premier jalon quand l'accueil a planté
+ * `goalId` la fait naître rattachée à la première étape quand l'accueil a planté
  * un objectif ; `null` reproduit le comportement d'avant.
  */
 export async function creerPremiereTache(label: string, goalId: number | null = null): Promise<void> {
@@ -263,67 +265,115 @@ export async function semerExemples(): Promise<void> {
   if (await exemplesDejaCrees()) return;
   const c = contenuExemples();
 
-  // ① Le sujet du Savoir. Marqué, mais à part : il n'entre pas dans le COMPTE
-  // du bouton (un contenant n'est pas un objet du parcours) et il ne se
-  // supprime que s'il est RESTÉ VIDE — sinon il emporterait les fiches que
-  // l'utilisateur y aurait rangées depuis. Voir `repo.supprimerExemples`.
-  const sujetId = await createSujet(c.sujet.nom, c.sujet.couleur);
-  await marquerExemple("knowledge_topics", sujetId, true);
-
-  // ② La fiche, dans ce sujet.
-  const ficheId = await createKnowledgeEntry({
-    topic_id: sujetId,
-    kind: "note",
-    title: c.fiche.titre,
-    body: c.fiche.corps,
-    text: plainText(c.fiche.corps),
-  });
-  await marquerExemple("knowledge_entries", ficheId, true);
-  const ficheUid = await uidDe("knowledge", ficheId);
-
-  // ③ La note, qui CITE la fiche. C'est la liaison que le parcours démontre :
-  // deux objets qui se répondent sans jamais fusionner.
-  const corps = ficheUid
-    ? c.note.avant + jetonMention("knowledge", ficheUid, c.fiche.titre) + c.note.apres
-    : c.note.avant + c.note.apres;
-  const noteId = await createNote(c.note.titre, corps);
-  await marquerExemple("notes", noteId, true);
-  const noteUid = await uidDe("note", noteId);
-
-  if (noteUid && ficheUid) {
-    await synchroniserMentions("note", noteUid, [
-      {
-        from_kind: "note",
-        from_uid: noteUid,
-        to_kind: "knowledge",
-        to_uid: ficheUid,
-        origin: "mention",
-      },
-    ]);
+  // ① Les sujets du Savoir et leurs fiches. Un sujet est marqué, mais à part :
+  // il n'entre pas dans le COMPTE du bouton (un contenant n'est pas un objet du
+  // parcours) et il ne se supprime que s'il est RESTÉ VIDE — sinon il
+  // emporterait les fiches que l'utilisateur y aurait rangées depuis. Voir
+  // `repo.supprimerExemples`.
+  const fiches: { id: number; uid: string | null; titre: string }[][] = [];
+  for (const sujet of c.sujets) {
+    const sujetId = await createSujet(sujet.nom, sujet.couleur);
+    await marquerExemple("knowledge_topics", sujetId, true);
+    const liste: { id: number; uid: string | null; titre: string }[] = [];
+    for (const fiche of sujet.fiches) {
+      const id = await createKnowledgeEntry({
+        topic_id: sujetId,
+        kind: "note",
+        title: fiche.titre,
+        body: fiche.corps,
+        text: plainText(fiche.corps),
+      });
+      await marquerExemple("knowledge_entries", id, true);
+      liste.push({ id, uid: await uidDe("knowledge", id), titre: fiche.titre });
+    }
+    fiches.push(liste);
   }
 
-  // ④ La tâche, rattachée à la note À LA MAIN : une seconde origine d'arête,
-  // visible au même endroit que la mention.
-  const tacheId = await createTask({
-    label: c.tache.label,
-    tag: c.tache.tag,
-    priority: c.tache.priority,
-    recurrence: c.tache.recurrence,
-    goal_id: null,
+  // ② Les notes, qui CITENT une fiche. C'est la liaison que le parcours
+  // démontre : deux objets qui se répondent sans jamais fusionner.
+  const notesUid: (string | null)[] = [];
+  for (const note of c.notes) {
+    const cible = fiches[note.cite[0]]?.[note.cite[1]];
+    const corps = cible?.uid
+      ? note.avant + jetonMention("knowledge", cible.uid, cible.titre) + note.apres
+      : note.avant + note.apres;
+    const noteId = await createNote(note.titre, corps);
+    await marquerExemple("notes", noteId, true);
+    const noteUid = await uidDe("note", noteId);
+    notesUid.push(noteUid);
+    if (noteUid && cible?.uid) {
+      await synchroniserMentions("note", noteUid, [
+        {
+          from_kind: "note",
+          from_uid: noteUid,
+          to_kind: "knowledge",
+          to_uid: cible.uid,
+          origin: "mention",
+        },
+      ]);
+    }
+  }
+
+  // ③ L'objectif d'exemple et ses étapes (marqués : le bouton les retire).
+  const o = c.objectif;
+  const racineId = await createGoal({
+    title: o.titre,
+    description: o.description,
+    scope: "medium",
+    category: null,
+    parent_goal_id: null,
+    deadline: null, // ⚠️ jamais d'échéance : pas d'alerte « en péril » le premier jour
+    progress_pct: 0,
+    manual_progress: 0,
+    is_example: 1,
   });
-  await marquerExemple("tasks", tacheId, true);
-  const tacheUid = await uidDe("task", tacheId);
-  if (tacheUid && noteUid) {
-    await createLink({
-      from_kind: "task",
-      from_uid: tacheUid,
-      to_kind: "note",
-      to_uid: noteUid,
-      origin: "manual",
+  const etapeIds: number[] = [];
+  for (const [i, etape] of o.etapes.entries()) {
+    etapeIds.push(
+      await createGoal({
+        title: etape.titre,
+        description: etape.description,
+        scope: "medium",
+        category: null,
+        parent_goal_id: racineId,
+        deadline: null,
+        progress_pct: 0,
+        manual_progress: 0,
+        position: i,
+        priority: etape.priority,
+        is_example: 1,
+      }),
+    );
+  }
+
+  // ④ Les tâches. Une répétée (jamais en retard), une datée dans cinq jours et
+  // rattachée à la première étape.
+  for (const tache of c.taches) {
+    const echeance = tache.echeanceDans != null ? addDays(todayStr(), tache.echeanceDans) : "";
+    const id = await createTask({
+      label: tache.label,
+      tag: tache.tag,
+      priority: tache.priority,
+      recurrence: tache.recurrence,
+      goal_id: tache.auJalon ? (etapeIds[0] ?? null) : null,
+      ...planificationDeSaisie(tache.recurrence, echeance, "", ""),
     });
+    await marquerExemple("tasks", id, true);
+    // Rattachée à la note À LA MAIN : une seconde origine d'arête, visible au
+    // même endroit que la mention.
+    const tacheUid = await uidDe("task", id);
+    if (tache.vers === "note" && tacheUid && notesUid[0]) {
+      await createLink({
+        from_kind: "task",
+        from_uid: tacheUid,
+        to_kind: "note",
+        to_uid: notesUid[0],
+        origin: "manual",
+      });
+    }
   }
 
-  // ⑤ L'habitude de régularité du coucher.
+  // ⑤ L'habitude : c'est ce que le Journal montre, une case par jour.
   const habitudeId = await addHabit(c.habitude.nom, c.habitude.couleur);
   await marquerExemple("habits", habitudeId, true);
 

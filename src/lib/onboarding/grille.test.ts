@@ -7,6 +7,7 @@ import {
   heuresLibres,
   heuresLibresDuJour,
   valeurProposee,
+  choixHeures,
   type Categorie,
 } from "./grille";
 import { REGLAGES_PAR_DEFAUT, type ReglagesHoraires } from "./reglages";
@@ -228,5 +229,24 @@ describe("⚠️ ce que ce module ne sait pas faire, et c'est voulu", () => {
     // Interdire la formulation en perte à la racine : pas de fonction dont le
     // nom promette un temps perdu, occupé, ou un pourcentage de remplissage.
     expect(noms.filter((n) => /perdu|occupe|occupees|ratio|remplissage/i.test(n))).toEqual([]);
+  });
+});
+
+describe("les cases d'heures à récupérer (2026-10-05)", () => {
+  it("la valeur proposée est toujours l'une des cases, et les cases ne dépassent pas le libre", () => {
+    for (const coucher of ["21:00", "23:00", "01:00"]) {
+      const g = grilleSemaine(reglages({ coucher }));
+      const cases = choixHeures(g);
+      expect(cases.length).toBeGreaterThan(0);
+      expect(cases).toContain(valeurProposee(g));
+      expect(Math.max(...cases)).toBeLessThanOrEqual(bornesDuCurseur(g).maximum);
+    }
+  });
+
+  it("aucune case quand rien n'est libre", () => {
+    const g = grilleSemaine(
+      reglages({ travail: { jours: [0, 1, 2, 3, 4, 5, 6], debut: "00:00", fin: "23:59" }, coucher: "23:00" }),
+    );
+    if (heuresLibres(g) <= 0) expect(choixHeures(g)).toEqual([]);
   });
 });

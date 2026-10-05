@@ -186,5 +186,19 @@ export function bornesDuCurseur(grille: Grille): { minimum: number; maximum: num
 export function valeurProposee(grille: Grille): number {
   const libres = heuresLibres(grille);
   if (libres <= 0) return 0;
-  return Math.max(1, Math.min(10, Math.round(libres / 5)));
+  const voulue = Math.max(1, Math.min(10, Math.round(libres / 5)));
+  // Posée sur une CASE (`choixHeures`) : la valeur proposée doit être l'une des
+  // cases affichées, sinon rien ne serait allumé à l'ouverture de l'écran.
+  const cases = choixHeures(grille);
+  return [...cases].reverse().find((c) => c <= voulue) ?? cases[0] ?? voulue;
+}
+
+/** Les cases proposées pour « combien d'heures veux-tu récupérer » (2026-10-05 :
+ * des cases comme celles du Journal, plus un long curseur). Jamais au-delà de ce
+ * que la semaine laisse libre. */
+const CASES_HEURES = [1, 2, 3, 5, 8, 10, 15, 20] as const;
+
+export function choixHeures(grille: Grille): number[] {
+  const { maximum } = bornesDuCurseur(grille);
+  return CASES_HEURES.filter((c) => c <= maximum);
 }

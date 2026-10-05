@@ -2814,6 +2814,7 @@ export const demo = {
       : table === "habits" ? habits
       : table === "notes" ? notes
       : table === "knowledge_topics" ? sujets
+      : table === "goals" ? goals
       : knowledgeEntries;
     const ligne = (cible as { id: number; is_example: number }[]).find((x) => x.id === id);
     if (ligne) ligne.is_example = valeur;
@@ -2822,7 +2823,7 @@ export const demo = {
   async compterExemples(): Promise<number> {
     const compte = (liste: { is_example: number }[]) =>
       liste.filter((x) => x.is_example === 1).length;
-    return compte(tasks) + compte(habits) + compte(notes) + compte(knowledgeEntries);
+    return compte(tasks) + compte(habits) + compte(notes) + compte(knowledgeEntries) + compte(goals);
   },
 
   async supprimerExemples(): Promise<void> {
@@ -2834,10 +2835,20 @@ export const demo = {
     const purger = (liste: { is_example: number }[]) => {
       for (let i = liste.length - 1; i >= 0; i--) if (liste[i].is_example === 1) liste.splice(i, 1);
     };
+    // Les objectifs d'exemple : ce qui s'y rattachait et a été adopté est
+    // détaché, pas détruit (même règle que le natif).
+    const objectifsRetires = goals.filter((x) => x.is_example === 1).map((x) => x.id);
+    for (const g of goals) {
+      if (g.is_example !== 1 && g.parent_goal_id != null && objectifsRetires.includes(g.parent_goal_id)) g.parent_goal_id = null;
+    }
+    for (const tk of tasks) {
+      if (tk.is_example !== 1 && tk.goal_id != null && objectifsRetires.includes(tk.goal_id)) tk.goal_id = null;
+    }
     purger(tasks);
     purger(habits);
     purger(notes);
     purger(knowledgeEntries);
+    purger(goals);
 
     for (let i = completions.length - 1; i >= 0; i--) {
       if (tachesRetirees.includes(completions[i].task_id)) completions.splice(i, 1);

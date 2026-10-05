@@ -2601,8 +2601,8 @@ export const EN: Record<string, string> = {
   "Il te reste {n} h libres.": "You have {n} h free.",
   "Combien d'heures veux-tu récupérer par semaine ?":
     "How many hours a week do you want to get back?",
-  "Au plus {n} h — c'est ce que ta semaine laisse de libre. Ça devient un objectif que tu pourras changer.":
-    "At most {n} h — that is what your week leaves free. It becomes a goal you can change.",
+  "Les cases s'arrêtent à ce que ta semaine laisse de libre. Ça devient un objectif que tu pourras changer.":
+    "The boxes stop at what your week leaves free. It becomes a goal you can change.",
   "Une première tâche, pour commencer": "A first task, to get started",
   "Quelque chose que tu dois vraiment faire. Elle t'attendra dans Tâches.":
     "Something you actually have to do. It will be waiting in Tasks.",
@@ -3394,4 +3394,93 @@ export const EN: Record<string, string> = {
   "# Mon objectif\n## Une étape\n- [ ] Une tâche @2026-12-01 !haute": "# My goal\n## A step\n- [ ] A task @2026-12-01 !high",
   "Ce fichier est trop gros pour une checklist.": "This file is too big for a checklist.",
   "Choisir un fichier (.md, .txt)": "Choose a file (.md, .txt)",
+  // ─── Contenu de départ refondu (2026-10-05) ───
+  "Comment marche Shale":
+    "How Shale works",
+  "Les modules en une minute":
+    "The modules in one minute",
+  "Shale rassemble ce que tu fais, ce que tu vises et ce que tu retiens. Chaque module a un rôle :":
+    "Shale brings together what you do, what you aim for and what you keep. Each module has a role:",
+  "ce qui t'attend maintenant.":
+    "what is waiting for you right now.",
+  "tout ce que tu dois faire, rangé par moment. Une tâche peut se répéter.":
+    "everything you have to do, sorted by moment. A task can repeat.",
+  "il ne stocke rien, il rassemble tes tâches, tes créneaux et tes habitudes.":
+    "it stores nothing, it gathers your tasks, your slots and your habits.",
+  "des sessions de concentration, avec un chrono.":
+    "focus sessions, with a timer.",
+  "un cap, découpé en étapes et en tâches ; l'avancement se calcule tout seul.":
+    "a direction, split into steps and tasks; progress works itself out.",
+  "tes statistiques de la semaine.":
+    "your stats for the week.",
+  "du texte libre ; tape @ pour citer une tâche, un objectif ou une fiche.":
+    "free text; type @ to cite a task, a goal or a card.",
+  "tes habitudes, une case par jour à cocher.":
+    "your habits, one box a day to tick.",
+  "ce que tu veux garder, rangé par sujet. Cette fiche en fait partie.":
+    "what you want to keep, filed by subject. This card is part of it.",
+  "Rien n'est obligatoire : commence par les Tâches, et ajoute un module quand tu en as besoin.":
+    "Nothing is compulsory: start with Tasks, and add a module when you need it.",
+  "Tâche, objectif, étape : qui contient quoi":
+    "Task, goal, step: what contains what",
+  "Trois niveaux, du plus large au plus petit :":
+    "Three levels, from the widest to the smallest:",
+  "ce que tu veux atteindre, par exemple « Publier mon site ».":
+    "what you want to achieve, for example “Publish my website”.",
+  "un morceau de l'objectif, par exemple « Écrire les textes ». Sa priorité — faible, moyenne ou élevée — dit par où commencer. Une étape qui en regroupe d'autres s'appelle une phase.":
+    "a piece of the goal, for example “Write the copy”. Its priority — low, medium or high — says where to start. A step that groups other steps is called a phase.",
+  "un geste concret qu'on coche, par exemple « Rédiger la page d'accueil ». Elle se rattache à une étape.":
+    "a concrete action you tick off, for example “Write the home page”. It belongs to a step.",
+  "Quand tu coches les tâches, l'étape avance ; quand les étapes avancent, l'objectif avance. Tu n'as jamais à saisir un pourcentage.":
+    "When you tick tasks, the step moves forward; when steps move forward, the goal moves forward. You never have to enter a percentage.",
+  "Deep Work":
+    "Deep Work",
+  "Travailler en profondeur : mode d'emploi":
+    "Working in depth: how-to",
+  "Le travail en profondeur, c'est une période sans interruption sur une seule chose exigeante. Mode d'emploi :":
+    "Deep work is an uninterrupted stretch spent on one demanding thing. How to do it:",
+  "Choisis un seul sujet et écris-le en une phrase avant de commencer.":
+    "Pick a single subject and write it in one sentence before you start.",
+  "Réserve un bloc de 60 à 90 minutes, à un moment où tu as de l'énergie.":
+    "Set aside a 60 to 90 minute block, at a time when you have energy.",
+  "Coupe les notifications et ferme tout ce qui ne sert pas ce sujet.":
+    "Turn off notifications and close everything that does not serve this subject.",
+  "Lance le Timer de Shale : le chrono t'évite de surveiller l'heure.":
+    "Start Shale's Timer: the countdown saves you from watching the clock.",
+  "À la fin, écris deux lignes : ce qui a avancé, et par où reprendre.":
+    "At the end, write two lines: what moved forward, and where to pick up.",
+  "Un ou deux blocs par jour, c'est déjà beaucoup. Mieux vaut un bloc tenu que quatre prévus.":
+    "One or two blocks a day is already a lot. One block kept beats four planned.",
+  "Mindset":
+    "Mindset",
+  "Faire la revue au même moment chaque soir la rend automatique.":
+    "Doing the review at the same time every evening makes it automatic.",
+  "Exemple · ceci est une note":
+    "Example · this is a note",
+  "Une note, c'est du texte libre : une idée, un compte rendu, une liste. Tape @ pour citer une tâche, un objectif ou une fiche du Savoir — le lien se voit des deux côtés. Ici, la fiche citée est :":
+    "A note is free text: an idea, a write-up, a list. Type @ to cite a task, a goal or a Knowledge card — the link shows on both sides. Here, the card cited is:",
+  "La tâche « Exemple · tâche répétée chaque jour » est reliée à cette note : ouvre-la pour voir le lien.":
+    "The task “Example · task repeated every day” is linked to this note: open it to see the link.",
+  "Tu peux tout effacer et écrire ta propre note.":
+    "You can erase everything and write your own note.",
+  "Modèle · ma revue du soir":
+    "Template · my evening review",
+  "Exemple · tâche répétée chaque jour":
+    "Example · task repeated every day",
+  "Exemple · ceci est une tâche, rattachée à une étape":
+    "Example · this is a task, attached to a step",
+  "Exemple · ceci est un objectif":
+    "Example · this is a goal",
+  "Un objectif est un cap. Il se découpe en étapes, et chaque étape en tâches : l'avancement se calcule tout seul quand tu coches les tâches. Supprime-le quand tu as compris.":
+    "A goal is a direction. It splits into steps, and each step into tasks: progress works itself out as you tick tasks. Delete it once you have understood.",
+  "Exemple · ceci est une étape":
+    "Example · this is a step",
+  "Une étape est un morceau de l'objectif. Sa priorité (faible, moyenne, élevée) dit par où commencer.":
+    "A step is a piece of the goal. Its priority (low, medium, high) says where to start.",
+  "Exemple · une seconde étape":
+    "Example · a second step",
+  "Une étape avance quand ses tâches sont cochées.":
+    "A step moves forward when its tasks are ticked.",
+  "Exemple · habitude à cocher chaque jour":
+    "Example · habit to tick every day",
 };

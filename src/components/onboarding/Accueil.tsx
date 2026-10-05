@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { useAppTexts } from "../../lib/appTexts";
 import { t } from "../../lib/i18n";
 import { nomCourtDuJour, ORDRE_SEMAINE } from "../../lib/logic";
-import { bornesDuCurseur, grilleSemaine, heuresLibres, valeurProposee } from "../../lib/onboarding/grille";
+import { bornesDuCurseur, choixHeures, grilleSemaine, heuresLibres, valeurProposee } from "../../lib/onboarding/grille";
 import {
   REGLAGES_PAR_DEFAUT,
   type BlocContraint,
@@ -164,6 +164,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
           <EtapeGrille
             reglages={reglages}
             libres={libres}
+            cases={choixHeures(grille)}
             bornes={bornes}
             curseur={curseur}
             onCurseur={setHeuresVoulues}
@@ -438,12 +439,14 @@ function EtapeContraints({
 function EtapeGrille({
   reglages,
   libres,
+  cases,
   bornes,
   curseur,
   onCurseur,
 }: {
   reglages: ReglagesHoraires;
   libres: number;
+  cases: number[];
   bornes: { minimum: number; maximum: number };
   curseur: number;
   onCurseur: (n: number) => void;
@@ -463,30 +466,30 @@ function EtapeGrille({
 
       {bornes.maximum > 0 && (
         <div className="mt-6 border-t border-border pt-5">
-          <label
-            htmlFor="accueil-curseur"
-            className="block text-sm font-medium text-text"
-          >
+          <p className="block text-sm font-medium text-text">
             {t("Combien d'heures veux-tu récupérer par semaine ?")}
-          </label>
-          <div className="mt-3 flex items-center gap-3">
-            <input
-              id="accueil-curseur"
-              type="range"
-              min={bornes.minimum}
-              max={bornes.maximum}
-              step={1}
-              value={curseur}
-              onChange={(e) => onCurseur(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-overlay-2 accent-blue"
-            />
-            <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-text">
-              {t("{n} h", { n: curseur })}
-            </span>
+          </p>
+          <div role="radiogroup" aria-label={t("Combien d'heures veux-tu récupérer par semaine ?")} className="mt-3 flex flex-wrap gap-1.5">
+            {cases.map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={n === curseur}
+                onClick={() => onCurseur(n)}
+                className={`cible-tactile h-9 min-w-10 rounded-[8px] border px-2 text-xs font-medium tabular-nums transition-colors ${
+                  n === curseur
+                    ? "border-blue bg-blue/20 text-text"
+                    : "border-border bg-overlay text-text-dim hover:text-text"
+                }`}
+              >
+                {t("{n} h", { n })}
+              </button>
+            ))}
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-text-dim">
             {/* ⚠️ On dit d'où vient la BORNE, pas ce que l'app promet. */}
-            {t("Au plus {n} h — c'est ce que ta semaine laisse de libre. Ça devient un objectif que tu pourras changer.", { n: bornes.maximum })}
+            {t("Les cases s'arrêtent à ce que ta semaine laisse de libre. Ça devient un objectif que tu pourras changer.")}
           </p>
         </div>
       )}

@@ -1510,9 +1510,14 @@ export async function majFeuilleDeRoute(id: number, patch: FeuilleDeRoutePatch):
 export async function renommerObjectif(goalId: number, titre: string): Promise<void> {
   const net = titre.trim();
   if (!net) return;
-  if (!isTauri) return demo.majObjectif(goalId, { title: net });
+  if (!isTauri) {
+    await demo.majObjectif(goalId, { title: net });
+    await adopter("goals", goalId);
+    return;
+  }
   const db = await getDb();
   await db.execute("UPDATE goals SET title = $1 WHERE id = $2 AND title IS NOT $1", [net, goalId]);
+  await adopter("goals", goalId);
 }
 
 /** L'échéance d'un objectif, et rien d'autre — même raison que `renommerObjectif`. */
@@ -1539,7 +1544,11 @@ export async function reordonnerObjectifs(ids: readonly number[]): Promise<void>
 }
 
 export async function updateGoal(id: number, input: GoalInput): Promise<void> {
-  if (!isTauri) return demo.updateGoal(id, input);
+  if (!isTauri) {
+    await demo.updateGoal(id, input);
+    await adopter("goals", id);
+    return;
+  }
   const db = await getDb();
   await db.execute(
     "UPDATE goals SET title = $1, description = $2, scope = $3, category = $4, parent_goal_id = $5, deadline = $6, progress_pct = $7, manual_progress = $8 WHERE id = $9",
@@ -1555,6 +1564,7 @@ export async function updateGoal(id: number, input: GoalInput): Promise<void> {
       id,
     ],
   );
+  await adopter("goals", id);
 }
 
 /** Supprime l'objectif ; ses enfants remontent vers son parent, ses tâches sont déliées. */
@@ -3054,7 +3064,8 @@ export type TableExemple =
   | "habits"
   | "notes"
   | "knowledge_entries"
-  | "knowledge_topics";
+  | "knowledge_topics"
+  | "goals";
 
 /** Les objets COMPTÉS par le bouton « supprimer les N exemples ». */
 const TABLES_EXEMPLE: readonly TableExemple[] = [
@@ -3062,6 +3073,9 @@ const TABLES_EXEMPLE: readonly TableExemple[] = [
   "habits",
   "notes",
   "knowledge_entries",
+  // Depuis le 2026-10-05 : l'objectif d'exemple (« ceci est un objectif ») et
+  // ses jalons. La colonne existe depuis la migration 026.
+  "goals",
 ];
 
 /**
@@ -3136,6 +3150,15 @@ export async function supprimerExemples(): Promise<void> {
   );
   await db.execute(
     "DELETE FROM habit_checks WHERE habit_id IN (SELECT id FROM habits WHERE is_example = 1)",
+  );
+  // ⭐ Les objectifs d'exemple emportent leurs jalons d'exemple, jamais ce que
+  // l'utilisateur s'est approprié : un jalon ou une tâche adoptés sont DÉTACHÉS
+  // (ils remontent à la racine, comme `deleteGoal`), pas détruits.
+  await db.execute(
+    "UPDATE goals SET parent_goal_id = NULL WHERE is_example = 0 AND parent_goal_id IN (SELECT id FROM goals WHERE is_example = 1)",
+  );
+  await db.execute(
+    "UPDATE tasks SET goal_id = NULL WHERE is_example = 0 AND goal_id IN (SELECT id FROM goals WHERE is_example = 1)",
   );
   for (const table of TABLES_EXEMPLE) {
     await db.execute(`DELETE FROM ${table} WHERE is_example = 1`);

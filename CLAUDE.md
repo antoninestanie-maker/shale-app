@@ -7330,3 +7330,14 @@ laisse l'info-bulle du bouton par-dessus (`FenetreIa`).
 
 **Ce qui n'existe pas** : #39 (Finance mise de côté), l'IA dans le Savoir, les
 écrans iOS, l'IA pour Shale Business.
+
+## 2026-10-05 — Accueil épuré : des cases, et un contenu de départ qui EXPLIQUE l'app
+
+Demande d'Antonin après avoir parcouru l'accueil en entier. État et preuves : `PASSATION.md` (même date).
+
+- **Le long curseur « heures à récupérer » devient une rangée de cases** (1·2·3·5·8·10·15·20 h, jamais au-delà du libre), comme les cases du Journal. `choixHeures()` / `valeurProposee()` dans `lib/onboarding/grille.ts` : la valeur proposée est toujours l'une des cases.
+- **⚠️ Ce qu'Antonin a pris pour « trop de tâches déjà faites » était le JEU DE DÉMO** (`demo.ts`), pas ce que voit un vrai nouvel utilisateur, qui ne reçoit que le contenu de `onboarding/exemples.ts`. Pour voir un compte NEUF dans le navigateur : `vite.demo.config.ts` (non versionné) coupe Supabase et vide le jeu de démo.
+- **Le contenu de départ est refondu** : tout exemple s'appelle « Exemple · … » et dit ce qu'il est. Deux tâches (une répétée chaque jour, une datée dans 5 jours et rattachée à une étape — jamais en retard), un objectif d'exemple avec ses deux étapes, deux notes (dont un modèle de revue du soir), une habitude, et trois sujets du Savoir : « Comment marche Shale » (2 fiches), « Deep Work » (mode d'emploi réel), « Mindset » (la revue du soir). Journal : pas d'entrée datée (elle occuperait « aujourd'hui »), l'habitude suffit ; le Journal est expliqué dans le Savoir.
+- **Les objectifs deviennent des exemples** : `goals.is_example` existe depuis la 026 mais personne ne le comptait. `supprimerExemples` retire maintenant l'objectif d'exemple et ses étapes (`TABLES_EXEMPLE` gagne `goals`) ; modifier ou renommer un objectif l'adopte (`updateGoal`, `renommerObjectif`). Ce que l'utilisateur s'est approprié est DÉTACHÉ (étape remontée, tâche déliée), jamais détruit. `TABLES_EXEMPLES` côté `exemples.ts` reste à quatre tables (le test et la sync en dépendent) : les objectifs sont comptés à part.
+- **Vocabulaire** : « étape » (nom commun de la phase et du sous-objectif) ; « jalon » ne s'affiche plus (décision du 2026-09-20).
+- **L'essai de 7 jours est celui du plan classique, jamais de Pro** (décision d'Antonin, 2026-10-05) : plus d'IA pendant l'essai (`aIa` : Pro payé seulement), `create-checkout` n'accorde l'essai qu'au palier `shale`, migration site `013_ia_sans_essai.sql` (`ai_offre` ne rend plus l'essai). ⛔ Rien n'est déployé : SQL 013 à coller et trois fonctions Stripe à redéployer avant de rouvrir les ventes.

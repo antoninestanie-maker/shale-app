@@ -51,71 +51,89 @@ const JOUR = "2026-09-02"; // un mercredi
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("le contenu de départ", () => {
-  it("touche quatre objets marqués, sur quatre modules", () => {
+  it("touche quatre tables marquées (plus les objectifs, comptés à part)", () => {
     expect(TABLES_EXEMPLES).toEqual(["tasks", "habits", "notes", "knowledge_entries"]);
     expect(TABLES_EXEMPLES).toHaveLength(NOMBRE_EXEMPLES);
   });
 
-  it("la tâche est RÉCURRENTE : un exemple ne peut donc jamais être en retard", () => {
-    // Une occurrence manquée n'est pas en retard, elle est manquée
-    // (`lib/taches.ts`). C'est ce qui tient la règle « aucun objectif ni
-    // exemple en retard » par construction, et non par un filtre d'affichage.
-    expect(contenuExemples().tache.recurrence).toBe("daily");
+  it("⭐ la refonte du 2026-10-05 : peu d'exemples, tous nommés « Exemple · » ou expliqués", () => {
+    const c = contenuExemples();
+    expect(c.taches).toHaveLength(2);
+    expect(c.notes).toHaveLength(2);
+    expect(c.objectif.etapes).toHaveLength(2);
+    expect(c.sujets).toHaveLength(3);
+    for (const tache of c.taches) expect(tache.label).toMatch(/^(Exemple|Example) · /);
+    expect(c.objectif.titre).toMatch(/^(Exemple|Example) · /);
+    expect(c.habitude.nom).toMatch(/^(Exemple|Example) · /);
   });
 
-  it("⭐ le corps de la note se referme AUTOUR d'un jeton de mention", () => {
-    const c = contenuExemples();
-    const corps = c.note.avant + jetonMention("knowledge", "uid-de-la-fiche", c.fiche.titre) + c.note.apres;
-    const mentions = extraireMentions(corps);
-    expect(mentions).toHaveLength(1);
-    expect(mentions[0]).toMatchObject({ kind: "knowledge", uid: "uid-de-la-fiche" });
-    // La liaison que le parcours démontre : deux objets qui se répondent sans
-    // fusionner. Si le jeton ne se relisait pas, il n'y aurait pas d'arête.
+  it("⚠️ aucune tâche d'exemple ne peut être en retard", () => {
+    // Récurrente (une occurrence manquée n'est pas en retard) ou datée dans le
+    // FUTUR (echeanceDans > 0).
+    for (const tache of contenuExemples().taches) {
+      if (tache.recurrence === "none") expect(tache.echeanceDans ?? 0).toBeGreaterThan(0);
+      else expect(tache.echeanceDans).toBeNull();
+    }
   });
 
-  it("les deux moitiés du corps sont du HTML refermé", () => {
+  it("une récurrente n'a pas de date, une datée n'est pas récurrente", () => {
+    for (const tache of contenuExemples().taches) {
+      if (tache.recurrence !== "none") expect(tache.echeanceDans).toBeNull();
+    }
+  });
+
+  it("⭐ le corps de chaque note se referme AUTOUR d'un jeton de mention", () => {
     const c = contenuExemples();
-    // `avant` ouvre un paragraphe que `apres` referme : le jeton se glisse
-    // dedans. Un `<p>` non fermé ferait avaler la suite de la note par
-    // l'éditeur.
-    expect(c.note.avant).toContain("<p>");
-    expect(c.note.apres.startsWith("</p>")).toBe(true);
+    for (const note of c.notes) {
+      const cible = c.sujets[note.cite[0]].fiches[note.cite[1]];
+      expect(cible).toBeDefined();
+      const corps = note.avant + jetonMention("knowledge", "uid-de-la-fiche", cible.titre) + note.apres;
+      const mentions = extraireMentions(corps);
+      expect(mentions).toHaveLength(1);
+      expect(mentions[0]).toMatchObject({ kind: "knowledge", uid: "uid-de-la-fiche" });
+      // `avant` ouvre un paragraphe que `apres` referme : le jeton se glisse dedans.
+      expect(note.avant).toContain("<p>");
+      expect(note.apres.startsWith("</p>")).toBe(true);
+    }
   });
 
   it("⚠️ le nom de l'habitude ne contient NI heure NI durée", () => {
     const nom = contenuExemples().habitude.nom;
-    // Une heure ('23:00') partirait en base telle quelle et serait fausse en
-    // anglais (PIEGES § 4.4). Une durée inviterait à être réduite — le sommeil
-    // est incompressible, la RÉGULARITÉ est ce qui se travaille.
     expect(nom).not.toMatch(/\d{1,2}\s*[:h]\s*\d{0,2}/);
     expect(nom.toLowerCase()).not.toMatch(/heures? de sommeil|dormir|durée/);
   });
 
-  it("⚠️ aucun texte du parcours ne propose de dormir moins", () => {
+  it("⚠️ aucun texte du parcours ne propose de dormir moins ni n'est formulé en perte", () => {
     const c = contenuExemples();
     const tout = [
-      c.sujet.nom,
-      c.fiche.titre,
-      c.fiche.corps,
-      c.note.titre,
-      c.note.avant,
-      c.note.apres,
-      c.tache.label,
+      ...c.sujets.flatMap((s) => [s.nom, ...s.fiches.flatMap((f) => [f.titre, f.corps])]),
+      ...c.notes.flatMap((n) => [n.titre, n.avant, n.apres]),
+      ...c.taches.map((t) => t.label),
+      c.objectif.titre,
+      c.objectif.description,
+      ...c.objectif.etapes.flatMap((j) => [j.titre, j.description]),
       c.habitude.nom,
     ]
       .join(" ")
       .toLowerCase();
-    for (const interdit of ["dormir moins", "moins de sommeil", "réduire ton sommeil", "gagner des heures de sommeil"]) {
+    for (const interdit of [
+      "dormir moins",
+      "moins de sommeil",
+      "réduire ton sommeil",
+      "gagner des heures de sommeil",
+      "temps perdu",
+      "tu perds",
+      "vous perdez",
+    ]) {
       expect(tout).not.toContain(interdit);
     }
   });
 
-  it("⚠️ aucun texte du parcours n'est formulé en PERTE", () => {
-    const c = contenuExemples();
-    const tout = [c.fiche.corps, c.note.avant, c.note.apres].join(" ").toLowerCase();
-    for (const interdit of ["temps perdu", "tu perds", "vous perdez"]) {
-      expect(tout).not.toContain(interdit);
-    }
+  it("l'objectif d'exemple n'a pas d'échéance et ses étapes sont mesurées (pas d'alerte « en péril »)", () => {
+    // Le contenu n'expose pas de date : semer.ts écrit `deadline: null`.
+    const o = contenuExemples().objectif;
+    expect(o).not.toHaveProperty("deadline");
+    for (const j of o.etapes) expect(j).not.toHaveProperty("deadline");
   });
 });
 

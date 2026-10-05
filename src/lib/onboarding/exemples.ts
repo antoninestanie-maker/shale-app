@@ -75,15 +75,27 @@ export type TableExemple = (typeof TABLES_EXEMPLES)[number];
 
 // ─── Le contenu ──────────────────────────────────────────────────────────────
 
-export interface SujetExemple {
-  nom: string;
-  couleur: string;
-}
+/**
+ * ⭐ REFONTE DU 2026-10-05 (Antonin) : le contenu de départ ne raconte plus « la
+ * revue de fin de journée », il EXPLIQUE L'APP. Chaque exemple porte « Exemple ·
+ * » dans son nom et dit ce qu'il est (« ceci est un objectif… »), avec peu de
+ * choses : deux tâches, un objectif et ses deux étapes, deux notes, une
+ * habitude, et trois sujets du Savoir dont un mode d'emploi réel.
+ *
+ * Aucune tâche en retard, aucune échéance proche de la limite : la tâche datée
+ * tombe dans cinq jours, la répétée n'a pas de date.
+ */
 
 export interface FicheExemple {
   titre: string;
   /** HTML riche, tel que l'éditeur du Savoir l'enregistre. */
   corps: string;
+}
+
+export interface SujetExemple {
+  nom: string;
+  couleur: string;
+  fiches: FicheExemple[];
 }
 
 export interface NoteExemple {
@@ -99,23 +111,34 @@ export interface NoteExemple {
    */
   avant: string;
   apres: string;
+  /** La fiche citée : [indice du sujet, indice de la fiche dans ce sujet]. */
+  cite: [number, number];
 }
 
 export interface TacheExemple {
   label: string;
-  /**
-   * ⭐ RÉCURRENTE, jamais datée. Deux raisons qui vont dans le même sens :
-   *
-   *   • une tâche récurrente n'a pas de date, donc ses occurrences manquées ne
-   *     sont pas « en retard », elles sont manquées (`lib/taches.ts`). Un
-   *     exemple ne peut donc jamais afficher de retard, ce que le cahier des
-   *     charges interdit ;
-   *   • `planificationDeSaisie()` refuse tout créneau à une récurrence, et
-   *     c'est la règle du dépôt : on ne la contourne pas pour un exemple.
-   */
-  recurrence: "daily";
+  /** « daily » : jamais en retard (une occurrence manquée est manquée, pas en retard). */
+  recurrence: "daily" | "none";
   priority: "low" | "medium" | "high";
   tag: string | null;
+  /** Échéance dans N jours (`none` seulement) ; sinon pas de date. */
+  echeanceDans: number | null;
+  /** Rattachée à la première étape de l'objectif d'exemple. */
+  auJalon: boolean;
+  /** Reliée à la première note d'exemple (arête manuelle). */
+  vers: "note" | null;
+}
+
+export interface EtapeExemple {
+  titre: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+}
+
+export interface ObjectifExemple {
+  titre: string;
+  description: string;
+  etapes: EtapeExemple[];
 }
 
 export interface HabitudeExemple {
@@ -124,10 +147,10 @@ export interface HabitudeExemple {
 }
 
 export interface ContenuExemples {
-  sujet: SujetExemple;
-  fiche: FicheExemple;
-  note: NoteExemple;
-  tache: TacheExemple;
+  sujets: SujetExemple[];
+  notes: NoteExemple[];
+  taches: TacheExemple[];
+  objectif: ObjectifExemple;
   habitude: HabitudeExemple;
 }
 
@@ -135,55 +158,153 @@ export interface ContenuExemples {
  * Le contenu, construit À L'APPEL.
  *
  * ⚠️ Une FONCTION, jamais une constante de module — PIEGES § 5.2 : un objet
- * calculé à l'import figerait ces textes dans la langue de démarrage, et le
- * contenu de départ d'un utilisateur anglophone serait en français.
+ * calculé à l'import figerait ces textes dans la langue de démarrage.
  *
  * ⚠️ Ces textes-ci partent en BASE, pas à l'écran : ils sont traduits au moment
  * de la création et ne changent plus ensuite, comme n'importe quelle donnée
- * saisie. Basculer l'app en anglais après coup ne les réécrit pas — et ne doit
- * pas : ce sont les notes de l'utilisateur, pas de l'interface.
+ * saisie.
  */
 export function contenuExemples(): ContenuExemples {
   return {
-    sujet: {
-      nom: t("Méthode"),
-      couleur: "#8e8bff",
-    },
-    fiche: {
-      titre: t("La revue de fin de journée"),
-      corps: [
-        `<p>${t("Cinq minutes, le soir, toujours au même moment. Trois questions, dans cet ordre :")}</p>`,
-        "<ol>",
-        `<li>${t("Qu'est-ce qui a avancé aujourd'hui ?")}</li>`,
-        `<li>${t("Qu'est-ce qui a coincé, et pourquoi ?")}</li>`,
-        `<li>${t("Quelle est la première chose à faire demain ?")}</li>`,
-        "</ol>",
-        `<p>${t("La troisième question est celle qui compte : c'est elle qui fait que le lendemain commence sans hésiter.")}</p>`,
-        `<p>${t("Faire la revue au même moment chaque soir la rend automatique. C'est aussi pour cela que l'habitude porte sur la RÉGULARITÉ de l'heure de coucher, et sur rien d'autre : une heure de coucher stable est ce qui rend le soir prévisible, donc utilisable.")}</p>`,
-      ].join(""),
-    },
-    note: {
-      titre: t("Ma revue du soir — modèle"),
-      avant: `<p>${t("Le modèle que je recopie chaque soir. La méthode est ici :")} `,
-      apres: [
-        "</p>",
-        `<p><strong>${t("Ce qui a avancé")}</strong></p><p><br></p>`,
-        `<p><strong>${t("Ce qui a coincé")}</strong></p><p><br></p>`,
-        `<p><strong>${t("La première chose de demain")}</strong></p><p><br></p>`,
-      ].join(""),
-    },
-    tache: {
-      label: t("Revue de fin de journée"),
-      recurrence: "daily",
-      priority: "medium",
-      tag: null,
+    sujets: [
+      {
+        nom: t("Comment marche Shale"),
+        couleur: "#4d8dff",
+        fiches: [
+          {
+            titre: t("Les modules en une minute"),
+            corps: [
+              `<p>${t("Shale rassemble ce que tu fais, ce que tu vises et ce que tu retiens. Chaque module a un rôle :")}</p>`,
+              "<ul>",
+              `<li><strong>${t("Aujourd'hui")}</strong> : ${t("ce qui t'attend maintenant.")}</li>`,
+              `<li><strong>${t("Tâches")}</strong> : ${t("tout ce que tu dois faire, rangé par moment. Une tâche peut se répéter.")}</li>`,
+              `<li><strong>${t("Calendrier")}</strong> : ${t("il ne stocke rien, il rassemble tes tâches, tes créneaux et tes habitudes.")}</li>`,
+              `<li><strong>${t("Timer")}</strong> : ${t("des sessions de concentration, avec un chrono.")}</li>`,
+              `<li><strong>${t("Objectifs")}</strong> : ${t("un cap, découpé en étapes et en tâches ; l'avancement se calcule tout seul.")}</li>`,
+              `<li><strong>${t("Performance")}</strong> : ${t("tes statistiques de la semaine.")}</li>`,
+              `<li><strong>${t("Notes")}</strong> : ${t("du texte libre ; tape @ pour citer une tâche, un objectif ou une fiche.")}</li>`,
+              `<li><strong>${t("Journal")}</strong> : ${t("tes habitudes, une case par jour à cocher.")}</li>`,
+              `<li><strong>${t("Savoir")}</strong> : ${t("ce que tu veux garder, rangé par sujet. Cette fiche en fait partie.")}</li>`,
+              "</ul>",
+              `<p>${t("Rien n'est obligatoire : commence par les Tâches, et ajoute un module quand tu en as besoin.")}</p>`,
+            ].join(""),
+          },
+          {
+            titre: t("Tâche, objectif, étape : qui contient quoi"),
+            corps: [
+              `<p>${t("Trois niveaux, du plus large au plus petit :")}</p>`,
+              "<ol>",
+              `<li><strong>${t("Objectif")}</strong> : ${t("ce que tu veux atteindre, par exemple « Publier mon site ».")}</li>`,
+              `<li><strong>${t("Étape")}</strong> : ${t("un morceau de l'objectif, par exemple « Écrire les textes ». Sa priorité — faible, moyenne ou élevée — dit par où commencer. Une étape qui en regroupe d'autres s'appelle une phase.")}</li>`,
+              `<li><strong>${t("Tâche")}</strong> : ${t("un geste concret qu'on coche, par exemple « Rédiger la page d'accueil ». Elle se rattache à une étape.")}</li>`,
+              "</ol>",
+              `<p>${t("Quand tu coches les tâches, l'étape avance ; quand les étapes avancent, l'objectif avance. Tu n'as jamais à saisir un pourcentage.")}</p>`,
+            ].join(""),
+          },
+        ],
+      },
+      {
+        nom: t("Deep Work"),
+        couleur: "#41c9e2",
+        fiches: [
+          {
+            titre: t("Travailler en profondeur : mode d'emploi"),
+            corps: [
+              `<p>${t("Le travail en profondeur, c'est une période sans interruption sur une seule chose exigeante. Mode d'emploi :")}</p>`,
+              "<ol>",
+              `<li>${t("Choisis un seul sujet et écris-le en une phrase avant de commencer.")}</li>`,
+              `<li>${t("Réserve un bloc de 60 à 90 minutes, à un moment où tu as de l'énergie.")}</li>`,
+              `<li>${t("Coupe les notifications et ferme tout ce qui ne sert pas ce sujet.")}</li>`,
+              `<li>${t("Lance le Timer de Shale : le chrono t'évite de surveiller l'heure.")}</li>`,
+              `<li>${t("À la fin, écris deux lignes : ce qui a avancé, et par où reprendre.")}</li>`,
+              "</ol>",
+              `<p>${t("Un ou deux blocs par jour, c'est déjà beaucoup. Mieux vaut un bloc tenu que quatre prévus.")}</p>`,
+            ].join(""),
+          },
+        ],
+      },
+      {
+        nom: t("Mindset"),
+        couleur: "#8e8bff",
+        fiches: [
+          {
+            titre: t("La revue de fin de journée"),
+            corps: [
+              `<p>${t("Cinq minutes, le soir, toujours au même moment. Trois questions, dans cet ordre :")}</p>`,
+              "<ol>",
+              `<li>${t("Qu'est-ce qui a avancé aujourd'hui ?")}</li>`,
+              `<li>${t("Qu'est-ce qui a coincé, et pourquoi ?")}</li>`,
+              `<li>${t("Quelle est la première chose à faire demain ?")}</li>`,
+              "</ol>",
+              `<p>${t("La troisième question est celle qui compte : c'est elle qui fait que le lendemain commence sans hésiter.")}</p>`,
+              `<p>${t("Faire la revue au même moment chaque soir la rend automatique.")}</p>`,
+            ].join(""),
+          },
+        ],
+      },
+    ],
+    notes: [
+      {
+        titre: t("Exemple · ceci est une note"),
+        avant: `<p>${t("Une note, c'est du texte libre : une idée, un compte rendu, une liste. Tape @ pour citer une tâche, un objectif ou une fiche du Savoir — le lien se voit des deux côtés. Ici, la fiche citée est :")} `,
+        apres: [
+          "</p>",
+          `<p>${t("La tâche « Exemple · tâche répétée chaque jour » est reliée à cette note : ouvre-la pour voir le lien.")}</p>`,
+          `<p>${t("Tu peux tout effacer et écrire ta propre note.")}</p>`,
+        ].join(""),
+        cite: [0, 0],
+      },
+      {
+        titre: t("Modèle · ma revue du soir"),
+        avant: `<p>${t("Le modèle que je recopie chaque soir. La méthode est ici :")} `,
+        apres: [
+          "</p>",
+          `<p><strong>${t("Ce qui a avancé")}</strong></p><p><br></p>`,
+          `<p><strong>${t("Ce qui a coincé")}</strong></p><p><br></p>`,
+          `<p><strong>${t("La première chose de demain")}</strong></p><p><br></p>`,
+        ].join(""),
+        cite: [2, 0],
+      },
+    ],
+    taches: [
+      {
+        label: t("Exemple · tâche répétée chaque jour"),
+        recurrence: "daily",
+        priority: "medium",
+        tag: null,
+        echeanceDans: null,
+        auJalon: false,
+        vers: "note",
+      },
+      {
+        label: t("Exemple · ceci est une tâche, rattachée à une étape"),
+        recurrence: "none",
+        priority: "medium",
+        tag: null,
+        echeanceDans: 5,
+        auJalon: true,
+        vers: null,
+      },
+    ],
+    objectif: {
+      titre: t("Exemple · ceci est un objectif"),
+      description: t("Un objectif est un cap. Il se découpe en étapes, et chaque étape en tâches : l'avancement se calcule tout seul quand tu coches les tâches. Supprime-le quand tu as compris."),
+      etapes: [
+        {
+          titre: t("Exemple · ceci est une étape"),
+          description: t("Une étape est un morceau de l'objectif. Sa priorité (faible, moyenne, élevée) dit par où commencer."),
+          priority: "high",
+        },
+        {
+          titre: t("Exemple · une seconde étape"),
+          description: t("Une étape avance quand ses tâches sont cochées."),
+          priority: "low",
+        },
+      ],
     },
     habitude: {
-      // ⚠️ AUCUNE heure dans ce nom, et aucune durée. Une heure écrite en dur
-      // ('23:00') serait juste en français et fausse en anglais (PIEGES § 4.4),
-      // puisqu'elle partirait en base telle quelle. Et une durée de sommeil
-      // inviterait à être réduite, là qu'une régularité invite à être tenue.
-      nom: t("Me coucher à heure régulière"),
+      // ⚠️ AUCUNE heure ni durée dans ce nom (PIEGES § 4.4).
+      nom: t("Exemple · habitude à cocher chaque jour"),
       couleur: "#8e8bff",
     },
   };

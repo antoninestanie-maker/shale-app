@@ -1621,3 +1621,8 @@ d'abord sur le banc), déployer `ai` avec `--no-verify-jwt`, qu'Antonin pose
 **lui-même** `ANTHROPIC_API_KEY` dans Supabase → Edge Functions → Secrets, poser
 `AI_GLOBAL_MONTHLY_BUDGET_USD`, puis un premier appel réel (`index.ts` n'a jamais
 tourné : pas de Deno sur ce Mac).
+
+## 2026-10-05 — Accueil épuré (cases d'heures, contenu de départ qui explique l'app)
+
+Détail des décisions : `CLAUDE.md`, même date. Ce qui est fait : cases d'heures à la place du curseur ; contenu de départ refondu (« Exemple · … », objectif d'exemple compté dans « Supprimer les N exemples ») ; essai = plan classique sans IA (code app + `create-checkout` + SQL 013 du site, **non déployés**). Vérifié dans le navigateur en compte neuf (démo vidée) : six écrans, exemples créés, calendrier propre, suppression des 12 exemples (objectif compris). Non vérifié : l'app native installée (rebuild à grouper) ; le visuel des cases (seul le texte a été lu côté session).
+
