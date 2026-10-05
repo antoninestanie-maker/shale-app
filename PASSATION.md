@@ -125,7 +125,7 @@ par abonnement, accompagnée d'un site qui la présente, la vend et la distribue
 **Voisins, hors de ce dossier** : `~/Desktop/Shale-chantiers/` (rapports de
 phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 (les cadrages qu'Antonin écrit avant d'ouvrir un chantier),
-`~/Desktop/Shale-brainstorm/`, `~/Desktop/shale-motion/` (les vidéos).
+`~/Desktop/Shale-brainstorm/`, `~/Desktop/Shale marketing/` (le marketing : reels, dont `Shale reels/shale-motion` → disque externe, plans, skills).
 
 ---
 
