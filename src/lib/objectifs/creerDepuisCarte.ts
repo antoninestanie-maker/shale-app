@@ -1,6 +1,7 @@
 import { idDepuisUid } from "../naviguer";
 import { t } from "../i18n";
 import { createGoal, createLink, createTask, majFeuilleDeRoute, rattacherTache, uidDe } from "../repo";
+import { planificationDeSaisie } from "../taches";
 import type { Goal } from "../types";
 import type { EtapePlan, PlanObjectif, RessourcePlan, TachePlan } from "./carte";
 
@@ -155,9 +156,11 @@ async function garnir(
     await createTask({
       label: t.titre,
       tag: null,
-      priority: "medium",
+      priority: t.priorite ?? "medium",
       recurrence: "none",
       goal_id: goalId,
+      // ⚠️ La date passe par la frontière unique datée / récurrente.
+      ...planificationDeSaisie("none", t.echeance ?? "", "", ""),
     });
     comptes.taches++;
   }

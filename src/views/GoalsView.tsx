@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GoalModal from "../components/GoalModal";
+import ImporterChecklist from "../components/objectifs/ImporterChecklist";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
 import { IconCarte, IconPencil, IconPlus, IconTrash } from "../components/icons";
@@ -138,6 +139,7 @@ export default function GoalsView({ data, refresh }: Props) {
   }, []);
 
   const { goals, tasks, completions } = data;
+  const [important, setImportant] = useState(false);
   const goalsRef = useRef(goals);
   goalsRef.current = goals;
 
@@ -560,6 +562,16 @@ export default function GoalsView({ data, refresh }: Props) {
       {!(isPhone && choisi) && (
         <header className="view-head shrink-0">
           <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setImportant(true)}
+            data-tip={t("Importer une checklist")}
+            data-tip-sub={t("Demande-la à une IA, colle sa réponse : elle devient un objectif.")}
+            className="pill border border-border bg-surface-2 px-4 py-2 text-sm font-medium text-text"
+          >
+            {t("Importer")}
+          </button>
           <button
             type="button"
             onClick={nouvelObjectif}
@@ -569,6 +581,7 @@ export default function GoalsView({ data, refresh }: Props) {
           >
             {t("+ Nouvel objectif")}
           </button>
+          </div>
         </header>
       )}
 
@@ -613,6 +626,8 @@ export default function GoalsView({ data, refresh }: Props) {
           onFermer={() => setEnCarte(null)}
         />
       )}
+
+      {important && <ImporterChecklist onFermer={() => setImportant(false)} />}
 
       {(creating || editing) && (
         <GoalModal

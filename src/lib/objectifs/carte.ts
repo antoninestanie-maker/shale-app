@@ -6,7 +6,7 @@ import {
   type RefNoeud,
 } from "../carte";
 import { t } from "../i18n";
-import type { Goal, Habit, LinkKind, Task } from "../types";
+import type { Goal, Habit, LinkKind, Priority, Task } from "../types";
 import type { KindCarte } from "../carte";
 import { rattachementsDe, type ContexteObjectifs } from "./contexte";
 import { uidDeLigne } from "./progression";
@@ -251,6 +251,9 @@ function refDe(kind: LinkKind, ligne: { id: number; uid?: string | null }): RefN
 export interface TachePlan {
   titre: string;
   ref?: RefNoeud;
+  /** 'YYYY-MM-DD' — posé par l'import d'une checklist, jamais par une carte. */
+  echeance?: string;
+  priorite?: Priority;
 }
 
 /** Une note, une fiche ou un événement cité par la carte : rattaché par une arête. */
