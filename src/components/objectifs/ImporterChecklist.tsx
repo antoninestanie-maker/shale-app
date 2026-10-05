@@ -39,6 +39,23 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [copie, setCopie] = useState(false);
   const champ = useRef<HTMLTextAreaElement>(null);
+  const fichier = useRef<HTMLInputElement>(null);
+  const [survol, setSurvol] = useState(false);
+
+  /** Lit un fichier .md / .txt : le même texte que s'il avait été collé. */
+  const lire = async (f: File | undefined | null) => {
+    if (!f) return;
+    if (f.size > 1_000_000) {
+      setErreur(t("Ce fichier est trop gros pour une checklist."));
+      return;
+    }
+    try {
+      setTexte(await f.text());
+      setErreur(null);
+    } catch {
+      setErreur(t("Ce fichier n'a pas pu être lu."));
+    }
+  };
 
   const plan = useMemo(() => lireChecklist(texte), [texte]);
   const comptes = useMemo(() => (plan ? comptesDuPlan(plan) : null), [plan]);
@@ -123,15 +140,45 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
           {t("Colle la consigne dans ChatGPT, Claude, Gemini… puis reviens ici avec sa réponse.")}
         </p>
 
-        <p className="hud-label mt-4">{t("2 · Coller la réponse")}</p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="hud-label">{t("2 · Coller la réponse")}</p>
+          <button
+            type="button"
+            onClick={() => fichier.current?.click()}
+            className="pill cible-tactile-ligne border border-border bg-surface-2 px-3 py-1 text-xs font-medium text-text"
+          >
+            {t("Choisir un fichier (.md, .txt)")}
+          </button>
+          <input
+            ref={fichier}
+            type="file"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            className="hidden"
+            onChange={(e) => {
+              void lire(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </div>
         <textarea
+          onDragOver={(e) => {
+            e.preventDefault();
+            setSurvol(true);
+          }}
+          onDragLeave={() => setSurvol(false)}
+          onDrop={(e) => {
+            if (e.dataTransfer.files.length === 0) return;
+            e.preventDefault();
+            setSurvol(false);
+            void lire(e.dataTransfer.files[0]);
+          }}
           ref={champ}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           rows={8}
           spellCheck={false}
           placeholder={t("# Mon objectif\n## Une étape\n- [ ] Une tâche @2026-12-01 !haute")}
-          className="mt-1.5 w-full resize-y rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+          className={`mt-1.5 w-full resize-y rounded-[10px] border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none ${survol ? "border-blue" : "border-border"}`}
         />
 
         {plan && !vide && comptes && (

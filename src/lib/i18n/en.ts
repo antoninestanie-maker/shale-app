@@ -3392,4 +3392,6 @@ export const EN: Record<string, string> = {
   "{n} lignes ignorées": "{n} lines ignored",
   "Demande-la à une IA, colle sa réponse : elle devient un objectif.": "Ask an AI, paste its answer: it becomes a goal.",
   "# Mon objectif\n## Une étape\n- [ ] Une tâche @2026-12-01 !haute": "# My goal\n## A step\n- [ ] A task @2026-12-01 !high",
+  "Ce fichier est trop gros pour une checklist.": "This file is too big for a checklist.",
+  "Choisir un fichier (.md, .txt)": "Choose a file (.md, .txt)",
 };
