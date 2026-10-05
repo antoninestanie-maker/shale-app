@@ -1674,10 +1674,61 @@
   will-change: transform, opacity;
 }
 .entree-copie[data-phase="poser"] {
-  animation: entree-tenir var(--dur-base) linear both;
+  animation: entree-tenir var(--entree-poser, 1000ms) linear both;
 }
 .entree-copie[data-origine="froid"][data-phase="poser"] {
-  animation: entree-apparaitre var(--dur-base) var(--ease-out-quint) both;
+  animation: entree-apparaitre var(--entree-poser, 1000ms) var(--ease-out-quint) both;
+}
+
+/* ── Le liseré bleu (reel 014) ──────────────────────────────────────────────
+   Le temps 1 dure une seconde : la marque arrive (ou reste), marque un arrêt,
+   puis un liseré bleu fait un tour de sa plaque — avant que l'approche ne la
+   lance vers nous.
+
+   Un anneau fixe (masque : plaque pleine moins son intérieur) dans lequel
+   tourne un dégradé conique. Seul le dégradé bouge, et par `transform` : rien
+   d'autre n'est animé (règle de la transition). Les 22 % d'arrondi suivent le
+   `rx` de la plaque (5,3 sur 24). */
+.entree-lisere {
+  position: absolute;
+  inset: 0;
+  border-radius: 22%;
+  padding: 1.5px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.entree-lisere-comete {
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 215deg,
+    color-mix(in srgb, var(--color-blue) 35%, transparent) 285deg,
+    var(--color-blue) 342deg,
+    #8fd0ff 360deg
+  );
+}
+.entree-copie[data-phase="poser"] .entree-lisere {
+  animation: entree-lisere-vie var(--entree-poser, 1000ms) linear both;
+}
+.entree-copie[data-phase="poser"] .entree-lisere-comete {
+  animation: entree-lisere-tour var(--entree-poser, 1000ms) cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+/* L'arrêt (les 18 premiers %), le tour (jusqu'à 92 %), puis le liseré s'éteint. */
+@keyframes entree-lisere-vie {
+  0%, 16% { opacity: 0; }
+  24% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes entree-lisere-tour {
+  0%, 16% { transform: rotate(-120deg); }
+  100% { transform: rotate(240deg); }
 }
 .entree-copie[data-phase="approche"] {
   /* ⚠️ ease IN, pas out : la marque ACCÉLÈRE vers l'écran. C'est la seule

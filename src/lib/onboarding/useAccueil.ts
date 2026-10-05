@@ -36,7 +36,12 @@ import { accueilNecessaire } from "./semer";
  * seules les heures déclarées peuvent être écrasées par les plus récentes. Un
  * accueil rejoué une fois vaut mieux qu'une app sans réglages.
  */
-const DELAI_MAX = 8000;
+// ⭐ 2026-10-05 (Antonin : « la page Bienvenue met énormément de temps à
+// s'afficher ») : 8 s → 3 s, et on n'attend plus que si la synchronisation est
+// RÉELLEMENT en train de travailler (`active`). Verrouillée, inactive ou
+// orpheline, elle ne produira jamais de premier succès : attendre ne servait
+// qu'à rester huit secondes devant un écran vide.
+const DELAI_MAX = 3000;
 
 export type EtatAccueil = "indecis" | "requis" | "fait";
 
@@ -53,7 +58,7 @@ export function useAccueil(): { etat: EtatAccueil; terminer: () => void } {
 
   useEffect(() => {
     if (tranche.current) return;
-    const rienAAttendre = statut === "indisponible";
+    const rienAAttendre = statut !== "active";
     if (!rienAAttendre && dernierSucces == null && !delaiEcoule) return;
     tranche.current = true;
     let vivant = true;

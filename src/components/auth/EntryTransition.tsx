@@ -31,7 +31,9 @@ const ANIMATION_DE: Record<string, EtatEntree> = {
   // existe toujours. C'est cette dernière qui fait foi. (Voir le § « LE TEMPS 1
   // EST PORTÉ PAR LA COPIE » de `src/index.css` : sans elle, l'ouverture à
   // froid restait bloquée 2,5 s.)
-  "entree-effacer": "poser",
+  // ⚠️ `entree-effacer` n'est PLUS une horloge (2026-10-05) : le temps 1 dure
+  // maintenant ~1 s (arrivée, arrêt, liseré bleu) et le formulaire s'efface en
+  // 200 ms — s'il faisait avancer la machine, le liseré serait coupé net.
   "entree-tenir": "poser",
   "entree-apparaitre": "poser",
   "entree-approche": "approche",
@@ -60,7 +62,7 @@ const PARALLAXE = [1.0, 1.06, 1.12, 1.18] as const;
  * Le filet. Un chargement bloqué ne doit JAMAIS piéger quelqu'un derrière un
  * logo : au pire, on saute à l'état final et l'app apparaît telle qu'elle est.
  */
-const EXPIRATION_MS = 2500;
+const EXPIRATION_MS = 4500;
 
 function prefereMoinsDeMouvement(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -228,6 +230,11 @@ export function VoileEntree({
           aria-hidden
         >
           <ShaleMark size="100%" parallaxe={PARALLAXE} />
+          {/* Le liseré bleu du reel 014 : un point de lumière qui fait le tour de
+              la plaque pendant l'arrêt. Voir `src/index.css`, `.entree-lisere`. */}
+          <span className="entree-lisere" aria-hidden>
+            <span className="entree-lisere-comete" />
+          </span>
         </div>
       )}
     </>
