@@ -37,7 +37,21 @@
       "Bash(/bin/sleep 2.5)",
       "Bash(pkill -f \"target/debug/second-brain\")",
       "Bash(/bin/sleep 1)",
-      "Bash(pkill -f \"vite\")"
+      "Bash(pkill -f \"vite\")",
+      "Bash(git reset *)"
     ]
+  },
+  "enabledPlugins": {
+    "command-suite@atelier": true,
+    "feature-dev@claude-code-plugins": true,
+    "pr-review-toolkit@claude-code-plugins": true,
+    "commit-commands@claude-code-plugins": true,
+    "ui-ux-pro-max@atelier": true,
+    "design-web@atelier": true,
+    "soundweaver@atelier": true,
+    "fullstack-dev-skills@atelier": true,
+    "builder-design@atelier": true,
+    "builder-dev@atelier": true,
+    "security-defensive@atelier": true
   }
 }

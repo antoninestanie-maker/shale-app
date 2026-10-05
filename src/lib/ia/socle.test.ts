@@ -75,9 +75,9 @@ describe("le droit « IA » dans les droits du compte", () => {
   const sub = (status: string, tier: string): Subscription =>
     ({ status, tier, plan: null, current_period_end: null, trial_days_left: null }) as unknown as Subscription;
 
-  it("Pro payé et essai Pro : oui ; Business, base, Trade, impayé, essai échu : non", () => {
+  it("Pro payé : oui ; essai, Business, base, Trade, impayé : non", () => {
     expect(entitlementsOf(sub("active", "shale_pro")).aIa).toBe(true);
-    expect(entitlementsOf(sub("trialing", "shale_pro")).aIa).toBe(true);
+    expect(entitlementsOf(sub("trialing", "shale_pro")).aIa).toBe(false);
     for (const [st, ti] of [
       ["active", "shale_business"],
       ["active", "shale"],
