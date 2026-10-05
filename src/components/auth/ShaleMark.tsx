@@ -26,9 +26,9 @@ export default function ShaleMark({
   relief = false,
 }: {
   /**
-   * La marque en VOLUME, pour la transition d'entrée seulement (2026-10-06,
-   * Antonin : « ça fait trop dessin ») : plaque en dégradé avec un filet de
-   * lumière en haut, barres franches, barre d'accent au dégradé de marque.
+   * La plaque « Nuit » de la transition d'entrée (choix d'Antonin, 2026-10-06,
+   * parmi six pistes) : noire, un filet à peine visible, SANS barres — la
+   * transition les dessine elle-même pour les allumer (`.entree-barre`).
    * Partout ailleurs la marque reste plate — c'est une marque, pas une icône.
    */
   relief?: boolean;
@@ -52,23 +52,6 @@ export default function ShaleMark({
       aria-hidden
       style={{ display: "block" }}
     >
-      {relief && (
-        <defs>
-          <linearGradient id="entree-plaque" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="color-mix(in srgb, var(--color-surface-2) 90%, white)" />
-            <stop offset="1" stopColor="var(--color-surface)" />
-          </linearGradient>
-          <linearGradient id="entree-filet" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="white" stopOpacity="0.34" />
-            <stop offset="0.45" stopColor="white" stopOpacity="0.07" />
-            <stop offset="1" stopColor="white" stopOpacity="0.03" />
-          </linearGradient>
-          <linearGradient id="entree-accent" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="var(--gradient-brand-from)" />
-            <stop offset="1" stopColor="var(--gradient-brand-to)" />
-          </linearGradient>
-        </defs>
-      )}
       {/* Plaque + filet : la marque doit rester lisible sur la surface de
           l'app, dans les deux thèmes. Le rect est rentré d'un demi-pixel pour
           que le trait de 1 tombe net. */}
@@ -78,11 +61,13 @@ export default function ShaleMark({
         width="23"
         height="23"
         rx="5"
-        fill={relief ? "url(#entree-plaque)" : "var(--color-surface-2)"}
-        stroke={relief ? "url(#entree-filet)" : "var(--color-border)"}
-        strokeWidth={relief ? "0.45" : "1"}
+        fill={relief ? "black" : "var(--color-surface-2)"}
+        stroke={relief ? "rgb(255 255 255 / 0.12)" : "var(--color-border)"}
+        strokeWidth={relief ? "0.2" : "1"}
       />
-      {BARS.map((b, i) => (
+      {/* En relief, les barres sont dessinées par la transition (des éléments
+          HTML, un calque chacun) : elles s'allument sans redessiner le SVG. */}
+      {!relief && BARS.map((b, i) => (
         <rect
           key={b.y}
           className={parallaxe ? "entree-strate" : undefined}
@@ -94,15 +79,7 @@ export default function ShaleMark({
           width={b.w}
           height="3"
           rx="1.5"
-          fill={
-            b.accent
-              ? relief
-                ? "url(#entree-accent)"
-                : "var(--color-blue)"
-              : relief
-                ? "var(--color-success)"
-                : "var(--color-text)"
-          }
+          fill={b.accent ? "var(--color-blue)" : "var(--color-text)"}
         />
       ))}
     </svg>

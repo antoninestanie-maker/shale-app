@@ -235,6 +235,12 @@ export function VoileEntree({
             </span>
           ))}
           <ShaleMark size="100%" relief />
+          {/* Les quatre strates, éteintes puis allumées au passage du liseré ;
+              la troisième (l'accent) brille dès le début. Géométrie de
+              `ShaleMark`, en pourcentages de la plaque. */}
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="entree-barre" data-i={i} aria-hidden />
+          ))}
         </div>
       )}
     </>

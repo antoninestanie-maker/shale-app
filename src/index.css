@@ -1790,16 +1790,48 @@
     transparent 360deg
   );
 }
-/* La plaque a une ombre portée et un souffle bleu : elle flotte, elle n'est
-   pas posée à plat. Statiques — ils suivent la couche, rien n'est recalculé. */
+/* Variante « Nuit » (choix d'Antonin, 2026-10-06) : plaque noire, ombre
+   profonde, pas de souffle bleu — la seule lumière vient de la barre d'accent
+   et du liseré. Statique : rien n'est recalculé pendant le vol. */
 .entree-copie::before {
   content: "";
   position: absolute;
   inset: 2%;
   border-radius: 22%;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.85);
+}
+/* Les strates : des éléments HTML par-dessus la plaque, un calque chacun,
+   pour que leur allumage ne soit que de l'`opacity`. Géométrie de `ShaleMark`
+   (x 4, y 3·8·13·18, largeurs 16 · 10,88 · 16 · 7,36, épaisseur 3, sur 24). */
+.entree-barre {
+  position: absolute;
+  z-index: 2;
+  left: 16.667%;
+  height: 12.5%;
+  border-radius: 999px;
+  background: white;
+  will-change: opacity;
+}
+.entree-barre[data-i="0"] { top: 12.5%; width: 66.667%; }
+.entree-barre[data-i="1"] { top: 33.333%; width: 45.333%; }
+.entree-barre[data-i="2"] {
+  top: 54.167%;
+  width: 66.667%;
+  background: linear-gradient(90deg, var(--gradient-brand-from), var(--gradient-brand-to));
   box-shadow:
-    0 22px 60px rgb(0 0 0 / 0.55),
-    0 0 90px color-mix(in srgb, var(--gradient-brand-from) 22%, transparent);
+    0 0 22px color-mix(in srgb, var(--gradient-brand-to) 80%, transparent),
+    0 0 60px color-mix(in srgb, var(--gradient-brand-from) 50%, transparent);
+}
+.entree-barre[data-i="3"] { top: 75%; width: 30.667%; }
+.entree-copie[data-phase="poser"] .entree-barre:not([data-i="2"]) {
+  animation: entree-allumage var(--entree-poser, 1000ms) linear both;
+}
+.entree-copie[data-phase="poser"] .entree-barre[data-i="1"] { animation-delay: 50ms; }
+.entree-copie[data-phase="poser"] .entree-barre[data-i="3"] { animation-delay: 100ms; }
+/* Éteintes à l'arrivée, allumées quand le liseré passe (il naît à 26 %). */
+@keyframes entree-allumage {
+  0%, 30% { opacity: 0.22; }
+  52%, 100% { opacity: 1; }
 }
 .entree-copie[data-phase="poser"] .entree-lisere {
   animation: entree-lisere-vie var(--entree-poser, 1000ms) linear both;
@@ -1871,6 +1903,7 @@
   .entree-copie[data-phase="poser"],
   .entree-copie[data-phase="approche"],
   .entree-copie[data-phase="traversee"],
+  .entree-copie .entree-barre,
   [data-entree="poser"] .entree-part {
     animation: none !important;
   }
