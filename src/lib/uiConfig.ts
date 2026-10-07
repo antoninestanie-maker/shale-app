@@ -58,7 +58,7 @@ export const WIDGET_LABELS: Record<string, string> = {
   discipline: "Anneau discipline",
   energy: "Énergie restante (charge mentale)",
   timer: "Timer rapide",
-  week: "Graphique 7 jours",
+  habitudes: "Habitudes à tenir (Journal)",
   position: "Calculateur de position (widget)",
   quicklinks: "Liens rapides",
   tasks: "Tâches du jour",
@@ -80,7 +80,7 @@ const DEFAULTS: UiConfig = {
     { id: "discipline", visible: true },
     { id: "energy", visible: true },
     { id: "timer", visible: true },
-    { id: "week", visible: true },
+    { id: "habitudes", visible: true },
     { id: "position", visible: true },
     { id: "quicklinks", visible: true },
   ],
@@ -117,15 +117,28 @@ function mergeList<T extends { id: string }>(saved: T[] | undefined, defs: T[]):
   return [...kept, ...defs.filter((d) => !seen.has(d.id))];
 }
 
-function mergeConfig(raw: unknown): UiConfig {
+/**
+ * ⭐ 2026-10-07 — le graphique « 7 derniers jours » (`week`) a laissé sa place
+ * aux habitudes à tenir. Une disposition enregistrée avant cette date porte
+ * encore `week` : on le RENOMME à sa place plutôt que de laisser `mergeList`
+ * le jeter et rajouter le nouveau widget tout en bas. Et on le rallume — avoir
+ * masqué le graphique ne dit rien de ce qu'on veut faire des habitudes.
+ */
+function sansGraphiqueSemaine(liste: WidgetConfig[] | undefined): WidgetConfig[] | undefined {
+  if (!Array.isArray(liste)) return liste;
+  const dejaLa = liste.some((w) => w?.id === "habitudes");
+  return liste.map((w) => (w?.id === "week" && !dejaLa ? { id: "habitudes", visible: true } : w));
+}
+
+export function mergeConfig(raw: unknown): UiConfig {
   const d = defaultUiConfig();
   if (!raw || typeof raw !== "object") return d;
   const c = raw as Partial<UiConfig>;
   return {
     modules: mergeList(c.modules as ModuleConfig[], d.modules),
-    dashTop: mergeList(c.dashTop, d.dashTop),
-    dashLeft: mergeList(c.dashLeft, d.dashLeft),
-    dashRight: mergeList(c.dashRight, d.dashRight),
+    dashTop: mergeList(sansGraphiqueSemaine(c.dashTop), d.dashTop),
+    dashLeft: mergeList(sansGraphiqueSemaine(c.dashLeft), d.dashLeft),
+    dashRight: mergeList(sansGraphiqueSemaine(c.dashRight), d.dashRight),
     window:
       c.window && typeof c.window.width === "number" && typeof c.window.height === "number"
         ? { width: c.window.width, height: c.window.height }

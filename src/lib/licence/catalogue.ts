@@ -69,8 +69,7 @@ export function estVueSysteme(v: unknown): boolean {
 /**
  * Le module dont chaque widget du tableau de bord montre le contenu. Un widget
  * dont le module est masqué par le profil sort de la grille avec lui. Les
- * widgets absents de cette table (discipline, énergie, graphique 7 jours,
- * liens rapides) agrègent plusieurs modules et restent.
+ * widgets absents de cette table (discipline, énergie, liens rapides) agrègent plusieurs modules et restent.
  * ⚠️ Tenu par `catalogue.test.ts` contre `WIDGET_LABELS` de `uiConfig.ts`.
  */
 export const MODULE_DU_WIDGET: Readonly<Record<string, ModuleProfil>> = {
@@ -78,6 +77,7 @@ export const MODULE_DU_WIDGET: Readonly<Record<string, ModuleProfil>> = {
   tasks: "tasks",
   goals: "goals",
   calendar: "calendar",
+  habitudes: "journal",
   position: "sizing",
 };
 

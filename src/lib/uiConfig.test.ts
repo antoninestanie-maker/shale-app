@@ -3,7 +3,7 @@
 // d'AMELIORATIONS-UI.md dit comment, et ce qu'elle a rendu).
 import { describe, expect, it } from "vitest";
 
-import { facteurDynamicType } from "./uiConfig";
+import { defaultUiConfig, facteurDynamicType, mergeConfig } from "./uiConfig";
 
 describe("facteurDynamicType", () => {
   it("ne touche à rien quand la taille système est inconnue", () => {
@@ -41,5 +41,35 @@ describe("facteurDynamicType", () => {
     // Le garde tient aux deux bouts, quoi que rende le moteur.
     expect(facteurDynamicType(1000)).toBe(1.25);
     expect(facteurDynamicType(0)).toBe(0.9);
+  });
+});
+
+// 2026-10-07 — le graphique « 7 derniers jours » a laissé sa place aux
+// habitudes à tenir. Une disposition enregistrée avant porte encore `week`.
+describe("mergeConfig — le widget `week` devient `habitudes`", () => {
+  const ids = (l: { id: string }[]) => l.map((w) => w.id);
+
+  it("ne connaît plus `week` par défaut", () => {
+    const d = defaultUiConfig();
+    expect(ids([...d.dashTop, ...d.dashLeft, ...d.dashRight])).not.toContain("week");
+    expect(ids(d.dashLeft)).toContain("habitudes");
+  });
+
+  it("le renomme À SA PLACE, et le rallume même s'il était masqué", () => {
+    const c = mergeConfig({
+      dashLeft: [
+        { id: "timer", visible: true },
+        { id: "week", visible: false },
+        { id: "discipline", visible: true },
+      ],
+    });
+    expect(ids(c.dashLeft).slice(0, 3)).toEqual(["timer", "habitudes", "discipline"]);
+    expect(c.dashLeft[1].visible).toBe(true);
+    expect(ids(c.dashLeft).filter((id) => id === "habitudes")).toHaveLength(1);
+  });
+
+  it("respecte un choix fait depuis : `habitudes` masqué le reste", () => {
+    const c = mergeConfig({ dashLeft: [{ id: "habitudes", visible: false }] });
+    expect(c.dashLeft.find((w) => w.id === "habitudes")?.visible).toBe(false);
   });
 });

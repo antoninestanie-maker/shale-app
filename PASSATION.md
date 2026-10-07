@@ -1626,3 +1626,9 @@ tourné : pas de Deno sur ce Mac).
 
 Détail des décisions : `CLAUDE.md`, même date. Ce qui est fait : cases d'heures à la place du curseur ; contenu de départ refondu (« Exemple · … », objectif d'exemple compté dans « Supprimer les N exemples ») ; essai = plan classique sans IA (code app + `create-checkout` + SQL 013 du site, **non déployés**). Vérifié dans le navigateur en compte neuf (démo vidée) : six écrans, exemples créés, calendrier propre, suppression des 12 exemples (objectif compris). Non vérifié : l'app native installée (rebuild à grouper) ; le visuel des cases (seul le texte a été lu côté session).
 
+
+## 2026-10-07 — Aujourd'hui : « Habitudes à tenir » à la place du graphique 7 jours
+
+Décisions : `CLAUDE.md`, même date. **Fait** : widget `habitudes` (cochable, série, ↗ vers le Journal), `WeekChart.tsx` supprimé, disposition enregistrée migrée à la lecture (`mergeConfig`), 3 tests (`uiConfig.test.ts`). Aucune migration, aucun Rust.
+**Vu à l'écran** (Chrome sans fenêtre, mode démo, vrais clics souris) : la carte affiche 3 habitudes et « 1/3 » ; cocher « Sport » → « 2/3 », série 0 → 1 ; la poignée ↗ ouvre le Journal, où « Sport » est cochée. Plus de « 7 derniers jours » dans la page.
+**Pas vu** : au doigt (iPhone), l'anglais à l'écran (clés présentes, `i18n:check` vert), l'état vide (« Aucune habitude pour l'instant. »).

@@ -849,3 +849,7 @@ Notes de version, Tarifs l. 132) restent vraies : **non touchées**.
 été faite. L'IA est un ajout, pas un retrait — mais B1 doit être corrigé le jour
 même où l'IA s'ouvre. ⚠️ Le chantier `accueil-epure` (autre session, non fusionné)
 réécrit l'accueil : appliquer ce lot PAR-DESSUS, pas avant.
+
+## X — Aujourd'hui : habitudes à tenir à la place du graphique 7 jours (app, 2026-10-07)
+
+Les quatre captures `shots/v2/*aujourdhui.webp` montrent encore la carte « 7 derniers jours ». À refaire à la prochaine série de captures ; aucun texte du site ne cite ce graphique (vérifié par `grep` dans `vitrine/src`).
