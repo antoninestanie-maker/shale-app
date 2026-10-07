@@ -3163,7 +3163,7 @@ construite ni regardée** — c'est fait dans ce chantier (§ 28.5).
 | **Manifeste de confidentialité** | `gen/apple/PrivacyInfo.xcprivacy` | exigé par Apple à l'envoi. Déclare : aucun suivi ; e-mail, identifiant de compte et contenu utilisateur (fonctionnement de l'app, liés au compte) ; trois « API à motif obligatoire » (dates de fichiers `C617.1`, temps depuis le démarrage `35F9.1`, préférences `CA92.1`). ⚠️ Liste établie **par lecture du code** : le premier envoi dira s'il en manque une (courriel « ITMS-91053 ») |
 | **Texte d'autorisation de l'appareil photo** | `project.yml` → `Info.plist` (anglais), `shale_iOS/fr.lproj` et `en.lproj/InfoPlist.strings` | « Insérer une image » (Notes, Savoir) est un `<input type="file" accept="image/*">` : iOS y propose « Prendre une photo », et **ferme l'app** si ce texte manque. ⚠️ Raisonné, pas vu : le simulateur n'a pas d'appareil photo |
 | **iOS 17.0 minimum** (était 14.0) | `project.yml`, `tauri.conf.json` (`bundle.iOS.minimumSystemVersion`) — les deux doivent rester égaux | l'app n'a tourné que sous iOS 26 ; son affichage repose sur `color-mix` (iOS 16.2) et d'autres fonctions récentes de WebKit. Promettre iOS 14 aurait livré une app cassée sur des téléphones jamais essayés |
-| **iPhone seul** (`TARGETED_DEVICE_FAMILY: "1"`, était `"1,2"`) | `project.yml` | ⚠️ **À CONFIRMER par Antonin.** Avec l'iPad : captures iPad obligatoires et relecture sur iPad, jamais essayé. On peut l'ajouter plus tard, pas le retirer une fois publié |
+| ~~iPhone seul~~ → **iPhone ET iPad** (`TARGETED_DEVICE_FAMILY: "1,2"`) | `project.yml` | « iPhone seul » avait été préparé le 2026-10-06 ; **Antonin a tranché le 2026-10-07 : toutes les tailles, iPad compris.** Conséquences : captures iPad 13 pouces obligatoires, relecture d'Apple sur iPad, et l'iPad ne se retire plus une fois publié. Voir § 28.10 |
 | **Lien « Politique de confidentialité »** | `SettingsView` (carte « compte »), `PAGE_CONFIDENTIALITE` dans `auth/config.ts` | règle 5.1.1(i) : le lien doit être dans la fiche **et dans l'app**. Ce n'est pas une page d'achat : il ne passe pas par `lib/boutique.ts` et s'affiche aussi sur iPhone. ⚠️ La page du site a un menu qui mène aux tarifs — une page sans menu serait plus sûre (`DETTE-SITE.md`) |
 
 ⚠️ **Après toute modification de `project.yml` : `xcodegen generate` dans
@@ -3341,7 +3341,7 @@ est le contrôle.
 | 2 | App Store Connect → « Business » : accepter les contrats, déclarer le statut DSA | Antonin |
 | 3 | Xcode → Settings → Accounts : vérifier que l'équipe payante apparaît. Donner son identifiant d'équipe à Claude | Antonin (un coup d'œil) |
 | 4 | Remplacer `DEVELOPMENT_TEAM` (`QXU2BNU373`, équipe gratuite) dans `project.yml`, puis `xcodegen generate` | Claude |
-| 5 | **Décider le numéro de version** (0.1.0 aujourd'hui, 1.0.0 conseillé) — `tauri.conf.json`, partagé avec l'app Mac | Antonin décide, Claude écrit |
+| 5 | ~~Décider le numéro de version~~ — ✅ **0.8.0**, décidé et écrit le 2026-10-07 (`tauri.conf.json`, `Cargo.toml`, `package.json`, `project.yml` : les quatre bougent ensemble ; l'app Mac la portera à son prochain build). Chaque envoi à Apple demande en plus un **numéro de build** croissant | fait |
 | 6 | **Décider la réponse sur le chiffrement** (§ 28.8) et l'écrire dans `Info.plist` (`ITSAppUsesNonExemptEncryption`) | Antonin décide, Claude écrit |
 | 7 | Créer la fiche : App Store Connect → « Apps » → « + » → plateforme iOS, nom, langue principale français, identifiant `com.atnfx.shale`, SKU `shale-ios` | Antonin (ou Claude dans le navigateur, connecté par Antonin) |
 | 8 | Construire pour l'App Store : `npm run tauri ios build -- --export-method app-store-connect` (⚠️ exiger 8 Go libres ou garder le cache sur le disque externe, § 28.9). Produit un `.ipa` | Claude |
@@ -3350,7 +3350,7 @@ est le contrôle.
 | 11 | **TestFlight** : s'ajouter comme testeur interne, installer l'app sur l'iPhone réel par l'app TestFlight | Antonin |
 | 12 | **Le parcours au doigt, sur le vrai iPhone** — jamais fait depuis le 27 août : connexion, compte sans abonnement, synchronisation dans les deux sens avec le Mac, rappels, bouton Action, « Prendre une photo », et les dettes des § 26 et 27 | Antonin, avec Claude |
 | 13 | Créer le compte de démonstration (checklist hors dépôt), jouer le SQL, y mettre un peu de contenu | Antonin |
-| 14 | Produire les six captures en 1320 × 2868 (simulateur iPhone 17 Pro Max, compte de démonstration), en français et en anglais | Claude |
+| 14 | Produire les six captures en 1320 × 2868 (simulateur iPhone 17 Pro Max) **et en 2064 × 2752 (iPad Pro 13 pouces)**, avec le compte de démonstration, en français et en anglais | Claude |
 | 15 | Remplir la fiche avec le fichier de textes ; « Confidentialité de l'app » ; âge ; catégorie ; prix gratuit ; pays | Antonin colle, ou Claude dans le navigateur |
 | 16 | « App Review Information » : identifiants du compte de démonstration (saisis par Antonin, **nulle part ailleurs**), la note du § 28.6, un contact | Antonin |
 | 17 | Choisir « Publier manuellement », puis « Soumettre pour vérification » | Antonin |
@@ -3399,3 +3399,39 @@ sort `rustls` du binaire.
 - **Le simulateur de travail est l'iPhone 17 Pro**, en mode démonstration
   (patch local de `PASSATION.md` § 13.2, jamais commité). **L'iPhone 17, où
   Antonin est connecté, n'a pas été touché.**
+
+### 28.10 iPhone ET iPad, version 0.8.0 (2026-10-07)
+
+**Décisions d'Antonin, 2026-10-07** : l'app s'adapte à tous les formats (iPhone
+de toutes tailles et iPad) ; version **0.8.0** ; inscription au programme en
+**individuel** ; le chiffrement (§ 28.8) et les coordonnées publiques du statut
+européen se décideront plus tard.
+
+**Comment l'app choisit sa mise en page — rien n'est lié à un modèle.**
+`useIsPhone()` (`lib/platform.ts`) mesure : écran étroit OU bas (600 pt) ET
+pointeur au doigt → barre d'onglets ; sinon → barre latérale, repliée en icônes
+sous 1024 pt. Un iPad en grand prend donc la mise en page du Mac, un iPad en
+Split View étroit ou en Slide Over prend celle du téléphone, et un format
+d'iPhone qui n'existe pas encore suit sa largeur. ⚠️ Le simulateur d'Xcode 26.6
+ne connaît aucun « iPhone Duo » : rien n'a pu être essayé sous ce nom.
+
+**Ce qui manquait pour l'iPad, et qui est ajouté** : les réserves de zone sûre
+n'étaient posées que pour le téléphone. Sur iPad en grand, le contenu passait
+sous l'heure système et le pied de la barre latérale sous la barre d'accueil.
+`App.tsx` (haut, droite, bas) et `Sidebar.tsx` (bas, gauche) les posent
+désormais sous `IS_IOS`. Le Mac n'est pas touché.
+
+**Vu au simulateur (build du 2026-10-07, mode démonstration)**
+
+| Appareil | Ce qui a été vu | Résultat |
+|---|---|---|
+| iPad Pro 13" (1032 pt) | connexion, accueil, Aujourd'hui | barre latérale complète, rien sous l'heure système, pied de barre dégagé |
+| iPad mini (744 pt) | connexion, accueil, Aujourd'hui | barre latérale repliée en icônes, cartes sur deux colonnes, rien sous l'heure, pied dégagé |
+| iPhone 17 Pro (402 pt) | tout le parcours du § 28.3 | barre d'onglets, inchangé |
+
+Captures : `~/Desktop/Shale-chantiers/captures-ios-20261006/` (12 à 14).
+
+⚠️ **Non vu** : iPhone 17e et 17 Pro Max (machine saturée, le simulateur
+rendait un écran blanc), l'iPad en paysage, Split View et Slide Over, les
+autres modules sur iPad (seul Aujourd'hui a été regardé). Les captures de la
+fiche App Store pour iPad (2064 × 2752) restent à faire sur un compte réel.

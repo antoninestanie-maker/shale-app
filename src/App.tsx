@@ -644,7 +644,17 @@ function App() {
                 paddingLeft: "env(safe-area-inset-left)",
                 paddingRight: "env(safe-area-inset-right)",
               }
-            : undefined
+            : IS_IOS
+              ? // iPad en grand (2026-10-07) : la barre latérale occupe le bord
+                // gauche, mais l'heure et la batterie d'iPadOS passent en haut
+                // du contenu. Même réserve, même conteneur non défilant. Sur
+                // Mac ces valeurs vaudraient 0 : `IS_IOS` le dit plutôt que de
+                // le supposer.
+                {
+                  paddingTop: "env(safe-area-inset-top)",
+                  paddingRight: "env(safe-area-inset-right)",
+                }
+              : undefined
         }
       >
         <div
@@ -658,7 +668,10 @@ function App() {
           style={
             isPhone
               ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
-              : undefined
+              : IS_IOS
+                ? // iPad : pas de barre d'onglets, mais la barre d'accueil.
+                  { paddingBottom: "env(safe-area-inset-bottom)" }
+                : undefined
           }
         >
           {/* ⚠️ Ces deux attentes portaient le MÊME texte, « Chargement… », et

@@ -4215,3 +4215,32 @@ le champ et sur son parent flex. Invisible en émulation Chrome : seul le
 simulateur le montre.
 
 **Payé.** 2026-10-06 : c'était le PREMIER écran que voit un nouvel utilisateur.
+
+## 31.7 L'image disque du cache est illisible le lendemain
+
+**Symptôme.** Double-clic sur `cache.sparsebundle` : « Container superblock is
+invalid », le volume ne monte pas, `src-tauri/target` est un lien mort.
+
+**Cause.** Disque externe débranché (ou Mac mis en veille) pendant que l'image
+était montée et qu'un build y écrivait.
+
+**Parade.** Ce n'est qu'un cache : supprimer l'image et la recréer
+(`MOBILE.md` § 28.9), puis accepter un build à cache vide (15 à 25 min).
+Éjecter le volume `ShaleCache` AVANT de débrancher le disque.
+
+**Payé.** 2026-10-07 : une demi-heure de recompilation.
+
+## 31.8 Passer une app iOS à l'iPad ne pose pas les zones sûres
+
+**Symptôme.** Sur iPad, le titre de la vue passe sous l'heure système et le
+pied de la barre latérale sous la barre d'accueil.
+
+**Cause.** Les réserves `env(safe-area-inset-*)` n'étaient posées que dans la
+branche « téléphone » (`useIsPhone()`). L'iPad prend la mise en page du bureau,
+qui n'en avait aucune.
+
+**Parade.** Les poser sous `IS_IOS` sur les conteneurs qui ne défilent pas
+(`App.tsx`, `Sidebar.tsx`). Invisible en émulation : seul le simulateur iPad le
+montre.
+
+**Payé.** 2026-10-07, vu à la première capture sur iPad Pro 13".

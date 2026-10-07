@@ -432,7 +432,7 @@ l'écran, rien ne change pour personne.
 - ⭐ **La soumission à l'App Store est préparée (2026-10-06), pas faite** :
   Antonin n'a pas encore payé le programme développeur (99 $). Le projet Xcode
   a reçu ce qui lui manquait (manifeste de confidentialité, texte de l'appareil
-  photo, iOS 17 minimum, iPhone seul — à confirmer), un lien vers la politique
+  photo, iOS 17 minimum ; **iPhone ET iPad, version 0.8.0** depuis le 2026-10-07), un lien vers la politique
   de confidentialité est dans Réglages, et une fuite a été corrigée (un nom
   d'offre dans Personnaliser). Les textes de la fiche, les réponses de
   confidentialité, la note au relecteur et le SQL du compte de démonstration
@@ -728,6 +728,24 @@ Chantier `chantier/ios-soumission`. Tout le détail : `MOBILE.md` § 28.
 - ⛔ Rien sur un vrai iPhone ; rien de signé ; SQL du compte jamais joué.
 - ⚠️ Rien n'est poussé ni fusionné.
 
+### 11.x Le 2026-10-07 — iPhone ET iPad, version 0.8.0
+
+Décisions d'Antonin : l'app iOS vise tous les formats (iPhone et iPad), la
+version est **0.8.0**, l'inscription Apple se fera en **individuel** ; la
+réponse sur le chiffrement se choisira plus tard. Détail : `MOBILE.md` § 28.10.
+
+- `project.yml` : `TARGETED_DEVICE_FAMILY: "1,2"`, version 0.8.0 (aussi dans
+  `package.json`, `Cargo.toml`, `tauri.conf.json`, le workflow de publication
+  macOS). ⚠️ Le numéro vaut aussi pour le **prochain build Mac**.
+- Zones sûres posées pour l'iPad (`App.tsx`, `Sidebar.tsx`, sous `IS_IOS`) :
+  le contenu passait sous l'heure système. Le Mac n'est pas touché.
+- **Vu au simulateur** (mode démonstration) : iPad Pro 13" et iPad mini —
+  connexion, accueil, Aujourd'hui. **Non vu** : iPhone 17e / Pro Max, paysage,
+  Split View, les autres modules sur iPad.
+- ⚠️ « Coordonnées publiques aussi » : compris comme « à décider plus tard » —
+  **à confirmer par Antonin**.
+- Rien n'est poussé ni fusionné : branche `chantier/ios-soumission`, locale.
+
 ## 12. ▶️ Ce qui reste — et qui décide
 
 **Rien n'est « en cours ».** La file de réparations est vide : tout ce qui suit
@@ -742,7 +760,7 @@ attend une décision d'Antonin, un achat, ou une machine.
 | **Certificat Authenticode Windows** | sans lui, SmartScreen avertit à chaque installation | ~200–400 €/an |
 | **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
 | ⛔ **Publier l'app iPhone** | tout ce qui se fait sans compte développeur est fait (2026-10-06, `MOBILE.md` § 28). Restent : payer, signer, TestFlight, le parcours au doigt sur le vrai iPhone, la fiche, la soumission — 19 gestes ordonnés au § 28.7 | **le même compte Apple Developer, 99 $/an** |
-| **Cinq décisions avant l'envoi à Apple** | iPhone seul ou iPhone + iPad (préparé : iPhone seul) · numéro de version (0.1.0 aujourd'hui) · réponse sur le chiffrement (`MOBILE.md` § 28.8) · inscription en individuel ou en société · coordonnées publiques du statut européen « professionnel » | **Antonin** |
+| **Deux décisions restent avant l'envoi à Apple** | réponse sur le chiffrement (`MOBILE.md` § 28.8) · coordonnées publiques du statut européen « professionnel ». ✅ Tranché le 2026-10-07 : **iPhone ET iPad**, **version 0.8.0**, inscription en **individuel** (`MOBILE.md` § 28.10) | **Antonin** |
 | **Compte de démonstration pour Apple** | la relecture App Store l'exige : un compte **abonné**, adresse dédiée, créé sur le site ; e-mail et mot de passe saisis dans App Store Connect → « Sign-in information », **jamais dans le dépôt**. Le SQL qui l'abonne à la main est prêt, **jamais joué** (`administratif/App Store iPhone/`). La note de relecture a été corrigée le 2026-10-06 (`MOBILE.md` § 28.6 ; celle du § 25.4 est périmée) | quelques minutes |
 | **Achat réel Pro / Business** | le tunnel est en ligne, **aucun achat de bout en bout n'a été fait** sur ces deux offres | un vrai paiement, remboursé ensuite |
 | **Ménage du DerivedData Xcode** | proposé, **sans réponse**. Quatre bundles iOS traînent. Les effacer force une reconstruction complète | un mot |

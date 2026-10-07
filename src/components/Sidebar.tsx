@@ -1,3 +1,4 @@
+import { IS_IOS } from "../lib/platform";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UiConfig } from "../lib/uiConfig";
 import { getSetting, setSetting } from "../lib/repo";
@@ -495,7 +496,13 @@ export default function Sidebar({
     // le `title` : celui-ci est posé sur le libellé, qui est `display: none`
     // sous 1024 px. Un `title` sur un élément non rendu n'affiche rien et ne
     // nomme rien — d'où l'`aria-label` porté par le bouton lui-même.
-    <aside className="glass relative z-10 flex w-16 shrink-0 flex-col border-r border-border lg:w-[232px]">
+    <aside
+      className="glass relative z-10 flex w-16 shrink-0 flex-col border-r border-border lg:w-[232px]"
+      // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
+      // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
+      // bloc de marque, plus haut que l'heure système.
+      style={IS_IOS ? { paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)" } : undefined}
+    >
       {/* Zone de drag fenêtre (barre de titre overlay).
           `="deep"` (et non l'attribut nu) : avec l'attribut nu, Tauri ne
           déclenche le drag que sur un clic DIRECT sur l'élément porteur

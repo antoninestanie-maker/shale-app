@@ -67,8 +67,11 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.1.0
-        CFBundleVersion: "0.1.0"
+        # 0.8.0 depuis le 2026-10-07 (décision d'Antonin). Le numéro vit AUSSI
+        # dans `tauri.conf.json`, `Cargo.toml` et `package.json` : les quatre
+        # bougent ensemble.
+        CFBundleShortVersionString: 0.8.0
+        CFBundleVersion: "0.8.0"
         # L'app parle français ET anglais : sans ces deux clés, iOS prend l'app
         # pour anglophone et les menus système de la WebView (Copier, Coller,
         # Rechercher…) sortent en anglais sur un iPhone français. PIEGES § 19.14.
@@ -101,11 +104,11 @@ targets:
         # Action). Sans version de langage déclarée, Xcode refuse de compiler
         # une cible qui mélange Objective-C++ et Swift.
         SWIFT_VERSION: "5.0"
-        # iPhone seul pour la première version (2026-10-06, À CONFIRMER par
-        # Antonin). Déclarer l'iPad impose des captures iPad et une relecture
-        # sur iPad, jamais essayé ; on peut l'ajouter plus tard ("1,2"), on ne
-        # peut plus le retirer une fois l'app publiée.
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone ET iPad (décision d'Antonin, 2026-10-07 ; « iPhone seul » avait
+        # été préparé la veille). Conséquence côté App Store : des captures
+        # iPad 13 pouces sont obligatoires, et Apple relit l'app sur iPad.
+        # ⚠️ Une fois publiée ainsi, l'iPad ne se retire plus.
+        TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64 
