@@ -1,6 +1,7 @@
-import { Suspense, lazy, useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import DisciplineRing from "../components/DisciplineRing";
 import GoalsPreview from "../components/GoalsPreview";
+import HabitudesDuJour from "../components/HabitudesDuJour";
 import PerfStrip from "../components/PerfStrip";
 import PositionSizeWidget from "../components/PositionSizeWidget";
 import QuickLinks from "../components/QuickLinks";
@@ -8,8 +9,6 @@ import TimerCard from "../components/TimerCard";
 import TodayTasks from "../components/TodayTasks";
 import CalendarCard from "../components/CalendarCard";
 import MentalLoadGauge from "../components/MentalLoadGauge";
-// recharts sorti du bundle de démarrage : chargé quand le widget "7 derniers jours" s'affiche.
-const WeekChart = lazy(() => import("../components/WeekChart"));
 import {
   computeStreak,
   pctOfList,
@@ -40,7 +39,7 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
   discipline: 4,
   energy: 4,
   timer: 4,
-  week: 4,
+  habitudes: 4,
   position: 4,
   quicklinks: 4,
   tasks: 8,
@@ -56,7 +55,7 @@ const WIDGET_MIN_W: Record<string, number> = {
   discipline: 3,
   energy: 3,
   timer: 3,
-  week: 3,
+  habitudes: 3,
   position: 4,
   quicklinks: 3,
   tasks: 4,
@@ -71,6 +70,7 @@ const WIDGET_MIN_H: Record<string, number> = {
   calendar: 176,
   tasks: 200,
   goals: 176,
+  habitudes: 136,
   quicklinks: 136,
 };
 
@@ -80,7 +80,7 @@ const WIDGET_TARGET: Record<string, View> = {
   discipline: "tasks",
   energy: "settings",
   timer: "timer",
-  week: "performance",
+  habitudes: "journal",
   position: "sizing",
   tasks: "tasks",
   goals: "goals",
@@ -181,18 +181,28 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
       </section>
     ),
     timer: () => (focus ? <TimerCard key="timer" data={data} focus={focus} /> : null),
-    week: () => (
-      <section key="week" className="card p-5">
-        <h2 className="mb-3 hud-label">{t("7 derniers jours")}</h2>
-        {/* panel-chart : hauteur définie ET extensible → le graphique grandit
-            réellement avec le widget (au lieu d'un vide de 130px de haut). */}
-        <div className="panel-chart">
-          <Suspense fallback={<div className="h-full" />}>
-            <WeekChart stats={derived.week} />
-          </Suspense>
-        </div>
-      </section>
-    ),
+    habitudes: () => {
+      const faites = data.habits.filter((h) =>
+        etat(`h${h.id}:${today}`, data.habitChecks.some((c) => c.habit_id === h.id && c.date === today)),
+      ).length;
+      return (
+        <section key="habitudes" className="card p-5">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h2 className="hud-label">{t("Habitudes à tenir")}</h2>
+            {data.habits.length > 0 && (
+              <span className="font-mono text-[10px] text-text-dim">
+                {faites}/{data.habits.length}
+              </span>
+            )}
+          </div>
+          <HabitudesDuJour
+            data={data}
+            refresh={refresh}
+            ouvrirJournal={navigate ? () => navigate("journal") : undefined}
+          />
+        </section>
+      );
+    },
     position: () => <PositionSizeWidget key="position" />,
     quicklinks: () => (
       <section key="quicklinks" className="card p-5">

@@ -861,3 +861,7 @@ Venu du chantier `ios-soumission` (`MOBILE.md` § 28).
 | U3 | « URL d'assistance » de la fiche | Il faut une page ou une adresse de contact qui ne soit pas la page des tarifs | avant la soumission |
 | U4 | Annoncer l'app iPhone | Le site dit « macOS aujourd'hui ; Windows et iOS ensuite ». **Ne rien changer avant que l'app soit réellement publiée.** Ensuite : `SPECS` (plateformes), FAQ, et un lien vers l'App Store | après l'acceptation d'Apple |
 | U5 | iOS minimum | L'app iPhone demande **iOS 17** (`MOBILE.md` § 28.2) : à écrire là où le site donnera les prérequis | avec U4 |
+
+## X — Aujourd'hui : habitudes à tenir à la place du graphique 7 jours (app, 2026-10-07)
+
+Les quatre captures `shots/v2/*aujourdhui.webp` montrent encore la carte « 7 derniers jours ». À refaire à la prochaine série de captures ; aucun texte du site ne cite ce graphique (vérifié par `grep` dans `vitrine/src`).

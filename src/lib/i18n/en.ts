@@ -265,7 +265,9 @@ export const EN: Record<string, string> = {
   "cumulé": "cumulative",
   "7 jours": "7 days",
   "série en cours": "current streak",
-  "7 derniers jours": "Last 7 days",
+  "Habitudes à tenir": "Habits to keep",
+  "Aucune habitude pour l'instant.": "No habits yet.",
+  "Crée la première dans le Journal": "Create your first one in the Journal",
   "Moyenne 30 jours": "30-day average",
   "Jours précis": "Specific days",
   "dernier jour": "last day",
@@ -565,7 +567,7 @@ export const EN: Record<string, string> = {
   "Complétion des tâches": "Task completion",
   "complétion": "completion",
   "Granularité du graphique de complétion.": "Granularity of the completion chart.",
-  "Graphique 7 jours": "7-day chart",
+  "Habitudes à tenir (Journal)": "Habits to keep (Journal)",
   "Nouvelle métrique…": "New metric…",
   "Supprimer la métrique": "Delete metric",
   "Un second clic supprime la métrique et tout son historique.":
@@ -960,7 +962,6 @@ export const EN: Record<string, string> = {
   "fenêtre & densité": "window & density",
   "densité": "density",
   "Screenshot : app native uniquement": "Screenshot: native app only",
-  "Aucune tâche cochée ces 7 jours.": "No tasks ticked in the last 7 days.",
   "modules": "modules",
   "colonne gauche": "left column",
   "colonne droite": "right column",
@@ -968,8 +969,6 @@ export const EN: Record<string, string> = {
   "groupe 2": "group 2",
   "Sur téléphone, tout s'empile en une seule colonne : les deux groupes s'y alternent.":
     "On a phone everything stacks into a single column: the two groups alternate.",
-  "Aucune tâche due ces 7 jours — le graphique se remplira tout seul.":
-    "No tasks due in the last 7 days — the chart will fill in on its own.",
   "Densité de l'interface": "Interface density",
   "Agrandi de {pct} % en plus, d’après la taille de texte de ton système.":
     "Scaled up a further {pct}% to match your system text size.",
