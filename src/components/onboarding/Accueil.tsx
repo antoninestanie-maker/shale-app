@@ -657,7 +657,7 @@ function Heure({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex-1">
+    <div className="min-w-0 flex-1">
       <label className="block text-xs font-medium uppercase tracking-wide text-text-dim">
         {libelle}
       </label>
@@ -665,7 +665,7 @@ function Heure({
         type="time"
         value={valeur}
         onChange={(e) => onChange(e.target.value)}
-        className="cible-tactile mt-1.5 w-full rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+        className="champ-heure cible-tactile mt-1.5 block w-full min-w-0 rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
       />
     </div>
   );

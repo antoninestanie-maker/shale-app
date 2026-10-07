@@ -71,7 +71,7 @@ export default function BarreExemples({
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] border border-violet/30 bg-violet/10 px-3.5 py-2.5">
-      <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-text">
+      <p className="min-w-0 flex-1 basis-[14rem] text-[12px] leading-relaxed text-text">
         {t("Quelques exemples sont là pour te montrer le produit, dans Tâches, Notes, Journal et Savoir. Modifie-en un, il devient tien.")}
       </p>
       <button

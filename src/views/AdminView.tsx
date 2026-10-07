@@ -13,7 +13,8 @@ import {
 } from "../components/icons";
 import { IS_IOS } from "../lib/platform";
 import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
-import { isTradingWidget } from "../lib/features";
+import { widgetListable } from "../lib/features";
+import { useIaPossible } from "../lib/ia/useIa";
 import { isTauri } from "../lib/repo";
 import {
   applyZoom,
@@ -184,7 +185,8 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
   // Ce qui est proposé ici suit ce que la barre et l'accueil affichent.
   const moduleListe = (m: { id: string }) =>
     (!profil || moduleVisible(profil, m.id)) && presenceModule(m.id, hasTrading) !== "absent";
-  const widgetListe = (w: WidgetConfig) => hasTrading || !isTradingWidget(w.id);
+  const iaPossible = useIaPossible();
+  const widgetListe = (w: WidgetConfig) => widgetListable(w.id, { hasTrading, iaPossible });
   const [premierModule, dernierModule] = bornes(config.modules, moduleListe);
   const setText = (patch: Partial<AppTexts>) => {
     setTexts((t) => ({ ...t, ...patch }));

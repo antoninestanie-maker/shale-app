@@ -1911,3 +1911,19 @@
     opacity: 0;
   }
 }
+
+/* ─── Champ d'heure sur iPhone ────────────────────────────────────────────────
+   Sur iOS, un `<input type="time">` garde l'apparence d'un contrôle natif, qui
+   porte sa PROPRE largeur minimale : `w-full` n'y fait rien et, côte à côte
+   dans une rangée flex, le second champ sortait de sa carte (vu au simulateur
+   le 2026-10-06, écran d'accueil « lever / coucher »). Sans apparence native,
+   le champ redevient une boîte ordinaire qui obéit à sa largeur.
+   `-webkit-touch-callout` n'existe que sur iOS : le Mac n'est pas touché. */
+@supports (-webkit-touch-callout: none) {
+  .champ-heure {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    text-align: left;
+  }
+}

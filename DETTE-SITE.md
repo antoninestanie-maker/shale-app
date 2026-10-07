@@ -849,3 +849,15 @@ Notes de version, Tarifs l. 132) restent vraies : **non touchées**.
 été faite. L'IA est un ajout, pas un retrait — mais B1 doit être corrigé le jour
 même où l'IA s'ouvre. ⚠️ Le chantier `accueil-epure` (autre session, non fusionné)
 réécrit l'accueil : appliquer ce lot PAR-DESSUS, pas avant.
+
+## U. L'app iPhone et l'App Store (2026-10-06) — RIEN N'EST APPLIQUÉ
+
+Venu du chantier `ios-soumission` (`MOBILE.md` § 28).
+
+| # | Sujet | À faire sur le site | Quand |
+|---|---|---|---|
+| U1 | L'app iPhone ouvre `…/legal#confidentialite` depuis Réglages (Apple exige ce lien dans l'app, règle 5.1.1(i)) | La page a le menu du site, qui mène aux tarifs. Une version **sans menu ni lien d'achat** de la page légale serait plus sûre face à la règle « aucun appel à acheter ». ⚠️ Si l'adresse change, `PAGE_CONFIDENTIALITE` (`src/lib/auth/config.ts`) est **compilée dans l'app** | avant la soumission, de préférence |
+| U2 | La même adresse sert d'« URL de la politique de confidentialité » dans la fiche App Store | Vérifier que la politique dit ce que la fiche déclare : e-mail, identifiant de compte, contenu synchronisé **chiffré de bout en bout** ; aucun suivi. Jamais « 100 % local » | avant la soumission |
+| U3 | « URL d'assistance » de la fiche | Il faut une page ou une adresse de contact qui ne soit pas la page des tarifs | avant la soumission |
+| U4 | Annoncer l'app iPhone | Le site dit « macOS aujourd'hui ; Windows et iOS ensuite ». **Ne rien changer avant que l'app soit réellement publiée.** Ensuite : `SPECS` (plateformes), FAQ, et un lien vers l'App Store | après l'acceptation d'Apple |
+| U5 | iOS minimum | L'app iPhone demande **iOS 17** (`MOBILE.md` § 28.2) : à écrire là où le site donnera les prérequis | avec U4 |

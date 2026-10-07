@@ -97,6 +97,30 @@ export const isTradingView = (v: View | string): boolean => VIEW_SET.has(v);
 /** Vrai si ce widget du dashboard est réservé à Shale Trade. */
 export const isTradingWidget = (id: string): boolean => WIDGET_SET.has(id);
 
+/** Widgets du tableau de bord qui n'existent qu'avec l'IA (Shale Pro). */
+const WIDGETS_IA: ReadonlySet<string> = new Set(["brief-ia"]);
+
+/** Vrai si ce widget du dashboard n'existe qu'avec l'IA. */
+export const isIaWidget = (id: string): boolean => WIDGETS_IA.has(id);
+
+/**
+ * Ce widget doit-il figurer dans la liste de Personnaliser ?
+ *
+ * Un widget que le compte ne peut pas afficher n'est pas listé du tout. Le
+ * widget du brief s'appelle « Brief du jour (IA, Shale Pro) » : le lister à
+ * qui n'a pas l'IA affichait un NOM D'OFFRE — sur iPhone, où l'app ne doit
+ * rien vendre (`lib/boutique.ts`), c'était un motif de refus d'Apple.
+ * Trouvé le 2026-10-06 en relisant l'app iPhone écran par écran.
+ */
+export function widgetListable(
+  id: string,
+  droits: { hasTrading: boolean; iaPossible: boolean },
+): boolean {
+  if (isTradingWidget(id)) return droits.hasTrading;
+  if (isIaWidget(id)) return droits.iaPossible;
+  return true;
+}
+
 /** Vrai si ce panneau de grille est réservé à Shale Trade. */
 export const isTradingPanel = (id: string): boolean => PANEL_SET.has(id);
 

@@ -177,6 +177,7 @@ npx tsc --noEmit                              ✅
 npm run test:types                            ✅   (ce n'est PAS le même que le précédent)
 npm test                                      ✅   1494 tests, 109 fichiers, 46 s  (2026-09-26)
                                                    1686 tests, 124 fichiers, 49 s  (2026-09-30, chantier sans-trading)
+                                                   1905 tests, 143 fichiers  (2026-10-07, chantier ios-soumission ; voir § 11.x du 2026-10-06)
 npm run i18n:check                            ✅   0 clé manquante, 0 doublon, 2021 entrées
 npm run i18n:durs                             ✅   0 chaîne sûrement française (58 à vérifier)
 npx vite build                                ✅
@@ -384,7 +385,8 @@ bandeau d'essai, pas de paywall, pas de cadenas (un module hors palier est
 **absent**), « Compte actif » dans Réglages, et un compte sans abonnement ne
 voit que « Aucun abonnement actif n'est associé à ce compte. » + déconnexion.
 **macOS est inchangé.** Détail, tableau surface par surface et note à coller
-dans App Store Connect : `MOBILE.md` § 25.
+dans App Store Connect : `MOBILE.md` § 25. **La préparation de la soumission
+(2026-10-06) : `MOBILE.md` § 28.**
 
 ### Les profils de licence sur devis (2026-09-13)
 
@@ -427,6 +429,15 @@ l'écran, rien ne change pour personne.
   aucune incitation, aucune inscription (§ 9, `MOBILE.md` § 25). La question
   « achats intégrés contre Stripe » est **tranchée** : ni l'un ni l'autre dans
   l'app.
+- ⭐ **La soumission à l'App Store est préparée (2026-10-06), pas faite** :
+  Antonin n'a pas encore payé le programme développeur (99 $). Le projet Xcode
+  a reçu ce qui lui manquait (manifeste de confidentialité, texte de l'appareil
+  photo, iOS 17 minimum, iPhone seul — à confirmer), un lien vers la politique
+  de confidentialité est dans Réglages, et une fuite a été corrigée (un nom
+  d'offre dans Personnaliser). Les textes de la fiche, les réponses de
+  confidentialité, la note au relecteur et le SQL du compte de démonstration
+  sont hors dépôt (`administratif/App Store iPhone/`). **La suite, dans
+  l'ordre : `MOBILE.md` § 28.7.**
 - ⚠️ **Ne JAMAIS lancer `simctl uninstall` ni `simctl erase`.** Et
   `simctl install` par-dessus une app existante **peut provisionner un NOUVEAU
   conteneur** et faire disparaître l'ancien : deux notes non synchronisées ont
@@ -674,6 +685,49 @@ leurs crates au même build (`6fa996d`, http retenu à 2.6.1). Pourquoi :
 
 ---
 
+### 11.x Le 2026-10-06 — l'app iPhone préparée pour l'App Store (sans compte développeur)
+
+Chantier `chantier/ios-soumission`. Tout le détail : `MOBILE.md` § 28.
+
+**Ce qui est fait.**
+- Projet Xcode : manifeste de confidentialité, texte d'autorisation de
+  l'appareil photo (FR/EN), **iOS 17 minimum** (était 14), **iPhone seul** (à
+  confirmer par Antonin).
+- Réglages → compte : lien « Politique de confidentialité » (exigé par Apple
+  dans l'app), sur toutes les plateformes.
+- ⭐ Une fuite corrigée : Personnaliser listait « Brief du jour (IA, Shale
+  Pro) » à tout le monde — un nom d'offre sur iPhone (`widgetListable`,
+  `lib/widgets-listables.test.ts`, vu rouge règle neutralisée).
+- Défauts vus au simulateur et corrigés : champ d'heure qui déborde à l'accueil,
+  bandeau des exemples écrasé, textes « macOS », réglage « arrière-plan » et
+  section « raccourcis » affichés sur iPhone, « trades » dans l'export et dans
+  Performance.
+- Hors dépôt (`administratif/App Store iPhone/`) : textes de la fiche FR/EN
+  relus avec le skill `aso`, réponses de confidentialité, six captures à
+  produire avec leurs légendes, SQL du compte de démonstration, note au
+  relecteur corrigée.
+
+**Ce qui est prouvé.**
+- ✅ Build iOS de simulateur de la branche, contenu du bundle contrôlé.
+- ✅ **L'écran « compte sans abonnement » VU au simulateur** — c'était le seul
+  jamais vu (`MOBILE.md` § 25.5) : constat neutre + « Se déconnecter ».
+- ✅ Connexion sans inscription ; feuille « Plus » sans Trading, Finance ni
+  cadenas ; « Compte actif » ; Personnaliser sans nom d'offre.
+- ✅ `tsc`, `test:types`, `i18n:check` (2660 entrées), `i18n:durs` (0), build
+  Vite. vitest : **1904 / 1905** ; le seul échec est une EXPIRATION de
+  `finance/facturation/demo.test.ts` (60 s) quand toute la suite tourne sous
+  charge — seul, il passe en 4 s, ici comme sur `mobile-ios` intacte (§ 9.11).
+
+**Ce qui ne l'est pas.**
+- ⛔ `cargo check` et `cargo test` de BUREAU non rejoués (aucun Rust touché ;
+  `tauri.conf.json` a gagné `bundle.iOS.minimumSystemVersion`, lu sans erreur
+  par le build iOS). **Aucun build Mac** : les corrections de texte et le lien
+  de confidentialité n'y sont donc pas encore.
+- ⛔ Synchronisation, Calendrier, Objectifs, Journal, Savoir, Timer,
+  Performance : pas revus au simulateur dans ce build (`MOBILE.md` § 28.5).
+- ⛔ Rien sur un vrai iPhone ; rien de signé ; SQL du compte jamais joué.
+- ⚠️ Rien n'est poussé ni fusionné.
+
 ## 12. ▶️ Ce qui reste — et qui décide
 
 **Rien n'est « en cours ».** La file de réparations est vide : tout ce qui suit
@@ -687,7 +741,9 @@ attend une décision d'Antonin, un achat, ou une machine.
 | ⛔ **Windows n'a jamais été compilé** | le code est sur le tronc, audité ; la compilation croisée depuis macOS est **impraticable** (essayée, tranchée, avec preuve) | une machine, une VM ou un runner CI. ⚠️ **Ne pas re-litiger ce point.** Publier = déposer `Shale_x64-setup.exe` dans `vitrine/public/telechargements/` et renseigner `config.exeWindows` |
 | **Certificat Authenticode Windows** | sans lui, SmartScreen avertit à chaque installation | ~200–400 €/an |
 | **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
-| **Compte de démonstration pour Apple** | la relecture App Store l'exige : un compte **abonné**, adresse dédiée, créé sur le site ; e-mail et mot de passe saisis dans App Store Connect → « Sign-in information », **jamais dans le dépôt**. La note de relecture à coller est prête (`MOBILE.md` § 25.4) | quelques minutes, et un abonnement (ou une activation manuelle) |
+| ⛔ **Publier l'app iPhone** | tout ce qui se fait sans compte développeur est fait (2026-10-06, `MOBILE.md` § 28). Restent : payer, signer, TestFlight, le parcours au doigt sur le vrai iPhone, la fiche, la soumission — 19 gestes ordonnés au § 28.7 | **le même compte Apple Developer, 99 $/an** |
+| **Cinq décisions avant l'envoi à Apple** | iPhone seul ou iPhone + iPad (préparé : iPhone seul) · numéro de version (0.1.0 aujourd'hui) · réponse sur le chiffrement (`MOBILE.md` § 28.8) · inscription en individuel ou en société · coordonnées publiques du statut européen « professionnel » | **Antonin** |
+| **Compte de démonstration pour Apple** | la relecture App Store l'exige : un compte **abonné**, adresse dédiée, créé sur le site ; e-mail et mot de passe saisis dans App Store Connect → « Sign-in information », **jamais dans le dépôt**. Le SQL qui l'abonne à la main est prêt, **jamais joué** (`administratif/App Store iPhone/`). La note de relecture a été corrigée le 2026-10-06 (`MOBILE.md` § 28.6 ; celle du § 25.4 est périmée) | quelques minutes |
 | **Achat réel Pro / Business** | le tunnel est en ligne, **aucun achat de bout en bout n'a été fait** sur ces deux offres | un vrai paiement, remboursé ensuite |
 | **Ménage du DerivedData Xcode** | proposé, **sans réponse**. Quatre bundles iOS traînent. Les effacer force une reconstruction complète | un mot |
 | ~~**Le disque est plein**~~ | ✅ **RÉGLÉ le 2026-09-18** : le disque est passé de **8,2 Go à 28 Go de libre** (67 % → 37 % d'occupation). Voir § 13.6 pour ce qui a été supprimé et ce que ça coûte de le refaire | — |
@@ -1245,7 +1301,9 @@ Le pourquoi : `CLAUDE.md` (section datée) ; pièges : `PIEGES.md` § 24.
   aarch64-apple-ios-sim` : code 0 tous les trois (29 et 11 min à cache vide,
   machine chargée). Aucun Rust touché.
 - ✅ **Installé le 2026-09-29 à 23:22** — un seul build, groupé avec « iOS
-  connexion seule » (`d195774`, jamais construit). mobile-ios `faa7b5b`, build
+  connexion seule » (`d195774`, jamais construit). *(Précision du 2026-10-06 :
+  « jamais construit » parlait de l'app MAC, jusqu'à ce soir-là. Côté iPhone,
+  l'app du jour a été construite et regardée le 2026-10-06 — `MOBILE.md` § 28.)* mobile-ios `faa7b5b`, build
   code 0 ; témoins de la nouvelle vue dans `dist/assets` (et 0 pour les phrases
   de l'ancienne) ; sha256 installée = source (`b7465140…`), ≠ ancienne
   (`a270fd00…`). Aucune migration : base en 28 avant et après, integrity ok,

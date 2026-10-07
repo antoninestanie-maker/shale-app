@@ -861,18 +861,20 @@ export const EN: Record<string, string> = {
   "clé Groq (console.groq.com)": "Groq key (console.groq.com)",
   "Enregistrer les clés": "Save keys",
   "Enregistré": "Saved",
-  "Choisis le thème de l'interface. « Système » suit le réglage de macOS.":
-    "Choose the interface theme. “System” follows your macOS setting.",
+  "Choisis le thème de l'interface. « Système » suit le réglage de l'appareil.":
+    "Choose the interface theme. “System” follows your device setting.",
   "langue": "language",
   "Langue de l'interface": "Interface language",
-  "« Système » suit la langue de macOS. Le changement s'applique immédiatement, partout dans l'app.":
-    "“System” follows your macOS language. The change applies immediately, everywhere in the app.",
+  "« Système » suit la langue de l'appareil. Le changement s'applique immédiatement, partout dans l'app.":
+    "“System” follows your device language. The change applies immediately, everywhere in the app.",
   "Français": "French",
   "Anglais": "English",
   "La langue des briefings du Market-Brain suit ce réglage.":
     "Market Brain briefings follow this setting.",
   "Copie propre et complète de la base (tâches, notes, trades…) dans un fichier unique.":
     "A clean, complete copy of your database (tasks, notes, trades…) in a single file.",
+  "Copie propre et complète de la base (tâches, notes, objectifs…) dans un fichier unique.":
+    "A clean, complete copy of your database (tasks, notes, goals…) in a single file.",
   "Exporter une sauvegarde…": "Export a backup…",
   "Sauvegarde exportée": "Backup exported",
   "export disponible dans l'app native": "export available in the native app only",
@@ -939,6 +941,7 @@ export const EN: Record<string, string> = {
   "Compte créé. Clique le lien envoyé par e-mail, puis reviens te connecter.":
     "Account created. Click the link we emailed you, then come back and sign in.",
   "Changer mon mot de passe": "Change my password",
+  "Politique de confidentialité": "Privacy policy",
   "Nouveau mot de passe": "New password",
   "Enregistrement…": "Saving…",
   "Enregistrement impossible": "Could not save",
@@ -1030,8 +1033,8 @@ export const EN: Record<string, string> = {
   "Rester connecté": "Stay signed in",
   "Créer un compte": "Create an account",
   "Renseigne ton e-mail et ton mot de passe.": "Enter your email and password.",
-  "Entre ton e-mail d'abord, puis clique sur « Mot de passe oublié ».":
-    "Enter your email first, then click “Forgot your password?”.",
+  "Entre ton e-mail d'abord, puis appuie sur « Mot de passe oublié ».":
+    "Enter your email first, then tap or click “Forgot your password?”.",
   "E-mail de réinitialisation envoyé. Vérifie ta boîte de réception.":
     "Reset email sent. Check your inbox.",
   "Vérification de l'abonnement impossible.": "Couldn’t verify your subscription.",
@@ -1901,6 +1904,8 @@ export const EN: Record<string, string> = {
     "Start your first session from the Timer or a task’s play button to see your focus by tag.",
   "Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…":
     "Track what matters to you: backtesting hours, trades taken, reels published…",
+  "Suis ce qui compte pour toi : heures de lecture, séances de sport, pages écrites…":
+    "Track what matters to you: hours of reading, workouts, pages written…",
 
   // ── Personnaliser ─────────────────────────────────────────────────────────
   "Monter": "Move up",
@@ -1984,6 +1989,8 @@ export const EN: Record<string, string> = {
     "Sends in the background with no visual interruption (a discreet toast confirms). Off: a small confirmation popup opens first, with the TP still editable.",
   "Exporte une copie propre de toute la base (tâches, objectifs, notes, trades…) — à garder sur un disque externe ou un cloud perso.":
     "Exports a clean copy of the whole database (tasks, goals, notes, trades…) — keep it on an external drive or your own cloud.",
+  "Exporte une copie propre de toute la base (tâches, objectifs, notes…) — à garder sur un disque externe ou un cloud perso.":
+    "Exports a clean copy of the whole database (tasks, goals, notes…) — keep it on an external drive or your own cloud.",
   "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.":
     "The dashboard’s “energy left” gauge starts from your starting energy and drops with the trades taken and the screen time spent today. Adjust how much each factor weighs.",
   "Recalcule immédiatement la jauge d’énergie du tableau de bord.":

@@ -68,6 +68,15 @@ export const ACCOUNT_PAGES = {
 };
 
 /**
+ * La politique de confidentialité, sur le site.
+ *
+ * Apple exige que le lien existe DANS l'app, pas seulement dans la fiche de
+ * l'App Store (règle 5.1.1(i)). Ce n'est pas une page d'achat : elle ne passe
+ * donc pas par `lib/boutique.ts`, et elle s'ouvre aussi sur iPhone.
+ */
+export const PAGE_CONFIDENTIALITE = `${WEBSITE_URL}/legal#confidentialite`;
+
+/**
  * Comptes ayant accès au mode Admin (console de gestion dans l'app).
  * En mode démo (auth non configurée), l'admin est toujours visible.
  */

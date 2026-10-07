@@ -1,0 +1,2 @@
+/* Asked when choosing "Take Photo" while adding an image to a note. */
+"NSCameraUsageDescription" = "Shale uses the camera to add a photo to a note or a page.";

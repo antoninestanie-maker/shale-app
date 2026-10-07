@@ -124,7 +124,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
       return;
     }
     if (!email.trim()) {
-      setError(t("Entre ton e-mail d'abord, puis clique sur « Mot de passe oublié »."));
+      setError(t("Entre ton e-mail d'abord, puis appuie sur « Mot de passe oublié »."));
       return;
     }
     try {

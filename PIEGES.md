@@ -4135,3 +4135,83 @@ Toute nouvelle fonction qui borne une date passe par `dateDansFenetre`, et son
 test compte un cas « en retard ».
 
 **Payé.** 2026-10-01, phase E — vu sur la capture de la démo, avant tout appel réel.
+
+---
+
+# 31. Préparer l'app iPhone pour l'App Store (2026-10-06)
+
+## 31.1 ⛔ Une garde iOS posée un jour ne couvre pas les chantiers fusionnés ensuite
+
+**Symptôme.** Sur iPhone, « Personnaliser » listait le widget « Brief du jour
+(IA, Shale Pro) » : un nom d'offre, dans une app qui ne doit en nommer aucune
+(règle 3.1.3(f) d'Apple). Tous les tests étaient verts.
+
+**Cause.** Les gardes « connexion seule » datent du 29 septembre. L'IA de Shale
+Pro a été fusionnée le 1er octobre : ses ÉCRANS ont bien été masqués sur iOS,
+mais son LIBELLÉ de widget vit dans une table (`WIDGET_LABELS`) qu'un autre
+écran affiche. Et `ios-sans-achat.test.ts` ne rend que les trois écrans
+d'authentification.
+
+**Parade.** `widgetListable()` (`lib/features.ts`) et
+`lib/widgets-listables.test.ts`. Et surtout : **avant chaque envoi à Apple,
+refaire la recherche de `MOBILE.md` § 28.4** dans tout `src/` — les textes
+arrivent par des tables, pas seulement par des écrans.
+
+**Payé.** 2026-10-06 : trouvé à la relecture, avant tout envoi.
+
+## 31.2 `xcodegen generate` échoue dans un worktree neuf
+
+**Symptôme.** « Target "shale_iOS" has a missing source directory …/Externals »
+(et `…/assets`).
+
+**Cause.** Ces deux dossiers sont créés par le build et ignorés par git : un
+worktree neuf ne les a pas.
+
+**Parade.** `mkdir -p Externals assets` dans `gen/apple`, puis `xcodegen generate`.
+
+## 31.3 ⚠️ Lancer la ligne de base PUIS poser le patch de démo dans le même dossier
+
+**Symptôme.** `licence/transport.test.ts` échoue (2 tests) alors que rien n'y a
+été touché.
+
+**Cause.** `npm test` tournait encore (machine chargée : plus de dix minutes)
+quand le patch de mode démo a vidé `SUPABASE_URL`. Les fichiers de test lus
+après le patch ont vu une app « non configurée ».
+
+**Parade.** Attendre la fin de la ligne de base avant de patcher — ou la jouer
+dans un autre dossier que celui qu'on patche.
+
+**Payé.** 2026-10-06 : une ligne de base à refaire.
+
+## 31.4 Un build iOS avec 4 Go libres : le cache sur le disque externe
+
+**Symptôme évité.** Celui du § 23.3 (disque plein, build « réussi » et vide).
+
+**Parade.** Image disque APFS sur le disque externe, `src-tauri/target` en lien
+symbolique vers elle (`MOBILE.md` § 28.9). ⚠️ Pas directement sur le disque
+externe : il est en exFAT. ⚠️ C'est lent : compter large à cache vide.
+
+## 31.5 Écran blanc dans le simulateur : la machine, pas l'app
+
+**Symptôme.** L'app installée s'ouvre sur un écran blanc qui ne bouge plus.
+
+**Cause.** Simulateur tout juste démarré + machine saturée (charge > 100 : un
+build venait de finir). Le front tourne — `shale.db` et `backups/` sont écrits —
+mais WebKit n'affiche rien : `RemoteRenderingBackendProxy … Timeout` dans
+`xcrun simctl spawn <id> log show --last 4m --predicate 'process == "Shale"'`.
+
+**Parade.** Attendre que la charge retombe (`uptime`), puis `simctl terminate`
+et `simctl launch`. Regarder si la base a été écrite avant de soupçonner le code.
+Éteindre le simulateur pendant un build : il prend sa part de la machine.
+
+## 31.6 Sur iOS, un `<input type="time">` ne suit pas `w-full`
+
+**Symptôme.** Deux champs d'heure côte à côte : le second sort de la carte.
+
+**Cause.** Le contrôle natif d'iOS porte sa propre largeur minimale.
+
+**Parade.** Classe `.champ-heure` (`index.css`, iOS seulement) et `min-w-0` sur
+le champ et sur son parent flex. Invisible en émulation Chrome : seul le
+simulateur le montre.
+
+**Payé.** 2026-10-06 : c'était le PREMIER écran que voit un nouvel utilisateur.

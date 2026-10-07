@@ -47,7 +47,7 @@ import { IconSave } from "../components/icons";
 import { MENTAL_LOAD_CONFIG_EVENT } from "../components/MentalLoadGauge";
 import { useSession } from "../components/auth/AuthGate";
 import { useEntitlements, tierLabel } from "../lib/entitlements";
-import { ACCOUNT_PAGES, AUTH_CONFIGURED, STRIPE_ENABLED } from "../lib/auth/config";
+import { ACCOUNT_PAGES, AUTH_CONFIGURED, PAGE_CONFIDENTIALITE, STRIPE_ENABLED } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
 import { keychainAvailable } from "../lib/llm/secrets";
@@ -471,6 +471,16 @@ export default function SettingsView() {
                 {t("Passer à Shale Trade")}
               </button>
             )}
+            {/* Sur toutes les plateformes, iPhone compris : Apple demande ce
+                lien dans l'app elle-même (5.1.1(i)). Ce n'est pas une page
+                d'achat. */}
+            <button
+              type="button"
+              onClick={() => openExternal(PAGE_CONFIDENTIALITE)}
+              className="cible-tactile-ligne mt-1 block text-xs text-text-dim underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+            >
+              {t("Politique de confidentialité")}
+            </button>
           </div>
           <button
             onClick={() => signOut()}
@@ -619,7 +629,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("langue")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("« Système » suit la langue de macOS. Le changement s'applique immédiatement, partout dans l'app.")}
+          {t("« Système » suit la langue de l'appareil. Le changement s'applique immédiatement, partout dans l'app.")}
         </p>
         <div className="pill mt-3 inline-flex flex-wrap items-center gap-0.5 border border-border bg-surface-2 p-1">
           {(
@@ -656,7 +666,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("apparence")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("Choisis le thème de l'interface. « Système » suit le réglage de macOS.")}
+          {t("Choisis le thème de l'interface. « Système » suit le réglage de l'appareil.")}
         </p>
         <div className="pill mt-3 inline-flex flex-wrap items-center gap-0.5 border border-border bg-surface-2 p-1">
           {(
@@ -744,12 +754,18 @@ export default function SettingsView() {
                 value={notif.enabled}
                 onChange={(v) => patchNotif({ enabled: v })}
               />
+              {/* Réglage de bureau : sur iPhone il n'y a ni fenêtre à fermer ni
+                  barre de menus, et les rappels y sont déposés auprès d'iOS.
+                  L'afficher décrivait un comportement qui n'existe pas (vu au
+                  simulateur le 2026-10-06). */}
+              {!IS_IOS && (
               <ToggleRow
                 title={t("Garder Shale actif en arrière-plan")}
                 desc={t("Fermer la fenêtre laisse Shale dans la barre de menus, seul moyen qu'un rappel parte fenêtre fermée. En plein écran, fermer quitte toujours l'app.")}
                 value={notif.keep_running_in_background}
                 onChange={(v) => patchNotif({ keep_running_in_background: v })}
               />
+              )}
             </div>
 
             <div className="auto-tiles-lg mt-4 gap-3">
@@ -1081,7 +1097,11 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("données")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("Exporte une copie propre de toute la base (tâches, objectifs, notes, trades…) — à garder sur un disque externe ou un cloud perso.")}
+          {/* « trades » n'est cité que là où le module Trading existe : il est
+              mis de côté depuis le 2026-09-30, et l'app ne doit plus en parler. */}
+          {afficheTracker
+            ? t("Exporte une copie propre de toute la base (tâches, objectifs, notes, trades…) — à garder sur un disque externe ou un cloud perso.")
+            : t("Exporte une copie propre de toute la base (tâches, objectifs, notes…) — à garder sur un disque externe ou un cloud perso.")}
         </p>
         <div className="mt-3 flex items-center gap-3">
           {isTauri ? (
@@ -1089,7 +1109,9 @@ export default function SettingsView() {
               type="button"
               onClick={exportBackup}
             data-tip={t("Exporter une sauvegarde")}
-            data-tip-sub={t("Copie propre et complète de la base (tâches, notes, trades…) dans un fichier unique.")}
+            data-tip-sub={afficheTracker
+              ? t("Copie propre et complète de la base (tâches, notes, trades…) dans un fichier unique.")
+              : t("Copie propre et complète de la base (tâches, notes, objectifs…) dans un fichier unique.")}
               className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
             >
               <IconSave className="mr-1.5 inline h-4 w-4 align-[-3px]" /> {t("Exporter une sauvegarde…")}
@@ -1186,6 +1208,9 @@ export default function SettingsView() {
       </section>
       </ResizablePanel>
 
+      {/* Raccourcis CLAVIER : sans objet sur iPhone (pas de clavier, pas de
+          capture globale). La note rapide y passe par le bouton Action. */}
+      {!IS_IOS && (
       <ResizablePanel id="settings-shortcuts" defaultW={12}>
       <section className="card p-5">
         <h2 className="hud-label">{t("raccourcis")}</h2>
@@ -1205,6 +1230,7 @@ export default function SettingsView() {
         </ul>
       </section>
       </ResizablePanel>
+      )}
       </ResizableGrid>
     </div>
   );

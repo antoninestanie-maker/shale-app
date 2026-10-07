@@ -2,7 +2,12 @@ name: shale
 options:
   bundleIdPrefix: com.atnfx.shale
   deploymentTarget:
-    iOS: 14.0
+    # 17.0 depuis le 2026-10-06 (était 14.0). L'app n'a jamais tourné que sous
+    # iOS 26, et son affichage repose sur des fonctions de WebKit arrivées entre
+    # iOS 16.2 et 17 (`color-mix`, entre autres) : promettre iOS 14 à l'App Store
+    # aurait livré une app aux couleurs cassées sur des téléphones jamais essayés.
+    # Doit rester égal à `bundle.iOS.minimumSystemVersion` de `tauri.conf.json`.
+    iOS: 17.0
 fileGroups: [../../src]
 configs:
   debug: debug
@@ -44,6 +49,9 @@ targets:
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
+      # Manifeste de confidentialité exigé par Apple à l'envoi (MOBILE.md § 28).
+      - path: PrivacyInfo.xcprivacy
+        buildPhase: resources
     info:
       path: shale_iOS/Info.plist
       properties:
@@ -66,6 +74,10 @@ targets:
         # Rechercher…) sortent en anglais sur un iPhone français. PIEGES § 19.14.
         CFBundleLocalizations: [en, fr]
         CFBundleAllowMixedLocalizations: true
+        # « Insérer une image » ouvre le sélecteur d'iOS, qui propose « Prendre
+        # une photo ». Sans ce texte, iOS FERME l'app à ce moment-là. La version
+        # française est dans `shale_iOS/fr.lproj/InfoPlist.strings`.
+        NSCameraUsageDescription: Shale uses the camera to add a photo to a note or a page.
     entitlements:
       path: shale_iOS/shale_iOS.entitlements
     scheme:
@@ -89,6 +101,11 @@ targets:
         # Action). Sans version de langage déclarée, Xcode refuse de compiler
         # une cible qui mélange Objective-C++ et Swift.
         SWIFT_VERSION: "5.0"
+        # iPhone seul pour la première version (2026-10-06, À CONFIRMER par
+        # Antonin). Déclarer l'iPad impose des captures iPad et une relecture
+        # sur iPad, jamais essayé ; on peut l'ajouter plus tard ("1,2"), on ne
+        # peut plus le retirer une fois l'app publiée.
+        TARGETED_DEVICE_FAMILY: "1"
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64 

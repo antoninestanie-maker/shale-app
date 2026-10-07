@@ -620,7 +620,11 @@ export default function PerformanceView({ data, refresh }: Props) {
 
         {metrics.length === 0 ? (
           <div className="card mt-3 p-8 text-center text-sm text-text-dim">
-            {t("Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…")}
+            {/* Les exemples de trading ne s'affichent que là où le module existe
+                (mis de côté depuis le 2026-09-30). */}
+            {hasTrading
+              ? t("Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…")
+              : t("Suis ce qui compte pour toi : heures de lecture, séances de sport, pages écrites…")}
           </div>
         ) : (
           <div className="auto-tiles-lg mt-3 gap-4">

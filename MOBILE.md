@@ -2960,6 +2960,11 @@ peut pas porter une condition d'admission à l'App Store.
 
 ### 25.4 ▶️ À coller dans App Store Connect — « Notes » de la relecture
 
+> ⚠️ **PÉRIMÉ le 2026-10-06 — la note à coller est au § 28.6.** Celle
+> ci-dessous cite « personal finance » (Finance est mise de côté depuis le
+> 2026-10-01) et des « web and desktop versions » (il n'existe pas de version
+> web). Gardée pour l'historique.
+
 *(App Store Connect → l'app → la version → section « App Review Information » →
 champ « Notes ». Le compte de démonstration se saisit dans les deux champs
 « Sign-in information » juste au-dessus — **jamais ici, jamais dans le dépôt**.)*
@@ -3134,3 +3139,263 @@ Vue à 390 pt **en émulation seulement** (Chrome piloté), jamais sur un iPhone
    défilement ne saute pas quand la ligne part.
 4. Le tag passe dans la méta au doigt, les « · » y disparaissent (`PIEGES.md`
    § 27.2).
+
+## 28. ⭐ Préparer la soumission à l'App Store (2026-10-06)
+
+*Chantier `chantier/ios-soumission`. Antonin n'a pas encore payé le programme
+développeur d'Apple (99 $) : tout ce qui suit s'arrête là où ce compte devient
+nécessaire, et le § 28.7 liste la suite dans l'ordre.*
+
+### 28.1 Ce que « d195774, jamais construit » voulait dire
+
+La phrase de `PASSATION.md` (§ 11.z du 2026-09-29) parlait de l'app **Mac** : le
+code « connexion seule » y est entré le soir même. Côté iPhone, au 2026-10-06,
+la dernière app construite pour le simulateur datait du **29 septembre à
+2 h 34** : elle portait « connexion seule », mais rien de ce qui a suivi
+(trading et Finance mis de côté, barre latérale par intention, IA de Shale Pro,
+nouvel accueil, logo d'entrée). **L'app iPhone du jour n'avait jamais été
+construite ni regardée** — c'est fait dans ce chantier (§ 28.5).
+
+### 28.2 Ce qui manquait dans le projet Xcode, et qui est ajouté
+
+| Ajout | Fichier | Pourquoi |
+|---|---|---|
+| **Manifeste de confidentialité** | `gen/apple/PrivacyInfo.xcprivacy` | exigé par Apple à l'envoi. Déclare : aucun suivi ; e-mail, identifiant de compte et contenu utilisateur (fonctionnement de l'app, liés au compte) ; trois « API à motif obligatoire » (dates de fichiers `C617.1`, temps depuis le démarrage `35F9.1`, préférences `CA92.1`). ⚠️ Liste établie **par lecture du code** : le premier envoi dira s'il en manque une (courriel « ITMS-91053 ») |
+| **Texte d'autorisation de l'appareil photo** | `project.yml` → `Info.plist` (anglais), `shale_iOS/fr.lproj` et `en.lproj/InfoPlist.strings` | « Insérer une image » (Notes, Savoir) est un `<input type="file" accept="image/*">` : iOS y propose « Prendre une photo », et **ferme l'app** si ce texte manque. ⚠️ Raisonné, pas vu : le simulateur n'a pas d'appareil photo |
+| **iOS 17.0 minimum** (était 14.0) | `project.yml`, `tauri.conf.json` (`bundle.iOS.minimumSystemVersion`) — les deux doivent rester égaux | l'app n'a tourné que sous iOS 26 ; son affichage repose sur `color-mix` (iOS 16.2) et d'autres fonctions récentes de WebKit. Promettre iOS 14 aurait livré une app cassée sur des téléphones jamais essayés |
+| **iPhone seul** (`TARGETED_DEVICE_FAMILY: "1"`, était `"1,2"`) | `project.yml` | ⚠️ **À CONFIRMER par Antonin.** Avec l'iPad : captures iPad obligatoires et relecture sur iPad, jamais essayé. On peut l'ajouter plus tard, pas le retirer une fois publié |
+| **Lien « Politique de confidentialité »** | `SettingsView` (carte « compte »), `PAGE_CONFIDENTIALITE` dans `auth/config.ts` | règle 5.1.1(i) : le lien doit être dans la fiche **et dans l'app**. Ce n'est pas une page d'achat : il ne passe pas par `lib/boutique.ts` et s'affiche aussi sur iPhone. ⚠️ La page du site a un menu qui mène aux tarifs — une page sans menu serait plus sûre (`DETTE-SITE.md`) |
+
+⚠️ **Après toute modification de `project.yml` : `xcodegen generate` dans
+`gen/apple`.** Dans un worktree neuf il échoue tant que `Externals/` et
+`assets/` n'existent pas (ils sont créés par le build, ignorés par git) :
+`mkdir -p Externals assets` d'abord.
+
+### 28.3 Une fuite trouvée à la relecture : un nom d'offre dans Personnaliser
+
+« Personnaliser » est ouvert à tout le monde sur iPhone (feuille « Plus »). Sa
+liste des widgets du tableau de bord affichait **« Brief du jour (IA, Shale
+Pro) »** à tous les comptes, sur toutes les plateformes — un nom d'offre dans
+l'app iPhone. Les tests de rendu de `ios-sans-achat.test.ts` ne couvrent que les
+trois écrans d'authentification : celui-ci leur échappait.
+
+Corrigé : `widgetListable()` (`lib/features.ts`) ne liste un widget d'IA qu'à
+qui a l'IA (`useIaPossible()`, toujours faux sur iOS). Verrou :
+`lib/widgets-listables.test.ts`, qui échoue si un libellé de widget nommant une
+offre est listé à un compte sans droit.
+
+▶️ **La leçon** : les gardes iOS ont été posées le 29 septembre ; tout chantier
+fusionné APRÈS peut rouvrir une fuite (ici l'IA de Shale Pro, le 1er octobre).
+Avant chaque envoi à Apple, refaire la recherche du § 28.4.
+
+### 28.4 La relecture de conformité — méthode et résultat
+
+Recherche dans tout `src/` des textes affichés contenant : prix, « € »,
+« tarif », « formule », « offre », « essai », « gratuit », « abonn »,
+« souscri », « Shale Pro / Trade / Business », « shaleapp », et de tous les
+appels à `openExternal` et aux adresses du site. Chaque occurrence a été
+rattachée à sa garde.
+
+| Texte ou lien | Garde sur iOS |
+|---|---|
+| Inscription (`LoginScreen`) | `COMMERCE_AUTORISE` |
+| Mur d'abonnement : « Choisir ma formule », « Gérer mon abonnement », « J'ai souscrit », « Ton essai est terminé » | `COMMERCE_AUTORISE` — sur iOS : constat neutre + « Se déconnecter » |
+| Bandeau « Essai gratuit — » | `joursEssaiAffiches()` |
+| `UpgradeModal` (Trade et Pro) | ne rend rien sans commerce |
+| « Passer à Shale Trade » (Réglages) | `presenceModule(...) === "verrouille"`, jamais sur iOS, et trading mis de côté |
+| Réglages d'IA (« … fait partie de Shale Pro », « Découvrir Shale Pro ») | panneau entier sous `!IS_IOS` |
+| Brief, capture, revue, menus d'IA | `useIa().visible` / `useIaPossible()`, faux sur iOS |
+| « Brief du jour (IA, Shale Pro) » (Personnaliser) | ⭐ **corrigé ce jour**, § 28.3 |
+| Textes éditables « abonnement requis » (Personnaliser) | section absente sur iOS |
+| Console (abonnés, MRR) | absente sur iOS |
+| Trading, Market Brain, Position, Finance | `TRADING_ACTIF` et `FINANCE_ACTIF` à `false` : absents partout |
+| « Mot de passe oublié ? » | envoie un e-mail ; n'ouvre aucune page dans l'app configurée |
+| « Politique de confidentialité » | lien voulu (5.1.1(i)), pas une page d'achat |
+| Liens dans une note, sources du brief | contenu de l'utilisateur |
+
+### 28.5 Le parcours au simulateur du 2026-10-06
+
+Build `--debug --target aarch64-sim` de la branche du chantier, installé sur
+l'**iPhone 17 Pro** (iOS 26.5), en **mode démonstration** (patch local de
+`PASSATION.md` § 13.2, plus trois lignes : compte non administrateur, offre
+« Shale », et une adresse contenant `sansabo` qui simule un compte sans
+abonnement). Patch retiré ensuite : `grep -r AUDIT-TEMP src/` rend 0.
+Contenu du bundle contrôlé : `MinimumOSVersion 17.0`, `PrivacyInfo.xcprivacy`,
+`NSCameraUsageDescription`, `fr.lproj` et `en.lproj`.
+Captures : `~/Desktop/Shale-chantiers/captures-ios-20261006/`.
+
+| Écran | Résultat |
+|---|---|
+| Connexion | ✅ e-mail, mot de passe, « Mot de passe oublié ? », « Rester connecté », « Se connecter ». **Pas d'inscription.** (La ligne « Mode démo… » n'existe que dans ce build patché) |
+| ⭐ **Compte sans abonnement** | ✅ **VU pour la première fois** : logo, « Shale », « Connecté en tant que … », « Aucun abonnement actif n'est associé à ce compte. », « Se déconnecter » — rien d'autre. La déconnexion ramène à la connexion |
+| Accueil du premier lancement | ✅ après correction (le champ « Coucher » sortait de la carte, § 28.5 bis) |
+| Aujourd'hui | ✅ après correction (bandeau des exemples écrasé en colonne) |
+| Feuille « Plus » | ✅ Aujourd'hui · Tâches · Calendrier · Timer · Objectifs · Performance · Notes · Journal · Savoir · Personnaliser · Réglages · Supprimés récemment. **Ni Trading, ni Finance, ni cadenas, ni Admin** |
+| Réglages → compte | ✅ l'adresse, « Compte actif », « Politique de confidentialité », « Se déconnecter ». Aucun nom d'offre (les sélecteurs « offre simulée » n'existent qu'en mode démo) |
+| Personnaliser | ✅ après correction : la liste des widgets ne contient plus « Brief du jour (IA, Shale Pro) » ; la liste des modules n'a ni Trading ni Finance |
+| Tâches, Notes | ✅ affichés, exemples de départ, aucun bouton d'IA |
+
+⛔ **Pas vus dans ce build** : Calendrier, Objectifs, Journal, Savoir, Timer,
+Performance, « Supprimés récemment », le bas des Réglages (synchronisation,
+sauvegardes, export), les fenêtres de tâche et d'événement, et les écrans 2 à 6
+de l'accueil. Le pilotage tactile du simulateur perdait des taps sous la charge
+de la machine ; le tour s'est arrêté là.
+⛔ **La synchronisation n'a pas été revérifiée au simulateur.** Elle demande une
+vraie session : celle d'Antonin est sur l'iPhone 17, qui porte encore le build
+du 29 septembre et **n'a pas été touché** (réinstaller peut la déconnecter et
+change de conteneur de données, `PIEGES.md` § 9.10). Elle reste prouvée par le
+passage du 27 août et par les tests à deux appareils (`sync/`, verts). À refaire
+avec le compte de démonstration, § 28.7 étape 12.
+⛔ « Prendre une photo », le lien de confidentialité (ouverture de Safari) et
+l'app en anglais n'ont pas été essayés.
+
+### 28.5 bis Ce que le tour a fait corriger
+
+| Défaut vu à l'écran | Correction |
+|---|---|
+| Accueil : le champ d'heure « Coucher » sortait de sa carte | sur iOS un `<input type="time">` garde une largeur minimale native. Classe `.champ-heure` (`index.css`, sous `@supports (-webkit-touch-callout: none)` : iOS seulement) + `min-w-0`. ⚠️ Les champs d'heure de `TaskModal` et d'`EventModal` n'ont pas reçu la classe : pas vus ce jour-là |
+| Aujourd'hui : le texte du bandeau des exemples tenait en colonne de trois mots à côté du bouton | `basis-[14rem]` sur le texte (`BarreExemples`) — la règle de `CLAUDE.md` : c'est la base flex qui décide du repli |
+| Réglages : « suit la langue de macOS », « suit le réglage de macOS » | « de l'appareil », sur toutes les plateformes |
+| Réglages : « Garder Shale actif en arrière-plan » (fenêtre, barre de menus) | masqué sur iOS |
+| Réglages : section « raccourcis » (⌘K, capture globale) | masquée sur iOS |
+| Réglages : l'export citait « trades » ; Performance citait « trades pris » | texte sans trading quand le module est absent (il l'est partout depuis le 2026-09-30) |
+| Connexion : « clique sur » | « appuie sur » |
+
+Restes notés, non corrigés : « Ajouter une tâche… (Entrée) » sur Aujourd'hui,
+et « (⌘V) » dans l'état vide du Savoir — des indications de clavier sur un
+téléphone, sans conséquence pour Apple.
+
+⚠️ **Écran blanc au premier lancement** : juste après le démarrage du
+simulateur, machine saturée (charge > 100), l'app est restée blanche plusieurs
+minutes. Le front tournait (la base était écrite) ; c'est le moteur de rendu de
+WebKit qui expirait (`RemoteRenderingBackendProxy … Timeout` dans
+`simctl spawn … log show`). Relancée machine calme : affichage normal.
+`PIEGES.md` § 31.5.
+
+### 28.6 Ce qui est prêt pour la fiche, hors dépôt
+
+Dossier `~/Desktop/Shale-projet/administratif/App Store iPhone/` :
+- **`Fiche App Store — textes à coller.txt`** — nom, sous-titre, texte
+  promotionnel, mots-clés et description en français et en anglais (longueurs
+  comptées), les autres champs, les réponses au questionnaire « Confidentialité
+  de l'app », la liste des six captures, et le SQL du compte de démonstration ;
+- **`À FAIRE — publier Shale sur l'App Store.txt`** — la checklist d'Antonin.
+  Sa note pour le relecteur a été **corrigée** : elle citait « personal
+  finance » (Finance est mise de côté) et des « web and desktop versions » (il
+  n'y a pas de version web). La note du § 25.4 est remplacée par celle-ci :
+
+> Shale is a productivity service (tasks, calendar, notes, journal, goals,
+> knowledge base) sold exclusively on our website, shaleapp.com, and used
+> mainly through its desktop app for macOS. The iOS app is a free companion
+> that lets existing customers sign in to the account they already have and
+> access their own data, which is end-to-end encrypted and synced with the
+> desktop app.
+>
+> Under guideline 3.1.3(f), the app contains no in-app purchase, no prices, no
+> plan names, no links or buttons to our website's purchase pages, and no call
+> to action to buy outside the app. Account creation is not available in the
+> app: accounts are created on the website. A signed-in user without an active
+> subscription only sees a neutral message and a sign-out button.
+>
+> A demo account with an active subscription is provided in the Sign-in
+> information fields. It works immediately; no confirmation email is needed.
+>
+> The privacy policy link is in Settings > Account. The camera is only used if
+> the user chooses "Take Photo" when adding an image to a note.
+
+⚠️ **Confidentialité : ne jamais écrire « 100 % local ».** Les données sont sur
+l'appareil ET en copie chiffrée de bout en bout sur le serveur de
+synchronisation. Le questionnaire d'Apple et `PrivacyInfo.xcprivacy` déclarent
+tous deux e-mail, identifiant et contenu utilisateur : **les deux doivent
+rester identiques**.
+
+⭐ **Les textes ont été relus avec le skill `aso`** (`marketing-skills`). Il
+n'était pas chargé dans la session : il a été lu sur le disque
+(`~/.claude/atelier/marketing-seo-geo/marketing-skills/skills/aso/`). Ce qu'il
+a changé : les mots-clés se comptent en **octets** (une lettre accentuée en
+vaut deux) ; **aucun mot répété** entre le nom, le sous-titre et les mots-clés ;
+des mots seuls plutôt que des expressions ; « habitudes » remonté dans le
+sous-titre ; et une **légende de 5 à 7 mots par capture** (Apple les indexe, et
+les trois premières captures sont les seules que la plupart des gens voient).
+
+⚠️ **Le SQL du compte de démonstration n'a pas été joué** : il est écrit d'après
+`shale-site/supabase/schema.sql` et la migration 006 (colonnes `status`, `tier`,
+`billing_period`, `current_period_end`, `trial_ends_at`). Sa seconde requête
+est le contrôle.
+
+### 28.7 ▶️ Le jour où le compte développeur existe — dans l'ordre
+
+**Avant de payer, deux choses à savoir.**
+- *Individuel ou société ?* En individuel, le **nom légal d'Antonin** s'affiche
+  comme vendeur sur l'App Store. En société, il faut un numéro D-U-N-S (gratuit,
+  plusieurs jours). Le choix ne se change pas facilement.
+- *Statut de professionnel (règlement européen DSA).* Pour distribuer dans
+  l'Union européenne, App Store Connect demande de se déclarer « trader » ou
+  non. Shale vend des abonnements : c'est un professionnel, et Apple **affiche
+  alors publiquement** une adresse, un téléphone et un e-mail sur la fiche.
+  Prévoir lesquels.
+
+| # | Geste | Qui |
+|---|---|---|
+| 1 | Payer l'inscription : developer.apple.com → « Account » → « Enroll ». Attendre le courriel d'activation (jusqu'à 48 h) | Antonin |
+| 2 | App Store Connect → « Business » : accepter les contrats, déclarer le statut DSA | Antonin |
+| 3 | Xcode → Settings → Accounts : vérifier que l'équipe payante apparaît. Donner son identifiant d'équipe à Claude | Antonin (un coup d'œil) |
+| 4 | Remplacer `DEVELOPMENT_TEAM` (`QXU2BNU373`, équipe gratuite) dans `project.yml`, puis `xcodegen generate` | Claude |
+| 5 | **Décider le numéro de version** (0.1.0 aujourd'hui, 1.0.0 conseillé) — `tauri.conf.json`, partagé avec l'app Mac | Antonin décide, Claude écrit |
+| 6 | **Décider la réponse sur le chiffrement** (§ 28.8) et l'écrire dans `Info.plist` (`ITSAppUsesNonExemptEncryption`) | Antonin décide, Claude écrit |
+| 7 | Créer la fiche : App Store Connect → « Apps » → « + » → plateforme iOS, nom, langue principale français, identifiant `com.atnfx.shale`, SKU `shale-ios` | Antonin (ou Claude dans le navigateur, connecté par Antonin) |
+| 8 | Construire pour l'App Store : `npm run tauri ios build -- --export-method app-store-connect` (⚠️ exiger 8 Go libres ou garder le cache sur le disque externe, § 28.9). Produit un `.ipa` | Claude |
+| 9 | Envoyer le build : Xcode → Window → Organizer → « Distribute App », ou l'app Transporter | Claude prépare, Antonin clique si Xcode demande son compte |
+| 10 | Lire le courriel d'Apple après traitement : avertissements « ITMS- » (manifeste de confidentialité, icônes, etc.) et corriger | Claude |
+| 11 | **TestFlight** : s'ajouter comme testeur interne, installer l'app sur l'iPhone réel par l'app TestFlight | Antonin |
+| 12 | **Le parcours au doigt, sur le vrai iPhone** — jamais fait depuis le 27 août : connexion, compte sans abonnement, synchronisation dans les deux sens avec le Mac, rappels, bouton Action, « Prendre une photo », et les dettes des § 26 et 27 | Antonin, avec Claude |
+| 13 | Créer le compte de démonstration (checklist hors dépôt), jouer le SQL, y mettre un peu de contenu | Antonin |
+| 14 | Produire les six captures en 1320 × 2868 (simulateur iPhone 17 Pro Max, compte de démonstration), en français et en anglais | Claude |
+| 15 | Remplir la fiche avec le fichier de textes ; « Confidentialité de l'app » ; âge ; catégorie ; prix gratuit ; pays | Antonin colle, ou Claude dans le navigateur |
+| 16 | « App Review Information » : identifiants du compte de démonstration (saisis par Antonin, **nulle part ailleurs**), la note du § 28.6, un contact | Antonin |
+| 17 | Choisir « Publier manuellement », puis « Soumettre pour vérification » | Antonin |
+| 18 | En cas de refus : lire le motif, répondre dans le « Resolution Center ». Un refus au titre de 3.1.1 est le risque connu (§ 25.1) | Antonin, avec Claude |
+| 19 | Après acceptation : publier, puis dire sur le site que l'app iPhone existe (`DETTE-SITE.md`) — **pas avant** | Antonin, puis Claude |
+
+Le même compte payant débloque aussi la **signature et la notarisation de l'app
+Mac** (`PASSATION.md` § 12.1) et le **push silencieux** (§ 17.5). Ce sont
+d'autres chantiers.
+
+### 28.8 La question du chiffrement — à trancher le jour de l'envoi
+
+À chaque envoi, Apple demande si l'app utilise du chiffrement. Les faits :
+- les données sont chiffrées en **AES-256-GCM par WebCrypto**, c'est-à-dire par
+  le moteur d'Apple (WebKit) ;
+- la clé est dérivée par **Argon2id** en Rust (une fonction de dérivation, pas
+  un chiffrement) ;
+- l'app **embarque `rustls`** (bibliothèque TLS qui n'est pas celle d'Apple),
+  tirée par `tauri-plugin-http`. Elle ne sert plus sur iPhone depuis que le
+  trading et Finance sont mis de côté, mais elle est dans le binaire.
+
+Selon la lecture, l'app relève soit du cas « chiffrement fourni par le système
+d'Apple » (exempté), soit du cas « algorithmes standards en plus de ceux du
+système » — et ce second cas demande, pour la France, une déclaration auprès de
+l'ANSSI. ▶️ **À trancher avec la page d'Apple sous les yeux** (« Complying with
+Encryption Export Regulations »), pas de mémoire. Une piste technique si la
+seconde lecture s'impose : retirer `tauri-plugin-http` de la cible iOS, ce qui
+sort `rustls` du binaire.
+
+### 28.9 Outillage de ce chantier
+
+- ⭐ **Le cache de compilation vit sur le disque externe.** Le disque interne
+  n'avait que 3,7 Go libres ; un build iOS en demande ~4 (`PIEGES.md` § 23.3).
+  Parade : une image disque APFS sur « Crucial X6 »
+  (`/Volumes/Crucial X6/Shale-cache-compilation/cache.sparsebundle`, 40 Go au
+  plus, montée sur `/Volumes/ShaleCache`), et `src-tauri/target` du worktree en
+  **lien symbolique** vers elle. Un lien, pas `CARGO_TARGET_DIR` : le script
+  lancé par Xcode ne reçoit pas forcément les variables d'environnement.
+  ⚠️ Le disque externe est en exFAT : poser le cache directement dessus, sans
+  l'image disque, priverait `cargo` de verrous et de liens.
+  ⚠️ Le disque interne descend quand même (simulateur, `Externals/`, DerivedData :
+  de 6,2 à 1,7 Go pendant la session) : `rm -rf gen/apple/build gen/apple/Externals/*`
+  et le DerivedData de `shale-*` après usage.
+  ⚠️ C'est lent (USB) : 25 minutes pour le premier build, 4 minutes pour le suivant à cache vide.
+  Pour s'en resservir : brancher le disque, double-cliquer le `.sparsebundle`.
+- **Le simulateur de travail est l'iPhone 17 Pro**, en mode démonstration
+  (patch local de `PASSATION.md` § 13.2, jamais commité). **L'iPhone 17, où
+  Antonin est connecté, n'a pas été touché.**

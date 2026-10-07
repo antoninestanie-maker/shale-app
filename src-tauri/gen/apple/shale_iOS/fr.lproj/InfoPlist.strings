@@ -1,0 +1,2 @@
+/* Demandé quand on choisit « Prendre une photo » en ajoutant une image à une note. */
+"NSCameraUsageDescription" = "Shale utilise l’appareil photo pour ajouter une photo à une note ou à une fiche.";
