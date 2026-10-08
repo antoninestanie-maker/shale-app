@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
+import { vueReserveeAdmin } from "./lib/auth/admin";
 import { ActionsIa } from "./components/ia/ActionsIa";
 import CommandPalette from "./components/CommandPalette";
 import FiletErreur from "./components/FiletErreur";
@@ -236,6 +237,8 @@ function App() {
       // que ci-dessus, aucun paywall (`lib/boutique.ts`, règle 3.1.3(f)). Idem
       // pour la Console, qui affiche des chiffres d'abonnement.
       if (!COMMERCE_AUTORISE && v === "console") return;
+      // La page Admin n'existe que pour le compte d'Antonin (`lib/auth/admin.ts`).
+      if (vueReserveeAdmin(v) && !isAdmin) return;
       const presence = presenceModule(v, hasTrading);
       if (presence === "absent") return;
       if (presence === "verrouille") {
@@ -244,7 +247,7 @@ function App() {
       }
       setView(v);
     },
-    [hasTrading, profil],
+    [hasTrading, profil, isAdmin],
   );
 
   /**
@@ -289,6 +292,12 @@ function App() {
   useEffect(() => {
     if (!hasTrading && isTradingView(view)) setView("today");
   }, [hasTrading, view]);
+
+  // Même filet pour la page Admin : la session peut changer de compte, ou
+  // se fermer, pendant qu'elle est ouverte.
+  useEffect(() => {
+    if (vueReserveeAdmin(view) && !isAdmin) setView("today");
+  }, [isAdmin, view]);
 
   // Même filet pour le profil de licence : il peut arriver (ou changer) PENDANT
   // la session — téléchargé après le cache, renouvelé au retour au premier
@@ -732,7 +741,7 @@ function App() {
             <SizingView navigate={navigate} />
           ) : view === "admin" ? (
             <AdminView config={ui.config} save={ui.save} profil={profil} hasTrading={hasTrading} />
-          ) : view === "console" ? (
+          ) : view === "console" && isAdmin ? (
             <ConsoleView />
           ) : view === "corbeille" ? (
             // ⚠️ Cette branche DOIT précéder le dernier `:` — qui rend Réglages

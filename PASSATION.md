@@ -1709,3 +1709,9 @@ Décisions : `CLAUDE.md`, même date. **Fait** : widget `habitudes` (cochable, s
 **Vu à l'écran** (Chrome sans fenêtre, mode démo, vrais clics souris) : la carte affiche 3 habitudes et « 1/3 » ; cocher « Sport » → « 2/3 », série 0 → 1 ; la poignée ↗ ouvre le Journal, où « Sport » est cochée. Plus de « 7 derniers jours » dans la page.
 **Pas vu** : au doigt (iPhone), l'anglais à l'écran (clés présentes, `i18n:check` vert), l'état vide (« Aucune habitude pour l'instant. »).
 **Installé le 2026-10-07 à 10:14** : build depuis `mobile-ios` `cb64713`, sha256 `5a228f0d3c58…` (ancienne `1c866242a249…`), base 30 avant/après, intégrité ok, 83 tâches / 22 notes / 4 habitudes identiques. Sauvegarde : `sauvegardes-locales/avant-habitudes-aujourdhui-20261007-1003/`. ⚠️ Non regardé dans l'app installée par la session (elle pilote la vraie base).
+
+
+## 2026-10-07 — La page Admin réservée au compte d'Antonin, par tous ses chemins
+
+Décisions : `CLAUDE.md`, même date. **Fait** : `lib/auth/admin.ts` + trois gardes dans `App.tsx` (navigation, repli, rendu), `admin.test.ts`. Aucune migration, aucun Rust.
+**Pas fait** : le code de la Console reste dans le binaire (inerte pour les autres comptes) ; pas de build natif (changement invisible pour Antonin, à grouper avec le prochain).

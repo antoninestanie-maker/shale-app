@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ADMIN_EMAILS, AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
+import { estAdmin } from "./admin";
+import { AUTH_CONFIGURED, STRIPE_ENABLED } from "./config";
 import { abonnementHorsLigne, estActive, hasAccess, palierDe } from "./access";
 import { COMMERCE_AUTORISE } from "../boutique";
 import { deposerMotDePasse, viderSas } from "../sync/sas";
@@ -568,9 +569,7 @@ export function useAuth(): AuthState {
   }, [session, resolve, ranger]);
 
   // Rôle admin : allowlist d'e-mails en prod ; toujours vrai en démo.
-  const isAdmin = !AUTH_CONFIGURED
-    ? true
-    : !!session && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(session.user.email.toLowerCase());
+  const isAdmin = estAdmin(session?.user.email);
 
   return {
     status,

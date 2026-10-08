@@ -7375,3 +7375,13 @@ Demande d'Antonin : « le raccourci des 7 derniers jours je le trouve inutile, �
 - **Ordre stable** : une habitude cochée ne descend pas dans la liste — une ligne qui saute sous le doigt fait cocher la voisine.
 - **Une disposition enregistrée porte encore `week`** : `mergeConfig` (`uiConfig.ts`, `sansGraphiqueSemaine`) le renomme À SA PLACE et le rallume. Sans cela `mergeList` l'aurait jeté et le nouveau widget serait arrivé tout en bas. ⚠️ La taille épinglée de l'ancien panneau (`layout.today`, clé `week`) n'est pas reprise : la carte prend sa hauteur naturelle.
 - **Profil de licence** : le widget suit le module Journal (`MODULE_DU_WIDGET`).
+
+## 2026-10-07 — La page Admin : fermée par tous ses chemins, pas seulement masquée
+
+Demande d'Antonin : « la page admin ne doit pas être dans le fichier de téléchargement mais seulement sur mon compte ».
+
+- **Constat** : l'entrée « Admin » (la Console) n'était déjà affichée que pour `ADMIN_EMAILS` (barre latérale et feuille « Plus »). Mais c'était la SEULE protection : ni `navigate`, ni le rendu d'`App.tsx` ne regardaient le compte.
+- **Fait** : `lib/auth/admin.ts` (`estAdmin`, `vueReserveeAdmin`) ; `App.tsx` refuse la vue dans `navigate`, retombe sur l'accueil si le compte change, et ne rend `ConsoleView` que pour l'admin. Gardé par `admin.test.ts`.
+- ⚠️ **Le CODE de la Console est toujours dans le `.dmg`** (un chunk chargé à la demande, jamais chargé pour un autre compte). Elle ne montre que des données de démonstration, aucun vrai compte. La sortir physiquement du fichier demanderait deux builds (un pour Antonin, un pour le site) : non fait, à décider.
+- ⚠️ Le jour où la Console lira de vraies données, la protection devra être côté SERVEUR (`is_admin()`, migration 002 du site) : une liste d'adresses compilée dans l'app ne protège rien d'un binaire modifié.
+- « Personnaliser » (vue `admin`) reste pour tout le monde : c'est un réglage.
