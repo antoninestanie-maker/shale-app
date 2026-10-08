@@ -3099,7 +3099,17 @@ seulement). Ce qui est VU, ce qui est seulement SUPPOSÉ — séparés.*
    la même version avant qu'Antonin ne déplace ou ne type des nœuds sur le Mac.**
 9. `cargo check` iOS : rejoué en phase E — voir PASSATION § 11.z.
 
-### La vue Objectifs en maître-détail (phase D, 2026-09-29)
+### La vue Objectifs — liste puis page, pour tout le monde (2026-10-08)
+
+Le bureau a pris le parcours du téléphone (la liste OU la page) ; le maître-détail
+ci-dessous n'existe plus. **Vu en émulation seulement (390 × 844, tactile)** : la
+liste (le fil passe sous le titre de chaque carte), la page (retour, « Carte » et
+« ⋯ » restent en haut), le fil debout avec un rail de 34 px, aucun débordement
+horizontal. **Pas vu** : le simulateur, l'iPhone réel, l'iPad. ⚠️ Les lignes
+d'étape y sont hautes (poignée, chevron et icône en cibles de 44 pt) : c'était
+déjà le cas, le rail leur retire 34 px de large.
+
+### La vue Objectifs en maître-détail (phase D, 2026-09-29) — ⚠️ remplacée le 2026-10-08
 
 **Vu en émulation (390 × 844, au doigt)** : la vue s'ouvre sur la LISTE (aucune
 présélection, règle des Notes) ; toucher un objectif ouvre sa fiche ; l'en-tête

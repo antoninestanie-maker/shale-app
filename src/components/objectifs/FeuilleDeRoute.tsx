@@ -24,7 +24,7 @@ import {
   pourquoiVide,
   type Replis,
 } from "../../lib/objectifs/libelles";
-import { compterSource, debutDuCompte, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
+import { compterSource, debutDuCompte, elementsDe, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
 import {
   etapesTriees,
   peutAjouterEtape,
@@ -32,6 +32,7 @@ import {
   peutRetrograder,
   type GenreEtape,
 } from "../../lib/objectifs/structure";
+import { filDObjectif, type Fil } from "../../lib/objectifs/fil";
 import { estRecurrente } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal, Task } from "../../lib/types";
@@ -93,6 +94,36 @@ export interface PropsFeuille {
   onFermerAjout: () => void;
   onModifier: (goal: Goal) => void;
   refresh: () => Promise<void>;
+  /**
+   * ⭐ LE FIL (2026-10-08) : la page d'un objectif dessine, à gauche de la
+   * feuille de route, la barre de progression du site — un nœud par étape de
+   * premier niveau, un tronçon par étape. Tout le dessin est en CSS
+   * (`index.css`, `.fil-item`) ; ici on ne pose que l'état et la part faite.
+   */
+  fil?: boolean;
+}
+
+// ─── Le fil ─────────────────────────────────────────────────────────────────
+
+/** Le centre du nœud, depuis le haut de son item — par genre d'item (px). */
+const FIL_Y = { etape: 25, directs: 12, ajout: 14, fin: 22 } as const;
+
+/** Ce que le rail du premier niveau doit savoir, calculé une fois par la feuille. */
+interface Rail {
+  /** Le nœud qui suit la DERNIÈRE étape (éléments directs, sinon « ajouter »). */
+  suiteFinale: number;
+  /** Les tronçons et l'item qui porte l'orbe (`lib/objectifs/fil.ts`). */
+  fil: Fil;
+}
+
+/** Les variables CSS d'un item du fil. `e` : part du tronçon parcourue, 0 → 1. */
+function varsFil(e: number, rang: number, y: number, suite: number): React.CSSProperties {
+  return {
+    "--fil-e": Math.min(1, Math.max(0, e)).toFixed(4),
+    "--fil-rang": rang,
+    "--fil-y": `${y}px`,
+    "--fil-suite": `${suite}px`,
+  } as React.CSSProperties;
 }
 
 /**
@@ -109,35 +140,100 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
     data.tasks.filter((x) => x.goal_id === racine.id).length +
     rattachementsDe(uidDeLigne("goal", racine), p.contexte).length;
 
+  // ─── Le fil : un item par étape, puis les éléments directs, « ajouter », l'arrivée.
+  // Rien à relier tant que l'objectif n'a ni étape ni élément : pas de fil.
+  const fil = !!p.fil && (etapes.length > 0 || elementsDirects > 0);
+  const mRacine = p.mesures.get(racine.id);
+  const atteint = !!mRacine && estAcheve(mRacine);
+  // Les éléments rattachés à l'objectif lui-même ont LEUR tronçon : ce qui est
+  // fait sur ce qui compte (la règle de `mesurer`, pas un second calcul).
+  const directs = useMemo(() => {
+    const { comptables } = elementsDe(racine, p.sources);
+    const faits = comptables.filter((c) => c.fait).length;
+    return { total: comptables.length, faits };
+  }, [racine, p.sources]);
+  const rail: Rail | undefined = fil
+    ? {
+        suiteFinale: elementsDirects > 0 ? FIL_Y.directs : FIL_Y.ajout,
+        fil: filDObjectif({
+          etapes,
+          mesures: p.mesures,
+          directs: { presents: elementsDirects > 0, ...directs },
+          atteint,
+        }),
+      }
+    : undefined;
+  const troncon = (cle: string) => rail?.fil.troncons.find((x) => x.cle === cle);
+
   return (
     <div className="mt-6">
       {/* ⭐ Le bloc dit SON NOM : sans lui, on ne savait pas qu'on regardait
           « la feuille de route », donc pas davantage ce qu'on pouvait y ajouter. */}
       {etapes.length > 0 && (
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1">
+        <div className={`mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 ${fil ? "pl-[34px]" : ""}`}>
           <h3 className="hud-label">{t("Feuille de route")}</h3>
           <Legende />
         </div>
       )}
 
-      <ListeEtapes {...p} parent={racine} etapes={etapes} />
+      <ListeEtapes {...p} parent={racine} etapes={etapes} rail={rail} />
 
       {elementsDirects > 0 && (
-        <div className="px-2 py-1">
-          <p className="hud-label mb-1">{t("Rattaché directement")}</p>
+        <div
+          className={fil ? "fil-item pb-2" : "px-2 py-1"}
+          data-etat={troncon("directs")?.etat}
+          style={fil ? varsFil(troncon("directs")?.part ?? 0, etapes.length, FIL_Y.directs, FIL_Y.ajout) : undefined}
+        >
+          {fil && (
+            <>
+              <span className="fil-noeud" aria-hidden />
+              <span className="fil-plein" aria-hidden />
+              {rail?.fil.courant === "directs" && <span className="fil-orbe" aria-hidden />}
+            </>
+          )}
+          <p className="hud-label mb-1 pt-1">{t("Rattaché directement")}</p>
           <ListeElements goal={racine} data={data} contexte={p.contexte} maintenant={p.sources.maintenant} refresh={refresh} />
         </div>
       )}
 
-      <AjoutEtape
-        parent={racine}
-        goals={data.goals}
-        genres={["jalon", "sous-objectif"]}
-        ouvertDOffice={p.ajoutOuvert}
-        onFerme={p.onFermerAjout}
-        refresh={refresh}
-        libelle={etapes.length === 0 ? t("Ajouter une première étape") : t("Ajouter une étape")}
-      />
+      {/* « Ajouter une étape » est une place encore vide SUR le chemin : son
+          nœud est en tirets, et le fil ne le traverse en plein qu'une fois
+          l'objectif atteint. */}
+      <div
+        className={fil ? "fil-item fil-ajout pb-1" : undefined}
+        data-etat={troncon("ajout")?.etat}
+        style={fil ? varsFil(troncon("ajout")?.part ?? 0, etapes.length + 1, FIL_Y.ajout, FIL_Y.fin) : undefined}
+      >
+        {fil && (
+          <>
+            <span className="fil-noeud" aria-hidden />
+            <span className="fil-plein" aria-hidden />
+          </>
+        )}
+        <AjoutEtape
+          parent={racine}
+          goals={data.goals}
+          genres={["jalon", "sous-objectif"]}
+          ouvertDOffice={p.ajoutOuvert}
+          onFerme={p.onFermerAjout}
+          refresh={refresh}
+          libelle={etapes.length === 0 ? t("Ajouter une première étape") : t("Ajouter une étape")}
+        />
+      </div>
+
+      {fil && (
+        <div
+          className="fil-item fil-fin"
+          data-etat={troncon("fin")?.etat}
+          style={varsFil(0, etapes.length + 2, FIL_Y.fin, 0)}
+        >
+          <span className="fil-noeud" aria-hidden />
+          <p className="flex min-h-11 flex-wrap items-center gap-x-2 px-1 text-sm">
+            <span className="hud-label shrink-0">{atteint ? t("Atteint") : t("Arrivée")}</span>
+            <span className={`min-w-0 truncate font-medium ${atteint ? "text-text" : "text-text-dim"}`}>{racine.title}</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -147,6 +243,8 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
 interface PropsListe extends PropsFeuille {
   parent: Goal;
   etapes: Goal[];
+  /** Le fil — seulement pour la liste du PREMIER niveau (celle de la racine). */
+  rail?: Rail;
 }
 
 function ListeEtapes(p: PropsListe) {
@@ -203,10 +301,28 @@ function ListeEtapes(p: PropsListe) {
     await refresh();
   };
 
+  // ⚠️ `rail` descend avec `{...p}` jusqu'aux listes imbriquées : seul le
+  // premier niveau dessine le fil, sinon chaque phase aurait le sien.
+  const rail = parent.id === p.racine.id ? p.rail : undefined;
+
   return (
     <div>
-      {etapes.map((etape, i) => (
-        <div key={etape.id} className="relative">
+      {etapes.map((etape, i) => {
+        const troncon = rail?.fil.troncons.find((x) => x.cle === `g${etape.id}`);
+        return (
+        <div
+          key={etape.id}
+          className={rail ? "fil-item relative" : "relative"}
+          data-etat={troncon?.etat}
+          style={rail ? varsFil(troncon?.part ?? 0, i, FIL_Y.etape, i === etapes.length - 1 ? rail.suiteFinale : FIL_Y.etape) : undefined}
+        >
+          {rail && (
+            <>
+              <span className="fil-noeud" aria-hidden />
+              <span className="fil-plein" aria-hidden />
+              {rail.fil.courant === `g${etape.id}` && <span className="fil-orbe" aria-hidden />}
+            </>
+          )}
           {glisse && glisse.id !== etape.id && glisse.vers === indexParmiAutres(etapes, glisse.id, etape.id) && (
             <div className="pointer-events-none absolute inset-x-2 -top-px h-0.5 rounded bg-blue" aria-hidden />
           )}
@@ -220,7 +336,8 @@ function ListeEtapes(p: PropsListe) {
             onDeplacer={(sens) => monter(i, sens)}
           />
         </div>
-      ))}
+        );
+      })}
       {glisse && glisse.vers >= etapes.length - 1 && (
         <div className="pointer-events-none mx-2 h-0.5 rounded bg-blue" aria-hidden />
       )}

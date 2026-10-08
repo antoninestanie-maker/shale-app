@@ -865,3 +865,7 @@ Venu du chantier `ios-soumission` (`MOBILE.md` § 28).
 ## X — Aujourd'hui : habitudes à tenir à la place du graphique 7 jours (app, 2026-10-07)
 
 Les quatre captures `shots/v2/*aujourdhui.webp` montrent encore la carte « 7 derniers jours ». À refaire à la prochaine série de captures ; aucun texte du site ne cite ce graphique (vérifié par `grep` dans `vitrine/src`).
+
+## Y — Objectifs : liste → page d'un objectif, et le fil (app, 2026-10-08)
+
+La vue Objectifs a encore changé : plus de maître-détail. Une liste pleine largeur (chaque objectif avec son fil couché), puis la page d'un objectif avec le fil le long de la feuille de route — la même grammaire que le fil de l'accueil du site. `shots/v2/*objectifs.webp` montre toujours l'ancienne vue (entrée M) : à refaire à la prochaine série de captures. À dire sur le site, si Antonin le veut : « le fil de l'accueil, c'est celui de vos objectifs ». Aucun texte du site ne décrit la disposition de la vue (rien à corriger d'urgence).

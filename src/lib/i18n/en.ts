@@ -3489,4 +3489,8 @@ export const EN: Record<string, string> = {
     "A step moves forward when its tasks are ticked.",
   "Exemple · habitude à cocher chaque jour":
     "Example · habit to tick every day",
+
+  // ── Objectifs : la liste, la page, et le fil (2026-10-08) ──
+  "Revenir à la liste": "Back to the list",
+  "Arrivée": "Finish",
 };

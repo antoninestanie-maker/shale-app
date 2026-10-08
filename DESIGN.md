@@ -812,7 +812,38 @@ tâche (`h-2.5 w-2.5 rounded-[3px] border-current`) marque la prochaine action
 sous un objectif de la liste, et la tâche récurrente qui compte une étape ; la
 flamme, l'habitude qui la compte.
 
-### La vue Objectifs — maître-détail épuré (2026-09-29)
+### La vue Objectifs — la liste, la page, le fil (2026-10-08)
+
+Remplace le maître-détail ci-dessous. Colonne unique `max-w-4xl`.
+
+- **Liste** : une `.card` par objectif, cliquable en entier — titre
+  `text-[15px] font-semibold`, UNE ligne `text-xs` dessous (prochaine action,
+  sinon échéance ; « Atteint » en `text-success`), puis le fil couché, le
+  pourcentage `font-display font-bold` et un chevron. Les deux blocs se partagent
+  la ligne (3 : 2) et passent l'un sous l'autre quand la place manque.
+  Intertitres `hud-label` s'il existe une vraie catégorie.
+- **Page** : « ‹ Tous les objectifs » à gauche, « Carte » et « ⋯ » à droite,
+  HORS de la zone qui défile ; une ligne `hud-label` (horizon · catégorie ·
+  échéance · retard en `text-red`) ; titre `text-3xl font-extrabold` ; le fil
+  couché + pourcentage `text-4xl` ; UNE phrase d'origine ; la feuille de route
+  avec le fil debout. Pas de carte autour : les cadres des étapes suffisent.
+- **Le fil** (`.fil-item` debout, `.fil-h` couché — `index.css`) :
+  - devant soi, des **pointillés** (points de 2 px tous les 9 px, `text-dim` à 50 %) ;
+  - derrière, un **trait plein** de 2 px : `--color-blue` debout,
+    `--gradient-brand` couché ; **`--color-success-fill` une fois atteint** ;
+  - un **nœud** de 12 px par étape : creux (vide), contour bleu + halo de 4 px
+    (en cours), plein `--color-success` (atteint) ; en tirets pour « ajouter une
+    étape » ; 16 px pour l'arrivée, d'où partent deux ondes quand l'objectif
+    est atteint ;
+  - une **orbe** (point bleu de 8 px + lueur de 38 px qui respire, 2,8 s) sur la
+    tête du tronçon en cours. C'est le seul halo de la vue, et il n'y en a qu'un.
+  - À l'ouverture le fil se TIRE de haut en bas (620 ms par tronçon, 110 ms de
+    décalage). Rien que `transform` et `opacity`.
+- Le rail prend 34 px à gauche de la feuille de route ; le nœud s'aligne sur la
+  ligne de titre de l'étape (`FIL_Y` dans `FeuilleDeRoute.tsx`).
+- Pas de dégradé sur un chiffre, pas de pastille de compte, pas d'action au survol seul.
+
+### La vue Objectifs — maître-détail épuré (2026-09-29) — ⚠️ remplacé le 2026-10-08
 
 - **Liste** (colonne `minmax(220px, 300px)`, sans carte autour) : titre en
   `text-sm font-medium`, pourcentage en `font-display font-bold` à droite, UNE

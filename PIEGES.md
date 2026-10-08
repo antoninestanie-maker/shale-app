@@ -4244,3 +4244,29 @@ qui n'en avait aucune.
 montre.
 
 **Payé.** 2026-10-07, vu à la première capture sur iPad Pro 13".
+
+# 32. La page d'un objectif et le fil (2026-10-08)
+
+## 32.1 Une ref écrite en ligne est rappelée à CHAQUE rendu
+
+**Symptôme.** La liste des objectifs devait retrouver son défilement au retour d'une page. Écrit `ref={(el) => { if (el && ancien !== el) restaurer(); ancien = el; }}` : la liste serait remontée en haut à chaque rendu.
+
+**Cause.** Une fonction de ref créée dans le JSX change d'identité à chaque rendu ; React appelle l'ancienne avec `null`, puis la nouvelle avec l'élément. Retenir ce `null`, c'est faire passer chaque rendu pour un montage.
+
+**Parade.** Ne jamais retenir `null` (`if (!el || ancien === el) return;`), ou une ref stable (`useCallback`). Vu à la relecture, avant l'écran — `GoalsView.tsx`.
+
+## 32.2 Échap : `defaultPrevented` lu trop tôt vaut toujours faux
+
+**Symptôme attendu.** Échap sur la page d'un objectif devait fermer un menu ouvert, PAS la page.
+
+**Cause.** La convention « lire `e.defaultPrevented`, puis marquer » suppose que l'écouteur du dessus passe AVANT. Or tous sont sur `window`, servis dans l'ordre de POSE : la page pose le sien à son montage, le menu à son ouverture — donc après. La page lisait `false` et se fermait avec le menu.
+
+**Parade.** L'écouteur le plus ANCIEN lit `defaultPrevented` après la distribution : `setTimeout(() => { if (!e.defaultPrevented) … }, 0)` (un microtask passerait encore avant l'écouteur suivant). L'état « une fenêtre est ouverte » se lit, lui, tout de suite. Prouvé à l'écran sur trois cas (menu de la page, menu d'une étape, champ de saisie).
+
+## 32.3 Piloter la barre latérale : une entrée repliée a une hauteur, et un module `lazy` n'est pas là en 2 s
+
+**Symptôme.** Script puppeteer : « Objectifs » trouvé, cliqué, rien ne s'ouvre ; puis ouvert, mais `[data-objectif]` introuvable.
+
+**Cause.** (1) Une catégorie repliée (`grid-template-rows: 0fr`) laisse ses entrées dans le DOM avec leur hauteur : `getBoundingClientRect().height > 0` ne prouve pas qu'elles sont visibles. (2) En dev, le premier chargement d'une vue `lazy` dépasse un délai fixe (« Ouverture du module… »).
+
+**Parade.** Cliquer d'abord l'en-tête de la catégorie ; attendre l'ÉTAT (`waitForSelector`), jamais une durée. Modèle : `voir.mjs` du brouillon de session (non versionné) — le reprendre dans `tools/` si un troisième chantier en a besoin.

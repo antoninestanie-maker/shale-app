@@ -3,7 +3,7 @@ import GoalModal from "../components/GoalModal";
 import ImporterChecklist from "../components/objectifs/ImporterChecklist";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
-import { IconCarte, IconPencil, IconPlus, IconTrash } from "../components/icons";
+import { IconCarte, IconChevronLeft, IconChevronRight, IconPencil, IconPlus, IconTrash } from "../components/icons";
 import { todayStr } from "../lib/logic";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
@@ -16,7 +16,7 @@ import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
 import { consommerDemande } from "../lib/naviguer";
-import { useIsPhone } from "../lib/platform";
+import { menuContextuelOuvert } from "../lib/menu/tactile";
 import type { EntreePossible } from "../lib/menu/entrees";
 import { useIaPossible } from "../lib/ia/useIa";
 import { demanderIa } from "../lib/ia/demande";
@@ -32,6 +32,25 @@ interface Props {
 }
 
 /**
+ * ⭐⭐ 2026-10-08 — LA LISTE, PUIS LA PAGE D'UN OBJECTIF. Demande d'Antonin :
+ * « avoir la liste des objectifs, puis pouvoir cliquer sur l'objectif pour avoir
+ * une vue sur l'objectif seul, avec ses jalons, tâches, etc. Avec en plus une
+ * barre de progression du même style que celle qui descend sur le site quand on
+ * scrolle ». Le maître-détail du 2026-09-29 (décrit dessous) est donc REMPLACÉ :
+ *   • la vue s'ouvre sur la LISTE, pleine largeur — une ligne par objectif, sa
+ *     prochaine action, son fil couché et son pourcentage ;
+ *   • un clic ouvre la PAGE de l'objectif, seul à l'écran ; « ← Tous les
+ *     objectifs » ou Échap ramènent à la liste, là où on l'avait laissée ;
+ *   • « le fil » (`index.css`, `.fil-item` / `.fil-h`) est la barre du site :
+ *     pointillés devant, trait plein derrière, un nœud par étape, l'orbe là où
+ *     on en est. Couché dans la liste et en tête de page ; debout le long de la
+ *     feuille de route (`FeuilleDeRoute`, prop `fil`).
+ * Ce qui NE change pas : aucune règle métier (le chiffre vient de `mesurer`),
+ * le menu d'un objectif, la carte mentale, la création, `sb:open-goal`.
+ * Le bureau et l'iPhone ont désormais le MÊME parcours (liste OU page).
+ *
+ * ── Ce qui suit décrit la vue du 2026-09-29, gardé pour ses raisons ──
+ *
  * ⭐ LA VUE OBJECTIFS EN MAÎTRE-DÉTAIL — phase D du chantier carte-objectifs,
  * direction B choisie à l'arrêt 3 (2026-09-29), « mais épure un peu encore ».
  *
@@ -103,8 +122,37 @@ function auFilDeLaLigne(jour: string, aujourdHui: string): string {
   return relatif ? relatif.toLocaleLowerCase() : formaterChamp(jour, aujourdHui);
 }
 
+/** Une frappe dans un champ n'est pas un geste de navigation. */
+function dansUnChamp(cible: EventTarget | null): boolean {
+  if (!(cible instanceof HTMLElement)) return false;
+  return cible.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(cible.tagName);
+}
+
+/**
+ * ⭐ LE FIL, COUCHÉ — la barre de progression du site, sur une ligne : des
+ * pointillés pour ce qui reste, un trait plein pour ce qui est fait, une tête
+ * lumineuse là où on en est, l'arrivée au bout. Décoratif (`aria-hidden`) : le
+ * pourcentage est toujours écrit à côté. Dessin : `index.css`, `.fil-h`.
+ */
+function FilCouche({ pct, acheve }: { pct: number | null; acheve: boolean }) {
+  const etat = acheve ? "atteint" : (pct ?? 0) > 0 ? "cours" : "vide";
+  const part = acheve ? 1 : Math.min(100, Math.max(0, pct ?? 0)) / 100;
+  return (
+    <span
+      className="fil-h block min-w-0 flex-1"
+      data-etat={etat}
+      style={{ "--fil-e": part.toFixed(4) } as React.CSSProperties}
+      aria-hidden
+    >
+      <span className="fil-h-plein" />
+      <span className="fil-h-depart" />
+      {etat === "cours" && <span className="fil-h-tete" />}
+      <span className="fil-h-fin" />
+    </span>
+  );
+}
+
 export default function GoalsView({ data, refresh }: Props) {
-  const isPhone = useIsPhone();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par le menu. */
@@ -112,11 +160,18 @@ export default function GoalsView({ data, refresh }: Props) {
   /** L'objectif regardé en carte mentale — un seul à la fois, plein écran. */
   const [enCarte, setEnCarte] = useState<Goal | null>(null);
   /**
-   * L'objectif montré dans la fiche. `null` : le premier de la liste sur le
-   * bureau, la LISTE sur iPhone — présélectionner y cacherait l'écran d'accueil
-   * du module derrière son détail (même règle que les Notes).
+   * L'objectif dont la PAGE est ouverte. `null` : la liste — sur le bureau
+   * comme sur iPhone depuis le 2026-10-08 (avant, le bureau présélectionnait le
+   * premier objectif dans un panneau à droite).
    */
   const [choisiId, setChoisiId] = useState<number | null>(null);
+  /** Où en était la liste quand on l'a quittée : on y revient au même endroit. */
+  const retour = useRef<{ defilement: number; objectif: number | null }>({ defilement: 0, objectif: null });
+  const listeRef = useRef<HTMLDivElement | null>(null);
+  const ouvrir = (id: number) => {
+    retour.current = { defilement: listeRef.current?.scrollTop ?? 0, objectif: id };
+    setChoisiId(id);
+  };
 
   /**
    * ⭐ Le repliement a une MÉMOIRE : seuls les choix explicites sont rangés,
@@ -280,9 +335,35 @@ export default function GoalsView({ data, refresh }: Props) {
   // « Sans catégorie » n'en a pas besoin.
   const avecIntertitres = orderedCategories.some((c) => c !== NONE);
 
-  const choisi =
-    roots.find((g) => g.id === choisiId) ??
-    (isPhone ? null : (orderedCategories.flatMap((c) => groups.get(c)!)[0] ?? null));
+  // Un objectif supprimé (ici ou par la synchronisation) referme sa page : on
+  // retombe sur la liste, jamais sur le premier objectif venu.
+  const choisi = roots.find((g) => g.id === choisiId) ?? null;
+
+  /**
+   * ⭐ Échap ramène à la liste — la convention du Savoir (2026-08-26) : remonter
+   * d'un niveau. Trois gardes : pas depuis un champ de saisie, pas quand une
+   * fenêtre ou un menu est ouvert, et pas si un autre écouteur a déjà pris la
+   * touche. ⚠️ Ce dernier point se lit APRÈS la distribution de l'événement
+   * (`setTimeout`) : les menus posent leur écouteur sur `window` APRÈS le
+   * nôtre, donc passent après nous — lu tout de suite, `defaultPrevented`
+   * serait toujours faux et Échap fermerait le menu ET la page.
+   */
+  const occupe = creating || !!editing || !!enCarte || important;
+  const occupeRef = useRef(occupe);
+  occupeRef.current = occupe;
+  const pageOuverte = choisi != null;
+  useEffect(() => {
+    if (!pageOuverte) return;
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || dansUnChamp(e.target)) return;
+      if (occupeRef.current || menuContextuelOuvert() || document.querySelector('[role="dialog"], [role="menu"]')) return;
+      window.setTimeout(() => {
+        if (!e.defaultPrevented) setChoisiId(null);
+      }, 0);
+    };
+    window.addEventListener("keydown", touche);
+    return () => window.removeEventListener("keydown", touche);
+  }, [pageOuverte]);
 
   /**
    * ⭐ Corbeille (migration 027) : un objectif part AVEC ses phases et
@@ -294,7 +375,7 @@ export default function GoalsView({ data, refresh }: Props) {
   const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
 
   const ajouterEtape = (goal: Goal) => {
-    setChoisiId(goal.id);
+    ouvrir(goal.id);
     setAjoutPour(goal.id);
   };
 
@@ -361,29 +442,25 @@ export default function GoalsView({ data, refresh }: Props) {
     const acheve = estAcheve(m);
     const suite = suites.get(goal.id) ?? null;
     const dl = deadlineInfo(goal.deadline);
-    const actif = choisi?.id === goal.id;
     return (
       <li
         key={goal.id}
         onContextMenu={(e) => menu.ouvrirAuPoint(e, goal)}
         onKeyDown={(e) => void menu.ouvrirAuClavier(e, goal)}
       >
+        {/* Une `.card` par objectif, cliquable en entier. Deux blocs qui se
+            partagent la ligne (3 : 2) et passent l'un sous l'autre quand la
+            place manque — la BASE flex décide du repli (PIEGES, 2026-07-26). */}
         <button
           type="button"
-          onClick={() => setChoisiId(goal.id)}
-          aria-current={actif ? "true" : undefined}
-          className={`block w-full rounded-[10px] px-3 py-2.5 text-left transition-colors ${
-            actif ? "bg-surface-2" : "hover:bg-surface-2/50"
-          }`}
+          data-objectif={goal.id}
+          onClick={() => ouvrir(goal.id)}
+          className="card flex w-full flex-wrap items-center gap-x-8 gap-y-2.5 px-4 py-3.5 text-left lg:px-5"
         >
-          <span className="flex items-baseline gap-3">
-            <span className={`min-w-0 flex-1 truncate text-sm font-medium ${acheve ? "text-text-dim line-through" : "text-text"}`}>
+          <span className="min-w-0 flex-[3_1_14rem]">
+            <span className={`block truncate text-[15px] font-semibold ${acheve ? "text-text-dim line-through" : "text-text"}`}>
               {goal.title}
             </span>
-            <span className="shrink-0 font-display text-sm font-bold text-text">
-              {m.pct == null ? "—" : `${m.pct}%`}
-            </span>
-          </span>
           {/* UNE ligne, jamais deux : la prochaine action si elle existe (le
               carré est l'icône de la tâche, DESIGN.md « Les types de nœud »),
               sinon l'échéance de l'objectif. */}
@@ -407,14 +484,22 @@ export default function GoalsView({ data, refresh }: Props) {
           ) : dl ? (
             <span className={`mt-0.5 block text-xs ${dl.urgent ? "font-medium text-red" : "text-text-dim"}`}>{dl.label}</span>
           ) : null}
+          </span>
+          <span className="flex min-w-0 flex-[2_1_14rem] items-center gap-3">
+            <FilCouche pct={m.pct} acheve={acheve} />
+            <span className="w-11 shrink-0 text-right font-display text-base font-bold text-text">
+              {m.pct == null ? "—" : `${m.pct}%`}
+            </span>
+            <IconChevronRight className="h-4 w-4 shrink-0 text-text-dim" aria-hidden />
+          </span>
         </button>
       </li>
     );
   };
 
-  // ─── La fiche ─────────────────────────────────────────────────────────────
+  // ─── La page d'un objectif ────────────────────────────────────────────────
 
-  const fiche = (goal: Goal) => {
+  const page = (goal: Goal) => {
     const m = mesures.get(goal.id)!;
     const acheve = estAcheve(m);
     const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
@@ -426,62 +511,68 @@ export default function GoalsView({ data, refresh }: Props) {
     const menuOuvert = menu.ouvert && menu.cible?.id === goal.id;
 
     return (
-      // `key` : changer d'objectif repart d'une fiche neuve — sinon un champ
+      // `key` : changer d'objectif repart d'une page neuve — sinon un champ
       // « ajouter une étape » ouvert sur l'un resterait ouvert sur l'autre.
-      <div key={goal.id} className="flex min-h-0 flex-col">
-        {/* ⚠️ Le retour vit HORS de la zone qui défile : posé dans la fiche, il
-            partait avec le contenu dès qu'on descendait dans la feuille de
-            route — vu à l'écran à 390 pt le 2026-09-29. */}
-        {isPhone && (
+      <div key={goal.id} className="objectif-entree flex min-h-0 flex-1 flex-col">
+        {/* ⚠️ Le retour et les actions vivent HORS de la zone qui défile : posés
+            dans la page, ils partaient avec le contenu dès qu'on descendait
+            dans la feuille de route — vu à l'écran à 390 pt le 2026-09-29. */}
+        <div className="flex shrink-0 items-center gap-1 pb-3">
           <button
             type="button"
             onClick={() => setChoisiId(null)}
-            className="cible-tactile-ligne -ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+            className="cible-tactile-ligne -ml-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-dim transition-colors hover:bg-surface-2 hover:text-text"
+            data-tip={t("Revenir à la liste")}
+            data-tip-kbd={t("Échap")}
+            data-tip-side="bottom"
           >
-            ← {t("Tous les objectifs")}
+            <IconChevronLeft className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t("Tous les objectifs")}</span>
           </button>
-        )}
-        <section className="card min-h-0 flex-1 overflow-y-auto p-4 lg:p-6" aria-label={goal.title}>
-          <div className="flex items-start gap-2">
-            <h2 className="min-w-0 flex-1 font-display text-2xl font-extrabold text-text [overflow-wrap:anywhere]">
-              {goal.title}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setEnCarte(goal)}
-              className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
-              data-tip={t("Voir en carte mentale")}
-              data-tip-sub={t("La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.")}
-            >
-              <IconCarte className="h-3.5 w-3.5" />
-              {t("Carte|carte mentale")}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => menu.ouvrirSousLeBouton(e, goal)}
-              aria-haspopup="menu"
-              aria-expanded={menuOuvert}
-              aria-label={t("Actions sur « {titre} »", { titre: goal.title })}
-              data-tip={t("Actions")}
-              className="cible-tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
-                <circle cx="5" cy="12" r="1.8" />
-                <circle cx="12" cy="12" r="1.8" />
-                <circle cx="19" cy="12" r="1.8" />
-              </svg>
-            </button>
-          </div>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setEnCarte(goal)}
+            className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
+            data-tip={t("Voir en carte mentale")}
+            data-tip-sub={t("La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.")}
+            data-tip-side="bottom"
+          >
+            <IconCarte className="h-3.5 w-3.5" />
+            {t("Carte|carte mentale")}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => menu.ouvrirSousLeBouton(e, goal)}
+            aria-haspopup="menu"
+            aria-expanded={menuOuvert}
+            aria-label={t("Actions sur « {titre} »", { titre: goal.title })}
+            data-tip={t("Actions")}
+            data-tip-side="bottom"
+            className="cible-tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+              <circle cx="5" cy="12" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="19" cy="12" r="1.8" />
+            </svg>
+          </button>
+        </div>
 
-          <p className="mt-1 text-xs text-text-dim">
+        <section className="min-h-0 flex-1 overflow-y-auto pb-10" aria-label={goal.title}>
+          <p className="hud-label">
             {t(SCOPE_LABEL[goal.scope])}
+            {goal.category?.trim() && <> · {goal.category.trim()}</>}
             {goal.deadline && <> · {jourLong(goal.deadline)}</>}
-            {dl?.urgent && !acheve && <span className="font-medium text-red"> · {dl.label}</span>}
+            {dl?.urgent && !acheve && <span className="text-red"> · {dl.label}</span>}
           </p>
-          {goal.description && <p className="mt-2 text-sm text-text-dim">{goal.description}</p>}
+          <h1 className="mt-1.5 font-display text-3xl font-extrabold text-text [overflow-wrap:anywhere]">
+            {goal.title}
+          </h1>
+          {goal.description && <p className="mt-2 max-w-[68ch] text-sm text-text-dim">{goal.description}</p>}
 
           {sansMesure ? (
-            <p className="mt-4 text-sm text-text-dim">
+            <p className="mt-5 text-sm text-text-dim">
               {t("Pas encore de feuille de route.")}{" "}
               <button
                 type="button"
@@ -497,17 +588,12 @@ export default function GoalsView({ data, refresh }: Props) {
             </p>
           ) : (
             <>
-              <div className="mt-4 flex items-center gap-4">
-                <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
-                  {pct != null && (
-                    <div
-                      className={`pill h-full transition-[width] duration-500 ${acheve ? "bg-success" : "bg-[image:var(--gradient-brand)]"}`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
-                  )}
-                </div>
+              {/* ⭐ Le fil couché remplace la barre pleine : la même grammaire
+                  que le fil debout, juste dessous, le long des étapes. */}
+              <div className="mt-5 flex items-center gap-4">
+                <FilCouche pct={pct} acheve={acheve} />
                 {/* Une feuille de route encore vide affiche « — », jamais un faux 0 %. */}
-                <span className="shrink-0 font-display text-3xl font-extrabold text-text">
+                <span className="shrink-0 font-display text-4xl font-extrabold text-text">
                   {pct == null ? "—" : `${pct}%`}
                 </span>
               </div>
@@ -549,6 +635,7 @@ export default function GoalsView({ data, refresh }: Props) {
             onFermerAjout={() => setAjoutPour((a) => (a === goal.id ? null : a))}
             onModifier={setEditing}
             refresh={refresh}
+            fil
           />
         </section>
       </div>
@@ -556,10 +643,13 @@ export default function GoalsView({ data, refresh }: Props) {
   };
 
   return (
-    <div className="mx-auto flex h-full max-w-6xl flex-col p-4 lg:p-8">
-      {/* Sur iPhone, la fiche prend l'écran : l'en-tête du module laisse la
-          place au retour, comme la barre de navigation d'iOS. */}
-      {!(isPhone && choisi) && (
+    // Colonne unique `max-w-4xl`, comme la vue Tâches : une liste et une page
+    // se lisent en une colonne, et la liste ne change pas de largeur en
+    // devenant page.
+    <div className="mx-auto flex h-full max-w-4xl flex-col p-4 lg:p-8">
+      {/* La page prend l'écran : l'en-tête du module laisse la place au retour,
+          comme la barre de navigation d'iOS — sur le bureau aussi désormais. */}
+      {!choisi && (
         <header className="view-head shrink-0">
           <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
           <div className="flex flex-wrap items-center gap-2">
@@ -585,7 +675,9 @@ export default function GoalsView({ data, refresh }: Props) {
         </header>
       )}
 
-      {roots.length === 0 ? (
+      {choisi ? (
+        page(choisi)
+      ) : roots.length === 0 ? (
         <section className="card mt-6 p-3">
           <p className="py-10 text-center text-sm text-text-dim">
             {t(
@@ -594,24 +686,37 @@ export default function GoalsView({ data, refresh }: Props) {
           </p>
         </section>
       ) : (
+        // ⚠️ `pt-0.5` : une carte se soulève de 2 px au survol, et une zone qui
+        // défile rogne ce qui dépasse en haut (PIEGES § 21.10).
         <div
-          className={`grid min-h-0 flex-1 gap-4 ${isPhone && choisi ? "" : "mt-6"} ${
-            isPhone ? "grid-cols-1" : "grid-cols-[minmax(220px,300px)_minmax(0,1fr)]"
-          }`}
+          ref={(el) => {
+            // Au retour d'une page : la liste là où on l'avait laissée, et le
+            // focus sur la ligne qu'on venait d'ouvrir (le clavier repart de là).
+            // ⚠️ Une ref écrite en ligne est rappelée à CHAQUE rendu (`null`,
+            // puis l'élément) : on ne retient donc jamais `null`, sinon chaque
+            // rendu passerait pour un retour et renverrait la liste en haut.
+            if (!el || listeRef.current === el) return;
+            listeRef.current = el;
+            el.scrollTop = retour.current.defilement;
+            const ligne =
+              retour.current.objectif != null
+                ? el.querySelector<HTMLElement>(`[data-objectif="${retour.current.objectif}"]`)
+                : null;
+            ligne?.focus({ preventScroll: true });
+            retour.current = { defilement: 0, objectif: null };
+          }}
+          className="mt-6 min-h-0 flex-1 overflow-y-auto pb-6 pt-0.5"
         >
-          {(!isPhone || !choisi) && (
-            <nav aria-label={t("Mes objectifs")} className="min-h-0 overflow-y-auto">
-              {orderedCategories.map((cat) => (
-                <div key={cat} className="mb-3">
-                  {avecIntertitres && (
-                    <h2 className="hud-label px-3 pb-1 pt-1">{cat === NONE ? t("Sans catégorie") : cat}</h2>
-                  )}
-                  <ul className="flex flex-col gap-0.5">{groups.get(cat)!.map(ligneListe)}</ul>
-                </div>
-              ))}
-            </nav>
-          )}
-          {choisi && fiche(choisi)}
+          <nav aria-label={t("Mes objectifs")}>
+            {orderedCategories.map((cat) => (
+              <div key={cat} className="mb-5">
+                {avecIntertitres && (
+                  <h2 className="hud-label px-1 pb-2">{cat === NONE ? t("Sans catégorie") : cat}</h2>
+                )}
+                <ul className="flex flex-col gap-2">{groups.get(cat)!.map(ligneListe)}</ul>
+              </div>
+            ))}
+          </nav>
         </div>
       )}
 

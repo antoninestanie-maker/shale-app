@@ -1205,6 +1205,237 @@
     font-size: 15px;
     line-height: 1.8;
   }
+
+  /* ⭐ LE FIL D'UN OBJECTIF (2026-10-08) — la barre de progression du site
+     (« le fil » de l'accueil, `shale-site/…/scripts/accueil.ts`), reprise dans
+     la vue Objectifs à la demande d'Antonin. Même grammaire : des POINTILLÉS
+     pour le chemin devant soi, un TRAIT PLEIN pour le chemin parcouru, un
+     NŒUD par étape, et une ORBE là où on en est.
+
+     ⚠️ Ici le fil ne suit pas le défilement : il suit l'AVANCEMENT. Chaque
+     étape porte SON tronçon (du nœud de l'étape au nœud suivant), rempli de
+     sa propre part (`--fil-e`, 0 → 1).
+
+     ⚠️ AUCUNE MESURE EN JS, exprès. Le site mesure ses nœuds
+     (`getBoundingClientRect`) ; dans l'app ce serait faux sous le `zoom` de
+     la densité (pixels écran contre pixels locaux — cf. `Tooltip.tsx`), et à
+     refaire à chaque étape dépliée. Le tronçon est donc un enfant de l'item :
+     il part du nœud (`--fil-y`) et dépasse en bas jusqu'au nœud de l'item
+     suivant (`--fil-suite`). `display: flow-root` garde la marge basse de
+     l'étape DANS l'item — sans lui elle fuirait, et le tronçon s'arrêterait
+     8 px trop tôt.
+
+     Couleurs : la règle des jauges de DESIGN.md — bleu de marque tant que
+     l'étape est en cours, ENCRE une fois atteinte. Rien que `transform` et
+     `opacity` dans les animations. `prefers-reduced-motion` : règle globale. */
+  .fil-item {
+    position: relative;
+    display: flow-root;
+    padding-left: 34px;
+    --fil-x: 11px;
+    --fil-y: 25px;
+    --fil-suite: 25px;
+    --fil-e: 0;
+    --fil-point: color-mix(in srgb, var(--color-text-dim) 50%, transparent);
+  }
+  .fil-item:not(.fil-fin)::before,
+  .fil-plein {
+    content: "";
+    position: absolute;
+    left: calc(var(--fil-x) - 1px);
+    top: var(--fil-y);
+    bottom: calc(-1 * var(--fil-suite));
+    width: 2px;
+    pointer-events: none;
+  }
+  .fil-item:not(.fil-fin)::before {
+    background: radial-gradient(circle at center, var(--fil-point) 1px, transparent 1.3px) center top / 2px 9px repeat-y;
+  }
+  .fil-plein {
+    border-radius: 1px;
+    background: var(--color-blue);
+    transform-origin: top;
+    transform: scaleY(var(--fil-e));
+    transition:
+      transform 700ms var(--ease-out-quint),
+      background-color 350ms ease;
+    /* À l'ouverture, le fil se TIRE de haut en bas, un tronçon après l'autre.
+       `backwards` : une fois jouée, l'animation ne tient plus rien et la
+       transition reprend la main (cocher une tâche fait avancer le trait). */
+    animation: fil-tirer 620ms var(--ease-out-quint) calc(140ms + var(--fil-rang, 0) * 110ms) backwards;
+  }
+  .fil-item[data-etat="atteint"] > .fil-plein {
+    background: var(--color-success-fill);
+  }
+  .fil-noeud {
+    position: absolute;
+    z-index: 1;
+    left: calc(var(--fil-x) - 6px);
+    top: calc(var(--fil-y) - 6px);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--fil-point);
+    background: var(--color-bg);
+    pointer-events: none;
+    transition:
+      background-color 350ms ease,
+      border-color 350ms ease,
+      box-shadow 350ms ease;
+  }
+  .fil-item[data-etat="cours"] > .fil-noeud {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-blue) 16%, transparent);
+  }
+  .fil-item[data-etat="atteint"] > .fil-noeud {
+    border-color: var(--color-success);
+    background: var(--color-success);
+  }
+  /* Le nœud « ajouter une étape » : une place encore vide sur le chemin. */
+  .fil-item.fil-ajout > .fil-noeud {
+    border-style: dashed;
+    border-width: 1.5px;
+    /* Jamais plein, même objectif atteint : c'est une place, pas une étape. */
+    background: var(--color-bg);
+  }
+  /* L'arrivée : un nœud plus grand. Atteint, deux ondes en partent — une fois. */
+  .fil-item.fil-fin > .fil-noeud {
+    left: calc(var(--fil-x) - 8px);
+    top: calc(var(--fil-y) - 8px);
+    width: 16px;
+    height: 16px;
+  }
+  .fil-item.fil-fin[data-etat="atteint"] > .fil-noeud::before,
+  .fil-item.fil-fin[data-etat="atteint"] > .fil-noeud::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid var(--color-success);
+    opacity: 0;
+    animation: fil-onde 1200ms var(--ease-out-quint) 700ms both;
+  }
+  .fil-item.fil-fin[data-etat="atteint"] > .fil-noeud::after {
+    animation-delay: 920ms;
+  }
+  /* L'orbe : « tu en es là ». Posée sur la tête du tronçon en cours. */
+  .fil-orbe {
+    position: absolute;
+    z-index: 2;
+    left: var(--fil-x);
+    top: calc(var(--fil-y) + var(--fil-e) * (100% - var(--fil-y) + var(--fil-suite)));
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    transition: top 700ms var(--ease-out-quint);
+    animation: fil-apparaitre 400ms ease calc(520ms + var(--fil-rang, 0) * 110ms) backwards;
+  }
+  .fil-orbe::before,
+  .fil-orbe::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+  }
+  .fil-orbe::before {
+    inset: -19px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--color-blue) 38%, transparent) 0%, transparent 68%);
+    animation: fil-souffle 2.8s ease-in-out infinite;
+  }
+  .fil-orbe::after {
+    inset: -4px;
+    background: var(--color-blue);
+    box-shadow: 0 0 0 2px var(--color-bg);
+  }
+
+  /* Le même fil, COUCHÉ : sur une ligne de la liste et en tête de la page.
+     Un seul tronçon, rempli de l'avancement de l'objectif entier. */
+  .fil-h {
+    position: relative;
+    height: 12px;
+    min-width: 0;
+    --fil-e: 0;
+    --fil-point: color-mix(in srgb, var(--color-text-dim) 50%, transparent);
+    --fil-fond: var(--color-bg);
+  }
+  .fil-h::before,
+  .fil-h-plein {
+    content: "";
+    position: absolute;
+    left: 3px;
+    right: 14px;
+    top: 5px;
+    height: 2px;
+    pointer-events: none;
+  }
+  .fil-h::before {
+    background: radial-gradient(circle at center, var(--fil-point) 1px, transparent 1.3px) left center / 9px 2px repeat-x;
+  }
+  .fil-h-plein {
+    border-radius: 1px;
+    background: var(--gradient-brand);
+    transform-origin: left;
+    transform: scaleX(var(--fil-e));
+    transition: transform 700ms var(--ease-out-quint);
+    animation: fil-tirer-h 720ms var(--ease-out-quint) 120ms backwards;
+  }
+  .fil-h-depart,
+  .fil-h-tete,
+  .fil-h-fin {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .fil-h-depart {
+    left: 0;
+    top: 3px;
+    width: 6px;
+    height: 6px;
+    background: var(--fil-point);
+  }
+  .fil-h[data-etat="cours"] > .fil-h-depart {
+    background: var(--gradient-brand-from);
+  }
+  .fil-h-tete {
+    left: calc(3px + var(--fil-e) * (100% - 17px));
+    top: 2px;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    background: var(--gradient-brand-to);
+    box-shadow:
+      0 0 0 2px var(--fil-fond),
+      0 0 0 5px color-mix(in srgb, var(--color-blue) 22%, transparent);
+    transition: left 700ms var(--ease-out-quint);
+    animation: fil-apparaitre 300ms ease 620ms backwards;
+  }
+  .fil-h-fin {
+    right: 0;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--fil-point);
+    background: var(--fil-fond);
+  }
+  .fil-h[data-etat="atteint"] > .fil-h-plein {
+    background: var(--color-success-fill);
+  }
+  .fil-h[data-etat="atteint"] > .fil-h-depart,
+  .fil-h[data-etat="atteint"] > .fil-h-fin {
+    border-color: var(--color-success);
+    background: var(--color-success);
+  }
+  /* La ligne de la liste est une `.card` : le fond derrière les nœuds est la
+     surface, pas le fond de l'app. */
+  .card .fil-h {
+    --fil-fond: var(--color-surface);
+  }
+
+  /* La page d'un objectif arrive par un court fondu. `backwards`, pas `both` :
+     un `transform` tenu après coup ferait de la page le bloc conteneur de ses
+     descendants `position: fixed` (piège du lecteur du Savoir, 2026-07-21). */
+  .objectif-entree {
+    animation: fade-up 0.36s var(--ease-out-quint) backwards;
+  }
 }
 
 @layer utilities {
@@ -1425,6 +1656,44 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Le fil d'un objectif (voir `.fil-item`). */
+@keyframes fil-tirer {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes fil-tirer-h {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fil-apparaitre {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fil-souffle {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+@keyframes fil-onde {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(5);
   }
 }
 
