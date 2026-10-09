@@ -869,3 +869,7 @@ Les quatre captures `shots/v2/*aujourdhui.webp` montrent encore la carte « 7 de
 ## Y — Objectifs : liste → page d'un objectif, et le fil (app, 2026-10-08)
 
 La vue Objectifs a encore changé : plus de maître-détail. Une liste pleine largeur (chaque objectif avec son fil couché), puis la page d'un objectif avec le fil le long de la feuille de route — la même grammaire que le fil de l'accueil du site. `shots/v2/*objectifs.webp` montre toujours l'ancienne vue (entrée M) : à refaire à la prochaine série de captures. À dire sur le site, si Antonin le veut : « le fil de l'accueil, c'est celui de vos objectifs ». Aucun texte du site ne décrit la disposition de la vue (rien à corriger d'urgence).
+
+## Z — Performance : un onglet d'analyse (app, 2026-10-09)
+
+L'onglet Performance a changé de nature : une période unique (7 j · 30 j · 3 mois · 6 mois), chaque chiffre comparé à la période d'avant, la discipline des tâches ET des habitudes en courbe et en carrés, par jour de la semaine, et une carte « À améliorer ». À répercuter : la fiche Performance de `vitrine/src/lib/modules.ts` (si elle cite encore « jour, semaine ou mois » : ce réglage n'existe plus) et les captures `shots/v2/*performance*`. Une phrase possible, à valider par Antonin : « Shale vous dit ce qui décroche, chiffres à l'appui ». Rien d'urgent : aucune promesse du site n'est devenue fausse.

@@ -4270,3 +4270,33 @@ montre.
 **Cause.** (1) Une catégorie repliée (`grid-template-rows: 0fr`) laisse ses entrées dans le DOM avec leur hauteur : `getBoundingClientRect().height > 0` ne prouve pas qu'elles sont visibles. (2) En dev, le premier chargement d'une vue `lazy` dépasse un délai fixe (« Ouverture du module… »).
 
 **Parade.** Cliquer d'abord l'en-tête de la catégorie ; attendre l'ÉTAT (`waitForSelector`), jamais une durée. Modèle : `voir.mjs` du brouillon de session (non versionné) — le reprendre dans `tools/` si un troisième chantier en a besoin.
+
+# 33. L'analyse de Performance (2026-10-09)
+
+## 33.1 Une moyenne glissante qui inclut AUJOURD'HUI plonge chaque matin
+
+**Symptôme.** La courbe « moyenne 7 jours » se terminait par une chute, tous les jours, quelle que soit la semaine.
+
+**Cause.** Le dernier point est aujourd'hui, et à 9 h aujourd'hui vaut 20 %. Même défaut pour toute moyenne ou comparaison de période qui s'arrête à aujourd'hui.
+
+**Parade.** Une période est faite de jours FINIS (`bornes()` s'arrête à hier) ; la moyenne glissante aussi. Aujourd'hui reste tracé, à part. `lib/performance/analyse.ts`.
+
+## 33.2 `type="monotone"` (recharts) invente des valeurs entre deux points
+
+**Symptôme.** Sur une série qui alterne 100 % et 33 %, le trait dépassait 100 % et descendait sous 0.
+
+**Cause.** L'interpolation arrondie convient à une série lisse (la moyenne), pas à une série en dents de scie.
+
+**Parade.** `linear` pour une série brute, `monotone` pour une série lissée. `components/performance/Discipline.tsx`.
+
+## 33.3 Une table sans date de création réécrit le passé
+
+**Symptôme évité.** Diviser « habitudes cochées ce jour-là » par le nombre d'habitudes d'AUJOURD'HUI : ajouter une habitude fait baisser tous les jours passés.
+
+**Parade.** Faute de `created_at`, une ligne compte depuis sa première trace (`debutsDesHabitudes` : la première coche). À reprendre pour toute statistique sur une table qui n'a pas de date de création.
+
+## 33.4 Un script de retouche qui échoue au milieu laisse une moitié écrite
+
+**Symptôme.** Un script Python qui retouchait deux fichiers a levé une assertion sur le second : le premier était déjà écrit, le second non, et `tsc` restait vert.
+
+**Parade.** Écrire les fichiers À LA FIN, tous ensemble, ou relancer la moitié manquante — et ne pas conclure « appliqué » sur un `tsc` vert : relire la sortie du script.

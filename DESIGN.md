@@ -889,3 +889,12 @@ Choisie par Antonin (variante D sur quatre). **Phase** = cadre plein marqué,
 fond `overlay`. Une légende (dossier, cible, case) en tête de la feuille de
 route. Ne pas ajouter de fond gris aux panneaux internes : l'emboîtement de
 cadres suffit, un fond de plus brouille les niveaux.
+
+### L'onglet Performance — analyser pour s'améliorer (2026-10-09)
+
+- **En-tête** : le titre, et à droite la période en pilules (7 j · 30 j · 3 mois · 6 mois) — la même grammaire que l'ancien réglage du graphique : active `border-text/30 bg-surface-2`, sinon `border-border text-text-dim`.
+- **Tuiles** (`.perf-tiles`) : libellé `hud-label`, chiffre `text-3xl font-extrabold` À L'ENCRE (plus de chiffre bleu ni vert), puis UNE ligne `text-xs` — l'écart à la période d'avant : flèche montante + nombre en `text-text`, flèche descendante en `text-red`, « stable », ou « — » quand il n'y a rien à comparer.
+- **« À améliorer »** : trois lignes au plus, sur fond `overlay`, un point jaune (`bg-yellow` : attention, pas erreur), le fait en `text-sm`, et à droite son lien en `text-blue`. Pas d'icône, pas de titre par ligne.
+- **Carte de discipline** : la légende à droite du titre ; la courbe (190 px) — moyenne 7 jours en `--color-blue` 2,5 px avec un fondu vers le bas, jour par jour en `text-dim` 1 px à 45 %, repère en tirets `border-strong` ; puis « régularité — un carré par jour » : 53 semaines, carrés de 14 px à l'encre (`--color-success-fill` à 15 / 35 / 65 / 100 %), calés à DROITE et rognés à gauche quand la carte est étroite. Pour les tâches seulement, un jour à 0 % est teinté de rouge.
+- **Ligne d'habitude** : pastille de sa couleur, nom, jauge de sa couleur, « 13/30 j · 43% » en mono, la flamme et sa série, l'écart.
+- **Barres** : à l'encre ; quand deux séries se côtoient (jours de la semaine), les tâches à l'encre et les habitudes en bleu.
