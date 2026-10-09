@@ -1755,3 +1755,10 @@ Décisions : `CLAUDE.md`, même date. Branche `chantier/retours-reel-018` (workt
 **Pas vu** : l'app native ; l'iPhone ; ⌘Z de la carte et du croquis en anglais (couverts par un test de source seulement) ; le toast de retrait d'un bloc de note.
 **À savoir** : dans la démo, « Envoyer le devis à Studio Hélice » (due dans 2 jours, cochée il y a 3 jours) apparaît maintenant barrée dans le Calendrier, comme elle est déjà dans « Faites » côté Tâches. À connaître pour les captures (`chantier/demo-captures-v3`).
 **Pas de build natif** : l'app installée ne porte pas ces correctifs ; à grouper avec le prochain build.
+## 2026-10-09 — Aujourd'hui : la jauge « Énergie restante » ne restait plus qu'à 100 %
+
+Branche `chantier/jauge-energie` (worktree `~/Desktop/Shale-chantiers/jauge-energie`), depuis `mobile-ios` `589d478`. Le piège : `PIEGES.md` § 34.1.
+**Fait** : `lib/mentalLoad.ts` — `num()` rend la valeur par défaut pour un réglage absent (`null`) ou vide, au lieu de 0. `mentalLoad.test.ts`, 7 tests, dont 4 échouent sans la correction (vérifié en la retirant). `tsc` vert, vitest 1961 / 1961 (147 fichiers). Aucune migration, aucun Rust, aucune dépendance.
+**Vérifié à la lecture** : `getSetting()` rend bien `null` pour une clé absente, en natif (`rows[0]?.value ?? null`, `repo.ts`) comme en démo.
+**Pas vu** : la jauge à l'écran, ni en démo ni dans l'app native. La vraie base n'a été ni lue ni écrite : on ne sait donc pas si elle porte déjà les trois réglages `energy_*` (auquel cas l'app installée n'était pas touchée) ou non.
+**Pas fait** : ni poussé, ni fusionné, ni installé — en attente de l'accord d'Antonin.

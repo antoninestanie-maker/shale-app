@@ -29,7 +29,11 @@ const KEYS = {
   hour: "energy_cost_hour",
 };
 
+// ⚠️ Un réglage ABSENT n'est pas un réglage à zéro : `Number(null)` et `Number("")`
+// valent 0, qui passe le contrôle ci-dessous. Sans ce garde, une base sans réglage
+// d'énergie lisait des coûts nuls et la jauge restait à 100 % toute la journée.
 function num(raw: string | null, fallback: number): number {
+  if (raw === null || raw.trim() === "") return fallback;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }

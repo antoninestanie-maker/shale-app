@@ -4388,3 +4388,12 @@ Antonin au premier essai.
 La page d'essai elle-même : le balisage RÉEL du composant (rendu happy-dom dans
 un test jetable, jamais commité), son CSS réel, les jetons du thème recopiés
 d'`index.css`, la police en `data:`. Rien de l'app, rien de l'authentification.
+# 34. La jauge d'énergie (2026-10-09)
+
+## 34.1 `Number(null)` vaut 0 : un réglage ABSENT passait pour un réglage à zéro
+
+**Symptôme.** En mode démo, la jauge « Énergie restante » d'Aujourd'hui affichait 100 % et « −0 % » avec 4 h 26 d'écran.
+
+**Cause.** `num(raw, fallback)` de `lib/mentalLoad.ts` faisait `Number(raw)` puis gardait tout nombre fini et positif. Or `getSetting()` rend `null` pour une clé absente, `Number(null)` et `Number("")` valent 0 : le défaut n'était jamais rendu, les deux coûts valaient 0.
+
+**Parade.** Écarter `null` et la chaîne vide AVANT `Number()`. À reprendre partout où un réglage texte est lu comme un nombre avec une valeur par défaut non nulle. `lib/mentalLoad.test.ts`.
