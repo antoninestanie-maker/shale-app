@@ -4300,3 +4300,11 @@ montre.
 **Symptôme.** Un script Python qui retouchait deux fichiers a levé une assertion sur le second : le premier était déjà écrit, le second non, et `tsc` restait vert.
 
 **Parade.** Écrire les fichiers À LA FIN, tous ensemble, ou relancer la moitié manquante — et ne pas conclure « appliqué » sur un `tsc` vert : relire la sortie du script.
+
+## 33.5 Une phrase RETIRÉE de l'écran reste dans le bundle : mauvaise contre-épreuve
+
+**Symptôme.** Au build du 2026-10-09, la contre-épreuve « cette phrase supprimée doit rendre 0 dans `dist/assets` » a rendu 1.
+
+**Cause.** La CLÉ d'une traduction est la phrase française : tant que son entrée reste dans `en.ts`, la phrase est dans le bundle, même si plus aucune vue ne l'affiche.
+
+**Parade.** Pour une contre-épreuve, prendre une phrase qui n'a JAMAIS existé, ou purger d'abord l'entrée de `en.ts`. Les témoins POSITIFS (phrases neuves) restent fiables (§ 7.5 bis).
