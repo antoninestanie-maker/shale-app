@@ -203,6 +203,26 @@ export function formaterMois(jour: string): string {
   });
 }
 
+/**
+ * Une date AU FIL D'UNE PHRASE : « 6 octobre », « October 6 » — l'année
+ * seulement si ce n'est pas l'année en cours.
+ *
+ * ⚠️ Jamais « Hier » ni « Demain » ici (`formaterChamp`) : la phrase porte déjà
+ * sa préposition (« prévue le … », “due on …”), et « prévue le Hier » ne se
+ * lit pas. Et jamais la chaîne de la base : l'écran affichait « 2026-10-06 ».
+ */
+export function formaterDansPhrase(jour: string, aujourdHui: string): string {
+  const d = new Date(`${jour.slice(0, 10)}T12:00:00`);
+  // Ce qui n'est pas une date ressort tel quel, comme `formatHeure`.
+  if (Number.isNaN(d.getTime())) return jour;
+  const memeAnnee = jour.slice(0, 4) === aujourdHui.slice(0, 4);
+  return d.toLocaleDateString(localeTag(), {
+    day: "numeric",
+    month: "long",
+    ...(memeAnnee ? {} : { year: "numeric" }),
+  });
+}
+
 /** La date entière, pour un lecteur d'écran : « mercredi 24 septembre 2026 ». */
 export function formaterComplet(jour: string): string {
   return new Date(`${jour}T12:00:00`).toLocaleDateString(localeTag(), {

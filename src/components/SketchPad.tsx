@@ -305,7 +305,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
             data-tip-kbd={kbd("⌘Z")}
             className={`${toolBtn(false)} disabled:opacity-30`}
           >
-            <IconReset className="h-3.5 w-3.5" /> {t("Annuler")}
+            <IconReset className="h-3.5 w-3.5" /> {t("Annuler|défaire")}
           </button>
           <button
             type="button"

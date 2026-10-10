@@ -3557,4 +3557,10 @@ export const EN: Record<string, string> = {
   "Focus": "Focus",
   "focus": "focus",
   "habitudes": "habits",
+
+  // ── Retours du tournage en anglais (2026-10-09) ──
+  // « Annuler » au sens de DÉFAIRE (le bouton d'un toast qui rend ce qui vient
+  // de partir, ⌘Z d'une carte ou d'un croquis). La clé nue « Annuler » reste
+  // « Cancel » : fermer une fenêtre sans rien faire.
+  "Annuler|défaire": "Undo",
 };

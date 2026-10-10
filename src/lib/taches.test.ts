@@ -7,11 +7,14 @@ import {
   estEnRetard,
   estRecurrente,
   planificationDeSaisie,
+  ponctuellesFaites,
   replanifier,
   reporter,
+  reportsAAppliquer,
   SEUIL_REPORT,
+  tachesADecider,
 } from "./taches";
-import type { Task } from "./types";
+import type { Completion, Task } from "./types";
 
 /** Socle du 2026-09-02 — les deux familles de tâches, et le report. */
 
@@ -179,5 +182,69 @@ describe("ce qu'une saisie écrit dans les colonnes de planification", () => {
       start_at: null,
       end_at: null,
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Retours du tournage du 2026-10-09 : « La faire maintenant » cochait la tâche
+ * (rangée dans « Faites » côté Tâches) et le bandeau de décision restait là.
+ * La coche est écrite à AUJOURD'HUI, l'échéance est PASSÉE : c'est ce décalage
+ * que ces tests reproduisent.
+ */
+describe("une tâche faite n'attend plus de décision", () => {
+  const JOUR = "2026-10-09";
+  const bloquee = tache({ id: 7, due_date: "2026-10-06", postponed_count: SEUIL_REPORT, postponed_from: "2026-10-02" });
+  const coche = (p: Partial<Completion> = {}): Completion => ({ id: 1, task_id: 7, date: JOUR, done: 1, ...p });
+
+  it("au seuil et pas faite : elle est dans le bandeau", () => {
+    expect(tachesADecider([bloquee], [], JOUR).map((t) => t.id)).toEqual([7]);
+  });
+
+  it("⭐ cochée AUJOURD'HUI alors qu'elle était due le 6 : elle en sort", () => {
+    expect(tachesADecider([bloquee], [coche()], JOUR)).toEqual([]);
+  });
+
+  it("décochée ensuite : elle y revient", () => {
+    expect(tachesADecider([bloquee], [coche({ done: 0 })], JOUR).map((t) => t.id)).toEqual([7]);
+  });
+
+  it("la coche d'une AUTRE tâche ne la fait pas sortir", () => {
+    expect(tachesADecider([bloquee], [coche({ task_id: 8 })], JOUR).map((t) => t.id)).toEqual([7]);
+  });
+
+  it("sous le seuil, à venir ou récurrente : jamais dans le bandeau", () => {
+    expect(tachesADecider([tache({ due_date: "2026-10-06", postponed_count: SEUIL_REPORT - 1 })], [], JOUR)).toEqual([]);
+    expect(tachesADecider([tache({ due_date: "2026-10-12", postponed_count: SEUIL_REPORT })], [], JOUR)).toEqual([]);
+    expect(tachesADecider([tache({ recurrence: "daily", due_date: "2026-10-06", postponed_count: SEUIL_REPORT })], [], JOUR)).toEqual([]);
+  });
+
+  it("due aujourd'hui même et au seuil : elle y est (comme avant)", () => {
+    expect(tachesADecider([tache({ due_date: JOUR, postponed_count: SEUIL_REPORT })], [], JOUR)).toHaveLength(1);
+  });
+
+  it("une ponctuelle est faite dès qu'UNE coche le dit, quel que soit le jour", () => {
+    const faites = ponctuellesFaites([coche({ date: "2026-10-01" }), coche({ task_id: 9, done: 0 })]);
+    expect([...faites]).toEqual([7]);
+  });
+});
+
+describe("les reports écrits à l'ouverture du calendrier", () => {
+  const JOUR = "2026-10-09";
+
+  it("une tâche d'hier pas faite glisse à aujourd'hui", () => {
+    const r = reportsAAppliquer([tache({ id: 3, due_date: "2026-10-08" })], [], JOUR);
+    expect(r).toEqual([{ id: 3, report: { due_date: JOUR, postponed_count: 1, postponed_from: "2026-10-08" } }]);
+  });
+
+  it("⚠️ cochée AUJOURD'HUI dans Tâches : elle ne gagne pas un report de plus", () => {
+    const completions: Completion[] = [{ id: 1, task_id: 3, date: JOUR, done: 1 }];
+    expect(reportsAAppliquer([tache({ id: 3, due_date: "2026-10-08" })], completions, JOUR)).toEqual([]);
+  });
+
+  it("au seuil ou récurrente : rien, la règle de `reporter` tient", () => {
+    expect(reportsAAppliquer([tache({ due_date: "2026-10-08", postponed_count: SEUIL_REPORT })], [], JOUR)).toEqual([]);
+    expect(reportsAAppliquer([tache({ recurrence: "daily", due_date: "2026-10-08" })], [], JOUR)).toEqual([]);
   });
 });

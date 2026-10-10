@@ -134,6 +134,25 @@ describe("ce que le champ affiche", () => {
   it("et le lecteur d'écran reçoit la date entière", () => {
     expect(fr.formaterComplet("2026-09-24")).toBe("jeudi 24 septembre 2026");
   });
+
+  it("au fil d'une phrase : le jour et le mois, jamais la chaîne de la base", () => {
+    // Le bandeau du calendrier écrivait « prévue le 2026-10-06 » (2026-10-09).
+    expect(fr.formaterDansPhrase("2026-10-06", "2026-10-09")).toBe("6 octobre");
+  });
+
+  it("⚠️ jamais « Hier » : la phrase porte déjà « prévue le »", () => {
+    expect(fr.formaterDansPhrase("2026-10-08", "2026-10-09")).toBe("8 octobre");
+    expect(fr.formaterDansPhrase("2026-10-09", "2026-10-09")).toBe("9 octobre");
+  });
+
+  it("l'année quand ce n'est pas celle en cours", () => {
+    expect(fr.formaterDansPhrase("2025-12-30", "2026-01-02")).toBe("30 décembre 2025");
+  });
+
+  it("un horodatage complet se lit par son jour ; ce qui n'est pas une date ressort tel quel", () => {
+    expect(fr.formaterDansPhrase("2026-10-06 14:00:00", "2026-10-09")).toBe("6 octobre");
+    expect(fr.formaterDansPhrase("", "2026-10-09")).toBe("");
+  });
 });
 
 describe("naviguer d'un mois à l'autre", () => {
@@ -228,5 +247,10 @@ describe("en anglais américain, le mois ouvre", () => {
 
   it("et un jour impossible reste refusé", () => {
     expect(en.parserSaisie("02/31/2026", "2026-03-01")).toBeNull();
+  });
+
+  it("au fil d'une phrase, le mois d'abord : “due on October 6”", () => {
+    expect(en.formaterDansPhrase("2026-10-06", "2026-10-09")).toBe("October 6");
+    expect(en.formaterDansPhrase("2025-12-30", "2026-01-02")).toBe("December 30, 2025");
   });
 });

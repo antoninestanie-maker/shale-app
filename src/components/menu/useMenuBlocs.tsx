@@ -134,7 +134,7 @@ export function useMenuBlocs(g: GestesBlocs): {
     afficherToast({
       msg: t(LIBELLE_RETRAIT[bloc.type], { nom: titreCourt(nomDePiece(bloc.element), 30) }),
       icone: <IconTrash className="h-5 w-5 shrink-0 text-text-dim" />,
-      actionLabel: t("Annuler"),
+      actionLabel: t("Annuler|défaire"),
       duree: DUREE_ANNULER,
       onAction: () => {
         if (remettre()) {

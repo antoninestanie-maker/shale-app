@@ -106,7 +106,7 @@ export async function jeter(
           )
         : t("« {titre} » est dans Supprimés récemment", { titre: nom }),
     icone: iconeCorbeille,
-    actionLabel: t("Annuler"),
+    actionLabel: t("Annuler|défaire"),
     // ⚠️ `kind` et `id` sont ceux de CE jet — fermés ici, jamais relus.
     onAction: () => {
       void (async () => {
@@ -173,7 +173,7 @@ export async function jeterPlusieurs(
           )
         : t("« {titre} » est dans Supprimés récemment", { titre: nom }),
     icone: iconeCorbeille,
-    actionLabel: t("Annuler"),
+    actionLabel: t("Annuler|défaire"),
     onAction: () => {
       void (async () => {
         await restaurerJetes(jetes);

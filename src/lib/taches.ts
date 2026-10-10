@@ -1,4 +1,4 @@
-import type { Task } from "./types";
+import type { Completion, Task } from "./types";
 
 /**
  * Les deux familles de tâches, et ce qu'il advient d'une tâche non faite.
@@ -90,6 +90,38 @@ export function demandeUneDecision(t: Pick<Task, "postponed_count">): boolean {
 }
 
 /**
+ * Les tâches PONCTUELLES faites : une coche suffit, quel que soit son jour.
+ *
+ * ⚠️ C'est la règle de `basculerTache` et de la vue Tâches (`estFaite`), et le
+ * calendrier ne la suivait pas (corrigé le 2026-10-09) : il cherchait la coche
+ * À LA DATE D'ÉCHÉANCE. Or « La faire maintenant » coche à AUJOURD'HUI une
+ * tâche dont l'échéance est passée — elle restait donc « pas faite » pour le
+ * calendrier seul : bandeau de décision toujours là, sablier toujours là, et
+ * rangée dans « Faites » côté Tâches.
+ *
+ * ⚠️ Ne vaut PAS pour une récurrente, qui se coche jour par jour.
+ */
+export function ponctuellesFaites(
+  completions: readonly Pick<Completion, "task_id" | "done">[],
+): Set<number> {
+  return new Set(completions.filter((c) => c.done).map((c) => c.task_id));
+}
+
+/**
+ * Les tâches à présenter dans le bandeau « à décider » du calendrier : datées,
+ * échues (aujourd'hui compris), au seuil de reports — et PAS FAITES. Une tâche
+ * faite n'attend plus aucune décision.
+ */
+export function tachesADecider<
+  T extends Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count">,
+>(tasks: readonly T[], completions: readonly Pick<Completion, "task_id" | "done">[], jour: string): T[] {
+  const faites = ponctuellesFaites(completions);
+  return tasks.filter(
+    (t) => estDatee(t) && demandeUneDecision(t) && (t.due_date as string) <= jour && !faites.has(t.id),
+  );
+}
+
+/**
  * Une tâche datée, due avant `jour`, et non faite.
  *
  * `faite` est injectée : la complétion vit dans `task_completions`, que ce
@@ -150,4 +182,25 @@ export function reporter(
  */
 export function replanifier(jour: string): Report {
   return { due_date: jour, postponed_count: 0, postponed_from: jour };
+}
+
+/**
+ * Les reports à écrire à l'ouverture du calendrier, un par tâche en retard.
+ *
+ * ⚠️ « Faite » se lit comme partout (`ponctuellesFaites`) : une tâche cochée
+ * aujourd'hui dans Tâches alors qu'elle était due hier ne se reporte pas — elle
+ * y gagnait un report de plus, pour une tâche terminée.
+ */
+export function reportsAAppliquer(
+  tasks: readonly Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count" | "postponed_from">[],
+  completions: readonly Pick<Completion, "task_id" | "done">[],
+  jour: string,
+): { id: number; report: Report }[] {
+  const faites = ponctuellesFaites(completions);
+  const out: { id: number; report: Report }[] = [];
+  for (const t of tasks) {
+    const report = reporter(t, jour, faites.has(t.id));
+    if (report) out.push({ id: t.id, report });
+  }
+  return out;
 }

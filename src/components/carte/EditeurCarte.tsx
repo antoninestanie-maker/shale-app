@@ -1681,7 +1681,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             type="button"
             onClick={defaire}
             disabled={histoire.passe.length === 0}
-            data-tip={t("Annuler")}
+            data-tip={t("Annuler|défaire")}
             data-tip-kbd={kbd("⌘Z")}
             className={outil}
           >
