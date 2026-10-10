@@ -87,3 +87,27 @@ describe("les jours d'une série passent par la clé « {n} j »", () => {
     expect(fautifs).toEqual([]);
   });
 });
+
+/**
+ * Le bandeau « à décider » écrit le compteur réel (« repoussée 2 fois ») puis
+ * une maxime. Elle disait « cinq fois » : deux chiffres qui se contredisent sur
+ * la même ligne. Antonin a choisi une maxime SANS chiffre (2026-10-10) — elle
+ * reste juste quel que soit `SEUIL_REPORT`.
+ */
+describe("la maxime du bandeau de décision ne cite aucun chiffre", () => {
+  const MAXIME = "Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.";
+  const CHIFFRE = /\d|\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|two|three|four|five|six|seven|eight|nine|ten|twice)\b/i;
+
+  it("c'est bien elle que le calendrier affiche", () => {
+    const vue = lire("src/views/CalendarView.tsx");
+    expect(vue).toContain(`t("${MAXIME}")`);
+    expect(vue).not.toContain("cinq fois");
+  });
+
+  it("ni en français ni en anglais", async () => {
+    const en = (await sous("en-US")).t(MAXIME);
+    expect(en).toBe("A task you keep pushing back isn't a task, it's a decision you're avoiding.");
+    expect(MAXIME).not.toMatch(CHIFFRE);
+    expect(en).not.toMatch(CHIFFRE);
+  });
+});

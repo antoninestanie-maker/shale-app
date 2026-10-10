@@ -1734,3 +1734,24 @@ Décisions : `CLAUDE.md`, même date. Branche `chantier/performance` (worktree `
 **Pas vu** : l'app native ; de vraies données sur 6 mois (la démo n'a que 12 jours de coches) ; une période sans rien à signaler à l'écran (couvert par un test) ; le simulateur et l'iPhone réel ; la densité autre que 100 %.
 **À savoir** : dans la démo, « Tâches tenues » affiche 38 % parce que les tâches y sont dues depuis plus longtemps que les 12 jours de coches — ce n'est pas un défaut du calcul.
 **Installé le 2026-10-09 à 16:53** : build depuis `mobile-ios` `2cbc00e`, sha256 `931dab08ca4e…` (ancienne `13c5ad28951f…`), base 30 avant/après, intégrité ok, 88 objectifs / 83 tâches / 22 notes / 4 habitudes / 8 coches d'habitude / 32 coches de tâche identiques. Sauvegarde : `sauvegardes-locales/avant-performance-20261009-1649/`. ⚠️ Non regardé dans l'app installée par la session (elle pilote la vraie base). ⚠️ La vraie base est presque vide de coches : l'onglet y sera clairsemé.
+
+
+## 2026-10-10 — Retours du tournage en anglais (reel 018) : cinq défauts corrigés
+
+Décisions : `CLAUDE.md`, même date. Branche `chantier/retours-reel-018` (worktree `~/Desktop/Shale-chantiers/retours-reel-018`).
+**Fait** :
+- `lib/taches.ts` (`ponctuellesFaites`, `tachesADecider`, `reportsAAppliquer`), `lib/calendrier/agenda.ts`, `CalendarView.tsx` : une tâche faite quitte le bandeau « à décider » et perd son sablier.
+- `t("Annuler|défaire")` → “Undo” : `corbeille/geste.tsx` (2), `menu/useMenuBlocs.tsx`, `carte/EditeurCarte.tsx`, `SketchPad.tsx`.
+- `PerfStrip.tsx`, `DisciplineRing.tsx` : « {n} j » par la clé.
+- `champDate.ts` : `formaterDansPhrase`, utilisée par le bandeau.
+- La maxime sans chiffre (choix d'Antonin), en français et en anglais.
+- Tests : `taches.test.ts`, `agenda.test.ts`, `champDate.test.ts`, `i18n/retours-anglais.test.ts` (neuf). Aucune migration, aucun Rust, aucune dépendance. `demo.ts` non touché.
+**Ligne de base** : vitest 1981 verts, `tsc`, `test:types`, `i18n:check` (2715 entrées), `i18n:durs`, `vite build`. Les tests d'agenda et d'i18n ont été vus rouges contre le code d'avant (5 échecs).
+**Vu à l'écran** (Chrome sans fenêtre, mode démo, 1440 × 900, FR et EN, `Shale-chantiers/vite.essai-retours-018.mjs`) :
+- « Do it now » : le bandeau disparaît, le sablier aussi, la tâche est barrée dans la grille, et « Done » passe à 3 dans Tâches.
+- « Delete » : toast « … is in Recently Deleted | View | Undo » ; « Undo » rend la tâche et le bandeau. En français : « Annuler ».
+- Aujourd'hui : « 7 d » (EN), « 7 j » (FR).
+- Bandeau : « due on October 7 », « prévue le 7 octobre », puis la nouvelle maxime.
+**Pas vu** : l'app native ; l'iPhone ; ⌘Z de la carte et du croquis en anglais (couverts par un test de source seulement) ; le toast de retrait d'un bloc de note.
+**À savoir** : dans la démo, « Envoyer le devis à Studio Hélice » (due dans 2 jours, cochée il y a 3 jours) apparaît maintenant barrée dans le Calendrier, comme elle est déjà dans « Faites » côté Tâches. À connaître pour les captures (`chantier/demo-captures-v3`).
+**Pas de build natif** : l'app installée ne porte pas ces correctifs ; à grouper avec le prochain build.

@@ -74,8 +74,8 @@ export function planificationDeSaisie(
  *
  * ⭐ Décidé par Antonin le 2026-09-02 : deux reports passent inaperçus, le
  * troisième demande une décision. Le motif est le sens même de la
- * fonctionnalité — une tâche reportée cinq fois n'est pas une tâche, c'est une
- * décision qu'on évite de prendre. Reporter indéfiniment en silence ferait de
+ * fonctionnalité — une tâche qu'on reporte sans cesse n'est pas une tâche, c'est
+ * une décision qu'on évite de prendre. Reporter indéfiniment en silence ferait de
  * l'app la complice de cet évitement.
  */
 export const SEUIL_REPORT = 2;

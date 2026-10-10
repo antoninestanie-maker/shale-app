@@ -873,3 +873,7 @@ La vue Objectifs a encore changé : plus de maître-détail. Une liste pleine la
 ## Z — Performance : un onglet d'analyse (app, 2026-10-09)
 
 L'onglet Performance a changé de nature : une période unique (7 j · 30 j · 3 mois · 6 mois), chaque chiffre comparé à la période d'avant, la discipline des tâches ET des habitudes en courbe et en carrés, par jour de la semaine, et une carte « À améliorer ». À répercuter : la fiche Performance de `vitrine/src/lib/modules.ts` (si elle cite encore « jour, semaine ou mois » : ce réglage n'existe plus) et les captures `shots/v2/*performance*`. Une phrase possible, à valider par Antonin : « Shale vous dit ce qui décroche, chiffres à l'appui ». Rien d'urgent : aucune promesse du site n'est devenue fausse.
+
+## AA — Retours du tournage en anglais (app, 2026-10-10)
+
+Aucun texte du site à changer (la maxime du bandeau n'y figure pas). Les captures ANGLAISES du Calendrier et d'Aujourd'hui prises avant ce jour montrent « 7 j », « due on 2026-… », « five times » : à refaire au prochain passage de captures.

@@ -7416,3 +7416,15 @@ Demande d'Antonin : « pour la discipline du journal, en plus du graphe à carr�
 - **Retiré** : les barres « Complétion des tâches » et leur réglage jour / semaine / mois (la courbe les remplace), la tuile « Moyenne 30 jours », la carte « discipline — 6 derniers mois » (ses carrés sont dans la carte des tâches, sur un an). `aggregateStats` reste dans `logic.ts`, sans appelant dans la vue.
 - **Pas fait** : la mise en colonne unique (proposition 7, non retenue) ; la courbe dans le Journal lui-même ; la période appliquée à « Objectifs » et aux métriques (leurs cartes gardent leur propre fenêtre).
 - La revue hebdomadaire de l'IA (Pro) reste à sa place : « À améliorer » est son pendant local, pour tout le monde.
+
+## 2026-10-10 — Retours du tournage en anglais : le bandeau de décision, « Undo », « 7 d »
+
+Cinq défauts relevés le 2026-10-09 en filmant la démo en anglais (reel 018). État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 34.
+
+- **Une tâche ponctuelle est FAITE dès qu'une coche le dit, quel que soit le jour — dans le Calendrier aussi.** Il cherchait la coche à la date d'échéance ; « La faire maintenant » coche à aujourd'hui une tâche échue, donc le bandeau et le sablier restaient. La règle vit dans `lib/taches.ts` (`ponctuellesFaites`, `tachesADecider`, `reportsAAppliquer`) ; `agenda.ts` et `CalendarView` la lisent là. Une récurrente reste cochée jour par jour.
+- **Conséquence voulue** : une tâche due hier et cochée aujourd'hui dans Tâches ne reçoit plus un report de plus à l'ouverture du Calendrier. Elle reste à sa date, barrée.
+- **« Annuler » a deux sens, donc deux clés.** `t("Annuler")` = fermer sans rien faire (“Cancel”). `t("Annuler|défaire")` = rendre ce qui vient d'être fait (“Undo”) : les toasts de suppression, ⌘Z de la carte mentale et du croquis. Tout nouveau bouton qui défait prend la seconde.
+- **Les jours d'une série passent par la clé `{n} j`** (bandeau d'Aujourd'hui, anneau de discipline). Un test de source refuse `{valeur} j` écrit en dur dans un `.tsx`.
+- **Une date dans une phrase passe par `formaterDansPhrase`** (`lib/calendrier/champDate.ts`) : « 6 octobre », “October 6”, l'année si elle diffère. Jamais « Hier » (la phrase porte déjà « prévue le »), jamais la chaîne de la base.
+- **La maxime du bandeau ne cite plus de chiffre** (décision d'Antonin, 2026-10-10) : « Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre. » « Cinq fois » contredisait le « repoussée 2 fois » écrit juste avant (`SEUIL_REPORT = 2`). Ne pas y remettre de nombre.
+- **Non fait, signalé seulement** : en anglais, les durées gardent le format français (« 1 h 05 ») ; Tâches écrit « 14:00–15:30 » en dur là où le Calendrier passe par `formatHeure` ; Tâches dit “postponed” et le Calendrier “pushed back” pour le même compteur.

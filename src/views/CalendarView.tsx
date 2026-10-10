@@ -820,7 +820,9 @@ function BandeauIntelligence({
                 { date: formaterDansPhrase(tache.postponed_from ?? tache.due_date ?? "", aujourdhui) },
               )}{" "}
               <span className="text-text-dim">
-                {t("Une tâche reportée cinq fois n'est pas une tâche, c'est une décision à prendre.")}
+                {/* Sans chiffre, exprès (Antonin, 2026-10-10) : la maxime en citait un, qui
+                    contredisait le « repoussée 2 fois » écrit juste avant (`SEUIL_REPORT`). */}
+                {t("Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.")}
               </span>
             </span>
             <span className="ml-auto flex gap-1.5">

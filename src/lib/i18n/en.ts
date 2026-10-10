@@ -2094,8 +2094,8 @@ export const EN: Record<string, string> = {
   "(progression déclarée à la main, pas mesurée)": "(progress entered by hand, not measured)",
 
   "prévue le {date}, repoussée {n} fois.": "due on {date}, pushed back {n} times.",
-  "Une tâche reportée cinq fois n'est pas une tâche, c'est une décision à prendre.":
-    "A task pushed back five times isn't a task, it's a decision you're avoiding.",
+  "Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.":
+    "A task you keep pushing back isn't a task, it's a decision you're avoiding.",
   "La faire maintenant": "Do it now",
   "Replanifier dans 7 jours": "Reschedule in 7 days",
 
