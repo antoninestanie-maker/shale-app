@@ -1,5 +1,5 @@
 import { occurrenceLe, toDateStr, weekdayOf } from "../logic";
-import { estDatee, estRecurrente } from "../taches";
+import { estDatee, estRecurrente, ponctuellesFaites } from "../taches";
 import type { CalendarEvent, Completion, Goal, Task } from "../types";
 
 /**
@@ -350,8 +350,13 @@ export function entreesDuJour(
   }
 
   // 2) Les tâches DATÉES, à leur créneau quand elles en ont un.
+  // ⚠️ Faite = cochée, QUEL QUE SOIT LE JOUR de la coche (`ponctuellesFaites`).
+  // Chercher la coche à la date d'échéance laissait « en retard » une tâche
+  // échue le 6 et cochée le 9 (2026-10-09).
+  const ponctuelles = ponctuellesFaites(src.completions);
   for (const t of src.tasks) {
     if (!estDatee(t) || t.due_date !== jour) continue;
+    const faite = ponctuelles.has(t.id);
     entrees.push({
       kind: "task",
       id: t.id,
@@ -365,9 +370,9 @@ export function entreesDuJour(
       color: null,
       dureeMin: dureeMinutes(t.start_at, t.end_at),
       serie: false,
-      enRetard: jour < aujourdhui && !faites.get(`${t.id}:${jour}`),
+      enRetard: jour < aujourdhui && !faite,
       reports: t.postponed_count,
-      faite: !!faites.get(`${t.id}:${jour}`),
+      faite,
     });
   }
 

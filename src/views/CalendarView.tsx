@@ -26,6 +26,7 @@ import {
   creneauxLibres,
   profilDisponibilite,
 } from "../lib/calendrier/disponibilite";
+import { formaterDansPhrase } from "../lib/calendrier/champDate";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
 import {
@@ -35,11 +36,10 @@ import {
   fetchCalendarEvents,
   fetchFacturation,
   fetchRecurringEvents,
-  setTaskDone,
   setTaskSchedule,
   upsertJournal,
 } from "../lib/repo";
-import { demandeUneDecision, replanifier, reporter } from "../lib/taches";
+import { replanifier, reportsAAppliquer, tachesADecider } from "../lib/taches";
 import type { AppData, CalendarEvent, Task } from "../lib/types";
 import { formatHeure, localeTag, t, tp } from "../lib/i18n";
 import { estTelephone, useIsPhone } from "../lib/platform";
@@ -214,17 +214,9 @@ export default function CalendarView({ data, refresh }: Props) {
   useEffect(() => {
     let annule = false;
     void (async () => {
-      const faites = new Set(
-        data.completions.filter((c) => c.done).map((c) => `${c.task_id}:${c.date}`),
-      );
-      let bouge = false;
-      for (const tache of data.tasks) {
-        const report = reporter(tache, aujourdhui, faites.has(`${tache.id}:${tache.due_date}`));
-        if (!report) continue;
-        await appliquerReport(tache.id, report);
-        bouge = true;
-      }
-      if (bouge && !annule) await refresh();
+      const reports = reportsAAppliquer(data.tasks, data.completions, aujourdhui);
+      for (const { id, report } of reports) await appliquerReport(id, report);
+      if (reports.length > 0 && !annule) await refresh();
     })();
     return () => {
       annule = true;
@@ -286,13 +278,14 @@ export default function CalendarView({ data, refresh }: Props) {
     [data.goals, data.tasks, data.completions, data.habits, data.habitChecks, aujourdhui],
   );
 
-  /** Tâches qui ont assez glissé pour qu'on cesse de les reporter en silence. */
+  /**
+   * Tâches qui ont assez glissé pour qu'on cesse de les reporter en silence.
+   * ⚠️ Pas celles qui sont FAITES : « La faire maintenant » laissait le bandeau
+   * en place (2026-10-09). La règle vit dans `lib/taches.ts`.
+   */
   const aDecider = useMemo(
-    () =>
-      data.tasks.filter(
-        (t) => demandeUneDecision(t) && !!t.due_date && t.due_date <= aujourdhui,
-      ),
-    [data.tasks, aujourdhui],
+    () => tachesADecider(data.tasks, data.completions, aujourdhui),
+    [data.tasks, data.completions, aujourdhui],
   );
 
   const suggestions = useMemo(() => {
@@ -574,7 +567,8 @@ export default function CalendarView({ data, refresh }: Props) {
         onExpliquerPeril={ia ? (goalId) => demanderIa({ action: "peril", goalId }) : undefined}
         aDecider={aDecider}
         onFait={async (tache) => {
-          await setTaskDone(tache.id, aujourdhui, true);
+          // La bascule de toutes les cases de tâche (règle 18).
+          await basculerTache(tache, aujourdhui, true);
           await refresh();
         }}
         onReplanifier={async (tache, jour) => {
@@ -823,10 +817,12 @@ function BandeauIntelligence({
                 tache.postponed_count,
                 "prévue le {date}, repoussée {n} fois.",
                 "prévue le {date}, repoussée {n} fois.",
-                { date: tache.postponed_from ?? tache.due_date ?? "" },
+                { date: formaterDansPhrase(tache.postponed_from ?? tache.due_date ?? "", aujourdhui) },
               )}{" "}
               <span className="text-text-dim">
-                {t("Une tâche reportée cinq fois n'est pas une tâche, c'est une décision à prendre.")}
+                {/* Sans chiffre, exprès (Antonin, 2026-10-10) : la maxime en citait un, qui
+                    contredisait le « repoussée 2 fois » écrit juste avant (`SEUIL_REPORT`). */}
+                {t("Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.")}
               </span>
             </span>
             <span className="ml-auto flex gap-1.5">

@@ -66,7 +66,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
         <IconFlame className="h-6 w-6 shrink-0 text-yellow" />
         <div className="min-w-0">
           <p className="font-display text-2xl font-extrabold leading-none text-success">
-            {streak} j
+            {t("{n} j", { n: streak })}
           </p>
           {/* Seule étiquette du bandeau restée en anglais et hors `t()` dans
               une interface française — et la vitrine, qui recopie ce bandeau,

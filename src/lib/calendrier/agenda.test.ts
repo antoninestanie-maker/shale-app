@@ -340,6 +340,31 @@ describe("le retard", () => {
     const src = sources({ tasks: [tache({ recurrence: "daily" })] });
     expect(entreesDuJour(src, "2026-09-01", "2026-09-05")[0].enRetard).toBe(false);
   });
+
+  it("⭐ cochée un AUTRE jour que son échéance (« La faire maintenant »), elle est faite et plus en retard", () => {
+    // Due le 1er, bloquée au seuil de reports, cochée le 5 : le calendrier
+    // gardait le sablier parce qu'il cherchait la coche au 1er (2026-10-09).
+    const completions: Completion[] = [{ id: 1, task_id: 1, date: "2026-09-05", done: 1 }];
+    const src = sources({ tasks: [tache({ due_date: "2026-09-01", postponed_count: 2 })], completions });
+    const e = entreesDuJour(src, "2026-09-01", "2026-09-05")[0];
+    expect(e.faite).toBe(true);
+    expect(e.enRetard).toBe(false);
+  });
+
+  it("une coche retirée (done = 0) ne la dit pas faite", () => {
+    const completions: Completion[] = [{ id: 1, task_id: 1, date: "2026-09-05", done: 0 }];
+    const src = sources({ tasks: [tache({ due_date: "2026-09-01" })], completions });
+    const e = entreesDuJour(src, "2026-09-01", "2026-09-05")[0];
+    expect(e.faite).toBe(false);
+    expect(e.enRetard).toBe(true);
+  });
+
+  it("⚠️ une RÉCURRENTE reste cochée jour par jour : la coche d'hier ne vaut pas pour aujourd'hui", () => {
+    const completions: Completion[] = [{ id: 1, task_id: 1, date: "2026-09-04", done: 1 }];
+    const src = sources({ tasks: [tache({ recurrence: "daily" })], completions });
+    expect(entreesDuJour(src, "2026-09-04", "2026-09-05")[0].faite).toBe(true);
+    expect(entreesDuJour(src, "2026-09-05", "2026-09-05")[0].faite).toBe(false);
+  });
 });
 
 describe("les grilles de dates", () => {

@@ -7400,3 +7400,31 @@ Demande d'Antonin : « avoir la liste des objectifs, puis pouvoir cliquer sur l'
 - **La règle est hors du JSX** : `lib/objectifs/fil.ts` (`filDObjectif`, `etatFil`), 11 tests. « Atteint » suit `estAcheve`, pas « 100 % » (une étape à 100 % avec une sous-étape vide reste « en cours »).
 - **Ce qui n'a PAS changé** : aucune règle métier, le menu d'un objectif (clic droit sur une ligne, « ⋯ » sur la page), la carte mentale, la création, `sb:open-goal`, la feuille de route elle-même (cadres par type, légende, priorité).
 - **Pas refait** : une ligne de liste n'a pas de « ⋯ » visible (le menu est au clic droit et sur la page, à un clic) ; la prochaine action n'est pas répétée sur la page (décision du 29/09 : elle vit dans la liste).
+
+## 2026-10-09 — Performance : un onglet pour ANALYSER, pas seulement pour afficher
+
+Demande d'Antonin : « pour la discipline du journal, en plus du graphe à carrés, une courbe qui montre l'évolution en pourcentage », puis, sur mes propositions : « c'est une bonne idée, et encore une fois pense que le système doit servir à analyser ses performances pour s'améliorer ». État et preuves : `PASSATION.md`, même date. Dessin : `DESIGN.md`.
+
+- **Le principe retenu : comparer, découper, dire ce qui décroche.** Un chiffre seul (« 72 % ») ne dit pas si on progresse. Chaque chiffre se compare à la même durée juste avant ; la discipline se découpe par jour de la semaine et par habitude ; une carte « À améliorer » dit ce que la période fait ressortir.
+- **Une période pour tout l'onglet** (7 j · 30 j · 3 mois · 6 mois, réglage `perf.plage`, synchronisé). Avant, chaque carte regardait sa propre fenêtre (30 jours, 6 mois, « tout ») ; « focus par tag — 30 jours » ne filtrait même rien.
+- ⚠️ **Une période = des jours FINIS : elle s'arrête à hier.** Aujourd'hui n'entre dans aucune moyenne ni aucun écart, et la moyenne glissante s'arrête à hier aussi — sinon tout plonge chaque matin (vu à l'écran). Le point du jour reste tracé, sur le trait fin.
+- **Un jour neutre vaut `null`, pas 0** (rien de dû ; aucune habitude encore) : il ne tire aucune moyenne, comme dans `computeStreak`.
+- **Les deux « disciplines » ont leur carte** — la demande était ambiguë (carrés des tâches dans Performance, ou carrés des habitudes dans le Journal), donc les deux : courbe (tendance) + carrés (régularité). Les habitudes n'apparaissaient nulle part dans Performance.
+- **La courbe a deux traits** : le jour (fin, `linear` — `monotone` inventait des valeurs au-dessus de 100 %) et la moyenne sur 7 jours (bleu), calculée avec six jours d'élan avant la période. Repère à 80 % pour les tâches : c'est le seuil d'un jour « tenu » (`STREAK_THRESHOLD`).
+- ⚠️ **Une habitude compte depuis sa PREMIÈRE COCHE** (`debutsDesHabitudes`) : `habits` n'a pas de date de création, et la compter sur tout le passé ferait chuter trois mois de courbe le jour où on en ajoute une. Écart assumé avec la grille du Journal, qui divise par le nombre d'habitudes d'aujourd'hui.
+- **« À améliorer » : des FAITS chiffrés, jamais des conseils**, trois au plus, calculés ici (`pointsDAttention`, aucune IA) : tâches reportées ≥ 2 fois pas faites ; l'habitude qui décroche (< 50 %, ou −20 pts) ; le jour de la semaine à 15 pts sous la moyenne (mesuré au moins deux fois) ; une moyenne qui perd 10 pts ; un focus qui perd 30 %. Chaque ligne mène au module où agir. Rien à signaler → « Rien ne décroche sur cette période. », pas un reproche par défaut. Les seuils sont dans `SEUILS`.
+- **Retiré** : les barres « Complétion des tâches » et leur réglage jour / semaine / mois (la courbe les remplace), la tuile « Moyenne 30 jours », la carte « discipline — 6 derniers mois » (ses carrés sont dans la carte des tâches, sur un an). `aggregateStats` reste dans `logic.ts`, sans appelant dans la vue.
+- **Pas fait** : la mise en colonne unique (proposition 7, non retenue) ; la courbe dans le Journal lui-même ; la période appliquée à « Objectifs » et aux métriques (leurs cartes gardent leur propre fenêtre).
+- La revue hebdomadaire de l'IA (Pro) reste à sa place : « À améliorer » est son pendant local, pour tout le monde.
+
+## 2026-10-10 — Retours du tournage en anglais : le bandeau de décision, « Undo », « 7 d »
+
+Cinq défauts relevés le 2026-10-09 en filmant la démo en anglais (reel 018). État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 34.
+
+- **Une tâche ponctuelle est FAITE dès qu'une coche le dit, quel que soit le jour — dans le Calendrier aussi.** Il cherchait la coche à la date d'échéance ; « La faire maintenant » coche à aujourd'hui une tâche échue, donc le bandeau et le sablier restaient. La règle vit dans `lib/taches.ts` (`ponctuellesFaites`, `tachesADecider`, `reportsAAppliquer`) ; `agenda.ts` et `CalendarView` la lisent là. Une récurrente reste cochée jour par jour.
+- **Conséquence voulue** : une tâche due hier et cochée aujourd'hui dans Tâches ne reçoit plus un report de plus à l'ouverture du Calendrier. Elle reste à sa date, barrée.
+- **« Annuler » a deux sens, donc deux clés.** `t("Annuler")` = fermer sans rien faire (“Cancel”). `t("Annuler|défaire")` = rendre ce qui vient d'être fait (“Undo”) : les toasts de suppression, ⌘Z de la carte mentale et du croquis. Tout nouveau bouton qui défait prend la seconde.
+- **Les jours d'une série passent par la clé `{n} j`** (bandeau d'Aujourd'hui, anneau de discipline). Un test de source refuse `{valeur} j` écrit en dur dans un `.tsx`.
+- **Une date dans une phrase passe par `formaterDansPhrase`** (`lib/calendrier/champDate.ts`) : « 6 octobre », “October 6”, l'année si elle diffère. Jamais « Hier » (la phrase porte déjà « prévue le »), jamais la chaîne de la base.
+- **La maxime du bandeau ne cite plus de chiffre** (décision d'Antonin, 2026-10-10) : « Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre. » « Cinq fois » contredisait le « repoussée 2 fois » écrit juste avant (`SEUIL_REPORT = 2`). Ne pas y remettre de nombre.
+- **Non fait, signalé seulement** : en anglais, les durées gardent le format français (« 1 h 05 ») ; Tâches écrit « 14:00–15:30 » en dur là où le Calendrier passe par `formatHeure` ; Tâches dit “postponed” et le Calendrier “pushed back” pour le même compteur.

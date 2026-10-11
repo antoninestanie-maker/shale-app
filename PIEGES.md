@@ -4270,3 +4270,65 @@ montre.
 **Cause.** (1) Une catégorie repliée (`grid-template-rows: 0fr`) laisse ses entrées dans le DOM avec leur hauteur : `getBoundingClientRect().height > 0` ne prouve pas qu'elles sont visibles. (2) En dev, le premier chargement d'une vue `lazy` dépasse un délai fixe (« Ouverture du module… »).
 
 **Parade.** Cliquer d'abord l'en-tête de la catégorie ; attendre l'ÉTAT (`waitForSelector`), jamais une durée. Modèle : `voir.mjs` du brouillon de session (non versionné) — le reprendre dans `tools/` si un troisième chantier en a besoin.
+
+# 33. L'analyse de Performance (2026-10-09)
+
+## 33.1 Une moyenne glissante qui inclut AUJOURD'HUI plonge chaque matin
+
+**Symptôme.** La courbe « moyenne 7 jours » se terminait par une chute, tous les jours, quelle que soit la semaine.
+
+**Cause.** Le dernier point est aujourd'hui, et à 9 h aujourd'hui vaut 20 %. Même défaut pour toute moyenne ou comparaison de période qui s'arrête à aujourd'hui.
+
+**Parade.** Une période est faite de jours FINIS (`bornes()` s'arrête à hier) ; la moyenne glissante aussi. Aujourd'hui reste tracé, à part. `lib/performance/analyse.ts`.
+
+## 33.2 `type="monotone"` (recharts) invente des valeurs entre deux points
+
+**Symptôme.** Sur une série qui alterne 100 % et 33 %, le trait dépassait 100 % et descendait sous 0.
+
+**Cause.** L'interpolation arrondie convient à une série lisse (la moyenne), pas à une série en dents de scie.
+
+**Parade.** `linear` pour une série brute, `monotone` pour une série lissée. `components/performance/Discipline.tsx`.
+
+## 33.3 Une table sans date de création réécrit le passé
+
+**Symptôme évité.** Diviser « habitudes cochées ce jour-là » par le nombre d'habitudes d'AUJOURD'HUI : ajouter une habitude fait baisser tous les jours passés.
+
+**Parade.** Faute de `created_at`, une ligne compte depuis sa première trace (`debutsDesHabitudes` : la première coche). À reprendre pour toute statistique sur une table qui n'a pas de date de création.
+
+## 33.4 Un script de retouche qui échoue au milieu laisse une moitié écrite
+
+**Symptôme.** Un script Python qui retouchait deux fichiers a levé une assertion sur le second : le premier était déjà écrit, le second non, et `tsc` restait vert.
+
+**Parade.** Écrire les fichiers À LA FIN, tous ensemble, ou relancer la moitié manquante — et ne pas conclure « appliqué » sur un `tsc` vert : relire la sortie du script.
+
+## 33.5 Une phrase RETIRÉE de l'écran reste dans le bundle : mauvaise contre-épreuve
+
+**Symptôme.** Au build du 2026-10-09, la contre-épreuve « cette phrase supprimée doit rendre 0 dans `dist/assets` » a rendu 1.
+
+**Cause.** La CLÉ d'une traduction est la phrase française : tant que son entrée reste dans `en.ts`, la phrase est dans le bundle, même si plus aucune vue ne l'affiche.
+
+**Parade.** Pour une contre-épreuve, prendre une phrase qui n'a JAMAIS existé, ou purger d'abord l'entrée de `en.ts`. Les témoins POSITIFS (phrases neuves) restent fiables (§ 7.5 bis).
+
+# 34. Retours du tournage en anglais (2026-10-10)
+
+## 34.1 « Faite » lue à deux endroits avec deux règles
+
+**Symptôme.** « La faire maintenant » : la tâche passe dans « Faites » côté Tâches, mais le Calendrier garde son bandeau de décision et son sablier.
+
+**Cause.** Le Calendrier cherchait la coche à la DATE D'ÉCHÉANCE (`faites.get(id:jour)`) ; le reste de l'app dit qu'une ponctuelle est faite dès qu'une coche existe. Le bouton coche à aujourd'hui une tâche échue : les deux règles divergeaient pile sur ce cas. Les tests d'agenda cochaient toujours à la date d'échéance, donc restaient verts.
+
+**Parade.** `ponctuellesFaites` (`lib/taches.ts`) pour toute tâche datée ; la coche « par jour » ne vaut que pour une récurrente. Dans un test de coche, décaler le jour de la coche et le jour d'échéance.
+
+## 34.2 Une clé i18n à deux sens : `i18n:check` vert, traduction fausse
+
+**Symptôme.** Le bouton qui rend une tâche supprimée disait “Cancel” en anglais.
+
+**Cause.** « Annuler » veut dire « fermer sans rien faire » ET « défaire ». La clé est la phrase française : une seule entrée, un seul anglais.
+
+**Parade.** Un discriminant : `t("Annuler|défaire")`. À chercher pour tout mot français qui porte deux gestes (« Fermer », « Retirer », « Valider »).
+
+## 34.3 Outils : trois faux pas de cette session
+
+- **zsh ne découpe pas `$F`** : `git checkout -- $F` avec `F="a b c"` cherche UN fichier nommé « a b c ». Utiliser un tableau, `F=(a b c)`.
+- **`git stash` est commun à tous les worktrees** : pour une contre-épreuve, passer par `git diff -- fichiers > x.patch`, `git checkout -- fichiers`, puis `git apply x.patch`.
+- **puppeteer « Attempted to use detached Frame »** au premier passage sur un serveur Vite neuf : Vite ré-optimise ses dépendances et recharge la page. Relancer le script, ce n'est pas l'app.

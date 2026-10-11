@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { IconFlame } from "./icons";
-import { tp } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
 
 interface Props {
   pct: number | null;
@@ -56,19 +56,20 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
 
         {/* graduations extérieures */}
         <g>
-          {TICKS.map((t, i) => (
+          {/* `trait`, pas `t` : ce nom masquerait la fonction de traduction. */}
+          {TICKS.map((trait, i) => (
             <line
               key={i}
-              x1={t.x1}
-              y1={t.y1}
-              x2={t.x2}
-              y2={t.y2}
+              x1={trait.x1}
+              y1={trait.y1}
+              x2={trait.x2}
+              y2={trait.y2}
               stroke={
-                t.major
+                trait.major
                   ? "color-mix(in srgb, var(--color-text) 35%, transparent)"
                   : "color-mix(in srgb, var(--color-text) 12%, transparent)"
               }
-              strokeWidth={t.major ? 1.5 : 1}
+              strokeWidth={trait.major ? 1.5 : 1}
             />
           ))}
         </g>
@@ -160,7 +161,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
       {/* Chip de streak : positionnée en % → suit l'échelle du conteneur */}
       <div className="pointer-events-none absolute inset-x-0 top-[64%] flex justify-center">
         <span className="pill inline-flex max-w-full items-center gap-1 border border-success/30 bg-success/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-success">
-          <IconFlame className="h-3 w-3 shrink-0" /> {streak} j
+          <IconFlame className="h-3 w-3 shrink-0" /> {t("{n} j", { n: streak })}
         </span>
       </div>
     </div>

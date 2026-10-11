@@ -2094,8 +2094,8 @@ export const EN: Record<string, string> = {
   "(progression déclarée à la main, pas mesurée)": "(progress entered by hand, not measured)",
 
   "prévue le {date}, repoussée {n} fois.": "due on {date}, pushed back {n} times.",
-  "Une tâche reportée cinq fois n'est pas une tâche, c'est une décision à prendre.":
-    "A task pushed back five times isn't a task, it's a decision you're avoiding.",
+  "Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.":
+    "A task you keep pushing back isn't a task, it's a decision you're avoiding.",
   "La faire maintenant": "Do it now",
   "Replanifier dans 7 jours": "Reschedule in 7 days",
 
@@ -3636,4 +3636,73 @@ export const EN: Record<string, string> = {
   "Week-end à Annecy": "Weekend in Annecy",
   "Salon des créateurs": "Makers' fair",
   "Déclaration du chiffre d'affaires": "Revenue declaration",
+  // ── Performance : période unique, courbes, « À améliorer » (2026-10-09) ──
+  "7 j": "7 d",
+  "30 j": "30 d",
+  "7 derniers jours": "Last 7 days",
+  "30 derniers jours": "Last 30 days",
+  "3 derniers mois": "Last 3 months",
+  "6 derniers mois": "Last 6 months",
+  "Période analysée": "Period analysed",
+  "Tout l'onglet suit cette période, et se compare à la même durée juste avant.":
+    "The whole tab follows this period, and compares it with the same length of time just before.",
+  "Tâches tenues": "Tasks done",
+  "Habitudes tenues": "Habits kept",
+  "Série en cours": "Current streak",
+  "record {n} j": "best {n} d",
+  "vs période d'avant": "vs previous period",
+  "stable": "steady",
+  "{tenus}/{comptes} j": "{tenus}/{comptes} d",
+  "{n} pt": "{n} pt",
+  "{n} pts": "{n} pts",
+  "À améliorer": "To improve",
+  "Rien ne décroche sur cette période.": "Nothing is slipping over this period.",
+  "{n} tâche reportée au moins deux fois, toujours pas faite.":
+    "{n} task postponed at least twice, still not done.",
+  "{n} tâches reportées au moins deux fois, toujours pas faites.":
+    "{n} tasks postponed at least twice, still not done.",
+  "Voir les tâches": "See tasks",
+  "« {nom} » : tenue {pct} % du temps, contre {avant} % la période d'avant.":
+    "“{nom}”: kept {pct}% of the time, against {avant}% the period before.",
+  "« {nom} » : tenue {pct} % du temps.": "“{nom}”: kept {pct}% of the time.",
+  "Ouvrir le Journal": "Open the Journal",
+  "Le {jour} : {pct} % de tes tâches faites, contre {moyenne} % en moyenne.":
+    "{jour}: {pct}% of your tasks done, against {moyenne}% on average.",
+  "Le {jour} : {pct} % de tes habitudes tenues, contre {moyenne} % en moyenne.":
+    "{jour}: {pct}% of your habits kept, against {moyenne}% on average.",
+  "Voir le calendrier": "See the calendar",
+  "Tâches tenues : {valeur} %, soit {n} pts de moins que la période d'avant.":
+    "Tasks done: {valeur}%, {n} pts lower than the period before.",
+  "Habitudes tenues : {valeur} %, soit {n} pts de moins que la période d'avant.":
+    "Habits kept: {valeur}%, {n} pts lower than the period before.",
+  "Focus : {minutes}, contre {avant} la période d'avant.":
+    "Focus: {minutes}, against {avant} the period before.",
+  "Ouvrir le Timer": "Open the Timer",
+  "discipline — tâches": "discipline — tasks",
+  "discipline — habitudes": "discipline — habits",
+  "80 % : jour tenu": "80%: day held",
+  "régularité — un carré par jour": "regularity — one square per day",
+  "moyenne 7 jours": "7-day average",
+  "jour par jour": "day by day",
+  "ce jour-là": "that day",
+  "Pas encore assez de jours pour tracer une courbe.": "Not enough days yet to draw a curve.",
+  "Ajoute une habitude dans le Journal pour suivre ta régularité ici.":
+    "Add a habit in the Journal to follow your regularity here.",
+  "{n} jour d'affilée": "{n} day in a row",
+  "{n} jours d'affilée": "{n} days in a row",
+  "par jour de la semaine": "by day of the week",
+  "Rien à comparer sur cette période.": "Nothing to compare over this period.",
+  "focus — par jour": "focus — per day",
+  "focus — par semaine": "focus — per week",
+  "Aucune séance de focus sur cette période.": "No focus session over this period.",
+  "focus par tag": "focus by tag",
+  "Focus": "Focus",
+  "focus": "focus",
+  "habitudes": "habits",
+
+  // ── Retours du tournage en anglais (2026-10-09) ──
+  // « Annuler » au sens de DÉFAIRE (le bouton d'un toast qui rend ce qui vient
+  // de partir, ⌘Z d'une carte ou d'un croquis). La clé nue « Annuler » reste
+  // « Cancel » : fermer une fenêtre sans rien faire.
+  "Annuler|défaire": "Undo",
 };

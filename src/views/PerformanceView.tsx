@@ -1,12 +1,11 @@
 import { RevueHebdo } from "../components/ia/RevueHebdo";
 import { useIaPossible } from "../lib/ia/useIa";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ResponsiveContainer,
@@ -16,23 +15,47 @@ import {
 } from "recharts";
 import {
   addDays,
-  aggregateStats,
   computeStreak,
-  dayStat,
+  nomCourtDuJour,
   pctOfList,
   streakHistory,
   todayStr,
   todayTasks,
-  type Period,
+  weekdayOf,
 } from "../lib/logic";
-import { addMetric, setMetricValue } from "../lib/repo";
+import { addMetric, getSetting, setMetricValue, setSetting } from "../lib/repo";
+import {
+  bornes,
+  comparer,
+  estPlage,
+  focusDansLeTemps,
+  lisser,
+  minutesDeFocus,
+  minutesDeSeance,
+  moyenne,
+  parJourDeSemaine,
+  pointsDAttention,
+  seancesDeFocus,
+  serieHabitudes,
+  serieTaches,
+  tenueParHabitude,
+  PLAGES,
+  PLAGE_PAR_DEFAUT,
+  type Plage,
+  type PointDAttention,
+  type PointJour,
+} from "../lib/performance/analyse";
+import { CourbeDiscipline, GrilleCarres, LegendeCourbe, type Carre } from "../components/performance/Discipline";
+import { serieHabitude } from "../lib/habitudes";
+import { allerVers } from "../lib/naviguer";
+import type { View } from "../components/Sidebar";
 import { fmtR, tradeStats } from "../lib/trades";
 import type { AppData, CustomMetric } from "../lib/types";
-import { IconX } from "../components/icons";
+import { IconFlame, IconTrendDown, IconTrendUp, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import { useEntitlements } from "../lib/entitlements";
 
-import { localeTag, t } from "../lib/i18n";
+import { formatDate, localeTag, t, tp } from "../lib/i18n";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuContextuel";
 import { entreesMetrique } from "../components/menu/catalogue/metrique";
@@ -42,12 +65,65 @@ interface Props {
   refresh: () => Promise<void>;
 }
 
-const PERIODS: { value: Period; label: string }[] = [
-  // Clés FRANÇAISES : table de module, donc traduite à l'affichage.
-  { value: "day", label: "Jour" },
-  { value: "week", label: "Semaine" },
-  { value: "month", label: "Mois" },
-];
+/**
+ * ⭐ UNE PÉRIODE POUR TOUT L'ONGLET (2026-10-09). Avant, seul le graphique de
+ * complétion avait son réglage (jour / semaine / mois) ; les autres cartes
+ * regardaient chacune une fenêtre différente (30 jours, 6 mois, « tout »), et
+ * deux chiffres voisins ne parlaient pas de la même période.
+ * Clés FRANÇAISES : table de module, donc traduite à l'affichage.
+ */
+const LIBELLE_PLAGE: Record<Plage, { court: string; long: string }> = {
+  7: { court: "7 j", long: "7 derniers jours" },
+  30: { court: "30 j", long: "30 derniers jours" },
+  90: { court: "3 mois", long: "3 derniers mois" },
+  180: { court: "6 mois", long: "6 derniers mois" },
+};
+
+/** Le réglage qui retient la période choisie (synchronisé : c'est une préférence, pas une géométrie). */
+const CLE_PLAGE = "perf.plage";
+
+/** « 08/10 » en français, « 10/08 » en anglais — midi (PIEGES § 4.1). */
+function jourCourt(date: string): string {
+  const [a, m, j] = date.split("-").map(Number);
+  return formatDate(new Date(a, m - 1, j, 12), { day: "2-digit", month: "2-digit" });
+}
+
+/** « jeudi » / « Thursday » — même ancrage que `nomCourtDuJour` (le 4 janvier 1970 est un dimanche). */
+function nomLongDuJour(jsDay: number): string {
+  return new Date(1970, 0, 4 + jsDay, 12).toLocaleDateString(localeTag(), { weekday: "long" });
+}
+
+/** Un an de carrés : 53 colonnes de 17 px tiennent dans la carte pleine largeur. */
+const SEMAINES_CARRES = 53;
+
+/** Les dernières semaines en colonnes (lundi → dimanche), pour `GrilleCarres`. */
+function enSemaines(serie: readonly PointJour[], lundi: string, today: string): Carre[][] {
+  const par = new Map(serie.map((p) => [p.date, p.pct]));
+  const semaines: Carre[][] = [];
+  for (let w = SEMAINES_CARRES - 1; w >= 0; w--) {
+    const col: Carre[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = addDays(lundi, -7 * w + d);
+      col.push({ date, pct: par.get(date) ?? null, futur: date > today });
+    }
+    semaines.push(col);
+  }
+  return semaines;
+}
+
+/** L'écart à la période d'avant : une flèche, un nombre signé, et le rouge quand ça baisse. */
+function Ecart({ n, texte }: { n: number | null; texte: (abs: number) => string }) {
+  if (n === null) return <span className="text-text-dim">—</span>;
+  if (n === 0) return <span className="text-text-dim">{t("stable")}</span>;
+  const monte = n > 0;
+  return (
+    <span className={`flex shrink-0 items-center gap-1 font-medium ${monte ? "text-text" : "text-red"}`}>
+      {monte ? <IconTrendUp className="h-3.5 w-3.5" /> : <IconTrendDown className="h-3.5 w-3.5" />}
+      {monte ? "+" : "−"}
+      {texte(Math.abs(n))}
+    </span>
+  );
+}
 
 function frDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -65,14 +141,6 @@ const tooltipStyle = {
   color: "var(--color-text)",
 };
 
-function sessionMinutes(s: { started_at: string; ended_at: string | null }): number {
-  if (!s.ended_at) return 0;
-  const ms =
-    new Date(s.ended_at.replace(" ", "T")).getTime() -
-    new Date(s.started_at.replace(" ", "T")).getTime();
-  return Math.max(0, Math.round(ms / 60_000));
-}
-
 function fmtMinutes(min: number): string {
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
@@ -87,7 +155,17 @@ export default function PerformanceView({ data, refresh }: Props) {
   const today = todayStr();
   const { tasks, completions, goals, metrics, metricEntries, goalLog } = data;
 
-  const [period, setPeriod] = useState<Period>("day");
+  const [plage, setPlage] = useState<Plage>(PLAGE_PAR_DEFAUT);
+  useEffect(() => {
+    getSetting(CLE_PLAGE).then((v) => {
+      const n = Number(v);
+      if (estPlage(n)) setPlage(n);
+    });
+  }, []);
+  const choisirPlage = (p: Plage) => {
+    setPlage(p);
+    void setSetting(CLE_PLAGE, String(p));
+  };
   const [selGoalId, setSelGoalId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
   const [newUnit, setNewUnit] = useState("");
@@ -97,39 +175,143 @@ export default function PerformanceView({ data, refresh }: Props) {
     const list = todayTasks(tasks, completions, today);
     const todayPct = pctOfList(list);
     const runs = streakHistory(tasks, completions, today, todayPct);
-    const bars = aggregateStats(tasks, completions, today, todayPct, period);
-    const last30 = aggregateStats(tasks, completions, today, todayPct, "day");
-    const nonZero = last30.filter((d) => d.pct > 0);
     return {
       todayPct,
       current: computeStreak(tasks, completions, today, todayPct),
       best: runs.reduce((m, r) => Math.max(m, r.length), 0),
-      avg30: nonZero.length
-        ? Math.round(nonZero.reduce((a, d) => a + d.pct, 0) / nonZero.length)
-        : 0,
       runs: runs.slice(0, 6),
-      bars,
     };
-  }, [tasks, completions, today, period]);
+  }, [tasks, completions, today]);
 
-  const focusStats = useMemo(() => {
-    const done = data.focusSessions.filter(
-      (s) => s.kind === "focus" && s.ended_at,
+  /**
+   * ⭐ TOUTE L'ANALYSE DE LA PÉRIODE, en un seul endroit — et calculée par
+   * `lib/performance/analyse.ts`, pas ici. Une période = des jours FINIS (elle
+   * s'arrête à hier) ; aujourd'hui n'entre dans aucune moyenne, il est
+   * seulement le dernier point des courbes.
+   */
+  const analyse = useMemo(() => {
+    const b = bornes(today, plage);
+    const { habits, habitChecks, focusSessions } = data;
+    const aujourdHui = { date: today, pct: derived.todayPct };
+
+    // Les moyennes, et celles de la période d'avant.
+    const sTaches = serieTaches(tasks, completions, b.debut, b.fin);
+    const sHabitudes = serieHabitudes(habits, habitChecks, b.debut, b.fin, today);
+    const cTaches = comparer(moyenne(sTaches), moyenne(serieTaches(tasks, completions, b.debutAvant, b.finAvant)));
+    const cHabitudes = comparer(
+      moyenne(sHabitudes),
+      moyenne(serieHabitudes(habits, habitChecks, b.debutAvant, b.finAvant, today)),
     );
-    const todayMin = done
-      .filter((s) => s.started_at.startsWith(today))
-      .reduce((a, s) => a + sessionMinutes(s), 0);
-    const byTag = new Map<string, number>();
-    for (const s of done) {
-      const task = tasks.find((t) => t.id === s.task_id);
+
+    // Les courbes : six jours d'ÉLAN avant la période, sinon la moyenne sur 7
+    // jours du premier point ne porterait que sur lui-même.
+    const elan = addDays(b.debut, -6);
+    // ⚠️ La moyenne s'arrête à HIER : aujourd'hui n'est pas fini, et l'y mettre
+    // ferait plonger la courbe chaque matin (vu à l'écran : 20 % à 9 h). Le
+    // point du jour reste tracé, sur le trait fin.
+    const courbe = (long: PointJour[]) => ({
+      points: long.slice(6),
+      lisse: [...lisser(long.slice(0, -1)).slice(6), null],
+    });
+    const courbeTaches = courbe(serieTaches(tasks, completions, elan, today, aujourdHui));
+    const courbeHabitudes = courbe(serieHabitudes(habits, habitChecks, elan, today, today));
+
+    // Les carrés : toujours un an — la régularité se lit sur la durée.
+    const lundi = addDays(today, weekdayOf(today) === 0 ? -6 : 1 - weekdayOf(today));
+    const debutCarres = addDays(lundi, -7 * (SEMAINES_CARRES - 1));
+    const carresTaches = enSemaines(serieTaches(tasks, completions, debutCarres, today, aujourdHui), lundi, today);
+    const carresHabitudes = enSemaines(serieHabitudes(habits, habitChecks, debutCarres, today, today), lundi, today);
+
+    // Par jour de la semaine : les deux séries côte à côte.
+    const semT = parJourDeSemaine(sTaches);
+    const semH = parJourDeSemaine(sHabitudes);
+    const semaine = semT.map((j, i) => ({ label: nomCourtDuJour(j.jour), taches: j.pct, habitudes: semH[i].pct }));
+
+    // Le focus.
+    const seances = seancesDeFocus(focusSessions, b.debut, b.fin);
+    const focus = minutesDeFocus(focusSessions, b.debut, b.fin);
+    const focusAvant = minutesDeFocus(focusSessions, b.debutAvant, b.finAvant);
+    const temps = focusDansLeTemps(focusSessions, b.debut, b.fin);
+    const parTag = new Map<string, number>();
+    for (const s of seances) {
+      const task = tasks.find((x) => x.id === s.task_id);
       const tag = task?.tag ?? (s.label ? "(libre)" : t("(sans tag)"));
-      byTag.set(tag, (byTag.get(tag) ?? 0) + sessionMinutes(s));
+      parTag.set(tag, (parTag.get(tag) ?? 0) + minutesDeSeance(s));
     }
-    const rows = [...byTag.entries()]
-      .map(([tag, min]) => ({ tag, min }))
-      .sort((a, b) => b.min - a.min);
-    return { todayMin, rows, max: rows[0]?.min ?? 1 };
-  }, [data.focusSessions, tasks, today]);
+    const tags = [...parTag.entries()].map(([tag, min]) => ({ tag, min })).sort((x, y) => y.min - x.min);
+
+    return {
+      cTaches,
+      cHabitudes,
+      courbeTaches,
+      courbeHabitudes,
+      carresTaches,
+      carresHabitudes,
+      semaine,
+      aDesJours: semT.some((j) => j.pct !== null) || semH.some((j) => j.pct !== null),
+      focus,
+      focusEcart: focusAvant > 0 || focus > 0 ? focus - focusAvant : null,
+      focusAujourdHui: minutesDeFocus(focusSessions, today, today),
+      temps: { pas: temps.pas, tranches: temps.tranches.map((x) => ({ label: jourCourt(x.debut), minutes: x.minutes })) },
+      tags,
+      tagMax: tags[0]?.min ?? 1,
+      habitudes: tenueParHabitude(habits, habitChecks, today, plage).map((h) => ({
+        ...h,
+        serie: serieHabitude(h.habit.id, habitChecks, today),
+      })),
+      points: pointsDAttention({ tasks, completions, habits, habitChecks, focusSessions, today, plage }),
+    };
+  }, [data, tasks, completions, today, plage, derived.todayPct]);
+
+  /**
+   * Un point d'attention, en clair : UN fait et son chiffre, et le module où
+   * agir. ⚠️ Pas de conseil : l'app dit ce qu'elle mesure, pas quoi en faire.
+   */
+  const lirePoint = (pt: PointDAttention): { texte: string; action?: string; vue?: View } => {
+    switch (pt.genre) {
+      case "reports":
+        return {
+          texte: tp(
+            pt.n,
+            "{n} tâche reportée au moins deux fois, toujours pas faite.",
+            "{n} tâches reportées au moins deux fois, toujours pas faites.",
+          ),
+          action: t("Voir les tâches"),
+          vue: "tasks",
+        };
+      case "habitude":
+        return {
+          texte:
+            pt.avant !== null && pt.avant > pt.pct
+              ? t("« {nom} » : tenue {pct} % du temps, contre {avant} % la période d'avant.", { nom: pt.nom, pct: pt.pct, avant: pt.avant })
+              : t("« {nom} » : tenue {pct} % du temps.", { nom: pt.nom, pct: pt.pct }),
+          action: t("Ouvrir le Journal"),
+          vue: "journal",
+        };
+      case "jour-faible":
+        return {
+          texte:
+            pt.quoi === "taches"
+              ? t("Le {jour} : {pct} % de tes tâches faites, contre {moyenne} % en moyenne.", { jour: nomLongDuJour(pt.jour), pct: pt.pct, moyenne: pt.moyenne })
+              : t("Le {jour} : {pct} % de tes habitudes tenues, contre {moyenne} % en moyenne.", { jour: nomLongDuJour(pt.jour), pct: pt.pct, moyenne: pt.moyenne }),
+          action: t("Voir le calendrier"),
+          vue: "calendar",
+        };
+      case "baisse":
+        return {
+          texte:
+            pt.quoi === "taches"
+              ? t("Tâches tenues : {valeur} %, soit {n} pts de moins que la période d'avant.", { valeur: pt.valeur, n: -pt.ecart })
+              : t("Habitudes tenues : {valeur} %, soit {n} pts de moins que la période d'avant.", { valeur: pt.valeur, n: -pt.ecart }),
+        };
+      case "focus":
+        return {
+          texte: t("Focus : {minutes}, contre {avant} la période d'avant.", { minutes: fmtMinutes(pt.minutes), avant: fmtMinutes(pt.avant) }),
+          action: t("Ouvrir le Timer"),
+          vue: "timer",
+        };
+    }
+  };
 
   const tagColor = (name: string) =>
     data.tags.find((t) => t.name === name)?.color ?? "var(--color-text-dim)";
@@ -160,40 +342,6 @@ export default function PerformanceView({ data, refresh }: Props) {
     return { points, liveStats, btStats };
   }, [data.trades, today]);
 
-  // Heatmap de complétion (26 semaines, style contributions GitHub)
-  const heatmap = useMemo(() => {
-    const weeks: { date: string; pct: number | null }[][] = [];
-    // aligne sur le lundi de la semaine courante, 26 colonnes
-    const wd = new Date().getDay();
-    const monday = addDays(today, wd === 0 ? -6 : 1 - wd);
-    for (let w = 25; w >= 0; w--) {
-      const col: { date: string; pct: number | null }[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = addDays(monday, -7 * w + d);
-        if (date > today) {
-          col.push({ date, pct: null });
-          continue;
-        }
-        const stat =
-          date === today
-            ? { pct: pctOfList(todayTasks(tasks, completions, today)) }
-            : dayStat(tasks, completions, date);
-        col.push({ date, pct: stat.pct });
-      }
-      weeks.push(col);
-    }
-    return weeks;
-  }, [tasks, completions, today]);
-
-  const heatColor = (pct: number | null): string => {
-    if (pct === null) return "var(--color-overlay)";
-    if (pct >= 100) return "var(--color-success-fill)";
-    if (pct >= 80) return "color-mix(in srgb, var(--color-success-fill) 65%, transparent)";
-    if (pct >= 50) return "color-mix(in srgb, var(--color-success-fill) 35%, transparent)";
-    if (pct > 0) return "color-mix(in srgb, var(--color-success-fill) 15%, transparent)";
-    return "color-mix(in srgb, var(--color-red) 18%, transparent)";
-  };
-
   const goalId = selGoalId ?? goals[0]?.id ?? null;
   const goalSeries = useMemo(() => {
     if (goalId === null) return [];
@@ -223,31 +371,114 @@ export default function PerformanceView({ data, refresh }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      <h1 className="text-3xl text-text">{t("Performance")}</h1>
+      {/* ⭐ La période se choisit UNE fois, ici, pour toutes les cartes. */}
+      <header className="view-head">
+        <h1 className="text-3xl text-text">{t("Performance")}</h1>
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("Période analysée")}>
+          {PLAGES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="radio"
+              aria-checked={plage === p}
+              onClick={() => choisirPlage(p)}
+              data-tip={t(LIBELLE_PLAGE[p].long)}
+              data-tip-sub={t("Tout l'onglet suit cette période, et se compare à la même durée juste avant.")}
+              data-tip-attente="longue"
+              className={`pill border px-3 py-1 text-xs font-medium transition-colors ${
+                plage === p ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
+              }`}
+            >
+              {t(LIBELLE_PLAGE[p].court)}
+            </button>
+          ))}
+        </div>
+      </header>
 
       <ResizableGrid gridId="performance" className="mt-6">
-      {/* Tuiles stats */}
+      {/* ⭐ Les tuiles COMPARENT : chaque chiffre de la période, et son écart à
+          la même durée juste avant. Un 72 % seul ne dit pas si on progresse. */}
       <ResizablePanel id="perf-tiles" defaultW={12}>
-      <div className="auto-tiles panel-stretch gap-4">
+      <div className="perf-tiles panel-stretch gap-4">
         {[
-          { label: t("Streak actuel"), value: `${derived.current} j`, accent: "text-success" },
-          { label: t("Record"), value: `${derived.best} j`, accent: "text-blue" },
-          { label: t("Moyenne 30 jours"), value: `${derived.avg30}%`, accent: "text-text" },
-          { label: t("Focus aujourd'hui"), value: fmtMinutes(focusStats.todayMin), accent: "text-blue" },
+          {
+            label: t("Tâches tenues"),
+            valeur: analyse.cTaches.valeur === null ? "—" : `${analyse.cTaches.valeur}%`,
+            sous: <Ecart n={analyse.cTaches.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
+            ecart: analyse.cTaches.ecart,
+            compare: true,
+          },
+          {
+            label: t("Habitudes tenues"),
+            valeur: analyse.cHabitudes.valeur === null ? "—" : `${analyse.cHabitudes.valeur}%`,
+            sous: <Ecart n={analyse.cHabitudes.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
+            ecart: analyse.cHabitudes.ecart,
+            compare: true,
+          },
+          {
+            label: t("Focus"),
+            valeur: fmtMinutes(analyse.focus),
+            sous: <Ecart n={analyse.focusEcart} texte={fmtMinutes} />,
+            ecart: analyse.focusEcart,
+            compare: true,
+          },
+          {
+            label: t("Série en cours"),
+            valeur: t("{n} j", { n: derived.current }),
+            sous: <span className="truncate">{t("record {n} j", { n: derived.best })}</span>,
+            ecart: null as number | null,
+            compare: false,
+          },
         ].map((tile) => (
           <div key={tile.label} className="card min-w-0 p-5">
             <p className="hud-label" title={tile.label}>
               {tile.label}
             </p>
-            <p
-              className={`mt-1 truncate font-display text-3xl font-extrabold ${tile.accent}`}
-              title={tile.value}
-            >
-              {tile.value}
+            <p className="mt-1 truncate font-display text-3xl font-extrabold text-text" title={tile.valeur}>
+              {tile.valeur}
+            </p>
+            <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">
+              {tile.sous}
+              {tile.compare && tile.ecart !== null && <span className="truncate">{t("vs période d'avant")}</span>}
             </p>
           </div>
         ))}
       </div>
+      </ResizablePanel>
+
+      {/* ⭐ À AMÉLIORER — ce que la période fait ressortir, en trois lignes au
+          plus. Des faits chiffrés, jamais des conseils (`pointsDAttention`). */}
+      <ResizablePanel id="perf-analyse" defaultW={12}>
+      <section className="card p-5">
+        <div className="rgrid-head flex items-center justify-between gap-2">
+          <h2 className="hud-label">{t("À améliorer")}</h2>
+          <span className="shrink-0 text-[11px] text-text-dim">{t(LIBELLE_PLAGE[plage].long)}</span>
+        </div>
+        {analyse.points.length === 0 ? (
+          <p className="mt-3 text-sm text-text-dim">{t("Rien ne décroche sur cette période.")}</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {analyse.points.map((pt, i) => {
+              const l = lirePoint(pt);
+              return (
+                <li key={`${pt.genre}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-overlay px-3 py-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-yellow" aria-hidden />
+                  <span className="min-w-0 flex-1 basis-[14rem] text-sm text-text">{l.texte}</span>
+                  {l.vue && (
+                    <button
+                      type="button"
+                      onClick={() => allerVers(l.vue!)}
+                      className="cible-tactile-ligne shrink-0 rounded-md px-2 py-1 text-xs font-medium text-blue hover:underline"
+                    >
+                      {l.action}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
       </ResizablePanel>
 
       {/* La revue hebdomadaire (IA de Shale Pro, phase G). RETIRÉE de la grille
@@ -259,62 +490,129 @@ export default function PerformanceView({ data, refresh }: Props) {
         </ResizablePanel>
       )}
 
-      {/* Complétion des tâches */}
-      <ResizablePanel id="perf-completion" defaultW={12}>
+      {/* ⭐ La discipline des TÂCHES : la courbe (tendance) ET les carrés
+          (régularité). Elle remplace les barres « Complétion des tâches ». */}
+      <ResizablePanel id="perf-discipline" defaultW={12}>
       <section className="card p-5">
-        <div className="rgrid-head flex items-center justify-between">
-          <h2 className="hud-label">
-            {t("Complétion des tâches")}
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setPeriod(p.value)}
-                data-tip={t(p.label)}
-                data-tip-sub={t("Granularité du graphique de complétion.")}
-                className={`pill border px-3 py-1 text-xs font-medium transition-colors ${
-                  period === p.value
-                    ? "border-text/30 bg-surface-2 text-text"
-                    : "border-border text-text-dim hover:text-text"
-                }`}
-              >
-                {t(p.label)}
-              </button>
-            ))}
+        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+          <h2 className="hud-label shrink-0">{t("discipline — tâches")}</h2>
+          <LegendeCourbe seuil={t("80 % : jour tenu")} />
+        </div>
+        <CourbeDiscipline className="mt-3" points={analyse.courbeTaches.points} lisse={analyse.courbeTaches.lisse} seuil={80} />
+        <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
+        <GrilleCarres semaines={analyse.carresTaches} zeroEnRouge />
+      </section>
+      </ResizablePanel>
+
+      {/* ⭐ La discipline des HABITUDES (celles du Journal) : jusqu'ici elles
+          n'apparaissaient nulle part dans Performance. */}
+      <ResizablePanel id="perf-habitudes" defaultW={12}>
+      <section className="card p-5">
+        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+          <h2 className="hud-label shrink-0">{t("discipline — habitudes")}</h2>
+          {analyse.habitudes.length > 0 && <LegendeCourbe />}
+        </div>
+        {analyse.habitudes.length === 0 ? (
+          <p className="py-6 text-center text-sm text-text-dim">
+            {t("Ajoute une habitude dans le Journal pour suivre ta régularité ici.")}
+          </p>
+        ) : (
+          <>
+            <CourbeDiscipline className="mt-3" points={analyse.courbeHabitudes.points} lisse={analyse.courbeHabitudes.lisse} />
+            <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
+            <GrilleCarres semaines={analyse.carresHabitudes} />
+            {/* Une ligne par habitude : c'est elle qui dit LAQUELLE décroche. */}
+            <ul className="mt-5 flex flex-col gap-2.5">
+              {analyse.habitudes.map((h) => (
+                <li key={h.habit.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="flex min-w-0 flex-1 basis-[9rem] items-center gap-2">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: h.habit.color }} aria-hidden />
+                    <span className="truncate truncate-souris text-xs text-text" title={h.habit.name}>
+                      {h.habit.name}
+                    </span>
+                  </span>
+                  <div className="pill h-2 min-w-[5rem] flex-[2_1_8rem] overflow-hidden bg-surface-2">
+                    <div className="pill h-full" style={{ width: `${h.pct ?? 0}%`, backgroundColor: h.habit.color }} />
+                  </div>
+                  <span className="w-28 shrink-0 text-right font-mono text-xs text-text">
+                    {h.pct === null ? "—" : `${t("{tenus}/{comptes} j", { tenus: h.tenus, comptes: h.comptes })} · ${h.pct}%`}
+                  </span>
+                  <span
+                    className="flex w-10 shrink-0 items-center justify-end gap-0.5 text-xs text-text-dim"
+                    data-tip={tp(h.serie, "{n} jour d'affilée", "{n} jours d'affilée")}
+                  >
+                    <IconFlame className="h-3 w-3" />
+                    {h.serie}
+                  </span>
+                  <span className="flex w-16 shrink-0 justify-end text-xs">
+                    <Ecart n={h.pct !== null && h.avant !== null ? h.pct - h.avant : null} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+      </ResizablePanel>
+
+      {/* ⭐ Par jour de la semaine : OÙ ça décroche. */}
+      <ResizablePanel id="perf-semaine" defaultW={6} minH={220}>
+      <section className="card p-5">
+        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+          <h2 className="hud-label shrink-0">{t("par jour de la semaine")}</h2>
+          <p className="flex items-center gap-3 text-[11px] text-text-dim">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-[2px] bg-[var(--color-success-fill)]" aria-hidden />
+              {t("tâches")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-[2px] bg-blue" aria-hidden />
+              {t("habitudes")}
+            </span>
+          </p>
+        </div>
+        {!analyse.aDesJours ? (
+          <p className="py-6 text-center text-sm text-text-dim">{t("Rien à comparer sur cette période.")}</p>
+        ) : (
+          <div className="panel-chart mt-3 min-h-[150px]">
+            <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+              <BarChart data={analyse.semaine} margin={{ top: 4, right: 0, bottom: 0, left: -24 }} barGap={2}>
+                <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--color-overlay)" }}
+                  contentStyle={tooltipStyle}
+                  formatter={(v, nom) => [v == null ? "—" : `${v}%`, nom === "taches" ? t("tâches") : t("habitudes")]}
+                />
+                <Bar dataKey="taches" fill="var(--color-success-fill)" radius={[3, 3, 3, 3]} maxBarSize={14} />
+                <Bar dataKey="habitudes" fill="var(--color-blue)" radius={[3, 3, 3, 3]} maxBarSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
-        <div className="panel-chart mt-4 min-h-[180px]">
-          <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-            <BarChart data={derived.bars} margin={{ top: 4, right: 0, bottom: 0, left: -24 }}>
-              <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "var(--color-text-dim)", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: "var(--color-text-dim)", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "var(--color-overlay)" }}
-                contentStyle={tooltipStyle}
-                formatter={(v) => [`${v ?? 0}%`, t("complétion")]}
-              />
-              <Bar dataKey="pct" radius={[4, 4, 4, 4]} maxBarSize={22}>
-                {derived.bars.map((d, i) => (
-                  <Cell key={i} fill={d.isCurrent ? "var(--color-blue)" : "var(--color-success-fill)"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        )}
+      </section>
+      </ResizablePanel>
+
+      {/* ⭐ Le focus dans le temps : le rythme, pas seulement le total. */}
+      <ResizablePanel id="perf-focus-temps" defaultW={6} minH={220}>
+      <section className="card p-5">
+        <h2 className="hud-label">{analyse.temps.pas === "jour" ? t("focus — par jour") : t("focus — par semaine")}</h2>
+        {analyse.focus === 0 ? (
+          <p className="py-6 text-center text-sm text-text-dim">{t("Aucune séance de focus sur cette période.")}</p>
+        ) : (
+          <div className="panel-chart mt-3 min-h-[150px]">
+            <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+              <BarChart data={analyse.temps.tranches} margin={{ top: 4, right: 0, bottom: 0, left: -18 }}>
+                <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip cursor={{ fill: "var(--color-overlay)" }} contentStyle={tooltipStyle} formatter={(v) => [fmtMinutes(Number(v ?? 0)), t("focus")]} />
+                <Bar dataKey="minutes" fill="var(--color-success-fill)" radius={[3, 3, 3, 3]} maxBarSize={22} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
       </ResizablePanel>
 
@@ -344,7 +642,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                     />
                   </div>
                   <span className="w-10 shrink-0 text-right font-display text-sm font-bold text-text">
-                    {run.length} j
+                    {t("{n} j", { n: run.length })}
                   </span>
                 </li>
               ))}
@@ -419,42 +717,6 @@ export default function PerformanceView({ data, refresh }: Props) {
             </div>
           )}
         </section>
-      </ResizablePanel>
-
-      {/* Heatmap de complétion */}
-      <ResizablePanel id="perf-heatmap" defaultW={12}>
-      <section className="card p-5">
-        <h2 className="hud-label">{t("discipline — 6 derniers mois")}</h2>
-        <div className="mt-3 flex gap-[3px] overflow-x-auto pb-1">
-          {heatmap.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
-              {week.map((cell) => (
-                <span
-                  key={cell.date}
-                  title={`${cell.date}${cell.pct !== null ? ` — ${cell.pct}%` : ""}`}
-                  className="h-[11px] w-[11px] rounded-[3px]"
-                  style={{ backgroundColor: heatColor(cell.pct) }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-        {/* shrink-0 sur les deux libellés : `.hud-label` tronque en ellipse, et
-            en fenêtre étroite « moins »/« plus » se faisaient rogner de 4-5px
-            (rendus « moin… »/« plu… »). Ils ne doivent jamais être comprimés —
-            ce sont les bornes de lecture de la légende. */}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="hud-label mr-1 shrink-0">{t("moins")}</span>
-          {[null, 20, 60, 85, 100].map((p, i) => (
-            <span
-              key={i}
-              className="h-[11px] w-[11px] shrink-0 rounded-[3px]"
-              style={{ backgroundColor: heatColor(p) }}
-            />
-          ))}
-          <span className="hud-label ml-1 shrink-0">{t("plus")}</span>
-        </div>
-      </section>
       </ResizablePanel>
 
       {/* Trading : R cumulé live vs backtest — réservé à Shale Trade.
@@ -543,14 +805,14 @@ export default function PerformanceView({ data, refresh }: Props) {
       {/* Temps de focus par tag */}
       <ResizablePanel id="perf-focus" defaultW={12} minH={200}>
       <section className="card p-5">
-        <h2 className="hud-label">{t("focus par tag — 30 jours")}</h2>
-        {focusStats.rows.length === 0 ? (
+        <h2 className="hud-label">{t("focus par tag")}</h2>
+        {analyse.tags.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">
             {t("Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.")}
           </p>
         ) : (
           <ul className="panel-scroll mt-3 flex flex-col gap-2.5">
-            {focusStats.rows.map((row) => (
+            {analyse.tags.map((row) => (
               <li key={row.tag} className="flex items-center gap-3">
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
@@ -563,7 +825,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                   <div
                     className="pill h-full"
                     style={{
-                      width: `${(row.min / focusStats.max) * 100}%`,
+                      width: `${(row.min / analyse.tagMax) * 100}%`,
                       backgroundColor: tagColor(row.tag),
                     }}
                   />
