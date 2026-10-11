@@ -877,3 +877,7 @@ L'onglet Performance a changé de nature : une période unique (7 j · 30 j · 3
 ## AA — Retours du tournage en anglais (app, 2026-10-10)
 
 Aucun texte du site à changer (la maxime du bandeau n'y figure pas). Les captures ANGLAISES du Calendrier et d'Aujourd'hui prises avant ce jour montrent « 7 j », « due on 2026-… », « five times » : à refaire au prochain passage de captures.
+
+## AB — Barre latérale réductible, « Aujourd'hui » fixe (app, 2026-10-11)
+
+La démo jouable (`Demo.astro`, `NAV`) et les captures `shots/v2` montrent l'ancienne barre : pas de ligne « Réduire », « Aujourd'hui » dans la liste qui défile, en-tête Calendrier d'Aujourd'hui avec icône. Aucun texte du site ne décrit la barre : rien à corriger en mots. À reprendre au prochain passage de captures.

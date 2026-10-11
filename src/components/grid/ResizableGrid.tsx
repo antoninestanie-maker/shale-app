@@ -56,6 +56,7 @@ import {
   type ReactNode,
 } from "react";
 import { getSetting, setSetting } from "../../lib/repo";
+import { zoomFactor } from "../../lib/uiConfig";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { IconPoints } from "../menu/icones";
@@ -217,8 +218,9 @@ export function ResizableGrid({
   // Hauteur visible : borne haute des panneaux. Suivie au redimensionnement de
   // fenêtre ET à la rotation, sinon une taille enregistrée sur un grand écran
   // ferait "disparaître" le widget après passage sur un écran plus petit.
+  // En pixels LOCAUX (fenêtre ÷ densité) : c'est l'unité des hauteurs de panneau.
   const [viewportH, setViewportH] = useState(() =>
-    typeof window !== "undefined" ? window.innerHeight : 900,
+    typeof window !== "undefined" ? window.innerHeight / zoomFactor() : 900,
   );
   const sizeKey = `layout.${gridId}`;
   const orderKey = `order.${gridId}`;
@@ -309,6 +311,8 @@ export function ResizableGrid({
 
     // 3. Écriture : inversion (position d'avant) pour les voisins ; le panneau saisi
     //    reprend sa position sous le curseur, recalculée pour son nouveau slot.
+    //    ⚠️ Écrans → locaux : voir `zoomFactor` en tête de `startMove`.
+    const z = zoomFactor();
     const d = dragRef.current;
     for (const el of kids) {
       const id = el.dataset.pid!;
@@ -320,7 +324,7 @@ export function ResizableGrid({
           const py = d.pointer.y - gr.top;
           const dx = px - d.startLocal.x + (d.startSlot.left - d.curSlot.left);
           const dy = py - d.startLocal.y + (d.startSlot.top - d.curSlot.top);
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
         } else {
           el.style.transform = prevDragTransform.get(id) ?? "";
         }
@@ -332,7 +336,7 @@ export function ResizableGrid({
       const dx = f.left - l.left;
       const dy = f.top - l.top;
       if (Math.abs(dx) >= 1 || Math.abs(dy) >= 1) {
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
       }
     }
 
@@ -422,8 +426,10 @@ export function ResizableGrid({
 
   // Hauteur visible — re-borne les panneaux au redimensionnement / à la rotation.
   useEffect(() => {
-    const onResize = () =>
-      setViewportH((prev) => (Math.abs(prev - window.innerHeight) > 1 ? window.innerHeight : prev));
+    const onResize = () => {
+      const h = window.innerHeight / zoomFactor();
+      setViewportH((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+    };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
     return () => {
@@ -589,7 +595,14 @@ export function ResizableGrid({
         const py = st.pointer.y - gr.top;
         const dx = px - st.startLocal.x + (st.startSlot.left - st.curSlot.left);
         const dy = py - st.startLocal.y + (st.startSlot.top - st.curSlot.top);
-        st.el.style.transform = `translate(${dx}px, ${dy}px)`;
+        // ⚠️ DENSITÉ (2026-10-11). Tout ce qui précède est en pixels ÉCRAN
+        // (`clientX`, `getBoundingClientRect`) ; un `translate` s'écrit en
+        // pixels LOCAUX, que le `zoom` de la densité multiplie ensuite. Sans
+        // cette division, à 110 % le panneau devançait le curseur de 10 % de la
+        // distance parcourue — 20 px au bout de 200 (mesuré, PIEGES § 35.3). Le
+        // hit-test, lui, compare des pixels écran entre eux : il ne change pas.
+        const z = zoomFactor();
+        st.el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
 
         // Hit-test sur les positions finales (stable pendant les FLIP).
         const now = performance.now();
@@ -989,7 +1002,11 @@ export function ResizablePanel({
     const startY = e.clientY;
     const startW = w;
     const keepH = pinnedH; // une hauteur épinglée survit à un drag purement horizontal
-    const startPx = wrap.getBoundingClientRect().height;
+    // Pixels ÉCRAN → LOCAUX : la hauteur d'un panneau s'enregistre en locaux, et
+    // le curseur se déplace en pixels écran. À 110 %, tirer de 60 px ajoutait
+    // 88 px au lieu de 55 (mesuré le 2026-10-11).
+    const z = zoomFactor();
+    const startPx = wrap.getBoundingClientRect().height / z;
     let moved = false;
     let lastEv: PointerEvent = e.nativeEvent;
     let applied: PanelSize | null = null;
@@ -1022,7 +1039,7 @@ export function ResizablePanel({
     // — PLAFOND — ~92% de la zone visible, borné par `maxH` s'il est fourni,
     // mais jamais sous le plancher (sinon la contrainte devient contradictoire).
     const ceilOf = () => {
-      const vp = scroller ? scroller.clientHeight : window.innerHeight;
+      const vp = scroller ? scroller.clientHeight : window.innerHeight / z;
       const viewCap = Math.floor((vp * 0.92) / HEIGHT_STEP) * HEIGHT_STEP;
       return Math.max(floorOf(), Math.min(maxH ?? Number.POSITIVE_INFINITY, viewCap));
     };
@@ -1034,7 +1051,7 @@ export function ResizablePanel({
     const compute = (ev: PointerEvent, commit: boolean): PanelSize => {
       const dw = Math.round((ev.clientX - startX) / colStride);
       const nextW = clamp(startW + dw, effMinW, effMaxW);
-      const dy = ev.clientY - startY;
+      const dy = (ev.clientY - startY) / z;
       const floorH = floorOf();
       if (Math.abs(dy) >= 12) {
         const raw = Math.round((startPx + dy) / HEIGHT_STEP) * HEIGHT_STEP;
@@ -1215,14 +1232,16 @@ export function ResizablePanel({
         // OUVERT. Sans le premier, Tab posait le focus sur des boutons à
         // opacité nulle — un focus invisible ; sans le second, la barre
         // disparaissait sous le menu dès que le pointeur y descendait.
-        className={`rgrid-poignees absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 shadow-sm transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden ${
-          menuOuvert ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        className={`rgrid-poignees absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 shadow-sm transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 focus-within:[-webkit-backdrop-filter:var(--glass-blur)] focus-within:[backdrop-filter:var(--glass-blur)] group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 group-hover/panel:[-webkit-backdrop-filter:var(--glass-blur)] group-hover/panel:[backdrop-filter:var(--glass-blur)] [@media(pointer:coarse)]:hidden ${
+          menuOuvert
+            ? "pointer-events-auto opacity-100 [-webkit-backdrop-filter:var(--glass-blur)] [backdrop-filter:var(--glass-blur)]"
+            : "pointer-events-none opacity-0"
         }`}
-        style={{
-          background: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          WebkitBackdropFilter: "var(--glass-blur)",
-        }}
+        // ⚠️ Le flou du verre n'est posé QUE quand la barre est révélée (classes
+        // ci-dessus), plus en permanence : à opacité nulle, un `backdrop-filter`
+        // reste un calque que le moteur recompose à chaque image de défilement —
+        // Aujourd'hui en portait une vingtaine, tous invisibles (2026-10-11).
+        style={{ background: "var(--glass-bg)" }}
       >
         {/* Actions — le même menu qu'au clic droit, et la seule porte au CLAVIER
             vers « Avancer / Reculer d'une place » (le ⠿ ne se prend qu'à la souris). */}
@@ -1316,13 +1335,9 @@ export function ResizablePanel({
           // accidentelle. Et le module qu'elle ouvre est à une tape dans la
           // barre d'onglets — c'est un raccourci de curseur, pas une porte
           // unique.
-          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden`}
-          style={{
-            bottom: V_SPACE + 6,
-            background: "var(--glass-bg)",
-            backdropFilter: "var(--glass-blur)",
-            WebkitBackdropFilter: "var(--glass-blur)",
-          }}
+          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:[-webkit-backdrop-filter:var(--glass-blur)] focus-visible:[backdrop-filter:var(--glass-blur)] group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 group-hover/panel:[-webkit-backdrop-filter:var(--glass-blur)] group-hover/panel:[backdrop-filter:var(--glass-blur)] [@media(pointer:coarse)]:hidden`}
+          // Même règle que la barre de poignées : le flou seulement une fois révélé.
+          style={{ bottom: V_SPACE + 6, background: "var(--glass-bg)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

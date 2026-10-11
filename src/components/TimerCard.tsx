@@ -47,8 +47,10 @@ export default function TimerCard({ data, focus }: Props) {
 
   return (
     <section className="card p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="hud-label">timer</h2>
+      {/* `.rgrid-head` : au survol, les points de cycles s'écartent de la barre
+          de poignées au lieu de passer dessous. */}
+      <div className="rgrid-head flex items-center justify-between">
+        <h2 className="hud-label">{t("Timer")}</h2>
         <span className="flex items-center gap-1" data-tip={t("cycles aujourd'hui")}>
           {Array.from({ length: Math.min(cyclesToday, 8) }).map((_, i) => (
             <span key={i} className="h-1.5 w-1.5 rounded-full bg-success" />

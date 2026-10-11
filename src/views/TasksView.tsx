@@ -22,6 +22,7 @@ import { CaptureIa } from "../components/ia/CaptureIa";
 import { IconeIa } from "../components/ia/IconeIa";
 import { useIa } from "../lib/ia/useIa";
 import { PastillePriorite } from "../components/Priorite";
+import { defilerVers } from "../lib/defilement";
 
 interface Props {
   data: AppData;
@@ -299,7 +300,7 @@ export default function TasksView({ data, refresh }: Props) {
 
   useEffect(() => {
     if (nouvelle == null) return;
-    document.querySelector(`[data-tache="${nouvelle}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`));
     const minuterie = window.setTimeout(() => setNouvelle(null), 1600);
     return () => window.clearTimeout(minuterie);
   }, [nouvelle]);

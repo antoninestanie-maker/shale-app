@@ -71,7 +71,8 @@ const WIDGET_MIN_H: Record<string, number> = {
   tasks: 200,
   goals: 176,
   habitudes: 136,
-  quicklinks: 136,
+  // `quicklinks` n'est plus ici (2026-10-11) : ses pastilles ne défilent plus,
+  // son plancher est la hauteur de son contenu (voir `QuickLinks.tsx`).
 };
 
 /** Vue complète associée à chaque widget (poignée ↗ discrète du panneau). */
@@ -187,7 +188,8 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
       ).length;
       return (
         <section key="habitudes" className="card p-5">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
+          {/* `.rgrid-head` : le compteur s'écarte de la barre de poignées au survol. */}
+          <div className="rgrid-head mb-3 flex items-baseline justify-between gap-2">
             <h2 className="hud-label">{t("Habitudes à tenir")}</h2>
             {data.habits.length > 0 && (
               <span className="font-mono text-[10px] text-text-dim">

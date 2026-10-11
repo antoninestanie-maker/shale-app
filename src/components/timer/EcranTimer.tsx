@@ -151,7 +151,7 @@ export default function EcranTimer({
           // La hauteur de fenêtre MOINS l'en-tête, la jauge et les boutons
           // (≈ 15rem) : dans une petite fenêtre séparée (560 × 360), 56vh
           // laissait passer les boutons sous le bord. Plancher à 4rem.
-          hauteurMax="max(4rem, min(calc(100vh - 15rem), 36rem))"
+          hauteurMax="max(4rem, min(calc(100vh * var(--zoom-inv) - 15rem), 36rem))"
           className="max-w-[1100px]"
         />
 

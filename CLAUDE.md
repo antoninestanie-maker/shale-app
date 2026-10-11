@@ -7494,3 +7494,24 @@ l'API Web Animations. Rendue dans WebKit (`tools/webkit-pilote.swift`) et dans
 Chrome sans interface. C'est ce contrôle qui a trouvé le défaut du § 26.3 de
 PIEGES. ⚠️ Ce qui reste NON vu : le mouvement continu en temps réel, et tout
 ce qui se passe dans l'app (plein écran natif, fenêtre, fermeture).
+
+## 2026-10-11 — Widgets d'Aujourd'hui, hauteur sous densité, barre latérale réductible
+
+Demande d'Antonin, avec une photo (« Liens rapides » : « + lien » coupé, barre de défilement dans la carte) : corriger, chercher les autres défauts en démo, puis améliorer la barre latérale — des infos qui restent en haut au défilement, cohérence quand on change l'interface, réduction avec fondu des textes, défilement plus fluide. État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 35. Dessin : `DESIGN.md`.
+
+- **Ses réglages réels sont 110 % et 1470×923** (lus dans sa base, en lecture seule). Toute vérification d'interface se fait à cette densité, pas à 100 % : trois des défauts de ce jour n'existent qu'au-dessus de 100 %.
+- **« Liens rapides » ne défile plus** : la cause était une hauteur épinglée (144) que `.panel-scroll` autorisait à rester sous le contenu. Des pastilles ne sont pas une liste. `.panel-scroll` reste pour Tâches, Calendrier, Habitudes.
+- **La racine de l'app suit la fenêtre à toute densité** (`h-[calc(100vh*var(--zoom-inv))]`) : à 110 % elle dépassait de 84 px, pied de barre sous le bord. Corrigé aussi sur les écrans de connexion, d'abonnement et le filet d'erreur.
+- **La grille divise par le zoom** quand elle écrit une position ou une hauteur (glisser, FLIP, redimensionner).
+- **La barre latérale est opaque** (`--barre-bg`), plus en verre : rien ne défile derrière elle, et un titre collant demande un fond plein. Changement de matériau assumé ; l'écart visuel est minime.
+- **Ce qui reste en haut** (réponse d'Antonin : « aujourd'hui et titre de la catégorie ») : « Aujourd'hui » sort de la liste défilante ; chaque titre de catégorie est `sticky`. C'est la catégorie du DÉFILEMENT qui colle, pas celle de la vue active.
+- **Réduire en icônes** : une LIGNE du pied (« Réduire »), ⌥⌘S (le raccourci de Finder et de Notes ; ⌘B est le gras des éditeurs, ⌘\ est injoignable sur un clavier AZERTY), et une action de la palette. Pas une poignée au survol du bord (règle 17).
+- **Le choix est retenu PAR RÉGIME** (`lib/barre.ts`) : une réponse en fenêtre large, une en fenêtre étroite. Un booléen unique aurait laissé 232 px de barre dans une fenêtre de 800. En `localStorage` (`shale.barre`), pas dans `settings` : `settings` se synchronise, la largeur d'une barre dépend de l'écran.
+- **« Étroit » = moins de 1000 px LOCAUX** (fenêtre ÷ densité), plus `lg:` (1024 px de fenêtre). 1000 et non 1024 pour que la fenêtre par défaut (1120) reste étendue à 110 %.
+- **Aucune `transition: width`** : la largeur change d'un coup, un volet glisse en `translate`, les textes fondent. Réduire : les textes s'effacent D'ABORD (120 ms), la largeur change ensuite. Le mouvement n'est posé que par le bouton, jamais par le montage ni par un redimensionnement.
+- **Les icônes ne bougent pas** entre les deux états (même padding ; bouton de 41 px en réduit) — vérifié au pixel.
+- **Les catégories ne clignotent plus au montage** : état initial lu dans un miroir local (`shale.barre.categories`) ; `sidebar.collapsed` reste la source.
+- **Fenêtre basse (< 720 px locaux)** : l'horloge et « systèmes actifs » quittent le pied, sinon la liste n'avait plus que 70 px.
+- **Défilement** : pas de bibliothèque de défilement lissé (WKWebView défile nativement). Ce qui a été fait : `overscroll-behavior` (la fenêtre entière ne rebondit plus), plus de `backdrop-filter` invisible (0 calque de flou au repos, contre une vingtaine), `defilerVers()` qui respecte `prefers-reduced-motion`. ⚠️ Le gain n'est PAS mesuré dans l'app native.
+- **Non fait, signalé** : les deux systèmes d'ordre et de masquage des widgets (`order.today` / `hidden.today` contre Personnaliser) s'ignorent toujours ; les poignées passent sur la tuile « cycles du jour » de la vue Timer ; la poignée de déplacement de la fenêtre reste l'en-tête de la barre (64 px en réduit) ; les trous de grille entre 720 et 903 px.
+

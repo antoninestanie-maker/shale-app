@@ -1763,3 +1763,31 @@ Branche `chantier/jauge-energie` (worktree `~/Desktop/Shale-chantiers/jauge-ener
 **Vérifié à la lecture** : `getSetting()` rend bien `null` pour une clé absente, en natif (`rows[0]?.value ?? null`, `repo.ts`) comme en démo.
 **Pas vu** : la jauge à l'écran, ni en démo ni dans l'app native. La vraie base n'a été ni lue ni écrite : on ne sait donc pas si elle porte déjà les trois réglages `energy_*` (auquel cas l'app installée n'était pas touchée) ou non.
 **Pas fait** : ni poussé, ni fusionné, ni installé — en attente de l'accord d'Antonin.
+
+
+
+## 2026-10-11 — Widgets d'Aujourd'hui, hauteur sous densité, barre latérale réductible
+
+Branche `chantier/barre-laterale`, fusionnée dans `mobile-ios`. Front seul : aucune migration, aucun Rust, aucune dépendance. Décisions : `CLAUDE.md`, même date. Pièges : `PIEGES.md` § 35.
+
+**Corrigé (chaque point reproduit puis remesuré dans Chrome sans fenêtre, mode démo, 1470×923 à 110 % — les réglages réels d'Antonin) :**
+- « Liens rapides » : hauteur épinglée 144 → rendue 160, « + lien » entier, plus de barre dans la carte.
+- Hauteur de l'app : racine = fenêtre à 90, 100, 110 et 120 % (avant : 920 px dans 836 à 110 %).
+- Grille : le panneau glissé reste sous le curseur à 90 / 100 / 110 / 120 % (avant : 20 px d'avance après 200 px à 110 %) ; redimensionnement juste.
+- Poignées par-dessus le compteur d'Habitudes, les points du Timer, la pastille « Surchargée » : `.rgrid-head` sur les trois en-têtes.
+- En-tête Calendrier d'Aujourd'hui aligné sur les autres ; emoji ⌛ → `IconSablier` (carte, agenda, grille horaire) ; « timer » en dur → `t()`.
+- 0 calque `backdrop-filter` au repos sur Aujourd'hui (une vingtaine avant) ; `overscroll-behavior` ; `defilerVers()`.
+- Balayage des 11 vues à 1470@110, 1120@110, 900@100, 720@100, 1470@120 : aucun contrôle rogné, aucun débordement, aucun défilement parasite. Reste : poignées sur la tuile « cycles du jour » (vue Timer).
+
+**Barre latérale** (`Sidebar.tsx`, `lib/barre.ts`, bloc « Barre latérale » d'`index.css`) :
+- « Aujourd'hui » fixe ; titres de catégorie collants (vérifié : le titre collé est bien AU-DESSUS, `elementFromPoint`) ; replier une catégorie collée recale la liste ; fondu en bas, filet en haut.
+- Réduire / étendre : ligne du pied, ⌥⌘S, palette ⌘K. Icônes au même pixel dans les deux états (écart 0) ; bouton 41 px en réduit ; 1 seule livraison du `ResizeObserver` de la zone principale par bascule ; aucune mutation d'état dans les 2,5 s après montage.
+- Régime étroit / large en pixels locaux, seuil 1000 (vérifié à 100, 110, 120 %).
+- Titre long, module renommé long, module masqué, densité 120 %, thème clair, anglais : vus, justes.
+
+**Ligne de base :** vitest **2006** (1981 + 25 : `barre.test.ts`, `barre.source.test.ts`) · `tsc`, `test:types`, `i18n:check` (2722), `i18n:durs`, `build` verts.
+
+⚠️ **Pas vu** : WKWebView (tout est mesuré dans Chrome) — en particulier le titre collant, le volet et le fondu dans l'app installée ; l'iPad (cette barre est aussi la sienne) ; le doigt. La fluidité du défilement n'est jugeable que par Antonin.
+
+**Outils laissés hors dépôt** : `Shale-chantiers/vite.essai-barre.mjs` (démo, port 5193), entrée `barre-demo` de `Shale-projet/.claude/launch.json`, captures dans `Shale-projet/audit-2026-10/barre-laterale-20261011/`.
+

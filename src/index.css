@@ -118,6 +118,10 @@
   /* Verre : sidebar, barres d'outils flottantes, poignées */
   --glass-bg: rgb(17 19 24 / 0.72);
   --glass-blur: saturate(160%) blur(22px);
+  /* Barre latérale : la teinte du verre, posée sur le fond — mais OPAQUE.
+     Rien ne défile derrière la barre, et ses titres de catégorie collants
+     ont besoin d'un fond plein (2026-10-11). */
+  --barre-bg: color-mix(in srgb, rgb(17 19 24) 72%, var(--color-bg));
 
   /* Info-bulle : verre plus dense que les panneaux (elle flotte au-dessus
      de TOUT, y compris d'une carte claire) + ombre portée courte */
@@ -160,6 +164,11 @@
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+
+  /* Barre latérale : étendue, et réduite en icônes. Non thémées — donc ici, pas
+     dans les blocs de palette (qui sont écrits deux fois pour le thème clair). */
+  --barre-l: 232px;
+  --barre-rail: 64px;
 }
 
 /* — Thème clair "Alabaster" (choix explicite) — */
@@ -199,6 +208,7 @@
 
   --glass-bg: rgb(255 255 255 / 0.78);
   --glass-blur: saturate(160%) blur(22px);
+  --barre-bg: color-mix(in srgb, rgb(255 255 255) 78%, var(--color-bg));
 
   --tip-bg: rgb(255 255 255 / 0.92);
   --tip-border: rgb(10 12 18 / 0.1);
@@ -259,6 +269,7 @@
 
     --glass-bg: rgb(255 255 255 / 0.78);
     --glass-blur: saturate(160%) blur(22px);
+    --barre-bg: color-mix(in srgb, rgb(255 255 255) 78%, var(--color-bg));
 
     --tip-bg: rgb(255 255 255 / 0.92);
     --tip-border: rgb(10 12 18 / 0.1);
@@ -302,6 +313,10 @@
        de défilement verticale sur une page vide. `--zoom-inv` est posée par
        `applyZoom()` et vaut 1 tant qu'il n'a pas tourné. */
     min-height: calc(100vh * var(--zoom-inv));
+    /* La page elle-même ne défile pas : sans cette ligne, une zone arrivée en
+       bout de course passe le geste au document et WKWebView fait rebondir
+       TOUTE la fenêtre, barre latérale comprise. */
+    overscroll-behavior: none;
     user-select: none;
     cursor: default;
   }
@@ -530,6 +545,68 @@
     background: var(--glass-bg);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
+  }
+
+  /* ==========================================================
+     Barre latérale (2026-10-11) — `Sidebar.tsx`, règle dans `lib/barre.ts`
+     ----------------------------------------------------------
+     Opaque (voir `--barre-bg`). Réduire ou étendre change sa largeur D'UN
+     COUP : ce qui bouge ensuite n'est fait que de `translate` et d'opacité,
+     que la carte graphique anime seule. Une `transition: width` ferait
+     remesurer la grille d'Aujourd'hui à chaque image.
+     `data-mouvement` n'est posé que par le bouton (ou ⌥⌘S) : ni le montage,
+     ni un redimensionnement de fenêtre ne font glisser quoi que ce soit.
+     ========================================================== */
+  .barre,
+  .barre-titre {
+    background: var(--barre-bg);
+  }
+  /* Pied de la liste : il reste des modules plus bas. */
+  .barre-fondu {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 28px;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--barre-bg), transparent);
+    transition: opacity var(--dur-base) var(--ease-out-quint);
+  }
+  /* Les textes de la barre. Réduire : ils s'effacent AVANT que la largeur ne
+     change (`FONDU_MS`). Étendre : ils reviennent derrière le volet. */
+  .barre-texte {
+    transition: opacity var(--dur-fast) var(--ease-out-quint);
+  }
+  .barre[data-mouvement="fermer"] .barre-texte {
+    opacity: 0;
+  }
+  .barre[data-mouvement="ouvrir"] .barre-texte {
+    animation: barre-texte-entree var(--dur-base) var(--ease-out-quint) 90ms backwards;
+  }
+  /* Étendre : la barre fait déjà 232 px. Le cadre part décalé vers la gauche
+     et son contenu d'autant vers la droite — les icônes ne bougent pas, seul
+     le bord droit avance en découvrant les libellés. */
+  .barre[data-mouvement="ouvrir"] {
+    overflow: clip;
+    animation: barre-ouvrir var(--dur-slow) var(--ease-spring);
+  }
+  .barre[data-mouvement="ouvrir"] > .barre-corps {
+    animation: barre-ouvrir-corps var(--dur-slow) var(--ease-spring);
+  }
+  /* Réduire : la barre fait déjà 64 px ; ce volet, de la largeur qu'elle vient
+     de céder, glisse sous elle. Invisible et inerte hors de ce mouvement. */
+  .barre-voile {
+    position: absolute;
+    z-index: 15;
+    top: 0;
+    bottom: 0;
+    left: var(--barre-rail);
+    width: calc(var(--barre-l) - var(--barre-rail));
+    background: var(--barre-bg);
+    border-right: 1px solid var(--color-border);
+    pointer-events: none;
+    opacity: 0;
+  }
+  .barre[data-reduite][data-mouvement="fermer"] + .barre-voile {
+    animation: barre-fermer var(--dur-slow) var(--ease-spring);
   }
 
   /* Bouton primaire : le SEUL endroit où le dégradé d'action est écrit.
@@ -769,6 +846,15 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+  /* Dans une carte, la barre de défilement globale (10 px) pèse autant que le
+     contenu qu'elle accompagne : 8 px, poignée de 4. */
+  .panel-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .panel-scroll::-webkit-scrollbar-thumb,
+  .panel-scroll::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
   }
   /* Racine en grille (bandeaux de tuiles) : les tuiles se
      répartissent la hauteur au lieu de laisser un vide en bas. */
@@ -1651,6 +1737,33 @@
 .cal-fantome {
   transition: none !important;
   animation: none !important;
+}
+
+/* Barre latérale — voir « Barre latérale » dans le calque components. */
+@keyframes barre-ouvrir {
+  from {
+    translate: calc(var(--barre-rail) - var(--barre-l)) 0;
+  }
+}
+@keyframes barre-ouvrir-corps {
+  from {
+    translate: calc(var(--barre-l) - var(--barre-rail)) 0;
+  }
+}
+@keyframes barre-fermer {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 1;
+    translate: calc(var(--barre-rail) - var(--barre-l)) 0;
+  }
+}
+@keyframes barre-texte-entree {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes spin {

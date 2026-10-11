@@ -402,6 +402,20 @@ pas. Ils le sont désormais.
 
 ### Côté app — ce qui a été fait, et ce qu'il ne faut PAS faire
 
+> ⭐ **2026-10-11 — la barre est réductible À LA DEMANDE.** Le repli n'est plus
+> un `lg:` : un bouton « Réduire » en pied de barre et ⌥⌘S, le choix retenu par
+> régime de largeur (`lib/barre.ts`). « Étroit » se lit en pixels LOCAUX
+> (densité déduite), seuil 1000. Matériau : `--barre-bg`, OPAQUE — plus
+> `.glass` (rien ne défile derrière la barre, et ses titres de catégorie sont
+> collants). « Aujourd'hui » ne défile pas ; le titre de la catégorie en cours
+> reste en haut de la liste.
+>
+> **Troisième exception au gel du mouvement** (demande d'Antonin) : réduire /
+> étendre. La largeur change d'un coup ; un volet glisse en `translate`
+> (`--dur-slow`, `--ease-spring`) et les textes fondent (`--dur-fast`).
+> Jamais de `transition: width`. Rien ne bouge au montage ni au
+> redimensionnement de la fenêtre.
+
 **La barre latérale se replie en icônes sous 1024 px** (`Sidebar.tsx`). Elle
 mesurait 232 px de 720 à 2560 px sans jamais céder un pixel : 32 % de la fenêtre
 en Split View. Repliée, elle fait 64 px et le tableau de bord gagne 168 px.
@@ -548,7 +562,8 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
   `bg-blue text-white` (3,5:1). `bg-blue` seul reste pour ce qui n'écrit rien
   (pastilles, interrupteurs, points).
 - `.card` = matériau + hairline + ombre à deux étages. `.hud-label` pour tout
-  micro-label. `.glass` pour la sidebar et les barres d'outils flottantes.
+  micro-label. `.glass` pour les barres d'outils flottantes *(la sidebar est
+  opaque depuis le 2026-10-11 : `--barre-bg`)*.
 - Bouton primaire : `pill fill-primary font-semibold` *(V7 ; c'était
   `pill bg-blue text-white font-semibold` jusqu'au 2026-09-22)* — pas de
   `hover:opacity-*` ni de `transition-opacity` : la classe porte son survol ;

@@ -153,6 +153,19 @@ export const ACTIONS: AppAction[] = [
     run: (ctx) => ctx.navigate("corbeille"),
   },
   {
+    // La barre latérale écoute cet événement (`Sidebar.tsx`, `EVT_BARRE`). Le
+    // nom est recopié ici plutôt qu'importé : `Sidebar` importe déjà ce module
+    // par ses types, et la palette n'a pas à dépendre d'un composant.
+    id: "ui.barre",
+    // L'accueil : le seul module qu'aucun profil de licence ne masque — cette
+    // action n'appartient à aucun module, elle doit rester offerte à tous.
+    module: "today",
+    title: "Réduire ou étendre la barre latérale",
+    category: "navigation",
+    keywords: ["barre", "latérale", "menu", "réduire", "étendre", "icônes", "sidebar", "collapse", "expand"],
+    run: () => emitUI("sb:barre-basculer"),
+  },
+  {
     id: "nav.journal",
     module: "journal",
     title: "Aller au Journal",

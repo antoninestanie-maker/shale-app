@@ -81,7 +81,7 @@ export default function PanneauType(props: {
       <div
         role="dialog"
         aria-label={entete}
-        className="card card-solid flex max-h-[78vh] w-full max-w-sm flex-col rounded-[16px] p-4 shadow-2xl"
+        className="card card-solid flex max-h-[calc(78vh*var(--zoom-inv))] w-full max-w-sm flex-col rounded-[16px] p-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h4 className="font-display text-base font-bold text-text">{entete}</h4>

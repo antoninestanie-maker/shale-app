@@ -12,7 +12,7 @@ import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { FINANCE_ACTIF } from "../lib/features";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
-import { IconCalendar } from "./icons";
+import { IconSablier } from "./icons";
 import { formatHeure, t } from "../lib/i18n";
 
 /**
@@ -80,12 +80,12 @@ export default function CalendarCard({ data }: { data: AppData }) {
   );
 
   return (
-    <section className="card flex flex-col p-5">
-      <header className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-text-dim">
-          <IconCalendar className="h-4 w-4" />
-          {t("Calendrier")}
-        </h2>
+    <section className="card p-5">
+      {/* Même en-tête que les autres cartes d'Aujourd'hui (`hud-label mb-3`) :
+          celui-ci était seul en 14 px avec une icône. `.rgrid-head` écarte la
+          pastille « Surchargée » de la barre de poignées au survol. */}
+      <header className="rgrid-head mb-3 flex items-center justify-between gap-2">
+        <h2 className="hud-label">{t("Calendrier")}</h2>
         {charge.surchargee && (
           <span
             className="pill px-2 py-0.5 text-[0.65rem] font-medium"
@@ -100,11 +100,11 @@ export default function CalendarCard({ data }: { data: AppData }) {
       </header>
 
       {entrees.length === 0 ? (
-        <p className="panel-grow mt-4 text-sm text-text-dim">
+        <p className="panel-grow flex items-center justify-center py-4 text-center text-sm text-text-dim">
           {t("Rien de prévu aujourd'hui.")}
         </p>
       ) : (
-        <ul className="panel-scroll mt-3 space-y-1.5">
+        <ul className="panel-scroll space-y-1.5">
           {entrees.map((e) => (
             <li key={`${e.kind}-${e.id}`} className="flex items-center gap-2 text-sm">
               <span
@@ -121,7 +121,7 @@ export default function CalendarCard({ data }: { data: AppData }) {
                   opacity: e.faite ? 0.5 : 1,
                 }}
               >
-                {e.enRetard && "⌛ "}
+                {e.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-red" />}
                 {e.titre}
               </span>
             </li>

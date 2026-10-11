@@ -25,6 +25,23 @@ function Icon({ children, ...props }: IconProps & { children: ReactNode }) {
   );
 }
 
+/** Sablier — une échéance dépassée (remplace l'emoji ⌛, 2026-10-11). */
+export const IconSablier = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 3h12M6 21h12" />
+    <path d="M7 3v4a5 5 0 0 0 10 0V3" />
+    <path d="M7 21v-4a5 5 0 0 1 10 0v4" />
+  </Icon>
+);
+
+/** Barre latérale — le panneau et son volet gauche (réduire / étendre). */
+export const IconBarre = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M9 4v16" />
+  </Icon>
+);
+
 /** Flamme — streaks. */
 export const IconFlame = (p: IconProps) => (
   <Icon {...p}>

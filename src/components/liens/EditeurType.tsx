@@ -93,7 +93,7 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="card card-solid max-h-[85vh] w-full max-w-lg overflow-y-auto p-6"
+        className="card card-solid max-h-[calc(85vh*var(--zoom-inv))] w-full max-w-lg overflow-y-auto p-6"
         style={{ maxHeight: "calc(85vh * var(--zoom-inv, 1))" }}
         onClick={(e) => e.stopPropagation()}
       >

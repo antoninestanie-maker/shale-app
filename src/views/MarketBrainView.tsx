@@ -10,6 +10,7 @@ import type { MarketBrainState } from "../lib/market/useMarketBrain";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import SessionIndicator from "../components/SessionIndicator";
 import { useMarketClock } from "../lib/market/clock";
+import { defilerVers } from "../lib/defilement";
 import { localeTag, t, tp } from "../lib/i18n";
 import type {
   BriefingOutput,
@@ -77,9 +78,7 @@ function dotTone(bias: OutBias): string {
 /** Rangée "en un coup d'œil" : le biais des 5 instruments, lisible en 2 s. */
 function GlanceRow({ output, closed }: { output: BriefingOutput; closed: boolean }) {
   const go = (symbol: string) =>
-    document
-      .getElementById(`instr-${symbol}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    defilerVers(document.getElementById(`instr-${symbol}`), { block: "center" });
   return (
     <div className="auto-tiles mt-4 gap-2">
       {output.instruments.map((iv) => {

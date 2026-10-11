@@ -45,7 +45,7 @@ function Splash() {
   });
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-4 bg-bg">
+    <div className="flex h-[calc(100vh*var(--zoom-inv))] flex-col items-center justify-center gap-4 bg-bg">
       <div ref={marque} className="animate-pulse">
         <ShaleMark size={48} />
       </div>
@@ -119,7 +119,7 @@ function BandeauHorsLigne({ onRetry }: { onRetry: () => void }) {
  */
 function Mur({ auth }: { auth: AuthState }) {
   return (
-    <div className="relative h-screen overflow-hidden bg-bg">
+    <div className="relative h-[calc(100vh*var(--zoom-inv))] overflow-hidden bg-bg">
       <ChassisFactice />
       <div className="relative h-full">
         <LoginScreen

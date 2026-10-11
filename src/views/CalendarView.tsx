@@ -611,7 +611,7 @@ export default function CalendarView({ data, refresh }: Props) {
           }
         >
         {mode === "agenda" ? (
-          <div className="max-h-[70vh] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
+          <div className="max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
             <VueAgenda
               depuis={curseur}
               jours={AGENDA_JOURS}
@@ -637,7 +637,7 @@ export default function CalendarView({ data, refresh }: Props) {
             }}
           />
         ) : (
-          <div className="max-h-[70vh] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
+          <div className="max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
             <GrilleHoraire
               jours={jours}
               parJour={parJour}

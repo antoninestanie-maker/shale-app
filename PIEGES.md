@@ -4397,3 +4397,53 @@ d'`index.css`, la police en `data:`. Rien de l'app, rien de l'authentification.
 **Cause.** `num(raw, fallback)` de `lib/mentalLoad.ts` faisait `Number(raw)` puis gardait tout nombre fini et positif. Or `getSetting()` rend `null` pour une clé absente, `Number(null)` et `Number("")` valent 0 : le défaut n'était jamais rendu, les deux coûts valaient 0.
 
 **Parade.** Écarter `null` et la chaîne vide AVANT `Number()`. À reprendre partout où un réglage texte est lu comme un nombre avec une valeur par défaut non nulle. `lib/mentalLoad.test.ts`.
+
+# 35. Widgets, densité et barre latérale (2026-10-11)
+
+## 35.1 `.panel-scroll` autorise une carte PLUS COURTE que son contenu — même quand rien ne doit défiler
+
+**Symptôme.** « Liens rapides » : le bouton « + lien » coupé en deux, une barre de défilement dans la carte (photo d'Antonin).
+
+**Cause.** `layout.today` portait `quicklinks: { h: 144 }`. Un widget qui déclare `.panel-scroll` peut rester sous la hauteur de son contenu (`ResizableGrid`, plancher = `minH`). Un lien de plus, ou la densité à 110 %, fait passer « + lien » à la ligne : il faut 160, la carte reste à 144.
+
+**Parade.** `.panel-scroll` seulement pour une vraie LISTE. Des pastilles, un formulaire, une jauge : pas de région défilante, et le plancher de la grille redevient le contenu. Pour diagnostiquer un widget rogné, lire d'abord `layout.<grille>` dans la base (`sqlite3 -readonly`).
+
+## 35.2 `h-screen` sur la racine : l'app dépasse la fenêtre dès que la densité n'est pas 100 %
+
+**Symptôme.** À 110 %, le pied de la barre latérale sous le bord et toute l'app qui défile de 84 px ; à 90 %, une bande vide en bas.
+
+**Cause.** `h-screen` = `100vh`, que le `zoom` multiplie (§ 6.4). `body` était corrigé, pas la racine d'`App.tsx` ni les écrans de connexion. Mesuré : racine 920 px dans 836.
+
+**Parade.** `h-[calc(100vh*var(--zoom-inv))]`. `barre.source.test.ts` refuse un `h-screen` nu hors de `TimerPane` et `CapturePane` (qui n'appliquent pas la densité).
+
+## 35.3 Grille : un `translate` écrit en pixels écran devance le curseur sous densité
+
+**Symptôme.** À 110 %, le panneau glissé part 20 px devant le curseur après 200 px ; tirer la poignée de 60 px ajoute 88 px de hauteur.
+
+**Cause.** `clientX` et `getBoundingClientRect` sont en pixels ÉCRAN ; un `translate` et une hauteur s'écrivent en pixels LOCAUX, que le `zoom` multiplie ensuite.
+
+**Parade.** Diviser par `zoomFactor()` au moment d'ÉCRIRE (transform, hauteur). Comparer deux mesures écran entre elles (hit-test) reste juste. À vérifier à 90, 110 et 120 %, pas seulement à 100.
+
+## 35.4 Un `backdrop-filter` à opacité nulle reste un calque
+
+**Constat.** Aujourd'hui portait une vingtaine d'éléments « verre » invisibles (poignées de panneau, opacité 0), plus la barre latérale, qui ne floutait rien (rien ne passe derrière elle).
+
+**Parade.** Poser le flou seulement quand l'élément est révélé (`group-hover:[backdrop-filter:…]`). ⚠️ Pas `visibility: hidden` : les poignées se révèlent aussi au clavier (`focus-within`), et un élément caché ne reçoit pas le focus. ⚠️ Le gain n'a PAS été mesuré dans WKWebView.
+
+## 35.5 Un en-tête collant a besoin d'un fond opaque
+
+Un titre `position: sticky` posé sur une barre en verre (72 %) fait une bande plus dense, et la liste se lit à travers. D'où `--barre-bg` (opaque) pour la barre ET ses titres. Les boutons sont `relative` : sans `z-index` sur le titre collant, ils passent par-dessus.
+
+## 35.6 Outils de cette session
+
+- **zsh, encore** (§ 34.3) : `lancer $cfg` avec `cfg="1120 780 110"` passe UN argument ; le script a tourné trois fois à la taille par défaut en annonçant trois tailles. Passer les arguments un par un.
+- **HMR et fermetures** : après avoir changé une constante de `lib/barre.ts`, l'observateur déjà monté gardait l'ancienne valeur. Recharger la page avant de mesurer.
+- **puppeteer sous `zoom`** : `boundingBox()` ne tombe pas où l'on croit ; viser par `getBoundingClientRect()` lu dans la page.
+- **Extension Chrome non connectée** : Chrome sans fenêtre (`--remote-debugging-port`, `--disable-features=MacAppCodeSignClone`) + `puppeteer-core` de `shale-site/vitrine/node_modules`.
+
+## 35.7 ⚠️ Relire le carnet JUSTE AVANT de toucher au worktree principal — pas une heure plus tôt
+
+**Ce qui s'est passé.** Carnet lu à 11:19 : verrou de build libre. À 12:15, fusion lancée dans `Shale-projet/Shale` sans le relire — une autre session avait pris **BUILD NATIF** à 12:12 sur ce même dossier. La fusion a buté sur `PIEGES.md` et a laissé le dossier en conflit pendant une minute, sous un build en cours. Annulée (`git merge --abort`) ; le `dist/` de l'autre session datait de 12:13, donc rien n'est parti dans son binaire.
+
+**Parade.** `tail -5 COORDINATION.md` dans la MÊME commande que la fusion, et s'arrêter si le verrou est pris. Rebaser dans SON worktree (`git rebase mobile-ios`), jamais fusionner dans le principal pour « voir si ça passe ». Trois sessions le même jour ajoutent toutes en fin de `PIEGES.md`, `PASSATION.md`, `CLAUDE.md` : le conflit y est certain, et se résout en gardant les deux.
+

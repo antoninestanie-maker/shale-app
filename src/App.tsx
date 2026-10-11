@@ -554,7 +554,12 @@ function App() {
        session) et au-dessus de tout le reste : l'indicateur vit dans la sidebar,
        les commandes dans Réglages — une vue chargée en `lazy`. */
     <SyncProvider>
-    <div className="relative flex h-screen bg-bg">
+    {/* ⚠️ La hauteur de la FENÊTRE, densité déduite (2026-10-11). `h-screen`
+        vaut `100vh`, que le `zoom` de la densité multiplie : à 110 % la racine
+        mesurait 110 % de la fenêtre — le pied de la barre latérale passait sous
+        le bord et toute l'app défilait de 84 px. À 90 % elle laissait une bande
+        vide en bas. Mesuré dans Chrome (PIEGES § 35.2). */}
+    <div className="relative flex h-[calc(100vh*var(--zoom-inv))] bg-bg">
       {/* ⭐ L'accueil du premier démarrage. Monté ICI, sous `SyncProvider` :
           il ne peut trancher qu'après le premier cycle de synchronisation,
           sinon un second appareil rejouerait un accueil déjà fait
@@ -668,7 +673,9 @@ function App() {
       >
         <div
           key={view}
-          className="animate-fade-up flex-1 overflow-y-auto"
+          // `overscroll-contain` : en bout de course, le geste s'arrête ici au
+          // lieu de passer à la page (voir `body` dans `index.css`).
+          className="animate-fade-up flex-1 overflow-y-auto overscroll-contain"
           // Sur téléphone, la barre d'onglets est en `fixed` : sans cette
           // réserve, le bas de chaque vue passerait DESSOUS et deviendrait
           // inatteignable — la dernière tâche d'une liste, le dernier bouton

@@ -3565,4 +3565,13 @@ export const EN: Record<string, string> = {
   // de partir, ⌘Z d'une carte ou d'un croquis). La clé nue « Annuler » reste
   // « Cancel » : fermer une fenêtre sans rien faire.
   "Annuler|défaire": "Undo",
+
+  // ── Barre latérale réductible (2026-10-11) ──
+  "Réduire la barre": "Collapse sidebar",
+  "Étendre la barre": "Expand sidebar",
+  "Réduire la barre latérale": "Collapse the sidebar",
+  "Étendre la barre latérale": "Expand the sidebar",
+  "Ne garde que les icônes.": "Keeps only the icons.",
+  "Affiche le nom des modules.": "Shows the module names.",
+  "Réduire ou étendre la barre latérale": "Collapse or expand the sidebar",
 };

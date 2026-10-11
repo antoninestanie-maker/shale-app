@@ -1,6 +1,20 @@
-import { IS_IOS } from "../lib/platform";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { UiConfig } from "../lib/uiConfig";
+import { IS_IOS, kbd } from "../lib/platform";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { zoomFactor, type UiConfig } from "../lib/uiConfig";
+import {
+  CLE_BARRE,
+  CLE_CATEGORIES,
+  SEUIL_ETROIT,
+  basculer,
+  estReduite,
+  lireCategories,
+  lirePref,
+  memesCategories,
+  regimeDe,
+  type PrefBarre,
+  type Regime,
+} from "../lib/barre";
+import { defilerVers, mouvementReduit } from "../lib/defilement";
 import { getSetting, setSetting } from "../lib/repo";
 import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { libelleProfil, type ProfilEffectif } from "../lib/licence/resoudre";
@@ -8,7 +22,7 @@ import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
 import SessionIndicator from "./SessionIndicator";
 import SyncIndicator from "./SyncIndicator";
-import { IconLock, IconSliders, IconTrash } from "./icons";
+import { IconBarre, IconLock, IconSliders, IconTrash } from "./icons";
 
 import { getLang, t } from "../lib/i18n";
 export type View =
@@ -329,6 +343,32 @@ export const CATEGORY_OF: Partial<Record<View, string>> = Object.fromEntries(
 
 const COLLAPSE_KEY = "sidebar.collapsed";
 
+/** La palette ⌘K demande à réduire ou étendre la barre par cet événement. */
+export const EVT_BARRE = "sb:barre-basculer";
+
+/** Le temps laissé aux libellés pour s'effacer avant que la barre ne se réduise
+    (= `--dur-fast`). */
+const FONDU_MS = 120;
+
+/** Sous cette hauteur (pixels locaux), le pied de la barre se déleste. */
+const HAUTEUR_BASSE = 720;
+
+/** Le stockage local peut lever (quota, navigation privée) : jamais bloquant. */
+function lireLocal(cle: string): string | null {
+  try {
+    return localStorage.getItem(cle);
+  } catch {
+    return null;
+  }
+}
+function ecrireLocal(cle: string, valeur: string): void {
+  try {
+    localStorage.setItem(cle, valeur);
+  } catch {
+    /* sans conséquence : le choix vaudra pour cette session */
+  }
+}
+
 export default function Sidebar({
   view,
   onNavigate,
@@ -351,11 +391,119 @@ export default function Sidebar({
    */
   const isLocked = (id: View) => presenceModule(id, hasTrading) === "verrouille";
   const existe = (id: View) => presenceModule(id, hasTrading) !== "absent";
+
+  // ── Réduite (icônes) ou étendue (libellés) ───────────────────────────────
+  // La règle est dans `lib/barre.ts` : un choix par régime de largeur, lu en
+  // `localStorage` au premier rendu. Ici, seulement la mesure et le mouvement.
+  const asideRef = useRef<HTMLElement>(null);
+  const [pref, setPref] = useState<PrefBarre>(() => lirePref(lireLocal(CLE_BARRE)));
+  const [regime, setRegime] = useState<Regime>(() =>
+    // Avant le montage il n'y a pas de racine à mesurer : la fenêtre, densité
+    // déduite. L'observateur ci-dessous prend le relais dès le premier rendu.
+    regimeDe(typeof window === "undefined" ? SEUIL_ETROIT : window.innerWidth / zoomFactor()),
+  );
+  const reduite = estReduite(pref, regime);
+  /** Fenêtre BASSE (pixels locaux, comme le régime). Le pied de la barre pèse
+      ~330 px — cinq lignes, l'horloge, la synchro : dans une fenêtre de 640 px à
+      110 %, il ne restait que 70 px à la liste des modules (vu à l'écran le
+      2026-10-11). On rend alors l'horloge et « systèmes actifs », qui ne
+      disent rien que macOS ne dise déjà. */
+  const [basse, setBasse] = useState(
+    () => typeof window !== "undefined" && window.innerHeight / zoomFactor() < HAUTEUR_BASSE,
+  );
+  /** Le mouvement en cours, posé par le BOUTON seulement — jamais par un
+      redimensionnement de fenêtre ni par le montage (rien ne doit glisser tout
+      seul). Le CSS (`.barre[data-mouvement]`) en fait le fondu et le volet. */
+  const [mouvement, setMouvement] = useState<"ouvrir" | "fermer" | null>(null);
+  const minuterie = useRef<number | undefined>(undefined);
+  const courant = useRef({ pref, regime, reduite });
+  courant.current = { pref, regime, reduite };
+
+  useEffect(() => {
+    // ⚠️ La largeur LOCALE de la racine, pas `innerWidth` : sous une densité de
+    // 120 %, une fenêtre de 1100 px n'offre que 917 px. Et un observateur, pas
+    // `resize` : changer la densité dans Personnaliser ne redimensionne pas la
+    // fenêtre, mais change bien cette largeur-là.
+    const racine = asideRef.current?.parentElement;
+    if (!racine || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entrees) => {
+      const boite = entrees[0]?.contentRect;
+      if (!boite?.width) return;
+      setRegime(regimeDe(boite.width));
+      setBasse(boite.height < HAUTEUR_BASSE);
+    });
+    ro.observe(racine);
+    return () => ro.disconnect();
+  }, []);
+
+  const basculerBarre = useCallback(() => {
+    const { pref: avant, regime: ici, reduite: etaitReduite } = courant.current;
+    const suivant = basculer(avant, ici);
+    ecrireLocal(CLE_BARRE, JSON.stringify(suivant));
+    window.clearTimeout(minuterie.current);
+    // Le mouvement est retiré par un minuteur, pas par `animationend` : une
+    // animation coupée (mouvement réduit, onglet caché) n'émet rien (PIEGES § 11.4).
+    const ranger = () => {
+      minuterie.current = window.setTimeout(() => setMouvement(null), 450);
+    };
+    if (mouvementReduit()) {
+      setMouvement(null);
+      setPref(suivant);
+    } else if (etaitReduite) {
+      // Étendre : la largeur change d'un coup, le volet et les libellés suivent.
+      setMouvement("ouvrir");
+      setPref(suivant);
+      ranger();
+    } else {
+      // Réduire : les libellés s'effacent D'ABORD, la largeur change ensuite —
+      // sinon ils disparaîtraient net, coupés par le bord qui se referme.
+      setMouvement("fermer");
+      minuterie.current = window.setTimeout(() => {
+        setPref(suivant);
+        ranger();
+      }, FONDU_MS);
+    }
+  }, []);
+
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      // ⌥⌘S — le raccourci de Finder et de Notes. `e.code` et non `e.key` : sur
+      // Mac, ⌥S tape « Ò ».
+      if (e.code !== "KeyS" || !e.altKey || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.repeat) return;
+      // Windows : AltGr se lit Ctrl+Alt. Ne pas voler une frappe.
+      if (e.getModifierState?.("AltGraph")) return;
+      // Un éditeur plein écran (carte, croquis) rend l'app inerte : la barre
+      // n'est pas à lui.
+      if (document.getElementById("root")?.hasAttribute("inert")) return;
+      e.preventDefault();
+      basculerBarre();
+    };
+    window.addEventListener("keydown", surTouche);
+    window.addEventListener(EVT_BARRE, basculerBarre);
+    return () => {
+      window.removeEventListener("keydown", surTouche);
+      window.removeEventListener(EVT_BARRE, basculerBarre);
+      window.clearTimeout(minuterie.current);
+    };
+  }, [basculerBarre]);
+
   // — État replié/déplié des catégories (persisté) —
   // Défaut au premier lancement : seule la catégorie de la vue active est ouverte
   // (à défaut, la première).
-  const [collapsed, setCollapsed] = useState<Record<string, boolean> | null>(null);
+  // ⚠️ L'état initial vient d'un MIROIR local (2026-10-11). Avant, il valait
+  // `null` le temps de lire la base : toutes les catégories s'ouvraient, puis se
+  // refermaient en 240 ms — à chaque remontage, donc à chaque changement de
+  // langue. La base (`sidebar.collapsed`) reste la source ; le miroir ne sert
+  // qu'au premier rendu.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean> | null>(() =>
+    lireCategories(lireLocal(CLE_CATEGORIES)),
+  );
   const loadedRef = useRef(false);
+  const retenir = (etat: Record<string, boolean>) => {
+    const brut = JSON.stringify(etat);
+    ecrireLocal(CLE_CATEGORIES, brut);
+    setSetting(COLLAPSE_KEY, brut).catch(() => {});
+  };
 
   useEffect(() => {
     let alive = true;
@@ -364,23 +512,23 @@ export default function Sidebar({
         if (!alive || loadedRef.current) return;
         loadedRef.current = true;
         if (raw) {
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === "object") {
-              setCollapsed(parsed as Record<string, boolean>);
-              return;
-            }
-          } catch {
-            /* ignore */
+          const lu = lireCategories(raw);
+          if (lu) {
+            ecrireLocal(CLE_CATEGORIES, raw);
+            setCollapsed((prev) => (memesCategories(prev, lu) ? prev : lu));
+            return;
           }
         }
-        const active = CATEGORY_OF[view] ?? CATEGORIES[0].id;
-        setCollapsed(Object.fromEntries(CATEGORIES.map((c) => [c.id, c.id !== active])));
+        setCollapsed((prev) => {
+          if (prev) return prev;
+          const active = CATEGORY_OF[view] ?? CATEGORIES[0].id;
+          return Object.fromEntries(CATEGORIES.map((c) => [c.id, c.id !== active]));
+        });
       })
       .catch(() => {
         if (alive && !loadedRef.current) {
           loadedRef.current = true;
-          setCollapsed({});
+          setCollapsed((prev) => prev ?? {});
         }
       });
     return () => {
@@ -396,24 +544,56 @@ export default function Sidebar({
     setCollapsed((prev) => {
       if (!prev || !prev[cat]) return prev;
       const next = { ...prev, [cat]: false };
-      setSetting(COLLAPSE_KEY, JSON.stringify(next)).catch(() => {});
+      retenir(next);
       return next;
     });
   }, [view]);
 
-  const toggleCategory = (catId: string, headerEl?: HTMLElement | null) => {
-    setCollapsed((prev) => {
-      const wasCollapsed = (prev ?? {})[catId] ?? false;
-      const next = { ...(prev ?? {}), [catId]: !wasCollapsed };
-      setSetting(COLLAPSE_KEY, JSON.stringify(next)).catch(() => {});
-      if (wasCollapsed && headerEl) {
-        // À l'ouverture : amène la catégorie dépliée dans la zone visible.
-        setTimeout(() => {
-          headerEl.nextElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        }, 260); // après l'animation de dépliage
-      }
-      return next;
-    });
+  // ── La liste qui défile ──────────────────────────────────────────────────
+  // Deux sentinelles disent s'il reste du contenu caché en haut ou en bas : un
+  // filet apparaît sous « Aujourd'hui », un fondu au pied de la liste. Pas
+  // d'écouteur de défilement — l'observateur ne se réveille qu'aux changements.
+  const listeRef = useRef<HTMLDivElement>(null);
+  const hautRef = useRef<HTMLDivElement>(null);
+  const basRef = useRef<HTMLDivElement>(null);
+  const [cache, setCache] = useState({ haut: false, bas: false });
+
+  useEffect(() => {
+    const liste = listeRef.current;
+    if (!liste || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entrees) =>
+        setCache((avant) => {
+          let apres = avant;
+          for (const e of entrees) {
+            const cote = e.target === hautRef.current ? "haut" : "bas";
+            if (apres[cote] === e.isIntersecting) apres = { ...apres, [cote]: !e.isIntersecting };
+          }
+          return apres;
+        }),
+      { root: liste },
+    );
+    if (hautRef.current) io.observe(hautRef.current);
+    if (basRef.current) io.observe(basRef.current);
+    return () => io.disconnect();
+  }, []);
+
+  const toggleCategory = (catId: string, bouton: HTMLElement) => {
+    const bloc = bouton.closest<HTMLElement>("[data-cat]");
+    const liste = listeRef.current;
+    const etaitRepliee = (collapsed ?? {})[catId] ?? false;
+    const next = { ...(collapsed ?? {}), [catId]: !etaitRepliee };
+    // ⚠️ Replier une catégorie dont le titre est COLLÉ en haut : sans ce
+    // recalage, la liste garde son défilement, le titre remonte hors champ avec
+    // son contenu, et l'on se retrouve au milieu de la catégorie suivante sans
+    // avoir vu la sienne se fermer.
+    if (!etaitRepliee && bloc && liste && bloc.offsetTop < liste.scrollTop) liste.scrollTop = bloc.offsetTop;
+    setCollapsed(next);
+    retenir(next);
+    if (etaitRepliee && bloc) {
+      // À l'ouverture : amène la catégorie dépliée dans la zone visible.
+      window.setTimeout(() => defilerVers(bloc.querySelector("[data-cat-corps]")), 260); // après le dépliage
+    }
   };
 
   const navButton = (
@@ -422,11 +602,10 @@ export default function Sidebar({
     icon: ReactNode,
   ) => {
     // ⚠️ `aria-label` sur le BOUTON, et pas seulement `title` sur le libellé :
-    // sous 1024 px le libellé est `display: none`, donc le bouton ne contient
+    // réduite, la barre ne rend plus le libellé, donc le bouton ne contient
     // plus qu'une icône. Mesuré le 2026-08-28 à 720 px — `innerText` vide,
-    // `aria-label` nul, et le seul `title` posé sur un élément non rendu, qui
-    // ne nomme rien et n'affiche aucune bulle. Les quatorze items de navigation
-    // n'avaient alors AUCUN nom accessible.
+    // `aria-label` nul : les quatorze items de navigation n'avaient alors
+    // AUCUN nom accessible.
     const locked = isLocked(id);
     const active = view === id && !locked;
     const canonical = BY_ID.get(id) ? libelle(BY_ID.get(id)!.label) : t(label);
@@ -443,7 +622,14 @@ export default function Sidebar({
         data-tip={canonical}
         data-tip-sub={locked ? t("Inclus dans Shale Trade") : t(DESCRIPTIONS[id])}
         data-tip-side="right"
-        className={`group/nav relative flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
+        // ⚠️ Réduit, le bouton prend sa largeur RÉELLE (41 px = 12 + 17 + 12),
+        // pas celle de la barre : l'info-bulle se place à droite du bouton
+        // (`Tooltip.tsx`), et l'anneau de focus comme la pastille active
+        // doivent tenir dans le rail. Le padding gauche ne change pas : l'icône
+        // reste au même pixel dans les deux états.
+        className={`group/nav relative flex shrink-0 items-center rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
+          reduite ? "w-[41px]" : "gap-3"
+        } ${
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
@@ -460,195 +646,296 @@ export default function Sidebar({
           }`}
         />
         <span
-          className={`h-[17px] w-[17px] transition-colors ${
+          className={`h-[17px] w-[17px] shrink-0 transition-colors ${
             locked ? "text-text-dim/45" : active ? "text-blue" : "text-text-dim/80"
           }`}
         >
           {icon}
         </span>
         {/* Les libellés sont renommables (page Personnaliser) : on tronque
-            plutôt que de laisser un nom long déborder de la sidebar. */}
-        <span className="hidden min-w-0 truncate lg:inline" title={label}>
-          {label}
-        </span>
+            plutôt que de laisser un nom long déborder de la barre. */}
+        {!reduite && (
+          <span className="barre-texte min-w-0 truncate" title={label}>
+            {label}
+          </span>
+        )}
+        {/* Réduit, cadenas et pastille se posent sur le coin de l'icône : en
+            bout de ligne ils sortiraient du bouton. */}
         {locked ? (
-          <IconLock className="ml-auto h-3.5 w-3.5 shrink-0 text-text-dim/45" />
+          <IconLock
+            className={
+              reduite
+                ? "absolute right-1 top-1 h-2.5 w-2.5 text-text-dim/45"
+                : "ml-auto h-3.5 w-3.5 shrink-0 text-text-dim/45"
+            }
+          />
         ) : (
-          badges?.[id] && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
+          badges?.[id] && (
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full bg-blue ${reduite ? "absolute right-1.5 top-1.5" : "ml-auto"}`}
+            />
+          )
         )}
       </button>
     );
   };
 
-  return (
-    // `glass` : matériau unique (verre teinté + saturation), theme-aware.
-    // ── Repli en icônes sous 1024 px ────────────────────────────────────────
-    // La barre mesurait 232 px de 720 à 2560 px, sans jamais céder un pixel :
-    // 32 % de la fenêtre en Split View, 26 % à la taille minimale. Sous 1024 px
-    // elle tombe à 64 px et ne garde que les icônes.
-    //
-    // Pourquoi le repli en ICÔNES et pas un tiroir superposé : les quatorze items
-    // restent accessibles en UN clic. Un tiroir en coûterait deux, sur une app
-    // dont on change d'onglet en permanence. Le tiroir n'aurait de sens que
-    // sous ~600 px, largeur que la fenêtre ne peut pas atteindre (`minWidth`).
-    //
-    // ⚠️ Replié, le survol est rendu par `data-tip` (couche Tooltip), PAS par
-    // le `title` : celui-ci est posé sur le libellé, qui est `display: none`
-    // sous 1024 px. Un `title` sur un élément non rendu n'affiche rien et ne
-    // nomme rien — d'où l'`aria-label` porté par le bouton lui-même.
-    <aside
-      className="glass relative z-10 flex w-16 shrink-0 flex-col border-r border-border lg:w-[232px]"
-      // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
-      // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
-      // bloc de marque, plus haut que l'heure système.
-      style={IS_IOS ? { paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)" } : undefined}
-    >
-      {/* Zone de drag fenêtre (barre de titre overlay).
-          `="deep"` (et non l'attribut nu) : avec l'attribut nu, Tauri ne
-          déclenche le drag que sur un clic DIRECT sur l'élément porteur
-          (`el === composedPath[0]` dans son `drag.js`) — le titre et le
-          sous-titre, qui sont des enfants, n'étaient donc déjà pas des
-          poignées, et le bloc ajouté ici pour la cloche aurait encore réduit
-          la zone utile. En mode `deep` tout le sous-arbre devient poignée,
-          SAUF les éléments cliquables : un `<button>` sans attribut coupe
-          court à la remontée. La cloche reste donc cliquable. */}
-      {/* Replié, le bloc de marque passe en colonne : le mot-symbole n'a plus la
-          place de s'écrire, seule la cloche reste utile. La zone de drag, elle,
-          doit survivre — c'est la seule poignée de la fenêtre. */}
-      <div
-        data-tauri-drag-region="deep"
-        className="flex flex-col items-center gap-2 px-2 pb-5 pt-10 lg:flex-row lg:items-start lg:gap-2 lg:px-5"
-      >
-        <div className="hidden min-w-0 flex-1 lg:block">
-          <span className="font-display text-[17px] font-bold tracking-tight text-text">
-            {config.brandTitle}
-          </span>
-          {config.brandSubtitle && <p className="hud-label mt-1">{config.brandSubtitle}</p>}
-        </div>
-        <NotificationBell onNavigate={onNavigate} />
-      </div>
+  const visible = config.modules.filter((m) => m.visible && BY_ID.has(m.id) && existe(m.id));
+  const uncategorized = visible.filter((m) => !CATEGORY_OF[m.id]);
 
-      <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-2 lg:px-3">
-        {(() => {
-          const visible = config.modules.filter(
-            (m) => m.visible && BY_ID.has(m.id) && existe(m.id),
-          );
-          const uncategorized = visible.filter((m) => !CATEGORY_OF[m.id]);
-          return (
-            <>
-              {uncategorized.map((m) => {
-                const item = BY_ID.get(m.id)!;
-                return navButton(m.id, m.label?.trim() || t(item.label), item.icon);
-              })}
-              {CATEGORIES.map((cat) => {
-                const members = visible.filter((m) => CATEGORY_OF[m.id] === cat.id);
-                if (members.length === 0) return null;
-                const isOpen = !(collapsed?.[cat.id] ?? false);
-                // Catégorie entièrement verrouillée : pas de badge (il annoncerait
-                // une activité sur un module auquel l'utilisateur n'a pas accès).
-                const allLocked = members.every((m) => isLocked(m.id));
-                const hasBadge =
-                  !isOpen && !allLocked && members.some((m) => !isLocked(m.id) && badges?.[m.id]);
-                return (
-                  <div key={cat.id} className="mt-2 first:mt-0">
-                    <button
-                      type="button"
-                      onClick={(e) => toggleCategory(cat.id, e.currentTarget)}
-                      aria-expanded={isOpen}
-                      // Même trou que les onglets : le nom de catégorie est
-                      // `hidden lg:block`, donc replié le bouton ne contient
-                      // plus qu'un chevron.
-                      aria-label={libelle(cat.label)}
-                      data-tip={libelle(cat.label)}
-                      data-tip-sub={
-                        allLocked
-                          ? t("Inclus dans Shale Trade")
-                          : isOpen
-                            ? t("Replier la catégorie")
-                            : t("Déplier la catégorie")
-                      }
-                      data-tip-side="right"
-                      className="group flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-left hover:bg-overlay lg:justify-start lg:px-3"
-                    >
-                      {/* Replié, le nom de catégorie n'a plus la place ; il reste
-                          dans `data-tip`, donc au survol. */}
-                      <span
-                        className={`hud-label hidden flex-1 transition-colors group-hover:text-text lg:block ${
-                          allLocked ? "opacity-55" : ""
-                        }`}
+  return (
+    // ── Le matériau (2026-10-11) ────────────────────────────────────────────
+    // La barre est OPAQUE (`.barre` → `--barre-bg`), plus en verre. Rien ne
+    // défile derrière elle — elle est posée à côté du contenu, pas dessus —
+    // donc le flou ne floutait rien, et un titre de catégorie collant a besoin
+    // d'un fond plein pour que la liste passe dessous sans se lire à travers.
+    //
+    // ── Réduite en icônes ───────────────────────────────────────────────────
+    // 232 px étendue, 64 px réduite (`--barre-l`, `--barre-rail`). Par défaut
+    // la fenêtre décide (étroite → réduite) ; le bouton du pied et ⌥⌘S
+    // retournent ce choix, retenu par régime (`lib/barre.ts`).
+    //
+    // Pourquoi le repli en ICÔNES et pas un tiroir superposé : les modules
+    // restent accessibles en UN clic. Un tiroir en coûterait deux, sur une app
+    // dont on change d'onglet en permanence.
+    //
+    // ⚠️ La largeur change D'UN COUP — jamais de `transition: width` : la zone
+    // principale se redessinerait à chaque image, et la grille d'Aujourd'hui
+    // remesure ses onze panneaux à chaque changement de largeur. Ce qui glisse,
+    // ce sont des `translate` (le volet) et des opacités (les libellés).
+    //
+    // ⚠️ Réduite, le nom d'un module est rendu par `data-tip` (couche Tooltip)
+    // et par l'`aria-label` du bouton : le libellé n'est plus dans le DOM.
+    <>
+      <aside
+        ref={asideRef}
+        data-reduite={reduite ? "" : undefined}
+        data-mouvement={mouvement ?? undefined}
+        className={`barre relative z-20 flex shrink-0 flex-col border-r border-border ${
+          reduite ? "w-[var(--barre-rail)]" : "w-[var(--barre-l)]"
+        }`}
+        // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
+        // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
+        // bloc de marque, plus haut que l'heure système.
+        style={IS_IOS ? { paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)" } : undefined}
+      >
+        <div className="barre-corps flex min-h-0 flex-1 flex-col">
+          {/* Zone de drag fenêtre (barre de titre overlay).
+              `="deep"` (et non l'attribut nu) : avec l'attribut nu, Tauri ne
+              déclenche le drag que sur un clic DIRECT sur l'élément porteur
+              (`el === composedPath[0]` dans son `drag.js`) — le titre et le
+              sous-titre, qui sont des enfants, n'étaient donc déjà pas des
+              poignées. En mode `deep` tout le sous-arbre devient poignée,
+              SAUF les éléments cliquables : un `<button>` sans attribut coupe
+              court à la remontée. La cloche reste donc cliquable. */}
+          {/* Réduit, le bloc de marque passe en colonne : le mot-symbole n'a plus
+              la place de s'écrire, seule la cloche reste utile. La zone de drag,
+              elle, doit survivre — c'est la seule poignée de la fenêtre. */}
+          <div
+            data-tauri-drag-region="deep"
+            className={`flex shrink-0 gap-2 pb-5 pt-10 ${reduite ? "flex-col items-center px-2" : "items-start px-5"}`}
+          >
+            {!reduite && (
+              <div className="barre-texte min-w-0 flex-1">
+                {/* Le titre se règle dans Personnaliser (ou vient d'un profil de
+                    licence) : un nom long se coupe, il ne pousse pas la liste. */}
+                <span
+                  className="block truncate font-display text-[17px] font-bold tracking-tight text-text"
+                  title={config.brandTitle}
+                >
+                  {config.brandTitle}
+                </span>
+                {config.brandSubtitle && <p className="hud-label mt-1">{config.brandSubtitle}</p>}
+              </div>
+            )}
+            <NotificationBell onNavigate={onNavigate} />
+          </div>
+
+          <nav id="barre-modules" className="flex min-h-0 flex-1 flex-col">
+            {/* ⭐ « Aujourd'hui » (et tout module hors catégorie) NE DÉFILE PAS :
+                c'est l'accueil, le bouton auquel on revient. Avant, il partait
+                avec la liste dès qu'elle défilait — c'est-à-dire dans la fenêtre
+                par défaut, toutes catégories ouvertes. */}
+            {uncategorized.length > 0 && (
+              <div className="flex shrink-0 flex-col gap-0.5 px-3 pb-2">
+                {uncategorized.map((m) => {
+                  const item = BY_ID.get(m.id)!;
+                  return navButton(m.id, m.label?.trim() || t(item.label), item.icon);
+                })}
+              </div>
+            )}
+
+            <div
+              className={`relative flex min-h-0 flex-1 flex-col border-t transition-colors duration-200 ${
+                cache.haut ? "border-border" : "border-transparent"
+              }`}
+            >
+              <div
+                ref={listeRef}
+                // `relative` : c'est le repère des `offsetTop` lus par
+                // `toggleCategory`. Pas de barre de défilement dessinée — dans
+                // un rail de 64 px elle décalait les icônes de 10 px ; le fondu
+                // du bas dit qu'il reste de la liste.
+                className="no-scrollbar relative flex min-h-0 flex-1 scroll-pt-9 flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-3"
+              >
+                {CATEGORIES.map((cat) => {
+                  const members = visible.filter((m) => CATEGORY_OF[m.id] === cat.id);
+                  if (members.length === 0) return null;
+                  const isOpen = !(collapsed?.[cat.id] ?? false);
+                  // Catégorie entièrement verrouillée : pas de badge (il annoncerait
+                  // une activité sur un module auquel l'utilisateur n'a pas accès).
+                  const allLocked = members.every((m) => isLocked(m.id));
+                  const hasBadge =
+                    !isOpen && !allLocked && members.some((m) => !isLocked(m.id) && badges?.[m.id]);
+                  return (
+                    <div key={cat.id} data-cat={cat.id} className="mt-2 first:mt-0">
+                      {/* ⭐ Le titre de la catégorie RESTE EN HAUT tant qu'on
+                          défile dans ses modules, puis cède la place au suivant.
+                          Fond plein et `z-10` : les boutons sont `relative`, sans
+                          cela ils passeraient par-dessus. Réduit, le titre n'est
+                          plus qu'un chevron : collé, il masquerait une icône
+                          pour rien. */}
+                      <div className={reduite ? undefined : "barre-titre sticky top-0 z-10 pt-1"}>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleCategory(cat.id, e.currentTarget)}
+                          aria-expanded={isOpen}
+                          // Même trou que les onglets : réduit, le bouton ne
+                          // contient plus qu'un chevron.
+                          aria-label={libelle(cat.label)}
+                          data-tip={libelle(cat.label)}
+                          data-tip-sub={
+                            allLocked
+                              ? t("Inclus dans Shale Trade")
+                              : isOpen
+                                ? t("Replier la catégorie")
+                                : t("Déplier la catégorie")
+                          }
+                          data-tip-side="right"
+                          className={`group flex items-center gap-1.5 rounded-[var(--radius-field)] py-1.5 text-left hover:bg-overlay ${
+                            reduite ? "w-[41px] justify-center" : "w-full px-3"
+                          }`}
+                        >
+                          {/* Réduit, le nom de catégorie n'a plus la place ; il
+                              reste dans `data-tip`, donc au survol. */}
+                          {!reduite && (
+                            <span
+                              className={`barre-texte hud-label flex-1 transition-colors group-hover:text-text ${
+                                allLocked ? "opacity-55" : ""
+                              }`}
+                            >
+                              {libelle(cat.label)}
+                            </span>
+                          )}
+                          {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
+                          {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-blue" />}
+                          <svg
+                            viewBox="0 0 12 12"
+                            className="h-2.5 w-2.5 shrink-0 text-text-dim transition-transform duration-200"
+                            style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
+                            <path d="M3 4.5 6 7.5 9 4.5" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div
+                        data-cat-corps
+                        style={{
+                          display: "grid",
+                          gridTemplateRows: isOpen ? "1fr" : "0fr",
+                          transition: "grid-template-rows 240ms var(--ease-spring)",
+                        }}
                       >
-                        {libelle(cat.label)}
-                      </span>
-                      {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
-                      {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-blue" />}
-                      <svg
-                        viewBox="0 0 12 12"
-                        className="h-2.5 w-2.5 text-text-dim transition-transform duration-200"
-                        style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                      >
-                        <path d="M3 4.5 6 7.5 9 4.5" />
-                      </svg>
-                    </button>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateRows: isOpen ? "1fr" : "0fr",
-                        transition: "grid-template-rows 240ms cubic-bezier(0.32, 0.72, 0, 1)",
-                      }}
-                    >
-                      <div className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
-                        {members.map((m) => {
-                          const item = BY_ID.get(m.id)!;
-                          return navButton(m.id, m.label?.trim() || t(item.label), item.icon);
-                        })}
+                        <div className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
+                          {members.map((m) => {
+                            const item = BY_ID.get(m.id)!;
+                            return navButton(m.id, m.label?.trim() || t(item.label), item.icon);
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </>
-          );
-        })()}
-      </nav>
+                  );
+                })}
+                {/* Les deux sentinelles. Celle du haut est hors flux (elle ne doit
+                    pas devenir le `:first-child` de la liste) ; celle du bas ferme
+                    le contenu. */}
+                <div ref={hautRef} aria-hidden className="pointer-events-none absolute left-0 top-0 h-px w-px" />
+                <div ref={basRef} aria-hidden className="-mt-0.5 h-px shrink-0" />
+              </div>
+              <div aria-hidden className={`barre-fondu ${cache.bas ? "opacity-100" : "opacity-0"}`} />
+            </div>
+          </nav>
 
-      <div className="mt-auto border-t border-border pt-3">
-        <nav className="flex flex-col gap-0.5 px-3">
-          {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
-            navButton(it.id, t(it.label), it.icon),
-          )}
-        </nav>
-      </div>
+          <div className="shrink-0 border-t border-border pt-3">
+            <nav className="flex flex-col gap-0.5 px-3">
+              {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
+                navButton(it.id, t(it.label), it.icon),
+              )}
+              {/* Réduire / étendre. Une LIGNE du pied, visible en permanence et
+                  au doigt — pas une poignée au survol du bord (règle 17 : une
+                  action qui n'existe qu'au survol n'existe pas). */}
+              <button
+                type="button"
+                onClick={basculerBarre}
+                aria-expanded={!reduite}
+                aria-controls="barre-modules"
+                aria-label={reduite ? t("Étendre la barre latérale") : t("Réduire la barre latérale")}
+                data-tip={reduite ? t("Étendre la barre") : t("Réduire la barre")}
+                data-tip-sub={reduite ? t("Affiche le nom des modules.") : t("Ne garde que les icônes.")}
+                data-tip-kbd={kbd("⌥⌘S")}
+                data-tip-side="right"
+                className={`cible-tactile-ligne relative flex shrink-0 items-center rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text ${
+                  reduite ? "w-[41px]" : "gap-3"
+                }`}
+              >
+                <span className="h-[17px] w-[17px] shrink-0 text-text-dim/80">
+                  <IconBarre className="h-full w-full" />
+                </span>
+                {!reduite && <span className="barre-texte min-w-0 truncate">{t("Réduire")}</span>}
+              </button>
+            </nav>
+          </div>
 
-      {/* ⚠️ Le pied de barre porte des composants qui écrivent du TEXTE — horloge,
-          session de marché, état de synchronisation. Dans une colonne de 64 px,
-          l'horloge se cassait caractère par caractère (« 16 : 5 6 : 40 M… »).
-          Ils reviennent avec les libellés, à partir de `lg`. Ce qu'on perd est
-          consultable d'un clic dans Réglages, et l'heure est celle du système —
-          elle est déjà dans la barre de menus de macOS. */}
-      <div className="flex flex-col gap-3 px-2 pb-5 pt-4 lg:px-5">
-        <div className="hidden lg:contents">
-          <Clock />
-          {sessionsMarche && <SessionIndicator />}
+          {/* ⚠️ Le pied de barre porte des composants qui écrivent du TEXTE — horloge,
+              session de marché, état de synchronisation. Dans une colonne de 64 px,
+              l'horloge se cassait caractère par caractère (« 16 : 5 6 : 40 M… »).
+              Ils reviennent avec les libellés. Ce qu'on perd est consultable d'un
+              clic dans Réglages, et l'heure est celle du système — elle est déjà
+              dans la barre de menus de macOS. */}
+          <div className={`flex shrink-0 flex-col gap-3 pb-5 pt-4 ${reduite ? "items-center px-2" : "px-5"}`}>
+            {!reduite && !basse && (
+              <div className="barre-texte flex flex-col gap-3">
+                <Clock />
+                {sessionsMarche && <SessionIndicator />}
+              </div>
+            )}
+            <SyncIndicator reduit={reduite} onOuvrirReglages={() => onNavigate("settings")} />
+            {demoMode && !reduite && (
+              <span className="barre-texte pill w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim">
+                {t("mode démo")}
+              </span>
+            )}
+            {/* Réduit, seule la pastille verte reste : elle dit la même chose que le
+                texte à côté, et c'est elle qu'on regarde. */}
+            {!basse && (
+              <div className="flex items-center gap-2">
+                <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-success" />
+                {!reduite && <span className="barre-texte hud-label">{t("systèmes actifs")}</span>}
+              </div>
+            )}
+          </div>
         </div>
-        <SyncIndicator onOuvrirReglages={() => onNavigate("settings")} />
-        {demoMode && (
-          <span className="pill hidden w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim lg:inline-block">
-            {t("mode démo")}
-          </span>
-        )}
-        {/* Replié, seule la pastille verte reste : elle dit la même chose que le
-            texte à côté, et c'est elle qu'on regarde. */}
-        <div className="flex items-center justify-center gap-2 lg:justify-start">
-          <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-success" />
-          <span className="hud-label hidden lg:inline">{t("systèmes actifs")}</span>
-        </div>
-      </div>
-    </aside>
+      </aside>
+      {/* Le volet qui se referme : pendant la réduction, il glisse du bord étendu
+          vers le rail et recouvre un instant le contenu déjà recalé. Invisible et
+          inerte le reste du temps (`index.css`, `.barre-voile`). */}
+      <div className="barre-voile" aria-hidden />
+    </>
   );
 }
