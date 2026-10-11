@@ -161,23 +161,66 @@ const created = addDays(todayStr(), -30);
 //     tâches portent LES MÊMES MOTS. Renommer l'un sans l'autre casse le récit.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * ⭐ UN HASARD SEMÉ, pour que l'historique ressemble à une vie et non à une
+ * formule (2026-10-11). Avant, tout se déduisait d'un modulo (« un jour sur
+ * trois », « sauf le huitième ») : les grilles d'habitudes et les barres de
+ * Performance dessinaient un MOTIF, visible d'un coup d'œil sur les captures du
+ * site. Antonin : « certains streaks sont grossiers, on y retrouve un pattern ».
+ *
+ * ⚠️ SEMÉ, donc reproductible : la même démo à chaque ouverture, les mêmes
+ * captures à chaque passe. Surtout pas `Math.random()`.
+ */
+function hasardSeme(graine: number): () => number {
+  let a = graine;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/** Profondeur de l'historique fabriqué, en jours. */
+const HISTORIQUE = 90;
+/**
+ * La FORME de chaque jour passé, 0 (jour sans) à 1 (grand jour) : une marche
+ * lissée, avec des passages à vide de plusieurs jours. Tout l'historique s'y
+ * accroche — tâches, focus, habitudes, humeur — pour que les écrans racontent
+ * les MÊMES bonnes et mauvaises semaines. Indice = nombre de jours avant aujourd'hui.
+ */
+const FORME: number[] = (() => {
+  const h = hasardSeme(20261011);
+  const out: number[] = [];
+  let f = 0.7;
+  for (let i = HISTORIQUE; i >= 0; i--) {
+    f += (h() - 0.5) * 0.5 + (0.72 - f) * 0.25; // rappel vers une moyenne plutôt bonne
+    if (h() < 0.06) f -= 0.45; // un jour qui déraille
+    f = Math.max(0.05, Math.min(1, f));
+    out[i] = f;
+  }
+  out[9] = 0.08; // « Journée sans » : le journal de ce jour-là le dit
+  return out;
+})();
+/** Né bien avant l'historique : une routine est due sur toute sa profondeur. */
+const ancien = addDays(todayStr(), -(HISTORIQUE + 30));
+
 /** Les champs qu'une tâche de démo ne renseigne presque jamais. */
 const T0 = { due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 } as const;
 const jour = (n: number) => addDays(todayStr(), n);
 
 const tasks: Task[] = [
   // — Les routines : elles donnent sa forme à la semaine —
-  { ...T0, id: 1, label: t("Répondre aux messages clients"), tag: t("Clients"), priority: "medium", recurrence: "daily", goal_id: null, created_at: created, start_at: "09:00", end_at: "09:30" },
-  { ...T0, id: 2, label: t("Travail de fond sur la boutique"), tag: t("Boutique"), priority: "high", recurrence: "weekdays", goal_id: null, created_at: created, start_at: "09:30", end_at: "11:30" },
-  { ...T0, id: 3, label: t("Publier sur les réseaux"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, start_at: "13:30", end_at: "14:00" },
-  { ...T0, id: 4, label: t("Course à pied"), tag: t("Perso"), priority: "medium", recurrence: "[2,4]", goal_id: 3, created_at: created, start_at: "18:30", end_at: "19:15" },
+  { ...T0, id: 1, label: t("Répondre aux messages clients"), tag: t("Clients"), priority: "medium", recurrence: "daily", goal_id: null, created_at: ancien, start_at: "09:00", end_at: "09:30" },
+  { ...T0, id: 2, label: t("Travail de fond sur la boutique"), tag: t("Boutique"), priority: "high", recurrence: "weekdays", goal_id: null, created_at: ancien, start_at: "09:30", end_at: "11:30" },
+  { ...T0, id: 3, label: t("Publier sur les réseaux"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: ancien, start_at: "13:30", end_at: "14:00" },
+  { ...T0, id: 4, label: t("Course à pied"), tag: t("Perso"), priority: "medium", recurrence: "[2,4]", goal_id: 3, created_at: ancien, start_at: "18:30", end_at: "19:15" },
   // — Phase 1 : valider l'idée (terminée) —
   { ...T0, id: 5, label: t("Interroger dix clients potentiels"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-16) },
   { ...T0, id: 6, label: t("Comparer trois boutiques du même secteur"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-14) },
   { ...T0, id: 7, label: t("Fixer la gamme de départ : six produits"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-11) },
   // — Phase 2 : préparer le catalogue (en cours) —
   { ...T0, id: 8, label: t("Photographier les six produits"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(-4) },
-  { ...T0, id: 9, label: t("Rédiger les fiches produit"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(0), start_at: "14:00", end_at: "16:00" },
+  { ...T0, id: 9, label: t("Rédiger les fiches produit"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(0), start_at: "14:00", end_at: "15:30" },
   { ...T0, id: 10, label: t("Fixer les frais de livraison"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(1), start_at: "11:30", end_at: "12:15" },
   // — Phase 3 : construire le site (le reste avance par un sous-objectif chiffré) —
   { ...T0, id: 11, label: t("Choisir l'outil de boutique"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 7, created_at: jour(-12), due_date: jour(-2) },
@@ -189,7 +232,11 @@ const tasks: Task[] = [
   // tâche unique non faite, quelle que soit sa date (`todayTasks`).
   { ...T0, id: 14, label: t("Envoyer le devis à Studio Hélice"), tag: t("Clients"), priority: "high", recurrence: "none", goal_id: null, created_at: jour(-3), due_date: jour(0) },
   { ...T0, id: 15, label: t("Rappeler l'imprimeur pour les emballages"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: null, created_at: jour(-2), due_date: jour(0) },
-  { ...T0, id: 16, label: t("Faire la revue de la semaine"), tag: t("Admin"), priority: "medium", recurrence: "[5]", goal_id: null, created_at: created, start_at: "16:30", end_at: "17:00" },
+  { ...T0, id: 16, label: t("Faire la revue de la semaine"), tag: t("Admin"), priority: "medium", recurrence: "[5]", goal_id: null, created_at: ancien, start_at: "16:30", end_at: "17:00" },
+  { ...T0, id: 17, label: t("Préparer la journée de demain"), tag: t("Admin"), priority: "low", recurrence: "weekdays", goal_id: null, created_at: ancien, start_at: "17:30", end_at: "17:45" },
+  // Deux tâches uniques déjà faites : elles peuplent « Faites » et l'historique.
+  { ...T0, id: 18, label: t("Commander des échantillons d'emballage"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: null, created_at: jour(-5), due_date: jour(-1) },
+  { ...T0, id: 19, label: t("Envoyer la facture de juin à Studio Hélice"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: null, created_at: jour(-9), due_date: jour(-7) },
 ];
 
 /**
@@ -236,24 +283,31 @@ const tags: Tag[] = [
   { id: 5, name: t("Perso"), color: "#ff7ab2" },
 ];
 
-// Historique : trente jours de routines, plutôt tenues — avec une journée
-// creuse et quelques oublis, pour que les graphiques ressemblent à une vraie vie.
+// Historique : les routines, tenues selon la FORME du jour — pas selon une règle.
 const completions: Completion[] = [];
 let compId = 1;
 const today = todayStr();
-for (let i = 30; i >= 1; i--) {
-  const date = addDays(today, -i);
-  for (const t of tasks) {
-    if (!isDueOn(t, date)) continue;
-    const creuse = i === 9 && t.id !== 1; // la journée où presque rien n'a tenu
-    const oubli = (i % 11 === 6 && t.id === 3) || (i === 20 && t.id === 4);
-    completions.push({ id: compId++, task_id: t.id, date, done: creuse || oubli ? 0 : 1 });
+{
+  const h = hasardSeme(7);
+  /**
+   * La dernière semaine est ÉCRITE, pas tirée : c'est elle que montrent la
+   * bande « 7 jours » d'Aujourd'hui et la série en cours. Une semaine ordinaire
+   * — deux jours incomplets, une série de quatre jours — et non sept carrés pleins.
+   */
+  const OUBLIS_RECENTS: Record<number, number[]> = { 7: [3], 5: [3, 16], 1: [4] };
+  for (let i = HISTORIQUE; i >= 1; i--) {
+    const date = addDays(today, -i);
+    for (const t of tasks) {
+      if (!isDueOn(t, date)) continue;
+      const done = i <= 7 ? !(OUBLIS_RECENTS[i] ?? []).includes(t.id) : h() < 0.6 + 0.45 * FORME[i];
+      completions.push({ id: compId++, task_id: t.id, date, done: done ? 1 : 0 });
+    }
   }
 }
 // Aujourd'hui : la journée a commencé
 completions.push({ id: compId++, task_id: 1, date: today, done: 1 });
 // Les tâches uniques déjà faites : c'est d'elles que l'objectif 1 tire son avancement.
-for (const [taskId, quand] of [[5, -16], [6, -14], [7, -11], [8, -4], [11, -2]] as const)
+for (const [taskId, quand] of [[5, -16], [6, -14], [7, -11], [8, -4], [11, -2], [18, -1], [19, -7]] as const)
   completions.push({ id: compId++, task_id: taskId, date: addDays(today, quand), done: 1 });
 
 const metrics: CustomMetric[] = [
@@ -262,17 +316,20 @@ const metrics: CustomMetric[] = [
   { id: 3, name: t("Nouveaux abonnés"), unit: t("abonnés") },
 ];
 
-// Trente jours de valeurs, motif déterministe
+// Trois mois de valeurs, tirées — une semaine ne ressemble pas à la suivante.
 const metricEntries: MetricEntry[] = [];
 let entryId = 1;
-for (let i = 30; i >= 0; i--) {
-  const date = addDays(today, -i);
-  const wd = weekdayOf(date);
-  metricEntries.push(
-    { id: entryId++, metric_id: 1, date, value: wd === 0 || wd === 6 ? 0 : 3 + (i % 3) },
-    { id: entryId++, metric_id: 2, date, value: wd >= 1 && wd <= 5 ? (i % 4) + 1 : 0 },
-    { id: entryId++, metric_id: 3, date, value: 2 + ((i * 7) % 6) },
-  );
+{
+  const h = hasardSeme(31);
+  for (let i = HISTORIQUE; i >= 0; i--) {
+    const date = addDays(today, -i);
+    const ouvre = weekdayOf(date) >= 1 && weekdayOf(date) <= 5;
+    metricEntries.push(
+      { id: entryId++, metric_id: 1, date, value: ouvre ? Math.round((1.5 + 4 * FORME[i] + h()) * 2) / 2 : 0 },
+      { id: entryId++, metric_id: 2, date, value: ouvre ? Math.floor(h() * 4.4) : 0 },
+      { id: entryId++, metric_id: 3, date, value: Math.floor(h() * h() * 9) },
+    );
+  }
 }
 
 // Historique de progression des objectifs (30 jours, croissance régulière)
@@ -291,12 +348,20 @@ const targets: Record<number, [number, number]> = {
   10: [0, 0],
   11: [33, 67],
 };
-for (let i = 30; i >= 0; i -= 3) {
-  const date = addDays(today, -i);
+// Par à-coups : un objectif avance par paliers, pas en ligne droite.
+{
+  const h = hasardSeme(53);
   for (const g of goals) {
     const [from, to] = targets[g.id] ?? [0, 0];
-    const pct = Math.round(from + ((to - from) * (30 - i)) / 30);
-    goalLog.push({ id: logId++, goal_id: g.id, date, pct });
+    const pas: number[] = [];
+    for (let i = 30; i >= 0; i -= 3) pas.push(h() < 0.3 ? 0 : h());
+    const somme = pas.reduce((a, b) => a + b, 0) || 1;
+    let cumul = 0;
+    pas.forEach((p, k) => {
+      cumul += p;
+      const pct = k === pas.length - 1 ? to : Math.round(from + ((to - from) * cumul) / somme);
+      goalLog.push({ id: logId++, goal_id: g.id, date: addDays(today, -(30 - k * 3)), pct });
+    });
   }
 }
 
@@ -335,29 +400,45 @@ settings.set("energy_cost_trade", "8");
 // heures réellement tenues, donc la capacité d'une journée.
 const focusSessions: FocusSession[] = [];
 let fsId = 1;
-const seance = (date: string, debut: string, min: number, taskId: number | null, label: string | null = null) => {
+/** `reel` : ce qui a été tenu — une séance s'arrête parfois avant la fin prévue. */
+const seance = (date: string, debut: string, min: number, taskId: number | null, label: string | null = null, reel = min) => {
   const [h, m] = debut.split(":").map(Number);
-  const fin = h * 60 + m + min;
+  const fin = h * 60 + m + reel;
   const deux = (n: number) => String(n).padStart(2, "0");
   focusSessions.push({
     id: fsId++, task_id: taskId, label, kind: "focus",
     started_at: `${date} ${debut}:00`, ended_at: `${date} ${deux(Math.floor(fin / 60))}:${deux(fin % 60)}:00`, planned_min: min,
   });
 };
-for (let i = 30; i >= 1; i--) {
-  const date = addDays(today, -i);
-  const wd = weekdayOf(date);
-  if (wd === 0) continue; // le dimanche, rien
-  if (wd === 6) {
-    if (i % 2 === 0) seance(date, "10:00", 50, 2);
-    continue;
+{
+  const h = hasardSeme(113);
+  const deux = (n: number) => String(n).padStart(2, "0");
+  /** Une séance possible : heure visée, durée prévue, tâche. Tenue ou non selon la forme. */
+  const CRENEAUX: [number, number, number | null, string | null][] = [
+    [9 * 60 + 35, 50, 2, null],
+    [10 * 60 + 40, 50, 2, null],
+    [13 * 60 + 35, 25, 3, null],
+    [14 * 60 + 10, 90, null, t("Mission client")],
+    [16 * 60 + 15, 50, null, t("Mission client")],
+  ];
+  for (let i = HISTORIQUE; i >= 1; i--) {
+    const date = addDays(today, -i);
+    const wd = weekdayOf(date);
+    const f = FORME[i];
+    if (wd === 0 || wd === 6) {
+      // Le week-end : rarement, et jamais longtemps.
+      if (h() < (wd === 6 ? 0.3 : 0.08)) seance(date, `10:${deux(Math.floor(h() * 50))}`, 50, 2, null, 25 + Math.floor(h() * 26));
+      continue;
+    }
+    for (const [vise, prevu, taskId, label] of CRENEAUX) {
+      if (taskId === 3 && ![1, 3, 5].includes(wd)) continue;
+      if (h() > 0.78 + 0.22 * f) continue; // sautée
+      const depart = vise + Math.floor((h() - 0.4) * 22); // rarement à l'heure pile
+      const duree = prevu === 90 && h() < 0.2 ? 50 : prevu;
+      const reel = h() < 0.14 ? Math.max(10, Math.round(duree * (0.45 + 0.5 * h()))) : duree;
+      seance(date, `${deux(Math.floor(depart / 60))}:${deux(depart % 60)}`, duree, taskId, label, reel);
+    }
   }
-  if (i === 9) { seance(date, "09:30", 25, 2); continue; } // la journée creuse
-  seance(date, "09:30", 50, 2);
-  seance(date, "10:30", 50, 2);
-  seance(date, "14:00", i % 4 === 0 ? 50 : 90, null, t("Mission client"));
-  if (i % 3 !== 0) seance(date, "16:00", 50, null, t("Mission client"));
-  if ([1, 3, 5].includes(wd)) seance(date, "13:30", 25, 3);
 }
 // Aujourd'hui : seulement ce qui est déjà passé à l'heure où l'on regarde.
 {
@@ -604,7 +685,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
 ];
 let nextKnowledgeId = knowledgeEntries.length + 1;
 
-// Journal : trois semaines d'humeur et d'énergie, et quelques lignes les jours
+// Journal : six semaines d'humeur et d'énergie, et quelques lignes les jours
 // où il s'est passé quelque chose.
 const journal: JournalEntry[] = [];
 let jId = 1;
@@ -617,14 +698,18 @@ const LIGNES_JOURNAL: Record<number, string> = {
   9: t("Journée sans. Rien n'a tenu, et ce n'est pas grave : une seule."),
   11: t("Six produits, pas douze. Choisir, c'est déjà avancer."),
 };
-for (let i = 21; i >= 0; i--) {
-  journal.push({
-    id: jId++,
-    date: addDays(today, -i),
-    mood: i === 9 ? 2 : 3 + ((i * 5 + 1) % 3),
-    energy: i === 9 ? 2 : 3 + ((i * 3) % 3),
-    body: LIGNES_JOURNAL[i] ?? "",
-  });
+{
+  // L'humeur suit la forme du jour, à peu près — et certains soirs, on n'écrit rien.
+  const h = hasardSeme(211);
+  const note = (v: number) => Math.max(1, Math.min(5, Math.round(v)));
+  for (let i = 45; i >= 0; i--) {
+    const ligne = LIGNES_JOURNAL[i] ?? "";
+    const saute = h() < 0.22;
+    const mood = note(1.6 + 3 * FORME[i] + (h() - 0.5) * 1.6);
+    const energy = note(1.4 + 2.8 * FORME[i] + (h() - 0.5) * 2);
+    if (saute && !ligne && i !== 0) continue;
+    journal.push({ id: jId++, date: addDays(today, -i), mood: i === 0 ? 4 : mood, energy: i === 0 ? 3 : energy, body: ligne });
+  }
 }
 
 const habits: Habit[] = [
@@ -638,17 +723,32 @@ let nextHabitId = habits.length + 1;
 // Douze semaines : c'est la fenêtre que montre la grille du Journal.
 const habitChecks: HabitCheck[] = [];
 let hcId = 1;
-for (let i = 84; i >= 1; i--) {
-  const date = addDays(today, -i);
-  const wd = weekdayOf(date);
-  if (i % 7 !== 3 && i !== 9) habitChecks.push({ id: hcId++, habit_id: 1, date });
-  if ([2, 4, 0].includes(wd) && i !== 20) habitChecks.push({ id: hcId++, habit_id: 2, date });
-  if (i % 3 !== 0) habitChecks.push({ id: hcId++, habit_id: 3, date });
-  if (i % 5 !== 2 && wd !== 6) habitChecks.push({ id: hcId++, habit_id: 4, date });
+{
+  const h = hasardSeme(307);
+  /**
+   * Chaque habitude a son caractère : une régularité de fond, des jours où elle
+   * tient mieux, et des périodes entières où elle lâche (`creux`, en jours avant
+   * aujourd'hui). C'est ce qui évite la grille en damier.
+   */
+  const CARACTERES: { id: number; fond: number; jours?: number[]; creux?: [number, number] }[] = [
+    { id: 1, fond: 0.82, creux: [52, 44] }, // méditation : solide, sauf une semaine perdue
+    { id: 2, fond: 0.62, jours: [2, 4, 0, 6] }, // sport : certains jours seulement
+    { id: 3, fond: 0.55, creux: [30, 19] }, // lecture : par périodes
+    { id: 4, fond: 0.48, creux: [70, 58] }, // coucher tôt : la plus fragile
+  ];
+  for (let i = 84; i >= 1; i--) {
+    const date = addDays(today, -i);
+    const wd = weekdayOf(date);
+    for (const c of CARACTERES) {
+      if (c.jours && !c.jours.includes(wd) && h() > 0.07) continue;
+      const dansLeCreux = c.creux && i <= c.creux[0] && i >= c.creux[1];
+      const p = dansLeCreux ? 0.12 : c.fond * (0.55 + 0.6 * FORME[i]) + (i < 21 ? 0.08 : 0);
+      if (h() < p) habitChecks.push({ id: hcId++, habit_id: c.id, date });
+    }
+  }
 }
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
 habitChecks.push({ id: hcId++, habit_id: 3, date: today });
-
 const trades: Trade[] = [];
 let trId = 1;
 const SETUPS = ["Silver Bullet", "Order Block", "FVG"];

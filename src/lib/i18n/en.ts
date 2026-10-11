@@ -3705,4 +3705,7 @@ export const EN: Record<string, string> = {
   // de partir, ⌘Z d'une carte ou d'un croquis). La clé nue « Annuler » reste
   // « Cancel » : fermer une fenêtre sans rien faire.
   "Annuler|défaire": "Undo",
+  "Préparer la journée de demain": "Plan tomorrow",
+  "Commander des échantillons d'emballage": "Order packaging samples",
+  "Envoyer la facture de juin à Studio Hélice": "Send the June invoice to Studio Hélice",
 };
