@@ -237,7 +237,7 @@ export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
  * correspond, et la 2ᵉ ligne dit ce qu'on y fait.
  */
 const DESCRIPTIONS: Record<View, string> = {
-  today: "Tableau de bord du jour : tâches, énergie, discipline, performance.",
+  today: "Tableau de bord du jour : tâches, discipline, habitudes, performance.",
   tasks: "Créer, taguer et planifier les tâches récurrentes ou ponctuelles.",
   calendar:
     "Mois, semaine, jour : événements, tâches datées et échéances, au même endroit.",
@@ -253,7 +253,7 @@ const DESCRIPTIONS: Record<View, string> = {
   sizing: "Calculateur de taille de position et de risque, envoi au tracker.",
   console: "Console d'administration : utilisateurs, abonnements, métriques.",
   admin: "Réorganiser les onglets et les widgets, densité, identité.",
-  settings: "Clés d'API, apparence, charge mentale, réglages du tracker.",
+  settings: "Compte, langue, apparence, notifications, sauvegarde.",
   corbeille: "Ce que tu as supprimé ces 30 derniers jours, prêt à revenir.",
 };
 

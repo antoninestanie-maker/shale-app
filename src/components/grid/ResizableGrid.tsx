@@ -57,6 +57,7 @@ import {
 } from "react";
 import { getSetting, setSetting } from "../../lib/repo";
 import { zoomFactor } from "../../lib/uiConfig";
+import { masquesConnus, ordreEffectif } from "../../lib/grille";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { IconPoints } from "../menu/icones";
@@ -238,13 +239,13 @@ export function ResizableGrid({
   const jsxIds = items.map((c) => c.props.id);
   const jsxKey = jsxIds.join("|");
 
-  const effectiveOrder = useMemo(() => {
-    const known = new Set(jsxIds);
-    const kept = order.filter((id) => known.has(id));
-    const seen = new Set(kept);
-    return [...kept, ...jsxIds.filter((id) => !seen.has(id))];
+  // Un identifiant enregistré dont le panneau n'existe plus (widget retiré de
+  // l'app) ne laisse ni trou ni pastille : la règle est dans `lib/grille.ts`.
+  const effectiveOrder = useMemo(
+    () => ordreEffectif(order, jsxIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, jsxKey]);
+    [order, jsxKey],
+  );
   const effectiveOrderRef = useRef(effectiveOrder);
   effectiveOrderRef.current = effectiveOrder;
 
@@ -718,7 +719,7 @@ export function ResizableGrid({
   );
 
   const byId = new Map(items.map((c) => [c.props.id, c]));
-  const hiddenKnown = hidden.filter((id) => byId.has(id));
+  const hiddenKnown = masquesConnus(hidden, jsxIds);
   const titreDe = (id: string) => byId.get(id)?.props.title ?? prettify(id);
 
   /**

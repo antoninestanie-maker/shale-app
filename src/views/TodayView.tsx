@@ -8,7 +8,6 @@ import QuickLinks from "../components/QuickLinks";
 import TimerCard from "../components/TimerCard";
 import TodayTasks from "../components/TodayTasks";
 import CalendarCard from "../components/CalendarCard";
-import MentalLoadGauge from "../components/MentalLoadGauge";
 import {
   computeStreak,
   pctOfList,
@@ -37,7 +36,6 @@ import { iaAutorisee } from "../lib/ia/reglages";
 const WIDGET_DEFAULT_W: Record<string, number> = {
   perf: 12,
   discipline: 4,
-  energy: 4,
   timer: 4,
   habitudes: 4,
   position: 4,
@@ -53,7 +51,6 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
 const WIDGET_MIN_W: Record<string, number> = {
   perf: 4,
   discipline: 3,
-  energy: 3,
   timer: 3,
   habitudes: 3,
   position: 4,
@@ -79,7 +76,6 @@ const WIDGET_MIN_H: Record<string, number> = {
 const WIDGET_TARGET: Record<string, View> = {
   perf: "performance",
   discipline: "tasks",
-  energy: "settings",
   timer: "timer",
   habitudes: "journal",
   position: "sizing",
@@ -173,12 +169,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
             total={derived.list.length}
           />
         </div>
-      </section>
-    ),
-    energy: () => (
-      <section key="energy" className="card p-5">
-        <h2 className="mb-3 hud-label">{t("Énergie restante")}</h2>
-        <MentalLoadGauge data={data} />
       </section>
     ),
     timer: () => (focus ? <TimerCard key="timer" data={data} focus={focus} /> : null),

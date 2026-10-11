@@ -33,8 +33,8 @@ export const EN: Record<string, string> = {
   "Tenir les comptes": "Keep the books",
   "Système": "System",
 
-  "Tableau de bord du jour : tâches, énergie, discipline, performance.":
-    "Today’s dashboard: tasks, energy, discipline, performance.",
+  "Tableau de bord du jour : tâches, discipline, habitudes, performance.":
+    "Today’s dashboard: tasks, discipline, habits, performance.",
   "Créer, taguer et planifier les tâches récurrentes ou ponctuelles.":
     "Create, tag and schedule recurring or one-off tasks.",
   "Minuteur Pomodoro pour tes sessions de concentration.":
@@ -57,8 +57,8 @@ export const EN: Record<string, string> = {
     "Market briefing generated twice a day: bias, levels, no-trade zones.",
   "Calculateur de taille de position et de risque, envoi au tracker.":
     "Position size and risk calculator, with send-to-tracker.",
-  "Clés d'API, apparence, charge mentale, réglages du tracker.":
-    "API keys, appearance, mental load, tracker settings.",
+  "Compte, langue, apparence, notifications, sauvegarde.":
+    "Account, language, appearance, notifications, backup.",
   "Réorganiser les onglets et les widgets, densité, identité.":
     "Reorder tabs and widgets, density, identity.",
   "Console d'administration : utilisateurs, abonnements, métriques.":
@@ -449,7 +449,6 @@ export const EN: Record<string, string> = {
 
   // ── Journal ───────────────────────────────────────────────────────────────
   "Énergie": "Energy",
-  "énergie": "energy",
   "Cocher ou décocher ce jour.": "Check or uncheck this day.",
   "Cocher pour aujourd’hui.": "Check for today.",
   "Cliquer à nouveau pour effacer.": "Click again to clear.",
@@ -578,15 +577,7 @@ export const EN: Record<string, string> = {
   "focus par tag — 30 jours": "focus by tag — 30 days",
   "Heures de backtesting": "Backtesting hours",
 
-  // ── Charge mentale / discipline ───────────────────────────────────────────
-  "charge mentale — énergie restante": "mental load — energy left",
-  "Énergie restante": "Energy left",
-  "Énergie restante (charge mentale)": "Energy left (mental load)",
-  "énergie de départ": "starting energy",
-  "coût par trade": "cost per trade",
-  "coût / heure d'écran": "cost per screen hour",
-  "Énergie basse : tes décisions se dégradent. Lève le pied.":
-    "Low energy: your decisions are degrading. Ease off.",
+  // ── Discipline ────────────────────────────────────────────────────────────
   "Garde le cap": "Stay the course",
 
   // ── Trading / journal de trades ───────────────────────────────────────────
@@ -1879,11 +1870,8 @@ export const EN: Record<string, string> = {
   "{nom} aujourd'hui": "{nom} today",
   "{done}/{n} tâche": "{done}/{n} task",
   "{done}/{n} tâches": "{done}/{n} tasks",
-  "{n} trade": "{n} trade",
-  "{n} trades": "{n} trades",
   "{n} position": "{n} position",
   "{n} positions": "{n} positions",
-  "{duree} écran": "{duree} on screen",
   "focus / {objectif}": "focus / {objectif}",
   "trading 7 j": "trading 7 d",
 
@@ -1990,10 +1978,6 @@ export const EN: Record<string, string> = {
     "Exports a clean copy of the whole database (tasks, goals, notes, trades…) — keep it on an external drive or your own cloud.",
   "Exporte une copie propre de toute la base (tâches, objectifs, notes…) — à garder sur un disque externe ou un cloud perso.":
     "Exports a clean copy of the whole database (tasks, goals, notes…) — keep it on an external drive or your own cloud.",
-  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.":
-    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the trades taken and the screen time spent today. Adjust how much each factor weighs.",
-  "Recalcule immédiatement la jauge d’énergie du tableau de bord.":
-    "Recalculates the dashboard’s energy gauge straight away.",
   // ── Auth, onboarding, cloche, grille (audit du 2026-08-28) ────────────────
   "E-mail": "Email",
   "Suivant": "Next",
@@ -3038,8 +3022,6 @@ export const EN: Record<string, string> = {
   // Variantes affichées quand `TRADING_ACTIF` est faux ; les phrases d'origine,
   // avec le trading, restent plus haut pour le jour où il revient.
   "Bandeau performance (streak, focus)": "Performance strip (streak, focus)",
-  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse avec le temps passé devant l'écran aujourd'hui. Règle son point de départ et son rythme.":
-    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the screen time spent today. Set where it starts and how fast it drops.",
   "Idées": "Ideas",
 
   // ── Priorité des étapes et des tâches, feuille de route épurée (2026-09-30) ──
