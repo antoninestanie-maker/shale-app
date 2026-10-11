@@ -76,6 +76,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte, onModifie,
   const modifieRef = useRef(onModifie);
   modifieRef.current = onModifie;
   const cadre = useRef<HTMLElement>(null);
+  const champAjout = useRef<HTMLInputElement>(null);
 
   /** Le geste du bouton « Lier » — et de quiconque demande l'ajout du dehors. */
   const ouvrirAjout = useCallback(() => {
@@ -87,6 +88,13 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte, onModifie,
     ouvrirAjout();
     // Le panneau vit SOUS l'éditeur : sur une note longue, il est hors champ.
     cadre.current?.scrollIntoView({ block: "nearest" });
+    // ⚠️ Le focus, UNE IMAGE PLUS TARD. Demandé depuis un menu contextuel, le
+    // champ prend bien le focus à son montage (`autoFocus`) — puis le menu, en
+    // se fermant, le REND à la ligne qui l'avait ouvert, lui aussi à l'image
+    // suivante (`useMenuContextuel.fermer`). Sa demande est partie avant
+    // celle-ci : elle passe donc avant, et le champ garde la frappe.
+    const image = requestAnimationFrame(() => champAjout.current?.focus());
+    return () => cancelAnimationFrame(image);
   }, [demandeAjout, ouvrirAjout]);
 
   const charger = useCallback(async () => {
@@ -148,6 +156,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte, onModifie,
       {ajout && (
         <div className="mt-3">
           <input
+            ref={champAjout}
             autoFocus
             value={requete}
             onChange={(e) => setRequete(e.target.value)}
