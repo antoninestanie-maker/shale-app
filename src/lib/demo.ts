@@ -19,6 +19,7 @@ import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
+import { blocCarte, type Carte } from "./carte";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
 // ⚠️ `import type`, jamais un import de valeur : `repo.ts` importe déjà ce
@@ -143,20 +144,57 @@ interface OpenPositionInput {
 
 const created = addDays(todayStr(), -30);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ⭐ LE JEU DE DÉMONSTRATION RACONTE UNE SEULE HISTOIRE (2026-10-09).
+//
+// Un entrepreneur a une idée — ouvrir une boutique en ligne. L'idée devient une
+// NOTE, la note porte une CARTE MENTALE, la carte devient un OBJECTIF découpé en
+// quatre phases, les phases portent des TÂCHES, et les tâches ont un créneau
+// dans le CALENDRIER. Chaque écran montre un morceau de la même chose : c'est
+// ce jeu que `shale-site/vitrine/tools/shoot-v2.mjs` photographie pour le site
+// et le dossier de presse.
+//
+// ⚠️ Trois règles, parce que ces écrans sont PUBLIÉS :
+//   • aucun mot de trading (`trading-de-cote.test.ts` le refuse) ;
+//   • rien de personnel, aucun prix ni date de Shale — un entrepreneur fictif ;
+//   • les quatre branches de la carte, les quatre phases de l'objectif et leurs
+//     tâches portent LES MÊMES MOTS. Renommer l'un sans l'autre casse le récit.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Les champs qu'une tâche de démo ne renseigne presque jamais. */
+const T0 = { due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 } as const;
+const jour = (n: number) => addDays(todayStr(), n);
+
 const tasks: Task[] = [
-  { id: 1, label: t("Prospection 1 h"), tag: t("Clients"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 2, label: t("Production client (matin)"), tag: t("Clients"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 3, label: t("Publier un post LinkedIn"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 4, label: t("Réviser un module de la certification"), tag: t("Formation"), priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 5, label: t("Présenter les maquettes au client"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 6, label: t("Envoyer le devis à Studio Hélice"), tag: t("Clients"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 7, label: t("Mettre à jour le portfolio"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
+  // — Les routines : elles donnent sa forme à la semaine —
+  { ...T0, id: 1, label: t("Répondre aux messages clients"), tag: t("Clients"), priority: "medium", recurrence: "daily", goal_id: null, created_at: created, start_at: "09:00", end_at: "09:30" },
+  { ...T0, id: 2, label: t("Travail de fond sur la boutique"), tag: t("Boutique"), priority: "high", recurrence: "weekdays", goal_id: null, created_at: created, start_at: "09:30", end_at: "11:30" },
+  { ...T0, id: 3, label: t("Publier sur les réseaux"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, start_at: "13:30", end_at: "14:00" },
+  { ...T0, id: 4, label: t("Course à pied"), tag: t("Perso"), priority: "medium", recurrence: "[2,4]", goal_id: 3, created_at: created, start_at: "18:30", end_at: "19:15" },
+  // — Phase 1 : valider l'idée (terminée) —
+  { ...T0, id: 5, label: t("Interroger dix clients potentiels"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-16) },
+  { ...T0, id: 6, label: t("Comparer trois boutiques du même secteur"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-14) },
+  { ...T0, id: 7, label: t("Fixer la gamme de départ : six produits"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 5, created_at: created, due_date: jour(-11) },
+  // — Phase 2 : préparer le catalogue (en cours) —
+  { ...T0, id: 8, label: t("Photographier les six produits"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(-4) },
+  { ...T0, id: 9, label: t("Rédiger les fiches produit"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(0), start_at: "14:00", end_at: "16:00" },
+  { ...T0, id: 10, label: t("Fixer les frais de livraison"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: 6, created_at: jour(-12), due_date: jour(1), start_at: "11:30", end_at: "12:15" },
+  // — Phase 3 : construire le site (le reste avance par un sous-objectif chiffré) —
+  { ...T0, id: 11, label: t("Choisir l'outil de boutique"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 7, created_at: jour(-12), due_date: jour(-2) },
+  { ...T0, id: 12, label: t("Monter la page d'accueil"), tag: t("Boutique"), priority: "high", recurrence: "none", goal_id: 7, created_at: jour(-12), due_date: jour(2), start_at: "14:00", end_at: "16:30" },
+  // — Phase 4 : réussir le lancement —
+  { ...T0, id: 13, label: t("Écrire l'e-mail d'annonce"), tag: t("Contenu"), priority: "medium", recurrence: "none", goal_id: 8, created_at: jour(-12), due_date: jour(12) },
+  // — Le reste de la vie d'un entrepreneur —
+  // ⚠️ PEU de tâches uniques à venir, exprès : « Tâches du jour » montre toute
+  // tâche unique non faite, quelle que soit sa date (`todayTasks`).
+  { ...T0, id: 14, label: t("Envoyer le devis à Studio Hélice"), tag: t("Clients"), priority: "high", recurrence: "none", goal_id: null, created_at: jour(-3), due_date: jour(0) },
+  { ...T0, id: 15, label: t("Rappeler l'imprimeur pour les emballages"), tag: t("Boutique"), priority: "medium", recurrence: "none", goal_id: null, created_at: jour(-2), due_date: jour(0) },
+  { ...T0, id: 16, label: t("Faire la revue de la semaine"), tag: t("Admin"), priority: "medium", recurrence: "[5]", goal_id: null, created_at: created, start_at: "16:30", end_at: "17:00" },
 ];
 
 /**
  * Valeurs par défaut de la feuille de route (migration 026) : ce que SQLite
- * pose sur une ligne qui ne les écrit pas. Les objectifs de démo naissent donc
- * sans étape, exactement comme les objectifs existants d'une vraie base.
+ * pose sur une ligne qui ne les écrit pas.
  */
 const FEUILLE_VIDE = {
   is_milestone: 0,
@@ -173,53 +211,67 @@ const FEUILLE_VIDE = {
 } as const satisfies Partial<Goal>;
 
 const goals: Goal[] = [
-  { id: 1, title: t("Vivre de mon activité d'indépendant"), description: t("100 % du revenu en freelance d'ici septembre"), scope: "long", category: t("Activité"), parent_goal_id: null, deadline: "2026-09-01", progress_pct: 45, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
-  { id: 2, title: t("5 000 abonnés LinkedIn"), description: null, scope: "medium", category: t("Contenu"), parent_goal_id: null, deadline: "2026-12-31", progress_pct: 62, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
-  { id: 3, title: t("Valider la certification UX"), description: null, scope: "short", category: t("Formation"), parent_goal_id: 1, deadline: "2026-07-30", progress_pct: 80, manual_progress: 1, created_at: created, ...FEUILLE_VIDE },
-  // progression auto : moyenne des tâches liées (id 6 faite, id 7 non → 50%)
-  { id: 4, title: t("Signer deux clients récurrents"), description: null, scope: "medium", category: t("Activité"), parent_goal_id: 1, deadline: "2026-08-15", progress_pct: 0, manual_progress: 0, created_at: created, ...FEUILLE_VIDE },
+  // ⭐ L'objectif NÉ DE LA CARTE MENTALE de la note 1 : mêmes quatre branches,
+  // devenues quatre phases. Son pourcentage se DÉDUIT des tâches cochées.
+  { ...FEUILLE_VIDE, id: 1, title: t("Lancer la boutique en ligne"), description: t("Une première version en ligne, et dix commandes le premier mois."), scope: "medium", category: t("Activité"), parent_goal_id: null, deadline: jour(45), progress_pct: 0, manual_progress: 0, created_at: jour(-12), priority: "high" },
+  { ...FEUILLE_VIDE, id: 2, title: t("1 000 abonnés à la newsletter"), description: t("Une lettre par semaine, sans en sauter une."), scope: "medium", category: t("Audience"), parent_goal_id: null, deadline: jour(160), progress_pct: 62, manual_progress: 1, created_at: created },
+  { ...FEUILLE_VIDE, id: 3, title: t("Courir un semi-marathon"), description: null, scope: "medium", category: t("Perso"), parent_goal_id: null, deadline: jour(88), progress_pct: 40, manual_progress: 1, created_at: created },
+  { ...FEUILLE_VIDE, id: 4, title: t("Lire douze livres cette année"), description: null, scope: "long", category: t("Perso"), parent_goal_id: null, deadline: null, progress_pct: 58, manual_progress: 1, created_at: created },
+  // Les quatre phases — des jalons, dans l'ordre de la carte.
+  { ...FEUILLE_VIDE, id: 5, title: t("Valider l'idée"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 1, deadline: jour(-10), progress_pct: 0, manual_progress: 0, created_at: jour(-12), is_milestone: 1, position: 0 },
+  { ...FEUILLE_VIDE, id: 6, title: t("Préparer le catalogue"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 1, deadline: jour(12), progress_pct: 0, manual_progress: 0, created_at: jour(-12), is_milestone: 1, position: 1, priority: "high" },
+  { ...FEUILLE_VIDE, id: 7, title: t("Construire le site"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 1, deadline: jour(26), progress_pct: 0, manual_progress: 0, created_at: jour(-12), is_milestone: 1, position: 2 },
+  { ...FEUILLE_VIDE, id: 8, title: t("Réussir le lancement"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 1, deadline: jour(45), progress_pct: 0, manual_progress: 0, created_at: jour(-12), is_milestone: 1, position: 3 },
+  // Deux sous-objectifs CHIFFRÉS : ils avancent par un compte, pas par des cases.
+  { ...FEUILLE_VIDE, id: 9, title: t("Six fiches produit en ligne"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 7, deadline: jour(22), progress_pct: 0, manual_progress: 0, created_at: jour(-12), target_count: 6, target_unit: t("fiches"), manual_count: 2 },
+  { ...FEUILLE_VIDE, id: 10, title: t("Dix premières commandes"), description: null, scope: "short", category: t("Activité"), parent_goal_id: 8, deadline: jour(45), progress_pct: 0, manual_progress: 0, created_at: jour(-12), target_count: 10, target_unit: t("commandes"), manual_count: 0 },
+  { ...FEUILLE_VIDE, id: 11, title: t("Trois clients réguliers"), description: t("Des missions qui reviennent, pour ne plus repartir de zéro chaque mois."), scope: "medium", category: t("Activité"), parent_goal_id: null, deadline: jour(70), progress_pct: 67, manual_progress: 1, created_at: created },
 ];
 
 const tags: Tag[] = [
-  { id: 1, name: t("Clients"), color: "#2e7ff2" },
-  { id: 2, name: t("Contenu"), color: "#33d17a" },
-  { id: 3, name: t("Formation"), color: "#f2b13d" },
+  { id: 1, name: t("Boutique"), color: "#2e7ff2" },
+  { id: 2, name: t("Clients"), color: "#33d17a" },
+  { id: 3, name: t("Contenu"), color: "#f2b13d" },
+  { id: 4, name: t("Admin"), color: "#8e8bff" },
+  { id: 5, name: t("Perso"), color: "#ff7ab2" },
 ];
 
-// Historique : 12 derniers jours plutôt disciplinés (streak en cours),
-// avec un trou à J-8 pour rendre le graphique réaliste.
+// Historique : trente jours de routines, plutôt tenues — avec une journée
+// creuse et quelques oublis, pour que les graphiques ressemblent à une vraie vie.
 const completions: Completion[] = [];
 let compId = 1;
 const today = todayStr();
-for (let i = 12; i >= 1; i--) {
+for (let i = 30; i >= 1; i--) {
   const date = addDays(today, -i);
   for (const t of tasks) {
     if (!isDueOn(t, date)) continue;
-    const done = i === 8 ? (t.id === 1 ? 1 : 0) : 1;
-    completions.push({ id: compId++, task_id: t.id, date, done });
+    const creuse = i === 9 && t.id !== 1; // la journée où presque rien n'a tenu
+    const oubli = (i % 11 === 6 && t.id === 3) || (i === 20 && t.id === 4);
+    completions.push({ id: compId++, task_id: t.id, date, done: creuse || oubli ? 0 : 1 });
   }
 }
-// Aujourd'hui : une partie déjà faite
+// Aujourd'hui : la journée a commencé
 completions.push({ id: compId++, task_id: 1, date: today, done: 1 });
-// One-off « devis » faite il y a 3 jours (progression auto du goal 4)
-completions.push({ id: compId++, task_id: 6, date: addDays(today, -3), done: 1 });
+// Les tâches uniques déjà faites : c'est d'elles que l'objectif 1 tire son avancement.
+for (const [taskId, quand] of [[5, -16], [6, -14], [7, -11], [8, -4], [11, -2]] as const)
+  completions.push({ id: compId++, task_id: taskId, date: addDays(today, quand), done: 1 });
 
 const metrics: CustomMetric[] = [
   { id: 1, name: t("Heures facturées"), unit: "h" },
   { id: 2, name: t("Appels clients"), unit: t("appels") },
-  { id: 3, name: t("Posts publiés"), unit: "posts" },
+  { id: 3, name: t("Nouveaux abonnés"), unit: t("abonnés") },
 ];
 
-// 14 derniers jours de valeurs, motif déterministe
+// Trente jours de valeurs, motif déterministe
 const metricEntries: MetricEntry[] = [];
 let entryId = 1;
-for (let i = 14; i >= 0; i--) {
+for (let i = 30; i >= 0; i--) {
   const date = addDays(today, -i);
   const wd = weekdayOf(date);
   metricEntries.push(
-    { id: entryId++, metric_id: 1, date, value: wd === 0 || wd === 6 ? 0 : 4 + (i % 3) },
+    { id: entryId++, metric_id: 1, date, value: wd === 0 || wd === 6 ? 0 : 3 + (i % 3) },
     { id: entryId++, metric_id: 2, date, value: wd >= 1 && wd <= 5 ? (i % 4) + 1 : 0 },
-    { id: entryId++, metric_id: 3, date, value: [1, 3, 5].includes(wd) ? 1 : 0 },
+    { id: entryId++, metric_id: 3, date, value: 2 + ((i * 7) % 6) },
   );
 }
 
@@ -227,10 +279,17 @@ for (let i = 14; i >= 0; i--) {
 const goalLog: GoalProgressPoint[] = [];
 let logId = 1;
 const targets: Record<number, [number, number]> = {
-  1: [30, 45],
-  2: [40, 62],
-  3: [50, 80],
-  4: [0, 50],
+  1: [0, 42],
+  2: [44, 62],
+  3: [15, 40],
+  4: [42, 58],
+  5: [20, 100],
+  6: [0, 33],
+  7: [0, 25],
+  8: [0, 0],
+  9: [0, 33],
+  10: [0, 0],
+  11: [33, 67],
 };
 for (let i = 30; i >= 0; i -= 3) {
   const date = addDays(today, -i);
@@ -249,66 +308,187 @@ let nextGoalId = goals.length + 1;
 let nextMetricId = metrics.length + 1;
 
 const quickLinks: QuickLink[] = [
-  { id: 1, label: "Figma", url: "https://figma.com", position: 0 },
-  { id: 2, label: "Malt", url: "https://malt.fr", position: 1 },
+  { id: 1, label: t("Boîte mail"), url: "https://mail.google.com", position: 0 },
+  { id: 2, label: t("Banque"), url: "https://www.qonto.com", position: 1 },
   { id: 3, label: "LinkedIn", url: "https://linkedin.com", position: 2 },
   { id: 4, label: "Google Agenda", url: "https://calendar.google.com", position: 3 },
 ];
 let nextLinkId = quickLinks.length + 1;
 
 const settings = new Map<string, string>();
+// Une journée de quatre heures de focus visées, et le temps d'écran déjà passé
+// à l'heure où l'on regarde (la jauge d'énergie d'Aujourd'hui le lit) : sans
+// lui, elle affichait « 100 %, 0 min écran » à côté de trois heures de focus.
+settings.set("focus_goal_min", "240");
+// La jauge réglée comme on le ferait dans Réglages : 100 au départ, 10 par heure.
+settings.set("energy_start", "100");
+settings.set("energy_cost_hour", "10");
+settings.set("energy_cost_trade", "8");
+{
+  const n = new Date();
+  const depuisNeufHeures = Math.max(0, Math.min(n.getHours() * 60 + n.getMinutes() - 9 * 60, 9 * 60));
+  settings.set(`screen_min_${todayStr()}`, String(Math.round(depuisNeufHeures * 0.7)));
+}
 
-// Sessions de focus des 7 derniers jours (motif régulier, prospection le matin)
+// Sessions de focus des trente derniers jours : le matin sur la boutique,
+// l'après-midi pour les clients. C'est d'elles que le calendrier APPREND les
+// heures réellement tenues, donc la capacité d'une journée.
 const focusSessions: FocusSession[] = [];
 let fsId = 1;
-for (let i = 7; i >= 1; i--) {
+const seance = (date: string, debut: string, min: number, taskId: number | null, label: string | null = null) => {
+  const [h, m] = debut.split(":").map(Number);
+  const fin = h * 60 + m + min;
+  const deux = (n: number) => String(n).padStart(2, "0");
+  focusSessions.push({
+    id: fsId++, task_id: taskId, label, kind: "focus",
+    started_at: `${date} ${debut}:00`, ended_at: `${date} ${deux(Math.floor(fin / 60))}:${deux(fin % 60)}:00`, planned_min: min,
+  });
+};
+for (let i = 30; i >= 1; i--) {
   const date = addDays(today, -i);
   const wd = weekdayOf(date);
-  focusSessions.push({
-    id: fsId++, task_id: 1, label: null, kind: "focus",
-    started_at: `${date} 09:00:00`, ended_at: `${date} 09:50:00`, planned_min: 50,
-  });
-  if (wd >= 1 && wd <= 5)
-    focusSessions.push({
-      id: fsId++, task_id: 4, label: null, kind: "focus",
-      started_at: `${date} 17:00:00`, ended_at: `${date} 17:30:00`, planned_min: 30,
-    });
-  if ([1, 3, 5].includes(wd))
-    focusSessions.push({
-      id: fsId++, task_id: 3, label: null, kind: "focus",
-      started_at: `${date} 20:00:00`, ended_at: `${date} 20:25:00`, planned_min: 25,
-    });
+  if (wd === 0) continue; // le dimanche, rien
+  if (wd === 6) {
+    if (i % 2 === 0) seance(date, "10:00", 50, 2);
+    continue;
+  }
+  if (i === 9) { seance(date, "09:30", 25, 2); continue; } // la journée creuse
+  seance(date, "09:30", 50, 2);
+  seance(date, "10:30", 50, 2);
+  seance(date, "14:00", i % 4 === 0 ? 50 : 90, null, t("Mission client"));
+  if (i % 3 !== 0) seance(date, "16:00", 50, null, t("Mission client"));
+  if ([1, 3, 5].includes(wd)) seance(date, "13:30", 25, 3);
 }
-focusSessions.push({
-  id: fsId++, task_id: 1, label: null, kind: "focus",
-  started_at: `${today} 09:00:00`, ended_at: `${today} 09:25:00`, planned_min: 25,
+// Aujourd'hui : seulement ce qui est déjà passé à l'heure où l'on regarde.
+{
+  const n = new Date();
+  const minutes = n.getHours() * 60 + n.getMinutes();
+  if (minutes >= 10 * 60 + 20) seance(today, "09:30", 50, 2);
+  if (minutes >= 11 * 60 + 20) seance(today, "10:30", 50, 2);
+  if (minutes >= 14 * 60) seance(today, "13:30", 25, 3);
+  if (minutes >= 14 * 60 + 55) seance(today, "14:05", 50, 9);
+}
+
+// ⭐ LA CARTE MENTALE de la note 1 — l'image forte du produit. Quatre branches,
+// les quatre phases de l'objectif 1 ; leurs feuilles, ses tâches.
+const brancheDemo = (id: string, texte: string, cote: -1 | 1, teinte: number, feuilles: string[]): Carte["noeuds"] => [
+  { id, parent: "r", texte, cote, teinte },
+  ...feuilles.map((f, i) => ({ id: `${id}${i + 1}`, parent: id, texte: f })),
+];
+const CARTE_BOUTIQUE: Carte = {
+  v: 1,
+  noeuds: [
+    { id: "r", parent: null, texte: t("Boutique en ligne") },
+    ...brancheDemo("a", t("Valider l'idée"), 1, 0, [t("Dix entretiens clients"), t("Trois boutiques comparées"), t("Gamme de départ : six produits")]),
+    ...brancheDemo("b", t("Préparer le catalogue"), -1, 1, [t("Photos des produits"), t("Fiches produit"), t("Frais de livraison")]),
+    ...brancheDemo("c", t("Construire le site"), 1, 2, [t("Outil de boutique"), t("Page d'accueil"), t("Paiement"), t("Commande test")]),
+    ...brancheDemo("d", t("Réussir le lancement"), -1, 3, [t("E-mail d'annonce"), t("Vingt proches prévenus"), t("Offre de lancement")]),
+  ],
+};
+
+const noteDemo = (id: number, title: string, body: string, cree: number, modifiee: string): Note => ({
+  id, title, body, is_example: 0, created_at: `${addDays(today, cree)} 10:00:00`, updated_at: modifiee,
 });
+const liste = (...lignes: string[]) => `<ul>${lignes.map((l) => `<li>${l}</li>`).join("")}</ul>`;
 
 const notes: Note[] = [
-  {
-    id: 1,
-    title: t("Méthode de devis"),
-    body: t("Structure d'un devis :\n- le contexte et le besoin du client\n- les livrables, en trois lignes au plus\n- le planning et les jalons\n- le prix, avec 30 % d'acompte\n\nVoir aussi [[Tarifs 2026]] pour les montants."),
-    is_example: 0,
-    created_at: `${addDays(today, -12)} 10:00:00`,
-    updated_at: `${addDays(today, -2)} 21:30:00`,
-  },
-  {
-    id: 2,
-    title: t("Tarifs 2026"),
-    body: t("Jour : 450 €. Demi-journée : 250 €. Audit UX : forfait de 1 200 €.\n\nRappel : on ne négocie pas le prix, on négocie le périmètre. [[Méthode de devis]]"),
-    is_example: 0,
-    created_at: `${addDays(today, -12)} 10:05:00`,
-    updated_at: `${addDays(today, -5)} 18:00:00`,
-  },
-  {
-    id: 3,
-    title: t("Idées de posts"),
-    body: t("- 3 erreurs sur un premier devis\n- Avant / après d'une refonte\n- Ce qu'un brief clair change au planning"),
-    is_example: 0,
-    created_at: `${addDays(today, -7)} 20:00:00`,
-    updated_at: `${addDays(today, -1)} 22:10:00`,
-  },
+  noteDemo(
+    1,
+    t("Idée : une boutique en ligne"),
+    `<p>${t("Vendre en direct, sans intermédiaire : six produits pour commencer, une page simple, une livraison soignée.")}</p>` +
+      blocCarte(CARTE_BOUTIQUE) +
+      `<h2>${t("Pourquoi maintenant")}</h2>` +
+      liste(
+        t("Dix clients me l'ont demandé ce trimestre."),
+        t("Les salons ne suffisent plus à remplir l'année."),
+        t("Un revenu qui ne dépend pas de mon agenda."),
+      ) +
+      `<p>${t("Prochaine étape : en faire un objectif, phase par phase.")}</p>`,
+    -13,
+    `${addDays(today, -1)} 18:40:00`,
+  ),
+  noteDemo(
+    2,
+    t("Fiches produit : la trame"),
+    `<h2>${t("Une fiche, cinq blocs")}</h2>` +
+      liste(
+        t("Le nom, et une phrase qui dit à quoi ça sert."),
+        t("Trois photos : l'objet seul, en situation, le détail."),
+        t("Les dimensions et les matières, sans adjectif."),
+        t("La livraison : délai et emballage."),
+        t("Une question fréquente, avec sa réponse."),
+      ) +
+      `<p>${t("Écrire la fiche comme on répondrait à un client au téléphone.")}</p>`,
+    -5,
+    `${today} 08:50:00`,
+  ),
+  noteDemo(
+    3,
+    t("Dix entretiens clients : ce que j'ai appris"),
+    `<p>${t("Sept sur dix achètent pour offrir. Personne ne m'a parlé du prix en premier.")}</p>` +
+      liste(
+        t("Ils veulent voir l'objet en situation."),
+        t("Le délai de livraison compte plus que les frais."),
+        t("Un emballage soigné fait partie du cadeau."),
+      ),
+    -16,
+    `${addDays(today, -15)} 19:10:00`,
+  ),
+  noteDemo(
+    4,
+    t("Idées de newsletter"),
+    liste(
+      t("Les coulisses : six produits, pourquoi ceux-là"),
+      t("Ce que dix entretiens m'ont appris"),
+      t("Avant / après : la première page de la boutique"),
+      t("Trois erreurs de mon premier devis"),
+    ),
+    -9,
+    `${addDays(today, -2)} 22:10:00`,
+  ),
+  noteDemo(
+    5,
+    t("Mes devis"),
+    `<p>${t("Structure d'un devis :")}</p>` +
+      liste(
+        t("le contexte et le besoin du client"),
+        t("les livrables, en trois lignes au plus"),
+        t("le planning et les jalons"),
+        t("un acompte à la commande"),
+      ) +
+      `<p>${t("Rappel : on ne négocie pas le prix, on négocie le périmètre.")}</p>`,
+    -24,
+    `${addDays(today, -3)} 21:30:00`,
+  ),
+  noteDemo(
+    6,
+    t("Emballages : questions pour l'imprimeur"),
+    liste(
+      t("Quantité minimale par commande ?"),
+      t("Délai entre le bon à tirer et la livraison ?"),
+      t("Carton recyclé : quelles finitions possibles ?"),
+    ),
+    -6,
+    `${addDays(today, -4)} 11:20:00`,
+  ),
+  noteDemo(
+    7,
+    t("Semi-marathon : le plan d'entraînement"),
+    liste(
+      t("Mardi : fractionné, 8 × 400 m"),
+      t("Jeudi : footing de 45 minutes"),
+      t("Dimanche : sortie longue, une borne de plus chaque semaine"),
+    ),
+    -28,
+    `${addDays(today, -6)} 07:30:00`,
+  ),
+  noteDemo(
+    8,
+    t("Lectures de l'été"),
+    liste(t("Deep Work, de Cal Newport"), t("Un livre sur la vente par abonnement"), t("Un roman, enfin")),
+    -20,
+    `${addDays(today, -8)} 21:00:00`,
+  ),
 ];
 let nextNoteId = notes.length + 1;
 
@@ -328,130 +508,122 @@ const SKETCH_DEMO =
 /**
  * Les SUJETS — ce qui était les thèmes ET les objets avant la migration 022.
  *
- * ⚠️ Les deux derniers portent un type et des champs : ils viennent de l'ancien
- * jeu d'essai des « objets ». Leur `uid` est conservé tel quel (`demo:object:4`
- * et `demo:object:5`) parce que l'arête d'exemple, plus bas, désigne l'un
- * d'eux — c'est le même invariant que la migration, en miniature.
+ * ⚠️ Ceux qui portent un type et des champs viennent de l'ancien jeu d'essai
+ * des « objets ». Leur `uid` est conservé tel quel (`demo:object:4`…) parce que
+ * les arêtes d'exemple, plus bas, les désignent — c'est le même invariant que
+ * la migration, en miniature.
  */
+const sujetDemo = (id: number, name: string, color: string, type_id: number | null, champs: Record<string, unknown>): Sujet => ({
+  id, uid: `demo:object:${id}`, name, color, position: id - 1, type_id, body: null, is_example: 0,
+  field_values: JSON.stringify(champs),
+  created_at: `${addDays(today, -30)} 09:0${id}:00`, updated_at: `${addDays(today, -30)} 09:0${id}:00`,
+});
 const sujets: Sujet[] = [
-  {
-    id: 1, uid: "demo:object:1", name: t("Clients"), color: "#4d8dff", position: 0,
-    type_id: null, body: null, field_values: "{}", is_example: 0,
-    created_at: `${addDays(today, -30)} 09:00:00`, updated_at: `${addDays(today, -30)} 09:00:00`,
-  },
-  {
-    id: 2, uid: "demo:object:2", name: "Mindset", color: "#14c8a0", position: 1,
-    type_id: null, body: null, field_values: "{}", is_example: 0,
-    created_at: `${addDays(today, -30)} 09:01:00`, updated_at: `${addDays(today, -30)} 09:01:00`,
-  },
-  {
-    id: 3, uid: "demo:object:3", name: "Ressources", color: "#8e8bff", position: 2,
-    type_id: null, body: null, field_values: "{}", is_example: 0,
-    created_at: `${addDays(today, -30)} 09:02:00`, updated_at: `${addDays(today, -30)} 09:02:00`,
-  },
-  {
-    id: 4, uid: "demo:object:4", name: "Studio Hélice", color: "#f0b341", position: 3,
-    type_id: 4, body: null, is_example: 0,
-    field_values: JSON.stringify({ f1: t("Architecture"), f2: t("Actif"), f3: t("Refonte du site vitrine"), f4: 450 }),
-    created_at: created, updated_at: created,
-  },
-  {
-    id: 5, uid: "demo:object:5", name: "Deep Work", color: "#41c9e2", position: 4,
-    type_id: 2, body: null, is_example: 0,
-    field_values: JSON.stringify({ f1: t("Livre"), f2: "Cal Newport", f4: addDays(todayStr(), -40) }),
-    created_at: created, updated_at: created,
-  },
+  sujetDemo(1, t("Clients"), "#4d8dff", null, {}),
+  sujetDemo(2, t("Méthode"), "#14c8a0", null, {}),
+  sujetDemo(3, t("Gestion"), "#8e8bff", null, {}),
+  sujetDemo(4, "Studio Hélice", "#f0b341", 4, { f1: t("Architecture"), f2: t("Actif"), f3: t("Refonte du site vitrine"), f4: 450 }),
+  sujetDemo(5, "Deep Work", "#41c9e2", 2, { f1: t("Livre"), f2: "Cal Newport", f4: addDays(todayStr(), -40) }),
+  sujetDemo(6, t("Boutique en ligne"), "#2e7ff2", 3, { f1: t("En cours"), f2: addDays(todayStr(), 45), f3: t("Rédiger les fiches produit") }),
+  sujetDemo(7, "Atelier Nord", "#ff7ab2", 4, { f1: t("Artisanat"), f2: t("Prospect"), f3: t("Identité de marque") }),
 ];
 let nextTopicId = sujets.length + 1;
 
 // Toutes les fiches sont des NOTES : le corps porte texte, liens, images et
 // croquis (c'est l'unité unique de création depuis l'unification de l'éditeur).
+const sansBalise = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const ficheDemo = (id: number, topic_id: number, title: string, body: string, tagsFiche: string, cree: number, extra: Partial<KnowledgeEntry> = {}): KnowledgeEntry => ({
+  id, topic_id, kind: "note", title, body, text: sansBalise(body),
+  url: null, media: null, thumb: null, data: null, tags: tagsFiche, pinned: 0, is_example: 0,
+  created_at: `${addDays(today, cree)} 11:00:00`, updated_at: `${addDays(today, cree)} 11:20:00`,
+  ...extra,
+});
 const knowledgeEntries: KnowledgeEntry[] = [
-  {
-    id: 1,
-    topic_id: 1,
-    kind: "note",
-    title: t("Anatomie d'un bon brief"),
-    body:
-      `<h2>${t("Les 3 questions")}</h2><ul><li>${t("Quel problème le client veut-il régler ?")}</li>` +
-      `<li>${t("Qui décide, et <b>avant quelle date</b> ?")}</li>` +
-      `<li>${t("À quoi verra-t-on que c'est réussi ?")}</li></ul>` +
+  ficheDemo(
+    1, 1, t("Anatomie d'un bon brief"),
+    `<h2>${t("Les 3 questions")}</h2>` +
+      liste(t("Quel problème le client veut-il régler ?"), t("Qui décide, et <b>avant quelle date</b> ?"), t("À quoi verra-t-on que c'est réussi ?")) +
       `<p>${t("S'il manque une réponse : on rappelle avant de chiffrer. Un devis sur un brief flou coûte plus cher qu'un appel de plus.")}</p>`,
-    text:
-      `${t("Les 3 questions")} ${t("Quel problème le client veut-il régler ?")} ${t("Qui décide, et avant quelle date ?")} ` +
-      `${t("À quoi verra-t-on que c'est réussi ?")} ${t("S'il manque une réponse : on rappelle avant de chiffrer. Un devis sur un brief flou coûte plus cher qu'un appel de plus.")}`,
-    url: null, media: null, thumb: null, data: null,
-    tags: "brief, méthode",
-    pinned: 1,
-    is_example: 0,
-    created_at: `${addDays(today, -20)} 11:00:00`,
-    updated_at: `${addDays(today, -3)} 19:20:00`,
-  },
-  {
-    id: 2,
-    topic_id: 1,
-    kind: "note",
-    title: t("Schéma : déroulé d'une mission"),
-    body:
-      `<figure><img src="${SKETCH_DEMO}" alt="${t("déroulé d'une mission")}"></figure>` +
+    "brief, méthode", -20, { pinned: 1 },
+  ),
+  ficheDemo(
+    2, 1, t("Schéma : déroulé d'une mission"),
+    `<figure><img src="${SKETCH_DEMO}" alt="${t("déroulé d'une mission")}"></figure>` +
       `<p>${t("Le croquis de référence à revoir avant chaque premier rendez-vous.")}</p>`,
-    text: t("Le croquis de référence à revoir avant chaque premier rendez-vous."),
-    url: null, media: null, thumb: SKETCH_DEMO, data: null,
-    tags: "méthode",
-    pinned: 0,
-    is_example: 0,
-    created_at: `${addDays(today, -14)} 08:30:00`,
-    updated_at: `${addDays(today, -14)} 08:45:00`,
-  },
-  {
-    id: 3,
-    topic_id: 2,
-    kind: "note",
-    title: t("Après un refus : le protocole"),
-    body:
-      `<p>${t("1. Relire le devis à froid, le lendemain.")}<br>${t("2. Demander au client ce qui a pesé, sans se justifier.")}<br>` +
+    "méthode", -14, { thumb: SKETCH_DEMO },
+  ),
+  ficheDemo(
+    3, 2, t("Après un refus : le protocole"),
+    `<p>${t("1. Relire le devis à froid, le lendemain.")}<br>${t("2. Demander au client ce qui a pesé, sans se justifier.")}<br>` +
       `${t("3. Noter la leçon dans le journal.")}</p><blockquote>${t("Un refus n'est pas un verdict sur ton travail, c'est une information sur le besoin.")}</blockquote>`,
-    text:
-      `${t("1. Relire le devis à froid, le lendemain.")} ${t("2. Demander au client ce qui a pesé, sans se justifier.")} ` +
-      `${t("3. Noter la leçon dans le journal.")} ${t("Un refus n'est pas un verdict sur ton travail, c'est une information sur le besoin.")}`,
-    url: null, media: null, thumb: null, data: null,
-    tags: "discipline, psychologie",
-    pinned: 0,
-    is_example: 0,
-    created_at: `${addDays(today, -9)} 21:00:00`,
-    updated_at: `${addDays(today, -9)} 21:15:00`,
-  },
-  {
-    id: 4,
-    topic_id: 3,
-    kind: "note",
-    title: t("Déclarer son chiffre d'affaires"),
-    body:
-      `<p>${t("Le portail officiel des déclarations de micro-entrepreneur :")} ` +
+    "discipline", -9,
+  ),
+  ficheDemo(
+    4, 3, t("Déclarer son chiffre d'affaires"),
+    `<p>${t("Le portail officiel des déclarations de micro-entrepreneur :")} ` +
       '<a href="https://www.autoentrepreneur.urssaf.fr">autoentrepreneur.urssaf.fr</a></p>' +
       `<p>${t("À ouvrir à chaque échéance, avant le dernier jour du mois.")}</p>`,
-    text:
-      `${t("Le portail officiel des déclarations de micro-entrepreneur :")} autoentrepreneur.urssaf.fr ` +
-      t("À ouvrir à chaque échéance, avant le dernier jour du mois."),
-    url: null, media: null, thumb: null, data: null,
-    tags: "outil, administratif",
-    pinned: 0,
-    is_example: 0,
-    created_at: `${addDays(today, -6)} 10:00:00`,
-    updated_at: `${addDays(today, -6)} 10:00:00`,
-  },
+    "outil, administratif", -6,
+  ),
+  ficheDemo(
+    5, 2, t("Préparer sa semaine en vingt minutes"),
+    liste(t("Relire les objectifs, pas la liste de tâches."), t("Trois priorités, pas plus."), t("Poser un créneau pour chacune avant de fermer.")),
+    "méthode, semaine", -12,
+  ),
+  ficheDemo(
+    6, 3, t("Ce qu'il faut garder pour le comptable"),
+    liste(t("Les factures d'achat, classées par mois."), t("Les relevés du compte professionnel."), t("Les justificatifs de déplacement.")),
+    "administratif", -18,
+  ),
+  ficheDemo(
+    7, 4, t("Compte rendu : cadrage de la refonte"),
+    `<p>${t("Décision prise en réunion : trois pages d'abord, le reste après la rentrée.")}</p>` +
+      liste(t("Qui valide : la directrice, seule."), t("Prochaine étape : le devis, cette semaine.")),
+    "réunion", -5,
+  ),
+  ficheDemo(
+    8, 5, t("Trois idées à garder"),
+    liste(t("Le travail profond se planifie, il ne se trouve pas."), t("Fermer la journée par un rituel."), t("L'ennui est un entraînement, pas un défaut.")),
+    "lecture", -22,
+  ),
+  ficheDemo(
+    9, 6, t("Avant la mise en ligne : la liste"),
+    liste(t("Une commande test, payée puis remboursée."), t("Les mentions légales et les conditions de vente."), t("L'e-mail de confirmation, relu sur téléphone.")),
+    "boutique, lancement", -3, { pinned: 1 },
+  ),
+  ficheDemo(
+    10, 6, t("Livraison : les options comparées"),
+    `<p>${t("Point relais pour les petits colis, livraison à domicile au-delà. Un seul transporteur pour commencer.")}</p>`,
+    "boutique, livraison", -2,
+  ),
+  ficheDemo(
+    11, 7, t("Premier échange : ce qu'ils cherchent"),
+    `<p>${t("Une identité qui tienne sur une étiquette comme sur une enseigne. Décision attendue à la rentrée.")}</p>`,
+    "prospect", -4,
+  ),
 ];
 let nextKnowledgeId = knowledgeEntries.length + 1;
 
+// Journal : trois semaines d'humeur et d'énergie, et quelques lignes les jours
+// où il s'est passé quelque chose.
 const journal: JournalEntry[] = [];
 let jId = 1;
-for (let i = 5; i >= 1; i--) {
+const LIGNES_JOURNAL: Record<number, string> = {
+  0: t("Matinée sur les fiches produit : deux sur six sont écrites. Écrire comme on parle au téléphone, ça marche."),
+  1: t("L'outil de boutique est choisi. Une décision de moins à porter."),
+  2: t("Journée hachée par les appels. À protéger demain : le créneau du matin."),
+  4: t("Séance photo terminée. Les six produits ont enfin la même lumière."),
+  7: t("Bonne semaine : la gamme de départ est fixée, je sais ce que je vends."),
+  9: t("Journée sans. Rien n'a tenu, et ce n'est pas grave : une seule."),
+  11: t("Six produits, pas douze. Choisir, c'est déjà avancer."),
+};
+for (let i = 21; i >= 0; i--) {
   journal.push({
     id: jId++,
     date: addDays(today, -i),
-    mood: 3 + ((i + 1) % 3),
-    energy: 2 + (i % 3),
-    body: i === 1 ? t("Bonne journée de production, les maquettes avancent.") : "",
+    mood: i === 9 ? 2 : 3 + ((i * 5 + 1) % 3),
+    energy: i === 9 ? 2 : 3 + ((i * 3) % 3),
+    body: LIGNES_JOURNAL[i] ?? "",
   });
 }
 
@@ -459,21 +631,24 @@ const habits: Habit[] = [
   { id: 1, name: t("Méditation"), color: "#33d17a", archived: 0, is_example: 0 },
   { id: 2, name: t("Sport"), color: "#2e7ff2", archived: 0, is_example: 0 },
   { id: 3, name: t("Lecture"), color: "#f2b13d", archived: 0, is_example: 0 },
+  { id: 4, name: t("Coucher tôt"), color: "#8e8bff", archived: 0, is_example: 0 },
 ];
 let nextHabitId = habits.length + 1;
 
+// Douze semaines : c'est la fenêtre que montre la grille du Journal.
 const habitChecks: HabitCheck[] = [];
 let hcId = 1;
-for (let i = 60; i >= 1; i--) {
+for (let i = 84; i >= 1; i--) {
   const date = addDays(today, -i);
   const wd = weekdayOf(date);
-  if (i % 7 !== 3) habitChecks.push({ id: hcId++, habit_id: 1, date });
-  if ([1, 3, 5].includes(wd)) habitChecks.push({ id: hcId++, habit_id: 2, date });
-  if (i % 2 === 0) habitChecks.push({ id: hcId++, habit_id: 3, date });
+  if (i % 7 !== 3 && i !== 9) habitChecks.push({ id: hcId++, habit_id: 1, date });
+  if ([2, 4, 0].includes(wd) && i !== 20) habitChecks.push({ id: hcId++, habit_id: 2, date });
+  if (i % 3 !== 0) habitChecks.push({ id: hcId++, habit_id: 3, date });
+  if (i % 5 !== 2 && wd !== 6) habitChecks.push({ id: hcId++, habit_id: 4, date });
 }
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
+habitChecks.push({ id: hcId++, habit_id: 3, date: today });
 
-// Journal de trades des 2 dernières semaines (motif déterministe, ~60% winrate)
 const trades: Trade[] = [];
 let trId = 1;
 const SETUPS = ["Silver Bullet", "Order Block", "FVG"];
@@ -1125,36 +1300,23 @@ function retirerLiens(kind: LinkKind, uid: string): void {
 }
 
 let calendarEventId = 100;
+const evenementDemo = (id: number, title: string, quand: number, debut: string | null, fin: string | null, color: string, extra: Partial<CalendarEvent> = {}): CalendarEvent => ({
+  id, title, body: null, date: addDays(todayStr(), quand), end_date: null, start_at: debut, end_at: fin,
+  all_day: debut ? 0 : 1, color, recurrence: "none", created_at: created, updated_at: created, ...extra,
+});
 const calendarEvents: CalendarEvent[] = [
-  {
-    id: 1, title: t("Point hebdo client"), body: null, date: todayStr(),
-    end_date: null, start_at: "09:30", end_at: "10:00", all_day: 0, color: "blue",
-    recurrence: "none", created_at: created, updated_at: created,
-  },
-  {
-    id: 2, title: t("Clôture mensuelle des comptes"), body: null,
-    date: addDays(todayStr(), 3), end_date: null, start_at: null, end_at: null, all_day: 1,
-    color: "violet", recurrence: "none", created_at: created, updated_at: created,
-  },
-  {
-    id: 3, title: t("Revue de la semaine"), body: null, date: addDays(todayStr(), 1),
-    end_date: null,
-    start_at: "18:00", end_at: "19:00", all_day: 0, color: "green",
-    recurrence: "weekdays", created_at: created, updated_at: created,
-  },
-  // Un séjour à cheval sur trois journées : sans lui, la bande continue de la
-  // vue semaine et de la vue mois ne serait vérifiable qu'en fabriquant la
+  evenementDemo(1, t("Déjeuner avec Inès"), 0, "12:30", "13:30", "violet"),
+  evenementDemo(2, t("Appel : imprimeur des emballages"), 0, "16:30", "17:00", "blue"),
+  evenementDemo(3, t("Point hebdo Studio Hélice"), -2, "14:30", "15:15", "green"),
+  evenementDemo(4, t("Rendez-vous à la banque"), -1, "15:00", "15:45", "yellow"),
+  evenementDemo(5, t("Rendez-vous comptable"), 1, "14:30", "15:30", "yellow"),
+  evenementDemo(6, t("Atelier Nord : premier échange"), 1, "16:00", "16:45", "green"),
+  // Un séjour à cheval sur plusieurs journées : sans lui, la bande continue de
+  // la vue semaine et de la vue mois ne serait vérifiable qu'en fabriquant la
   // donnée à la main à chaque audit.
-  {
-    // ⚠️ Il enjambe VOLONTAIREMENT la fin de la semaine courante : c'est le seul
-    // jeu de données qui prouve d'un coup d'œil les deux moitiés de la
-    // fonctionnalité — la barre CONTINUE sur les jours qu'elle couvre, et le
-    // chevron « ▶ » qui dit qu'elle est COUPÉE par le bord de la fenêtre.
-    id: 4, title: t("Séminaire design"), body: null, date: addDays(todayStr(), -1),
-    end_date: addDays(todayStr(), 2),
-    start_at: null, end_at: null, all_day: 1, color: "yellow",
-    recurrence: "none", created_at: created, updated_at: created,
-  },
+  evenementDemo(7, t("Week-end à Annecy"), 3, null, null, "indigo", { end_date: addDays(todayStr(), 4) }),
+  evenementDemo(8, t("Salon des créateurs"), 10, null, null, "blue", { end_date: addDays(todayStr(), 11) }),
+  evenementDemo(9, t("Déclaration du chiffre d'affaires"), 2, null, null, "violet"),
 ];
 
 // Les types livrés par la migration, à l'identique — un écran de galerie vide ne
@@ -1208,13 +1370,17 @@ const objectTypes: ObjectType[] = [
 // sont devenues des SUJETS, en tête de fichier.
 
 let linkId = 100;
+const lienDemo = (id: number, fk: LinkKind, fid: number, tk: LinkKind, tid: number): ObjectLink => ({
+  id, uid: `ol:${fk}:${uidDemo(fk, fid)}:${tk}:${uidDemo(tk, tid)}`,
+  from_kind: fk, from_uid: uidDemo(fk, fid), to_kind: tk, to_uid: uidDemo(tk, tid),
+  origin: "manual", created_at: created,
+});
 const links: ObjectLink[] = [
-  {
-    id: 1, uid: `ol:task:${uidDemo("task", 6)}:object:${uidDemo("object", 4)}`,
-    from_kind: "task", from_uid: uidDemo("task", 6),
-    to_kind: "object", to_uid: uidDemo("object", 4),
-    origin: "manual", created_at: created,
-  },
+  lienDemo(1, "task", 14, "object", 4),
+  // ⭐ Le fil de l'histoire : l'objectif et la tâche du jour citent la note d'où tout est parti.
+  lienDemo(2, "goal", 1, "note", 1),
+  lienDemo(3, "task", 9, "note", 2),
+  lienDemo(4, "goal", 1, "object", 6),
 ];
 
 // ── Profils de licence de démonstration ───────────────────────────────────
