@@ -1797,3 +1797,26 @@ Branche `chantier/barre-laterale`, fusionnée dans `mobile-ios`. Front seul : au
 
 **Outils laissés hors dépôt** : `Shale-chantiers/vite.essai-barre.mjs` (démo, port 5193), entrée `barre-demo` de `Shale-projet/.claude/launch.json`, captures dans `Shale-projet/audit-2026-10/barre-laterale-20261011/`.
 
+## 2026-10-11 — Le labo : des agents « utilisateurs » ont passé l'app au crible et éprouvé des idées de modules
+
+Demande d'Antonin : un système d'agents qui crée des modules, les fait essayer par des agents utilisateurs, les valide ou non, puis passe l'app actuelle au crible. Décisions et pourquoi : `CLAUDE.md`, même date. Pièges : `PIEGES.md` § 36.
+
+**Où.** Tout est HORS de ce dépôt, dans `Shale-projet/labo/` (mode d'emploi : `labo/LISEZ-MOI.md`), plus `Shale-projet/.claude/agents/labo-*.md` et `.claude/workflows/labo-*.js`. Rien n'est versionné, comme `audit-2026-10/`.
+- `labo/outils/construire.mjs` : build statique d'un commit en mode démo (plugin à la volée, aucune source modifiée ; compte habité ou compte neuf), servi sur 127.0.0.1.
+- `labo/outils/pilote.mjs` : un Chrome sans fenêtre par agent ; rend l'écran en texte et une capture. C'est aussi le moyen le plus court de VOIR l'app en démo depuis une session (bureau, 390 px tactile, anglais).
+- Cinq personas, huit rôles, `labo/CARTE-PRODUIT.md` (à tenir à jour quand un module change).
+
+**Version testée : `fee37d6`.** ⚠️ `a408624`, `a30007c` et les passations du 11/10 sont arrivés pendant la passe : le crible ne les a pas vus (barre latérale réductible, hauteur sous densité, jauge d'énergie).
+
+**Le crible de l'app** (`labo/passes/2026-10-11-app/SYNTHESE.md`) : cinq parcours, 87 frictions, les 41 non mineures toutes rejouées (36 confirmées, 2 réfutées, 3 artefacts du pilote) ; 40 constats, dont 28 établis par rejeu. Étalonnage : 4 témoins retrouvés sur les 5 qui étaient sur le chemin.
+- Reviennent chez plusieurs : « Tâches du jour » liste toutes les tâches ouvertes et la Discipline baisse quand on en note une sans date (A17-19) ; Performance vide le jour même ; l'avancement d'un objectif ignore les étapes vides ; Aujourd'hui tait les retards ; l'ajout rapide ne lit aucune date ; reporter d'un jour n'a pas de geste (cinq sur cinq).
+- Défauts de l'audit rejoués le 11/10 : **corrigés** — A17-09, A07a-01, A07a-02, A07b-05, A07b-14 ; **toujours présents** — A17-19, A06a-09, A17-15, A17-01, A06a-12, A07a-07, A07b-12, A12a-11, A06a-02, A12b-01 ; non tranchés — A07b-04, A17-03.
+
+**Les modules** (`labo/modules/2026-10-11/`) : douze candidats, trois fiches, quinze améliorations d'écrans existants. Gardien du produit : **aucun nouveau module** ; « Boîte d'entrée » et « Devis et relances » refusées. Seule « Semaine » (heures promises à un objectif face aux heures passées) a passé le panel (5 sur 5) ; construite sous deux formes et essayée trois fois chacune. Jury (`VERDICT.md`) : **les deux « À retravailler »** ; retenir le bloc sur la page d'un objectif, pas le module, et pas avant que Performance compte le jour même.
+
+**Ce qui reste, et qui décide.**
+- L'ordre proposé par le gardien (une seule définition de la tâche du jour et Performance au jour même ; dater et reporter sur place ; la ligne « En retard » ; la fiche Client trouvable ; puis le bloc « Rythme ») est une RECOMMANDATION : Antonin tranche.
+- Deux branches LOCALES, ni poussées ni fusionnées : `chantier/labo-semaine` (`db3d065`) et `chantier/labo-rythme` (`891c404`), worktrees `Shale-chantiers/labo-semaine` et `labo-rythme`. Prototypes jetables (magasin en mémoire, pas de migration) : seuls `src/lib/labo/*Calcul.ts` et leurs tests se reprennent. Worktree détaché `Shale-chantiers/labo-base` (`fee37d6`).
+- Deux défauts trouvés par les prototypeurs, non corrigés : l'accueil montre une case d'heures cochée par défaut mais ne l'enregistre que si on la clique ; le sélecteur « tâche liée » du Timer ne propose que les tâches du jour.
+
+**Non vérifié.** Tout : utilisateurs simulés, mode démo, Chrome et non WebKit, téléphone simulé. « Rejoué » veut dire revu dans ce même Chrome. Rien n'a été installé, aucun build natif, aucune migration, rien sur le site.

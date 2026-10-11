@@ -7515,3 +7515,17 @@ Demande d'Antonin, avec une photo (« Liens rapides » : « + lien » coupé, ba
 - **Défilement** : pas de bibliothèque de défilement lissé (WKWebView défile nativement). Ce qui a été fait : `overscroll-behavior` (la fenêtre entière ne rebondit plus), plus de `backdrop-filter` invisible (0 calque de flou au repos, contre une vingtaine), `defilerVers()` qui respecte `prefers-reduced-motion`. ⚠️ Le gain n'est PAS mesuré dans l'app native.
 - **Non fait, signalé** : les deux systèmes d'ordre et de masquage des widgets (`order.today` / `hidden.today` contre Personnaliser) s'ignorent toujours ; les poignées passent sur la tuile « cycles du jour » de la vue Timer ; la poignée de déplacement de la fenêtre reste l'en-tête de la barre (64 px en réduit) ; les trous de grille entre 720 et 903 px.
 
+## 2026-10-11 — Le labo : des agents « utilisateurs », et ce qu'ils ont le droit de conclure
+
+Demande d'Antonin : « Crée tout un système d'agents qui vont créer, tester par des agents utilisateur et valider ou non les nouveaux modules. Ensuite fais un check de l'app actuelle avec ces mêmes agents. » État et résultats : `PASSATION.md`, même date. Outil : `Shale-projet/labo/LISEZ-MOI.md`.
+
+- **Le labo vit hors du dépôt de l'app, exprès.** Un agent utilisateur ne lit ni le code ni ce fichier : il ne connaît l'app que par l'écran. Rangé dans `Shale/`, tout fichier lu lui aurait injecté ce document entier.
+- **Un build statique, pas `vite dev`.** Le mode démo garde ses données en mémoire ; avec trois sessions qui éditent le dépôt, un rechargement à chaud efface le parcours d'un agent au milieu. Un build = un commit, pris dans un worktree détaché.
+- **Le mode démo est posé à la volée, avec trois filets** : le build échoue si un remplacement ne mord pas ; il vérifie que l'adresse Supabase a disparu du résultat ; le pilote bloque toute requête hors `127.0.0.1`. Un remplacement qui ne mord plus échoue en silence et brancherait la démo sur la vraie base.
+- **Chaque passe commence par un étalonnage** : des défauts connus de l'audit, rejoués, posés en témoins que les utilisateurs ignorent. Sans lui, « ils n'ont rien trouvé » ne se distingue pas de « il n'y a rien ».
+- **Toute critique non mineure est rejouée par un autre agent avant d'être crue.** Le 11/10, 3 sur 41 étaient des artefacts du pilote et 2 étaient fausses.
+- **Ce qu'un utilisateur simulé FAIT compte ; ce qu'il DIT VOULOIR est une hypothèse.** Le labo ne valide pas un marché. Ses « je m'en servirais chaque semaine » ne s'écrivent jamais comme un fait.
+- **Un prototype n'est jamais fusionné.** Magasin en mémoire à part, pas de migration, pas de `demo.ts` ; il sert à voir si les gens trouvent et comprennent.
+- **Une idée de module passe devant un gardien qui peut répondre « aucun »** — quatre modules ont été retirés en deux mois. Le 11/10 il l'a répondu.
+
+⚠️ **Trois définitions de « cette semaine » cohabitent** (constaté par les deux prototypeurs) : la tuile du Timer compte 7 jours glissants, Performance 7 jours FINIS, et un calcul du lundi au dimanche ne coïncide avec la première que le dimanche. Tout chiffre hebdomadaire nouveau doit d'abord dire laquelle il suit. Non tranché.

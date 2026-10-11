@@ -4447,3 +4447,35 @@ Un titre `position: sticky` posé sur une barre en verre (72 %) fait une bande p
 
 **Parade.** `tail -5 COORDINATION.md` dans la MÊME commande que la fusion, et s'arrêter si le verrou est pris. Rebaser dans SON worktree (`git rebase mobile-ios`), jamais fusionner dans le principal pour « voir si ça passe ». Trois sessions le même jour ajoutent toutes en fin de `PIEGES.md`, `PASSATION.md`, `CLAUDE.md` : le conflit y est certain, et se résout en gardant les deux.
 
+# 36. Le labo : piloter l'app par des agents (2026-10-11)
+
+Outil : `Shale-projet/labo/outils/pilote.mjs`. Ces pièges valent pour tout script qui lit ou pilote l'app dans Chrome.
+
+## 36.1 `checkVisibility()` répond faux sur un `display: contents` — et tout ce qui est dessous disparaît
+
+- **Symptôme.** La lecture d'écran rendait « 0 élément » sur une app parfaitement affichée (la capture le prouvait).
+- **Cause.** Un élément en `display: contents` n'a pas de boîte : `checkVisibility()` y répond faux, alors que ses enfants sont à l'écran. Couper la descente dessus coupe toute l'app.
+- **Parade.** Ne jamais élaguer un sous-arbre sur `checkVisibility()` sans laisser passer `display: contents`.
+- **Comment on l'a payée.** Deux relances du pilote avant de comparer le texte à la capture.
+
+## 36.2 ⌘A ne sélectionne rien dans un champ sous Chrome piloté
+
+- **Symptôme.** « Vider le champ » (⌘A puis Retour arrière) n'effaçait qu'un caractère. Trois agents sur cinq ont écrit que l'app ne laissait pas vider un champ.
+- **Cause.** Sous macOS, une touche envoyée par CDP ne déclenche pas la commande d'édition « tout sélectionner ».
+- **Parade.** Sélectionner par le DOM (`input.select()`, ou une plage sur un `contenteditable`), puis Retour arrière ; et relire la valeur pour dire ce qui reste.
+- **Comment on l'a payée.** Un faux défaut dans trois rapports, écarté par le vérificateur.
+
+## 36.3 Un clic « réussi » n'est pas un clic qui a fait quelque chose
+
+- **Symptôme.** L'outil répondait « ok » à un clic sans aucun effet ; l'agent enchaînait sur un écran qu'il croyait changé.
+- **Parade.** Comparer une empreinte de l'écran (texte, focus, coches, défilement) avant et après chaque geste, et le dire quand rien n'a bougé. C'est aussi la mesure d'une impasse.
+
+## 36.4 Un `aria-label` n'est pas un libellé que l'utilisateur lit
+
+- **Symptôme.** Un agent « lit » le nom d'un bouton-icône et s'en sert, là où une personne ne voit qu'un dessin.
+- **Parade.** Séparer dans tout relevé d'écran ce qui se VOIT (texte, texte d'invite, libellé voisin d'une case) de ce qui ne se voit pas (`aria-label`, `data-tip`, `title`), et chercher un élément par son texte visible d'abord.
+
+## 36.5 Un bouton sous le bas d'une fenêtre qui défile n'est ni « à l'écran » ni « plus bas dans la page »
+
+- **Symptôme.** « Créer » d'une fenêtre trop haute n'apparaissait dans aucune liste : son rectangle est dans la fenêtre du navigateur, mais rogné par le cadre qui défile (c'est le défaut A17-15, vu par l'outil avant de l'être par un agent).
+- **Parade.** Tester le centre de l'élément contre le rectangle de chaque ancêtre qui rogne, et le compter à part (« cachés dans un cadre qui défile »).
