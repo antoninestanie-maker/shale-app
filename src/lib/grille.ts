@@ -40,3 +40,78 @@ export function masquesConnus(masques: readonly string[], presents: readonly str
   const connus = new Set(presents);
   return masques.filter((id) => connus.has(id));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Les deux colonnes d'Aujourd'hui — tant que personne n'a rien déplacé.
+//
+// ⭐ 2026-10-11. La grille place chaque panneau « au premier endroit où il
+// tient » (`grid-auto-flow: row dense`). Avec des cartes étroites (4 colonnes)
+// et larges (8), ce placement ne fait PAS deux colonnes : dès que « Tâches du
+// jour » est plus courte que « Discipline » — trois tâches, ou un compte neuf —
+// le Timer et les Habitudes se glissent sous les tâches, le Calendrier (large)
+// descend d'autant, et il reste un trou sous l'anneau de Discipline. Vu à
+// l'écran en retirant la jauge d'énergie, qui occupait justement cette place ;
+// le trou existait AVANT elle (capture `avant-neuf/001.jpg`), elle le masquait
+// seulement quand la liste des tâches était assez longue.
+//
+// La parade : un panneau peut être ANCRÉ à un bord de la grille. Les cartes de
+// la « colonne gauche » de Personnaliser partent de la première colonne, celles
+// de la « colonne droite » finissent à la dernière. Chaque colonne devient une
+// pile continue : plus de trou entre deux cartes, et l'écran tient enfin ce que
+// Personnaliser annonce.
+//
+// ⚠️ L'ancre ne vaut que pour la disposition INTACTE. Dès que l'utilisateur
+// déplace un panneau à la main ou change une largeur, la grille entière
+// redevient libre, exactement comme avant : on ne lui reprend pas ce qu'il a
+// rangé, et faire passer une carte d'une colonne à l'autre reste possible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Le bord auquel un panneau s'accroche : le début (gauche) ou la fin (droite) de la grille. */
+export type Ancre = "debut" | "fin";
+
+/**
+ * La disposition est-elle encore celle du code ? Faux dès que l'ordre affiché
+ * n'est plus celui des panneaux présents, ou qu'un panneau présent a une
+ * largeur enregistrée différente de sa largeur par défaut.
+ *
+ * ⚠️ Une HAUTEUR épinglée ne compte pas : elle ne déplace personne d'une
+ * colonne à l'autre. Et une largeur enregistrée pour un panneau disparu (la
+ * jauge `energy`) non plus — elle est ignorée, comme partout ici.
+ */
+export function dispositionIntacte(
+  ordre: readonly string[],
+  presents: readonly { id: string; largeurParDefaut: number }[],
+  largeurs: Readonly<Record<string, { w: number } | undefined>>,
+): boolean {
+  if (ordre.length !== presents.length) return false;
+  return presents.every(
+    (p, i) => ordre[i] === p.id && (largeurs[p.id] === undefined || largeurs[p.id]!.w === p.largeurParDefaut),
+  );
+}
+
+/**
+ * Ce panneau-ci garde-t-il son ancre ?
+ *
+ * - `largeur` : celle qu'il a À L'ÉCRAN (un aperçu de redimensionnement, ou le
+ *   plancher d'une fenêtre étroite, peut l'avoir changée) ;
+ * - `plancher` : la plus petite largeur qu'un panneau peut prendre à cette
+ *   largeur de fenêtre. S'il ne reste pas la place d'un voisin à côté de lui,
+ *   l'ancre ne ferait qu'ouvrir un vide : on la lâche (téléphone, fenêtre
+ *   étroite).
+ */
+export function ancreTient(o: {
+  intacte: boolean;
+  largeur: number;
+  largeurParDefaut: number;
+  plancher: number;
+  colonnes: number;
+}): boolean {
+  return o.intacte && o.largeur === o.largeurParDefaut && o.plancher <= o.colonnes - o.largeur;
+}
+
+/** La valeur CSS de `grid-column` : libre, accrochée au début, ou à la fin. */
+export function colonneCss(largeur: number, ancre: Ancre | null): string {
+  if (ancre === "debut") return `1 / span ${largeur}`;
+  if (ancre === "fin") return `span ${largeur} / -1`;
+  return `span ${largeur}`;
+}

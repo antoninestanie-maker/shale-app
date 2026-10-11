@@ -25,6 +25,7 @@ import { WIDGET_LABELS, type UiConfig, type WidgetConfig } from "../lib/uiConfig
 import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
 import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
+import type { Ancre } from "../lib/grille";
 
 import { localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
@@ -248,6 +249,17 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     ...visible(config.dashTop),
     ...interleave(visible(config.dashLeft), visible(config.dashRight)),
   ];
+  // Deux VRAIES colonnes tant que la disposition est intacte : la « colonne
+  // gauche » de Personnaliser s'accroche au bord gauche de la grille, la droite
+  // au bord droit. Sans cela, une carte étroite se glisse sous « Tâches du
+  // jour » dès qu'elle est plus courte que « Discipline », et il reste un trou
+  // sous l'anneau (`lib/grille.ts`, 2026-10-11).
+  const ancreDe = (id: string): Ancre | undefined =>
+    config.dashLeft.some((w) => w.id === id)
+      ? "debut"
+      : config.dashRight.some((w) => w.id === id)
+        ? "fin"
+        : undefined;
 
   return (
     <div className="mx-auto max-w-5xl p-8">
@@ -280,6 +292,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
               defaultW={WIDGET_DEFAULT_W[w.id] ?? 6}
               minW={WIDGET_MIN_W[w.id] ?? 2}
               minH={WIDGET_MIN_H[w.id]}
+              ancre={ancreDe(w.id)}
               onOpen={
                 navigate && WIDGET_TARGET[w.id]
                   ? () => navigate(WIDGET_TARGET[w.id])

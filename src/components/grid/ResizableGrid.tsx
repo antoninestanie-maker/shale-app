@@ -57,7 +57,14 @@ import {
 } from "react";
 import { getSetting, setSetting } from "../../lib/repo";
 import { zoomFactor } from "../../lib/uiConfig";
-import { masquesConnus, ordreEffectif } from "../../lib/grille";
+import {
+  ancreTient,
+  colonneCss,
+  dispositionIntacte,
+  masquesConnus,
+  ordreEffectif,
+  type Ancre,
+} from "../../lib/grille";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { IconPoints } from "../menu/icones";
@@ -142,6 +149,8 @@ interface GridCtx {
   gridRef: React.RefObject<HTMLDivElement | null>;
   overrides: Record<string, PanelSize>;
   draggingId: string | null;
+  /** Personne n'a déplacé ni élargi de panneau : les ancres tiennent (`lib/grille.ts`). */
+  intacte: boolean;
   captureFlip: (excludeId?: string | null) => void;
   saveOverride: (id: string, size: PanelSize) => void;
   clearOverride: (id: string) => void;
@@ -177,6 +186,7 @@ interface PropsConnues {
   id: string;
   title?: string;
   onOpen?: () => void;
+  defaultW?: number;
 }
 
 interface DragState {
@@ -248,6 +258,13 @@ export function ResizableGrid({
   );
   const effectiveOrderRef = useRef(effectiveOrder);
   effectiveOrderRef.current = effectiveOrder;
+  // Les ancres (deux vraies colonnes) ne valent que pour la disposition du
+  // code : un panneau déplacé ou élargi à la main rend la grille libre.
+  const intacte = dispositionIntacte(
+    effectiveOrder,
+    items.map((c) => ({ id: c.props.id, largeurParDefaut: c.props.defaultW ?? 12 })),
+    overrides,
+  );
 
   // — Positions finales de layout (coords locales grille, sans transform) : hit-test du drag —
   const slotRects = useRef<Map<string, Rect>>(new Map());
@@ -692,6 +709,7 @@ export function ResizableGrid({
       gridRef,
       overrides,
       draggingId,
+      intacte,
       captureFlip,
       saveOverride,
       clearOverride,
@@ -707,6 +725,7 @@ export function ResizableGrid({
       viewportH,
       overrides,
       draggingId,
+      intacte,
       captureFlip,
       saveOverride,
       clearOverride,
@@ -830,6 +849,7 @@ export function ResizablePanel({
   maxW,
   minH,
   maxH,
+  ancre,
   onOpen,
   children,
 }: {
@@ -847,6 +867,10 @@ export function ResizablePanel({
   minH?: number;
   /** Hauteur maximale (px) : au-delà, la région `.panel-scroll` défile. */
   maxH?: number;
+  /** Bord de la grille auquel le panneau s'accroche tant que la disposition
+      est intacte : « debut » = colonne de gauche, « fin » = colonne de droite.
+      Sans ancre, il se place au premier endroit libre (`lib/grille.ts`). */
+  ancre?: Ancre;
   /** Ouvre la vue complète associée au widget (poignée ↗ discrète au survol). */
   onOpen?: () => void;
   children: ReactNode;
@@ -861,6 +885,7 @@ export function ResizablePanel({
     gridRef,
     overrides,
     draggingId,
+    intacte,
     captureFlip,
     saveOverride,
     clearOverride,
@@ -1120,6 +1145,9 @@ export function ResizablePanel({
   const effW = clamp(preview?.w ?? w, effMinW, effMaxW);
   const effPinned = preview ? preview.h : pinnedH;
   const isPinned = effPinned !== undefined;
+  const ancreActive =
+    !!ancre &&
+    ancreTient({ intacte, largeur: effW, largeurParDefaut: defaultW, plancher: minCols, colonnes: columns });
 
   // — BORNES DE HAUTEUR AU RENDU (mêmes règles que pendant le drag) —
   // Hauteur naturelle du contenu, arrondie à la grille de base 8px : rythme
@@ -1174,7 +1202,7 @@ export function ResizablePanel({
         ouvrirMenuPanneau(e, id);
       }}
       style={{
-        gridColumn: `span ${effW}`,
+        gridColumn: colonneCss(effW, ancreActive ? (ancre ?? null) : null),
         gridRow: `span ${footprint}`,
         // Place réservée à la barre de poignées au survol (cf. `.rgrid-head`) :
         // 3 poignées (avec ⟲ réinitialiser) si le panneau a été redimensionné,
