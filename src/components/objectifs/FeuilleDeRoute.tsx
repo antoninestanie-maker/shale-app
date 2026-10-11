@@ -504,7 +504,7 @@ function LigneEtape(p: PropsLigne) {
               même place (devant le nom). Elle disparaît dès que l'étape a de
               quoi se mesurer. */}
           {cocher && (
-            <span className="ml-1 flex shrink-0 items-center">
+            <span className="mx-1 flex shrink-0 items-center">
               <CaseACocher
                 taille="sm"
                 cochee={cochee}
@@ -631,7 +631,7 @@ function BarreMesure({ pct, acheve, pourquoi }: { pct: number | null; acheve: bo
   return (
     <div
       className="flex w-28 shrink-0 items-center gap-2"
-      data-tip={pct == null && pourquoi ? t("Pas encore mesurée") : undefined}
+      data-tip={pct == null && pourquoi ? t("Ne se mesure pas") : undefined}
       data-tip-sub={pct == null && pourquoi ? pourquoi : undefined}
       data-tip-attente="longue"
     >

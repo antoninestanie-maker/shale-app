@@ -3044,7 +3044,7 @@ export const EN: Record<string, string> = {
   "{priorite} — passer à « {suivante} »": "{priorite} — switch to “{suivante}”",
   "Cliquer pour changer": "Click to change",
   "Modifier l'étape": "Edit step",
-  "Pas encore mesurée": "Not measured yet",
+  "Ne se mesure pas": "Can’t be measured",
   "L’étape avance à chaque tâche cochée parmi celles qui lui sont rattachées.":
     "The step moves forward with each task you check off among those attached to it.",
   "L’étape avance vers un nombre que tu fixes : 50 séances, 10 pages… compté à la main, par une tâche récurrente ou par une habitude.":
