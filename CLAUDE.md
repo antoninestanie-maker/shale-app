@@ -7515,6 +7515,16 @@ Demande d'Antonin, avec une photo (« Liens rapides » : « + lien » coupé, ba
 - **Défilement** : pas de bibliothèque de défilement lissé (WKWebView défile nativement). Ce qui a été fait : `overscroll-behavior` (la fenêtre entière ne rebondit plus), plus de `backdrop-filter` invisible (0 calque de flou au repos, contre une vingtaine), `defilerVers()` qui respecte `prefers-reduced-motion`. ⚠️ Le gain n'est PAS mesuré dans l'app native.
 - **Non fait, signalé** : les deux systèmes d'ordre et de masquage des widgets (`order.today` / `hidden.today` contre Personnaliser) s'ignorent toujours ; les poignées passent sur la tuile « cycles du jour » de la vue Timer ; la poignée de déplacement de la fenêtre reste l'en-tête de la barre (64 px en réduit) ; les trous de grille entre 720 et 903 px.
 
+### 2026-10-11 (soir) — le bord de la barre se tire
+
+Antonin, après avoir essayé : « j'aimerais pouvoir faire glisser la barre latérale, pas seulement avoir deux positions ».
+
+- **La largeur étendue est libre, de 184 à 400 px** (et jamais plus de 45 % de la fenêtre), en tirant le bord droit. `PrefBarre.largeur` (`lib/barre.ts`), une seule largeur pour les deux régimes : c'est un goût, pas une réponse à la taille de la fenêtre.
+- **Tiré sous 124 px, le bord réduit la barre en icônes ; tiré depuis le rail, il l'étend.** Entre 64 et 184 il n'y a pas de largeur utile (libellés coupés à trois lettres) : le bord saute d'un état à l'autre, comme dans un éditeur de code. Réduire garde la largeur choisie ; « Étendre » la rend.
+- **Ici la largeur change à chaque image, exprès.** Ce n'est pas la `transition: width` que la barre s'interdit : c'est une manipulation directe, la main doit voir le bord sous le curseur. Une écriture par image (`requestAnimationFrame`), rien si le pixel n'a pas changé ; le choix n'est écrit en `localStorage` qu'au lâcher. Mesuré sur Aujourd'hui dans Chrome : image médiane 16,7 ms, aucune tâche longue.
+- **Poignée** : une bande de 9 px à cheval sur le filet (20 px au doigt), invisible au repos, un trait bleu au survol (après 150 ms, pour ne pas clignoter quand on traverse), au focus et pendant le glissement. `separator` focalisable : ← → par pas de 16 px, Entrée ou double-clic pour revenir à 232. Un simple clic ne fait rien (3 px de jeu).
+- `--barre-l` n'est plus qu'un DÉFAUT dans `index.css` : `Sidebar.tsx` la pose en ligne sur la barre et sur le volet, pour que le volet et les images clés suivent la largeur choisie.
+
 ## 2026-10-11 — Le labo : des agents « utilisateurs », et ce qu'ils ont le droit de conclure
 
 Demande d'Antonin : « Crée tout un système d'agents qui vont créer, tester par des agents utilisateur et valider ou non les nouveaux modules. Ensuite fais un check de l'app actuelle avec ces mêmes agents. » État et résultats : `PASSATION.md`, même date. Outil : `Shale-projet/labo/LISEZ-MOI.md`.

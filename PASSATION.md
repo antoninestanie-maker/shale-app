@@ -1820,3 +1820,14 @@ Demande d'Antonin : un système d'agents qui crée des modules, les fait essayer
 - Deux défauts trouvés par les prototypeurs, non corrigés : l'accueil montre une case d'heures cochée par défaut mais ne l'enregistre que si on la clique ; le sélecteur « tâche liée » du Timer ne propose que les tâches du jour.
 
 **Non vérifié.** Tout : utilisateurs simulés, mode démo, Chrome et non WebKit, téléphone simulé. « Rejoué » veut dire revu dans ce même Chrome. Rien n'a été installé, aucun build natif, aucune migration, rien sur le site.
+
+
+## 2026-10-11 (soir) — le bord de la barre latérale se tire
+
+Suite du chantier du jour, même branche. Front seul : `Sidebar.tsx`, `lib/barre.ts`, bloc « Barre latérale » d'`index.css`, trois clés dans `en.ts`. Décisions : `CLAUDE.md`, même date.
+
+**Vu à l'écran** (Chrome sans fenêtre, démo, 1470×923 à 110 %, vraie souris) : le bord reste sous le curseur (écart ≤ 0,5 px) de 184 à 400 px ; au-delà il s'arrête à 400 ; sous 124 la barre passe en icônes, et se rouvre en repassant le seuil ; au lâcher le choix est écrit (`shale.barre`), retrouvé après rechargement ; « Réduire » puis « Étendre » rendent la largeur choisie ; ← → Entrée et le double-clic répondent ; un simple clic sur le bord ne change rien. Images pendant le glissement sur Aujourd'hui : médiane 16,7 ms, p95 20,4 ms, 0 tâche longue.
+**Rejoué dans WebKit** (`webkit-pilote`, événements de pointeur émis en JS) : même largeur au pixel (345 attendu, 345 lu), trait visible, pas de débordement.
+
+⚠️ **Pas vu** : l'app installée, la vraie souris dans WKWebView (l'outil ne produit pas de vrais clics, PIEGES § 22.8), le doigt sur iPad.
+

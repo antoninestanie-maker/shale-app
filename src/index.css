@@ -608,6 +608,48 @@
   .barre[data-reduite][data-mouvement="fermer"] + .barre-voile {
     animation: barre-fermer var(--dur-slow) var(--ease-spring);
   }
+  /* Le bord qui se tire : une bande à cheval sur le filet droit, invisible au
+     repos. Le trait n'apparaît qu'après un court délai — traverser le bord
+     pour aller vers le contenu ne doit rien faire clignoter. */
+  .barre-poignee {
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    right: -5px;
+    width: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+  }
+  .barre-poignee::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: var(--color-blue);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out-quint);
+  }
+  .barre-poignee:hover::after {
+    opacity: 1;
+    transition-delay: 150ms;
+  }
+  .barre-poignee:focus-visible::after,
+  .barre[data-glisse] .barre-poignee::after {
+    opacity: 1;
+  }
+  @media (pointer: coarse) {
+    .barre-poignee {
+      right: -10px;
+      width: 20px;
+    }
+    .barre-poignee::after {
+      left: 8px;
+    }
+  }
 
   /* Bouton primaire : le SEUL endroit où le dégradé d'action est écrit.
      Au survol il s'ASSOMBRIT, jamais il ne s'éclaircit : éclaircir ferait

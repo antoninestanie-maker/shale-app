@@ -3574,4 +3574,7 @@ export const EN: Record<string, string> = {
   "Ne garde que les icônes.": "Keeps only the icons.",
   "Affiche le nom des modules.": "Shows the module names.",
   "Réduire ou étendre la barre latérale": "Collapse or expand the sidebar",
+  "Largeur de la barre latérale": "Sidebar width",
+  "Régler la largeur": "Adjust width",
+  "Glisser le bord · double-clic : largeur d’origine.": "Drag the edge · double-click: default width.",
 };
