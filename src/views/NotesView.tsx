@@ -86,8 +86,14 @@ export default function NotesView({ data, refresh }: Props) {
   const tourTri = useRef(0);
   const chargerTri = useCallback(async () => {
     const n = ++tourTri.current;
-    const [liens, brut] = await Promise.all([fetchLiensDesNotes(), getSetting(CLE_NOTES_RANGEES)]);
-    if (n === tourTri.current) setTri({ liens, rangees: lireRangees(brut) });
+    try {
+      const [liens, brut] = await Promise.all([fetchLiensDesNotes(), getSetting(CLE_NOTES_RANGEES)]);
+      if (n === tourTri.current) setTri({ liens, rangees: lireRangees(brut) });
+    } catch (err) {
+      // Une lecture ratée laisse l'onglet tel qu'il était : mieux vaut un compte
+      // d'il y a une minute — ou pas de compte — qu'une vue Notes qui tombe.
+      console.error("notes à trier :", err);
+    }
   }, []);
   // ⚠️ `data.notes` en dépendance, et c'est lui qui tient l'onglet à jour : il
   // change à chaque `refresh()` — après un enregistrement (dont les mentions
