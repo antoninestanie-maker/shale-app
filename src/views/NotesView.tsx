@@ -462,7 +462,7 @@ export default function NotesView({ data, refresh }: Props) {
             onClick={handleNew}
             data-tip={t("Nouvelle note")}
             data-tip-kbd={kbd("⌘⇧N")}
-            className="pill shrink-0 fill-primary px-3 py-2 text-sm font-bold"
+            className="pill cible-tactile shrink-0 fill-primary px-3 py-2 text-sm font-bold"
           >
             +
           </button>
@@ -564,7 +564,9 @@ export default function NotesView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => setSelectedId(null)}
-              className="-ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+              // ⚠️ `cible-tactile` : ce bouton n'existe QUE sur téléphone, et il
+              // y faisait 28 px de haut — 63 de large une fois libellé « À trier ».
+              className="cible-tactile -ml-1 mb-2 inline-flex items-center self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
             >
               ← {onglet === "a-trier" ? t("À trier") : t("Toutes les notes")}
             </button>
