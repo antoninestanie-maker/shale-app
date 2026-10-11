@@ -1549,6 +1549,34 @@ export async function daterObjectif(goalId: number, echeance: string | null): Pr
 }
 
 /**
+ * ⭐ Coche (ou décoche) une étape VIDE — ou un objectif vide (2026-10-11).
+ *
+ * Demande d'Antonin : « Pour les étapes vides, donne la possibilité de cocher
+ * une étape pour que ce soit compté. » La coche n'a pas de colonne à elle :
+ * c'est `progress_pct = 100` sur une ligne MESURÉE, que `mesurer`
+ * (`lib/objectifs/progression.ts`) ne lit que tant que l'étape n'a ni
+ * sous-étape, ni élément comptable, ni cible. Aucune migration.
+ *
+ * ⚠️ `manual_progress = 0` DANS LE `WHERE` : pour une ligne suivie à la main,
+ * `progress_pct` EST le chiffre affiché, et il est souverain. Un écran en
+ * retard d'un rafraîchissement ne doit pas pouvoir l'écraser en cochant.
+ * ⚠️ Une seule colonne (règle 16), et `IS NOT $1` : recocher ce qui l'est
+ * déjà n'écrit rien, donc n'envoie rien à la synchronisation.
+ * ⚠️ N'ADOPTE PAS une étape d'exemple, comme `majFeuilleDeRoute` : cocher
+ * n'est pas écrire. Sinon, essayer la case de l'exemple laisserait une étape
+ * orpheline derrière « supprimer les exemples ».
+ */
+export async function cocherEtape(goalId: number, faite: boolean): Promise<void> {
+  const pct = faite ? 100 : 0;
+  if (!isTauri) return demo.cocherEtape(goalId, pct);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE goals SET progress_pct = $1 WHERE id = $2 AND manual_progress = 0 AND progress_pct IS NOT $1",
+    [pct, goalId],
+  );
+}
+
+/**
  * Pose l'ordre des frères : `ids` dans l'ordre voulu reçoivent 0, 1, 2…
  * Seules les lignes dont la position change sont réécrites — une écriture qui
  * ne change rien ne doit pas produire de trafic de synchronisation.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "../../lib/i18n";
 import type { Trouvaille } from "../../lib/recherche";
 import { FAMILLES_RATTACHABLES, rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
@@ -200,28 +200,73 @@ export default function RattacherElement(props: {
  *
  * Un seul panneau ouvert à la fois : deux champs de saisie ouverts sous une
  * même liste ne disent plus lequel reçoit la frappe.
+ *
+ * ⭐ 2026-10-11 (audit A06a-12) — LA MÊME BARRE AU NIVEAU DE L'OBJECTIF. Elle
+ * n'existait que dans une étape dépliée : un objectif sans étape ne pouvait
+ * pas recevoir une tâche depuis sa page. Posée sous l'objectif, elle reçoit une
+ * troisième affordance (`etape`) — « Ajouter une étape » — pour que tout ce qui
+ * s'ajoute à l'objectif tienne sur une rangée, et qu'un seul champ soit ouvert
+ * à la fois. Les bulles et le champ disent alors « cet objectif », plus
+ * « cette étape ».
  */
 export function BarreAjout(props: {
   goal: Goal;
   data: AppData;
   contexte: ContexteObjectifs;
   refresh: () => Promise<void>;
+  /** Au niveau de l'objectif seulement : le bouton « Ajouter une étape » et son champ. */
+  etape?: {
+    libelle: string;
+    /** Ouvert d'office (geste « Ajouter une étape » du menu de l'objectif). */
+    ouverte: boolean;
+    onFermee: () => void;
+    champ: (fermer: () => void) => ReactNode;
+  };
 }) {
-  const [ouvert, setOuvert] = useState<"tache" | "rattacher" | null>(null);
+  const [ouvert, setOuvert] = useState<"etape" | "tache" | "rattacher" | null>(props.etape?.ouverte ? "etape" : null);
+  const ouverteDOffice = !!props.etape?.ouverte;
+  useEffect(() => {
+    if (ouverteDOffice) setOuvert("etape");
+  }, [ouverteDOffice]);
+  const surObjectif = !!props.etape;
+  const fermerEtape = () => {
+    setOuvert((o) => (o === "etape" ? null : o));
+    props.etape?.onFermee();
+  };
+  // Au niveau de l'objectif, la rangée a la hauteur du bouton qu'elle remplace
+  // (« Ajouter une étape », 28 px) : le nœud du fil est calé dessus.
   const onglet = (actif: boolean) =>
-    `cible-tactile-ligne inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+    `cible-tactile-ligne inline-flex items-center gap-1.5 rounded-md px-2 ${surObjectif ? "py-1.5" : "py-1"} text-xs font-medium transition-colors ${
       actif ? "bg-overlay-2 text-text" : "text-text-dim hover:bg-overlay hover:text-text"
     }`;
 
   return (
-    <div className="mt-1">
+    <div className={surObjectif ? undefined : "mt-1"}>
       <div className="flex flex-wrap items-center gap-1">
+        {props.etape && (
+          <button
+            type="button"
+            // ⚠️ Le clic ne doit pas voler le focus au champ ouvert : il le
+            // fermerait (un champ vide se referme en perdant le focus), puis
+            // ce même clic le rouvrirait.
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => (ouvert === "etape" ? fermerEtape() : setOuvert("etape"))}
+            aria-expanded={ouvert === "etape"}
+            className={onglet(ouvert === "etape")}
+          >
+            <IconPlus className="h-3.5 w-3.5" /> {props.etape.libelle}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setOuvert((o) => (o === "tache" ? null : "tache"))}
           aria-expanded={ouvert === "tache"}
           className={onglet(ouvert === "tache")}
-          data-tip={t("Une tâche neuve, déjà rattachée à cette étape")}
+          data-tip={
+            surObjectif
+              ? t("Une tâche neuve, rattachée à l’objectif lui-même")
+              : t("Une tâche neuve, déjà rattachée à cette étape")
+          }
         >
           <IconPlus className="h-3.5 w-3.5" /> {t("Tâche")}
         </button>
@@ -236,8 +281,9 @@ export function BarreAjout(props: {
           <IconLink className="h-3.5 w-3.5" /> {t("Rattacher")}
         </button>
       </div>
+      {ouvert === "etape" && props.etape?.champ(fermerEtape)}
       {ouvert === "tache" && (
-        <ComposerTache goal={props.goal} refresh={props.refresh} onFermer={() => setOuvert(null)} />
+        <ComposerTache goal={props.goal} surObjectif={surObjectif} refresh={props.refresh} onFermer={() => setOuvert(null)} />
       )}
       {ouvert === "rattacher" && (
         <RattacherElement goal={props.goal} data={props.data} contexte={props.contexte} refresh={props.refresh} />
@@ -264,7 +310,7 @@ export function BarreAjout(props: {
  * écriture directe de `due_date` : la frontière datée / récurrente est tenue à
  * un seul endroit (`lib/taches.ts`), et une règle recopiée finit par diverger.
  */
-function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFermer: () => void }) {
+function ComposerTache(props: { goal: Goal; surObjectif?: boolean; refresh: () => Promise<void>; onFermer: () => void }) {
   const [label, setLabel] = useState("");
   const [echeance, setEcheance] = useState("");
   const [priorite, setPriorite] = useState<Priority>("medium");
@@ -327,7 +373,7 @@ function ComposerTache(props: { goal: Goal; refresh: () => Promise<void>; onFerm
             props.onFermer();
           }
         }}
-        placeholder={t("À faire pour cette étape…")}
+        placeholder={props.surObjectif ? t("À faire pour cet objectif…") : t("À faire pour cette étape…")}
         aria-label={t("Nouvelle tâche pour « {titre} »", { titre: props.goal.title })}
         className="min-w-0 flex-1 basis-[11rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
       />

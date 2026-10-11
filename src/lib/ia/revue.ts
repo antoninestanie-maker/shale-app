@@ -18,7 +18,7 @@
 
 import { objectifsEnPeril } from "../calendrier/peril";
 import { addDays, isDueOn, weekdayOf } from "../logic";
-import { mesurer, type ContexteProgression } from "../objectifs/progression";
+import { mesurer, pourcentDe, type ContexteProgression } from "../objectifs/progression";
 import { createTask, getSetting, setSetting } from "../repo";
 import { estRecurrente, planificationDeSaisie } from "../taches";
 import type { AppData, Goal } from "../types";
@@ -133,7 +133,8 @@ export function payloadRevue(
     const m = mesurer(g, sources);
     return {
       titre: g.title.slice(0, 200),
-      progression: Math.max(0, Math.min(100, Math.round(m.pct ?? g.progress_pct ?? 0))),
+      // Le même nombre que partout (`pourcentDe`) : plus de repli sur le % stocké.
+      progression: Math.max(0, Math.min(100, Math.round(pourcentDe(m)))),
       tachesFaites,
       enPeril: arbre.some((x) => enPeril.has(x.id)),
     };

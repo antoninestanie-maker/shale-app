@@ -1,7 +1,7 @@
 
 import { localeTag, t } from "./i18n";
 import { sansExemples } from "./onboarding/exemples";
-import { mesurer, type ContexteProgression } from "./objectifs/progression";
+import { mesurer, pourcentDe, type ContexteProgression } from "./objectifs/progression";
 import type {
   Completion,
   DayStat,
@@ -268,10 +268,11 @@ export function isOneOffDone(task: Task, completions: Completion[]): boolean {
  * la traduction en nombre. Aucun écran ne recalcule un pourcentage dans son
  * coin — celui qui doit dire d'où vient le chiffre appelle `mesurer()`.
  *
- * ⚠️ UN OBJECTIF VIDE rend son % stocké. Un nombre ne sait pas dire « rien à
- * mesurer » ; et un objectif sans aucune étape ni élément est exactement celui
- * pour lequel la barre manuelle survit. C'était déjà le comportement d'avant :
- * aucun chiffre existant ne bouge pour lui.
+ * ⚠️ 2026-10-11 — UN OBJECTIF VIDE NE REND PLUS SON % STOCKÉ. Il est une
+ * unité qui se coche (0, ou 100 une fois coché) : la liste des objectifs et la
+ * carte d'Aujourd'hui rendaient deux chiffres pour le même objectif (« — » et
+ * « 45 % »). Seul un réglage cassé reste sans mesure, et il vaut 0 ici
+ * (`pourcentDe`). Le % saisi revient dès qu'on repasse en « suivi à la main ».
  */
 export function effectiveProgress(
   goal: Goal,
@@ -287,7 +288,7 @@ export function effectiveProgress(
     ...contexte,
     maintenant: contexte.maintenant ?? maintenantLocal(),
   });
-  return m.pct ?? goal.progress_pct ?? 0;
+  return pourcentDe(m);
 }
 
 /** 'YYYY-MM-DD HH:MM' local — la logique « jour » de l'app ne compare que du local. */

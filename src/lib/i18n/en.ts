@@ -2709,12 +2709,27 @@ export const EN: Record<string, string> = {
   "saisi à la main": "set by hand",
   "Une cible de zéro ne se mesure pas. Donne-lui un nombre à atteindre.": "A target of zero can’t be measured. Give it a number to reach.",
   "L’élément qui comptait a été supprimé. Choisis une autre source, ou compte à la main.": "The item that was counting has been deleted. Choose another source, or count by hand.",
-  "Aucune de ses étapes n’a encore de quoi se mesurer.": "None of its steps has anything to measure yet.",
-  "Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.": "Nothing to measure yet. Attach a task or set a number to reach.",
+  "Cette étape est rangée sous elle-même. Range-la ailleurs.": "This step is filed under itself. Move it somewhere else.",
   "{n} étape": "{n} step",
   "{n} étapes": "{n} steps",
-  "{faits}/{n} élément": "{faits}/{n} item",
-  "{faits}/{n} éléments": "{faits}/{n} items",
+  // ── Étapes cochables (2026-10-11) : une étape vide se coche, et les
+  // compteurs disent combien il y en a et combien sont faites. Le nom
+  // s'accorde avec ce qui est FAIT (« 0 steps out of 3 », « 1 step out of 3 »).
+  // Remplacent « {faits}/{n} élément(s) » et les phrases « … ne compte pas encore ».
+  "{n} étape sur {total}": "{n} step out of {total}",
+  "{n} étapes sur {total}": "{n} steps out of {total}",
+  "{n} tâche sur {total}": "{n} task out of {total}",
+  "{n} tâches sur {total}": "{n} tasks out of {total}",
+  "{n} élément sur {total}": "{n} item out of {total}",
+  "{n} éléments sur {total}": "{n} items out of {total}",
+  "Une étape vide se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.":
+    "An empty step is checked off by hand. Give it a task, and its tasks do the counting.",
+  "Un objectif sans étape ni tâche se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.":
+    "A goal with no step and no task is checked off by hand. Give it a task, and its tasks do the counting.",
+  "Marquer atteint": "Mark as reached",
+  "Marquer non atteint": "Mark as not reached",
+  "Une tâche neuve, rattachée à l’objectif lui-même": "A new task, linked to the goal itself",
+  "À faire pour cet objectif…": "To do for this goal…",
   "Suivre à la main": "Track by hand",
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
   "Un titre suffit. La feuille de route viendra quand tu en auras besoin.": "A title is enough. The roadmap will come when you need it.",
@@ -2794,8 +2809,6 @@ export const EN: Record<string, string> = {
     "A phase groups several sub-goals: “Prepare”, “Test”, “Launch”.",
   "Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.":
     "A sub-goal is something to reach, measured by its tasks or by a number.",
-  "Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.":
-    "This phase doesn’t count yet. Add a sub-goal, attach a task or set a number to reach.",
 
   // L'en-tête du bloc, et l'échéance qui se pose sur place.
   "Feuille de route": "Roadmap",
@@ -2941,7 +2954,6 @@ export const EN: Record<string, string> = {
   "Mes objectifs": "My goals",
   "Tous les objectifs": "All goals",
   "Atteint": "Reached",
-  "Pas encore de feuille de route.": "No roadmap yet.",
   "Saisi à la main : la feuille de route ne compte pas.": "Set by hand: the roadmap doesn't count.",
   "La faire compter": "Make it count",
   "La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.": "The same roadmap, as a mind map. What you change there changes here too.",

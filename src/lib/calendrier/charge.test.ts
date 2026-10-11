@@ -199,18 +199,37 @@ describe("les objectifs en péril", () => {
     expect(p.etapesRestantes).toBe(3);
   });
 
-  it("⭐ signale un objectif à 100 % dont des étapes sont VIDES — il n'est pas achevé", () => {
-    // Quatre jalons finis, deux jalons jamais remplis : 100 % par la règle
-    // (les vides sortent du dénominateur), mais pas terminé.
+  // ⚠️ RÈGLE RETOURNÉE le 2026-10-11. Ce test s'appelait « signale un objectif
+  // à 100 % dont des étapes sont VIDES — il n'est pas achevé » : quatre jalons
+  // finis et deux vides faisaient 100 % (les vides sortaient du dénominateur),
+  // et le péril devait recompter les vides pour ne pas se taire. Une étape vide
+  // compte maintenant pour 0 tant qu'elle n'est pas cochée : le même objectif
+  // est à 67 %, et il est signalé par son chiffre.
+  it("⭐ signale un objectif dont des étapes sont VIDES — elles comptent pour 0, il est à 67 %", () => {
     const parent = objectif({ id: 1, deadline: "2026-09-03", manual_progress: 0 });
     const finis = [2, 3, 4, 5].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1, target_count: 1, manual_count: 1 }));
     const vides = [6, 7].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1 }));
     const [p] = objectifsEnPeril([parent, ...finis, ...vides], [], [], "2026-09-01");
-    expect(p.progression).toBe(100);
+    expect(p.progression).toBe(67); // AVANT le 2026-10-11 : 100
     expect(p.etapesRestantes).toBe(2);
     // Deux étapes en deux jours tiennent au rythme d'une par jour : c'est le
-    // pourcentage gonflé qui ne doit plus rassurer.
+    // pourcentage, sous le seuil, qui signale.
     expect(p.raison).toBe("rythme-insuffisant");
+  });
+
+  it("⭐ les deux étapes vides COCHÉES : l'objectif est achevé, le péril se tait", () => {
+    const parent = objectif({ id: 1, deadline: "2026-09-03", manual_progress: 0 });
+    const finis = [2, 3, 4, 5].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1, target_count: 1, manual_count: 1 }));
+    const cochees = [6, 7].map((id) => objectif({ id, parent_goal_id: 1, manual_progress: 0, is_milestone: 1, progress_pct: 100 }));
+    expect(objectifsEnPeril([parent, ...finis, ...cochees], [], [], "2026-09-01")).toEqual([]);
+  });
+
+  it("un objectif daté SANS RIEN n'est plus lu sur son ancien % saisi : 0 tant qu'il n'est pas coché", () => {
+    // Mesuré, vide, avec un vieux 90 % en base : il « rassurait » (≥ 80) alors
+    // que rien n'était fait. Coché « Atteint », il sort du péril.
+    const vieux = objectif({ id: 1, deadline: "2026-09-03", manual_progress: 0, progress_pct: 90 });
+    expect(objectifsEnPeril([vieux], [], [], "2026-09-01")[0]).toMatchObject({ progression: 0, raison: "rythme-insuffisant" });
+    expect(objectifsEnPeril([{ ...vieux, progress_pct: 100 }], [], [], "2026-09-01")).toEqual([]);
   });
 
   it("un jalon daté entre dans le péril, et l'alerte nomme son objectif", () => {

@@ -3,13 +3,14 @@ import GoalModal from "../components/GoalModal";
 import ImporterChecklist from "../components/objectifs/ImporterChecklist";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
-import { IconCarte, IconChevronLeft, IconChevronRight, IconPencil, IconPlus, IconTrash } from "../components/icons";
+import { IconCarte, IconCheck, IconChevronLeft, IconChevronRight, IconPencil, IconPlus, IconTrash } from "../components/icons";
+import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import { todayStr } from "../lib/logic";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
 import { prochaineAction, type ProchaineAction } from "../lib/objectifs/prochaineAction";
 import { CONTEXTE_VIDE, type ContexteObjectifs } from "../lib/objectifs/contexte";
-import { fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
+import { cocherEtape, fetchContexteObjectifs, getSetting, majFeuilleDeRoute, setSetting } from "../lib/repo";
 import { bilanDeDepart } from "../lib/corbeille/lots";
 import { annonceDepart, jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
@@ -374,6 +375,24 @@ export default function GoalsView({ data, refresh }: Props) {
    */
   const supprimerObjectif = (goal: Goal) => jeter("goal", goal.id, goal.title, refresh);
 
+  /**
+   * ⭐ UN OBJECTIF SANS RIEN SE COCHE « ATTEINT » (2026-10-11) — la même règle
+   * que pour une étape vide (`progression.ts`) : il restait à « — » pour
+   * toujours. Bascule optimiste, comme une tâche. Un geste = une fonction : la
+   * case de la page et l'entrée du menu appellent `cocherObjectif`.
+   */
+  const coches = useCochesOptimistes();
+  const cocherObjectif = (goal: Goal, faitEnBase: boolean) =>
+    void coches.basculer(`g${goal.id}`, faitEnBase, async (fait) => {
+      await cocherEtape(goal.id, fait);
+      await refresh();
+    });
+  /** L'objectif est-il une unité à cocher, et où en est sa case À L'ÉCRAN ? */
+  const uniteDe = (goal: Goal): { enBase: boolean; cochee: boolean } | null => {
+    const o = mesures.get(goal.id)?.origine;
+    return o?.type === "unite" ? { enBase: o.faite, cochee: coches.etat(`g${goal.id}`, o.faite) } : null;
+  };
+
   const ajouterEtape = (goal: Goal) => {
     ouvrir(goal.id);
     setAjoutPour(goal.id);
@@ -400,7 +419,14 @@ export default function GoalsView({ data, refresh }: Props) {
   );
   const entreesObjectif = (goal: Goal): EntreePossible[] => {
     const bilan = bilanDeDepart(goals, data.tasks, goal.id);
+    const unite = uniteDe(goal);
     return [
+      unite && {
+        id: "cocher",
+        libelle: unite.cochee ? t("Marquer non atteint") : t("Marquer atteint"),
+        icone: <IconCheck />,
+        executer: () => cocherObjectif(goal, unite.enBase),
+      },
       { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterEtape(goal) },
       ia && peutDecomposer(goal, goals) && {
         id: "ia-decomposer",
@@ -501,13 +527,15 @@ export default function GoalsView({ data, refresh }: Props) {
 
   const page = (goal: Goal) => {
     const m = mesures.get(goal.id)!;
-    const acheve = estAcheve(m);
     const aDesEtapes = goals.some((g) => g.parent_goal_id === goal.id);
-    // ⭐ Un objectif MESURÉ qui n'a encore rien à mesurer n'affiche pas un faux
-    // 0 % : il le dit, et la feuille de route dessous propose la première étape.
-    const sansMesure = m.pct == null && !goal.manual_progress && !aDesEtapes;
+    // ⭐ 2026-10-11 — un objectif MESURÉ qui n'a encore rien à mesurer est une
+    // unité : 0 %, et une case « Atteint ». (Il écrivait « Pas encore de
+    // feuille de route » à la place du chiffre, et restait à « — » ailleurs.)
+    // La case, le fil et le chiffre suivent le clic ; la base suit.
+    const unite = uniteDe(goal);
+    const acheve = unite ? unite.cochee : estAcheve(m);
     const dl = deadlineInfo(goal.deadline);
-    const pct = m.pct;
+    const pct = unite ? (unite.cochee ? 100 : 0) : m.pct;
     const menuOuvert = menu.ouvert && menu.cible?.id === goal.id;
 
     return (
@@ -571,56 +599,77 @@ export default function GoalsView({ data, refresh }: Props) {
           </h1>
           {goal.description && <p className="mt-2 max-w-[68ch] text-sm text-text-dim">{goal.description}</p>}
 
-          {sansMesure ? (
-            <p className="mt-5 text-sm text-text-dim">
-              {t("Pas encore de feuille de route.")}{" "}
-              <button
-                type="button"
-                onClick={async () => {
-                  await majFeuilleDeRoute(goal.id, { manual_progress: 1 });
-                  await refresh();
-                }}
-                className="cible-tactile-ligne font-medium text-blue hover:underline"
-                data-tip={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
-              >
-                {t("Suivre à la main")}
-              </button>
-            </p>
+          {/* ⭐ Le fil couché remplace la barre pleine : la même grammaire
+              que le fil debout, juste dessous, le long des étapes. */}
+          <div className="mt-5 flex items-center gap-4">
+            <FilCouche pct={pct} acheve={acheve} />
+            {/* « — » : un réglage cassé seulement (cible à zéro, source supprimée). */}
+            <span className="shrink-0 font-display text-4xl font-extrabold text-text">
+              {pct == null ? "—" : `${pct}%`}
+            </span>
+          </div>
+          {unite ? (
+            // Rien dedans : l'objectif se coche lui-même. « Suivre à la main »
+            // reste, pour qui veut régler un pourcentage plutôt que cocher.
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span className="flex items-center gap-2">
+                <CaseACocher
+                  cochee={unite.cochee}
+                  libelle={t("Atteint")}
+                  tip={unite.cochee ? t("Marquer non atteint") : t("Marquer atteint")}
+                  tipSub={t("Un objectif sans étape ni tâche se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.")}
+                  onBascule={() => cocherObjectif(goal, unite.enBase)}
+                />
+                {/* Le mot est une seconde cible du même geste ; la case porte
+                    déjà le nom et l'état pour le lecteur d'écran. */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden
+                  onClick={() => cocherObjectif(goal, unite.enBase)}
+                  className={`cible-tactile-ligne ${unite.cochee ? "font-medium text-text" : "text-text-dim hover:text-text"}`}
+                >
+                  {t("Atteint")}
+                </button>
+              </span>
+              {!unite.cochee && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await majFeuilleDeRoute(goal.id, { manual_progress: 1 });
+                    await refresh();
+                  }}
+                  className="cible-tactile-ligne text-xs font-medium text-blue hover:underline"
+                  data-tip={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
+                >
+                  {t("Suivre à la main")}
+                </button>
+              )}
+            </div>
           ) : (
-            <>
-              {/* ⭐ Le fil couché remplace la barre pleine : la même grammaire
-                  que le fil debout, juste dessous, le long des étapes. */}
-              <div className="mt-5 flex items-center gap-4">
-                <FilCouche pct={pct} acheve={acheve} />
-                {/* Une feuille de route encore vide affiche « — », jamais un faux 0 %. */}
-                <span className="shrink-0 font-display text-4xl font-extrabold text-text">
-                  {pct == null ? "—" : `${pct}%`}
-                </span>
-              </div>
-              {/* ⭐ UNE phrase d'origine. L'audit (D1, point 2) : « 45 % saisi à
-                  la main » sur la ligne, et juste dessous « la feuille de route
-                  n'est pas lue » dans un bandeau — deux vérités pour un chiffre.
-                  Le bandeau a quitté la feuille de route ; la phrase dit les deux. */}
-              <p className="mt-1 text-xs text-text-dim">
-                {goal.manual_progress && aDesEtapes ? (
-                  <>
-                    {t("Saisi à la main : la feuille de route ne compte pas.")}{" "}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await majFeuilleDeRoute(goal.id, { manual_progress: 0 });
-                        await refresh();
-                      }}
-                      className="cible-tactile-ligne font-medium text-blue hover:underline"
-                    >
-                      {t("La faire compter")}
-                    </button>
-                  </>
-                ) : (
-                  origineEnClair(m)
-                )}
-              </p>
-            </>
+            /* ⭐ UNE phrase d'origine. L'audit (D1, point 2) : « 45 % saisi à
+               la main » sur la ligne, et juste dessous « la feuille de route
+               n'est pas lue » dans un bandeau — deux vérités pour un chiffre.
+               Le bandeau a quitté la feuille de route ; la phrase dit les deux. */
+            <p className="mt-1 text-xs text-text-dim">
+              {goal.manual_progress && aDesEtapes ? (
+                <>
+                  {t("Saisi à la main : la feuille de route ne compte pas.")}{" "}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await majFeuilleDeRoute(goal.id, { manual_progress: 0 });
+                      await refresh();
+                    }}
+                    className="cible-tactile-ligne font-medium text-blue hover:underline"
+                  >
+                    {t("La faire compter")}
+                  </button>
+                </>
+              ) : (
+                origineEnClair(m)
+              )}
+            </p>
           )}
 
           <FeuilleDeRoute

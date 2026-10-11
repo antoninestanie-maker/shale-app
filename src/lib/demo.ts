@@ -2054,6 +2054,13 @@ export const demo = {
     if (goal) Object.assign(goal, champs);
   },
 
+  async cocherEtape(id: number, pct: number): Promise<void> {
+    const goal = goals.find((g) => g.id === id);
+    // Même garde que le natif (`manual_progress = 0` dans son `WHERE`) : une
+    // ligne suivie à la main garde le % qu'on lui a saisi.
+    if (goal && !goal.manual_progress) goal.progress_pct = pct;
+  },
+
   async reordonnerObjectifs(ids: readonly number[]): Promise<void> {
     ids.forEach((id, position) => {
       const goal = goals.find((g) => g.id === id);
