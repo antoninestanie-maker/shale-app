@@ -1787,7 +1787,13 @@ Branche `chantier/barre-laterale`, fusionnée dans `mobile-ios`. Front seul : au
 
 **Ligne de base :** vitest **2006** (1981 + 25 : `barre.test.ts`, `barre.source.test.ts`) · `tsc`, `test:types`, `i18n:check` (2722), `i18n:durs`, `build` verts.
 
-⚠️ **Pas vu** : WKWebView (tout est mesuré dans Chrome) — en particulier le titre collant, le volet et le fondu dans l'app installée ; l'iPad (cette barre est aussi la sienne) ; le doigt. La fluidité du défilement n'est jugeable que par Antonin.
+**Rejoué dans WebKit** (`tools/webkit-pilote.swift`, démo, 1360×880 à 110 %) : racine = fenêtre, titre `sticky` collé et au-dessus, fondu puis volet à la réduction, cadre et contenu en contre-translation à l'extension, icônes immobiles (écart 0).
+
+⚠️ **Pas vu** : l'app INSTALLÉE elle-même (la session ne la pilote pas : elle ouvre la vraie base) ; l'iPad (cette barre est aussi la sienne) ; le doigt. La fluidité du défilement n'est jugeable que par Antonin.
+
+**Installé le 2026-10-11 à 12:30** : build depuis `mobile-ios` `a30007c` (arbre inchangé avant et après), 12:26 → 12:28, code 0. Témoins dans `dist/assets` : « Ne garde que les icônes. », `sb:barre-basculer`, `shale.barre.categories`, `barre-voile`, `--barre-bg` présents ; contre-épreuve (phrase jamais écrite) 0. sha256 installée = source `a46ec40e80a1…` (ancienne `b27fb93cf854…`, le build Timer de 12:16), `diff -r` identique. Base 30 avant et après, intégrité ok, 88 objectifs / 81 tâches / 22 notes / 4 habitudes / 3 liens identiques. Sauvegarde : `sauvegardes-locales/avant-barre-laterale-20261011-1223/`. Bundle supprimé, aucune image montée.
+⚠️ L'instance précédente ne répondait pas à « Quitter » (bloquée derrière la fenêtre du trousseau du build de 12:16, restée sans réponse) : arrêtée par son numéro de processus, après sauvegarde. Antonin doit cliquer **« Toujours autoriser »** pour ce binaire-ci.
+⚠️ Sa disposition garde `quicklinks: { h: 144 }` : la carte se rend désormais à la hauteur de son contenu, la valeur enregistrée n'est pas modifiée.
 
 **Outils laissés hors dépôt** : `Shale-chantiers/vite.essai-barre.mjs` (démo, port 5193), entrée `barre-demo` de `Shale-projet/.claude/launch.json`, captures dans `Shale-projet/audit-2026-10/barre-laterale-20261011/`.
 
