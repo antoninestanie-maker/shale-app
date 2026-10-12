@@ -4993,3 +4993,33 @@ Un seul chantier, après la seconde passe du labo.
 **Symptôme.** Au pilote, `{"dans": 15, "taper": …}` après un changement d'écran : le n° 15 n'était plus le champ mais « Réduire » la barre. La barre s'est repliée, le texte est parti nulle part, puis s'est ajouté au champ au pas suivant.
 
 **Parade.** Relire les numéros après chaque geste qui change l'écran (le protocole le dit : deux à quatre pas par commande). Avant de retaper : `{"clic": n}` puis `{"vider": true}`.
+
+# 39. Barre latérale continue (2026-10-12)
+
+## 39.1 Un `padding` ne rétrécit pas : une « réserve de fondu » déborde au rail
+
+**Symptôme.** Au rail, la pastille de synchro affichait « syn… » HORS de son contour.
+
+**Cause.** Pour fondre un texte dans une boîte serrée sur lui, on lui donne un `padding-right` (qui porte le fondu) et une marge négative égale. Un élément flex ne descend jamais sous son padding : à largeur nulle, il reste 20 px de texte visible.
+
+**Parade.** Faire dépendre la réserve de la largeur (`clamp(0px, calc(var(--barre-w) - 100px), 10px)`) ET borner la boîte par un `max-width` calculé qui atteint 0 au rail. Et ne jamais donner à la réserve plus que le padding du conteneur, sinon le fondu sort du contour.
+
+## 39.2 Un masque de fondu sur une boîte serrée sur son texte mange la fin du mot
+
+Un `mask-image` en dégradé s'applique à la BOÎTE. Si elle épouse le texte, les vingt derniers pixels du mot sont toujours estompés, même quand tout tient. Deux sorties : la boîte prend la place restante (`flex-1`, le fondu tombe dans le vide), ou elle porte une réserve (§ 39.1).
+
+## 39.3 Comparer deux mesures de fluidité prises à des charges machine différentes
+
+**Ce qui a failli être écrit.** « 178 ms → 24 ms au pire dixième. » Le 178 avait été pris machine à 55 de charge (une autre session lançait vitest), le 24 à 5.
+
+**Parade.** Remesurer l'AVANT dans la même minute : `git diff > x.patch`, `git checkout -- src`, mesurer, `git apply x.patch` (§ 34.3 — pas `git stash`, commun aux worktrees). Le vrai avant valait 102, pas 178.
+
+## 39.4 Un geste piloté hors de React : tout rendu au milieu doit relire la valeur vive
+
+Pendant qu'on tire le bord, la largeur est écrite sur l'élément. Un rendu de la barre qui tomberait au milieu (la cloche, un badge) remettrait la largeur d'avant pour une image. D'où `vive` (une ref) lue par le rendu : `vive.current ?? largeurDeLEtat`.
+
+## 39.5 Outils
+
+- Le dossier de travail de la session (`scratchpad`) est VIDÉ quand la session redémarre : scripts de mesure, captures, profil Chrome. Recopier dans le projet ce qui doit survivre.
+- puppeteer : `page.tracing.stop()` rend des octets ; `.toString()` en fait une liste de nombres. `Buffer.from(…).toString("utf8")`.
+

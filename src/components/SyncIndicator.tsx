@@ -14,14 +14,7 @@ import { useSyncApi } from "./SyncProvider";
  * dans une app qui marche très bien sans cloud transformerait un choix
  * volontaire en défaut apparent.
  */
-export default function SyncIndicator({
-  onOuvrirReglages,
-  reduit = false,
-}: {
-  onOuvrirReglages: () => void;
-  /** Barre latérale réduite en icônes : seule la pastille est rendue. */
-  reduit?: boolean;
-}) {
+export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: () => void }) {
   const sync = useSyncApi();
   if (sync.statut === "indisponible") return null;
 
@@ -156,10 +149,11 @@ export default function SyncIndicator({
       <span
         className={`h-1.5 w-1.5 shrink-0 rounded-full ${vue.pastille} ${vue.anime ? "animate-pulse-dot" : ""}`}
       />
-      {/* Barre latérale réduite : la pastille suffit — c'est elle qui
+      {/* Le libellé se coupe en s'estompant quand la barre rétrécit ; au rail
+          il est à largeur nulle. La pastille suffit — c'est elle qui
           porte l'état, le libellé ne fait que le nommer. Le `title` le rend au
           survol, et Réglages le donne en toutes lettres. */}
-      {!reduit && <span className="barre-texte truncate">{vue.libelle}</span>}
+      <span className="barre-texte barre-coupe barre-coupe-serre min-w-0">{vue.libelle}</span>
     </button>
   );
 }

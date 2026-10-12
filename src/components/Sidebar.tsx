@@ -11,8 +11,10 @@ import {
   PART_MAX,
   SEUIL_ETROIT,
   auGlisser,
+  auLacher,
   basculer,
   bornerLargeur,
+  largeurRendue,
   estReduite,
   lireCategories,
   lirePref,
@@ -353,6 +355,14 @@ const COLLAPSE_KEY = "sidebar.collapsed";
 /** La palette ⌘K demande à réduire ou étendre la barre par cet événement. */
 export const EVT_BARRE = "sb:barre-basculer";
 
+/**
+ * Le bord de la barre vient d'être lâché : ce qui s'était mis en veille pendant
+ * le glissement (`<html data-barre-glisse>`) se remesure UNE fois.
+ * ⚠️ `ResizableGrid` recopie ce nom plutôt que de l'importer : la grille n'a pas
+ * à dépendre de la barre. `barre.source.test.ts` tient les deux d'accord.
+ */
+export const EVT_BARRE_LACHEE = "sb:barre-lachee";
+
 /** Le temps laissé aux libellés pour s'effacer avant que la barre ne se réduise
     (= `--dur-fast`). */
 const FONDU_MS = 120;
@@ -428,6 +438,17 @@ export default function Sidebar({
   const largeur = bornerLargeur(pref.largeur, fenetreL);
   /** Le bord est en train d'être tiré. */
   const [glisse, setGlisse] = useState(false);
+  /**
+   * La largeur EN COURS de glissement, hors de l'état React (2026-10-12).
+   * Pendant qu'on tire, la largeur est écrite directement dans `--barre-w` sur
+   * la barre, une fois par image : repasser par l'état redessinerait toute la
+   * barre soixante fois par seconde. Un rendu qui tomberait au milieu du geste
+   * (la cloche, un badge) relit cette valeur au lieu de remettre l'ancienne.
+   */
+  const vive = useRef<number | null>(null);
+  /** Ce que la barre mesure à cet instant : le rail, la largeur choisie, ou
+      celle qu'on est en train de lui donner. */
+  const largeurAffichee = vive.current ?? (reduite ? LARGEUR_RAIL : largeur);
   /** Le mouvement en cours, posé par le BOUTON seulement — jamais par un
       redimensionnement de fenêtre ni par le montage (rien ne doit glisser tout
       seul). Le CSS (`.barre[data-mouvement]`) en fait le fondu et le volet. */
@@ -484,17 +505,22 @@ export default function Sidebar({
   }, []);
 
   // ── Tirer le bord ────────────────────────────────────────────────────────
-  // ⭐ La largeur étendue se règle en glissant le bord droit (2026-10-11 :
-  // « faire glisser la barre, pas seulement avoir deux positions »). Tiré sous
-  // `SEUIL_RAIL`, le bord réduit la barre en icônes ; tiré depuis le rail, il
-  // l'étend. La règle est `auGlisser` (`lib/barre.ts`).
+  // ⭐ La largeur se règle en glissant le bord droit, EN CONTINU jusqu'au rail
+  // d'icônes : les libellés se coupent en s'estompant (`.barre-coupe`), et seul
+  // un aimant de quelques pixels sépare la plus petite largeur du rail. La
+  // règle est dans `lib/barre.ts` (`auGlisser`, `auLacher`).
   //
-  // ⚠️ Ici la largeur change À CHAQUE IMAGE, et c'est voulu : c'est une
-  // manipulation directe, la main doit voir le bord sous le curseur. Ce n'est
-  // pas la `transition: width` que ce fichier s'interdit — celle-là ferait
-  // payer le même prix pour une animation que personne ne pilote. Une seule
-  // écriture par image (`requestAnimationFrame`), et `auGlisser` rend le même
-  // objet quand le pixel n'a pas changé : React ne redessine alors rien.
+  // ⚠️ FLUIDITÉ (2026-10-12, « pas très fluide à la souris »). Mesuré processeur
+  // ralenti ×4 : 47 ms par image en médiane, 178 ms au pire dixième. Deux
+  // causes, deux parades :
+  //   • la barre repassait par l'état React à chaque image → la largeur est
+  //     écrite dans `--barre-w` directement sur l'élément ; l'état n'est posé
+  //     qu'au lâcher. Toute la mise en page de la barre dépend de cette seule
+  //     variable (aucun rendu conditionnel pendant le geste).
+  //   • la grille d'Aujourd'hui remesurait ses onze panneaux à chaque pixel →
+  //     `<html data-barre-glisse>` la met en veille le temps du geste
+  //     (`ResizableGrid`), et `EVT_BARRE_LACHEE` la réveille une fois. Entre
+  //     les deux, ses colonnes suivent quand même : c'est du CSS.
   const debutGlisser = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     const aside = asideRef.current;
@@ -507,6 +533,11 @@ export default function Sidebar({
     // à l'écran, la largeur s'écrit en local.
     const z = zoomFactor();
     const boite = aside.getBoundingClientRect();
+    const fenetre = racine.clientWidth;
+    const { pref: prefDepart, regime: ici } = courant.current;
+    // La largeur étendue d'avant le geste : c'est elle que « Étendre » rendra
+    // si le bord finit au rail.
+    const largeurAvant = prefDepart.largeur;
     // L'écart entre le curseur et le bord au moment de la prise : sans lui, le
     // bord sauterait sous le curseur au premier mouvement.
     const prise = e.clientX - boite.right;
@@ -514,21 +545,25 @@ export default function Sidebar({
     let dernierX = depart;
     let image = 0;
     let bouge = false;
-    let derniere = courant.current.pref;
+    let derniere = prefDepart;
     const appliquer = () => {
       image = 0;
       const x = (dernierX - prise - boite.left) / z;
-      const suivante = auGlisser(derniere, courant.current.regime, x, racine.clientWidth);
-      if (suivante === derniere) return;
-      derniere = suivante;
-      setPref(suivante);
+      derniere = auGlisser(derniere, ici, x, fenetre);
+      const l = largeurRendue(derniere, ici, fenetre);
+      if (vive.current === l) return;
+      vive.current = l;
+      aside.style.setProperty("--barre-w", `${l}px`);
+      aside.style.setProperty("--barre-n", String(l));
     };
     const surMouvement = (ev: PointerEvent) => {
       // Trois pixels de jeu : un clic sur le bord n'est pas un glissement.
       if (!bouge && Math.abs(ev.clientX - depart) < 3) return;
       if (!bouge) {
         bouge = true;
+        vive.current = largeurRendue(prefDepart, ici, fenetre);
         setGlisse(true);
+        document.documentElement.setAttribute("data-barre-glisse", "");
         document.body.style.userSelect = "none";
         document.body.style.cursor = "col-resize";
       }
@@ -542,11 +577,17 @@ export default function Sidebar({
       if (image) cancelAnimationFrame(image);
       if (!bouge) return;
       appliquer();
+      const finale = auLacher(derniere, ici, largeurAvant);
+      vive.current = null;
+      setPref(finale);
       setGlisse(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
       // Écrit UNE fois, au lâcher : pas à chaque pixel.
-      ecrireLocal(CLE_BARRE, JSON.stringify(derniere));
+      ecrireLocal(CLE_BARRE, JSON.stringify(finale));
+      // La grille se réveille après le rendu qui pose l'état final.
+      document.documentElement.removeAttribute("data-barre-glisse");
+      requestAnimationFrame(() => window.dispatchEvent(new Event(EVT_BARRE_LACHEE)));
     };
     window.addEventListener("pointermove", surMouvement);
     window.addEventListener("pointerup", fin);
@@ -722,14 +763,12 @@ export default function Sidebar({
         data-tip={canonical}
         data-tip-sub={locked ? t("Inclus dans Shale Trade") : t(DESCRIPTIONS[id])}
         data-tip-side="right"
-        // ⚠️ Réduit, le bouton prend sa largeur RÉELLE (41 px = 12 + 17 + 12),
-        // pas celle de la barre : l'info-bulle se place à droite du bouton
-        // (`Tooltip.tsx`), et l'anneau de focus comme la pastille active
-        // doivent tenir dans le rail. Le padding gauche ne change pas : l'icône
-        // reste au même pixel dans les deux états.
-        className={`group/nav relative flex shrink-0 items-center rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
-          reduite ? "w-[41px]" : "gap-3"
-        } ${
+        // ⚠️ UNE SEULE mise en page, du rail à 400 px (2026-10-12). Le bouton
+        // s'étire sur la largeur de la barre ; au rail il fait 41 px
+        // (12 + icône 17 + 12) parce que le libellé, lui, est tombé à zéro.
+        // L'icône ne bouge jamais, et l'info-bulle se place à droite du bouton
+        // (`Tooltip.tsx`), donc à côté du rail.
+        className={`group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
@@ -752,13 +791,12 @@ export default function Sidebar({
         >
           {icon}
         </span>
-        {/* Les libellés sont renommables (page Personnaliser) : on tronque
-            plutôt que de laisser un nom long déborder de la barre. */}
-        {!reduite && (
-          <span className="barre-texte min-w-0 truncate" title={label}>
-            {label}
-          </span>
-        )}
+        {/* Le libellé prend la place qui reste et se COUPE EN S'ESTOMPANT quand
+            elle manque (`.barre-coupe`) — un nom long de Personnaliser, ou une
+            barre qu'on a rétrécie. Toujours dans le DOM, à largeur nulle au rail. */}
+        <span className="barre-texte barre-coupe min-w-0 flex-1 text-left" title={label}>
+          {label}
+        </span>
         {/* Réduit, cadenas et pastille se posent sur le coin de l'icône : en
             bout de ligne ils sortiraient du bouton. */}
         {locked ? (
@@ -780,7 +818,15 @@ export default function Sidebar({
     );
   };
 
-  const largeurCss = { "--barre-l": `${largeur}px` } as CSSProperties;
+  /** `--barre-l` : la largeur ÉTENDUE (volet, images clés). `--barre-w` : la
+      largeur du moment, dont toute la mise en page de la barre découle ;
+      `--barre-n`, la même sans unité, pour les opacités calculées. */
+  const voileCss = { "--barre-l": `${largeur}px` } as CSSProperties;
+  const largeurCss = {
+    ...voileCss,
+    "--barre-w": `${largeurAffichee}px`,
+    "--barre-n": largeurAffichee,
+  } as CSSProperties;
   /** Jusqu'où le bord peut aller à cet instant (pour `aria-valuemax`). */
   const plafond = Math.max(LARGEUR_MIN, Math.min(LARGEUR_MAX, Math.floor(fenetreL * PART_MAX)));
   const visible = config.modules.filter((m) => m.visible && BY_ID.has(m.id) && existe(m.id));
@@ -794,8 +840,8 @@ export default function Sidebar({
     // d'un fond plein pour que la liste passe dessous sans se lire à travers.
     //
     // ── Réduite en icônes ───────────────────────────────────────────────────
-    // 232 px étendue par défaut — réglable en tirant le bord, de 184 à 400 —
-    // et 64 px réduite (`--barre-l`, `--barre-rail`). Par défaut
+    // 232 px étendue par défaut — réglable EN CONTINU en tirant le bord, du rail
+    // à 400 — et 66 px au rail (`--barre-l`, `--barre-rail`). Par défaut
     // la fenêtre décide (étroite → réduite) ; le bouton du pied et ⌥⌘S
     // retournent ce choix, retenu par régime (`lib/barre.ts`).
     //
@@ -808,20 +854,16 @@ export default function Sidebar({
     // remesure ses onze panneaux à chaque changement de largeur. Ce qui glisse,
     // ce sont des `translate` (le volet) et des opacités (les libellés).
     //
-    // ⚠️ Réduite, le nom d'un module est rendu par `data-tip` (couche Tooltip)
-    // et par l'`aria-label` du bouton : le libellé n'est plus dans le DOM.
+    // ⚠️ Au rail, le nom d'un module est rendu par `data-tip` (couche Tooltip)
+    // et par l'`aria-label` du bouton : le libellé est à largeur nulle.
     <>
       <aside
         ref={asideRef}
         data-reduite={reduite ? "" : undefined}
         data-mouvement={mouvement ?? undefined}
         data-glisse={glisse ? "" : undefined}
-        className={`barre relative z-20 flex shrink-0 flex-col border-r border-border ${
-          reduite ? "w-[var(--barre-rail)]" : "w-[var(--barre-l)]"
-        }`}
+        className="barre relative z-20 flex w-[var(--barre-w)] shrink-0 flex-col border-r border-border"
         style={{
-          // La largeur étendue choisie : le CSS (largeur, volet, images clés)
-          // la lit dans `--barre-l`, dont 232 px n'est plus que le défaut.
           ...largeurCss,
           // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
           // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
@@ -838,26 +880,27 @@ export default function Sidebar({
               poignées. En mode `deep` tout le sous-arbre devient poignée,
               SAUF les éléments cliquables : un `<button>` sans attribut coupe
               court à la remontée. La cloche reste donc cliquable. */}
-          {/* Réduit, le bloc de marque passe en colonne : le mot-symbole n'a plus
-              la place de s'écrire, seule la cloche reste utile. La zone de drag,
-              elle, doit survivre — c'est la seule poignée de la fenêtre. */}
+          {/* Le titre cède sa place à mesure que la barre rétrécit, en
+              s'estompant ; au rail il ne reste que la cloche, centrée sur la
+              colonne d'icônes (`--barre-marge` passe de 20 à 16 px). Pas de
+              `gap` : c'est le fondu du titre qui l'écarte de la cloche, et au
+              rail il n'y a pas un pixel à perdre. La zone de drag, elle, doit
+              survivre — c'est la seule poignée de la fenêtre. */}
           <div
             data-tauri-drag-region="deep"
-            className={`flex shrink-0 gap-2 pb-5 pt-10 ${reduite ? "flex-col items-center px-2" : "items-start px-5"}`}
+            className="flex shrink-0 items-start px-[var(--barre-marge)] pb-5 pt-10"
           >
-            {!reduite && (
-              <div className="barre-texte min-w-0 flex-1">
-                {/* Le titre se règle dans Personnaliser (ou vient d'un profil de
-                    licence) : un nom long se coupe, il ne pousse pas la liste. */}
-                <span
-                  className="block truncate font-display text-[17px] font-bold tracking-tight text-text"
-                  title={config.brandTitle}
-                >
-                  {config.brandTitle}
-                </span>
-                {config.brandSubtitle && <p className="hud-label mt-1">{config.brandSubtitle}</p>}
-              </div>
-            )}
+            <div className="barre-texte barre-coupe min-w-0 flex-1">
+              {/* Le titre se règle dans Personnaliser (ou vient d'un profil de
+                  licence) : un nom long se coupe, il ne pousse pas la liste. */}
+              <span
+                className="block font-display text-[17px] font-bold tracking-tight text-text"
+                title={config.brandTitle}
+              >
+                {config.brandTitle}
+              </span>
+              {config.brandSubtitle && <p className="hud-label mt-1">{config.brandSubtitle}</p>}
+            </div>
             <NotificationBell onNavigate={onNavigate} />
           </div>
 
@@ -905,7 +948,7 @@ export default function Sidebar({
                           cela ils passeraient par-dessus. Réduit, le titre n'est
                           plus qu'un chevron : collé, il masquerait une icône
                           pour rien. */}
-                      <div className={reduite ? undefined : "barre-titre sticky top-0 z-10 pt-1"}>
+                      <div className={`barre-titre pt-1 ${reduite ? "" : "sticky top-0 z-10"}`}>
                         <button
                           type="button"
                           onClick={(e) => toggleCategory(cat.id, e.currentTarget)}
@@ -922,21 +965,17 @@ export default function Sidebar({
                                 : t("Déplier la catégorie")
                           }
                           data-tip-side="right"
-                          className={`group flex items-center gap-1.5 rounded-[var(--radius-field)] py-1.5 text-left hover:bg-overlay ${
-                            reduite ? "w-[41px] justify-center" : "w-full px-3"
-                          }`}
+                          className="group flex w-full items-center gap-1.5 rounded-[var(--radius-field)] px-3 py-1.5 text-left hover:bg-overlay"
                         >
-                          {/* Réduit, le nom de catégorie n'a plus la place ; il
-                              reste dans `data-tip`, donc au survol. */}
-                          {!reduite && (
-                            <span
-                              className={`barre-texte hud-label flex-1 transition-colors group-hover:text-text ${
-                                allLocked ? "opacity-55" : ""
-                              }`}
-                            >
-                              {libelle(cat.label)}
-                            </span>
-                          )}
+                          {/* Le nom se coupe en s'estompant ; au rail il n'en reste
+                              rien, il est dans `data-tip`, donc au survol. */}
+                          <span
+                            className={`barre-texte barre-coupe hud-label flex-1 transition-colors group-hover:text-text ${
+                              allLocked ? "opacity-55" : ""
+                            }`}
+                          >
+                            {libelle(cat.label)}
+                          </span>
                           {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
                           {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-blue" />}
                           <svg
@@ -1000,14 +1039,12 @@ export default function Sidebar({
                 data-tip-sub={reduite ? t("Affiche le nom des modules.") : t("Ne garde que les icônes.")}
                 data-tip-kbd={kbd("⌥⌘S")}
                 data-tip-side="right"
-                className={`cible-tactile-ligne relative flex shrink-0 items-center rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text ${
-                  reduite ? "w-[41px]" : "gap-3"
-                }`}
+                className="cible-tactile-ligne relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text"
               >
                 <span className="h-[17px] w-[17px] shrink-0 text-text-dim/80">
                   <IconBarre className="h-full w-full" />
                 </span>
-                {!reduite && <span className="barre-texte min-w-0 truncate">{t("Réduire")}</span>}
+                <span className="barre-texte barre-coupe min-w-0 flex-1 text-left">{t("Réduire")}</span>
               </button>
             </nav>
           </div>
@@ -1018,25 +1055,35 @@ export default function Sidebar({
               Ils reviennent avec les libellés. Ce qu'on perd est consultable d'un
               clic dans Réglages, et l'heure est celle du système — elle est déjà
               dans la barre de menus de macOS. */}
-          <div className={`flex shrink-0 flex-col gap-3 pb-5 pt-4 ${reduite ? "items-center px-2" : "px-5"}`}>
-            {!reduite && !basse && (
-              <div className="barre-texte flex flex-col gap-3">
-                <Clock />
-                {sessionsMarche && <SessionIndicator />}
+          {/* ⭐ Plus aucun rendu conditionnel par état (2026-10-12) : tout ce pied
+              suit `--barre-w`. Les blocs de texte (`.barre-repli`) s'estompent
+              puis se replient en hauteur à mesure que la barre rétrécit ; au
+              rail il ne reste que la pastille de synchronisation, centrée. */}
+          <div className="flex shrink-0 flex-col px-[var(--barre-marge)] pb-5 pt-4">
+            {!basse && (
+              <div className="barre-repli">
+                <div className="barre-texte barre-coupe flex flex-col gap-3 pb-3">
+                  <Clock />
+                  {sessionsMarche && <SessionIndicator />}
+                </div>
               </div>
             )}
-            <SyncIndicator reduit={reduite} onOuvrirReglages={() => onNavigate("settings")} />
-            {demoMode && !reduite && (
-              <span className="barre-texte pill w-fit border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim">
-                {t("mode démo")}
-              </span>
+            <SyncIndicator onOuvrirReglages={() => onNavigate("settings")} />
+            {demoMode && (
+              <div className="barre-repli">
+                <div className="pt-3">
+                  <span className="barre-texte pill inline-block w-fit whitespace-nowrap border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-dim">
+                    {t("mode démo")}
+                  </span>
+                </div>
+              </div>
             )}
-            {/* Réduit, seule la pastille verte reste : elle dit la même chose que le
-                texte à côté, et c'est elle qu'on regarde. */}
             {!basse && (
-              <div className="flex items-center gap-2">
-                <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-success" />
-                {!reduite && <span className="barre-texte hud-label">{t("systèmes actifs")}</span>}
+              <div className="barre-repli">
+                <div className="flex items-center gap-2 pt-3">
+                  <span className="animate-pulse-dot h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+                  <span className="barre-texte barre-coupe hud-label flex-1">{t("systèmes actifs")}</span>
+                </div>
               </div>
             )}
           </div>
@@ -1049,7 +1096,7 @@ export default function Sidebar({
           role="separator"
           aria-orientation="vertical"
           aria-label={t("Largeur de la barre latérale")}
-          aria-valuenow={reduite ? LARGEUR_RAIL : largeur}
+          aria-valuenow={Math.round(largeurAffichee)}
           aria-valuemin={LARGEUR_RAIL}
           aria-valuemax={plafond}
           tabIndex={0}
@@ -1060,10 +1107,10 @@ export default function Sidebar({
           onPointerDown={debutGlisser}
           onDoubleClick={() => poserLargeur(LARGEUR_DEFAUT)}
           onKeyDown={(e) => {
-            const ici = reduite ? LARGEUR_RAIL : largeur;
+            const ici = largeurAffichee;
             if (e.key === "ArrowRight") poserLargeur(reduite ? LARGEUR_MIN : ici + 16);
-            // À la largeur minimale, un pas de plus vers la gauche réduit.
-            else if (e.key === "ArrowLeft") poserLargeur(ici <= LARGEUR_MIN ? 0 : ici - 16);
+            // Sous la largeur minimale, c'est le rail.
+            else if (e.key === "ArrowLeft") poserLargeur(ici - 16 < LARGEUR_MIN ? 0 : ici - 16);
             else if (e.key === "Enter") poserLargeur(LARGEUR_DEFAUT);
             else return;
             e.preventDefault();
@@ -1073,7 +1120,7 @@ export default function Sidebar({
       {/* Le volet qui se referme : pendant la réduction, il glisse du bord étendu
           vers le rail et recouvre un instant le contenu déjà recalé. Invisible et
           inerte le reste du temps (`index.css`, `.barre-voile`). */}
-      <div className="barre-voile" style={largeurCss} aria-hidden />
+      <div className="barre-voile" style={voileCss} aria-hidden />
     </>
   );
 }

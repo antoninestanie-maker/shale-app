@@ -89,6 +89,58 @@ describe("barre latérale — plus de repli par largeur de FENÊTRE", () => {
   });
 });
 
+describe("barre latérale — une seule mise en page, pilotée par sa largeur", () => {
+  /**
+   * 2026-10-12. Tirer le bord écrit `--barre-w` directement sur la barre, sans
+   * repasser par React : ce n'est possible que si RIEN dans la barre n'est
+   * rendu ou dimensionné selon l'état « réduite ». Les seules exceptions
+   * admises changent au lâcher, sans déplacer quoi que ce soit.
+   */
+  const barre = sansCommentaires(lire("src/components/Sidebar.tsx"));
+
+  it("aucun libellé n'est rendu sous condition de l'état réduit", () => {
+    expect(barre).not.toMatch(/\{!reduite && \(?\s*</);
+    expect(barre).not.toMatch(/reduite \? "w-\[/);
+  });
+
+  it("les libellés se coupent en fondu, sans points de suspension", () => {
+    expect(barre.match(/barre-coupe/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
+    expect(barre).not.toMatch(/barre-texte[^"`]*\btruncate\b/);
+    const css = sansCommentaires(lire("src/index.css"));
+    const coupe = css.match(/\.barre \.barre-coupe \{[^}]*\}/)?.[0] ?? "";
+    expect(coupe).toContain("mask-image");
+    expect(coupe).toContain("-webkit-mask-image");
+    expect(coupe).toContain("text-overflow: clip");
+  });
+
+  it("le rail du CSS est celui de la règle", () => {
+    const rail = lire("src/index.css").match(/--barre-rail:\s*(\d+)px/)?.[1];
+    const regle = lire("src/lib/barre.ts").match(/export const LARGEUR_RAIL = (\d+);/)?.[1];
+    expect(rail).toBeDefined();
+    expect(rail).toBe(regle);
+  });
+
+  it("pendant qu'on tire, la largeur est écrite sur l'élément — pas dans l'état", () => {
+    const glisser = barre.slice(barre.indexOf("const debutGlisser"), barre.indexOf("const poserLargeur"));
+    expect(glisser).toContain('aside.style.setProperty("--barre-w"');
+    // Un seul `setPref` dans le geste : celui du lâcher.
+    expect(glisser.match(/setPref\(/g)).toHaveLength(1);
+    expect(glisser).toContain("auLacher(");
+  });
+
+  it("la grille se met en veille pendant le geste, et se réveille au même signal", () => {
+    const grille = sansCommentaires(lire("src/components/grid/ResizableGrid.tsx"));
+    const nom = barre.match(/EVT_BARRE_LACHEE = "([^"]+)"/)?.[1];
+    expect(nom).toBeDefined();
+    expect(grille).toContain(`EVT_BARRE_LACHEE = "${nom}"`);
+    expect(barre).toContain('setAttribute("data-barre-glisse"');
+    expect(barre).toContain('removeAttribute("data-barre-glisse"');
+    expect(grille).toContain('hasAttribute("data-barre-glisse")');
+    // Les deux lectures coûteuses de la grille sont gardées.
+    expect(grille.match(/enVeille\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe("barre latérale — le fond opaque existe dans les trois palettes", () => {
   it("`--barre-bg` : une fois en sombre, deux fois en clair, à l'identique", () => {
     const definitions = [...lire("src/index.css").matchAll(/--barre-bg:\s*([^;]+);/g)].map((m) => m[1].trim());

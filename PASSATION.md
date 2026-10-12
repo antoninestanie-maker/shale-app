@@ -2241,3 +2241,22 @@ Fait et vu à l'écran en démo : ⌘⇧N depuis Aujourd'hui puis frappe immédi
 - La palette n'a toujours ni « Pause » ni « Reprendre ».
 
 **Vérifications** (sur `72b6193`) : `tsc --noEmit` 0 erreur ; `test:types` 0 erreur ; `i18n:check` 0 manquante (2827 entrées) ; `i18n:durs` 0 sûrement française ; `vitest run src/lib/taches src/components src/lib/menu src/lib/calque.test.ts src/lib/timerEcran.test.ts src/lib/timerFenetre.test.ts src/lib/i18n src/lib/fenetres.source.test.ts src/lib/calendrier` : 26 fichiers, 449 tests, tous verts. **La suite complète n'a pas été jouée** (consigne).
+
+## 2026-10-12 (soir) — barre latérale : largeur continue, textes fondus, glissement allégé
+
+Même branche (`chantier/barre-laterale`). Front seul : `Sidebar.tsx`, `SyncIndicator.tsx`, `lib/barre.ts`, `ResizableGrid.tsx` (veille), bloc « Barre latérale » d'`index.css`. Décisions : `CLAUDE.md`, même date.
+
+**Vu à l'écran** (Chrome sans fenêtre, démo, 1470×923 à 110 %, vraie souris) :
+- le bord reste sous le curseur (écart 0) de 80 à 400 px ; sous 80 il passe au rail (66) ; il se rouvre à 81 ;
+- icônes au même pixel à toutes les largeurs (x = 24) ; au rail, cloche centrée sur la colonne d'icônes (33,1 contre 32,5), bouton de 41 px, libellés à largeur nulle, pastille de synchro seule ;
+- textes coupés en fondu à 170, 125, 90 px (captures) ; l'horloge s'estompe puis se replie avant le rail ;
+- lâché au rail depuis 300 : « Étendre » rend 300 ; lâché à 130 : 130 gardé ; clavier ← → Entrée ; double-clic ;
+- la grille se remesure au lâcher (largeur 960 → 862 à 400 px), aucun contenu rogné après ; `sb:barre-lachee` émis une fois ;
+- « Réduire » / « Étendre » : fondu, volet, cadre — inchangés.
+**Mesure de fluidité** (glissement sur Aujourd'hui, processeur ralenti ×4, ancien et nouveau code à la même charge machine) : médiane 45,2 → 18,6 ms ; pire dixième 102 → 23,7 ms ; images de plus de 34 ms 151 → 1 ; tâches longues 76 → 0. Sans ralentissement : 16,7 ms, aucune image manquée.
+**Rejoué dans WebKit** (`webkit-pilote`, pointeur simulé) : masque rendu, bord à 95 px puis rail, pastille de synchro sans débordement, veille posée puis retirée.
+
+**Ligne de base** : voir la ligne « Installé » ci-dessous.
+
+⚠️ **Pas vu** : l'app installée, la vraie souris dans WKWebView, l'iPad. Pendant le geste, un panneau d'Aujourd'hui dont le texte passe à la ligne garde sa hauteur jusqu'au lâcher (voulu : c'est la veille).
+

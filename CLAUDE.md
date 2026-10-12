@@ -8193,3 +8193,17 @@ Fichier : `src/lib/taches/saisieRapide.ts`. Toujours dans les deux champs d'ajou
 - La croix de la pastille retire date **et** heure ; le titre redevient entier.
 
 **`pasUneDate` : les deux points ne comptent que suivis d'un chiffre.** « Jeudi 22 : commander le chêne » et « le 15 : virement » sont des dates (avant : non). Un tiret collé à un chiffre est une plage (« jeudi 8-10h ») : pas un jour du mois.
+
+## 2026-10-12 — La barre latérale se rétrécit EN CONTINU, textes fondus ; le glissement ne fait plus remesurer la grille
+
+Retour d'Antonin sur le bord à tirer installé le matin : « c'est pas exactement ce que je veux. J'aimerais qu'on puisse réduire de sorte qu'on puisse couper un peu les écritures et qu'elles deviennent fondues comme elles le font de haut en bas. Le cran entre ouvert et fermé est trop grand et c'est pas très fluide à la souris. » État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 39.
+
+- **La largeur est continue du rail à 400 px.** La veille, rien n'existait entre 64 et 184 : le bord restait planté pendant 60 px de course puis sautait de 120. Il ne reste qu'un **aimant de 14 px** au-dessus du rail (`AIMANT`, `lib/barre.ts`) — sans lui il faudrait viser le rail au pixel.
+- **Les textes se COUPENT en s'estompant** (`.barre .barre-coupe` : masque en dégradé sur les 20 derniers pixels), plus de points de suspension dans la barre. C'est le pendant horizontal du fondu en bas de la liste, demandé tel quel. Vaut aussi pour un libellé trop long à la largeur par défaut.
+- **UNE seule mise en page, pilotée par `--barre-w`.** Plus aucun libellé rendu « si étendue » : au rail ils sont à largeur nulle. C'est la condition des deux points suivants. Restent liés à l'état, parce qu'ils ne déplacent rien : le caractère collant des titres de catégorie et la place de la pastille de badge.
+- **Le pied suit la largeur par le calcul, pas par l'état** : l'horloge, « mode démo » et « systèmes actifs » s'estompent puis se replient en hauteur (`.barre-repli`, `clamp()` sur `--barre-w`) ; la marge des blocs passe de 20 à 16 px au rail (`--barre-marge`) pour que la cloche et la pastille de synchro tombent au centre des icônes.
+- **Le rail fait 66 px** (64 avant) : c'est ce qu'il faut pour un bouton de 41 px (12 + icône 17 + 12) dans la mise en page commune.
+- **Fluidité — deux causes mesurées, deux parades.** (1) La barre repassait par l'état React à chaque image → pendant le geste, la largeur est écrite sur l'élément (`aside.style.setProperty("--barre-w")`), l'état n'est posé qu'au lâcher. (2) La grille d'Aujourd'hui relisait sa largeur et la hauteur de ses panneaux à chaque pixel → elle se met **en veille** tant que `<html data-barre-glisse>` est posé, et se relit une fois à `sb:barre-lachee`. Ses colonnes suivent quand même le bord : c'est du CSS. Mesuré processeur ralenti ×4, même charge machine : image médiane **45 → 19 ms**, pire dixième **102 → 24 ms**, tâches longues **76 → 0**.
+- **Lâchée au rail, la barre retrouve à « Étendre » sa largeur d'AVANT le geste** (`auLacher`) — pas les 82 px par lesquels la descente est passée. Lâchée étroite mais pas au rail (130 px, par exemple), c'est un choix : gardé.
+- **Écarté** : geler la zone principale pendant le geste et ne la recaler qu'au lâcher (plus léger encore, mais le contenu ne suit plus le bord — le contraire de « fluide à la souris ») ; un dégradé unique posé sur le bord droit de la barre (il aurait mangé le contour de l'onglet actif et les badges).
+

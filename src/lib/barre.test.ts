@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  AIMANT,
   LARGEUR_DEFAUT,
   LARGEUR_MAX,
   LARGEUR_MIN,
+  LARGEUR_RAIL,
+  LARGEUR_UTILE,
   PREF_DEFAUT,
   SEUIL_ETROIT,
   SEUIL_RAIL,
   auGlisser,
+  auLacher,
   basculer,
   bornerLargeur,
   estReduite,
   lireCategories,
+  largeurRendue,
   lirePref,
   memesCategories,
   regimeDe,
@@ -90,8 +95,9 @@ describe("barre latérale — la largeur réglable", () => {
   it("ne dépasse pas 45 % de la fenêtre, sans jamais passer sous le plancher", () => {
     expect(bornerLargeur(400, 800)).toBe(360);
     expect(bornerLargeur(400, 2000)).toBe(LARGEUR_MAX);
+    expect(bornerLargeur(400, 300)).toBe(135);
     // Fenêtre minuscule : le plancher tient (c'est le régime étroit qui réduira).
-    expect(bornerLargeur(400, 300)).toBe(LARGEUR_MIN);
+    expect(bornerLargeur(400, 100)).toBe(LARGEUR_MIN);
   });
 
   it("glisser sous le seuil réduit, et GARDE la largeur étendue", () => {
@@ -118,9 +124,50 @@ describe("barre latérale — la largeur réglable", () => {
     expect(auGlisser(r, "large", 20)).toBe(r);
   });
 
-  it("le seuil est entre le rail et la largeur minimale", () => {
-    expect(SEUIL_RAIL).toBeGreaterThan(64);
-    expect(SEUIL_RAIL).toBeLessThan(LARGEUR_MIN);
+  it("⭐ la largeur est CONTINUE : le bord suit le curseur de l'aimant au plafond", () => {
+    let p = { ...PREF_DEFAUT };
+    for (let x = SEUIL_RAIL; x <= LARGEUR_MAX; x += 1) {
+      p = auGlisser(p, "large", x);
+      expect(p.large).toBe(false);
+      expect(p.largeur).toBe(x);
+    }
+  });
+
+  it("le cran avant le rail est petit (l'ancien faisait 120 px)", () => {
+    expect(SEUIL_RAIL - LARGEUR_RAIL).toBe(AIMANT);
+    expect(AIMANT).toBeLessThanOrEqual(16);
+    expect(LARGEUR_MIN).toBe(SEUIL_RAIL);
+    // Juste sous le seuil : le rail. Juste au seuil : étendue, à cette largeur.
+    expect(largeurRendue(auGlisser(PREF_DEFAUT, "large", SEUIL_RAIL - 0.5), "large")).toBe(LARGEUR_RAIL);
+    expect(largeurRendue(auGlisser(PREF_DEFAUT, "large", SEUIL_RAIL), "large")).toBe(SEUIL_RAIL);
+  });
+
+  it("lâchée au rail, la barre retrouve à l'ouverture sa largeur d'AVANT le geste", () => {
+    // 300 px, puis on tire jusqu'au rail : la largeur passe par 120, 90…
+    let p = { ...PREF_DEFAUT, largeur: 300 };
+    for (const x of [240, 160, 120, 90, 70]) p = auGlisser(p, "large", x);
+    expect(p.large).toBe(true);
+    expect(p.largeur).toBe(90);
+    p = auLacher(p, "large", 300);
+    expect(p).toEqual({ large: true, etroit: true, largeur: 300 });
+    expect(largeurRendue(basculer(p, "large"), "large")).toBe(300);
+  });
+
+  it("lâchée au rail depuis une barre trop étroite pour être utile : le défaut", () => {
+    const p = auLacher({ ...PREF_DEFAUT, large: true, largeur: 90 }, "large", LARGEUR_UTILE - 1);
+    expect(p.largeur).toBe(LARGEUR_DEFAUT);
+  });
+
+  it("lâchée étendue, même très étroite : c'est un choix, rien n'est corrigé", () => {
+    const p = { ...PREF_DEFAUT, largeur: 110 };
+    expect(auLacher(p, "large", 300)).toBe(p);
+    expect(largeurRendue(p, "large")).toBe(110);
+  });
+
+  it("la largeur rendue : le rail quand elle est réduite, sinon le choix sous le plafond", () => {
+    expect(largeurRendue({ ...PREF_DEFAUT, large: true }, "large")).toBe(LARGEUR_RAIL);
+    expect(largeurRendue({ ...PREF_DEFAUT, largeur: 380 }, "large", 700)).toBe(315);
+    expect(largeurRendue(PREF_DEFAUT, "etroit")).toBe(LARGEUR_RAIL);
   });
 });
 

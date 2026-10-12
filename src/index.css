@@ -175,7 +175,11 @@
   /* Barre latérale : étendue, et réduite en icônes. Non thémées — donc ici, pas
      dans les blocs de palette (qui sont écrits deux fois pour le thème clair). */
   --barre-l: 232px;
-  --barre-rail: 64px;
+  --barre-rail: 66px;
+  /* La largeur du MOMENT (posée en ligne par `Sidebar.tsx`, et écrite à chaque
+     image pendant qu'on tire le bord) ; `--barre-n`, la même sans unité. */
+  --barre-w: 232px;
+  --barre-n: 232;
 }
 
 /* — Thème clair "Alabaster" (choix explicite) — */
@@ -567,6 +571,55 @@
   .barre,
   .barre-titre {
     background: var(--barre-bg);
+  }
+  /* ── Une seule mise en page, du rail à 400 px (2026-10-12) ──────────────
+     Tout ce qui dépend de la largeur se lit dans `--barre-w` : c'est ce qui
+     permet de tirer le bord sans repasser par React.
+     La marge des blocs de texte (titre, pied) passe de 20 px à 16 au rail, où
+     la cloche et la pastille de synchro doivent tomber au centre des icônes. */
+  .barre {
+    --barre-marge: clamp(16px, calc(16px + (var(--barre-w) - var(--barre-rail)) / 8), 20px);
+  }
+  /* Un texte qui n'a plus la place : COUPÉ, et estompé sur ses vingt derniers
+     pixels — le pendant horizontal du fondu en bas de la liste. Jamais de
+     points de suspension ici (`.hud-label` en pose : d'où la spécificité).
+     Sur une boîte qui prend la place restante (`flex-1`), le fondu tombe dans
+     le vide tant que le texte tient. */
+  .barre .barre-coupe {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+  .barre .barre-coupe .hud-label {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  /* Même fondu sur une boîte SERRÉE sur son texte (le libellé de la pastille de
+     synchro) : sans cette réserve, il mangerait la fin du mot même quand il
+     tient. La réserve porte le fondu, la marge négative la rend à la mise en page. */
+  .barre .barre-coupe-serre {
+    /* ⚠️ La réserve se replie avec la barre : un padding ne rétrécit pas tout
+       seul, et au rail il laissait dépasser « syn… » hors de la pastille (vu à
+       l'écran). Le plafond de largeur, lui, mène le libellé à zéro au rail :
+       barre − deux marges − la pastille nue (34 px). */
+    --reserve: clamp(0px, calc(var(--barre-w) - 100px), 10px);
+    padding-right: var(--reserve);
+    margin-right: calc(-1 * var(--reserve));
+    max-width: max(0px, calc(var(--barre-w) - 2 * var(--barre-marge) - 34px + var(--reserve)));
+    /* Dix pixels, pas vingt : c'est le padding de la pastille. Au-delà, le
+       texte en fondu sortirait de son contour (vu à l'écran à 128 px). */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
+  }
+  /* Un bloc du pied (horloge, « mode démo », « systèmes actifs ») : il
+     s'estompe, puis se replie en hauteur, à mesure que la barre rétrécit —
+     tout est fini avant le rail. Calculé, pas animé : il suit le bord. */
+  .barre-repli {
+    overflow: hidden;
+    max-height: clamp(0px, calc((var(--barre-w) - 104px) * 2), 120px);
+    opacity: clamp(0, calc((var(--barre-n) - 118) / 44), 1);
   }
   /* Pied de la liste : il reste des modules plus bas. */
   .barre-fondu {

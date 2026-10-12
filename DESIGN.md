@@ -420,6 +420,14 @@ pas. Ils le sont désormais.
 > 45 % de la fenêtre ; sous 124 px le bord réduit la barre. Poignée invisible au
 > repos, trait `--color-blue` de 2 px au survol, au focus et pendant le
 > glissement — le bleu d'une interaction, pas un ornement.
+>
+> ⭐ **2026-10-12 — la largeur est CONTINUE**, du rail (66 px) à 400. Un aimant de
+> 14 px au-dessus du rail, rien d'autre. Un texte qui n'a plus la place est
+> **coupé et estompé sur ses 20 derniers pixels** (`.barre .barre-coupe`) —
+> jamais de points de suspension dans la barre ; c'est le pendant horizontal du
+> fondu au pied de la liste. Les blocs du pied s'estompent puis se replient en
+> hauteur avant le rail (`.barre-repli`). Rien de tout cela n'est animé : tout
+> est calculé depuis `--barre-w`, donc suit le bord au pixel.
 
 **La barre latérale se replie en icônes sous 1024 px** (`Sidebar.tsx`). Elle
 mesurait 232 px de 720 à 2560 px sans jamais céder un pixel : 32 % de la fenêtre

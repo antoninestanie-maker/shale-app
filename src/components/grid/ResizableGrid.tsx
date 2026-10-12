@@ -93,6 +93,20 @@ const REORDER_COOLDOWN_MS = 130; // laisse le FLIP se poser avant le swap suivan
 const ceil8 = (v: number) => Math.ceil(v / 8) * 8;
 
 /**
+ * ⭐ LA GRILLE SE MET EN VEILLE pendant qu'on tire le bord de la barre latérale
+ * (2026-10-12). Sa largeur change alors à chaque image ; la relire ici, c'était
+ * un rendu React de la grille et une mise en page forcée par panneau — mesuré
+ * processeur ralenti ×4 : 47 ms par image en médiane, 178 ms au pire dixième.
+ * Les colonnes, elles, suivent sans nous (`repeat(12, 1fr)`, du CSS). On relit
+ * tout UNE fois, à `EVT_BARRE_LACHEE`.
+ * ⚠️ Le nom de l'événement et l'attribut sont ceux de `Sidebar.tsx`, recopiés :
+ * la grille ne dépend pas de la barre. `barre.source.test.ts` les tient d'accord.
+ */
+const EVT_BARRE_LACHEE = "sb:barre-lachee";
+const enVeille = () =>
+  typeof document !== "undefined" && document.documentElement.hasAttribute("data-barre-glisse");
+
+/**
  * Courbe ressort physique échantillonnée en easing CSS `linear(...)`.
  * x(0)=1, v(0)=0 (masse-ressort amorti) ; durée = temps pour |x| < 0.1 %.
  */
@@ -446,11 +460,20 @@ export function ResizableGrid({
   useLayoutEffect(() => {
     const el = gridRef.current;
     if (!el) return;
-    const read = () => setGridWidth((prev) => (Math.abs(prev - el.clientWidth) > 0.5 ? el.clientWidth : prev));
+    const read = () => {
+      // En veille pendant qu'on tire le bord de la barre latérale (voir
+      // `enVeille`) : relu une fois au lâcher.
+      if (enVeille()) return;
+      setGridWidth((prev) => (Math.abs(prev - el.clientWidth) > 0.5 ? el.clientWidth : prev));
+    };
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener(EVT_BARRE_LACHEE, read);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener(EVT_BARRE_LACHEE, read);
+    };
   }, []);
 
   // Hauteur visible — re-borne les panneaux au redimensionnement / à la rotation.
@@ -991,7 +1014,15 @@ export function ResizablePanel({
     // re-agencement, ex. une rangée de boutons qui passe sur 2 lignes).
     // On observe donc aussi les enfants directs de la carte, seuls libres de
     // varier, et on ré-attache l'observation quand la structure change.
-    const ro = new ResizeObserver(measure);
+    // Même veille que la largeur de la grille : pendant qu'on tire le bord de
+    // la barre latérale, la hauteur naturelle n'est pas relue à chaque pixel
+    // (chaque lecture force une mise en page). Le panneau garde sa hauteur ;
+    // s'il faut une ligne de plus, elle arrive au lâcher.
+    const mesurerSiEveille = () => {
+      if (!enVeille()) measure();
+    };
+    const ro = new ResizeObserver(mesurerSiEveille);
+    window.addEventListener(EVT_BARRE_LACHEE, measure);
     const attach = () => {
       ro.disconnect();
       ro.observe(el);
@@ -1022,6 +1053,7 @@ export function ResizablePanel({
     return () => {
       ro.disconnect();
       mo.disconnect();
+      window.removeEventListener(EVT_BARRE_LACHEE, measure);
     };
   }, []);
 

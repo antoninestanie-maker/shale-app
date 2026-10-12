@@ -1,6 +1,6 @@
 /**
- * La barre latérale : étendue (libellés, largeur réglable) ou réduite (64 px,
- * icônes).
+ * La barre latérale : étendue (libellés, largeur réglable en continu) ou
+ * réduite au rail d'icônes (66 px).
  *
  * ⭐ LE CHOIX EST RETENU PAR RÉGIME, pas en un seul booléen (2026-10-11).
  * Avant, seule la largeur de la fenêtre décidait (`lg:` de Tailwind, donc
@@ -23,20 +23,32 @@
 export type Regime = "large" | "etroit";
 
 /** Largeurs, en pixels LOCAUX. */
-export const LARGEUR_RAIL = 64;
+/** Le rail d'icônes : 12 + 41 (le bouton : 12 + icône 17 + 12) + 12 + le filet. */
+export const LARGEUR_RAIL = 66;
 export const LARGEUR_DEFAUT = 232;
-/** En dessous, « Supprimés récemment » ne tient plus sur sa ligne. */
-export const LARGEUR_MIN = 184;
 export const LARGEUR_MAX = 400;
 /** La barre ne prend jamais plus que cette part de la fenêtre. */
 export const PART_MAX = 0.45;
 /**
- * En glissant le bord : sous ce point la barre se réduit en icônes, au-dessus
- * elle s'étend. À mi-chemin du rail et de la largeur minimale — entre les deux
- * il n'existe pas de largeur utile (des libellés coupés à trois lettres), donc
- * le bord « saute » d'un état à l'autre, comme dans un éditeur de code.
+ * ⭐ LA LARGEUR EST CONTINUE jusqu'au rail (2026-10-12, retour d'Antonin : « le
+ * cran entre ouvert et fermé est trop grand », « couper un peu les écritures et
+ * qu'elles deviennent fondues »). La veille, rien n'existait entre 64 et 184 px :
+ * le bord restait planté à 184 pendant que le curseur en parcourait 60, puis
+ * sautait de 120. Désormais le bord suit le curseur partout, les libellés se
+ * coupent en s'estompant (`.barre-coupe`), et il ne reste qu'un AIMANT de
+ * quelques pixels au-dessus du rail — sans lui, il faudrait viser le rail au
+ * pixel près pour retrouver la barre d'icônes exacte.
  */
-export const SEUIL_RAIL = (LARGEUR_RAIL + LARGEUR_MIN) / 2;
+export const AIMANT = 14;
+export const SEUIL_RAIL = LARGEUR_RAIL + AIMANT;
+/** La plus petite largeur « étendue » : juste au-dessus de l'aimant. */
+export const LARGEUR_MIN = SEUIL_RAIL;
+/**
+ * En dessous, la barre ne montre plus un seul libellé entier. On peut la laisser
+ * là en la tirant — c'est un choix — mais « Étendre » ne rouvre jamais sur une
+ * largeur pareille après un passage par le rail (`auLacher`).
+ */
+export const LARGEUR_UTILE = 150;
 
 /**
  * Pour chaque régime : la barre est-elle RÉDUITE ? Et, étendue, de quelle
@@ -97,8 +109,7 @@ export function estReduite(pref: PrefBarre, regime: Regime): boolean {
 /**
  * La largeur étendue, ramenée dans ses bornes. `largeurFenetre` (locale) pose
  * en plus le plafond « pas plus de 45 % de la fenêtre » ; sans elle, seules les
- * bornes fixes jouent. Le plancher l'emporte toujours : une fenêtre minuscule
- * ne fabrique pas une barre illisible, c'est le régime étroit qui la réduit.
+ * bornes fixes jouent. Le plancher l'emporte toujours.
  */
 export function bornerLargeur(largeur: number, largeurFenetre?: number): number {
   const plafond =
@@ -117,6 +128,23 @@ export function auGlisser(pref: PrefBarre, regime: Regime, x: number, largeurFen
   const largeur = bornerLargeur(x, largeurFenetre);
   if (!pref[regime] && pref.largeur === largeur) return pref;
   return { ...pref, [regime]: false, largeur };
+}
+
+/**
+ * Le bord est LÂCHÉ. Si la barre finit au rail, la largeur étendue redevient
+ * celle d'AVANT le geste : pendant la descente, `auGlisser` l'a fait passer par
+ * 120, 95, 82… et « Étendre » rouvrirait sinon sur 82 px. Une largeur d'avant
+ * trop étroite pour être utile rend le défaut.
+ */
+export function auLacher(pref: PrefBarre, regime: Regime, largeurAvant: number): PrefBarre {
+  if (!pref[regime]) return pref;
+  const largeur = largeurAvant >= LARGEUR_UTILE ? bornerLargeur(largeurAvant) : LARGEUR_DEFAUT;
+  return pref.largeur === largeur ? pref : { ...pref, largeur };
+}
+
+/** La largeur RENDUE : le rail, ou la largeur étendue sous le plafond du moment. */
+export function largeurRendue(pref: PrefBarre, regime: Regime, largeurFenetre?: number): number {
+  return pref[regime] ? LARGEUR_RAIL : bornerLargeur(pref.largeur, largeurFenetre);
 }
 
 /** Retourne la réponse du régime courant, et de lui seul. */
