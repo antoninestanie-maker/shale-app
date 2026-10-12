@@ -465,9 +465,6 @@ export const EN: Record<string, string> = {
   "## Ce qui a marché": "## What worked",
   "## À améliorer": "## What to improve",
   "## Priorités de la semaine prochaine": "## Priorities for next week",
-  "Historique des streaks": "Streak history",
-  "Pas encore de streak — vise ≥80% de tes tâches un jour donné.":
-    "No streak yet — aim for ≥80% of your tasks on a given day.",
   "L'historique se construit au fil des jours — reviens demain.":
     "History builds up day by day — come back tomorrow.",
 
@@ -569,7 +566,6 @@ export const EN: Record<string, string> = {
     "A second click deletes the metric and all its history.",
   "Ajoute 1 à la valeur du jour et l’enregistre.": "Adds 1 to today’s value and saves it.",
   "Incrémenter": "Increment",
-  "focus par tag — 30 jours": "focus by tag — 30 days",
   "Heures de backtesting": "Backtesting hours",
 
   // ── Discipline ────────────────────────────────────────────────────────────
@@ -1881,7 +1877,6 @@ export const EN: Record<string, string> = {
   "Jour": "Day",
   "Semaine": "Week",
   "Mois": "Month",
-  "Streak actuel": "Current streak",
   "Record": "Best",
   "Focus aujourd'hui": "Focus today",
   "discipline — 6 derniers mois": "discipline — last 6 months",
@@ -3550,7 +3545,6 @@ export const EN: Record<string, string> = {
   "Période analysée": "Period analysed",
   "Tout l'onglet suit cette période, et se compare à la même durée juste avant.":
     "The whole tab follows this period, and compares it with the same length of time just before.",
-  "Série en cours": "Current streak",
   "record {n} j": "best {n} d",
   "stable": "steady",
   "{tenus}/{comptes} j": "{tenus}/{comptes} d",
@@ -3594,7 +3588,6 @@ export const EN: Record<string, string> = {
   "par jour de la semaine": "by day of the week",
   "Rien à comparer sur cette période.": "Nothing to compare over this period.",
   "focus — par jour": "focus — per day",
-  "focus — par semaine": "focus — per week",
   "Aucune séance de focus sur cette période.": "No focus session over this period.",
   "Focus": "Focus",
   "focus": "focus",
