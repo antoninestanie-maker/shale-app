@@ -4931,3 +4931,65 @@ Huit chantiers en parallèle, un agent par worktree. Chaque entrée dit de quel 
 - **Symptôme.** Une session voisine a pris le verrou de build et trouvé huit commits locaux « non poussés et non annoncés » dans le worktree principal. Elle a dû construire depuis son propre worktree.
 - **Cause.** Trois branches fusionnées en avance rapide puis vingt minutes de tests avant la ligne `FUSIONNÉ` et le `git push`.
 - **Parade.** Vérifier la branche fusionnée DANS SON worktree d'abord ; puis, d'un seul geste : avance rapide du tronc, `git push`, ligne au carnet.
+
+# 38. Retours de la seconde passe du labo (2026-10-12)
+
+Un seul chantier, après la seconde passe du labo.
+
+## 38.1 Un calque plein écran qui ne prend pas le clavier laisse la page de derrière répondre
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** L'horloge du minuteur couvre tout l'écran. On appuie sur Espace pour mettre en pause : le menu « ⋯ » d'une tâche s'ouvre par-dessus l'horloge. Un second Espace marque la tâche faite. Rien ne le montre.
+
+**Cause.** Recouvrir n'est pas prendre la main. Le calque était un simple `fixed inset-0` : le focus restait sur le bouton d'où l'on avait lancé la séance, sous le calque. Et le menu contextuel **rendait** le focus à ce bouton une image après s'être fermé (`rendreLeFocus`).
+
+**Parade.** `ouvrirCalque()` (`src/lib/calque.ts`) : `inert` sur `#root`, focus dans le calque, retour du focus à la fermeture. Le calque vit sur `document.body` (§ 18.1). `rendreLeFocus` ne donne jamais le focus à un élément sous `[inert]`. Un test de source (`calque.test.ts`) tient la règle pour l'horloge, la carte mentale et le croquis.
+
+**Payé.** Seconde passe du labo, 12 octobre : trois utilisateurs sur trois qui ont cherché la pause au clavier y sont tombés. Le défaut existait depuis le 30 septembre ; l'entrée « Focus 25 min » du menu de Tâches, ajoutée le 11 octobre, l'a mis sur le chemin de tout le monde.
+
+## 38.2 `inert` posé à la main par deux calques : le premier fermé rallume l'app sous le second
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** Aucun vu : trouvé en écrivant. Deux calques l'un sur l'autre posent `inert` sur `#root` ; le premier qui se ferme le retire, et l'app redevient cliquable sous celui qui reste.
+
+**Cause.** `setAttribute("inert")` / `removeAttribute("inert")` dans le `useEffect` de chaque calque, sans compter.
+
+**Parade.** `rendreLeResteInerte()` (`src/lib/calque.ts`) compte. Personne ne pose `inert` sur `#root` autrement ; un test de source le refuse.
+
+## 38.3 Arrêter une touche en capture sur `window` coupe aussi ce qui écoute `document` en capture
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** Évité avant d'être payé. Pour que le clavier n'aille plus à l'app derrière l'horloge, le premier réflexe est un écouteur en capture sur `window` qui arrête tout. L'info-bulle de l'app se referme à la frappe par un écouteur en capture sur `document` : elle n'aurait plus reçu aucune touche.
+
+**Parade.** Écouter sur `document`, en remontée, et arrêter la touche là. Les raccourcis de l'app écoutent `window` : ils sont un cran plus haut et ne la voient pas. Ce qui écoute `document` en capture est déjà passé.
+
+## 38.4 Deux sections de `CLAUDE.md` sur le même écran, la seconde rangée loin de la première
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** La section « 2026-09-29 — Timer » décrit un plein écran avec « Pause », une jauge, des gestes de fenêtre. L'écran n'en montre aucun. On cherche un bogue : composant pas branché, calque passé dessous.
+
+**Cause.** Il n'y a pas de bogue. La section « 2026-09-30 — Timer, second passage » retire ces boutons à la demande d'Antonin. Elle a été fusionnée le 11 octobre et se trouve 850 lignes plus bas, après des sections datées d'octobre. La première ne renvoie pas à la seconde.
+
+**Parade.** Avant de corriger un écart entre `CLAUDE.md` et l'écran, chercher le nom du composant dans **tout** le fichier (`grep -n "epure\|épuré" CLAUDE.md`). Et, en écrivant une section qui en retourne une autre, ajouter une ligne à l'ancienne.
+
+**Payé.** 12 octobre : la mission de ce chantier a été écrite en croyant à un défaut de branchement. Dix minutes de lecture pour le voir, mais la décision retournée a failli passer pour une simple réparation.
+
+## 38.5 Un numéro après un jour de la semaine : date, heure, plage ou quantité
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** « avant jeudi 22 » donnait le jeudi 15 et laissait « 22 » dans le titre. En le corrigeant sans garde : « jeudi 14h30 » lit le 14, « jeudi 2 baguettes » lit le 2 du mois, « jeudi 8-10h » lit le 8, « Jeudi 22 : commander » ne lit plus rien (les deux points étaient pris pour une heure).
+
+**Parade.** Dans `saisieRapide.ts` : `pasUneDate` écarte ce qui suit un numéro quand c'est une heure (« h », « : » suivi d'un chiffre, am / pm), une plage (tiret suivi d'un chiffre), un pourcentage ou un décimal. Et ce qui suit le numéro décide : rien, une ponctuation ou une heure → date ; un nom → quantité, sauf si le numéro tombe ce jour-là. Chaque cas a son test, dans les deux langues.
+
+## 38.6 Outil — taper dans un numéro d'élément périmé replie la barre latérale
+
+*Chantier `retours-passe2`.*
+
+**Symptôme.** Au pilote, `{"dans": 15, "taper": …}` après un changement d'écran : le n° 15 n'était plus le champ mais « Réduire » la barre. La barre s'est repliée, le texte est parti nulle part, puis s'est ajouté au champ au pas suivant.
+
+**Parade.** Relire les numéros après chaque geste qui change l'écran (le protocole le dit : deux à quatre pas par commande). Avant de retaper : `{"clic": n}` puis `{"vider": true}`.

@@ -2207,3 +2207,37 @@ Fait et vu à l'écran en démo : ⌘⇧N depuis Aujourd'hui puis frappe immédi
 **Installé le 2026-10-12 à 12:37** : build depuis `mobile-ios` `dbca19a` (= `origin/mobile-ios`, arbre inchangé avant et après), 12:34 → 12:36, code 0. Il porte les huit chantiers ci-dessus et le bord de la barre latérale (`eff0b24`). Témoins dans `dist/assets` : « En faire une tâche », « Aucune note sans titre. », « Régler la largeur », « Par objectif », « En retard » ; contre-épreuves à 0 : « Énergie restante », « Garder telle quelle », « Sous-objectif », une phrase jamais écrite. sha256 installée = source `fb70acefa8b3…` (ancienne `a49a0d58a5f1…`), `diff -r` identique ; « Quitter » a bien arrêté l'ancien processus, le numéro a changé après relance (PIEGES § 35.8). Base 30 avant et après, intégrité ok, 88 objectifs / 81 tâches / 22 notes / 4 habitudes / 32 coches identiques. Sauvegarde : `sauvegardes-locales/avant-correctifs-labo-20261012-1234/`. Bundle supprimé, aucune image disque montée.
 
 ⚠️ **Pas vu dans l'app installée** : aucune session ne peut la regarder. La fenêtre du trousseau (« Toujours autoriser ») est à valider par Antonin. Le Rust des notifications a changé (la règle du jour) : la notification « série en danger » n'a pas été observée en réel. **L'iPhone n'a rien reçu** : il faut un build iOS.
+
+## 2026-10-12 (suite) — La seconde passe du labo, et ses deux retours
+
+**Fusionné dans `mobile-ios` et poussé ; PAS installé** (le build de 12:36 ne le porte pas). Aucune migration, aucun Rust. À grouper avec le prochain build.
+- Horloge plein écran : toujours SEULE (décision du 30/09). Espace met en pause et reprend, Échap réduit, plus aucune touche ni clic n'atteint la page de derrière ; le focus revient à la ligne d'où l'on venait. Vu en démo : « ⋯ › Focus 25 min » depuis Tâches, deux Espace puis Échap → la tâche est toujours dans « Aujourd'hui », le menu ne s'est pas ouvert ; depuis la page Timer, « Plein écran », Espace, Échap → la page affiche « Reprendre ».
+- Ajout rapide : « avant jeudi 22 » donne le 22 ; l'heure est lue (« jeudi 14h30 » → créneau d'une heure).
+- **Question ouverte pour Antonin** : garder l'horloge seule, ou montrer ses commandes (six utilisateurs simulés sur douze n'ont pas trouvé comment en sortir).
+
+### `retours-passe2` — le clavier de l'horloge plein écran, la date et l'heure lues par l'ajout rapide
+
+**Fait, et vu à l'écran (mode démo, compte habité).**
+- Horloge plein écran : nom de la tâche, « Pause » / « Reprendre », « Terminer », « Réduire ». Bureau 1440 et 1280, téléphone 390 au doigt, tablette 820 au doigt, anglais, thème clair.
+- Depuis Tâches **et** depuis Aujourd'hui, « ⋯ › Focus 25 min » : Espace met en pause, le menu de la tâche ne s'ouvre pas, la tâche n'est pas marquée faite. Espace reprend. Échap réduit. Le focus revient sur le « ⋯ » d'où l'on venait. La pastille rouvre l'horloge. « Terminer » enregistre la séance (lue dans « sessions du jour » de la page Timer).
+- Horloge ouverte : ⌘K ne fait rien, Tab reste sur les trois boutons. Horloge réduite : ⌘K rouvre la palette.
+- Dates : « Commander le chêne avant jeudi 22 » → « Commander le chêne », « jeu. 22 oct. », dans Tâches et dans Aujourd'hui. « RDV clinique Saint-Jean jeudi 14h30 » → créneau 14:30–15:30. « Appeler Paul à 14h » sur Aujourd'hui. « mercredi prochain » → « mer. 14 oct. ». En anglais : “before thursday 22”, “Thursday, October 22 at 2:30pm”, “next wednesday”.
+- Fenêtre séparée, **dans sa forme navigateur** (`/?pane=timer`, 560 × 360 et 380 × 300, deux onglets du même Chrome) : « Session libre », « Pause », « Terminer » tiennent ; Espace met en pause et reprend ; « Terminer » arrête la séance dans l'app.
+
+**Pas vu — ne se voit que dans l'app native.**
+- Le vrai plein écran macOS que l'horloge demande (`usePleinEcranNatif`) : pas touché, pas vu.
+- La fenêtre séparée native : sa barre de titre, « Garder au premier plan », son plein écran (mode épuré, inchangé).
+- iPhone et iPad réels : la zone sûre (encoche) autour de « Réduire ». L'en-tête garde `pt-[max(1.25rem,env(safe-area-inset-top))]`, écrit le 29/09, jamais vu sur un appareil.
+- WebKit : `inert` et le retour du focus ont été vus sous Chrome seulement. `inert` existe depuis Safari 15.5 ; la carte mentale et le croquis s'en servent déjà dans l'app installée.
+- Un toast cliqué par-dessus l'horloge : non rejoué (les toasts vivent déjà hors de `#root`).
+
+**Pas fait.**
+- La date n'est toujours lue **que** dans les deux champs d'ajout rapide. Le formulaire « Nouvelle tâche », le champ d'une étape, le titre d'un événement (« jeudi 14h30 » posé sans heure au jour par défaut) : hors mission, toujours ouverts (constat 2, seconde moitié).
+- « jeudi soir », « jeudi matin » : « jeudi » est lu, « soir » reste dans le titre. Comme avant.
+- Une date choisie ensuite au calendrier remet le titre entier et **perd l'heure lue** (règle d'avant : une date choisie ne touche pas au titre).
+- En anglais, « Read the 22nd chapter » lit « the 22nd » comme une date. Défaut d'avant ce chantier, non corrigé : la croix de la pastille garde le titre.
+- Le calcul du temps (la pause comptée comme du travail, « cette semaine ») : constat 10, hors mission.
+- Les info-bulles « Ne laisse que le chrono à l'écran. Échap pour en sortir. » (boutons « Plein écran » du Timer) n'ont pas été réécrites : elles restent vraies à un mot près.
+- La palette n'a toujours ni « Pause » ni « Reprendre ».
+
+**Vérifications** (sur `72b6193`) : `tsc --noEmit` 0 erreur ; `test:types` 0 erreur ; `i18n:check` 0 manquante (2827 entrées) ; `i18n:durs` 0 sûrement française ; `vitest run src/lib/taches src/components src/lib/menu src/lib/calque.test.ts src/lib/timerEcran.test.ts src/lib/timerFenetre.test.ts src/lib/i18n src/lib/fenetres.source.test.ts src/lib/calendrier` : 26 fichiers, 449 tests, tous verts. **La suite complète n'a pas été jouée** (consigne).

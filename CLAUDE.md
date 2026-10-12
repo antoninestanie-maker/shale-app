@@ -8110,3 +8110,86 @@ L'info-bulle d'un jour dit maintenant la date en toutes lettres (« samedi 10 oc
 Après ⌘⇧N, le bouton « + », la palette ou le raccourci de l'iPhone, il fallait cliquer avant d'écrire. Une note prise à la volée s'écrit maintenant tout de suite : la vue Notes pose le curseur dans le texte d'une note **neuve** (sans titre et vide — `estNoteNeuve`, `src/lib/notesSansTitre.ts`) qu'on vient de demander. Ouvrir une note existante ne prend toujours pas le clavier ; dans l'onglet « Sans titre », ouvrir vise le titre.
 
 ⌘⇧N et la palette passent par `ouvrirParId("note", id)` (`src/lib/naviguer.ts`) : la demande est déposée, la vue la trouve à son montage. L'ancien code changeait de vue puis émettait `sb:open-note` 60 ms plus tard — avant qu'une vue chargée en `lazy` soit là. La note s'ouvrait par chance (la plus récente est en tête de liste).
+
+## 2026-10-12 (suite) — La seconde passe du labo, et ses deux retours
+
+**La seconde passe** (`Shale-projet/labo/passes/2026-10-12-app/SYNTHESE.md`, 29 agents, sur `dbca19a`, la version installée) : les 27 correctifs rejoués un par un — 23 confirmés, 4 en partie (compteur « 1 étape sur 3 » écrit seulement sur la page ; « pts » des lignes d'habitudes sans bulle ; pastilles de couleur de « Nouvel événement » à 32 px ; « Sans objectif » pas en dernier dans Tâches par objectif), aucun échec. Douze utilisateurs simulés : 29 constats gênants établis par rejeu.
+
+⚠️ **Une décision d'Antonin a failli être retournée sans lui, et ne l'a pas été.** Le labo a vu six utilisateurs sans sortie devant l'horloge plein écran (« Focus 25 min », exposé la veille dans le menu de Tâches). La mission donnée au chantier demandait des commandes visibles ; il les a écrites. Or l'horloge SEULE est la demande d'Antonin du 2026-09-30 (« en plein écran, seul le timer affiché, pas de bouton pause, rien — on sort avec Échap et c'est tout », prop `epure`). **Le mode épuré est donc rétabli à la fusion** (`FocusOverlay.tsx`, un commentaire et un test le tiennent). Ce qui est gardé vaut dans les deux cas : le clavier appartient à l'horloge. Les commandes visibles restent dans le code : retirer `epure` suffit, s'il le décide. Le texte du chantier ci-dessous décrit l'état AVANT ce rétablissement.
+
+Leçon de méthode : un constat du labo dit ce que des utilisateurs simulés ont rencontré, pas ce qu'il faut faire. Avant de « corriger », chercher dans ce fichier si l'écran est ainsi par décision — et chercher la section la plus RÉCENTE (celle du 29/09 sur l'horloge était périmée par celle du 30/09).
+
+### `retours-passe2` — le clavier de l'horloge plein écran, la date et l'heure lues par l'ajout rapide
+
+#### 2026-10-12 — Le plein écran du minuteur montre ses commandes (⚠️ retourne la décision du 2026-09-30)
+
+**Ce qui était décidé.** Le 30 septembre, après son premier essai, Antonin avait demandé : « en plein écran, seul le timer affiché, pas de bouton pause, rien — on sort avec Échap et c'est tout, là on retrouve les boutons ». C'est le mode « épuré » d'`EcranTimer` (section « Timer, second passage »). L'horloge sans commande n'était donc **pas un bogue** : c'était voulu. La section du 29 septembre, plus haut dans ce fichier, décrit encore l'écran d'avant (genre de séance, « Pause », jauge) : elle était périmée dès le lendemain.
+
+**Ce qui a changé depuis.** Le 11 octobre, « Focus 25 min » est entré dans le menu « ⋯ » des tâches de la vue Tâches (il était déjà sur Aujourd'hui). Le plein écran, qu'on n'atteignait qu'en le demandant depuis la page Timer, est devenu la première chose qu'on voit en lançant une séance.
+
+**Ce que le labo a vu** (douze utilisateurs simulés, seconde passe, constats 1 et 3). Six butent sur l'horloge, cinq en font leur moment de fermer l'app. Ni pause, ni arrêt, ni sortie, ni nom de la tâche. Les seules sorties (Échap, double toucher) ne sont écrites nulle part. Au téléphone et sur tablette il n'y a pas d'Échap. La pastille de séance ramène au même écran.
+
+**Ce qui est fait.** Le plein écran de l'app (`FocusOverlay`) n'utilise plus le mode épuré. Il montre, **visibles au repos** :
+- en haut à gauche, le genre de séance et **le nom de la tâche** — ou « Session libre » pour une séance sans tâche (avant : « Focus », qui ne disait rien) ;
+- en haut à droite, **« Réduire »** (la séance continue, la pastille reste) ;
+- sous l'horloge, **« Pause »** (qui devient « Reprendre », en bouton primaire, pendant la pause) et **« Terminer »**, en toutes lettres.
+
+Rien n'est ajouté d'autre : pas de phrase d'aide, pas de couleur de plus. L'horloge reste la plus grande chose de l'écran.
+
+**Phrase d'Antonin qui retourne la décision : aucune.** La mission vient de la session qui a lu le labo. **À lui de trancher** à la fusion. S'il veut revenir à l'horloge seule : remettre `epure` sur `<EcranTimer>` dans `FocusOverlay.tsx` (une ligne) et retirer le test de source correspondant dans `lib/calque.test.ts`. Tout le reste de ce chantier (le clavier, le focus) reste valable dans les deux cas.
+
+**Le mode épuré existe encore**, pour un seul endroit : le vrai plein écran de la **fenêtre séparée** (`TimerPane`, bureau seulement). On y entre par un bouton nommé « Plein écran », dont l'info-bulle écrit « Échap pour en sortir ». Non touché, exprès : c'est la demande du 30 septembre dans le cas où elle tient encore (un clavier, un geste voulu).
+
+**« Terminer » est écrit en toutes lettres dans l'écran partagé** (`EcranTimer`), donc aussi dans la fenêtre séparée. Avant : un carré seul, nommé par une info-bulle que le doigt ne voit pas.
+
+#### 2026-10-12 — Un calque plein écran prend la main, et la rend (`src/lib/calque.ts`)
+
+**Le défaut** (constat 3). L'horloge recouvrait l'app sans lui retirer le clavier. Le focus restait sur le « ⋯ » de la tâche, dessous. Espace rouvrait le menu de la tâche **par-dessus l'horloge**, « Terminer » surligné. Un second Espace marquait la tâche faite, sans que rien le montre.
+
+**La règle, pour tout calque qui recouvre l'écran** — trois choses, ensemble :
+1. ce qui est dessous devient **inerte** (`inert` sur `#root`) ;
+2. le focus **entre** dans le calque à l'ouverture ;
+3. à la fermeture, le focus **revient** là d'où l'on venait.
+
+`ouvrirCalque(conteneur)` fait les trois et rend la fonction qui referme. L'horloge s'en sert (`CalqueSeance`, dans `FocusOverlay.tsx`).
+
+**`inert` se compte** (`rendreLeResteInerte`). La carte mentale (`EditeurCarte`) et le croquis (`SketchPad`) posaient `inert` chacun de leur côté, à la main. Ils passent par le même compteur : si l'horloge s'ouvre par-dessus une carte (la pause qui s'enchaîne en plein écran), la première fermeture ne rallume plus l'app sous l'autre. Un test de source interdit de reposer `inert` à la main ailleurs.
+
+**Le défaut de fond : le menu contextuel rendait le focus à son « ⋯ ».** `rendreLeFocus` (`useMenuContextuel.ts`) rend le focus au bouton une image après la fermeture du menu. Troisième règle ajoutée : **jamais sous un calque**. Si le bouton est dans une zone inerte, il ne reçoit pas le focus ; il est **confié** au calque (`confierLeRetour`), qui le lui rendra en se fermant. La règle vaut pour toute entrée de menu qui ouvre un calque, pas pour « Focus 25 min » seule.
+
+**Le clavier appartient à l'horloge tant qu'elle est ouverte** (`EcranTimer`, prop `clavierExclusif`). Espace = pause / reprise. Échap = réduire. Aucune autre touche ne descend vers l'app : ⌘K n'ouvre plus la palette derrière l'horloge (vu à l'écran) ; ⌘⇧N, qui écoute au même endroit, ne crée plus une note dessous (raisonné, pas rejoué). Comment : l'écoute est posée sur `document` et arrête la touche là ; les raccourcis de l'app écoutent `window`, un cran plus haut. **Pas en capture sur `window`** : l'info-bulle, qui se referme à la frappe, écoute `document` en capture et aurait été coupée aussi. La fenêtre séparée ne passe pas cette prop : elle a ses propres touches (F, ⌘W).
+
+**Espace sur un bouton garde son effet normal** (il active le bouton). L'horloge ne le compte pas en plus : sinon la pause basculerait deux fois, ou se déclencherait en même temps que « Terminer ». La règle est dans `lib/timerEcran.ts` (`gesteAuClavier`), avec ses tests.
+
+**Le focus va au calque, pas à un bouton.** À l'ouverture, aucun bouton n'est surligné : personne n'en a choisi. Tab va ensuite de « Réduire » à « Pause » à « Terminer », et n'atteint rien de ce qui est derrière.
+
+#### 2026-10-12 — L'ajout rapide : « avant jeudi 22 », les petits mots, l'heure
+
+Fichier : `src/lib/taches/saisieRapide.ts`. Toujours dans les deux champs d'ajout rapide seulement (Tâches, Aujourd'hui) : ni les fenêtres, ni les étapes, ni le Calendrier.
+
+**Un jour de la semaine suivi d'un numéro désigne ce jour du mois.** « Commander le chêne avant jeudi 22 » donnait « Commander le chêne 22 » au jeudi 15. Maintenant : le 22, et « avant jeudi 22 » quitte le titre.
+- **Le numéro fait foi** : le prochain 22, ce mois-ci ou le suivant. « jeudi 23 » alors que le 23 est un vendredi donne le 23 ; la pastille écrit « ven. 23 oct. », l'écart se voit avant de valider.
+- **Un numéro impossible : on ne lit rien**, pas même « jeudi » (« avant jeudi 45 », « jeudi 30 février »). On ne devine pas.
+- **Un nombre suivi d'un nom est une quantité** : « Acheter jeudi 2 baguettes », « Courir jeudi 45 minutes ». « jeudi » se lit seul, le nombre reste dans le titre. Exception : si le numéro tombe justement ce jour-là (« jeudi 22 pour Martin », et le 22 est un jeudi), c'est une date.
+- ⚠️ **Limite connue de cette exception** : « Acheter jeudi 22 baguettes », une semaine où le 22 est un jeudi, perd « 22 » du titre. Une fois sur sept, pour une tournure rare. Choisi contre l'inverse (« Réunion jeudi 22 salle B » relue de travers), qui est le défaut du labo.
+- Formes lues : « jeudi 22 », « ce jeudi 22 », « jeudi le 22 », « le jeudi 22 octobre », « jeudi 22/10 » ; “thursday 22”, “thursday 22nd”, “thursday the 22nd”, “Thursday, October 22”, “Thursday 22 October”.
+- Devant une date **écrite** (« 22 octobre », « 22/10 », « le 22 »), le jour de la semaine part toujours avec elle, même s'ils se contredisent. Avant : seulement s'ils disaient le même jour.
+
+**Les petits mots collés à la date partent avec elle** : pour, avant, d'ici (à), le, ce ; on, by, before, until, for, this, next, the. **Seulement collés à une date reconnue** : « Payer avant le contrôle », « Lire ce chapitre », « Chapitre 22 » restent entiers.
+
+**« mercredi prochain » un lundi : la règle n'a pas changé** (le mercredi de la semaine en cours). C'est ambigu en français comme en anglais. La pastille écrit le jour et le numéro (« mer. 14 oct. ») : vérifié à l'écran dans les deux langues.
+
+**L'heure accolée à la date est lue.** « RDV clinique jeudi 14h30 » : pastille « jeu. 15 oct. · 14:30 », tâche de 14:30 à 15:30.
+- Formes : « 14h », « 14h30 », « 14 h 30 », « 14:30 », « à 14h », « vers 15h », « midi » ; “2pm”, “2:30pm”, “2:30 p.m.”, “at 2pm”, “14:30”, “noon”. Juste après la date, ou juste avant (« à 10h demain »).
+- **Un créneau d'une heure** : la durée par défaut du Calendrier (`DUREE_DEFAUT_MIN`), plafonnée à 23:59. Écrit par `planificationRapide`, qui passe par `planificationDeSaisie` : une heure sans jour ne s'écrit jamais.
+- **Ce qui n'est PAS lu, exprès, et reste dans le titre** :
+  - une durée : « Courir jeudi 1h30 », « Réviser jeudi 2h ». Sans « à », une heure d'avant 7 h n'est pas lue. « jeudi à 2h » l'est ;
+  - une heure tenue par un nom : « Prendre le train de 14h30 jeudi », « Regarder le 20h demain » ;
+  - « Travailler 8h jeudi » (huit heures de travail, ou à huit heures ?) ;
+  - en anglais, “at 2:30” sans am ni pm (matin ou après-midi ?) ;
+  - une heure impossible (« 25h ») ;
+  - une heure loin de la date.
+- **Sans date, une heure n'est pas lue**… sauf sur la carte d'Aujourd'hui, qui date d'office : « Appeler Paul à 14h » y donne « aujourd'hui · 14:00 ». La préposition est exigée (« à », “at”). C'est une date **lue** : pastille bleue, retirable d'une croix ou d'Échap.
+- La croix de la pastille retire date **et** heure ; le titre redevient entier.
+
+**`pasUneDate` : les deux points ne comptent que suivis d'un chiffre.** « Jeudi 22 : commander le chêne » et « le 15 : virement » sont des dates (avant : non). Un tiret collé à un chiffre est une plage (« jeudi 8-10h ») : pas un jour du mois.

@@ -951,3 +951,12 @@ Le site emploie « sous-objectif » et *sub-goal*, que l'app n'affiche plus. Rie
 - **Les captures d'iPhone préparées pour l'App Store** (`~/Desktop/Shale-chantiers/captures-ios-20261006/`, et les trois écrans iPhone des captures `v2` du site) montrent l'état d'avant : la feuille « Plus » en lignes pleines avec son pied sous le pli, Aujourd'hui avec 32 px de marge et les habitudes en bas, les boutons de 36 px. À refaire avant la soumission, **après** un build iOS de cette branche.
 - **Journal, bureau** : si une capture du site montre les lignes d'habitudes, la flamme n'est plus à la même place (contre les carrés).
 - Rien d'autre : aucun texte du site ne décrit ce qui change ici.
+
+## AD — Retours de la seconde passe du labo (app, 2026-10-12)
+
+Rien de neuf pour le site tant que l'horloge reste seule : la remarque du chantier ci-dessous ne vaut que si ses commandes deviennent visibles.
+
+### `retours-passe2`
+
+- Toute capture ou vidéo du site qui montre **le minuteur en plein écran avec l'horloge seule** devient fausse : l'écran porte maintenant le nom de la tâche, « Pause », « Terminer » et « Réduire ». À vérifier dans les captures du Timer et dans le reel qui montre l'horloge à volets. Non recensé page par page.
+- Aucun texte du site ne décrit l'ajout rapide au mot près, à ma connaissance : rien d'autre.
