@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EN } from "./i18n/en";
-import { estSansTitre, libelleDeLigne, notesSansTitre, TITRE_SI_VIDE } from "./notesSansTitre";
+import { estSansTitre, libelleDeLigne, notesSansTitre, TITRE_SI_VIDE, estNoteNeuve } from "./notesSansTitre";
 import type { Note } from "./types";
 
 /**
@@ -192,5 +192,19 @@ describe("⚠️ le critère suit ce que l'app écrit réellement", () => {
   it("l'enregistrement d'un titre effacé écrit TITRE_SI_VIDE, pas une autre chaîne", () => {
     const vue = sources.find((s) => s.p === "src/views/NotesView.tsx")!.texte;
     expect(vue).toContain("p.titre.trim() || TITRE_SI_VIDE");
+  });
+});
+
+describe("une note neuve reçoit le curseur dans son texte (2026-10-12)", () => {
+  it("sans titre et vide : neuve, dans les deux langues", () => {
+    expect(estNoteNeuve("Nouvelle note", "")).toBe(true);
+    expect(estNoteNeuve("New note", "")).toBe(true);
+    expect(estNoteNeuve("  ", "<p><br></p>")).toBe(true);
+    expect(estNoteNeuve("Nouvelle note", "<div>&nbsp;</div>")).toBe(true);
+  });
+  it("dès qu'elle a un titre ou du contenu, ouvrir ne prend plus le clavier", () => {
+    expect(estNoteNeuve("Garagiste", "")).toBe(false);
+    expect(estNoteNeuve("Nouvelle note", "<p>rappeler lundi</p>")).toBe(false);
+    expect(estNoteNeuve("Nouvelle note", '<figure><img src="data:image/webp;base64,AA"></figure>')).toBe(false);
   });
 });

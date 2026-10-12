@@ -497,6 +497,7 @@ export default function RichNoteEditor({
       {/* Zone d'édition */}
       <div
         ref={ref}
+        data-corps-note
         contentEditable
         suppressContentEditableWarning
         onInput={() => {

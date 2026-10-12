@@ -134,3 +134,18 @@ export function libelleDeLigne(
   }
   return OBJET_SANS_TEXTE.test(corps ?? "") ? { genre: "sans-mots" } : { genre: "vide" };
 }
+
+/**
+ * Une note NEUVE : sans titre ET sans rien dedans — celle que ⌘⇧N, le « + »,
+ * la palette et le raccourci de l'iPhone viennent de créer.
+ *
+ * Elle reçoit le curseur dans son TEXTE (2026-10-12) : avant, il fallait
+ * cliquer avant d'écrire, ce qui défait une note prise à la volée. Un corps
+ * qui ne porte que des balises vides (« <p><br></p> ») compte pour vide ; une
+ * image, un croquis ou une carte, non.
+ */
+export function estNoteNeuve(titre: string, corps: string): boolean {
+  if (!estSansTitre(titre)) return false;
+  if (/<(img|figure|svg)\b/i.test(corps)) return false;
+  return corps.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
+}
