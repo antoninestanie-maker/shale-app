@@ -108,7 +108,9 @@ export default function SaisieRapide(props: {
           aria-label={props.aria}
           // Le correcteur d'iOS remplacerait « jeudi » en cours de frappe par autre chose.
           autoComplete="off"
-          className="min-w-[9rem] flex-1 bg-transparent py-1 text-sm text-text placeholder:text-text-dim focus:outline-none"
+          // `cible-tactile-ligne` : 44 pt de haut au doigt — le champ mesurait
+          // 28 px, « petit pour un doigt » (relevé par le pilote à 390 px).
+          className="cible-tactile-ligne min-w-[9rem] flex-1 bg-transparent py-1 text-sm text-text placeholder:text-text-dim focus:outline-none"
         />
         <span className="flex shrink-0 items-center gap-1.5">
           <span ref={zoneDate} className="inline-flex shrink-0 items-center">
