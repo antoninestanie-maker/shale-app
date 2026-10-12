@@ -5194,3 +5194,51 @@ Le chantier `focus-ile` réécrivait la pastille le même soir (`PastilleSeance.
 
 - La charge machine : une autre session rendait dans Blender et lançait vitest (charge 60 à 150). Un plan du pilote WebKit de vingt pas a pris plus de dix minutes. Lancer ces plans en arrière-plan.
 - `git stash` est commun aux worktrees (§ 34.3) : je l'ai utilisé pour la contre-épreuve du test, à tort. Rien n'a été perdu ; `git diff > x.patch` puis `git checkout`.
+
+# 42. La base applique les clés étrangères (2026-10-12)
+
+## 42.1 ⭐⭐ `PRAGMA foreign_keys` est ALLUMÉ dans l'app : un `DELETE` sur une ligne citée échoue
+
+**Symptôme.** Antonin : « certains items ne se suppriment pas dans Supprimés récemment, et Tout supprimer ne marche pas tout le temps ». Sur une copie de sa base : 63 lignes en corbeille (128 objets) ; « Vider » en effaçait 1 puis s'arrêtait.
+
+**Cause.** `tauri-plugin-sql` ouvre SQLite par `sqlx`, et `sqlx` pose `PRAGMA foreign_keys = ON` d'office (`sqlx-sqlite-0.8.6/src/options/mod.rs`, ligne 185). Deux commentaires de `repo.ts` disaient le contraire depuis août. Aucun `ON DELETE` n'est déclaré dans le schéma : la base ne cascade rien, mais elle REFUSE (`FOREIGN KEY constraint failed`). Deux tables n'étaient défaites par aucune fonction `delete*` :
+- `goal_progress_log` — `snapshotGoals` y écrit une ligne par objectif à chaque lancement. Tout objectif qui a vécu un jour était ineffaçable ;
+- `focus_sessions` — une tâche chronométrée une fois était ineffaçable.
+
+**Trois dégâts de plus, de la même cause :**
+- `deleteGoal` remontait les enfants et déliait les tâches AVANT le `DELETE` qui échouait : un échec laissait l'arbre modifié ;
+- la purge des 30 jours s'arrêtait au premier objet refusé, à chaque lancement ;
+- « Supprimer les exemples » échouait dès qu'un exemple avait été chronométré, ou que l'objectif d'exemple avait vécu un lancement.
+
+**Parade.** `src/lib/suppression.ts` : UNE table, `DEPENDANTS`, dit ce qui cite chaque table et ce qu'on en fait (effacer, détacher, remonter). `effacerLigne(db, table, id)` défait puis efface. Toutes les fonctions `delete*` qui avaient des enfants y passent. `suppression.test.ts` lit `PRAGMA foreign_key_list` de tout le schéma : une clé étrangère ajoutée par une migration et absente de la table fait échouer la suite.
+
+▶️ **Toute nouvelle clé étrangère demande une ligne dans `DEPENDANTS`** (ou dans `GARDES_PAR_REFUS` si le parent ne s'efface que libre). Le test le rappelle.
+
+▶️ **Les bancs de test ont les clés étrangères allumées aussi** (`node:sqlite` les active par défaut) : un `DELETE` qui passe en test passe dans l'app. Un test le vérifie (`PRAGMA foreign_keys` = 1).
+
+## 42.2 ⭐⭐ Une pierre tombale reçue fait le même `DELETE` — sur un appareil qui a ses propres lignes dessous
+
+**Ce qui serait arrivé.** Une fois la corbeille vidable sur le Mac, 76 pierres tombales d'objectifs partaient. Sur l'autre appareil, `supprimerLigne` (`sync/local.ts`) faisait `DELETE FROM goals` : refusé, à cause de l'historique LOCAL (`goal_progress_log` n'est pas synchronisé, personne ne lui dira jamais de l'effacer). `appliquerReçue` ne rattrape que `ParentManquant` : l'erreur remontait, le curseur ne passait plus cette ligne, la synchronisation de l'appareil s'arrêtait pour de bon.
+
+**Même défaut sans table locale.** L'envoi va des parents vers les enfants : la pierre tombale d'une tâche arrive AVANT celles de ses coches. Rejoué sur le banc à deux appareils : trois tests, les trois en `FOREIGN KEY constraint failed` sans le correctif.
+
+**Parade.** `supprimerLigne` appelle `libererDependants` avant son `DELETE` — la même table que `repo.ts`. On est sous `applying` : ce ménage ne repart pas dans le cloud.
+
+⚠️ **Pas couvert.** Les deux tables de `GARDES_PAR_REFUS` (`invoice_parties`, `invoice_series`) : une pierre tombale reçue pour un tiers encore cité par une facture locale lèverait toujours. Finance est de côté ; à traiter avant de la rallumer.
+
+## 42.3 Une boucle d'écritures dans une vue, sans `try` : le premier refus arrête tout, et l'écran ne le dit pas
+
+**Symptôme.** « Tout supprimer » qui « ne marche pas tout le temps » : la boucle de `CorbeilleView` levait au premier objet refusé. `setViderDemande(false)`, la relecture et le toast étaient APRÈS la boucle : rien ne se passait à l'écran, alors que des objets étaient partis.
+
+**Parade.** La boucle vit dans `repo.ts` (`viderCorbeille`) : un `try` par élément, un bilan `{ effaces, echecs }`. La vue relit la liste dans son `finally`, et dit combien sont restés. Le bouton d'une ligne (`supprimerPourDeBon`) dit aussi son échec. `purgerCorbeille` passe à l'objet suivant.
+
+▶️ Pour toute boucle d'écritures lancée par un bouton : relire l'écran dans le `finally`, pas après la boucle.
+
+## 42.4 Méthode — rejouer sur une COPIE de la vraie base
+
+Le défaut ne se voyait sur aucune base de test : il fallait des objectifs qui avaient vécu plusieurs lancements. Ce qui l'a montré en dix minutes :
+1. `sqlite3 "file:$DB?mode=ro" ".backup 'copie.db'"` (lecture seule, la base réelle n'est pas touchée) ;
+2. un test vitest TEMPORAIRE qui ouvre la copie par `node:sqlite`, branche `repo.ts` dessus (`vi.mock("../db")`, comme `corbeille/api.test.ts`) et joue le geste de la vue ;
+3. le même test après le correctif.
+
+⚠️ Vite écrase la variable d'environnement `MODE` (elle vaut `test`) : un test qui lit `process.env.MODE` prend toujours la même branche. Lui donner un autre nom.

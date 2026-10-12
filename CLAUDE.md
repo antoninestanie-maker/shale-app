@@ -8464,3 +8464,16 @@ Antonin, capture de la pastille du minuteur à l'appui : « l'écriture est flou
 - **Pas touché** : `index.css` (le soulèvement de 2 px des cartes vaut 2,2 px à 110 % — § 41.3).
 - **La pastille a changé de fichier le même soir** (`timer/PastilleSeance.tsx`, chantier `focus-ile`, fusionné à 00:22) avec le même centrage : corrigée là, au recalage. Son entrée animée reste un `transform` tenu par `both` (identité à l'arrivée) : mesuré net.
 - **Outil** : `tools/webkit-pilote.swift` sait lire ce que l'écran compose (`fond`, `ecran`, `echelle`). Sa capture habituelle ne montre pas ce flou.
+
+## 2026-10-12 (nuit) — « Supprimés récemment » : ce que la base refusait d'effacer
+
+Antonin : « des fois certains items ne se suppriment pas dans Supprimés récemment, et Tout supprimer ne marche pas tout le temps, vérifie et corrige ». État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 42.
+
+- ⚠️ **Une affirmation de ce dépôt était fausse** : « `PRAGMA foreign_keys` n'est pas activé par tauri-plugin-sql » (deux commentaires de `repo.ts`, depuis la migration 018). `sqlx` l'active d'office. La base ne cascade rien, mais elle refuse d'effacer une ligne encore citée. Les deux commentaires sont datés, pas effacés.
+- **La règle « enfants d'abord » est écrite une fois : `src/lib/suppression.ts`.** `DEPENDANTS` dit, par table, ce qui la cite et ce qu'on en fait. `effacerLigne` défait puis efface. Les fonctions `delete*` de `repo.ts` qui avaient des enfants y passent toutes (tâche, objectif, habitude, métrique, sujet, type, compte, catégorie, facture).
+- **Une tâche supprimée garde ses séances de focus**, détachées et à son nom (`label`). Le temps passé reste dans le Timer et dans Performance. Décision prise sans Antonin ; l'autre choix (effacer les séances) aurait fait baisser des totaux déjà affichés.
+- **Un objectif supprimé emporte l'historique de sa progression** (`goal_progress_log`). Table locale, jamais synchronisée : chaque appareil efface le sien.
+- **La synchronisation défait la même chose à la réception** (`supprimerLigne`, `sync/local.ts`). Sans cela, vider la corbeille sur le Mac aurait arrêté la synchronisation de l'autre appareil. Ce n'était pas demandé ; c'est la conséquence directe du correctif, donc dans le même commit.
+- **« Vider » ne s'arrête plus au premier refus** (`viderCorbeille`, `repo.ts`) : il efface ce qu'il peut, relit la liste, et dit combien sont restés. La purge des 30 jours et le bouton d'une ligne font de même.
+- **Aucune migration, exprès.** Des triggers `BEFORE DELETE` auraient fait le même travail en base. Écarté : un numéro de migration de plus à coordonner entre les chantiers ouverts, et une migration jouée ne se retire pas. La règle en TypeScript est testée contre le schéma réel.
+- **Non fait** : les deux tables gardées par un refus (`invoice_parties`, `invoice_series`) restent exposées à une pierre tombale reçue. Finance est de côté.
