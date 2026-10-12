@@ -1995,6 +1995,13 @@ export const demo = {
 
   async deleteTask(id: number): Promise<void> {
     const i = tasks.findIndex((t) => t.id === id);
+    // Ses séances de focus RESTENT, détachées et à son nom — comme le natif
+    // (`lib/suppression.ts`) : le temps passé nourrit le Timer et Performance.
+    for (const s of focusSessions) {
+      if (s.task_id !== id) continue;
+      s.label = s.label ?? (i >= 0 ? tasks[i].label : null);
+      s.task_id = null;
+    }
     if (i >= 0) tasks.splice(i, 1);
     for (let j = completions.length - 1; j >= 0; j--) {
       if (completions[j].task_id === id) completions.splice(j, 1);

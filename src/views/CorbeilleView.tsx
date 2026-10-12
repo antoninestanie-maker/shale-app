@@ -19,9 +19,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IconTrash } from "../components/icons";
+import { IconAlert, IconTrash } from "../components/icons";
 import { formatDate, t, tp } from "../lib/i18n";
-import { lireCorbeille, planRestauration, supprimerDefinitivement } from "../lib/repo";
+import { lireCorbeille, planRestauration, viderCorbeille } from "../lib/repo";
 import { joursRestants, RETENTION_JOURS } from "../lib/corbeille/regles";
 import type { ElementCorbeille, PlanRestauration } from "../lib/corbeille/base";
 import { FAMILLES, iconeDeFamille } from "../components/corbeille/familles";
@@ -105,19 +105,36 @@ export default function CorbeilleView({ refresh }: Props) {
     if (!elements?.length) return;
     setOccupe(true);
     try {
-      let n = 0;
       // ⚠️ Élément par élément, par la MÊME fonction que la ligne : un lot
       // d'objectifs part avec ses phases, une facture avec ses lignes. Une
       // requête « tout effacer » aurait contourné ces cascades.
-      for (const el of elements) n += await supprimerDefinitivement(el.kind, el.id);
-      setViderDemande(false);
-      await apres();
-      afficherToast({
-        msg: tp(n, "1 élément supprimé pour de bon", "{n} éléments supprimés pour de bon"),
-        icone: <IconTrash className="h-5 w-5 shrink-0 text-text-dim" />,
-      });
+      //
+      // ⚠️ La boucle vit dans `repo.ts` depuis le 2026-10-12 : ici, sans `try`,
+      // le premier refus de la base arrêtait tout, la liste n'était pas relue
+      // et rien n'était dit — « Tout supprimer ne marche pas tout le temps ».
+      const { effaces, echecs } = await viderCorbeille(elements);
+      afficherToast(
+        echecs.length > 0
+          ? {
+              // Ce qui reste est à l'écran, sous le message : on dit combien.
+              msg: tp(
+                echecs.length,
+                "1 élément n'a pas pu être supprimé. Il reste ici.",
+                "{n} éléments n'ont pas pu être supprimés. Ils restent ici.",
+              ),
+              icone: <IconAlert className="h-5 w-5 shrink-0 text-yellow" />,
+            }
+          : {
+              msg: tp(effaces, "1 élément supprimé pour de bon", "{n} éléments supprimés pour de bon"),
+              icone: <IconTrash className="h-5 w-5 shrink-0 text-text-dim" />,
+            },
+      );
     } finally {
+      // ⚠️ Toujours : la liste se relit même si quelque chose a levé, sinon
+      // l'écran montre encore ce qui vient de partir.
+      setViderDemande(false);
       setOccupe(false);
+      await apres();
     }
   };
 

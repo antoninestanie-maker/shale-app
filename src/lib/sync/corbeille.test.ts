@@ -12,6 +12,7 @@ import {
   restaurerDans,
   type BaseCorbeille,
 } from "../corbeille/base";
+import { effacerLigne } from "../suppression";
 
 /**
  * ⭐ LA CORBEILLE À DEUX APPAREILS — migration 027.
@@ -134,6 +135,79 @@ describe("une mise en corbeille voyage", () => {
     const aretes = (app: Appareil) => app.lire<{ n: number }>("SELECT COUNT(*) AS n FROM object_links")[0].n;
     expect(aretes(a)).toBe(1);
     expect(aretes(b)).toBe(1);
+  });
+});
+
+describe("⭐⭐ une suppression définitive reçue passe malgré ce qui est rangé SOUS la ligne", () => {
+  // 2026-10-12. La base applique les clés étrangères. Vider la corbeille sur A
+  // envoie des pierres tombales ; B fait alors le même `DELETE` — avec, sous la
+  // ligne, ce qu'il a de son côté. Avant le correctif de `supprimerLigne`, ce
+  // `DELETE` levait, le cycle échouait, et le curseur de B ne passait plus
+  // jamais : sa synchronisation s'arrêtait parce qu'on avait fait le ménage
+  // ailleurs. `effacerLigne` est la fonction que `repo.ts` appelle.
+
+  it("un objectif dont B garde l'HISTORIQUE local (table jamais synchronisée)", async () => {
+    const { lastInsertRowid: g } = a.ecrire("INSERT INTO goals (title, scope) VALUES ('suivi', 'long')");
+    const uid = uidDe(a, "goals", g);
+    await converger();
+    // `snapshotGoals`, au lancement de B : une ligne locale, hors synchronisation.
+    b.ecrire("INSERT INTO goal_progress_log (goal_id, date, pct) VALUES (?, '2026-10-01', 40)", idDe(b, "goals", uid));
+
+    await effacerLigne(a.db, "goals", g);
+    await converger();
+    expect(existe(a, "goals", uid)).toBe(false);
+    expect(existe(b, "goals", uid)).toBe(false);
+    expect(b.lire("SELECT id FROM goal_progress_log")).toEqual([]);
+    // Et la synchronisation de B n'est pas restée bloquée derrière cette ligne.
+    const apres = noteSur(a, "après le ménage");
+    await converger();
+    expect(existe(b, "notes", apres)).toBe(true);
+  });
+
+  it("une tâche : sa pierre tombale arrive AVANT celles de ses coches, et sa séance de focus reste", async () => {
+    const { lastInsertRowid: t } = a.ecrire("INSERT INTO tasks (label, priority) VALUES ('Écrire le devis', 'low')");
+    const uid = uidDe(a, "tasks", t);
+    a.ecrire("INSERT INTO task_completions (task_id, date, done) VALUES (?, '2026-10-01', 1)", t);
+    const { lastInsertRowid: s } = a.ecrire(
+      "INSERT INTO focus_sessions (task_id, started_at, planned_min) VALUES (?, '2026-10-01 10:00:00', 25)",
+      t,
+    );
+    const uidSeance = uidDe(a, "focus_sessions", s);
+    await converger();
+    expect(b.lire("SELECT COUNT(*) AS n FROM task_completions")).toEqual([{ n: 1 }]);
+    await pause();
+
+    await effacerLigne(a.db, "tasks", t);
+    await converger();
+    await converger();
+    for (const app of [a, b]) {
+      expect(existe(app, "tasks", uid)).toBe(false);
+      expect(app.lire("SELECT COUNT(*) AS n FROM task_completions")).toEqual([{ n: 0 }]);
+      expect(app.lire("SELECT task_id, label FROM focus_sessions WHERE uid = ?", uidSeance)).toEqual([
+        { task_id: null, label: "Écrire le devis" },
+      ]);
+    }
+  });
+
+  it("un objectif avec une étape et une tâche vivantes en face : l'étape remonte, la tâche est déliée", async () => {
+    const { lastInsertRowid: racine } = a.ecrire("INSERT INTO goals (title, scope) VALUES ('racine', 'long')");
+    const { lastInsertRowid: etape } = a.ecrire(
+      "INSERT INTO goals (title, scope, parent_goal_id) VALUES ('étape', 'long', ?)",
+      racine,
+    );
+    const { lastInsertRowid: t } = a.ecrire("INSERT INTO tasks (label, priority, goal_id) VALUES ('t', 'low', ?)", racine);
+    const uids = { racine: uidDe(a, "goals", racine), etape: uidDe(a, "goals", etape), t: uidDe(a, "tasks", t) };
+    await converger();
+    await pause();
+
+    await effacerLigne(a.db, "goals", racine);
+    await converger();
+    await converger();
+    for (const app of [a, b]) {
+      expect(existe(app, "goals", uids.racine)).toBe(false);
+      expect(app.lire("SELECT parent_goal_id FROM goals WHERE uid = ?", uids.etape)).toEqual([{ parent_goal_id: null }]);
+      expect(app.lire("SELECT goal_id FROM tasks WHERE uid = ?", uids.t)).toEqual([{ goal_id: null }]);
+    }
   });
 });
 

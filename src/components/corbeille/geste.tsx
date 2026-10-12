@@ -14,7 +14,7 @@
  * l'utilisateur a pu ouvrir autre chose.
  */
 
-import { IconTrash } from "../icons";
+import { IconAlert, IconTrash } from "../icons";
 import { formatDate, t, tp } from "../../lib/i18n";
 import {
   fetchAll,
@@ -285,7 +285,21 @@ export async function supprimerPourDeBon(
   el: Pick<ElementCorbeille, "kind" | "id" | "titre">,
   apres: () => unknown,
 ): Promise<void> {
-  const n = await supprimerDefinitivement(el.kind, el.id);
+  let n: number;
+  try {
+    n = await supprimerDefinitivement(el.kind, el.id);
+  } catch (e) {
+    // ⚠️ La base a refusé (2026-10-12). Sans ce `catch`, le bouton s'éteignait
+    // et se rallumait sans un mot, la ligne toujours là. On le DIT, et on relit
+    // la liste : un lot a pu partir à moitié.
+    console.error("corbeille : suppression définitive refusée", el.kind, el.id, e);
+    await apres();
+    afficherToast({
+      msg: t("« {titre} » n'a pas pu être supprimé.", { titre: titreCourt(titreAffiche(el)) }),
+      icone: <IconAlert className="h-5 w-5 shrink-0 text-yellow" />,
+    });
+    return;
+  }
   await apres();
   if (n === 0) return;
   afficherToast({

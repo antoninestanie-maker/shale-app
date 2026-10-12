@@ -13,6 +13,7 @@ import { rechercher, type Document as DocumentRecherche, type Trouvaille } from 
 import { serialiserChamps, serialiserValeurs } from "./objets";
 import type { Report } from "./taches";
 import type { LigneProfil } from "./licence/signature";
+import { effacerLigne } from "./suppression";
 import type {
   AppData,
   CalendarEvent,
@@ -890,11 +891,7 @@ export async function reorderSujets(ids: number[]): Promise<void> {
 export async function deleteSujet(id: number): Promise<void> {
   if (!isTauri) return demo.deleteSujet(id);
   const db = await getDb();
-  await db.execute(
-    "UPDATE knowledge_entries SET topic_id = NULL WHERE topic_id = $1",
-    [id],
-  );
-  await db.execute("DELETE FROM knowledge_topics WHERE id = $1", [id]);
+  await effacerLigne(db, "knowledge_topics", id);
 }
 
 export async function createKnowledgeEntry(
@@ -1031,8 +1028,7 @@ export async function renommerHabitude(id: number, nom: string): Promise<void> {
 export async function deleteHabit(id: number): Promise<void> {
   if (!isTauri) return demo.deleteHabit(id);
   const db = await getDb();
-  await db.execute("DELETE FROM habit_checks WHERE habit_id = $1", [id]);
-  await db.execute("DELETE FROM habits WHERE id = $1", [id]);
+  await effacerLigne(db, "habits", id);
 }
 
 export async function setHabitCheck(
@@ -1209,8 +1205,7 @@ export async function addMetric(name: string, unit: string | null): Promise<void
 export async function deleteMetric(id: number): Promise<void> {
   if (!isTauri) return demo.deleteMetric(id);
   const db = await getDb();
-  await db.execute("DELETE FROM metric_entries WHERE metric_id = $1", [id]);
-  await db.execute("DELETE FROM custom_metrics WHERE id = $1", [id]);
+  await effacerLigne(db, "custom_metrics", id);
 }
 
 export async function setMetricValue(
@@ -1365,11 +1360,16 @@ export async function prioriserTache(taskId: number, priorite: Priority): Promis
   await adopter("tasks", taskId);
 }
 
+/**
+ * Supprime la tâche et ses coches. Ses séances de focus RESTENT (le temps passé
+ * nourrit le Timer et Performance) : elles sont détachées, à son nom.
+ *
+ * ⚠️ Avant le 2026-10-12, les séances n'étaient pas détachées : la base refusait
+ * alors d'effacer toute tâche chronométrée (`lib/suppression.ts`).
+ */
 export async function deleteTask(id: number): Promise<void> {
   if (!isTauri) return demo.deleteTask(id);
-  const db = await getDb();
-  await db.execute("DELETE FROM task_completions WHERE task_id = $1", [id]);
-  await db.execute("DELETE FROM tasks WHERE id = $1", [id]);
+  await effacerLigne(await getDb(), "tasks", id);
 }
 
 export async function setTaskDone(
@@ -1719,16 +1719,18 @@ export async function updateGoal(id: number, input: GoalInput): Promise<void> {
   await adopter("goals", id);
 }
 
-/** Supprime l'objectif ; ses enfants remontent vers son parent, ses tâches sont déliées. */
+/**
+ * Supprime l'objectif ; ses enfants remontent vers son parent, ses tâches sont
+ * déliées, et l'historique de sa progression part avec lui.
+ *
+ * ⚠️ Avant le 2026-10-12, l'historique (`goal_progress_log`, une ligne par jour
+ * de lancement) n'était pas effacé : la base refusait alors d'effacer tout
+ * objectif qui avait vécu un jour — APRÈS avoir déjà remonté ses enfants et
+ * délié ses tâches (`lib/suppression.ts`).
+ */
 export async function deleteGoal(goal: Goal): Promise<void> {
   if (!isTauri) return demo.deleteGoal(goal);
-  const db = await getDb();
-  await db.execute("UPDATE goals SET parent_goal_id = $1 WHERE parent_goal_id = $2", [
-    goal.parent_goal_id,
-    goal.id,
-  ]);
-  await db.execute("UPDATE tasks SET goal_id = NULL WHERE goal_id = $1", [goal.id]);
-  await db.execute("DELETE FROM goals WHERE id = $1", [goal.id]);
+  await effacerLigne(await getDb(), "goals", goal.id);
 }
 
 export async function addTag(name: string, color: string): Promise<void> {
@@ -1757,7 +1759,12 @@ export async function deleteTag(tag: Tag): Promise<void> {
 //
 // ⚠️ LES SUPPRESSIONS SONT EXPLICITES, ENFANTS D'ABORD. Les clés étrangères sont
 // déclarées dans le schéma, mais `PRAGMA foreign_keys` n'est pas activé par
-// tauri-plugin-sql : SQLite ne cascade donc rien. Supprimer un compte sans
+// tauri-plugin-sql : SQLite ne cascade donc rien.
+// ⚠️⚠️ FAUX, corrigé le 2026-10-12 : `sqlx` ACTIVE les clés étrangères d'office.
+// La base ne cascade toujours rien (aucun `ON DELETE` n'est déclaré), mais elle
+// REFUSE d'effacer une ligne encore citée. La règle « enfants d'abord » n'est
+// donc pas une politesse : sans elle le `DELETE` échoue. Elle est écrite une
+// fois, dans `lib/suppression.ts`. Supprimer un compte sans
 // supprimer ses relevés laisserait des lignes orphelines — qui continueraient
 // d'exister, et de se synchroniser, sans plus rien désigner. Chaque `DELETE`
 // explicite déclenche en outre sa pierre tombale (migration 018), donc la
@@ -1855,10 +1862,7 @@ export async function archiveFinanceAccount(id: number, archive: boolean): Promi
 export async function deleteFinanceAccount(id: number): Promise<void> {
   if (!isTauri) return demo.deleteFinanceAccount(id);
   const db = await getDb();
-  await db.execute("DELETE FROM finance_balances WHERE account_id = $1", [id]);
-  await db.execute("DELETE FROM finance_holdings WHERE account_id = $1", [id]);
-  await db.execute("UPDATE finance_recurring SET account_id = NULL WHERE account_id = $1", [id]);
-  await db.execute("DELETE FROM finance_accounts WHERE id = $1", [id]);
+  await effacerLigne(db, "finance_accounts", id);
 }
 
 /**
@@ -1976,8 +1980,7 @@ export async function createFinanceCategory(
 export async function deleteFinanceCategory(id: number): Promise<void> {
   if (!isTauri) return demo.deleteFinanceCategory(id);
   const db = await getDb();
-  await db.execute("UPDATE finance_recurring SET category_id = NULL WHERE category_id = $1", [id]);
-  await db.execute("DELETE FROM finance_categories WHERE id = $1", [id]);
+  await effacerLigne(db, "finance_categories", id);
 }
 
 /**
@@ -2444,7 +2447,7 @@ export async function updateObjectType(id: number, input: ObjectTypeInput): Prom
 export async function deleteObjectType(id: number): Promise<void> {
   if (!isTauri) return demo.deleteObjectType(id);
   const db = await getDb();
-  await db.execute("DELETE FROM object_types WHERE id = $1", [id]);
+  await effacerLigne(db, "object_types", id);
 }
 
 // ⚠️ La section « Objets » a disparu avec la migration 022 : `fetchObjects`,
@@ -2772,8 +2775,9 @@ export async function infosDeCartes(
 // Facturation — migration 023
 // ─────────────────────────────────────────────────────────────────────────────
 // ⚠️ LES SUPPRESSIONS SONT EXPLICITES, ENFANTS D'ABORD — même règle que le
-// reste de Finance : `PRAGMA foreign_keys` n'est pas activé par
-// tauri-plugin-sql. La migration pose bien un trigger de cascade sur
+// reste de Finance (⚠️ et NON parce que « `PRAGMA foreign_keys` n'est pas
+// activé » : c'était faux, voir plus haut, 2026-10-12 — la base refuse
+// d'effacer une ligne citée). La migration pose bien un trigger de cascade sur
 // `invoices` (indispensable pour une suppression VENUE du cloud), mais on ne
 // s'y repose pas ici : chaque DELETE explicite émet sa propre pierre tombale,
 // donc la suppression voyage jusqu'aux autres appareils.
@@ -3134,9 +3138,7 @@ export async function deleteInvoice(id: number): Promise<boolean> {
   if (rows[0]?.statut !== "brouillon") return false;
 
   // Enfants d'abord : chaque DELETE émet sa pierre tombale.
-  await db.execute("DELETE FROM invoice_lines WHERE invoice_id = $1", [id]);
-  await db.execute("DELETE FROM invoice_payments WHERE invoice_id = $1", [id]);
-  await db.execute("DELETE FROM invoices WHERE id = $1", [id]);
+  await effacerLigne(db, "invoices", id);
   return true;
 }
 
@@ -3309,6 +3311,20 @@ export async function supprimerExemples(): Promise<void> {
   await db.execute(
     "DELETE FROM habit_checks WHERE habit_id IN (SELECT id FROM habits WHERE is_example = 1)",
   );
+  // ⚠️ 2026-10-12 — la base REFUSE d'effacer une ligne encore citée
+  // (`lib/suppression.ts`). Une tâche d'exemple qu'on a chronométrée garde sa
+  // séance, détachée et à son nom ; l'historique de progression d'un objectif
+  // d'exemple part avec lui. Sans ces deux requêtes, « supprimer les exemples »
+  // échouait dès le lendemain de l'installation.
+  await db.execute(
+    `UPDATE focus_sessions
+        SET label = COALESCE(label, (SELECT label FROM tasks WHERE id = focus_sessions.task_id)),
+            task_id = NULL
+      WHERE task_id IN (SELECT id FROM tasks WHERE is_example = 1)`,
+  );
+  await db.execute(
+    "DELETE FROM goal_progress_log WHERE goal_id IN (SELECT id FROM goals WHERE is_example = 1)",
+  );
   // ⭐ Les objectifs d'exemple emportent leurs jalons d'exemple, jamais ce que
   // l'utilisateur s'est approprié : un jalon ou une tâche adoptés sont DÉTACHÉS
   // (ils remontent à la racine, comme `deleteGoal`), pas détruits.
@@ -3380,6 +3396,40 @@ export async function supprimerDefinitivement(kind: KindCorbeille, id: number): 
   return liste.length;
 }
 
+/** Ce que « Vider » a fait : ce qui est parti, et ce que la base a refusé. */
+export interface BilanVidage {
+  /** Le nombre d'objets effacés, lots compris. */
+  effaces: number;
+  /** Les éléments restés en corbeille, avec le message de la base. */
+  echecs: { kind: KindCorbeille; id: number; erreur: string }[];
+}
+
+/**
+ * Supprime POUR DE BON les éléments qu'on lui montre — « Vider » de la vue.
+ *
+ * ⚠️ Élément par élément, par la MÊME fonction que la ligne : un lot
+ * d'objectifs part avec ses phases, une facture avec ses lignes.
+ *
+ * ⚠️⚠️ UN REFUS N'ARRÊTE PAS LES SUIVANTS (2026-10-12). La boucle vivait dans la
+ * vue, sans `try` : au premier objet que la base refusait, tout s'arrêtait, la
+ * liste n'était pas relue, et rien n'était dit. Sur la corbeille d'Antonin :
+ * 1 ligne effacée sur 63.
+ */
+export async function viderCorbeille(
+  elements: readonly { kind: KindCorbeille; id: number }[],
+): Promise<BilanVidage> {
+  const bilan: BilanVidage = { effaces: 0, echecs: [] };
+  for (const el of elements) {
+    try {
+      bilan.effaces += await supprimerDefinitivement(el.kind, el.id);
+    } catch (e) {
+      console.error("corbeille : suppression définitive refusée", el.kind, el.id, e);
+      bilan.echecs.push({ kind: el.kind, id: el.id, erreur: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return bilan;
+}
+
 /**
  * Efface ce qui est en corbeille depuis plus de 30 jours. À appeler au
  * lancement. Rend le nombre d'objets effacés.
@@ -3395,8 +3445,19 @@ export async function supprimerDefinitivement(kind: KindCorbeille, id: number): 
 export async function purgerCorbeille(maintenant: Date = new Date()): Promise<number> {
   const seuil = seuilDePurge(maintenant);
   const liste = isTauri ? await aPurgerDans(await getDb(), seuil) : demo.aPurger(seuil);
-  for (const x of liste) await effacerPourDeBon(x);
-  return liste.length;
+  let n = 0;
+  for (const x of liste) {
+    // ⚠️ Un objet que la base refuse ne retient pas les autres (2026-10-12) :
+    // sans ce `try`, la purge s'arrêtait à lui à chaque lancement, et plus rien
+    // ne quittait jamais la corbeille.
+    try {
+      await effacerPourDeBon(x);
+      n++;
+    } catch (e) {
+      console.error("corbeille : purge refusée", x.kind, x.id, e);
+    }
+  }
+  return n;
 }
 
 /**
@@ -3430,7 +3491,10 @@ async function effacerPourDeBon({ kind, id }: APurger): Promise<void> {
     case "knowledge":
       return deleteKnowledgeEntry(id);
     case "invoice":
-      await deleteInvoice(id);
+      // ⚠️ `deleteInvoice` REFUSE sans lever une facture qui n'est plus un
+      // brouillon (émise ailleurs depuis). Ici on lève : sinon « supprimé pour
+      // de bon » s'affichait au-dessus d'une ligne restée en place.
+      if (!(await deleteInvoice(id))) throw new Error("facture émise : elle s'annule par un avoir");
       return;
     case "journal":
       return deleteJournalEntry(id);

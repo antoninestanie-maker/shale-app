@@ -3699,4 +3699,9 @@ export const EN: Record<string, string> = {
   "par rapport à la période d'avant": "compared with the previous period",
   "au total": "in total",
   "progression": "progress",
+
+  // ── Supprimés récemment : un refus de la base se dit (2026-10-12) ──
+  "« {titre} » n'a pas pu être supprimé.": "“{titre}” could not be deleted.",
+  "1 élément n'a pas pu être supprimé. Il reste ici.": "1 item could not be deleted. It is still here.",
+  "{n} éléments n'ont pas pu être supprimés. Ils restent ici.": "{n} items could not be deleted. They are still here.",
 };

@@ -1,5 +1,6 @@
 import { clesDe, colonneUid, colonnesLocales } from "./fk";
 import type { EntreeOutbox, ChangementEnAttente } from "./outbox";
+import { DEPENDANTS, libererDependants } from "../suppression";
 
 /**
  * Accès à la base SQLite locale pour le moteur de synchronisation.
@@ -180,10 +181,31 @@ export async function appliquerLigne(
   );
 }
 
-/** Applique une pierre tombale. Sans effet si la ligne n'existe pas ici. */
+/**
+ * Applique une pierre tombale. Sans effet si la ligne n'existe pas ici.
+ *
+ * ⚠️⚠️ ON DÉFAIT D'ABORD CE QUI CITE LA LIGNE ICI (2026-10-12). La base applique
+ * les clés étrangères (`lib/suppression.ts`), et cet appareil a ses propres
+ * lignes rangées sous celle qui part :
+ *   • des tables LOCALES, que personne ne lui dira jamais d'effacer
+ *     (`goal_progress_log` : l'historique de progression d'un objectif) ;
+ *   • des enfants dont la pierre tombale arrive APRÈS celle du parent — l'envoi
+ *     va des parents vers les enfants, donc la tâche part avant ses coches.
+ * Sans cela, le `DELETE` échouait, l'erreur remontait jusqu'au cycle, le
+ * curseur ne passait plus cette ligne : la synchronisation de l'appareil
+ * s'arrêtait pour de bon, parce qu'on avait vidé une corbeille ailleurs.
+ *
+ * C'est la MÊME table que celle des fonctions `delete*` de `repo.ts` : les deux
+ * appareils défont la même chose. On est sous `applying` — rien de ce ménage
+ * ne repart dans le cloud.
+ */
 export async function supprimerLigne(db: BaseLocale, table: string, uid: string): Promise<void> {
   const cle = cleDe(table);
   const valeur = cle === "uid" ? uid : uid.replace(/^st:/, "");
+  if (DEPENDANTS[table]) {
+    const ligne = (await db.select<{ id: number }>(`SELECT id FROM ${table} WHERE ${cle} = $1`, [valeur]))[0];
+    if (ligne) await libererDependants(db, table, ligne.id);
+  }
   await db.execute(`DELETE FROM ${table} WHERE ${cle} = $1`, [valeur]);
 }
 

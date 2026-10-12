@@ -236,4 +236,115 @@ describe.each([
     await expect(repo.supprimerDefinitivement("note", id)).resolves.toBe(0);
     await expect(repo.purgerCorbeille(new Date(Date.now() + 31 * JOUR))).resolves.toBe(0);
   });
+
+  // ─── 2026-10-12 — ce que la base refuse d'effacer ─────────────────────────
+  //
+  // Antonin : « certains items ne se suppriment pas dans Supprimés récemment, et
+  // Tout supprimer ne marche pas tout le temps ». Rejoué sur une copie de sa
+  // base : la base applique les clés étrangères (sqlx les active d'office), et
+  // deux tables rangées SOUS une ligne n'étaient défaites par aucune fonction
+  // `delete*`. Voir `lib/suppression.ts`.
+
+  it("⭐⭐ un objectif qui a un HISTORIQUE de progression se supprime pour de bon", async () => {
+    // `snapshotGoals` tourne à chaque lancement : tout objectif qui a vécu un
+    // jour en porte une ligne. C'était 23 des 76 objectifs de sa corbeille.
+    const id = await repo.createGoal(objectif("Arbre-suivi"));
+    await repo.snapshotGoals("2026-10-01", [{ goal_id: id, pct: 40 }]);
+    await repo.mettreEnCorbeille("goal", id);
+    expect(await repo.supprimerDefinitivement("goal", id)).toBe(1);
+    expect(await repo.lireCorbeille()).toEqual([]);
+    if (natif) {
+      expect(sqlite!.prepare("SELECT COUNT(*) AS n FROM goals WHERE id = ?").get(id)).toEqual({ n: 0 });
+      expect(sqlite!.prepare("SELECT COUNT(*) AS n FROM goal_progress_log").get()).toEqual({ n: 0 });
+    }
+  });
+
+  it("⭐⭐ une tâche qui a une séance de focus se supprime pour de bon — la séance reste, à son nom", async () => {
+    const t = await repo.createTask({
+      label: "Tâche-chronométrée", tag: null, priority: "low", recurrence: "none", goal_id: null,
+    });
+    const s = await repo.startFocus({ task_id: t, label: null, planned_min: 25, kind: "focus" });
+    await repo.endFocus(s, "2026-10-01 10:25:00");
+    await repo.mettreEnCorbeille("task", t);
+    expect(await repo.supprimerDefinitivement("task", t)).toBe(1);
+    expect(await repo.lireCorbeille()).toEqual([]);
+    // Le temps passé reste dans Performance et dans le Timer : seule la tâche part.
+    const seance = (await repo.fetchAll("2000-01-01")).focusSessions.find((x) => x.id === s)!;
+    expect(seance).toMatchObject({ task_id: null, label: "Tâche-chronométrée" });
+  });
+
+  it("⭐ la purge des 30 jours passe aussi sur un objectif suivi et une tâche chronométrée", async () => {
+    const g = await repo.createGoal(objectif("Arbre-purge"));
+    await repo.snapshotGoals("2026-10-01", [{ goal_id: g, pct: 10 }]);
+    const t = await repo.createTask({
+      label: "Tâche-purge", tag: null, priority: "low", recurrence: "none", goal_id: null,
+    });
+    await repo.startFocus({ task_id: t, label: null, planned_min: 25, kind: "focus" });
+    await repo.mettreEnCorbeille("goal", g);
+    await repo.mettreEnCorbeille("task", t);
+    expect(await repo.purgerCorbeille(new Date(Date.now() + 31 * JOUR))).toBe(2);
+    expect(await repo.lireCorbeille()).toEqual([]);
+  });
+
+  it("⭐ vider efface tout ce qu'on lui montre, lots compris", async () => {
+    const a = await arbre();
+    await repo.snapshotGoals("2026-10-01", [
+      { goal_id: a.racine, pct: 10 },
+      { goal_id: a.p1, pct: 20 },
+    ]);
+    const n = await repo.createNote("Vider-note", "");
+    await repo.mettreEnCorbeille("goal", a.racine);
+    await repo.mettreEnCorbeille("note", n);
+    const bilan = await repo.viderCorbeille(await repo.lireCorbeille());
+    expect(bilan).toEqual({ effaces: 6, echecs: [] });
+    expect(await repo.lireCorbeille()).toEqual([]);
+  });
+
+  // Un refus de la base ne se fabrique pas en démo : ces deux-là sont natifs.
+  it.runIf(natif)("⭐⭐ vider CONTINUE après un refus, et rend ce qui reste", async () => {
+    const bloquee = await repo.createNote("Vider-bloquée", "");
+    const libre1 = await repo.createNote("Vider-libre-1", "");
+    const libre2 = await repo.createNote("Vider-libre-2", "");
+    for (const id of [libre1, bloquee, libre2]) await repo.mettreEnCorbeille("note", id);
+    sqlite!.exec(
+      "CREATE TRIGGER refus_de_test BEFORE DELETE ON notes WHEN OLD.title = 'Vider-bloquée' BEGIN SELECT RAISE(ABORT, 'refus de test'); END;",
+    );
+    const bilan = await repo.viderCorbeille(await repo.lireCorbeille());
+    expect(bilan.effaces).toBe(2);
+    expect(bilan.echecs).toEqual([expect.objectContaining({ kind: "note", id: bloquee })]);
+    expect((await repo.lireCorbeille()).map((x) => x.id)).toEqual([bloquee]);
+  });
+
+  it.runIf(natif)("⭐⭐ la purge CONTINUE après un refus : un objet bloqué ne retient pas les autres", async () => {
+    const bloquee = await repo.createNote("Purge-bloquée", "");
+    const libre = await repo.createNote("Purge-libre", "");
+    await repo.mettreEnCorbeille("note", bloquee);
+    await repo.mettreEnCorbeille("note", libre);
+    sqlite!.exec(
+      "CREATE TRIGGER refus_de_test BEFORE DELETE ON notes WHEN OLD.title = 'Purge-bloquée' BEGIN SELECT RAISE(ABORT, 'refus de test'); END;",
+    );
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await repo.purgerCorbeille(new Date(Date.now() + 31 * JOUR))).toBe(1);
+    expect(erreurs).toHaveBeenCalled();
+    erreurs.mockRestore();
+    expect((await repo.lireCorbeille()).map((x) => x.id)).toEqual([bloquee]);
+  });
+
+  it.runIf(natif)("⭐ « supprimer les exemples » passe sur un exemple chronométré et un objectif d'exemple suivi", async () => {
+    const t = await repo.createTask({
+      label: "Exemple-tâche", tag: null, priority: "low", recurrence: "none", goal_id: null,
+    });
+    const g = await repo.createGoal(objectif("Exemple-objectif"));
+    sqlite!.prepare("UPDATE tasks SET is_example = 1 WHERE id = ?").run(t);
+    sqlite!.prepare("UPDATE goals SET is_example = 1 WHERE id = ?").run(g);
+    const s = await repo.startFocus({ task_id: t, label: null, planned_min: 25, kind: "focus" });
+    await repo.snapshotGoals("2026-10-01", [{ goal_id: g, pct: 0 }]);
+    await repo.supprimerExemples();
+    expect(sqlite!.prepare("SELECT COUNT(*) AS n FROM tasks WHERE id = ?").get(t)).toEqual({ n: 0 });
+    expect(sqlite!.prepare("SELECT COUNT(*) AS n FROM goals WHERE id = ?").get(g)).toEqual({ n: 0 });
+    expect(sqlite!.prepare("SELECT task_id, label FROM focus_sessions WHERE id = ?").get(s)).toEqual({
+      task_id: null,
+      label: "Exemple-tâche",
+    });
+  });
 });
