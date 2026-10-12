@@ -1896,6 +1896,19 @@ qu'on n'a pas faite et qu'on aurait pu s'attribuer.
 
 ---
 
+### ⚠️ 2026-10-12 — troisième constat, cette fois avec un échec de l'étape DMG
+
+Build de 22:20 (`07a4d07`). Faits, sans interprétation :
+- `npm run tauri build` rend **code 1** : `failed to run …/bundle_dmg.sh`. Le `.app` était produit (22:22:15).
+- À la première lecture d'empreinte après le build (≈ 22:23), `/Applications/Shale.app` valait DÉJÀ `287ecb47…`, celle du bundle — inode différent, dates de création et de modification à la seconde du bundle, `diff -r` identique. **Aucun `ditto` de la session.**
+- Aucun processus Shale ne tournait ; la base était fermée proprement (ni `-wal` ni `-shm`), modifiée à 22:22.
+- L'image `/Volumes/dmg.DTRHA0` était restée montée, avec `Shale.app` et le lien `Applications → /Applications` ; `rw.*.dmg` laissé dans `bundle/macos/`.
+- Aucune autre session n'a écrit au carnet dans la minute.
+
+**Ce que ça ajoute.** Les deux fois où l'app a été remplacée « toute seule » (10/09, 12/10), une fenêtre de DMG s'ouvre dans le Finder pendant le build, et Antonin était devant son Mac. L'hypothèse du geste humain (glisser l'app sur « Applications » dans cette fenêtre) colle à ces faits ; elle n'est toujours PAS prouvée. Si c'est cela, l'échec du script s'expliquerait aussi (volume occupé).
+
+**Parade, en attendant de savoir.** Après un build : lire l'empreinte installée AVANT `ditto` ; si elle vaut déjà celle du bundle, ne pas recopier, vérifier `diff -r`, vérifier qu'aucune ancienne instance ne tourne, relancer. Toujours `mount | grep dmg` puis `hdiutil detach` : une image restée montée fait échouer le DMG du build suivant. ⚠️ `sqlite3 -readonly` échoue (erreur 14) sur la base quand l'app est fermée (WAL sans `-shm`) : lire par `file:…?immutable=1`.
+
 # 11. Chantier « icône iOS et transition d'entrée » (2026-09-11 / 12)
 
 ## 11.1 ⚠️⚠️ Un commentaire XML qui contient `--` casse le build iOS, et le message est enterré
