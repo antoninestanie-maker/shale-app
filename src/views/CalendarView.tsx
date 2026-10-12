@@ -481,7 +481,7 @@ export default function CalendarView({ data, refresh }: Props) {
   }, [mode, curseur]);
 
   return (
-    <div className="mx-auto max-w-6xl p-8">
+    <div className="mx-auto max-w-6xl p-8 telephone:p-4">
       <header className="view-head">
         <div className="flex items-center gap-3">
           <IconCalendar className="h-6 w-6 text-text-dim" />

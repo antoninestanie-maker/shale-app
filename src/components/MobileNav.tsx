@@ -190,6 +190,26 @@ export default function MobileNav({
     );
   };
 
+  /** Une entrée du pied de la feuille : icône au-dessus du libellé. */
+  const tuile = (id: View) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => aller(id)}
+      aria-current={view === id ? "page" : undefined}
+      className={`flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 transition-colors ${
+        view === id ? "bg-overlay-2 text-blue" : "text-text-dim hover:bg-overlay"
+      }`}
+    >
+      <span className="grid size-6 shrink-0 place-items-center [&>svg]:size-[22px]">
+        {dansLeCatalogue(id)?.icon}
+      </span>
+      {/* Deux lignes au plus : « Supprimés récemment » ne tient pas sur une
+          seule quand le pied porte quatre tuiles (compte administrateur). */}
+      <span className="clamp-2 w-full text-center text-[11px] font-semibold leading-tight">{libelle(id)}</span>
+    </button>
+  );
+
   return (
     <>
       {plusOuvert && (
@@ -201,45 +221,65 @@ export default function MobileNav({
             className="flex-1 bg-black/60"
             onClick={() => setPlusOuvert(false)}
           />
+          {/* ⭐ TROIS ÉTAGES (2026-10-12, crible du labo, constat 34) : la
+              poignée, la liste des modules QUI DÉFILE, et un pied FIXE.
+
+              « Supprimés récemment » était la dernière ligne d'une feuille
+              bornée à 78 % de l'écran : sous le pli, après neuf modules, trois
+              intertitres et « Réglages ». Léa ne l'a trouvé qu'en défilant —
+              au moment où elle venait de supprimer par erreur. Le pied ne
+              défile plus : Personnaliser, Réglages et Supprimés récemment sont
+              à l'écran dès que la feuille s'ouvre, sur n'importe quelle hauteur
+              de téléphone.
+
+              La feuille monte aussi plus haut (jusque sous l'encoche) : sur un
+              écran de 844 pt, les neuf modules tiennent alors sans défiler. */}
           <div
-            className="card-solid animate-fade-up max-h-[calc(78vh*var(--zoom-inv))] overflow-y-auto rounded-t-3xl border-t border-border px-3 pt-2"
+            className="card-solid animate-fade-up flex min-h-0 flex-col rounded-t-3xl border-t border-border pt-2"
             style={{
-              paddingBottom: "calc(env(safe-area-inset-bottom) + 5.5rem)",
+              maxHeight: "calc((100vh - env(safe-area-inset-top) - 2.5rem) * var(--zoom-inv, 1))",
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 4.5rem)",
               paddingLeft: "env(safe-area-inset-left)",
               paddingRight: "env(safe-area-inset-right)",
             }}
           >
             {/* Poignée : le signe visuel qu'on peut refermer. */}
-            <div className="mx-auto mb-3 mt-1 h-1 w-9 rounded-full bg-border-strong" />
+            <div className="mx-auto mb-3 mt-1 h-1 w-9 shrink-0 rounded-full bg-border-strong" />
 
-            {horsCategorie.map((m) => ligne(m.id))}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
+              {horsCategorie.map((m) => ligne(m.id))}
 
-            {CATEGORIES.map((cat) => {
-              const membres = visibles.filter((m) => CATEGORY_OF[m.id] === cat.id);
-              if (!membres.length) return null;
-              return (
-                <section key={cat.id} className="mt-4">
-                  {/* Les catégories de la barre latérale deviennent les
-                      intertitres de cette liste : le vocabulaire de Shale est
-                      conservé là où il porte du sens, et absent de la barre
-                      d'onglets où il coûterait un niveau de navigation. */}
-                  <h2 className="hud-label px-3 pb-1">
-                    {(profil && libelleProfil(profil, cat.label, getLang())) || t(cat.label)}
-                  </h2>
-                  {membres.map((m) => ligne(m.id))}
-                </section>
-              );
-            })}
+              {CATEGORIES.map((cat) => {
+                const membres = visibles.filter((m) => CATEGORY_OF[m.id] === cat.id);
+                if (!membres.length) return null;
+                return (
+                  <section key={cat.id} className="mt-4">
+                    {/* Les catégories de la barre latérale deviennent les
+                        intertitres de cette liste : le vocabulaire de Shale est
+                        conservé là où il porte du sens, et absent de la barre
+                        d'onglets où il coûterait un niveau de navigation. */}
+                    <h2 className="hud-label px-3 pb-1">
+                      {(profil && libelleProfil(profil, cat.label, getLang())) || t(cat.label)}
+                    </h2>
+                    {membres.map((m) => ligne(m.id))}
+                  </section>
+                );
+              })}
+            </div>
 
             {/* ⚠️ La MÊME table que le pied de la barre latérale, et la même
                 règle de droits. Le téléphone avait inversé les deux : il gatait
                 « Personnaliser » sur `isAdmin` — alors que c'est un réglage
                 pour tout le monde — et omettait la Console, qui est la seule
                 des trois à être réservée. Un compte non-administrateur perdait
-                donc l'écran qui règle l'ordre et la visibilité des modules. */}
-            <section className="mt-4 border-t border-border pt-2">
+                donc l'écran qui règle l'ordre et la visibilité des modules.
+
+                En TUILES, icône au-dessus du libellé, comme la barre d'onglets
+                juste dessous : trois ou quatre entrées tiennent sur une rangée
+                de 64 pt, là où des lignes pleines en prenaient 192. */}
+            <section className="flex shrink-0 items-stretch gap-1 border-t border-border px-2 pt-2">
               {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
-                ligne(it.id),
+                tuile(it.id),
               )}
             </section>
           </div>

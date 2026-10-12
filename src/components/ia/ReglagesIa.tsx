@@ -112,7 +112,7 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
+      className="fenetre-voile fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
       onClick={onAnnuler}
       role="dialog"
       aria-modal="true"

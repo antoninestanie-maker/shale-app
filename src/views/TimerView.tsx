@@ -78,7 +78,7 @@ export default function TimerView({ data, focus }: Props) {
   const progress = session && totalSec > 0 ? 1 - remainingSec / totalSec : 0;
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
+    <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <h1 className="text-3xl text-text">{t("Timer")}</h1>
 
       <ResizableGrid gridId="timer" className="mt-6">

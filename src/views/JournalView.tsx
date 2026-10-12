@@ -3,10 +3,12 @@ import type { View } from "../components/Sidebar";
 import {
   addDays,
   dayStat,
+  nomCourtDuJour,
   todayStr,
   weekdayOf,
 } from "../lib/logic";
-import { HABIT_COLORS, serieHabitude } from "../lib/habitudes";
+import { HABIT_COLORS, joursDeLigne, serieHabitude } from "../lib/habitudes";
+import { useIsPhone } from "../lib/platform";
 import {
   addHabit,
   createNote,
@@ -17,7 +19,7 @@ import type { AppData, Habit } from "../lib/types";
 import { IconBolt, IconFlame, IconMood, IconX } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
-import { localeTag, t } from "../lib/i18n";
+import { formatDate, localeTag, t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import { estExemple, sansExemples } from "../lib/onboarding/exemples";
@@ -213,14 +215,12 @@ export default function JournalView({ data, refresh, navigate }: Props) {
     );
   };
 
-  const last14 = useMemo(() => {
-    const out: string[] = [];
-    for (let i = 13; i >= 0; i--) out.push(addDays(today, -i));
-    return out;
-  }, [today]);
+  // Quatorze jours au bureau, sept au téléphone (`joursDeLigne`, `lib/habitudes.ts`).
+  const isPhone = useIsPhone();
+  const joursLigne = useMemo(() => joursDeLigne(today, isPhone), [today, isPhone]);
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
+    <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <header className="view-head">
         <h1 className="text-3xl text-text">{t("Journal")}</h1>
         <button
@@ -279,7 +279,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   }}
                   data-tip={t("Humeur {n}/5", { n: i + 1 })}
                   data-tip-sub={mood === i + 1 ? t("Cliquer à nouveau pour effacer.") : undefined}
-                  className={`flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all ${
+                  className={`cible-tactile flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all ${
                     mood === i + 1
                       ? "border-blue bg-blue/15 text-blue scale-110"
                       : "border-border text-text-dim opacity-60 hover:opacity-100"
@@ -304,7 +304,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   }}
                   data-tip={t("Énergie {v}/5", { v })}
                   data-tip-sub={energy === v ? t("Cliquer à nouveau pour effacer.") : undefined}
-                  className={`flex h-9 w-9 items-center justify-center rounded-[10px] border font-mono text-sm transition-all ${
+                  className={`cible-tactile flex h-9 w-9 items-center justify-center rounded-[10px] border font-mono text-sm transition-all ${
                     energy !== null && v <= energy
                       ? "border-success/50 bg-success/15 text-success"
                       : "border-border text-text-dim hover:text-text"
@@ -350,15 +350,22 @@ export default function JournalView({ data, refresh, navigate }: Props) {
             />
             <span className="flex flex-wrap gap-1">
               {HABIT_COLORS.map((c) => (
+                // Le BOUTON fait 44 pt au doigt ; la pastille, elle, garde ses
+                // 16 px — d'où la couleur portée par un enfant, pas par lui.
                 <button
                   key={c}
                   type="button"
                   onClick={() => setNewColor(c)}
-                  className={`h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-blue" : ""}`}
-                  style={{ backgroundColor: c }}
+                  className="cible-tactile flex h-4 w-4 items-center justify-center rounded-full"
                   aria-label={t("Couleur {name}", { name: c })}
+                  aria-pressed={newColor === c}
                   data-tip={t("Couleur de l’habitude")}
-                />
+                >
+                  <span
+                    className={`block h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-blue" : ""}`}
+                    style={{ backgroundColor: c }}
+                  />
+                </button>
               ))}
             </span>
             <button
@@ -413,7 +420,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
             return (
               <li
                 key={habit.id}
-                className="group group/ligne flex items-center gap-3"
+                // `flex-wrap` : au téléphone, les jours passent sur leur propre
+                // rangée (`order-last w-full`) au lieu d'écraser le nom.
+                className="group group/ligne flex flex-wrap items-center gap-x-3 gap-y-1"
                 onContextMenu={(e) => menuHabitude.ouvrirAuPoint(e, habit)}
                 onKeyDown={(e) => void menuHabitude.ouvrirAuClavier(e, habit)}
               >
@@ -425,7 +434,15 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   tip={habit.name}
                   tipSub={t("Cocher pour aujourd’hui.")}
                 />
-                <span className="w-32 truncate text-sm text-text">{habit.name}</span>
+                {/* ⭐ Le nom prend TOUTE la place libre (crible du labo, constat 8).
+                    Il était figé à 128 px : « Exemple · habitud… » coupé au
+                    bureau à côté d'une ligne vide, et — pire — écrasé à une
+                    largeur nulle au téléphone, où les quatorze carrés ne lui
+                    laissaient rien. `truncate-souris` : au doigt, pas de bulle
+                    pour lire la suite, donc il passe à la ligne. */}
+                <span className="truncate-souris min-w-0 flex-1 truncate text-sm text-text" title={habit.name}>
+                  {habit.name}
+                </span>
                 {/* ⚠️ Pour un exemple, le badge REMPLACE la série. Le cahier des
                     charges interdit qu'une habitude d'exemple affiche 0 %, et
                     l'autre issue — lui fabriquer des coches passées — aurait
@@ -438,25 +455,43 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     <IconFlame className="h-2.5 w-2.5" /> {habitStreak(habit.id)}
                   </span>
                 )}
-                <span className="flex flex-1 justify-end gap-[3px]">
-                  {last14.map((date) => (
-                    <button
-                      key={date}
-                      type="button"
-                      data-tip={date}
-                      data-tip-sub={t("Cocher ou décocher ce jour.")}
-                      role="checkbox"
-                      aria-checked={checks.has(date)}
-                      aria-label={`${habit.name} · ${date}`}
-                      onClick={() => void basculerHabitude(habit.id, date, checks.has(date))}
-                      className="h-3.5 w-3.5 rounded-[3px] transition-[transform,background-color] duration-150 hover:scale-125"
-                      style={{
-                        backgroundColor: checks.has(date)
-                          ? habit.color
-                          : "var(--color-border)",
-                      }}
-                    />
-                  ))}
+                <span className={isPhone ? "order-last flex w-full gap-0.5 pb-2" : "flex shrink-0 gap-[3px]"}>
+                  {joursLigne.map((date) => {
+                    const coche = checks.has(date);
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        data-tip={formatDate(new Date(`${date}T12:00:00`), { weekday: "long", day: "numeric", month: "long" })}
+                        data-tip-sub={t("Cocher ou décocher ce jour.")}
+                        role="checkbox"
+                        aria-checked={coche}
+                        aria-label={`${habit.name} · ${date}`}
+                        onClick={() => void basculerHabitude(habit.id, date, coche)}
+                        className={
+                          isPhone
+                            ? // Une case de 44 pt qui DIT son jour : au doigt il
+                              // n'y a pas de bulle pour lire la date.
+                              `flex h-11 min-w-0 flex-1 items-center justify-center rounded-[9px] border text-[11px] font-semibold uppercase transition-colors duration-150 ${
+                                coche ? "text-text" : "border-transparent bg-overlay text-text-dim"
+                              } ${date === today ? "underline decoration-2 underline-offset-4" : ""}`
+                            : "h-3.5 w-3.5 rounded-[3px] transition-[transform,background-color] duration-150 hover:scale-125"
+                        }
+                        style={
+                          isPhone
+                            ? coche
+                              ? {
+                                  borderColor: habit.color,
+                                  backgroundColor: `color-mix(in srgb, ${habit.color} 24%, transparent)`,
+                                }
+                              : undefined
+                            : { backgroundColor: coche ? habit.color : "var(--color-border)" }
+                        }
+                      >
+                        {isPhone && nomCourtDuJour(weekdayOf(date)).slice(0, 1)}
+                      </button>
+                    );
+                  })}
                 </span>
                 {/* Au doigt, pas de survol : la croix s'efface devant « ⋯ »,
                     qui porte la même suppression (règle 17). */}

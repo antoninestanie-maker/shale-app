@@ -227,7 +227,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-3xl p-8 telephone:p-4">
       <header className="view-head items-start">
         <div>
           <p className="hud-label">{t("l'app, à ta main")}</p>

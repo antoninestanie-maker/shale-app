@@ -53,7 +53,7 @@ export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: 
   // modale passerait sous le contenu (même piège que NotificationBell).
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
+      className="fenetre-voile fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

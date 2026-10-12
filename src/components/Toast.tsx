@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconCheckCircle } from "./icons";
 import { useIsPhone } from "../lib/platform";
+import { pointeurGrossier } from "../lib/menu/tactile";
+import { dureeAffichage } from "../lib/toast";
 
 import { t } from "../lib/i18n";
 export interface ToastState {
@@ -53,7 +55,14 @@ export default function Toast({
     // ⚠️ Pas `t` : ce nom est celui de la traduction (PASSATION § 14.3). La
     // version d'avant le 2026-09-23 l'employait ici, masquant `t()` le temps
     // de l'effet.
-    const minuteur = window.setTimeout(onClose, duration);
+    // Au doigt, pas de survol pour retenir le toast : s'il porte un geste, il
+    // reste plus longtemps (`dureeAffichage`, `lib/toast.ts`).
+    const attente = dureeAffichage({
+      duree: duration,
+      aUnGeste: !!(toast.onAction || toast.onLien),
+      auDoigt: pointeurGrossier(),
+    });
+    const minuteur = window.setTimeout(onClose, attente);
     return () => window.clearTimeout(minuteur);
   }, [toast, onClose, duration, suspendu]);
 
@@ -75,7 +84,9 @@ export default function Toast({
   // prend toute la largeur — un message de corbeille porte un titre, il ne
   // tiendrait pas dans un coin de 390 pt.
   const place = isPhone
-    ? { left: "0.75rem", right: "0.75rem", bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }
+    ? // `--reserve-seance` : la pastille du minuteur, quand une séance tourne
+      // (`FocusOverlay`) — le toast se pose au-dessus d'elle, pas dessus.
+      { left: "0.75rem", right: "0.75rem", bottom: "calc(env(safe-area-inset-bottom) + 5.5rem + var(--reserve-seance, 0px))" }
     : { right: "1.5rem", bottom: "1.5rem" };
 
   return (

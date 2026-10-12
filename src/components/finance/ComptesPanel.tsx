@@ -665,12 +665,12 @@ export function Dialogue({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onFerme();
       }}
     >
-      <div className="card card-solid max-h-[calc(85vh*var(--zoom-inv))] w-full max-w-lg overflow-y-auto p-5">
+      <div className="card card-solid max-h-full w-full max-w-lg overflow-y-auto p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-display text-lg font-semibold text-text">{titre}</h3>
           <button

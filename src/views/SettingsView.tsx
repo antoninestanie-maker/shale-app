@@ -393,7 +393,7 @@ export default function SettingsView() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-3xl p-8 telephone:p-4">
       <h1 className="text-3xl text-text">{t("Réglages")}</h1>
 
       <ResizableGrid gridId="settings" className="mt-6">

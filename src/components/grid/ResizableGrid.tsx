@@ -203,11 +203,19 @@ export function ResizableGrid({
   children,
   columns = COLUMNS,
   className = "",
+  ajusterOrdre,
 }: {
   gridId: string;
   children: ReactNode;
   columns?: number;
   className?: string;
+  /**
+   * Une dernière règle sur l'ordre RENDU, après l'ordre enregistré — et jamais
+   * écrite dans les réglages. Aujourd'hui s'en sert au téléphone pour remonter
+   * les habitudes sous les tâches (`ordreAujourdhuiAuTelephone`, `lib/grille.ts`).
+   * ⚠️ Une fonction STABLE (de module) : elle entre dans un `useMemo`.
+   */
+  ajusterOrdre?: (ordre: string[]) => string[];
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [overrides, setOverrides] = useState<Record<string, PanelSize>>({});
@@ -252,9 +260,12 @@ export function ResizableGrid({
   // Un identifiant enregistré dont le panneau n'existe plus (widget retiré de
   // l'app) ne laisse ni trou ni pastille : la règle est dans `lib/grille.ts`.
   const effectiveOrder = useMemo(
-    () => ordreEffectif(order, jsxIds),
+    () => {
+      const ordre = ordreEffectif(order, jsxIds);
+      return ajusterOrdre ? ajusterOrdre(ordre) : ordre;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [order, jsxKey],
+    [order, jsxKey, ajusterOrdre],
   );
   const effectiveOrderRef = useRef(effectiveOrder);
   effectiveOrderRef.current = effectiveOrder;

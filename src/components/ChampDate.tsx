@@ -15,6 +15,7 @@ import {
   raccourcis,
 } from "../lib/calendrier/champDate";
 import { ORDRE_SEMAINE, nomCourtDuJour, todayStr } from "../lib/logic";
+import { menuContextuelOuvert } from "../lib/menu/tactile";
 import { zoomFactor } from "../lib/uiConfig";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconX } from "./icons";
 
@@ -284,15 +285,32 @@ export function PanneauDate(props: {
       // ⚠️ Une couche AU-DESSUS a déjà traité la touche : elle l'a marquée. Sans
       // ce garde, un seul Échap ferme le calendrier ET le formulaire qui le
       // porte, et la saisie part avec (convention de l'app depuis le 2026-08-28).
-      if (e.defaultPrevented || e.key !== "Escape") return;
+      // ⚠️ Et tant qu'un menu contextuel est ouvert, le clavier est à lui : en
+      // capture, on passerait avant qu'il n'ait marqué la touche (`tactile.ts`).
+      if (e.defaultPrevented || e.key !== "Escape" || menuContextuelOuvert()) return;
       e.preventDefault();
       courant.current.onFermer(true);
     };
+    /**
+     * ⭐ ÉCHAP EST ÉCOUTÉ EN PHASE DE CAPTURE — et c'est ce qui le rend vrai.
+     *
+     * Témoin A17-01 de l'audit, toujours présent le 2026-10-12 : dans « Nouvel
+     * objectif », Échap sur ce calendrier fermait TOUTE la fenêtre et la saisie
+     * partait avec. Le garde `defaultPrevented` était écrit des deux côtés, et
+     * ne servait à rien : la fenêtre et le calendrier écoutaient tous deux
+     * `window` en phase de remontée, où les écouteurs passent dans l'ordre de
+     * leur POSE. La fenêtre, ouverte la première, lisait donc la touche AVANT
+     * que le calendrier ne l'ait marquée.
+     *
+     * La couche du dessus doit passer la première : en capture, elle précède
+     * tous les écouteurs de remontée, quel que soit l'ordre d'ouverture. C'est
+     * ce que font déjà `MenuContextuel`, `PanneauType` et `ImporterChecklist`.
+     */
     // Défiler déplace l'ancre : le panneau la SUIT plutôt que de se refermer
     // sous les doigts — un défilement involontaire ne doit rien coûter.
     const suivre = () => placer();
     window.addEventListener("pointerdown", dehors);
-    window.addEventListener("keydown", touche);
+    window.addEventListener("keydown", touche, true);
     window.addEventListener("scroll", suivre, true);
     window.addEventListener("resize", suivre);
     /**
@@ -307,7 +325,7 @@ export function PanneauDate(props: {
     vv?.addEventListener("scroll", suivre);
     return () => {
       window.removeEventListener("pointerdown", dehors);
-      window.removeEventListener("keydown", touche);
+      window.removeEventListener("keydown", touche, true);
       window.removeEventListener("scroll", suivre, true);
       window.removeEventListener("resize", suivre);
       vv?.removeEventListener("resize", suivre);

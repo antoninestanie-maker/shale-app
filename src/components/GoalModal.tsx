@@ -174,21 +174,17 @@ export default function GoalModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       onClick={onClose}
     >
-      {/* ⚠️ `vh` MULTIPLIÉ par `--zoom-inv` : le `zoom` CSS de la densité
-          multiplie aussi les unités de viewport, donc `90vh` vaut 1 170 px dans
-          une fenêtre de 900 à densité « Large » — la fenêtre dépasserait
-          l'écran (règle du 2026-08-28).
-
-          ⚠️ Et 78vh AU DOIGT, pas 90 : la barre d'onglets du téléphone est en
-          `fixed` PAR-DESSUS (80 px environ). Mesuré sur iPhone 390 × 844 le
-          2026-09-20 : à 90vh, le pied de la fenêtre — donc le bouton
-          « Créer » — passait sous la barre. 78vh est la valeur que `MobileNav`
-          applique déjà à sa propre feuille, pour exactement cette raison. */}
+      {/* ⭐ Le pied reste, le corps défile — `.fenetre` dans `index.css`
+          (2026-10-12, crible du labo, constat 20). La carte entière défilait
+          jusque-là, « Créer » compris : avec une étape et une tâche, le bouton
+          passait sous le bas de la fenêtre à 900 px de haut, et sous la barre
+          d'onglets au téléphone. La borne de hauteur (les anciens `90vh` et
+          `78vh au doigt`) est maintenant celle du voile. */}
       <div
-        className="card max-h-[calc(90vh*var(--zoom-inv))] w-full max-w-md overflow-y-auto bg-surface p-6 [@media(pointer:coarse)]:max-h-[calc(78vh*var(--zoom-inv))]"
+        className="card fenetre w-full max-w-md bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg text-text">
@@ -196,12 +192,13 @@ export default function GoalModal({
         </h2>
 
         <form
-          className="mt-4 flex flex-col gap-4"
+          className="fenetre-colonne mt-4"
           onSubmit={(e) => {
             e.preventDefault();
             save();
           }}
         >
+          <div className="fenetre-corps flex flex-col gap-4">
           <input
             autoFocus
             value={title}
@@ -427,7 +424,9 @@ export default function GoalModal({
             </div>
           )}
 
-          <div className="mt-2 flex justify-end gap-2">
+          </div>
+
+          <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

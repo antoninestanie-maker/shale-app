@@ -109,7 +109,7 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+      className="fenetre-voile fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) props.onFermer();
       }}
@@ -117,9 +117,11 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
       <div
         role="dialog"
         aria-label={t("Importer une checklist")}
-        className="card card-solid max-h-[calc(90vh*var(--zoom-inv))] w-full max-w-lg overflow-y-auto rounded-[16px] p-5 shadow-2xl"
+        // Le pied reste, le corps défile (`.fenetre`, `index.css`).
+        className="card card-solid fenetre w-full max-w-lg rounded-[16px] shadow-2xl [--fenetre-marge:1.25rem]"
       >
         <h4 className="font-display text-base font-bold text-text">{t("Importer une checklist")}</h4>
+        <div className="fenetre-corps">
         <p className="mt-1 text-xs text-text-dim">
           {t("Demande-la à l'IA de ton choix, colle sa réponse : elle devient un objectif avec ses étapes et ses tâches.")}
         </p>
@@ -237,12 +239,14 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
           </>
         )}
 
-        {texte.trim() && vide && (
-          <p className="mt-3 text-xs text-red">{t("Rien d'exploitable : il faut au moins une étape (##) ou une tâche (- [ ]).")}</p>
-        )}
-        {erreur && <p className="mt-3 text-xs text-red">{erreur}</p>}
+        </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        {texte.trim() && vide && (
+          <p className="fenetre-pied text-xs text-red">{t("Rien d'exploitable : il faut au moins une étape (##) ou une tâche (- [ ]).")}</p>
+        )}
+        {erreur && <p className="fenetre-pied text-xs text-red">{erreur}</p>}
+
+        <div className="fenetre-pied mt-0.5 flex justify-end gap-2">
           <button type="button" onClick={props.onFermer} className="pill cible-tactile-ligne px-3 py-1.5 text-sm font-medium text-text-dim hover:text-text">
             {t("Annuler")}
           </button>

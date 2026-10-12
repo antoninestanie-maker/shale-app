@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
@@ -331,6 +331,14 @@ function App() {
     [ui.config, profil],
   );
   const isPhone = useIsPhone();
+  // La feuille de style lit « téléphone » ICI (`html[data-telephone]`) plutôt que
+  // de recopier la requête de `lib/platform.ts` : les fenêtres de saisie y
+  // réservent la barre d'onglets et l'encoche (`.fenetre-voile`, `index.css`).
+  // En `useLayoutEffect` : l'attribut est là AVANT la première image, sinon
+  // les marges de page du téléphone (`telephone:p-4`) sauteraient à l'ouverture.
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute("data-telephone", isPhone);
+  }, [isPhone]);
   const windowSized = useRef(false);
 
   // Badge sidebar "Trading" : des positions attendent leur dénouement dans le tracker
@@ -682,7 +690,9 @@ function App() {
           // barre d'accueil des iPhone sans bouton.
           style={
             isPhone
-              ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
+              ? // `--reserve-seance` : la place de la pastille du minuteur quand
+                // une séance tourne (`FocusOverlay`) ; nulle le reste du temps.
+                { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem + var(--reserve-seance, 0px))" }
               : IS_IOS
                 ? // iPad : pas de barre d'onglets, mais la barre d'accueil.
                   { paddingBottom: "env(safe-area-inset-bottom)" }

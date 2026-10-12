@@ -91,15 +91,16 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). */}
       <div
-        className="card card-solid max-h-[calc(85vh*var(--zoom-inv))] w-full max-w-lg overflow-y-auto p-6"
-        style={{ maxHeight: "calc(85vh * var(--zoom-inv, 1))" }}
+        className="card card-solid fenetre w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl text-text">
           {type ? t("Modifier le type") : t("Nouveau type d'objet")}
         </h2>
+        <div className="fenetre-corps">
         {type?.builtin === 1 && (
           <p className="mt-2 text-xs text-text-dim">
             {t("Type livré avec l'app. Tu peux le modifier et le supprimer comme les autres.")}
@@ -258,7 +259,9 @@ export default function EditeurType({ type, objets, onClose, onSaved }: Props) {
           </ul>
         )}
 
-        <div className="mt-6 flex items-center justify-between">
+        </div>
+
+        <div className="fenetre-pied mt-[10px] flex items-center justify-between">
           {type ? (
             <button
               type="button"
