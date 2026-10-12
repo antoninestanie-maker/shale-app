@@ -3599,7 +3599,6 @@ export const EN: Record<string, string> = {
   // ── Performance : le jour même, les périodes en dates, les légendes (2026-10-11) ──
   "Ce que montre Performance": "What Performance shows",
   "Vue d'ensemble": "Overview",
-  "Par objectif": "By goal",
   "Les heures passées sur chaque objectif": "The hours spent on each goal",
   "Cette semaine, face aux heures que tu lui as promises.": "This week, against the hours you promised it.",
   "Le jour en cours, à part": "The current day, on its own",
