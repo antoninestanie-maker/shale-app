@@ -712,6 +712,52 @@ S'AJOUTE au champ de texte, elle ne le remplace pas, parce que taper bat viser.
 
 ## La feuille de route : le vocabulaire, et la carte qui la montre (2026-09-20)
 
+### ⭐ 2026-10-12 — « Étape », et « phase » quand elle en contient d'autres
+
+**Ce bloc remplace le vocabulaire des sections ci-dessous**, gardées pour leur
+histoire. Antonin, le 12 octobre, sur la proposition du chantier « étapes
+cochables » : « je valide ».
+
+    objectif
+    ├── PHASE   (une étape qui contient des étapes)
+    │    └── étape
+    └── étape
+
+- **Trois mots à l'écran, pas un de plus** : objectif, **étape**, tâche. Une
+  étape s'appelle **phase** quand elle contient d'autres étapes. C'est le
+  CONTENU qui nomme — plus le genre choisi à la création. En anglais : *step*,
+  et *phase* ; plus de *sub-goal*.
+- ⚠️ **« Sous-objectif » ne s'écrit plus nulle part** (ni « sous-étape », ni
+  « jalon »). Les boutons « Phase | Sous-objectif », « En faire une phase » et
+  « Redevenir un sous-objectif » sont retirés : on ajoute « une étape », et
+  l'ajouter sous une étape fait de celle-ci une phase. Trois niveaux au plus.
+- **Une icône par nature** : cible (`IconTarget`) pour l'objectif, dossier
+  (`IconFolder`) pour la phase, **losange (`IconEtape`) pour l'étape**, carré
+  pour la tâche, flamme pour l'habitude. Jusque-là l'étape portait la cible de
+  l'objectif en plus pâle (labo du 2026-10-11, constat 22).
+- **Un cadre par nature** : phase = cadre plein marqué ; étape = cadre en
+  pointillé ; tâche = pastille au liseré fin. Légende en tête : « Phase ·
+  Étape · Tâche ».
+- **La tâche d'abord.** Antonin : « cocher une étape sans tâche n'a pas
+  tellement de sens. Dans ce cas, l'étape est une tâche. » Partout où l'on
+  ajoute : « ＋ Tâche » est le PREMIER bouton, « ＋ Étape » le second (sa bulle :
+  « Une étape regroupe des tâches. »), « Rattacher » le dernier. Même ordre
+  dans le menu de l'objectif, dans la carte, et dans la fenêtre de création
+  (« Tâches · ce qu'il y a à faire », puis « Étapes · pour regrouper des
+  tâches »). Un objectif créé nu ouvre sa page sur le champ « Tâche ».
+- **Une étape vide porte « En faire une tâche »**, sur sa ligne, à droite, en
+  `text-blue text-xs font-medium` avec le carré de la tâche — et en tête de son
+  menu « ⋯ ». Sa case à cocher reste devant le titre (`CaseACocher` `sm`), mais
+  ce n'est plus elle qu'on montre. Si l'étape a une description, une bande
+  `bg-surface-2` s'ouvre sous la ligne et le dit avant : « Annuler » /
+  « En faire une tâche » (`fill-primary`). Après : UN toast, « Voir » et
+  « Annuler ».
+- ⚠️ **Les clés de code ne bougent pas** : `goals.is_milestone`, `GenreEtape`,
+  et `GenreRef = "objectif" | "phase" | "sous-objectif"` (enregistrée dans le
+  bloc d'une carte, où « sous-objectif » désigne une étape). Le mot vit à un
+  seul endroit : `nomDeNature()` (`lib/objectifs/libelles.ts`), d'après
+  `natureDe()` (`lib/objectifs/structure.ts`).
+
 ### « Phase », et plus « jalon »
 
 Antonin : « le nom de jalon n'est peut-être pas assez parlant, réfléchis-y,
@@ -805,8 +851,8 @@ Seules les icônes déjà présentes (`components/icons.tsx`) servent.
 | Type | Icône | Forme | État vivant (éditeur seulement) |
 |---|---|---|---|
 | **Objectif** | cible (`IconTarget`) | boîte teintée, comme la racine | pourcentage + jauge (dégradé de marque, `bg-success` achevé) ; échéance |
-| **Phase** | dossier (`IconFolder`) | double filet — c'est un contenant | idem |
-| **Sous-objectif** | cible, en `text-dim` | boîte simple | idem |
+| **Phase** (une étape qui en contient d'autres) | dossier (`IconFolder`) | double filet — c'est un contenant | idem |
+| **Étape** (s'appelait « sous-objectif » jusqu'au 2026-10-12) | losange (`IconEtape`), en `text-dim` | boîte simple | idem |
 | **Tâche** | carré de coche | boîte simple | case `CaseACocher` sur l'icône (réussi à l'ENCRE), titre barré ; échéance passée en `text-red` |
 | **Habitude** | flamme (`IconFlame`, déjà la série ailleurs) | pilule (`rx = h/2`) | « 🔥 12 j », `text-success` |
 | **Idée** | aucune | boîte simple | — |
@@ -818,16 +864,18 @@ forme** — jamais l'état. L'état est une couche HTML par-dessus le SVG.
 Les pastilles d'état s'accrochent au coin haut-droit de la boîte (bordure,
 `text-[10px]`), `pointer-events-none` : elles ne volent jamais le glisser.
 
-**Le menu « Type » d'un nœud** (depuis le 2026-09-29 au soir) : Idée, Phase,
-Sous-objectif, Tâche, Habitude — icônes crayon, dossier, cible, coche, flamme —
-les mêmes entrées que l'ajout d'un enfant dans la carte d'un objectif. Un clic
+**Le menu « Type » d'un nœud** : Idée, Étape, Tâche, Habitude — icônes crayon,
+losange, coche, flamme (depuis le 2026-10-12 ; il proposait « Phase » et
+« Sous-objectif » depuis le 2026-09-29 : où va l'étape se déduit maintenant de
+la carte). L'ajout d'un enfant dans la carte d'un objectif propose les mêmes,
+la tâche en tête : Tâche, Étape, Habitude. Un clic
 crée ; la confirmation d'après vit dans l'en-tête de l'éditeur (`text-success`,
 5 s), jamais dans une fenêtre.
 
 ✅ **La vue Objectifs reprend ce tableau depuis la phase D (2026-09-29)** : dans
-la feuille de route, l'icône précède le titre — dossier (`IconFolder`, en
-`text-text`) pour une phase, cible (`IconTarget`, en `text-text-dim`) pour un
-sous-objectif ; elle remplace la pastille violette « PHASE ». Le carré de la
+la feuille de route, l'icône précède le titre — dossier (`IconFolder`) pour une
+phase, losange (`IconEtape`) pour une étape (la cible de l'objectif en plus pâle
+jusqu'au 2026-10-12) ; elle remplace la pastille violette « PHASE ». Le carré de la
 tâche (`h-2.5 w-2.5 rounded-[3px] border-current`) marque la prochaine action
 sous un objectif de la liste, et la tâche récurrente qui compte une étape ; la
 flamme, l'habitude qui la compte.
@@ -895,7 +943,7 @@ Remplace le maître-détail ci-dessous. Colonne unique `max-w-4xl`.
 ### La priorité — une couleur, pas un élément (2026-09-30)
 
 - **Le repère existant prend la couleur** : contour de la case d'une tâche,
-  icône (dossier / cible) d'une étape. Rouge = élevée, jaune = moyenne, neutre
+  icône (dossier / losange) d'une étape. Rouge = élevée, jaune = moyenne, neutre
   = faible (`couleurPriorite`). Aucun badge ni drapeau ajouté sur la ligne.
 - **L'icône de priorité** (`IconePriorite`) : trois barres qui montent, autant
   de pleines que de niveaux — dans les menus et les pastilles seulement.
@@ -905,9 +953,9 @@ Remplace le maître-détail ci-dessous. Colonne unique `max-w-4xl`.
 ### La feuille de route — un liseré par type (2026-10-01)
 
 Choisie par Antonin (variante D sur quatre). **Phase** = cadre plein marqué,
-**sous-objectif** = cadre en pointillé, **tâche** = pastille au liseré fin sur
-fond `overlay`. Une légende (dossier, cible, case) en tête de la feuille de
-route. Ne pas ajouter de fond gris aux panneaux internes : l'emboîtement de
+**étape** = cadre en pointillé, **tâche** = pastille au liseré fin sur
+fond `overlay`. Une légende (dossier, losange, case) en tête de la feuille de
+route — « Phase · Étape · Tâche » depuis le 2026-10-12. Ne pas ajouter de fond gris aux panneaux internes : l'emboîtement de
 cadres suffit, un fond de plus brouille les niveaux.
 
 ### L'onglet Performance — analyser pour s'améliorer (2026-10-09)

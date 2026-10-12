@@ -218,8 +218,13 @@ export default function GoalsView({ data, refresh }: Props) {
     if (neuf) {
       avantCreation.current = null;
       setChoisiId(neuf.id);
+      // ⭐ 2026-10-12 — LA TÂCHE REÇOIT LE FOCUS PAR DÉFAUT. Un objectif créé nu
+      // (ni tâche ni étape saisies dans la fenêtre) ouvre sa page sur le champ
+      // « Tâche » : la première chose qu'on lui donne est une chose à faire.
+      const nu = !goals.some((g) => g.parent_goal_id === neuf.id) && !tasks.some((x) => x.goal_id === neuf.id);
+      if (nu) setAjoutPour({ id: neuf.id, quoi: "tache" });
     }
-  }, [goals]);
+  }, [goals, tasks]);
 
   // action palette "Nouvel objectif" → ouvre le formulaire
   useEffect(() => {

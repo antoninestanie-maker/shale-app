@@ -2848,7 +2848,7 @@ export const EN: Record<string, string> = {
   "Elle devient une tâche de « {parent} » : dans Tâches, le Calendrier, Aujourd’hui et le minuteur.":
     "It becomes a task of “{parent}”: in Tasks, the Calendar, Today and the timer.",
   "Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.":
-    "Its description doesn't follow: a task has none. It stays with the step, in Recently deleted.",
+    "Its description doesn't follow: a task has none. It stays with the step, in Recently Deleted.",
   "« {titre} » est maintenant une tâche": "“{titre}” is now a task",
   "Cette étape n’est plus vide : elle reste une étape.": "This step is no longer empty: it stays a step.",
   // La fenêtre « Nouvel objectif » : les tâches d'abord, et des intitulés qui disent lequel est lequel.
