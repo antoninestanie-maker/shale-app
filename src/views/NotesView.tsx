@@ -602,7 +602,7 @@ export default function NotesView({ data, refresh }: Props) {
               onClick={handleDelete}
               data-tip={t("Supprimer la note")}
               data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment.")}
-              className="shrink-0 rounded-md px-2 py-1 text-xs text-text-dim transition-colors hover:text-red"
+              className="cible-tactile-ligne shrink-0 rounded-md px-2 py-1 text-xs text-text-dim transition-colors hover:text-red"
             >
               {t("supprimer")}
             </button>

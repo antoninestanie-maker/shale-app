@@ -68,6 +68,10 @@ describe("Fenêtres de saisie : le pied reste, le corps défile", () => {
     expect(regle(".fenetre-pied")).toContain("flex: none");
   });
 
+  it("⚠️ le corps défile sans COMPRIMER ses champs (un corps en colonne flex les écrasait)", () => {
+    expect(regle(".fenetre-corps > *")).toContain("flex-shrink: 0");
+  });
+
   it("au téléphone, le voile réserve la barre d'onglets et l'encoche", () => {
     const voile = regle("html[data-telephone] .fenetre-voile");
     expect(voile).toContain("env(safe-area-inset-bottom)");

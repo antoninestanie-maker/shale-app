@@ -1129,6 +1129,15 @@
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
   }
+  /* ⚠️ LES ENFANTS DU CORPS NE RÉTRÉCISSENT PAS. Quand le corps est lui-même
+     une colonne flex (`flex flex-col gap-4`), sa hauteur est maintenant bornée :
+     avant de défiler, un conteneur flex COMPRIME ses enfants. Mesuré le
+     2026-10-12 sur « Nouvel objectif » : la zone « Description » passait de
+     62 à 49 px dès que la fenêtre était pleine. Un corps qui défile ne doit
+     rien comprimer — il défile. */
+  .fenetre-corps > * {
+    flex-shrink: 0;
+  }
   .fenetre-pied {
     flex: none;
   }
