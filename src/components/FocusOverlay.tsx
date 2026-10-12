@@ -16,8 +16,16 @@ import { IconReduire } from "./icons";
 
 import { t } from "../lib/i18n";
 
-/** La place que la pastille de séance réserve en bas d'un téléphone : ses 44 pt et leur marge. */
-const RESERVE_SEANCE = "3.25rem";
+/**
+ * La place que la pastille de séance réserve en bas d'un téléphone : sa hauteur
+ * et sa marge de 8 px.
+ *
+ * ⚠️ 46 px, plus 44 (2026-10-12 au soir) : la pastille n'est plus un bouton de
+ * 44 pt bordure comprise, mais un cadre qui CONTIENT trois cibles de 44 pt —
+ * son filet d'1 px s'ajoute en haut et en bas. Mesuré à l'écran à 390 px ; si
+ * la pastille change de hauteur, cette valeur change avec elle.
+ */
+const RESERVE_SEANCE = "3.375rem";
 
 /**
  * Ouvre la séance dans sa propre fenêtre — et le dit si ça échoue, plutôt que

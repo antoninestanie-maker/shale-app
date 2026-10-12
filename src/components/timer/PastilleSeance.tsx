@@ -70,8 +70,11 @@ export default function PastilleSeance({ focus, enBas }: { focus: FocusControlle
         role="group"
         aria-label={t("Session en cours")}
         data-bord={enBas ? "bas" : "haut"}
-        className={`pastille-seance card fixed left-1/2 z-40 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-0.5 p-1 ${
-          enBas ? "" : "top-4"
+        // Au téléphone, pas de marge verticale : les trois cibles font déjà
+        // 44 pt, et la pastille doit rester à la hauteur que `--reserve-seance`
+        // lui réserve (`RESERVE_SEANCE`, `FocusOverlay`).
+        className={`pastille-seance card fixed left-1/2 z-40 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-0.5 px-1 ${
+          enBas ? "py-0" : "top-4 py-1"
         }`}
         style={enBas ? { bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)" } : undefined}
         onContextMenu={(e) => menu.ouvrirAuPoint(e, CIBLE)}
