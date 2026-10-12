@@ -415,6 +415,11 @@ pas. Ils le sont désormais.
 > (`--dur-slow`, `--ease-spring`) et les textes fondent (`--dur-fast`).
 > Jamais de `transition: width`. Rien ne bouge au montage ni au
 > redimensionnement de la fenêtre.
+>
+> **Le bord se tire** (même jour) : largeur étendue de 184 à 400 px, plafonnée à
+> 45 % de la fenêtre ; sous 124 px le bord réduit la barre. Poignée invisible au
+> repos, trait `--color-blue` de 2 px au survol, au focus et pendant le
+> glissement — le bleu d'une interaction, pas un ornement.
 
 **La barre latérale se replie en icônes sous 1024 px** (`Sidebar.tsx`). Elle
 mesurait 232 px de 720 à 2560 px sans jamais céder un pixel : 32 % de la fenêtre

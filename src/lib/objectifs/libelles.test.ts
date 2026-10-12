@@ -11,7 +11,7 @@ let deplieParDefaut: Libelles["deplieParDefaut"];
 let indexDInsertion: Libelles["indexDInsertion"];
 let lireReplis: Libelles["lireReplis"];
 let origineEnClair: Libelles["origineEnClair"];
-let pourquoiVide: Libelles["pourquoiVide"];
+let pourquoiSansMesure: Libelles["pourquoiSansMesure"];
 
 /**
  * La langue se fixe À L'IMPORT du module d'i18n, depuis `navigator.language` :
@@ -22,20 +22,31 @@ let pourquoiVide: Libelles["pourquoiVide"];
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ aideDeGenre, deplacer, deplieParDefaut, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiVide } =
+  ({ aideDeGenre, deplacer, deplieParDefaut, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiSansMesure } =
     await import("./libelles"));
 });
 
+/** Par défaut : une étape vide, pas cochée — ce qu'est une étape à sa naissance. */
 const mesure = (p: Partial<Mesure>): Mesure => ({
-  pct: null,
-  fraction: null,
-  origine: { type: "vide", raison: "rien-a-mesurer" },
-  vides: 0,
-  videsProfonds: 0,
+  pct: 0,
+  fraction: 0,
+  origine: { type: "unite", faite: false },
   ressources: [],
   nonComptes: [],
   ...p,
 });
+
+const feuille = (p: { etapes?: [number, number]; elements?: [number, number]; taches?: boolean }): Mesure =>
+  mesure({
+    origine: {
+      type: "feuille",
+      etapesFaites: p.etapes?.[0] ?? 0,
+      etapesTotal: p.etapes?.[1] ?? 0,
+      elementsFaits: p.elements?.[0] ?? 0,
+      elementsTotal: p.elements?.[1] ?? 0,
+      elementsSontDesTaches: p.taches ?? true,
+    },
+  });
 
 describe("chaque ligne dit d'où vient son pourcentage", () => {
   it("une cible chiffrée : « 12/50 backtests »", () => {
@@ -47,44 +58,75 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
     expect(origineEnClair(mesure({ pct: 50, origine: { type: "cible", compte: 2, cible: 4, unite: "  ", source: "manual" } }))).toBe("2/4");
   });
 
-  it("des éléments : « 3/7 éléments », au singulier quand il le faut", () => {
-    const f = (faits: number, total: number) =>
-      origineEnClair(mesure({ pct: 0, origine: { type: "feuille", elementsFaits: faits, elementsTotal: total, etapesComptees: 0 } }));
-    expect(f(3, 7)).toBe("3/7 éléments");
-    expect(f(0, 1)).toBe("0/1 élément");
+  // ⚠️ MIS À JOUR EXPRÈS le 2026-10-11 (labo, constat 3 : « 0/1 élément » sous
+  // un objectif à deux étapes, « 1 étape » au-dessus de trois). Ce test
+  // attendait « 3/7 éléments » et « 0/1 élément ».
+  it("des tâches : « 3 tâches sur 7 » — le nom s'accorde avec ce qui est FAIT", () => {
+    expect(origineEnClair(feuille({ elements: [3, 7] }))).toBe("3 tâches sur 7");
+    expect(origineEnClair(feuille({ elements: [1, 7] }))).toBe("1 tâche sur 7");
+    // En français, zéro s'accorde au singulier.
+    expect(origineEnClair(feuille({ elements: [0, 1] }))).toBe("0 tâche sur 1");
   });
 
-  it("⭐ des étapes et des éléments se lisent ensemble — les vides se TAISENT (2026-09-30)", () => {
-    // Antonin : « vide, non compté, ça ne sert à rien ». Disait « … · 2 vides, non comptées ».
-    const m = mesure({ pct: 60, vides: 2, origine: { type: "feuille", elementsFaits: 1, elementsTotal: 2, etapesComptees: 3 } });
-    expect(origineEnClair(m)).toBe("3 étapes · 1/2 éléments");
+  it("dès qu'un événement s'y mêle, ce sont des « éléments »", () => {
+    expect(origineEnClair(feuille({ elements: [2, 5], taches: false }))).toBe("2 éléments sur 5");
+    expect(origineEnClair(feuille({ elements: [1, 5], taches: false }))).toBe("1 élément sur 5");
+  });
+
+  // ⚠️ MIS À JOUR EXPRÈS le 2026-10-11. Ce test attendait « 3 étapes · 1/2
+  // éléments » pour CINQ étapes à l'écran, dont deux vides qui se taisaient
+  // (règle du 2026-09-30, elle-même posée sur celle du 2026-09-16).
+  it("⭐ les compteurs disent ce qu'on voit : « 1 étape sur 3 », toutes les étapes, et combien de faites", () => {
+    expect(origineEnClair(feuille({ etapes: [1, 3] }))).toBe("1 étape sur 3");
+    expect(origineEnClair(feuille({ etapes: [2, 3] }))).toBe("2 étapes sur 3");
+    expect(origineEnClair(feuille({ etapes: [0, 3] }))).toBe("0 étape sur 3");
+    expect(origineEnClair(feuille({ etapes: [3, 5], elements: [1, 2] }))).toBe("3 étapes sur 5 · 1 tâche sur 2");
   });
 
   it("le manuel se dit manuel", () => {
     expect(origineEnClair(mesure({ pct: 45, origine: { type: "manuel" } }))).toBe("saisi à la main");
   });
 
-  it("⭐ une étape vide ne dit RIEN sur sa ligne ; le pourquoi attend dans la bulle", () => {
-    const m = mesure({});
-    expect(origineEnClair(m)).toBe("");
-    expect(pourquoiVide(m, true)).toMatch(/Ajoute-lui un sous-objectif/);
-    expect(pourquoiVide(m, false)).toMatch(/Rattache une tâche/);
+  // ⚠️ MIS À JOUR EXPRÈS le 2026-10-11. Une étape vide se tait toujours sur sa
+  // ligne — mais plus parce qu'elle « ne compte pas » : elle porte une case à
+  // cocher. Les bulles « Ajoute-lui un sous-objectif… » et « Rattache une
+  // tâche… », qui expliquaient pourquoi elle ne comptait pas, sont parties.
+  it("⭐ une étape vide ne dit RIEN sur sa ligne, cochée ou non : sa case le dit", () => {
+    expect(origineEnClair(mesure({}))).toBe("");
+    expect(origineEnClair(mesure({ pct: 100, fraction: 1, origine: { type: "unite", faite: true } }))).toBe("");
+    expect(pourquoiSansMesure(mesure({}))).toBeNull();
   });
 
-  it("un chiffre mesuré n'a pas de « pourquoi vide »", () => {
-    expect(pourquoiVide(mesure({ pct: 10, origine: { type: "manuel" } }), false)).toBeNull();
+  it("un chiffre mesuré n'a pas de « pourquoi »", () => {
+    expect(pourquoiSansMesure(mesure({ pct: 10, origine: { type: "manuel" } }))).toBeNull();
+    expect(pourquoiSansMesure(feuille({ etapes: [0, 2] }))).toBeNull();
   });
 
-  it("chaque raison de vide a sa phrase — dans la bulle", () => {
-    for (const raison of ["cible-nulle", "source-introuvable", "etapes-vides", "rien-a-mesurer"] as const) {
-      expect(pourquoiVide(mesure({ origine: { type: "vide", raison } }), false)).not.toBeNull();
+  it("chaque panne a sa phrase — dans la bulle du « — »", () => {
+    for (const raison of ["cible-nulle", "source-introuvable", "cycle"] as const) {
+      expect(pourquoiSansMesure(mesure({ pct: null, fraction: null, origine: { type: "panne", raison } }))).not.toBeNull();
     }
   });
 
   it("⚠️ une PANNE reste dite sur la ligne : une source supprimée n'est pas une étape vide", () => {
-    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "source-introuvable" } }))).toBe("source introuvable");
-    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "cible-nulle" } }))).toBe("cible à zéro");
-    expect(origineEnClair(mesure({ origine: { type: "vide", raison: "etapes-vides" } }))).toBe("");
+    const panne = (raison: "cible-nulle" | "source-introuvable" | "cycle") =>
+      origineEnClair(mesure({ pct: null, fraction: null, origine: { type: "panne", raison } }));
+    expect(panne("source-introuvable")).toBe("source introuvable");
+    expect(panne("cible-nulle")).toBe("cible à zéro");
+    expect(panne("cycle")).toBe("");
+  });
+});
+
+describe("les compteurs, en anglais", () => {
+  it("“1 step out of 3”, et zéro au pluriel : “0 steps out of 3”", async () => {
+    vi.resetModules();
+    vi.stubGlobal("navigator", { userAgent: "test", language: "en-US", languages: ["en-US"] });
+    const en = await import("./libelles");
+    expect(en.origineEnClair(feuille({ etapes: [1, 3] }))).toBe("1 step out of 3");
+    expect(en.origineEnClair(feuille({ etapes: [0, 3] }))).toBe("0 steps out of 3");
+    expect(en.origineEnClair(feuille({ etapes: [2, 3], elements: [0, 1] }))).toBe("2 steps out of 3 · 0 tasks out of 1");
+    expect(en.origineEnClair(feuille({ elements: [1, 4], taches: false }))).toBe("1 item out of 4");
+    vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
   });
 });
 

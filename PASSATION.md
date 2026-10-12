@@ -1820,3 +1820,18 @@ Demande d'Antonin : un système d'agents qui crée des modules, les fait essayer
 - Deux défauts trouvés par les prototypeurs, non corrigés : l'accueil montre une case d'heures cochée par défaut mais ne l'enregistre que si on la clique ; le sélecteur « tâche liée » du Timer ne propose que les tâches du jour.
 
 **Non vérifié.** Tout : utilisateurs simulés, mode démo, Chrome et non WebKit, téléphone simulé. « Rejoué » veut dire revu dans ce même Chrome. Rien n'a été installé, aucun build natif, aucune migration, rien sur le site.
+
+
+## 2026-10-11 (soir) — le bord de la barre latérale se tire
+
+Suite du chantier du jour, même branche. Front seul : `Sidebar.tsx`, `lib/barre.ts`, bloc « Barre latérale » d'`index.css`, trois clés dans `en.ts`. Décisions : `CLAUDE.md`, même date.
+
+**Vu à l'écran** (Chrome sans fenêtre, démo, 1470×923 à 110 %, vraie souris) : le bord reste sous le curseur (écart ≤ 0,5 px) de 184 à 400 px ; au-delà il s'arrête à 400 ; sous 124 la barre passe en icônes, et se rouvre en repassant le seuil ; au lâcher le choix est écrit (`shale.barre`), retrouvé après rechargement ; « Réduire » puis « Étendre » rendent la largeur choisie ; ← → Entrée et le double-clic répondent ; un simple clic sur le bord ne change rien. Images pendant le glissement sur Aujourd'hui : médiane 16,7 ms, p95 20,4 ms, 0 tâche longue.
+**Rejoué dans WebKit** (`webkit-pilote`, événements de pointeur émis en JS) : même largeur au pixel (345 attendu, 345 lu), trait visible, pas de débordement.
+
+⚠️ **Pas vu** : l'app installée, la vraie souris dans WKWebView (l'outil ne produit pas de vrais clics, PIEGES § 22.8), le doigt sur iPad.
+
+**Installé le 2026-10-12 à 09:53** (Antonin : « go l'essayer ») : build depuis le worktree `barre-laterale` à `eff0b24` (= `origin/mobile-ios`), cache de compilation du dossier principal (PIEGES § 35.9), 09:42 → 09:52, code 0, machine très chargée. Témoins dans `dist/assets` : « Régler la largeur », « Largeur de la barre latérale », `barre-poignee` ; contre-épreuves 0 (une phrase jamais écrite, et « Ne se mesure pas », qui appartient aux commits non poussés de [correctifs]). sha256 installée = source `a49a0d58a5f1…` (ancienne `a46ec40e80a1…`), `diff -r` identique. Base 30 avant et après, intégrité ok, 88 objectifs / 81 tâches / 22 notes / 4 habitudes / 3 liens identiques. Sauvegarde : `sauvegardes-locales/avant-bord-barre-20261012-0941/`. Bundle supprimé.
+⚠️ « Quitter » a réussi sans arrêter le processus (PIEGES § 35.8) : arrêté par son numéro, nouvelle instance vérifiée (numéro de processus différent). Antonin doit cliquer **« Toujours autoriser »**.
+⚠️ Ce build ne contient PAS les huit commits de [correctifs] (`bdb8cc0`…`7923482` : jauge retirée, étape vide cochable, Notes « À trier ») : au moment du build ils n'étaient que dans le `mobile-ios` LOCAL du dossier principal ; ils ont été poussés pendant la compilation (vers 09:50). L'app installée est donc à `eff0b24`, huit commits derrière `origin/mobile-ios`.
+

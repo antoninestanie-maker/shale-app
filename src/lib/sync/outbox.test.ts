@@ -206,6 +206,9 @@ describe("regroupement", () => {
 
 describe("portée : ce qui part et ce qui reste", () => {
   it("un réglage métier part, un réglage de géométrie reste", () => {
+    // `energy_start` et `screen_min_…` : la jauge qu'ils servaient est retirée
+    // (2026-10-11), mais les clés restent dans les bases et les appareils en
+    // ancienne version les écrivent encore. Leur sort côté synchro ne bouge pas.
     for (const cle of ["sizing.capital", "tracker.fastTrack", "ui.theme", "ui.lang", "energy_start"]) {
       expect(settingSynchronisable(cle)).toBe(true);
     }

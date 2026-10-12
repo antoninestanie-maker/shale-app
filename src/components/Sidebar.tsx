@@ -1,11 +1,18 @@
 import { IS_IOS, kbd } from "../lib/platform";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { zoomFactor, type UiConfig } from "../lib/uiConfig";
 import {
   CLE_BARRE,
   CLE_CATEGORIES,
+  LARGEUR_DEFAUT,
+  LARGEUR_MAX,
+  LARGEUR_MIN,
+  LARGEUR_RAIL,
+  PART_MAX,
   SEUIL_ETROIT,
+  auGlisser,
   basculer,
+  bornerLargeur,
   estReduite,
   lireCategories,
   lirePref,
@@ -230,7 +237,7 @@ export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
  * correspond, et la 2ᵉ ligne dit ce qu'on y fait.
  */
 const DESCRIPTIONS: Record<View, string> = {
-  today: "Tableau de bord du jour : tâches, énergie, discipline, performance.",
+  today: "Tableau de bord du jour : tâches, discipline, habitudes, performance.",
   tasks: "Créer, taguer et planifier les tâches récurrentes ou ponctuelles.",
   calendar:
     "Mois, semaine, jour : événements, tâches datées et échéances, au même endroit.",
@@ -246,7 +253,7 @@ const DESCRIPTIONS: Record<View, string> = {
   sizing: "Calculateur de taille de position et de risque, envoi au tracker.",
   console: "Console d'administration : utilisateurs, abonnements, métriques.",
   admin: "Réorganiser les onglets et les widgets, densité, identité.",
-  settings: "Clés d'API, apparence, charge mentale, réglages du tracker.",
+  settings: "Compte, langue, apparence, notifications, sauvegarde.",
   corbeille: "Ce que tu as supprimé ces 30 derniers jours, prêt à revenir.",
 };
 
@@ -411,6 +418,16 @@ export default function Sidebar({
   const [basse, setBasse] = useState(
     () => typeof window !== "undefined" && window.innerHeight / zoomFactor() < HAUTEUR_BASSE,
   );
+  /** Largeur locale de la fenêtre, arrondie à 16 px : elle ne sert qu'au
+      plafond de la barre (45 %), et un état exact au pixel redessinerait la
+      barre à chaque image d'un redimensionnement de fenêtre. */
+  const [fenetreL, setFenetreL] = useState(() =>
+    typeof window === "undefined" ? 1440 : Math.floor(window.innerWidth / zoomFactor() / 16) * 16,
+  );
+  /** Largeur étendue RENDUE : le choix, ramené sous le plafond du moment. */
+  const largeur = bornerLargeur(pref.largeur, fenetreL);
+  /** Le bord est en train d'être tiré. */
+  const [glisse, setGlisse] = useState(false);
   /** Le mouvement en cours, posé par le BOUTON seulement — jamais par un
       redimensionnement de fenêtre ni par le montage (rien ne doit glisser tout
       seul). Le CSS (`.barre[data-mouvement]`) en fait le fondu et le volet. */
@@ -431,6 +448,7 @@ export default function Sidebar({
       if (!boite?.width) return;
       setRegime(regimeDe(boite.width));
       setBasse(boite.height < HAUTEUR_BASSE);
+      setFenetreL(Math.floor(boite.width / 16) * 16);
     });
     ro.observe(racine);
     return () => ro.disconnect();
@@ -463,6 +481,88 @@ export default function Sidebar({
         ranger();
       }, FONDU_MS);
     }
+  }, []);
+
+  // ── Tirer le bord ────────────────────────────────────────────────────────
+  // ⭐ La largeur étendue se règle en glissant le bord droit (2026-10-11 :
+  // « faire glisser la barre, pas seulement avoir deux positions »). Tiré sous
+  // `SEUIL_RAIL`, le bord réduit la barre en icônes ; tiré depuis le rail, il
+  // l'étend. La règle est `auGlisser` (`lib/barre.ts`).
+  //
+  // ⚠️ Ici la largeur change À CHAQUE IMAGE, et c'est voulu : c'est une
+  // manipulation directe, la main doit voir le bord sous le curseur. Ce n'est
+  // pas la `transition: width` que ce fichier s'interdit — celle-là ferait
+  // payer le même prix pour une animation que personne ne pilote. Une seule
+  // écriture par image (`requestAnimationFrame`), et `auGlisser` rend le même
+  // objet quand le pixel n'a pas changé : React ne redessine alors rien.
+  const debutGlisser = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const aside = asideRef.current;
+    const racine = aside?.parentElement;
+    if (!aside || !racine) return;
+    e.preventDefault();
+    window.clearTimeout(minuterie.current);
+    setMouvement(null);
+    // Pixels ÉCRAN → LOCAUX (PIEGES § 35.3) : `clientX` et les rectangles sont
+    // à l'écran, la largeur s'écrit en local.
+    const z = zoomFactor();
+    const boite = aside.getBoundingClientRect();
+    // L'écart entre le curseur et le bord au moment de la prise : sans lui, le
+    // bord sauterait sous le curseur au premier mouvement.
+    const prise = e.clientX - boite.right;
+    const depart = e.clientX;
+    let dernierX = depart;
+    let image = 0;
+    let bouge = false;
+    let derniere = courant.current.pref;
+    const appliquer = () => {
+      image = 0;
+      const x = (dernierX - prise - boite.left) / z;
+      const suivante = auGlisser(derniere, courant.current.regime, x, racine.clientWidth);
+      if (suivante === derniere) return;
+      derniere = suivante;
+      setPref(suivante);
+    };
+    const surMouvement = (ev: PointerEvent) => {
+      // Trois pixels de jeu : un clic sur le bord n'est pas un glissement.
+      if (!bouge && Math.abs(ev.clientX - depart) < 3) return;
+      if (!bouge) {
+        bouge = true;
+        setGlisse(true);
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
+      }
+      dernierX = ev.clientX;
+      if (!image) image = requestAnimationFrame(appliquer);
+    };
+    const fin = () => {
+      window.removeEventListener("pointermove", surMouvement);
+      window.removeEventListener("pointerup", fin);
+      window.removeEventListener("pointercancel", fin);
+      if (image) cancelAnimationFrame(image);
+      if (!bouge) return;
+      appliquer();
+      setGlisse(false);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      // Écrit UNE fois, au lâcher : pas à chaque pixel.
+      ecrireLocal(CLE_BARRE, JSON.stringify(derniere));
+    };
+    window.addEventListener("pointermove", surMouvement);
+    window.addEventListener("pointerup", fin);
+    window.addEventListener("pointercancel", fin);
+  }, []);
+
+  /** Le bord au clavier (← →), et le retour à la largeur d'origine (Entrée, double-clic). */
+  const poserLargeur = useCallback((x: number) => {
+    const { pref: avant, regime: ici } = courant.current;
+    const racine = asideRef.current?.parentElement;
+    const suivante = auGlisser(avant, ici, x, racine?.clientWidth);
+    if (suivante === avant) return;
+    window.clearTimeout(minuterie.current);
+    setMouvement(null);
+    setPref(suivante);
+    ecrireLocal(CLE_BARRE, JSON.stringify(suivante));
   }, []);
 
   useEffect(() => {
@@ -680,6 +780,9 @@ export default function Sidebar({
     );
   };
 
+  const largeurCss = { "--barre-l": `${largeur}px` } as CSSProperties;
+  /** Jusqu'où le bord peut aller à cet instant (pour `aria-valuemax`). */
+  const plafond = Math.max(LARGEUR_MIN, Math.min(LARGEUR_MAX, Math.floor(fenetreL * PART_MAX)));
   const visible = config.modules.filter((m) => m.visible && BY_ID.has(m.id) && existe(m.id));
   const uncategorized = visible.filter((m) => !CATEGORY_OF[m.id]);
 
@@ -691,7 +794,8 @@ export default function Sidebar({
     // d'un fond plein pour que la liste passe dessous sans se lire à travers.
     //
     // ── Réduite en icônes ───────────────────────────────────────────────────
-    // 232 px étendue, 64 px réduite (`--barre-l`, `--barre-rail`). Par défaut
+    // 232 px étendue par défaut — réglable en tirant le bord, de 184 à 400 —
+    // et 64 px réduite (`--barre-l`, `--barre-rail`). Par défaut
     // la fenêtre décide (étroite → réduite) ; le bouton du pied et ⌥⌘S
     // retournent ce choix, retenu par régime (`lib/barre.ts`).
     //
@@ -711,13 +815,19 @@ export default function Sidebar({
         ref={asideRef}
         data-reduite={reduite ? "" : undefined}
         data-mouvement={mouvement ?? undefined}
+        data-glisse={glisse ? "" : undefined}
         className={`barre relative z-20 flex shrink-0 flex-col border-r border-border ${
           reduite ? "w-[var(--barre-rail)]" : "w-[var(--barre-l)]"
         }`}
-        // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
-        // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
-        // bloc de marque, plus haut que l'heure système.
-        style={IS_IOS ? { paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)" } : undefined}
+        style={{
+          // La largeur étendue choisie : le CSS (largeur, volet, images clés)
+          // la lit dans `--barre-l`, dont 232 px n'est plus que le défaut.
+          ...largeurCss,
+          // iPad (2026-10-07) : le pied de la barre ne doit pas passer sous la
+          // barre d'accueil d'iPadOS. Le haut est déjà dégagé par le `pt-10` du
+          // bloc de marque, plus haut que l'heure système.
+          ...(IS_IOS ? { paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)" } : null),
+        }}
       >
         <div className="barre-corps flex min-h-0 flex-1 flex-col">
           {/* Zone de drag fenêtre (barre de titre overlay).
@@ -931,11 +1041,39 @@ export default function Sidebar({
             )}
           </div>
         </div>
+        {/* ⭐ Le bord qui se tire. Une bande de 9 px à cheval sur le filet droit
+            (20 px au doigt), invisible au repos : un trait bleu au survol, au
+            focus et pendant le glissement. `separator` focalisable : ← → au
+            clavier, Entrée ou double-clic pour revenir à la largeur d'origine. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("Largeur de la barre latérale")}
+          aria-valuenow={reduite ? LARGEUR_RAIL : largeur}
+          aria-valuemin={LARGEUR_RAIL}
+          aria-valuemax={plafond}
+          tabIndex={0}
+          data-tip={t("Régler la largeur")}
+          data-tip-sub={t("Glisser le bord · double-clic : largeur d’origine.")}
+          data-tip-side="right"
+          className="barre-poignee"
+          onPointerDown={debutGlisser}
+          onDoubleClick={() => poserLargeur(LARGEUR_DEFAUT)}
+          onKeyDown={(e) => {
+            const ici = reduite ? LARGEUR_RAIL : largeur;
+            if (e.key === "ArrowRight") poserLargeur(reduite ? LARGEUR_MIN : ici + 16);
+            // À la largeur minimale, un pas de plus vers la gauche réduit.
+            else if (e.key === "ArrowLeft") poserLargeur(ici <= LARGEUR_MIN ? 0 : ici - 16);
+            else if (e.key === "Enter") poserLargeur(LARGEUR_DEFAUT);
+            else return;
+            e.preventDefault();
+          }}
+        />
       </aside>
       {/* Le volet qui se referme : pendant la réduction, il glisse du bord étendu
           vers le rail et recouvre un instant le contenu déjà recalé. Invisible et
           inerte le reste du temps (`index.css`, `.barre-voile`). */}
-      <div className="barre-voile" aria-hidden />
+      <div className="barre-voile" style={largeurCss} aria-hidden />
     </>
   );
 }

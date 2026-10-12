@@ -18,7 +18,7 @@ import { estAcheve, type Mesure } from "./progression";
 
 export type EtatFil = "vide" | "cours" | "atteint";
 
-type MesureLue = Pick<Mesure, "pct" | "fraction" | "videsProfonds">;
+type MesureLue = Pick<Mesure, "pct" | "fraction">;
 
 export interface TronconFil {
   /** `g<id>` pour une étape, sinon `directs`, `ajout`, `fin`. */
@@ -41,9 +41,12 @@ export interface Fil {
 const borner = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);
 
 /**
- * L'état d'un nœud. ⚠️ « Atteint » suit `estAcheve`, pas « 100 % » : une étape
- * à 100 % qui porte encore une sous-étape vide n'est pas finie (PIEGES § 14) —
- * son tronçon est plein, son nœud reste « en cours ».
+ * L'état d'un nœud. « Atteint » suit `estAcheve`.
+ *
+ * ⭐ 2026-10-11 — une étape VIDE a désormais un état : « vide » tant qu'elle
+ * n'est pas cochée, « atteint » une fois cochée (son tronçon est plein). Avant,
+ * elle n'avait pas de mesure du tout, et une étape à 100 % qui en portait une
+ * restait « en cours » ; ce cas n'existe plus (voir `estAcheve`).
  */
 export function etatFil(m: MesureLue | undefined): EtatFil {
   if (!m) return "vide";

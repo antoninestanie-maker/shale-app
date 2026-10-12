@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { effectiveProgress } from "../logic";
 import type { CalendarEvent, Completion, Goal, Habit, HabitCheck, ObjectLink, Task } from "../types";
 import { objectif } from "./objectif.testutil";
-import { estAcheve, evenementPasse, mesurer, uidDeLigne, type SourcesProgression } from "./progression";
+import { enfantsDe, estAcheve, estCochee, evenementPasse, mesurer, pourcentDe, uidDeLigne, type SourcesProgression } from "./progression";
 import { niveauDe, peutAjouterEtape, peutPromouvoir, peutRetrograder } from "./structure";
 
 // ─── Fabriques ──────────────────────────────────────────────────────────────
@@ -94,7 +94,16 @@ describe("sous-objectif : part des éléments faits", () => {
     const taches = Array.from({ length: 7 }, (_, i) => tache({ id: i + 1, goal_id: 1 }));
     const m = mesurer(g, sources({ goals: [g], tasks: taches, completions: [fait(1), fait(2), fait(3)] }));
     expect(m.pct).toBe(43);
-    expect(m.origine).toEqual({ type: "feuille", elementsFaits: 3, elementsTotal: 7, etapesComptees: 0 });
+    // 2026-10-11 : l'origine dit aussi combien d'étapes il y a, et combien de faites
+    // (elle disait `etapesComptees`, qui taisait les étapes vides).
+    expect(m.origine).toEqual({
+      type: "feuille",
+      elementsFaits: 3,
+      elementsTotal: 7,
+      elementsSontDesTaches: true,
+      etapesFaites: 0,
+      etapesTotal: 0,
+    });
   });
 
   it("une complétion décochée ne compte pas", () => {
@@ -161,11 +170,12 @@ describe("cible chiffrée", () => {
     expect(m.origine).toMatchObject({ compte: 12_500, cible: 10_000 });
   });
 
-  it("à 0 : « atteindre zéro » ne se mesure pas, l'étape est vide et le dit", () => {
+  it("à 0 : « atteindre zéro » ne se mesure pas — une PANNE, pas une étape vide (2026-10-11)", () => {
     const g = racine({ target_count: 0, manual_count: 3 });
     const m = mesurer(g, sources({ goals: [g] }));
     expect(m.pct).toBeNull();
-    expect(m.origine).toEqual({ type: "vide", raison: "cible-nulle" });
+    // S'appelait `{ type: "vide" }` : le mot désigne maintenant ce qui se coche.
+    expect(m.origine).toEqual({ type: "panne", raison: "cible-nulle" });
   });
 
   it("un compteur manuel négatif se lit 0", () => {
@@ -210,9 +220,11 @@ describe("« depuis le rattachement, jamais depuis toujours »", () => {
     expect(mesurer(g, sources({ goals: [g], tasks: [recurrente], completions })).origine).toMatchObject({ compte: 2 });
   });
 
-  it("une source disparue rend l'étape vide, pas un 0 % trompeur", () => {
+  it("une source disparue est une PANNE : pas de mesure, pas un 0 % trompeur sur sa ligne", () => {
     const g = racine({ target_count: 10, count_source: "habit", count_ref_uid: "hab-supprimee" });
-    expect(mesurer(g, sources({ goals: [g], habits: [hab] })).origine).toEqual({ type: "vide", raison: "source-introuvable" });
+    const m = mesurer(g, sources({ goals: [g], habits: [hab] }));
+    expect(m.pct).toBeNull();
+    expect(m.origine).toEqual({ type: "panne", raison: "source-introuvable" });
   });
 
   it("une habitude d'exemple ne compte pas, même citée comme source", () => {
@@ -240,10 +252,16 @@ describe("écrire n'est pas avancer", () => {
     expect(m.nonComptes).toEqual([{ kind: "task", uid: "t-1" }]);
   });
 
-  it("un objectif qui n'a qu'une récurrente n'est pas bloqué à 0 % : il est vide", () => {
+  // ⚠️ RÈGLE RETOURNÉE le 2026-10-11. Ce test disait « … il est vide » et
+  // attendait `pct: null`. Une récurrente ne compte toujours pas en binaire ;
+  // mais l'objectif qui n'a qu'elle est désormais une unité À COCHER — il n'est
+  // pas bloqué à 0 %, puisqu'on peut le cocher.
+  it("un objectif qui n'a qu'une récurrente n'est pas bloqué à 0 % : il se coche", () => {
     const g = racine();
-    const m = mesurer(g, sources({ goals: [g], tasks: [tache({ goal_id: 1, recurrence: "weekdays" })] }));
-    expect(m.pct).toBeNull();
+    const taches = [tache({ goal_id: 1, recurrence: "weekdays" })];
+    expect(mesurer(g, sources({ goals: [g], tasks: taches }))).toMatchObject({ pct: 0, origine: { type: "unite", faite: false } });
+    const coche = { ...g, progress_pct: 100 };
+    expect(mesurer(coche, sources({ goals: [coche], tasks: taches })).pct).toBe(100);
   });
 
   it("une note et une fiche du Savoir s'affichent comme ressources et ne comptent pas", () => {
@@ -258,10 +276,13 @@ describe("écrire n'est pas avancer", () => {
     ]);
   });
 
-  it("un objectif qui n'a QUE des notes est vide : écrire dessus ne le fait pas avancer", () => {
+  // 2026-10-11 : il était « vide » (`pct: null`) ; il est une unité à 0 %. Ce
+  // que le test garde n'a pas bougé : la note ne le fait pas avancer.
+  it("un objectif qui n'a QUE des notes reste à 0 % : écrire dessus ne le fait pas avancer", () => {
     const g = racine();
     const m = mesurer(g, sources({ goals: [g], liens: [lien(["note", "n-1"], ["goal", "g-1"])] }));
-    expect(m.origine).toEqual({ type: "vide", raison: "rien-a-mesurer" });
+    expect(m).toMatchObject({ pct: 0, origine: { type: "unite", faite: false } });
+    expect(m.ressources).toEqual([{ kind: "note", uid: "n-1" }]);
   });
 });
 
@@ -284,13 +305,16 @@ describe("événements", () => {
   it("un événement récurrent ne compte pas en binaire", () => {
     const g = racine();
     const m = mesurer(g, sources({ goals: [g], liens: [lien(["event", "ev-1"], ["goal", "g-1"])], evenements: [evenement({ recurrence: "daily" })] }));
-    expect(m.pct).toBeNull();
+    // 2026-10-11 : `pct` valait `null` (objectif « vide ») ; c'est une unité à 0 %.
+    expect(m.origine).toEqual({ type: "unite", faite: false });
     expect(m.nonComptes).toEqual([{ kind: "event", uid: "ev-1" }]);
   });
 
   it("une arête vers un événement absent ne fabrique pas d'unité fantôme", () => {
     const g = racine();
-    expect(mesurer(g, sources({ goals: [g], liens: [lien(["goal", "g-1"], ["event", "disparu"])] })).pct).toBeNull();
+    // 2026-10-11 : attendait `pct: null`. Toujours aucune unité fabriquée —
+    // l'objectif reste l'unité vide qu'il était, à 0 %.
+    expect(mesurer(g, sources({ goals: [g], liens: [lien(["goal", "g-1"], ["event", "disparu"])] })).origine).toEqual({ type: "unite", faite: false });
   });
 });
 
@@ -309,60 +333,261 @@ describe("dédoublonnage", () => {
   });
 });
 
-describe("les vides sortent du dénominateur, et se signalent", () => {
-  it("un jalon vide est exclu : il ne tire pas la moyenne vers 0", () => {
+/**
+ * ⚠️⚠️ RÈGLE RETOURNÉE LE 2026-10-11 — ce bloc s'appelait « les vides sortent
+ * du dénominateur, et se signalent » (règle du 2026-09-16).
+ *
+ * Antonin, le 2026-10-11 : « Pour les étapes vides, donne la possibilité de
+ * cocher une étape pour que ce soit compté. » Le labo du même jour (constat 3,
+ * les cinq utilisateurs) : trois étapes dont une seule garnie, et l'objectif
+ * affichait 50 % ou 100 % à côté de deux « — ». Une étape vide est maintenant
+ * UNE UNITÉ : 0 non cochée, 100 % cochée, et elle pèse chez son parent.
+ *
+ * Chaque test de l'ancienne règle est resté À SA PLACE, avec le chiffre qu'il
+ * attendait AVANT écrit en commentaire : ce sont les mêmes feuilles de route,
+ * et c'est exactement ce qui change sur une vraie base.
+ */
+describe("⭐ une étape vide se coche, et elle compte (2026-10-11)", () => {
+  it("non cochée, elle vaut 0 ; cochée, 100 % — et la mesure dit que c'est une unité", () => {
+    const g = racine();
+    const vide = etape(2, 1);
+    expect(mesurer(vide, sources({ goals: [g, vide] }))).toMatchObject({ pct: 0, fraction: 0, origine: { type: "unite", faite: false } });
+    const cochee = etape(2, 1, { progress_pct: 100 });
+    expect(mesurer(cochee, sources({ goals: [g, cochee] }))).toMatchObject({ pct: 100, fraction: 1, origine: { type: "unite", faite: true } });
+  });
+
+  it("⭐ trois étapes dont une cochée : 33 %, « 1 étape sur 3 »", () => {
+    const g = racine();
+    const etapes = [etape(2, 1, { progress_pct: 100 }), etape(3, 1), etape(4, 1)];
+    const m = mesurer(g, sources({ goals: [g, ...etapes] }));
+    expect(m.pct).toBe(33);
+    expect(m.origine).toMatchObject({ type: "feuille", etapesFaites: 1, etapesTotal: 3, elementsTotal: 0 });
+    expect(effectiveProgress(g, [g, ...etapes], [], [], { maintenant: MAINTENANT })).toBe(33);
+  });
+
+  it("⭐ le constat du labo : une étape garnie (1 tâche sur 2) et deux vides font 17 %, plus 50 %", () => {
+    const g = racine();
+    const etapes = [etape(2, 1), etape(3, 1), etape(4, 1)];
+    const taches = [tache({ id: 1, goal_id: 2 }), tache({ id: 2, goal_id: 2 })];
+    const m = mesurer(g, sources({ goals: [g, ...etapes], tasks: taches, completions: [fait(1)] }));
+    expect(m.pct).toBe(17); // (50 + 0 + 0) / 3 — AVANT le 2026-10-11 : 50
+    expect(m.origine).toMatchObject({ etapesFaites: 0, etapesTotal: 3 });
+  });
+
+  it("une phase vide se coche comme un sous-objectif", () => {
+    const g = racine();
+    const phase = etape(2, 1, { is_milestone: 1, progress_pct: 100 });
+    expect(mesurer(phase, sources({ goals: [g, phase] })).origine).toEqual({ type: "unite", faite: true });
+  });
+
+  it("⭐ un objectif RACINE sans rien se coche « Atteint » au lieu de rester à « — »", () => {
+    const g = racine();
+    expect(mesurer(g, sources({ goals: [g] }))).toMatchObject({ pct: 0, origine: { type: "unite", faite: false } });
+    const atteint = racine({ progress_pct: 100 });
+    const m = mesurer(atteint, sources({ goals: [atteint] }));
+    expect(m.pct).toBe(100);
+    expect(estAcheve(m)).toBe(true);
+  });
+
+  it("la coche est `progress_pct = 100`, rien d'autre : un ancien 45 % mesuré n'est pas une coche", () => {
+    expect(estCochee({ progress_pct: 100 })).toBe(true);
+    expect(estCochee({ progress_pct: 140 })).toBe(true); // borné, comme le % manuel
+    expect(estCochee({ progress_pct: 99 })).toBe(false);
+    expect(estCochee({ progress_pct: 45 })).toBe(false);
+    expect(estCochee({ progress_pct: 0 })).toBe(false);
+  });
+
+  describe("⭐ la bascule : dès qu'elle contient quelque chose, ce qu'elle contient la mesure", () => {
+    const g = racine();
+    const cochee = etape(2, 1, { progress_pct: 100 });
+
+    it("une tâche donnée à une étape cochée : 0/1, donc 0 % — la coche ne compte plus", () => {
+      const t = tache({ id: 1, goal_id: 2 });
+      const m = mesurer(cochee, sources({ goals: [g, cochee], tasks: [t] }));
+      expect(m).toMatchObject({ pct: 0, origine: { type: "feuille", elementsFaits: 0, elementsTotal: 1 } });
+      // … et la tâche cochée la remet à 100 %, par la tâche cette fois.
+      expect(mesurer(cochee, sources({ goals: [g, cochee], tasks: [t], completions: [fait(1)] })).pct).toBe(100);
+    });
+
+    it("⭐ SANS PERTE : la coche dort dans la ligne, et revient si l'étape redevient vide", () => {
+      const avecTache = sources({ goals: [g, cochee], tasks: [tache({ id: 1, goal_id: 2 })] });
+      expect(mesurer(cochee, avecTache).pct).toBe(0);
+      const tacheDetachee = sources({ goals: [g, cochee], tasks: [tache({ id: 1, goal_id: null })] });
+      expect(mesurer(cochee, tacheDetachee)).toMatchObject({ pct: 100, origine: { type: "unite", faite: true } });
+    });
+
+    it("une sous-étape donnée à une phase cochée : la phase vaut ce que vaut la sous-étape", () => {
+      const phase = etape(2, 1, { is_milestone: 1, progress_pct: 100 });
+      const sous = etape(3, 2);
+      expect(mesurer(phase, sources({ goals: [g, phase, sous] }))).toMatchObject({ pct: 0, origine: { type: "feuille", etapesFaites: 0, etapesTotal: 1 } });
+    });
+
+    it("une cible donnée à une étape cochée : c'est le compte qui parle", () => {
+      const cible = etape(2, 1, { progress_pct: 100, target_count: 4, manual_count: 1 });
+      expect(mesurer(cible, sources({ goals: [g, cible] }))).toMatchObject({ pct: 25, origine: { type: "cible" } });
+    });
+
+    it("une récurrente ou une note ne suffisent pas : rien ne se compte, l'étape reste à cocher", () => {
+      const s = sources({
+        goals: [g, cochee],
+        tasks: [tache({ id: 1, goal_id: 2, recurrence: "daily" })],
+        liens: [lien(["note", "n-1"], ["goal", "g-2"])],
+      });
+      expect(mesurer(cochee, s).origine).toEqual({ type: "unite", faite: true });
+    });
+  });
+
+  describe("⭐ le suivi à la main reste SOUVERAIN (décision du 2026-09-14, gardée)", () => {
+    it("une étape suivie à la main garde son chiffre, vide ou pas — elle n'est pas une unité", () => {
+      const g = racine();
+      const manuelle = etape(2, 1, { manual_progress: 1, progress_pct: 40 });
+      expect(mesurer(manuelle, sources({ goals: [g, manuelle] }))).toMatchObject({ pct: 40, origine: { type: "manuel" } });
+      // 100 % saisi à la main n'est pas une coche : l'origine reste « manuel ».
+      const pleine = etape(2, 1, { manual_progress: 1, progress_pct: 100 });
+      expect(mesurer(pleine, sources({ goals: [g, pleine] })).origine).toEqual({ type: "manuel" });
+    });
+
+    it("un objectif suivi à la main ne bouge pas, quelles que soient ses étapes vides", () => {
+      const g = racine({ manual_progress: 1, progress_pct: 60 });
+      const etapes = [etape(2, 1), etape(3, 1), etape(4, 1)];
+      expect(mesurer(g, sources({ goals: [g, ...etapes] })).pct).toBe(60);
+    });
+  });
+
+  // ── Les tests de l'ancienne règle, mis à jour EXPRÈS le 2026-10-11 ─────────
+
+  it("[ancienne règle : « un jalon vide est exclu »] il tire désormais la moyenne : 20 %, plus 60 %", () => {
     const g = racine();
     const plein = etape(2, 1, { is_milestone: 1, target_count: 10, manual_count: 6 });
     const vide1 = etape(3, 1, { is_milestone: 1 });
     const vide2 = etape(4, 1, { is_milestone: 1 });
     const m = mesurer(g, sources({ goals: [g, plein, vide1, vide2] }));
-    expect(m.pct).toBe(60);
-    expect(m.vides).toBe(2);
-    expect(m.origine).toMatchObject({ etapesComptees: 1 });
+    expect(m.pct).toBe(20); // (60 + 0 + 0) / 3 — AVANT : 60, `vides: 2`, `etapesComptees: 1`
+    expect(m.origine).toMatchObject({ etapesFaites: 0, etapesTotal: 3 });
   });
 
-  it("un jalon dont tous les sous-objectifs sont vides est vide lui-même, et le parent le compte", () => {
+  it("[ancienne règle : « un jalon aux sous-objectifs vides est vide lui-même »] il vaut 0 %, et se mesure", () => {
     const g = racine();
     const jalon = etape(2, 1, { is_milestone: 1 });
     const s = etape(3, 2);
-    expect(mesurer(jalon, sources({ goals: [g, jalon, s] })).origine).toEqual({ type: "vide", raison: "etapes-vides" });
-    expect(mesurer(g, sources({ goals: [g, jalon, s] })).vides).toBe(1);
+    // AVANT : `{ type: "vide", raison: "etapes-vides" }`, exclu chez la racine.
+    expect(mesurer(jalon, sources({ goals: [g, jalon, s] }))).toMatchObject({ pct: 0, origine: { type: "feuille", etapesFaites: 0, etapesTotal: 1 } });
+    expect(mesurer(g, sources({ goals: [g, jalon, s] })).pct).toBe(0);
+    // Cocher le sous-objectif finit la phase, et l'objectif.
+    const fait = etape(3, 2, { progress_pct: 100 });
+    expect(mesurer(g, sources({ goals: [g, jalon, fait] })).pct).toBe(100);
   });
 
-  it("objectif entièrement vide : `mesurer` le dit, `effectiveProgress` rend le % stocké", () => {
+  it("[ancienne règle : « `effectiveProgress` rend le % stocké »] un objectif vide vaut 0, pas son ancien 35 %", () => {
+    // Un objectif MESURÉ qui gardait un vieux % saisi affichait « — » dans la
+    // liste et « 35 % » sur Aujourd'hui : deux chiffres. Il vaut 0 partout, et
+    // son 35 % revient s'il repasse en « suivi à la main » (rien n'est effacé).
     const g = racine({ progress_pct: 35 });
-    expect(mesurer(g, sources({ goals: [g] })).origine).toEqual({ type: "vide", raison: "rien-a-mesurer" });
-    expect(effectiveProgress(g, [g], [], [], { maintenant: MAINTENANT })).toBe(35);
+    expect(mesurer(g, sources({ goals: [g] })).origine).toEqual({ type: "unite", faite: false });
+    expect(effectiveProgress(g, [g], [], [], { maintenant: MAINTENANT })).toBe(0); // AVANT : 35
+    const manuel = { ...g, manual_progress: 1 };
+    expect(effectiveProgress(manuel, [manuel], [], [], { maintenant: MAINTENANT })).toBe(35);
   });
 
-  it("4 jalons finis et 2 vides font 100 %, mais l'objectif n'est PAS achevé", () => {
+  it("[ancienne règle : « 4 jalons finis et 2 vides font 100 %, pas achevé »] ils font 67 %", () => {
     const g = racine();
     const finis = [2, 3, 4, 5].map((id) => etape(id, 1, { is_milestone: 1, target_count: 1, manual_count: 1 }));
     const vides = [6, 7].map((id) => etape(id, 1, { is_milestone: 1 }));
     const m = mesurer(g, sources({ goals: [g, ...finis, ...vides] }));
-    expect(m.pct).toBe(100);
-    expect(m.videsProfonds).toBe(2);
+    expect(m.pct).toBe(67); // AVANT : 100, `videsProfonds: 2`, et `estAcheve` rattrapait
+    expect(m.origine).toMatchObject({ etapesFaites: 4, etapesTotal: 6 });
     expect(estAcheve(m)).toBe(false);
+    // Les deux vides cochées : 100 %, et achevé — sans réserve.
+    const cochees = vides.map((v) => ({ ...v, progress_pct: 100 }));
+    expect(estAcheve(mesurer(g, sources({ goals: [g, ...finis, ...cochees] })))).toBe(true);
   });
 
-  it("une étape vide ENFOUIE sous un jalon empêche aussi l'achèvement de la racine", () => {
+  it("[ancienne règle : « une étape vide ENFOUIE empêche l'achèvement »] elle le fait par le chiffre : 50 %", () => {
     const g = racine();
     const jalon = etape(2, 1, { is_milestone: 1 });
     const fini = etape(3, 2, { target_count: 1, manual_count: 1 });
     const vide = etape(4, 2);
     const m = mesurer(g, sources({ goals: [g, jalon, fini, vide] }));
-    expect(m.pct).toBe(100);
-    expect(m.vides).toBe(0);
-    expect(m.videsProfonds).toBe(1);
+    expect(m.pct).toBe(50); // AVANT : 100, `videsProfonds: 1`
     expect(estAcheve(m)).toBe(false);
     expect(estAcheve(mesurer(g, sources({ goals: [g, jalon, fini] })))).toBe(true);
   });
 
-  it("une étape d'exemple n'entre pas dans le calcul", () => {
+  it("⭐ « 100 % » veut dire « terminé » : `estAcheve` ne lit plus que le pourcentage", () => {
+    expect(estAcheve({ pct: 100 })).toBe(true);
+    expect(estAcheve({ pct: 99 })).toBe(false);
+    expect(estAcheve({ pct: null })).toBe(false);
+  });
+
+  describe("un réglage cassé n'est pas une étape vide", () => {
+    const g = racine();
+    const finie = etape(2, 1, { target_count: 1, manual_count: 1 });
+    const cassee = etape(3, 1, { target_count: 10, count_source: "habit", count_ref_uid: "hab-supprimee" });
+
+    it("il n'a pas de mesure, ne se coche pas, et pèse 0 chez son parent tant qu'il n'est pas réparé", () => {
+      const s = sources({ goals: [g, finie, cassee] });
+      expect(mesurer(cassee, s)).toMatchObject({ pct: null, origine: { type: "panne", raison: "source-introuvable" } });
+      const m = mesurer(g, s);
+      expect(m.pct).toBe(50); // AVANT : 100 (la panne sortait du dénominateur)
+      expect(m.origine).toMatchObject({ etapesFaites: 1, etapesTotal: 2 });
+      expect(estAcheve(m)).toBe(false);
+    });
+
+    it("`pourcentDe` rend 0 pour lui — le nombre d'Aujourd'hui, du péril et de la revue", () => {
+      expect(pourcentDe(mesurer(cassee, sources({ goals: [g, cassee] })))).toBe(0);
+      // … même si une coche dormait dans la ligne : elle n'est pas un repli.
+      const cocheeAvant = { ...cassee, progress_pct: 100 };
+      expect(effectiveProgress(cocheeAvant, [g, cocheeAvant], [], [], { maintenant: MAINTENANT })).toBe(0);
+    });
+  });
+
+  it("une étape d'exemple n'entre pas dans le calcul d'un objectif RÉEL", () => {
     const g = racine();
     const vraie = etape(2, 1, { manual_progress: 1, progress_pct: 80 });
     const suggeree = etape(3, 1, { manual_progress: 1, progress_pct: 0, is_example: 1 });
     expect(mesurer(g, sources({ goals: [g, vraie, suggeree] })).pct).toBe(80);
+  });
+
+  it("⚠️ un objectif réel qui ne porte QUE des étapes d'exemple n'est pas une case à cocher au-dessus d'elles", () => {
+    const g = racine({ progress_pct: 100 });
+    const suggeree = etape(2, 1, { is_example: 1 });
+    expect(mesurer(g, sources({ goals: [g, suggeree] }))).toMatchObject({ pct: 0, origine: { type: "feuille", etapesTotal: 0 } });
+  });
+});
+
+/**
+ * ⭐ Audit A06a-02 (2026-10-11) — l'objectif d'exemple du premier lancement
+ * promet que « l'avancement se calcule tout seul quand tu coches les tâches »,
+ * et restait à « — » quoi qu'on coche : le filtre des exemples écartait ses
+ * propres étapes. Un exemple ne nourrit jamais un objectif RÉEL ; un objectif
+ * d'exemple se mesure sur ses exemples.
+ */
+describe("⭐ l'objectif d'exemple se mesure sur ses propres exemples (A06a-02)", () => {
+  const exemple = racine({ is_example: 1 });
+  const e1 = etape(2, 1, { is_example: 1, position: 0 });
+  const e2 = etape(3, 1, { is_example: 1, position: 1 });
+  const tacheExemple = tache({ id: 1, goal_id: 2, is_example: 1 });
+
+  it("au premier lancement : 0 %, deux étapes, aucune faite — plus « — »", () => {
+    const s = sources({ goals: [exemple, e1, e2], tasks: [tacheExemple] });
+    expect(enfantsDe(exemple, s.goals).map((g) => g.id)).toEqual([2, 3]);
+    expect(mesurer(exemple, s)).toMatchObject({ pct: 0, origine: { type: "feuille", etapesFaites: 0, etapesTotal: 2 } });
+    expect(mesurer(e1, s)).toMatchObject({ pct: 0, origine: { type: "feuille", elementsTotal: 1 } });
+    expect(mesurer(e2, s).origine).toEqual({ type: "unite", faite: false });
+  });
+
+  it("cocher la tâche d'exemple (elle est adoptée) : l'étape à 100 %, l'objectif à 50 %", () => {
+    const adoptee = { ...tacheExemple, is_example: 0 };
+    const s = sources({ goals: [exemple, e1, e2], tasks: [adoptee], completions: [fait(1)] });
+    expect(mesurer(e1, s).pct).toBe(100);
+    expect(mesurer(exemple, s).pct).toBe(50); // AVANT : « — », pour toujours
+  });
+
+  it("puis cocher l'autre étape, vide : l'objectif d'exemple est atteint", () => {
+    const adoptee = { ...tacheExemple, is_example: 0 };
+    const e2Cochee = { ...e2, progress_pct: 100 };
+    const s = sources({ goals: [exemple, e1, e2Cochee], tasks: [adoptee], completions: [fait(1)] });
+    expect(estAcheve(mesurer(exemple, s))).toBe(true);
   });
 });
 
@@ -386,9 +611,13 @@ describe("repli manuel — le manuel reste souverain (décision du 2026-09-14)",
     expect(effectiveProgress(manuel, [manuel, jalon], [], [], { maintenant: MAINTENANT })).toBe(45);
   });
 
-  it("un objectif mesuré sans étape affiche son repli ; l'ajout d'un jalon non vide le remplace", () => {
+  // ⚠️ RÈGLE RETOURNÉE le 2026-10-11. Ce test s'appelait « un objectif mesuré
+  // sans étape affiche son repli » et attendait 30 : le % stocké d'un objectif
+  // MESURÉ servait de repli quand il était vide. Il est maintenant une unité à
+  // cocher (0, ou 100) ; son 30 % n'est lu que s'il est suivi à la main.
+  it("un objectif mesuré sans étape vaut 0 tant qu'il n'est pas coché ; un jalon non vide le remplace", () => {
     const g = racine({ progress_pct: 30 });
-    expect(effectiveProgress(g, [g], [], [], { maintenant: MAINTENANT })).toBe(30);
+    expect(effectiveProgress(g, [g], [], [], { maintenant: MAINTENANT })).toBe(0); // AVANT : 30
     const jalon = etape(2, 1, { is_milestone: 1, target_count: 4, manual_count: 1 });
     expect(effectiveProgress(g, [g, jalon], [], [], { maintenant: MAINTENANT })).toBe(25);
   });

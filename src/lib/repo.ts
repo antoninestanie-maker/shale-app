@@ -1549,6 +1549,34 @@ export async function daterObjectif(goalId: number, echeance: string | null): Pr
 }
 
 /**
+ * ⭐ Coche (ou décoche) une étape VIDE — ou un objectif vide (2026-10-11).
+ *
+ * Demande d'Antonin : « Pour les étapes vides, donne la possibilité de cocher
+ * une étape pour que ce soit compté. » La coche n'a pas de colonne à elle :
+ * c'est `progress_pct = 100` sur une ligne MESURÉE, que `mesurer`
+ * (`lib/objectifs/progression.ts`) ne lit que tant que l'étape n'a ni
+ * sous-étape, ni élément comptable, ni cible. Aucune migration.
+ *
+ * ⚠️ `manual_progress = 0` DANS LE `WHERE` : pour une ligne suivie à la main,
+ * `progress_pct` EST le chiffre affiché, et il est souverain. Un écran en
+ * retard d'un rafraîchissement ne doit pas pouvoir l'écraser en cochant.
+ * ⚠️ Une seule colonne (règle 16), et `IS NOT $1` : recocher ce qui l'est
+ * déjà n'écrit rien, donc n'envoie rien à la synchronisation.
+ * ⚠️ N'ADOPTE PAS une étape d'exemple, comme `majFeuilleDeRoute` : cocher
+ * n'est pas écrire. Sinon, essayer la case de l'exemple laisserait une étape
+ * orpheline derrière « supprimer les exemples ».
+ */
+export async function cocherEtape(goalId: number, faite: boolean): Promise<void> {
+  const pct = faite ? 100 : 0;
+  if (!isTauri) return demo.cocherEtape(goalId, pct);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE goals SET progress_pct = $1 WHERE id = $2 AND manual_progress = 0 AND progress_pct IS NOT $1",
+    [pct, goalId],
+  );
+}
+
+/**
  * Pose l'ordre des frères : `ids` dans l'ordre voulu reçoivent 0, 1, 2…
  * Seules les lignes dont la position change sont réécrites — une écriture qui
  * ne change rien ne doit pas produire de trafic de synchronisation.
@@ -2345,6 +2373,25 @@ export async function fetchLinksTo(kind: LinkKind, uid: string): Promise<ObjectL
   return db.select<ObjectLink[]>(
     "SELECT * FROM object_links WHERE to_kind = $1 AND to_uid = $2 ORDER BY created_at",
     [kind, uid],
+  );
+}
+
+/**
+ * Toutes les arêtes qui TOUCHENT une note, dans un sens ou dans l'autre.
+ *
+ * Sert à l'onglet « À trier » de la vue Notes (`lib/notesATrier.ts`), qui doit
+ * savoir d'un coup quelles notes ne sont reliées à rien — une requête par note
+ * en ferait trois cents à l'ouverture de la vue.
+ *
+ * ⚠️ BRUTES, comme `fetchLinksFrom` et `fetchLinksTo` : ni résolues, ni
+ * filtrées par la corbeille. Une arête vers un objet en corbeille en fait donc
+ * partie, jusqu'à sa purge (limite écrite en tête de `notesATrier.ts`).
+ */
+export async function fetchLiensDesNotes(): Promise<ObjectLink[]> {
+  if (!isTauri) return demo.fetchLiensDesNotes();
+  const db = await getDb();
+  return db.select<ObjectLink[]>(
+    "SELECT * FROM object_links WHERE from_kind = 'note' OR to_kind = 'note' ORDER BY created_at",
   );
 }
 

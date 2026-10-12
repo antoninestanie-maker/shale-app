@@ -36,9 +36,26 @@ interface Props {
    * vraiment, et une arête orpheline ne compte pas.
    */
   onCompte?: (n: number) => void;
+  /**
+   * Un rattachement vient d'être AJOUTÉ ou RETIRÉ ici, à la main.
+   *
+   * Pour l'appelant qui tient un compte dépendant des arêtes — l'onglet
+   * « À trier » de la vue Notes. ⚠️ Distinct d'`onCompte`, qui part aussi au
+   * simple chargement : s'en servir pour recharger ferait une requête de plus
+   * à chaque note ouverte.
+   */
+  onModifie?: () => void;
+  /**
+   * Ouvre le champ « Lier » depuis l'extérieur : chaque NOUVELLE valeur (un
+   * compteur) l'ouvre et amène le panneau à l'écran. `0` ou absent : rien.
+   *
+   * ⭐ Règle 18 : le bouton « Rattacher… » de la vue Notes ne refait pas le
+   * rattachement — il ouvre CE champ, celui que le bouton « Lier » ouvre.
+   */
+  demandeAjout?: number;
 }
 
-export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
+export default function PanneauLiens({ kind, uid, onOuvrir, onCompte, onModifie, demandeAjout }: Props) {
   const [liens, setLiens] = useState<ObjectLink[]>([]);
   const [titres, setTitres] = useState<Map<string, string>>(new Map());
   const [ajout, setAjout] = useState(false);
@@ -47,6 +64,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
   const retirerLien = async (id: number) => {
     await deleteLink(id);
     await charger();
+    modifieRef.current?.();
   };
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Trouvaille[]>([]);
@@ -55,6 +73,29 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
   // relancerait la requête à chaque frappe du parent.
   const compteRef = useRef(onCompte);
   compteRef.current = onCompte;
+  const modifieRef = useRef(onModifie);
+  modifieRef.current = onModifie;
+  const cadre = useRef<HTMLElement>(null);
+  const champAjout = useRef<HTMLInputElement>(null);
+
+  /** Le geste du bouton « Lier » — et de quiconque demande l'ajout du dehors. */
+  const ouvrirAjout = useCallback(() => {
+    setAjout(true);
+    setRequete("");
+  }, []);
+  useEffect(() => {
+    if (!demandeAjout) return;
+    ouvrirAjout();
+    // Le panneau vit SOUS l'éditeur : sur une note longue, il est hors champ.
+    cadre.current?.scrollIntoView({ block: "nearest" });
+    // ⚠️ Le focus, UNE IMAGE PLUS TARD. Demandé depuis un menu contextuel, le
+    // champ prend bien le focus à son montage (`autoFocus`) — puis le menu, en
+    // se fermant, le REND à la ligne qui l'avait ouvert, lui aussi à l'image
+    // suivante (`useMenuContextuel.fermer`). Sa demande est partie avant
+    // celle-ci : elle passe donc avant, et le champ garde la frappe.
+    const image = requestAnimationFrame(() => champAjout.current?.focus());
+    return () => cancelAnimationFrame(image);
+  }, [demandeAjout, ouvrirAjout]);
 
   const charger = useCallback(async () => {
     if (!uid) return;
@@ -92,7 +133,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
   const groupes = grouperParKind(liens);
 
   return (
-    <section className="card mt-4 p-4">
+    <section ref={cadre} className="card mt-4 p-4">
       <header className="flex items-center justify-between">
         <h3 className="text-xs font-medium uppercase tracking-wide text-text-dim">
           {t("Mentionné dans")}
@@ -100,8 +141,8 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
         <button
           type="button"
           onClick={() => {
-            setAjout((a) => !a);
-            setRequete("");
+            if (ajout) setAjout(false);
+            else ouvrirAjout();
           }}
           data-tip={t("Rattacher à la main")}
           data-tip-sub={t("Tout ne se dit pas dans un texte.")}
@@ -115,6 +156,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
       {ajout && (
         <div className="mt-3">
           <input
+            ref={champAjout}
             autoFocus
             value={requete}
             onChange={(e) => setRequete(e.target.value)}
@@ -139,6 +181,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
                     setAjout(false);
                     setRequete("");
                     await charger();
+                    modifieRef.current?.();
                   }}
                   className="cible-tactile-ligne flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-dim hover:bg-overlay hover:text-text"
                 >

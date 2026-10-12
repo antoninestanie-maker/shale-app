@@ -5,6 +5,7 @@ import { formaterChamp } from "../../lib/calendrier/champDate";
 import { todayStr } from "../../lib/logic";
 import {
   basculerTache,
+  cocherEtape,
   createGoal,
   deleteLink,
   majFeuilleDeRoute,
@@ -21,7 +22,7 @@ import {
   indexDInsertion,
   nomDeGenre,
   origineEnClair,
-  pourquoiVide,
+  pourquoiSansMesure,
   type Replis,
 } from "../../lib/objectifs/libelles";
 import { compterSource, debutDuCompte, elementsDe, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
@@ -66,8 +67,17 @@ import { IconeIa } from "../ia/IconeIa";
  *   • tant qu'un objectif n'a pas d'étape, rien d'ici n'apparaît à l'écran ;
  *   • une étape se crée EN UNE LIGNE : `Entrée` valide et rouvre la ligne
  *     suivante, `Échap` referme — jamais une fenêtre par étape ;
- *   • chaque ligne dit d'où vient son pourcentage (`origineEnClair`) — sauf
- *     une étape VIDE, qui se tait : la barre montre « — » ;
+ *   • chaque ligne dit d'où vient son pourcentage (`origineEnClair`) : combien
+ *     d'étapes et de tâches, et combien de FAITES ;
+ *   • ⭐ 2026-10-11 — UNE ÉTAPE VIDE SE COCHE (`LigneEtape`). Antonin : « Pour
+ *     les étapes vides, donne la possibilité de cocher une étape pour que ce
+ *     soit compté. » Elle porte la case de l'app (`CaseACocher`) devant son
+ *     titre, et sa barre dit 0 % ou 100 % — plus jamais « — ». Dès qu'elle
+ *     reçoit une tâche, une sous-étape ou une cible, la case s'en va : ce
+ *     qu'elle contient la mesure. La règle est dans `progression.ts` ;
+ *   • ⭐ 2026-10-11 — UNE TÂCHE S'AJOUTE À L'OBJECTIF LUI-MÊME (audit A06a-12) :
+ *     « ＋ Tâche » et « Rattacher » vivent à côté d'« Ajouter une étape », avec
+ *     ou sans étapes. Un objectif simple se réduit à trois tâches ;
  *   • ⭐ 2026-09-30 — L'ÉCRAN NE S'EXPLIQUE PLUS EN TOUTES LETTRES. Antonin :
  *     « c'est trop de texte […] ça doit être expliqué dans l'onboarding et pas
  *     marqué dans l'app tout le temps. À la limite, si on laisse le curseur
@@ -191,14 +201,21 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
               {rail?.fil.courant === "directs" && <span className="fil-orbe" aria-hidden />}
             </>
           )}
-          <p className="hud-label mb-1 pt-1">{t("Rattaché directement")}</p>
+          {/* « Directement » ne dit quelque chose qu'à côté d'étapes : un
+              objectif fait de trois tâches n'a pas besoin du mot. */}
+          {etapes.length > 0 && <p className="hud-label mb-1 pt-1">{t("Rattaché directement")}</p>}
           <ListeElements goal={racine} data={data} contexte={p.contexte} maintenant={p.sources.maintenant} refresh={refresh} />
         </div>
       )}
 
-      {/* « Ajouter une étape » est une place encore vide SUR le chemin : son
-          nœud est en tirets, et le fil ne le traverse en plein qu'une fois
-          l'objectif atteint. */}
+      {/* « Ajouter » est une place encore vide SUR le chemin : son nœud est en
+          tirets, et le fil ne le traverse en plein qu'une fois l'objectif
+          atteint.
+          ⭐ 2026-10-11 (audit A06a-12) — CE QUI S'AJOUTE À L'OBJECTIF LUI-MÊME
+          tient sur UNE rangée : une étape, une tâche, un rattachement. Avant,
+          « ＋ Tâche » et « Rattacher » n'existaient que dans une étape dépliée :
+          un objectif sans étape ne pouvait recevoir une tâche que depuis sa
+          fenêtre de création, la vue Tâches ou la carte mentale. */}
       <div
         className={fil ? "fil-item fil-ajout pb-1" : undefined}
         data-etat={troncon("ajout")?.etat}
@@ -210,14 +227,19 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
             <span className="fil-plein" aria-hidden />
           </>
         )}
-        <AjoutEtape
-          parent={racine}
-          goals={data.goals}
-          genres={["jalon", "sous-objectif"]}
-          ouvertDOffice={p.ajoutOuvert}
-          onFerme={p.onFermerAjout}
+        <BarreAjout
+          goal={racine}
+          data={data}
+          contexte={p.contexte}
           refresh={refresh}
-          libelle={etapes.length === 0 ? t("Ajouter une première étape") : t("Ajouter une étape")}
+          etape={{
+            libelle: etapes.length === 0 ? t("Ajouter une première étape") : t("Ajouter une étape"),
+            ouverte: p.ajoutOuvert,
+            onFermee: p.onFermerAjout,
+            champ: (fermer) => (
+              <ChampEtape parent={racine} goals={data.goals} genres={["jalon", "sous-objectif"]} refresh={refresh} onFermer={fermer} />
+            ),
+          }}
         />
       </div>
 
@@ -373,10 +395,28 @@ function LigneEtape(p: PropsLigne) {
       return !!x && estAcheve(x);
     });
   const [renommer, setRenommer] = useState(false);
-  const pct = m?.pct ?? null;
-  const termine = !!m && estAcheve(m);
   const compteePar = sourceNommee(etape, data);
   const origine = m ? origineEnClair(m) : "";
+
+  /**
+   * ⭐ L'ÉTAPE VIDE SE COCHE (2026-10-11). `mesurer` dit si elle est une unité
+   * (ni sous-étape, ni élément comptable, ni cible, pas suivie à la main) ; la
+   * vue ne le redécide pas. La bascule est optimiste, comme pour une tâche : la
+   * case, la barre et le titre suivent le clic, la base suit.
+   * Un geste = une fonction : la case et l'entrée du menu « ⋯ » appellent `cocher`.
+   */
+  const { etat, basculer } = useCochesOptimistes();
+  const unite = m?.origine.type === "unite" ? m.origine : null;
+  const cochee = !!unite && etat(cle, unite.faite);
+  const cocher = unite
+    ? () =>
+        void basculer(cle, unite.faite, async (faite) => {
+          await cocherEtape(etape.id, faite);
+          await refresh();
+        })
+    : null;
+  const pct = unite ? (cochee ? 100 : 0) : (m?.pct ?? null);
+  const termine = unite ? cochee : !!m && estAcheve(m);
 
   return (
     <div
@@ -460,6 +500,22 @@ function LigneEtape(p: PropsLigne) {
             {estJalon ? <IconFolder className="h-3.5 w-3.5" /> : <IconTarget className="h-3.5 w-3.5" />}
           </span>
 
+          {/* La case d'une étape vide : la même que celle d'une tâche, à la
+              même place (devant le nom). Elle disparaît dès que l'étape a de
+              quoi se mesurer. */}
+          {cocher && (
+            <span className="mx-1 flex shrink-0 items-center">
+              <CaseACocher
+                taille="sm"
+                cochee={cochee}
+                libelle={etape.title}
+                tip={cochee ? t("Marquer à faire") : t("Marquer faite")}
+                tipSub={t("Une étape vide se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.")}
+                onBascule={cocher}
+              />
+            </span>
+          )}
+
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
             {renommer ? (
               <ChampLigne
@@ -518,10 +574,11 @@ function LigneEtape(p: PropsLigne) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <BarreMesure pct={pct} acheve={termine} pourquoi={m ? pourquoiVide(m, estJalon) : null} />
+          <BarreMesure pct={pct} acheve={termine} pourquoi={m ? pourquoiSansMesure(m) : null} />
 
           <MenuEtape
             etape={etape}
+            coche={cocher ? { faite: cochee, basculer: cocher } : null}
             goals={data.goals}
             tasks={data.tasks}
             index={p.index}
@@ -565,15 +622,16 @@ function LigneEtape(p: PropsLigne) {
 }
 
 /**
- * `pourquoi` : ce qui ferait compter une étape vide. Il était écrit en
- * paragraphe sous l'étape dépliée ; depuis le 2026-09-30, il attend dans la
- * bulle du « — », au survol prolongé.
+ * `pourquoi` : ce qui est cassé, quand l'étape n'a pas de mesure (cible à zéro,
+ * source supprimée). Il attend dans la bulle du « — », au survol prolongé.
+ * ⚠️ Depuis le 2026-10-11, une étape VIDE n'affiche plus « — » : elle se coche,
+ * et sa barre dit 0 % ou 100 %.
  */
 function BarreMesure({ pct, acheve, pourquoi }: { pct: number | null; acheve: boolean; pourquoi: string | null }) {
   return (
     <div
       className="flex w-28 shrink-0 items-center gap-2"
-      data-tip={pct == null && pourquoi ? t("Pas encore mesurée") : undefined}
+      data-tip={pct == null && pourquoi ? t("Ne se mesure pas") : undefined}
       data-tip-sub={pct == null && pourquoi ? pourquoi : undefined}
       data-tip-attente="longue"
     >
@@ -604,6 +662,8 @@ function MenuEtape(props: {
   onRenommer: () => void;
   onModifier: () => void;
   onDeplacer: (sens: -1 | 1) => void;
+  /** L'étape est vide : elle se coche. `null` quand elle se mesure autrement. */
+  coche: { faite: boolean; basculer: () => void } | null;
   refresh: () => Promise<void>;
 }) {
   const { etape, goals, refresh } = props;
@@ -726,6 +786,12 @@ function MenuEtape(props: {
             />
           </div>
           <div className="my-1 h-px bg-border" />
+          {/* Le même geste que la case de la ligne (règle 18). */}
+          {props.coche && (
+            <button type="button" role="menuitem" className={entree} onClick={agir(props.coche.basculer)}>
+              {props.coche.faite ? t("Marquer à faire") : t("Marquer faite")}
+            </button>
+          )}
           <button type="button" role="menuitem" className={entree} onClick={agir(props.onRenommer)}>
             {t("Renommer")}
           </button>
@@ -830,33 +896,22 @@ function MenuEtape(props: {
 
 // ─── Ajouter une étape : UNE ligne ──────────────────────────────────────────
 
+/**
+ * Le bouton « Ajouter un sous-objectif » d'une étape dépliée, et son champ.
+ *
+ * ⚠️ Au niveau de l'OBJECTIF, ce bouton vit dans la rangée d'ajout
+ * (`BarreAjout`, 2026-10-11) à côté de « ＋ Tâche » et « Rattacher » ; le champ,
+ * lui, est le même (`ChampEtape`).
+ */
 function AjoutEtape(props: {
   parent: Goal;
   goals: Goal[];
   genres: GenreEtape[];
   libelle: string;
-  ouvertDOffice?: boolean;
-  onFerme?: () => void;
   refresh: () => Promise<void>;
 }) {
-  const { parent, goals, genres, refresh } = props;
-  const [ouvert, setOuvert] = useState(!!props.ouvertDOffice);
-  const [genre, setGenre] = useState<GenreEtape>(genres[0]);
-  const [priorite, setPriorite] = useState<Priority>("medium");
-  const [cle, setCle] = useState(0);
-
-  useEffect(() => {
-    if (props.ouvertDOffice) setOuvert(true);
-  }, [props.ouvertDOffice]);
-
-  const fermer = () => {
-    setOuvert(false);
-    props.onFerme?.();
-  };
-
-  const genresPossibles = genres.filter((g) => peutAjouterEtape(parent, g, goals));
-  if (genresPossibles.length === 0) return null;
-  const genreActif = genresPossibles.includes(genre) ? genre : genresPossibles[0];
+  const [ouvert, setOuvert] = useState(false);
+  if (!props.genres.some((g) => peutAjouterEtape(props.parent, g, props.goals))) return null;
 
   if (!ouvert) {
     return (
@@ -870,6 +925,34 @@ function AjoutEtape(props: {
       </button>
     );
   }
+  return (
+    <ChampEtape
+      parent={props.parent}
+      goals={props.goals}
+      genres={props.genres}
+      refresh={props.refresh}
+      onFermer={() => setOuvert(false)}
+    />
+  );
+}
+
+/** Le champ d'une étape neuve : son genre (s'il y a le choix), son nom, sa priorité. */
+function ChampEtape(props: {
+  parent: Goal;
+  goals: Goal[];
+  genres: GenreEtape[];
+  refresh: () => Promise<void>;
+  onFermer: () => void;
+}) {
+  const { parent, goals, genres, refresh } = props;
+  const [genre, setGenre] = useState<GenreEtape>(genres[0]);
+  const [priorite, setPriorite] = useState<Priority>("medium");
+  const [cle, setCle] = useState(0);
+  const fermer = props.onFermer;
+
+  const genresPossibles = genres.filter((g) => peutAjouterEtape(parent, g, goals));
+  if (genresPossibles.length === 0) return null;
+  const genreActif = genresPossibles.includes(genre) ? genre : genresPossibles[0];
 
   return (
     <div className="px-1 py-1">

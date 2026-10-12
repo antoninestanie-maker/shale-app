@@ -4,18 +4,28 @@ import PanneauLiens from "../components/liens/PanneauLiens";
 import { useLiens } from "../components/liens/useLiens";
 import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
-import { createNote, searchNotes, updateNote } from "../lib/repo";
+import { createNote, fetchLiensDesNotes, getSetting, searchNotes, setSetting, updateNote } from "../lib/repo";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
-import { jeterAvecSesCartes } from "../components/corbeille/geste";
+import { DUREE_ANNULER, jeterAvecSesCartes, titreCourt } from "../components/corbeille/geste";
 import {
   ecritureAcceptable,
   graineDeNote,
   messageEcritureRefusee,
   type CorpsRafraichi,
 } from "../lib/graineEditeur";
-import type { AppData, LinkKind, Note } from "../lib/types";
+import {
+  basculerRangee,
+  CLE_NOTES_RANGEES,
+  ecrireRangees,
+  etatsDeTri,
+  lireRangees,
+  WIKI_RE,
+} from "../lib/notesATrier";
+import { uidDeLigne } from "../lib/objectifs/progression";
+import { afficherToast } from "../lib/toast";
+import type { AppData, LinkKind, Note, ObjectLink } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import { kbd, useIsPhone } from "../lib/platform";
@@ -27,7 +37,15 @@ interface Props {
   refresh: () => Promise<void>;
 }
 
-const WIKI_RE = /\[\[([^\]]+)\]\]/g;
+/**
+ * Les deux onglets de la liste (2026-10-11). « À trier » est un FILTRE de même
+ * poids que la liste complète — pas un module, pas une entrée de barre
+ * latérale, et son compte ne s'affiche nulle part ailleurs dans l'app : c'est
+ * ce qu'Antonin a accepté de la « Boîte d'entrée » refusée comme module.
+ * La règle vit dans `lib/notesATrier.ts`.
+ */
+type Onglet = "toutes" | "a-trier";
+const ONGLETS: readonly Onglet[] = ["toutes", "a-trier"];
 
 export default function NotesView({ data, refresh }: Props) {
   // ⚠️ Sur téléphone, la vue est un MAÎTRE-DÉTAIL : la liste OU l'éditeur,
@@ -51,7 +69,52 @@ export default function NotesView({ data, refresh }: Props) {
   const champTitre = useRef<HTMLInputElement>(null);
   const menu = useMenuContextuel<Note>();
 
-  const list = results ?? data.notes;
+  // ─── L'onglet « À trier » ──────────────────────────────────────────────────
+  const [onglet, setOnglet] = useState<Onglet>("toutes");
+  /**
+   * Ce que le critère lit hors de `data` : les arêtes qui touchent une note, et
+   * la liste des notes gardées telles quelles. `null` tant que ce n'est pas lu —
+   * l'onglet n'affiche alors NI compte NI « rien à trier » : un zéro provisoire
+   * serait un mensonge d'une demi-seconde.
+   */
+  const [tri, setTri] = useState<{ liens: ObjectLink[]; rangees: Set<string> } | null>(null);
+  /**
+   * ⚠️ Chaque lecture porte son numéro, et seule la DERNIÈRE lancée s'applique.
+   * Une lecture partie avant « Garder telle quelle » et revenue après lui
+   * rendrait la note à l'onglet, sous les yeux de celui qui vient de l'en sortir.
+   */
+  const tourTri = useRef(0);
+  const chargerTri = useCallback(async () => {
+    const n = ++tourTri.current;
+    try {
+      const [liens, brut] = await Promise.all([fetchLiensDesNotes(), getSetting(CLE_NOTES_RANGEES)]);
+      if (n === tourTri.current) setTri({ liens, rangees: lireRangees(brut) });
+    } catch (err) {
+      // Une lecture ratée laisse l'onglet tel qu'il était : mieux vaut un compte
+      // d'il y a une minute — ou pas de compte — qu'une vue Notes qui tombe.
+      console.error("notes à trier :", err);
+    }
+  }, []);
+  // ⚠️ `data.notes` en dépendance, et c'est lui qui tient l'onglet à jour : il
+  // change à chaque `refresh()` — après un enregistrement (dont les mentions
+  // viennent d'être écrites), une création, une mise en corbeille, une
+  // synchronisation. Seul le rattachement à la main ne rafraîchit rien : le
+  // panneau des liens prévient par `onModifie`.
+  useEffect(() => {
+    void chargerTri();
+  }, [chargerTri, data.notes]);
+
+  const etats = useMemo(
+    () => (tri ? etatsDeTri(data.notes, tri.liens, tri.rangees) : null),
+    [data.notes, tri],
+  );
+  const nbATrier = useMemo(
+    () => (etats ? [...etats.values()].filter((e) => e === "a-trier").length : null),
+    [etats],
+  );
+
+  const base = results ?? data.notes;
+  const list = onglet === "a-trier" ? base.filter((n) => etats?.get(n.id) === "a-trier") : base;
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
   const { uid, rafraichir, enregistrerLiens } = useLiens("note", selectedId);
   /**
@@ -284,6 +347,80 @@ export default function NotesView({ data, refresh }: Props) {
     supprimer: jeterNote,
   };
 
+  // ─── Sortir une note de « À trier » — deux gestes, et leur contraire ───────
+  //
+  // ⭐ RÈGLE 18 : le bouton de l'éditeur et l'entrée du menu « ⋯ » appellent
+  // ces fonctions-ci, pas deux copies.
+
+  /**
+   * La demande d'ouvrir le champ « Lier », avec la note pour laquelle elle a
+   * été faite.
+   *
+   * ⚠️ L'identité voyage avec la demande, et elle est jetée dès que la
+   * sélection passe à une autre note : sur téléphone le panneau des liens se
+   * démonte au retour à la liste, et une demande restée en l'air rouvrirait le
+   * champ, sans que personne l'ait demandé, à la note suivante.
+   */
+  const [demandeLien, setDemandeLien] = useState<{ id: number; n: number } | null>(null);
+  const rangDemande = useRef(0);
+  useEffect(() => {
+    setDemandeLien((d) => (d && d.id !== selectedId ? null : d));
+  }, [selectedId]);
+
+  /**
+   * ⭐ RATTACHER NE RÉINVENTE RIEN : la note s'ouvre, et le champ « Lier » du
+   * panneau des liens — celui qui existe depuis le 2026-09-02 — s'ouvre avec
+   * elle. L'arête écrite est la même que celle d'un rattachement fait depuis
+   * un objectif (`RattacherElement`) : origine `manual`, vers la note.
+   */
+  const rattacherNote = (note: Note) => {
+    setSelectedId(note.id);
+    setDemandeLien({ id: note.id, n: ++rangDemande.current });
+  };
+
+  /**
+   * Écrit « gardée » ou « à trier » pour une note, puis relit.
+   *
+   * ⚠️ La liste est RELUE avant d'être réécrite : c'est une seule valeur, et
+   * l'état de cette vue peut dater d'avant une synchronisation. Repartir de lui
+   * effacerait ce qu'un autre appareil vient de garder.
+   */
+  const marquerGardee = async (note: Note, gardee: boolean) => {
+    const actuelles = lireRangees(await getSetting(CLE_NOTES_RANGEES));
+    const suivantes = basculerRangee(actuelles, uidDeLigne("note", note), gardee);
+    await setSetting(CLE_NOTES_RANGEES, ecrireRangees(suivantes));
+    await chargerTri();
+  };
+
+  const remettreNote = (note: Note) => marquerGardee(note, false);
+
+  const garderNote = async (note: Note) => {
+    await marquerGardee(note, true);
+    afficherToast({
+      msg: t("« {titre} » n'est plus à trier", { titre: titreCourt(note.title) }),
+      actionLabel: t("Annuler|défaire"),
+      onAction: () => void remettreNote(note),
+      duree: DUREE_ANNULER,
+    });
+  };
+
+  const etatDe = (note: Note) => etats?.get(note.id) ?? null;
+  const triDe = (note: Note) => ({
+    // « Trier » ne se propose que DANS l'onglet ; « remettre » partout, sur une
+    // note gardée (voir `TriNote`).
+    propose:
+      onglet === "a-trier" && etatDe(note) === "a-trier"
+        ? ("trier" as const)
+        : etatDe(note) === "gardee"
+          ? ("remettre" as const)
+          : null,
+    rattacher: rattacherNote,
+    garder: garderNote,
+    remettre: remettreNote,
+  });
+  /** La note ouverte attend-elle d'être triée, ICI ? Hors de l'onglet, on ne le rappelle pas. */
+  const aTrierIci = !!selected && onglet === "a-trier" && etatDe(selected) === "a-trier";
+
   // liens [[wiki]] sortants + backlinks
   const links = useMemo(() => {
     if (!selected) return { out: [], back: [] as Note[] };
@@ -331,15 +468,47 @@ export default function NotesView({ data, refresh }: Props) {
             onClick={handleNew}
             data-tip={t("Nouvelle note")}
             data-tip-kbd={kbd("⌘⇧N")}
-            className="pill shrink-0 fill-primary px-3 py-2 text-sm font-bold"
+            className="pill cible-tactile shrink-0 fill-primary px-3 py-2 text-sm font-bold"
           >
             +
           </button>
         </div>
+        {/* ⭐ Deux onglets de même poids. Le compte n'apparaît que s'il y a
+            quelque chose à trier, à l'encre discrète : ni pastille, ni rouge —
+            et nulle part ailleurs dans l'app. */}
+        <div role="tablist" aria-label={t("Notes affichées")} className="mt-3 flex gap-1.5">
+          {ONGLETS.map((o) => (
+            <button
+              key={o}
+              type="button"
+              role="tab"
+              aria-selected={onglet === o}
+              onClick={() => setOnglet(o)}
+              data-tip={o === "a-trier" ? t("Les notes qui ne sont reliées à rien") : undefined}
+              data-tip-sub={o === "a-trier" ? t("Rattache-les, ou garde-les telles quelles.") : undefined}
+              data-tip-attente="longue"
+              className={`pill cible-tactile inline-flex items-center justify-center gap-1.5 border px-3 py-1 text-xs font-medium transition-colors ${
+                onglet === o ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
+              }`}
+            >
+              {o === "toutes" ? t("Toutes") : t("À trier")}
+              {o === "a-trier" && !!nbATrier && (
+                <span className="font-mono text-[10px] text-text-dim">{nbATrier}</span>
+              )}
+            </button>
+          ))}
+        </div>
         <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-          {list.length === 0 && (
+          {/* ⚠️ Dans « À trier », rien n'est dit tant que le critère n'est pas
+              lu : « Rien à trier » affiché une demi-seconde avant trois notes
+              serait faux. */}
+          {list.length === 0 && !(onglet === "a-trier" && !etats) && (
             <li className="py-8 text-center text-sm text-text-dim">
-              {query ? t("Aucun résultat.") : t("Aucune note. Crée la première !")}
+              {query
+                ? t("Aucun résultat.")
+                : onglet === "a-trier"
+                  ? t("Rien à trier.")
+                  : t("Aucune note. Crée la première !")}
             </li>
           )}
           {list.map((note) => (
@@ -401,9 +570,11 @@ export default function NotesView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => setSelectedId(null)}
-              className="-ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+              // ⚠️ `cible-tactile` : ce bouton n'existe QUE sur téléphone, et il
+              // y faisait 28 px de haut — 63 de large une fois libellé « À trier ».
+              className="cible-tactile -ml-1 mb-2 inline-flex items-center self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
             >
-              ← {t("Toutes les notes")}
+              ← {onglet === "a-trier" ? t("À trier") : t("Toutes les notes")}
             </button>
           )}
           <div className="flex items-center gap-3">
@@ -430,6 +601,36 @@ export default function NotesView({ data, refresh }: Props) {
             </button>
           </div>
 
+          {/* ⭐ Sortir de « À trier » se fait ICI, là où on lit la note : la
+              rattacher, ou la garder telle quelle. Deux boutons visibles — pas
+              un geste caché dans un menu (le « ⋯ » de la ligne les porte
+              aussi, par les mêmes fonctions). Hors de l'onglet, rien : une
+              note seule n'a pas à être signalée partout. */}
+          {aTrierIci && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="hud-label mr-auto" data-tip={t("Cette note n'est reliée à rien.")}>
+                {t("À trier")}
+              </span>
+              <button
+                type="button"
+                onClick={() => rattacherNote(selected)}
+                data-tip={t("La relier à un objectif, un sujet, une autre note…")}
+                data-tip-sub={t("Ou tape @ dans le texte.")}
+                className="pill cible-tactile inline-flex items-center justify-center border border-border bg-surface-2 px-3 py-1 text-xs font-medium text-text transition-colors hover:border-border-strong"
+              >
+                {t("Rattacher…")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void garderNote(selected)}
+                data-tip={t("Elle quitte « À trier » sans être reliée.")}
+                className="pill cible-tactile inline-flex items-center justify-center border border-border bg-surface-2 px-3 py-1 text-xs font-medium text-text transition-colors hover:border-border-strong"
+              >
+                {t("Garder telle quelle")}
+              </button>
+            </div>
+          )}
+
           <RichNoteEditor
             noteId={selected.id}
             graine={graineDeNote(selected.id, selected.body, corpsFrais)}
@@ -445,7 +646,15 @@ export default function NotesView({ data, refresh }: Props) {
             placeholder={t("Écris ta note. Tape @ pour citer une note, une fiche, un objectif…")}
           />
 
-          {uid && <PanneauLiens kind="note" uid={uid} onOuvrir={ouvrirMention} />}
+          {uid && (
+            <PanneauLiens
+              kind="note"
+              uid={uid}
+              onOuvrir={ouvrirMention}
+              onModifie={() => void chargerTri()}
+              demandeAjout={demandeLien && demandeLien.id === selected.id ? demandeLien.n : 0}
+            />
+          )}
 
           {(links.out.length > 0 || links.back.length > 0) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -507,7 +716,7 @@ export default function NotesView({ data, refresh }: Props) {
         libelle={t("Actions sur « {titre} »", { titre: menu.cible?.title ?? "" })}
         entrees={
           menu.cible && data.notes.some((n) => n.id === menu.cible!.id)
-            ? entreesNote(menu.cible, gestesNote)
+            ? entreesNote(menu.cible, gestesNote, triDe(menu.cible))
             : []
         }
       />

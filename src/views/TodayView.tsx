@@ -8,7 +8,6 @@ import QuickLinks from "../components/QuickLinks";
 import TimerCard from "../components/TimerCard";
 import TodayTasks from "../components/TodayTasks";
 import CalendarCard from "../components/CalendarCard";
-import MentalLoadGauge from "../components/MentalLoadGauge";
 import {
   computeStreak,
   statDeListe,
@@ -31,6 +30,7 @@ import { WIDGET_LABELS, type UiConfig, type WidgetConfig } from "../lib/uiConfig
 import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
 import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
+import type { Ancre } from "../lib/grille";
 
 import { formatDate, localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
@@ -42,7 +42,6 @@ import { iaAutorisee } from "../lib/ia/reglages";
 const WIDGET_DEFAULT_W: Record<string, number> = {
   perf: 12,
   discipline: 4,
-  energy: 4,
   timer: 4,
   habitudes: 4,
   position: 4,
@@ -58,7 +57,6 @@ const WIDGET_DEFAULT_W: Record<string, number> = {
 const WIDGET_MIN_W: Record<string, number> = {
   perf: 4,
   discipline: 3,
-  energy: 3,
   timer: 3,
   habitudes: 3,
   position: 4,
@@ -84,7 +82,6 @@ const WIDGET_MIN_H: Record<string, number> = {
 const WIDGET_TARGET: Record<string, View> = {
   perf: "performance",
   discipline: "tasks",
-  energy: "settings",
   timer: "timer",
   habitudes: "journal",
   position: "sizing",
@@ -208,12 +205,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         </div>
       </section>
     ),
-    energy: () => (
-      <section key="energy" className="card p-5">
-        <h2 className="mb-3 hud-label">{t("Énergie restante")}</h2>
-        <MentalLoadGauge data={data} />
-      </section>
-    ),
     timer: () => (focus ? <TimerCard key="timer" data={data} focus={focus} /> : null),
     habitudes: () => {
       const faites = data.habits.filter((h) =>
@@ -286,6 +277,17 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     ...visible(config.dashTop),
     ...interleave(visible(config.dashLeft), visible(config.dashRight)),
   ];
+  // Deux VRAIES colonnes tant que la disposition est intacte : la « colonne
+  // gauche » de Personnaliser s'accroche au bord gauche de la grille, la droite
+  // au bord droit. Sans cela, une carte étroite se glisse sous « Tâches du
+  // jour » dès qu'elle est plus courte que « Discipline », et il reste un trou
+  // sous l'anneau (`lib/grille.ts`, 2026-10-11).
+  const ancreDe = (id: string): Ancre | undefined =>
+    config.dashLeft.some((w) => w.id === id)
+      ? "debut"
+      : config.dashRight.some((w) => w.id === id)
+        ? "fin"
+        : undefined;
 
   return (
     <div className="mx-auto max-w-5xl p-8">
@@ -328,6 +330,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
               defaultW={WIDGET_DEFAULT_W[w.id] ?? 6}
               minW={WIDGET_MIN_W[w.id] ?? 2}
               minH={WIDGET_MIN_H[w.id]}
+              ancre={ancreDe(w.id)}
               onOpen={
                 navigate && WIDGET_TARGET[w.id]
                   ? () => navigate(WIDGET_TARGET[w.id])

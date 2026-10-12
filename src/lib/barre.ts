@@ -1,5 +1,6 @@
 /**
- * La barre latérale : étendue (232 px, libellés) ou réduite (64 px, icônes).
+ * La barre latérale : étendue (libellés, largeur réglable) ou réduite (64 px,
+ * icônes).
  *
  * ⭐ LE CHOIX EST RETENU PAR RÉGIME, pas en un seul booléen (2026-10-11).
  * Avant, seule la largeur de la fenêtre décidait (`lg:` de Tailwind, donc
@@ -21,13 +22,36 @@
 
 export type Regime = "large" | "etroit";
 
-/** Pour chaque régime : la barre est-elle RÉDUITE ? */
+/** Largeurs, en pixels LOCAUX. */
+export const LARGEUR_RAIL = 64;
+export const LARGEUR_DEFAUT = 232;
+/** En dessous, « Supprimés récemment » ne tient plus sur sa ligne. */
+export const LARGEUR_MIN = 184;
+export const LARGEUR_MAX = 400;
+/** La barre ne prend jamais plus que cette part de la fenêtre. */
+export const PART_MAX = 0.45;
+/**
+ * En glissant le bord : sous ce point la barre se réduit en icônes, au-dessus
+ * elle s'étend. À mi-chemin du rail et de la largeur minimale — entre les deux
+ * il n'existe pas de largeur utile (des libellés coupés à trois lettres), donc
+ * le bord « saute » d'un état à l'autre, comme dans un éditeur de code.
+ */
+export const SEUIL_RAIL = (LARGEUR_RAIL + LARGEUR_MIN) / 2;
+
+/**
+ * Pour chaque régime : la barre est-elle RÉDUITE ? Et, étendue, de quelle
+ * largeur (2026-10-11, demande d'Antonin : « faire glisser la barre, pas
+ * seulement avoir deux positions »). UNE largeur pour les deux régimes : c'est
+ * un goût, pas une réponse à la taille de la fenêtre — le plafond
+ * (`bornerLargeur`) s'occupe des fenêtres étroites.
+ */
 export interface PrefBarre {
   large: boolean;
   etroit: boolean;
+  largeur: number;
 }
 
-export const PREF_DEFAUT: PrefBarre = { large: false, etroit: true };
+export const PREF_DEFAUT: PrefBarre = { large: false, etroit: true, largeur: LARGEUR_DEFAUT };
 
 /**
  * Sous cette largeur — en pixels LOCAUX, c'est-à-dire densité déduite — la
@@ -58,6 +82,8 @@ export function lirePref(brut: string | null | undefined): PrefBarre {
     return {
       large: typeof v.large === "boolean" ? v.large : PREF_DEFAUT.large,
       etroit: typeof v.etroit === "boolean" ? v.etroit : PREF_DEFAUT.etroit,
+      // Un choix d'avant la largeur réglable n'en porte pas : 232, comme avant.
+      largeur: typeof v.largeur === "number" && Number.isFinite(v.largeur) ? bornerLargeur(v.largeur) : LARGEUR_DEFAUT,
     };
   } catch {
     return { ...PREF_DEFAUT };
@@ -66,6 +92,31 @@ export function lirePref(brut: string | null | undefined): PrefBarre {
 
 export function estReduite(pref: PrefBarre, regime: Regime): boolean {
   return pref[regime];
+}
+
+/**
+ * La largeur étendue, ramenée dans ses bornes. `largeurFenetre` (locale) pose
+ * en plus le plafond « pas plus de 45 % de la fenêtre » ; sans elle, seules les
+ * bornes fixes jouent. Le plancher l'emporte toujours : une fenêtre minuscule
+ * ne fabrique pas une barre illisible, c'est le régime étroit qui la réduit.
+ */
+export function bornerLargeur(largeur: number, largeurFenetre?: number): number {
+  const plafond =
+    largeurFenetre && largeurFenetre > 0 ? Math.min(LARGEUR_MAX, Math.floor(largeurFenetre * PART_MAX)) : LARGEUR_MAX;
+  return Math.round(Math.max(LARGEUR_MIN, Math.min(plafond, largeur)));
+}
+
+/**
+ * Le bord est tiré jusqu'à `x` (pixels locaux depuis le bord gauche de la
+ * barre). Sous le seuil : réduite, et la largeur étendue est GARDÉE pour le
+ * jour où on la rouvre. Au-dessus : étendue, à cette largeur bornée.
+ * Rend le même objet si rien ne change (le glisser peut alors ne rien rendre).
+ */
+export function auGlisser(pref: PrefBarre, regime: Regime, x: number, largeurFenetre?: number): PrefBarre {
+  if (x < SEUIL_RAIL) return pref[regime] ? pref : { ...pref, [regime]: true };
+  const largeur = bornerLargeur(x, largeurFenetre);
+  if (!pref[regime] && pref.largeur === largeur) return pref;
+  return { ...pref, [regime]: false, largeur };
 }
 
 /** Retourne la réponse du régime courant, et de lui seul. */

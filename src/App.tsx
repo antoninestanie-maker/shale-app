@@ -26,7 +26,6 @@ import SelecteurDateFlottant from "./components/SelecteurDateFlottant";
 import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
-import { useScreenTime } from "./lib/mentalLoad";
 import { chargerAnimationEntree } from "./lib/entree/reglage";
 import { signalerAppPrete } from "./lib/entree/signal";
 import { loadTheme } from "./lib/theme";
@@ -332,7 +331,6 @@ function App() {
     [ui.config, profil],
   );
   const isPhone = useIsPhone();
-  useScreenTime(); // accumule le temps d'écran du jour (jauge de charge mentale)
   const windowSized = useRef(false);
 
   // Badge sidebar "Trading" : des positions attendent leur dénouement dans le tracker

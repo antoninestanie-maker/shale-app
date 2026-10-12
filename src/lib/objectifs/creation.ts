@@ -60,10 +60,11 @@ export type BaseObjectif = Pick<Goal, "scope" | "category">;
  * Les étapes du premier jet, à créer sous `parentId`.
  *
  * ⚠️ Elles naissent SOUS-OBJECTIFS, pas phases (`is_milestone: 0`). Une phase
- * n'a de sens que si elle regroupe : la déclarer d'office rendrait « phase vide,
- * non comptée » sur chacune des trois lignes qu'on vient de taper — l'objectif
- * afficherait « — » juste après avoir été rempli. On promeut ensuite, d'un geste,
- * celle qui se découpe (menu « ⋯ » → « En faire une phase »).
+ * n'a de sens que si elle regroupe ; on promeut ensuite, d'un geste, celle qui
+ * se découpe (menu « ⋯ » → « En faire une phase »).
+ * (Jusqu'au 2026-10-11, la raison était aussi que trois phases vides rendaient
+ * « — » juste après la saisie. Une étape vide compte désormais pour 0 et se
+ * coche, phase ou non : l'objectif neuf affiche « 0 % · 0 étape sur 3 ».)
  *
  * ⚠️ Et elles naissent MESURÉES (`manual_progress: 0`) comme tout ce qui est
  * neuf depuis le 2026-09-14, sans échéance : une date inventée ici ferait crier
