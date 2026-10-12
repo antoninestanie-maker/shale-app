@@ -4,10 +4,9 @@ import { addDays } from "../logic";
 import { objectif } from "../objectifs/objectif.testutil";
 import type { FocusSession, Goal, Task } from "../types";
 import { minutesDeFocus } from "./analyse";
+import { enHeures, enHeuresInsecable } from "./durees";
 import {
   dernieresSemaines,
-  enHeures,
-  enHeuresInsecable,
   faitDEcheance,
   heuresPourChamp,
   lireHeures,

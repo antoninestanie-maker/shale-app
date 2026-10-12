@@ -1,7 +1,7 @@
 import { t } from "../../lib/i18n";
 import { jourEnClair } from "../../lib/performance/dates";
 import type { JourEnCours } from "../../lib/performance/jour";
-import { enHeures } from "../../lib/performance/parObjectif";
+import { enHeures } from "../../lib/performance/durees";
 
 /**
  * ⭐ « AUJOURD'HUI » — le jour en cours, À PART (2026-10-11).

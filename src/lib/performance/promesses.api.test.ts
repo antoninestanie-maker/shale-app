@@ -123,6 +123,18 @@ describe.each([
     expect((await ligneDe(a))?.promesse).toBe(2.5);
   });
 
+  // La file d'envoi n'existe que sur la vraie base (des triggers SQL) : la démo ne synchronise rien.
+  it.runIf(natif)("⭐ la promesse écrite entre dans la file de synchronisation, et y est gardée pour l'envoi", async () => {
+    const { aTraiter } = await import("../sync/outbox");
+    type Entree = Parameters<typeof aTraiter>[0][number];
+    const a = await repo.createGoal(objectif("Mémoire"));
+    await acces.enregistrerPromesse(await uidObjectif(a), 5);
+    const file = await courante.select<Entree[]>("SELECT * FROM sync_outbox WHERE table_name = 'settings'");
+    const { aPousser, aPurger } = aTraiter(file);
+    expect(aPousser.map((c) => c.uid)).toContain(`st:${CLE_PROMESSES}`);
+    expect(aPurger.map((c) => c.uid)).not.toContain(`st:${CLE_PROMESSES}`);
+  });
+
   it("vide = pas de promesse : la retirer ne touche pas celle des autres objectifs", async () => {
     const a = await repo.createGoal(objectif("Mémoire"));
     const b = await repo.createGoal(objectif("Boutique"));

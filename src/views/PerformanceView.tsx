@@ -49,7 +49,7 @@ import {
 } from "../lib/performance/analyse";
 import { jourEnClair, plageDeDates } from "../lib/performance/dates";
 import { jourEnCours, periodeSansMesure } from "../lib/performance/jour";
-import { enHeuresInsecable } from "../lib/performance/parObjectif";
+import { enHeuresInsecable } from "../lib/performance/durees";
 import { CourbeDiscipline, GrilleCarres, LegendeCourbe, type Carre } from "../components/performance/Discipline";
 import ParObjectif from "../components/performance/ParObjectif";
 import { RangeeAujourdhui } from "../components/performance/RangeeAujourdhui";

@@ -5,9 +5,8 @@ import { todayStr, weekdayOf } from "../../lib/logic";
 import { allerVers, ouvrirParId } from "../../lib/naviguer";
 import { estExemple } from "../../lib/onboarding/exemples";
 import { plageDeDates } from "../../lib/performance/dates";
+import { enHeures, enHeuresInsecable } from "../../lib/performance/durees";
 import {
-  enHeures,
-  enHeuresInsecable,
   heuresPourChamp,
   lireHeures,
   tableauParObjectif,
