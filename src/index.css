@@ -991,6 +991,18 @@
       text-overflow: clip !important;
       white-space: normal !important;
     }
+    /* ⭐ Et un titre coupé à DEUX LIGNES (`clamp-2`) est coupé lui aussi sans
+       recours au doigt (2026-10-12, crible du labo, constat 36 : « Réviser un
+       module de la… » dans « Tâches du jour », où le titre n'a que 93 px entre
+       la case et la pastille de tag). Posé avec `truncate-souris`, il reprend
+       toutes ses lignes sous pointeur grossier. `!important` pour la même
+       raison que ci-dessus : `.clamp-*` vit dans la couche `utilities`. */
+    .truncate-souris.clamp-1,
+    .truncate-souris.clamp-2,
+    .truncate-souris.clamp-3 {
+      display: block !important;
+      -webkit-line-clamp: unset !important;
+    }
   }
 
   /* En-tête de vue : le titre à gauche, les actions à droite — et qui SE REPLIE.

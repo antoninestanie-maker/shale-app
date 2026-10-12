@@ -615,7 +615,7 @@ export default function TasksView({ data, refresh, focus }: Props) {
               className="cible-tactile-ligne flex w-full items-center text-left [@media(pointer:coarse)]:-my-2.5"
             >
               <span
-                className={`clamp-2 block w-full text-sm leading-snug ${
+                className={`truncate-souris clamp-2 block w-full text-sm leading-snug ${
                   task.done ? "text-text-dim line-through" : "text-text"
                 }`}
               >
