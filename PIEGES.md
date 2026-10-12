@@ -5036,3 +5036,122 @@ Pendant qu'on tire le bord, la largeur est écrite sur l'élément. Un rendu de 
 - Le dossier de travail de la session (`scratchpad`) est VIDÉ quand la session redémarre : scripts de mesure, captures, profil Chrome. Recopier dans le projet ce qui doit survivre.
 - puppeteer : `page.tracing.stop()` rend des octets ; `.toString()` en fait une liste de nombres. `Buffer.from(…).toString("utf8")`.
 
+## 40. Retours après essai du 2026-10-12 (soir)
+
+Pièges rencontrés par les trois chantiers du soir du 12 octobre. Numérotation : 40.x dans l'ordre de lecture.
+
+### `perf-epure` — Performance épurée, et les cartes qui ne bougent plus au survol
+
+##### Une réserve posée AU SURVOL sur un conteneur qui sait se replier
+
+**Symptôme.** Une carte grandit quand la souris passe dessus, et ses voisines changent de place. Rien au repos, rien dans les captures.
+**Cause.** `.rgrid-head` posait un `padding-right` au survol du panneau, et la même classe donne `flex-wrap: wrap`. Quand le padding mange la place libre, le dernier enfant passe à la ligne : 24 px de plus, que la grille (`grid-auto-flow: dense`) répercute sur tout le reste.
+**Parade.** Tout ce qui change de taille au survol doit être inerte pour la mise en page (`transform`, `opacity`), ou bien décidé AVANT le survol par une mesure. Ici : `components/grid/entetes.ts`. Pour vérifier : une vraie souris (`page.mouse.move`), et lire `offsetHeight` de tous les panneaux avant et pendant.
+**Comment on l'a payée.** Antonin l'a vu dans l'app installée, sur l'écran qu'il regardait.
+
+##### Mesurer un survol avec `getBoundingClientRect` : tous les panneaux « bougent »
+
+**Symptôme.** L'outil de mesure annonce que chaque panneau de chaque vue monte de 2,2 px au survol.
+**Cause.** Le panneau survolé se soulève de 2 px par `translate` (V7, voulu) : c'est du dessin, pas de la mise en page. `getBoundingClientRect` voit les transformations. Et à 110 %, ses valeurs sont en px d'écran quand `scrollTop` est en px locaux.
+**Parade.** Pour la mise en page, lire `offsetTop`, `offsetLeft`, `offsetWidth`, `offsetHeight` (remontés par `offsetParent`) : insensibles aux transformations et à la densité.
+**Comment on l'a payée.** Un premier relevé illisible, où le vrai défaut (une carte sur trente) était noyé dans trente faux.
+
+##### Tester une valeur en la posant en ligne : le navigateur anime le retour
+
+**Symptôme.** Un en-tête se replie puis se déplie tout seul à chaque mesure ; la mesure se relance.
+**Cause.** L'élément a `transition: padding-right`. Poser un padding d'essai en ligne, lire, puis le retirer : au recalcul suivant le navigateur voit le padding passer de la valeur d'essai à la valeur de repos, et l'anime.
+**Parade.** Tenir `transition: none !important` en ligne pendant tout l'essai, retirer la valeur d'essai, FORCER une lecture (`offsetHeight`), et seulement alors retirer `transition`. Écrit en tête de `entetes.ts`. Évité à l'écriture, pas rencontré à l'écran.
+
+##### `set -- $variable` ne découpe pas en zsh
+
+**Symptôme.** Une boucle de mesures « à quatre tailles de fenêtre » rend quatre fois le même résultat.
+**Cause.** zsh ne découpe pas une variable sur les espaces : `set -- $cfg` pose UN argument, les autres sont vides, et le script retombe sur ses valeurs par défaut sans rien dire.
+**Parade.** Passer les arguments un par un à une fonction, et faire écrire au script la taille et la densité qu'il a réellement prises — c'est cette ligne (« fenêtre 1470×923 · zoom 1 ») qui a montré l'erreur.
+
+### `focus-ile` — le focus sans plein écran, la pastille du minuteur, la barre des menus
+
+##### Une option « vraie par défaut » rend l'effet à tous ceux qui l'oublient
+
+*Chantier `focus-ile`.*
+
+**Symptôme.** « Focus 25 min » depuis une tâche recouvre toute l'app d'une horloge. Depuis la carte Timer, non.
+
+**Cause.** `useFocus.start` ouvrait le plein écran sauf si l'appelant écrivait `openOverlay: false`. Deux appelants sur cinq l'écrivaient. Les trois autres (menu de Tâches, ▶ d'Aujourd'hui, palette) l'avaient oublié, ou ne savaient pas qu'il fallait.
+
+**Parade.** Un effet lourd se demande, il ne se refuse pas : l'option vaut « non » quand elle est absente. Un test de source refuse tout `openOverlay: true` dans le dépôt (`gesteFocus.test.ts`).
+
+**Payé.** Le défaut du labo du 12 octobre (six utilisateurs devant l'horloge) et le retour d'Antonin du soir viennent de là.
+
+##### Une règle recopiée dans chaque vue manque dans celles qui ne l'ont pas recopiée
+
+*Chantier `focus-ile`.*
+
+**Symptôme.** « Focus 25 min » est dans le menu d'une tâche à tel endroit, pas à tel autre, et disparaît par moments.
+
+**Cause.** `focus && !focus.session ? (task) => focus.start(…) : undefined`, écrit dans chaque vue. Le Calendrier et la feuille de route ne l'avaient pas : pas d'entrée. Et `undefined` pendant une séance : l'entrée disparaissait au lieu de dire pourquoi.
+
+**Parade.** La règle dans un fichier pur (`lib/seance/focusTache.ts`), le geste dans un contexte (`ContexteFocus`). Une entrée qui ne peut pas agir est grisée avec sa raison, jamais retirée. Deux tests de source : tout menu de tâche lit le geste ; aucune vue ne lance le minuteur à la main sur une tâche.
+
+**Payé.** « Je n'arrive pas à tout le temps lancer le focus depuis la tâche » (Antonin, 12 octobre).
+
+##### Un texte ajouté à la fin d'une ligne coupée ne se lit jamais
+
+*Chantier `focus-ile`.*
+
+**Symptôme.** La pastille d'une séance en pause n'écrit pas « en pause » quand le nom de la tâche est long.
+
+**Cause.** « nom · en pause » dans un seul `truncate` : c'est la fin qui part dans les points de suspension.
+
+**Parade.** L'état dans son propre élément, qui ne rétrécit pas (`shrink-0`), placé avant le texte qui peut être coupé.
+
+**Payé.** Vu sur la première capture, corrigé avant de rendre.
+
+##### Une pastille qui contient des cibles de 44 pt ne fait plus 44 pt
+
+*Chantier `focus-ile`.*
+
+**Symptôme.** Au téléphone, la pastille mesure 54 px ; sa réserve (`--reserve-seance`) en compte 52.
+
+**Cause.** Elle était un bouton de 44 pt, bordure comprise. Devenue un cadre qui contient trois boutons de 44 pt, elle ajoute sa marge intérieure et son filet.
+
+**Parade.** Pas de marge verticale au téléphone ; la réserve est recalculée (46 + 8). Toute variable qui réserve la place d'un élément se remesure quand l'élément change de structure.
+
+**Payé.** Mesuré sur capture à 390 px avant de rendre.
+
+##### Outil — un numéro d'élément lu avant un geste ne vaut plus après
+
+*Chantier `focus-ile`. Déjà noté au § 38.6 ; second cas.*
+
+**Symptôme.** Deux tâches cochées par erreur, puis une pause prise et reprise dans la même commande.
+
+**Cause.** La pastille ajoute trois boutons en tête d'écran : tous les numéros suivants se décalent de trois dès qu'une séance démarre. Un survol qui révèle un ▶ décale aussi.
+
+**Parade.** Relire l'écran après tout geste qui lance ou termine une séance. Préférer le texte au numéro (`{"clic":"Focus 25 min"}`).
+
+### `dates-claires` — la pastille « sans date », l'échéance d'un objectif
+
+##### Le calendrier de l'app passe SOUS un calque plus haut que 190
+
+- **Symptôme** : un `ChampDate` posé dans l'accueil aurait semblé ne rien ouvrir. Le panneau s'ouvre, derrière le voile.
+- **Cause** : `PanneauDate` vit dans un portail à `z-[190]`. L'accueil était à `z-[200]`, seul élément de l'app au-dessus de 96.
+- **Parade** : avant de poser un `ChampDate` (ou un `ouvrirSelecteurDate`) dans un calque, lire son `z-index`. L'accueil est maintenant à `z-[180]`. Les info-bulles sont à 200, l'écran de démarrage au-dessus.
+- **Comment on l'a payée** : rien, lu avant d'essayer. Vérifié à l'écran ensuite (bureau et téléphone).
+
+##### Une règle sur la « naissance » d'un objet : la démo est plus indulgente que le natif
+
+- **Symptôme** : une règle « créé aujourd'hui » juste en démo, fausse en natif entre minuit et 2 h du matin.
+- **Cause** : en démo `created_at` vaut `todayStr()` (jour local). En natif SQLite écrit `datetime('now')`, en temps universel : un objectif créé à 0 h 30 à Paris porte la date de la veille.
+- **Parade** : comparer avec un jour de marge (`vientDeNaitre` : aujourd'hui ou hier), et l'écrire dans un test avec une date de la veille.
+- **Comment on l'a payée** : rien, vu en lisant la migration 001.
+
+##### La fabrique de test `objectif()` naît le jour même où plusieurs tests se placent
+
+- **Symptôme** : une règle qui lit `created_at` fait tomber des tests sans rapport.
+- **Cause** : `objectif.testutil.ts` crée au `2026-09-01 09:00:00`, et plusieurs suites prennent le 1er septembre 2026 pour « aujourd'hui ».
+- **Parade** : dans un test qui dépend de l'âge, donner `created_at` explicitement (`charge.test.ts` le fait déjà : 1er août).
+- **Comment on l'a payée** : un test neuf à corriger.
+
+##### Pilote du labo : deux faux pas
+
+- Taper une date dans le calendrier : à l'ouverture le focus est sur la grille, pas sur le champ « jj/mm/aaaa ». `{"taper": "17/10"}` seul ne tape nulle part. Il faut `{"dans": <n° du champ>, "taper": …}`.
+- `{"clic": "Aujourd'hui"}` depuis le Calendrier touche le bouton « Aujourd'hui » du Calendrier, pas la barre latérale. Passer par le numéro.

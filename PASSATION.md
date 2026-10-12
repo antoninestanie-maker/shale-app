@@ -2263,3 +2263,168 @@ Même branche (`chantier/barre-laterale`). Front seul : `Sidebar.tsx`, `SyncIndi
 
 ⚠️ **Pas vu** : l'app installée, la vraie souris dans WKWebView, l'iPad. Pendant le geste, un panneau d'Aujourd'hui dont le texte passe à la ligne garde sa hauteur jusqu'au lâcher (voulu : c'est la veille).
 
+## 2026-10-12 (soir) — Retours d'Antonin après essai : Performance, minuteur, dates
+
+Trois chantiers fusionnés par `chantier/retours-essai`. État de chacun ci-dessous, tel que rendu. Ce qui reste commun : rien n'a été vu dans l'app native avant le build ; la barre des menus n'existe pas en démo.
+
+### `perf-epure` — Performance épurée, et les cartes qui ne bougent plus au survol
+
+##### `perf-epure` — 2026-10-12 (soir)
+
+**Fait** (branche `chantier/perf-epure`, dernier commit `52c3bfb`)
+- Tuiles « Tâches tenues », « Habitudes tenues », « Focus » retirées ; moyenne et écart dans les cartes de discipline ; note A07b-06 dans la carte des tâches ; total de focus dans « focus — par jour ».
+- « Jours tenus d'affilée » dans la rangée « Aujourd'hui » ; record dans « Séries de jours tenus ».
+- Carte « focus par tag » retirée ; test des identifiants orphelins `perf-tiles` et `perf-focus`.
+- Onglet « Par objectif » retiré d'un bloc ; `objectifs.heures_semaine` laissé inerte.
+- Grille : la réserve de la barre de poignées est mesurée ; plus aucun panneau ne change de hauteur au survol.
+- « vs » retiré de l'onglet ; six clés mortes retirées de `en.ts`.
+
+**Fichiers touchés**
+`src/views/PerformanceView.tsx`, `src/components/performance/RangeeAujourdhui.tsx`, `src/components/grid/ResizableGrid.tsx`, `src/components/grid/entetes.ts` (nouveau), `src/lib/grille.ts`, `src/lib/grille.test.ts`, `src/index.css` (bloc « Anti-superposition des poignées » seulement), `src/lib/onboarding/semer.ts` (trois retraits, rien de réordonné), `src/lib/i18n/en.ts`.
+Supprimés : `src/components/performance/ParObjectif.tsx`, `src/lib/performance/parObjectif.ts`, `parObjectif.test.ts`, `promesses.ts`, `promesses.test.ts`, `promesses.api.test.ts`, `promessesAcces.ts`.
+
+**Vu à l'écran** (build de démo du commit `52c3bfb`, Chrome sans fenêtre)
+- Bureau 1470×923 à 110 %, français : toute la page, et le survol réel de chaque panneau. Aucun ne change de hauteur ni de place sur Performance (8 panneaux, aux quatre périodes), Aujourd'hui (8), Journal (2), Timer (5), Réglages (9), Personnaliser (5). Aucun contrôle sous la barre.
+- Aussi à 1120×740 à 110 %, 1280×800 à 100 %, 1700×1000 à 90 % : rien ne bouge. À 1120×740, « par jour de la semaine » devient serré à son tour (deux lignes en permanence, 32 px de plus que sa voisine).
+- Anglais à 110 %, thème clair à 110 %, téléphone 390 px, compte neuf (tout à « — », messages d'état vide).
+- L'accueil d'un compte neuf, jusqu'au bout, avec un objectif planté : il se crée, aucune erreur.
+
+**Pas fait**
+- La vue Finance n'a pas été survolée : elle n'est pas dans le build de démo de cette offre. Ses en-têtes passent par la même jauge.
+- Aucune vérification dans l'app native (WKWebView) : tout est mesuré dans Chrome. La jauge lit des rectangles et des hauteurs, rien de propre à Chrome, mais ce n'est pas vu.
+- Une disposition enregistrée avec `perf-tiles` ou `perf-focus` n'a pas été rejouée à l'écran (la démo garde ses réglages en mémoire) : c'est tenu par les tests de `grille.test.ts`.
+- La classe `.perf-tiles` d'`index.css` n'a plus d'appelant. Laissée : `CLAUDE.md` la cite comme exemple (« Widgets : structure réelle & contraintes »). À retirer avec cette phrase, ou à garder comme exemple.
+- Les poignées passent toujours sur le texte d'un panneau SANS `.rgrid-head` (la tuile « cycles du jour » du Timer, 61×15 px de texte sous la barre) : déjà signalé le 2026-10-11, pas de ce chantier.
+- Les « streak » hors de l'onglet (voir CLAUDE) et les pourcentages collés.
+
+**À décider par Antonin**
+1. « Objectif quotidien » du Timer tient maintenant sur deux lignes à sa taille de fenêtre (le sélecteur sous le titre). C'est le prix de « rien ne bouge au survol » tant que cet en-tête porte un titre et un sélecteur côte à côte dans une carte étroite. Si ça ne lui plaît pas : déplacer le sélecteur dans la carte (chantier Timer), ou réduire la barre de poignées à « ⋯ » seul pour les cartes étroites.
+2. L'écart de focus à la période d'avant n'est plus affiché nulle part (sauf dans « À améliorer » quand il chute de 30 %). À remettre dans la bulle du total si ça manque.
+
+### `focus-ile` — le focus sans plein écran, la pastille du minuteur, la barre des menus
+
+##### Fait
+
+- Lancer une séance n'ouvre plus le plein écran ; la pause enchaînée garde l'état.
+- « Focus 25 min » dans tous les menus de tâche, avec son état et sa raison. Calendrier et feuille de route compris.
+- La pastille : clic = page Timer, bouton Pause / Reprendre, « ⋯ » et clic droit = menu de l'app, entrée animée.
+- La carte Timer d'Aujourd'hui : un bouton « Plein écran » nommé, les chiffres ne se cliquent plus.
+- La palette : même geste, sans plein écran, avec un message.
+- Barre des menus du Mac : titre et deux entrées de menu (écrit, compilé, testé ; **pas vu**).
+- En-tête de `FocusOverlay.tsx` corrigé et daté.
+- Clés retirées d'`en.ts` : « Focus 25 min », « Agrandir la session ». Clés ajoutées dans un bloc daté en fin de dictionnaire.
+
+##### Pas fait
+
+- **La carte mentale.** Son menu de nœud n'a pas l'entrée Focus. Deux raisons : ce n'est pas un menu de tâche ; et l'éditeur de carte recouvre tout l'écran, pastille comprise. Une séance lancée de là partirait sans que rien ne le montre. Il faudrait d'abord faire passer la pastille au-dessus de l'éditeur.
+- **iPhone : aucun code.** Voir la note de faisabilité plus bas.
+- **La traduction du menu du tray.** Il était déjà en français seulement.
+- **Le libellé d'une séance reprise au redémarrage.** Une séance liée à une tâche revient nommée « Focus » : son nom n'est pas en base (`label` nul quand `task_id` est posé). Défaut ancien, non touché. La règle, elle, reconnaît toujours la tâche par son numéro.
+- **La pause n'est pas gardée en base.** Une séance mise en pause puis l'app fermée : au retour, le temps de fermeture a compté. Défaut ancien, non touché.
+
+##### Vu à l'écran (mode démo, pilote du labo, build `7fdb522`)
+
+Bureau 1440×900, densité « Confort » (110 %), thème sombre puis clair ; téléphone 390 px au doigt, en français puis en anglais.
+
+- Tâches › « ⋯ » › Focus 25 min : la séance part, la pastille apparaît, on reste dans Tâches.
+- Pendant la séance : « Autre session en cours » grisée sur une autre tâche (bulle lue), « Focus en cours » sur la même.
+- Séance en pause : « Reprendre le focus » dans le menu et sur le ▶ d'Aujourd'hui ; il reprend.
+- Aujourd'hui : ▶ sur une tâche récurrente ; carte Timer « Lancer 25 min » ; ses trois boutons en séance.
+- En retard : l'entrée est là, au repos comme en séance.
+- Calendrier (clic droit sur une tâche) et feuille de route d'un objectif : l'entrée est là.
+- Tâche cochée : grisée, bulle « Cette tâche est faite. Rouvre-la pour lancer un focus. »
+- Palette : ⌘K › Lancer un focus › « maquettes » : séance lancée, pas de plein écran, message.
+- **Pause enchaînée** : 1 minute de travail lancée de la page Timer, attendue dans Tâches. La pause démarre sans plein écran ; « Focus 25 min » est actif et lance par-dessus elle.
+- Pastille : clic (ouvre Timer), bouton pause, clic droit, « ⋯ », Maj+F10 puis flèche et Entrée (« Terminer la session »).
+- Plein écran demandé par le menu de la pastille : l'horloge seule ; Échap rend la pastille.
+- Téléphone : pastille en bas, 46 px ; menu au-dessus d'elle ; dernière ligne de la liste dégagée en fin de défilement.
+
+##### Non vérifié
+
+- ⚠️ **Toute la barre des menus** : le titre, sa mise à jour chaque seconde, les deux entrées du menu, leur effet. À regarder après le build :
+  1. lancer une séance : « 25:00 » apparaît-il à droite de l'icône Shale, et descend-il chaque seconde ?
+  2. **la barre des menus tremble-t-elle** ? Les chiffres de macOS n'ont pas tous la même largeur : le titre peut changer de largeur d'un pixel et pousser les icônes voisines. Si c'est gênant, deux sorties : n'écrire que les minutes (« 24 min »), ou poser une police à chiffres fixes par du code macOS (non écrit) ;
+  3. mettre en pause dans l'app : « · pause » s'ajoute-t-il ?
+  4. cliquer l'icône : « Pause » et « Terminer la session » sont-elles en tête ? Agissent-elles ?
+  5. terminer : le titre disparaît-il, et les deux entrées avec ?
+  6. passer sur une autre app, fenêtre de Shale recouverte ou fermée : le titre continue-t-il d'avancer ? (C'est pour cela que le compte est en Rust.)
+- **L'entrée de la pastille en mouvement** : vue sur des images fixes seulement.
+- **WKWebView** : tout a été vu dans Chrome.
+- **Le plein écran natif de macOS** quand on le demande : inchangé, non revu.
+- **Un démarrage qui échoue** : le message est testé, pas provoqué à l'écran.
+- La suite complète de tests n'a pas été jouée (consigne).
+
+##### Commandes
+
+- `npx tsc --noEmit` : rien.
+- `npm run test:types` : rien.
+- `npm run i18n:check` : 0 clé manquante (2838 entrées).
+- `npm run i18n:durs` : 0 chaîne sûrement française.
+- `npx vitest run src/lib/calque.test.ts src/lib/timerFenetre.test.ts src/lib/timerEcran.test.ts src/components src/lib/seance` : 14 fichiers, 126 tests, tous verts. Dont 30 neufs (`focusTache` 15, `gesteFocus` 11, `seance` 4) et 5 réécrits dans `tache.test.ts`.
+- `cargo check --all-targets` : terminé sans avertissement.
+- `cargo test --lib` : 165 réussis, dont 8 neufs (`seance_tray`).
+- `cargo test --test permissions_fenetres` : 3 réussis.
+
+##### Note de faisabilité — la séance sur l'iPhone (Activité en direct, Dynamic Island)
+
+Aucun code écrit. Faits lus dans `src-tauri/gen/apple/project.yml`, `gen/apple/Sources/shale/`, `gen/apple/shale_iOS/` et `MOBILE.md`.
+
+**Où l'on en est.**
+- Le projet Xcode a **une seule cible** (`shale_iOS`, une application). Aucune extension, aucun widget.
+- Cible iOS **17.0** : les Activités en direct existent depuis iOS 16.1, le système convient.
+- Le fichier de droits (`shale_iOS.entitlements`) est **vide**. `Info.plist` n'a pas la clé `NSSupportsLiveActivities`.
+- Signature : équipe gratuite d'Antonin (`QXU2BNU373`), profil de 7 jours. Le programme payant (99 $) n'est pas souscrit (`MOBILE.md` § 28).
+- **L'app ne tourne plus sur le vrai iPhone** depuis le 3 septembre (profil expiré). Tout est vérifié au simulateur depuis.
+- Le seul pont natif existant va **du Swift vers l'app**, par un fichier-drapeau (`QuickNoteIntent.swift` → `note_rapide.rs`). **Rien ne va de l'app vers le Swift.** Le Swift du projet n'a pas accès à la page (`QuickNoteIntent.swift` le dit en commentaire).
+- `MOBILE.md` § 4 et § 4.1 ont déjà écarté les widgets : « hors de portée de Tauri », cible Swift à part, groupe d'apps.
+
+**Ce qu'il faudrait.**
+1. **Une cible d'extension de widget** dans `project.yml` (WidgetKit + SwiftUI), avec son identifiant, son `Info.plist`, ses droits. C'est elle qui dessine l'écran verrouillé et la Dynamic Island.
+2. **`NSSupportsLiveActivities`** dans l'`Info.plist` de l'app.
+3. **Du Swift dans l'app** qui démarre, met à jour et termine l'activité (ActivityKit : `Activity.request`, `update`, `end`). ActivityKit ne se pilote que depuis l'app, pas depuis l'extension.
+4. **Un pont de l'app vers ce Swift**, qui n'existe pas. Le plus propre est un greffon Tauri mobile (Swift appelé depuis Rust) : trois commandes, démarrer, mettre à jour, terminer. C'est le premier du dépôt.
+5. **Rien à diffuser chaque seconde** : l'activité reçoit l'instant de fin, et iOS décompte seul (`Text(timerInterval:)`). C'est le même principe que la fenêtre séparée et la barre des menus. Une mise à jour suffit à chaque pause, reprise ou fin.
+6. Les boutons Pause / Terminer **dans** l'activité demandent des App Intents (iOS 17) et un état partagé entre l'app et l'extension, donc un groupe d'apps. Une première version peut s'en passer : toucher l'activité ouvre l'app.
+
+**Ce que permet l'équipe gratuite.** `MOBILE.md` ne dit qu'une chose : pas de notifications poussées. Une Activité en direct mise à jour **par l'app** n'en a pas besoin. Une extension se signe en principe avec une équipe gratuite. **Le groupe d'apps (point 6) avec une équipe gratuite : non vérifié**, ni dans le dépôt ni ailleurs. À essayer avant de s'y engager.
+
+**Ce que ça risque.**
+- **La fin de séance.** iOS suspend l'app en arrière-plan. À zéro, personne ne termine l'activité : elle reste affichée, à « 0:00 », jusqu'au retour dans l'app. On peut lui donner une date de péremption à la création. Et aujourd'hui **aucune notification n'est programmée pour la fin d'une séance** : elle est envoyée par la page au moment où elle le constate, donc pas si l'app dort. Sans corriger cela d'abord, l'activité promettrait une fin que le téléphone ne sonne pas.
+- **La pause n'est pas en base** : après une suspension, l'app et l'activité peuvent se contredire.
+- **`gen/apple` se régénère en partie.** `xcodegen generate` réécrit le projet Xcode depuis `project.yml` : une cible ajoutée dans Xcode seulement disparaîtrait. Elle doit être écrite dans `project.yml`.
+- **Le build.** `tauri ios build` ne relance pas XcodeGen ; le script de compilation Rust est attaché à la seule cible `shale_iOS`. Une seconde cible dans ce montage n'a jamais été essayée ici.
+- **La vérification.** Une Dynamic Island ne se juge que sur un vrai iPhone, et l'app n'y est plus installée.
+- **L'App Store.** Une extension de plus dans le dossier de soumission en cours (`MOBILE.md` § 28).
+
+**Combien c'est gros.** Plusieurs jours, pas une soirée. Dans l'ordre : programmer la notification de fin de séance (utile seule) ; garder la pause en base ; écrire le greffon Swift ; ajouter la cible de widget ; dessiner les trois présentations (écran verrouillé, île compacte, île étendue) ; rebrancher un vrai iPhone pour voir. C'est le premier morceau de Swift de ce dépôt qui reçoit des ordres de l'app : tout le reste de l'iPhone a été fait sans.
+
+**Recommandation.** Ne pas l'entreprendre avant le compte développeur payant et un iPhone sur lequel l'app s'installe. La première marche utile, et petite, est la notification de fin de séance programmée à l'avance : elle sert aussi sans Activité en direct.
+
+### `dates-claires` — la pastille « sans date », l'échéance d'un objectif
+
+##### 2026-10-12 (soir) — `dates-claires`
+
+**Fait, et vu à l'écran** (mode démo, Chrome sans fenêtre, outils du labo) :
+- Tâches : la pastille « sans date » avant d'écrire et pendant qu'on écrit ; la date lue (« jeu. 15 oct. · 14:30 ») ; le calendrier ouvert sur place depuis la pastille ; après l'ajout, ligne surlignée sans défilement (bureau, 110 %) ; au téléphone, pas de saut, message « Ajoutée dans « Sans date » · Voir », et « Voir » y mène.
+- Objectifs : la page sans échéance (« Ajouter une échéance »), avec échéance cette année (« 11 semaines pleines d'ici là »), l'an prochain (« ven. 12 févr. 2027 », « 17 semaines pleines d'ici là »), dépassée (« Dépassée de 41 jours. … »), en péril (« 3 jours restants, 62 % fait. ») ; poser, changer la date sur place ; la liste ; un objectif neuf daté à cinq jours (« 5 jours d'ici là », aucun bandeau au Calendrier).
+- Aujourd'hui : « Objectifs en cours » et « En retard » avec la date écrite.
+- Une étape datée en 2027 : pastille « 30 janvier 2027 ».
+- Accueil (compte neuf) : avec date (bureau) et sans date (téléphone) ; le calendrier s'ouvre au-dessus de l'accueil ; l'objectif planté porte sa date.
+- Anglais et thème clair : Tâches, liste et page d'un objectif.
+- Bureau à la densité 110 % (« Confort ») : Tâches, liste et page d'un objectif.
+
+**Résultat des commandes** : `tsc --noEmit` propre · `test:types` propre · `i18n:check` 0 manquante (2839 entrées) · `i18n:durs` 0 sûrement française · `vitest run src/lib/taches src/lib/objectifs src/lib/onboarding src/lib/calendrier` + `defilement.test.ts` : 32 fichiers, 653 tests verts. Aussi lancés : `src/lib/ia`, `src/lib/performance` (ils lisent le péril), les tests de source. **La suite complète n'a pas été lancée.**
+
+**Pas fait** :
+- Les messages de report d'une tâche (« … est prévue le jeudi 15 octobre ») n'écrivent toujours pas l'année. Hors mission (ce sont des tâches).
+- La liste des objectifs n'écrit pas la date d'une échéance **dépassée** : elle garde « en retard de 41 j ». La date est sur la page et sur Aujourd'hui.
+- Performance › « Par objectif » n'est pas touché (il part avec `perf-epure`).
+- Aucune date d'échéance n'est proposée ni déduite pour les jalons de l'accueil.
+
+**Pas vérifié** :
+- Rien n'a été vu dans l'app native (WKWebView, macOS ou iPhone). En particulier `estEnVue` sous la densité, et le message « Ajoutée dans… » quand le clavier de l'iPhone est ouvert.
+- La règle « né aujourd'hui ou hier » sur une vraie base (date de création en temps universel) : tenue par des tests, pas vue.
+- L'accueil à 110 % (un compte neuf démarre à 100 %), l'accueil en anglais, l'accueil en thème clair.
+- Les info-bulles des nouvelles pastilles n'ont pas été regardées à l'écran.
+
+**Vu en passant, pas corrigé** : au téléphone, dans la feuille de route, le titre d'une étape sur deux lignes chevauche sa pastille de date (« Signer deux clients récurrents » / « 15 août »). Antérieur à ce chantier.

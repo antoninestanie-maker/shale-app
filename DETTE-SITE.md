@@ -960,3 +960,32 @@ Rien de neuf pour le site tant que l'horloge reste seule : la remarque du chanti
 
 - Toute capture ou vidéo du site qui montre **le minuteur en plein écran avec l'horloge seule** devient fausse : l'écran porte maintenant le nom de la tâche, « Pause », « Terminer » et « Réduire ». À vérifier dans les captures du Timer et dans le reel qui montre l'horloge à volets. Non recensé page par page.
 - Aucun texte du site ne décrit l'ajout rapide au mot près, à ma connaissance : rien d'autre.
+
+## AE — Retours d'Antonin après essai (app, 2026-10-12 soir)
+
+Rien de publié sur le site ce soir. Ce que ces trois chantiers rendent faux ou périmé :
+
+### `perf-epure` — Performance épurée, et les cartes qui ne bougent plus au survol
+
+- **Captures de Performance** (`vitrine/public/shots/v2/dark-performance.webp`, `light-performance.webp`, déjà à refaire depuis les sections Z et `performance-jour`) : elles montrent les quatre tuiles de période et la carte « focus par tag », qui n'existent plus. Les prochaines montreront la rangée « Aujourd'hui » à quatre chiffres, puis « À améliorer », puis les cartes de discipline avec leur moyenne sous le titre.
+- **« Par objectif »** : la consigne du 2026-10-11 (« ne rien écrire sur le site tant que c'est un essai ») devient « ne rien écrire du tout » — l'onglet est retiré. Rien n'en parlait.
+- **Captures de la vue Timer** : à une largeur de fenêtre moyenne, la carte « Objectif quotidien » a son sélecteur sous le titre, plus à côté.
+- Aucun texte du site ne devient faux : il ne cite ni les tuiles, ni le focus par tag.
+
+### `focus-ile` — le focus sans plein écran, la pastille du minuteur, la barre des menus
+
+- Toute capture ou vidéo du site où **la pastille de séance** apparaît montre l'ancienne : un point, le temps, le nom. Elle porte maintenant un bouton pause et un « ⋯ ».
+- Tout texte du site qui dit ou laisse entendre que **lancer un focus ouvre le plein écran** devient faux. Le plein écran se demande.
+- Une capture d'un **menu de tâche** pendant une séance : l'entrée Focus y est désormais, grisée.
+- La **carte Timer d'Aujourd'hui** en séance a trois boutons, plus deux.
+- À dire un jour si c'est confirmé après le build : sur Mac, le temps restant est dans la barre des menus. **Ne pas l'écrire avant qu'Antonin l'ait vu.**
+- Non recensé page par page.
+
+### `dates-claires` — la pastille « sans date », l'échéance d'un objectif
+
+À vérifier sur le site, non regardé dans ce chantier :
+- toute capture de la **page d'un objectif** : l'en-tête a changé (l'échéance n'est plus dans la ligne de petites capitales ; une ligne « Échéance » est apparue sous le titre) ;
+- toute capture de la **liste des objectifs** : « J−123 » est devenu « échéance 12 février 2027 » ;
+- toute capture de **Tâches** montrant la ligne d'ajout : l'icône de calendrier est devenue la pastille « sans date » ;
+- toute capture de l'**accueil**, écran « objectif » : un champ « Son échéance (facultatif) » s'est ajouté ;
+- tout texte du site qui dirait que l'accueil ne demande pas de date : je n'en connais pas.

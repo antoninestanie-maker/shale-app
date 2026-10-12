@@ -8207,3 +8207,246 @@ Retour d'Antonin sur le bord à tirer installé le matin : « c'est pas exacteme
 - **Lâchée au rail, la barre retrouve à « Étendre » sa largeur d'AVANT le geste** (`auLacher`) — pas les 82 px par lesquels la descente est passée. Lâchée étroite mais pas au rail (130 px, par exemple), c'est un choix : gardé.
 - **Écarté** : geler la zone principale pendant le geste et ne la recaler qu'au lâcher (plus léger encore, mais le contenu ne suit plus le bord — le contraire de « fluide à la souris ») ; un dégradé unique posé sur le bord droit de la barre (il aurait mangé le contour de l'onglet actif et les badges).
 
+## 2026-10-12 (soir) — Retours d'Antonin après essai : Performance épurée, focus sans plein écran, pastille et barre des menus, dates
+
+Antonin a essayé l'app installée (build de 12 h 36, `dbca19a`) et a dicté ses retours le soir du 12 octobre. Ses mots, remis en ordre, sont dans `~/Desktop/Shale-chantiers/CORRECTIFS-2026-10-12-soir.md`. L'essentiel :
+
+- **Performance** : « Tâches tenues, ce n'est pas nécessaire. Habitudes tenues, c'est bien de l'avoir dans la discipline, mais pas en plus. Focus, c'est pas intéressant de l'avoir. Jours tenus d'affilée, je trouve que c'est intéressant. […] Les widgets bougent quand je passe dessus […] Il faut régler la taille. Focus par tag, aucun intérêt. Métriques, on peut les laisser. » Et sur l'onglet à l'essai : « garder Par objectif dans les performances, c'est pas forcément très intéressant, je ne vois pas le vrai gain ».
+- **Minuteur** : « Je n'arrive pas à tout le temps lancer le focus depuis la tâche. Et évidemment que le focus qu'on lance depuis une tâche ne doit pas être le mode plein écran complet. Ça, c'est seulement si l'utilisateur le décide. » ; sur la pastille : « est-ce qu'on peut l'intégrer au vrai truc Apple ? On ne peut pas la fermer directement d'un clic droit, de plus le timer est en plein écran si on clique dessus, ce n'est pas bon. »
+- **Dates** : « Corrige aussi le souci d'une tâche sans date. Pour la date, la deadline de l'objectif, c'est très important donc on le fait. »
+
+Trois chantiers en worktrees (`perf-epure`, `focus-ile`, `dates-claires`), un agent chacun, fusionnés par `chantier/retours-essai`. Leur documentation est recopiée ci-dessous telle quelle.
+
+**Décisions retournées ce soir, sur ses phrases** : l'onglet « Par objectif » de Performance (essai du 11/10) est retiré ; lancer une séance n'ouvre plus le plein écran (il s'ouvrait d'office depuis toujours) ; l'accueil demande l'échéance de l'objectif qu'il plante, facultative (« aucune échéance », 2026-09-16).
+
+**Décisions prises sans lui, à valider** (détail dans chaque chantier) : un objectif ou une étape né aujourd'hui ou hier n'est pas dit « en péril », sauf échéance dépassée (`vientDeNaitre`, `calendrier/peril.ts` — change aussi le bandeau du Calendrier et l'IA) ; après un ajout dans Tâches l'écran ne défile plus tout seul (surlignage, ou message « Ajoutée dans « Sans date » · Voir ») ; pendant une séance de travail sur une autre tâche, « Focus 25 min » est grisée avec sa raison au lieu de remplacer la séance ; « Jours tenus d'affilée » est le quatrième chiffre de la rangée « Aujourd'hui » ; l'écart de focus à la période d'avant n'est plus affiché hors « À améliorer » ; sur la vue Timer, le sélecteur d'« Objectif quotidien » est sous le titre en permanence à sa taille de fenêtre (c'est l'état qu'on voyait en survolant, rendu stable).
+
+**La barre des menus du Mac** (`src-tauri/src/seance_tray.rs`) porte le temps restant pendant une séance. C'est la réponse à « le vrai truc Apple » sur Mac. ⚠️ Écrite, compilée, testée, mais jamais vue avant le build natif. Sur iPhone, l'équivalent (Activité en direct) n'est PAS fait : note de faisabilité dans le chantier `focus-ile`.
+
+### `perf-epure` — Performance épurée, et les cartes qui ne bougent plus au survol
+
+##### `perf-epure` — Performance épurée, et la grille qui ne bouge plus au survol
+
+###### 2026-10-12 — Les tuiles de période sortent ; les chiffres restent, dans leur carte
+
+Antonin, après essai de l'app installée : « Aujourd'hui, c'est bien. Tâches tenues, ce n'est pas nécessaire. Habitudes tenues, c'est bien de l'avoir dans la discipline, mais pas en plus. Focus, c'est pas intéressant de l'avoir. Jours tenus d'affilée, je trouve que c'est intéressant de l'avoir. […] Focus par tag, aucun intérêt. Métriques, on peut les laisser. »
+
+- **Décision du 2026-10-09 retournée en partie** (« Les tuiles COMPARENT : chaque chiffre de la période, et son écart à la même durée juste avant »). Le panneau `perf-tiles` n'existe plus. Le PRINCIPE tient (un chiffre se compare à la même durée juste avant) ; c'est sa place qui change.
+- **La moyenne de la période et son écart sont sous le titre de chaque carte de discipline** (`MoyenneDePeriode`, dans `PerformanceView.tsx`) : « 59 % · en moyenne · 12 sept. – 11 oct. · −1 pt par rapport à la période d'avant ». Les bulles sont celles des anciennes tuiles (ce que la moyenne compte ; la période d'avant en dates et ce qu'elle valait).
+- **La note « 1 en retard ou reportée, non comptée » (A07b-06) suit dans la carte des tâches**, sur la même ligne que la moyenne. « À améliorer » se tire toujours de la même liste (`tachesHorsCompte`) : rien n'a changé dans `analyse.ts`.
+- **Sans période d'avant mesurée, la ligne n'écrit pas de « — ».** Dans une tuile le tiret avait sa ligne à lui ; ici il se lisait comme un séparateur oublié, et au téléphone aucune bulle ne l'explique. La raison (« Rien de mesuré sur ces jours-là ») passe en bulle sur la période. La décision du 2026-10-11 (« le — muet d'une comparaison a sa bulle ») est donc tenue autrement : l'explication reste, le tiret part.
+- **« Jours tenus d'affilée » est le quatrième chiffre de la rangée « Aujourd'hui »** (`RangeeAujourdhui`, prop `serie`). Pourquoi là : une tuile seule sur douze colonnes ne ressemble à rien, et ce chiffre n'a jamais été un chiffre de période — c'est l'état d'aujourd'hui (aujourd'hui y compte dès 80 %), il ne se compare à rien, comme les trois autres. C'est la même série que l'anneau d'Aujourd'hui (`computeStreak`). Au téléphone la rangée passe en deux fois deux.
+- **Le record est dans l'en-tête de « Séries de jours tenus »** (« record 12 j »). Il était sous la tuile.
+- **Le total de focus de la période est dans la carte « focus — par jour »**, sous le titre (« 9 h 35 au total »). Sa bulle dit toujours d'où vient l'écart avec la tuile « cette semaine » du Timer. Zéro : rien n'est écrit, le message de la carte le dit déjà ; la ligne garde sa hauteur pour que les deux cartes voisines restent alignées. L'écart de focus à la période d'avant n'est plus affiché ; « À améliorer » le signale toujours quand il perd 30 %.
+- **La carte « focus par tag » (`perf-focus`) est retirée.**
+- **La légende de « par jour de la semaine » a sa propre ligne**, sous le titre. Titre, dates et légende ne tenaient pas sur une ligne avec la barre de poignées : c'est la carte qui grandissait au survol.
+- **Une disposition enregistrée qui porte encore `perf-tiles` ou `perf-focus` se charge sans trou ni pastille** : `lib/grille.ts` le faisait déjà pour tout identifiant orphelin ; `grille.test.ts` le prouve maintenant pour ces deux-là, en lisant les panneaux présents dans la vue elle-même.
+
+###### 2026-10-12 — L'onglet « Par objectif » est retiré
+
+Antonin : « garder Par objectif dans les performances, c'est pas forcément très intéressant, je ne vois pas le vrai gain qu'il y a derrière. » L'essai du 2026-10-11 est clos.
+
+- Retiré par la procédure écrite ce jour-là, en cinq points : `ParObjectif.tsx` ; `parObjectif.ts`, `promesses.ts`, `promessesAcces.ts` et leurs tests ; `VUES`, l'état `vue`, les onglets et la branche du rendu dans `PerformanceView.tsx` ; `promettre` et son appel dans `onboarding/semer.ts` ; les clés du bloc titré dans `en.ts`.
+- ⚠️ La procédure parlait de « quatre fichiers de test » : il y en avait trois (`parObjectif.test.ts`, `promesses.test.ts`, `promesses.api.test.ts`).
+- **Le réglage `objectifs.heures_semaine` reste dans les bases, inerte.** Rien ne l'efface, rien ne le lit.
+- **Ce qui reste de l'essai, exprès** : `heuresDuPlan` (`onboarding/planification.ts`) — « la valeur montrée est la valeur retenue » est un correctif de l'accueil, pas de l'essai ; la phrase « 5 h par semaine libérées pour ça. » dans la description de l'objectif planté. `jour.ts`, `dates.ts` et `durees.ts` servent la vue d'ensemble.
+- Performance n'a plus d'onglets : son en-tête est le titre seul.
+- Des trois définitions de « cette semaine », il en reste deux (Timer : sept jours glissants ; Performance « 7 j » : sept jours finis). Toujours pas réunies.
+
+###### 2026-10-12 — ⭐ Survoler un panneau ne change JAMAIS sa hauteur (toutes les grilles)
+
+Antonin : « les widgets bougent quand je passe dessus, car un s'agrandit quand je passe la souris dessus. Il faut régler la taille. »
+
+- **Mesuré avant** (1470×923, densité 110 %, souris réelle, mise en page lue par `offsetHeight`) : survoler « par jour de la semaine » faisait passer la carte de 240 à 264 px ; « Séries » et « Objectifs » échangeaient leurs colonnes ; tout ce qui suit descendait de 24 px. Même défaut sur « objectif quotidien » de la vue Timer (136 → 160 px, les tuiles et « Méthode » descendaient).
+- **La cause** est celle qu'on soupçonnait : au survol, `.rgrid-head` réserve la place de la barre de poignées par un `padding-right` ; l'en-tête a `flex-wrap` ; quand il n'a pas la place de s'écarter, il passe sur deux lignes — au survol seulement.
+- **La règle** : la réserve ne se décide plus au survol mais à la MESURE. `ResizablePanel` jauge chacun de ses `.rgrid-head` (`components/grid/entetes.ts` ; les deux fonctions pures `reserveDEntete` et `enteteSerre` sont dans `lib/grille.ts`, avec leurs tests) :
+  - la barre ne passe pas sur cet en-tête (un second en-tête plus bas dans la carte) : rien n'est réservé, ni au repos ni au survol ;
+  - il a la place : la réserve n'est posée qu'au survol, comme avant — la mesure a vérifié qu'elle ne change pas sa hauteur ;
+  - il n'a PAS la place (« serré », `data-rgrid-serre`) : la réserve est PERMANENTE. L'en-tête est replié au repos comme il l'aurait été au survol, et le survol n'y change plus rien.
+- **Dans les trois cas aucun contrôle ne passe sous la barre** : c'est pour cela que `.rgrid-head` existe, et c'est gardé.
+- **La largeur réservée vient des rectangles réels** (`--rgrid-reserve`, posée sur chaque en-tête), plus de la constante de 5,25 rem. La constante supposait une carte au bord rembourré de 20 px : sur un panneau sans carte (« Métriques »), « Ajouter » restait 4 px sous la barre ; sur une carte, elle réservait 9 px de trop. `--rgrid-handle-w` n'est plus qu'un repli, le temps de la première mesure.
+- ⚠️ **Conséquence visible au repos : un en-tête serré tient sur deux lignes en permanence.** À la fenêtre d'Antonin, c'est le cas d'UN en-tête dans toute l'app : « objectif quotidien » de la vue Timer (le sélecteur − 2 h + passe sous le titre ; la carte fait 160 px au lieu de 136, les tuiles et « Méthode » sont 24 px plus bas). C'est exactement ce qu'on voyait en la survolant, rendu stable. Aucun fichier du Timer n'a été touché.
+- ⚠️ **Ne pas remettre la réserve « au survol seulement » sur un en-tête serré** pour gagner une ligne au repos : c'est le défaut. Pour qu'un en-tête ne soit pas serré, il faut lui faire de la place (sortir une légende de l'en-tête, comme ici pour « par jour de la semaine »).
+- **Pourquoi pas autre chose.** Décaler par `transform` au lieu de `padding` ne replie rien mais superpose le titre et les contrôles quand la place manque. Sortir la barre du cadre (au-dessus du bord) la fait rogner par l'`overflow: clip` du panneau, et recouvre encore un en-tête sans carte. Réserver la place en permanence partout décale au repos tous les contrôles de droite de l'app. Laisser la barre recouvrir un en-tête serré rendrait son contrôle incliquable.
+- **La jauge ne coûte rien au repos** : elle ne re-mesure que si la forme de l'en-tête a changé (largeur du panneau, largeur des enfants, position de la barre). Mesuré : 0 écriture en 2,5 s de repos, 0 au survol de tous les panneaux, quelques dizaines quand la fenêtre change de taille, puis 0.
+- **Trois gardes dans le code**, écrites là où elles servent (`entetes.ts`) : `transition: none` tenu jusqu'après une lecture (sinon le navigateur anime le retour du `padding` d'essai, l'en-tête se replie et se déplie, et la mesure se relance) ; aucune classe posée (l'observateur du panneau regarde `class`) ; les en-têtes d'une grille imbriquée appartiennent à leur panneau, pas au parent.
+- L'observateur de mutations de `ResizablePanel` regarde maintenant aussi le TEXTE (`characterData`), mais ne relance la mesure que si le texte changé est dans un `.rgrid-head` : un minuteur qui écrit chaque seconde ne coûte rien.
+
+###### 2026-10-12 — Le français de l'onglet
+
+- « vs période d'avant » s'écrivait sous les tuiles : la formule est maintenant « par rapport à la période d'avant ».
+- La bulle du graphique « Objectifs » écrivait « progression » en dur : en anglais elle restait en français. Elle passe par `t()`.
+- Six clés de Performance sans emploi depuis le 09/10 et le 11/10 sont retirées de `en.ts` (« Historique des streaks », « Streak actuel », « Pas encore de streak… », « Série en cours », « focus — par semaine », « focus par tag — 30 jours »).
+- **Laissé tel quel, signalé** : « Focus » et « Timer » (le vocabulaire de l'app, partout) ; « OK » sur le bouton d'une métrique ; « pts » (abréviation française de « points ») ; les pourcentages collés à l'anglaise (« 40% ») dans les gros chiffres et les lignes d'habitudes, alors que les phrases écrivent « 40 % » — c'est ainsi dans toute l'app (Aujourd'hui, Timer). Hors de l'onglet : « streak » reste dans une bulle de `TodayTasks.tsx` (« Compte dans la discipline et le streak du jour. ») et dans Personnaliser (« Bandeau performance (streak, focus) », `uiConfig.ts`).
+
+### `focus-ile` — le focus sans plein écran, la pastille du minuteur, la barre des menus
+
+##### 2026-10-12 (soir) — Lancer une séance n'ouvre plus le plein écran
+
+**Antonin** : « le focus qu'on lance depuis une tâche ne doit pas être le mode plein écran complet. Ça, c'est seulement si l'utilisateur le décide. »
+
+**Ce qui change.** `useFocus.start` n'ouvre le plein écran que si on le lui demande (`openOverlay: true`). Avant, c'était l'inverse : il s'ouvrait sauf refus. Plus aucun appelant ne le demande. La séance démarre, la pastille apparaît, on reste où l'on est. Cela vaut pour le menu d'une tâche (Tâches, Aujourd'hui, En retard, Calendrier, feuille de route), le ▶ d'Aujourd'hui, la carte Timer, la page Timer et la palette.
+
+**Seul un geste nommé « Plein écran » l'ouvre** : le bouton de la page Timer, celui de la carte Timer d'Aujourd'hui, l'entrée du menu de la pastille. Les grands chiffres de la carte Timer étaient un bouton de plein écran sans nom : ils ne le sont plus, un bouton « Plein écran » a pris place à côté de Pause et Terminer.
+
+**Une pause qui s'enchaîne garde l'état de la séance qui finit.** Elle ne demande rien : le plein écran reste ouvert s'il l'était, fermé sinon. La règle est une fonction pure (`pleinEcranApresDemarrage`, `src/lib/seance/focusTache.ts`), avec ses tests.
+
+**Le plein écran reste l'horloge seule** (`epure`, décision d'Antonin du 30/09). Non touché ; le test de `lib/calque.test.ts` la tient toujours. Ce chantier rend cette décision plus tenable : on n'arrive plus sur l'horloge par surprise, seulement en la demandant. L'en-tête de `FocusOverlay.tsx` disait encore « le plein écran montre ses commandes » : faux depuis la fusion, corrigé et daté.
+
+**Comment on voit que la séance est partie.** La pastille entre en glissant depuis son bord (360 ms, une fois, `components/timer/pastille.css`). Avec « mouvement réduit » : un fondu de 150 ms, aucun déplacement. La palette, qui se referme, l'écrit en plus dans son message (« Focus lancé : 25 min sur « … » »).
+
+##### 2026-10-12 (soir) — « Focus 25 min » : une règle, un geste, partout
+
+**Antonin** : « Je n'arrive pas à tout le temps lancer le focus depuis la tâche. »
+
+**Les cas trouvés** (lecture du code, puis rejoués en démo) :
+
+1. **Une séance en cours** faisait disparaître l'entrée de tous les menus, et le ▶ d'Aujourd'hui avec, sans un mot.
+2. **Une pause enchaînée automatiquement** aussi. C'est le plus trompeur : après 25 minutes lancées depuis la carte Timer (préréglage 25·5), une pause de 5 minutes démarre seule, et pendant ces 5 minutes l'entrée n'existait plus.
+3. **Une séance mise en pause** : pareil.
+4. **Une tâche cochée** : entrée absente.
+5. **Le Calendrier** : le menu d'une tâche ne recevait jamais le minuteur. Entrée absente, toujours.
+6. **La feuille de route d'un objectif** : même défaut.
+7. **La ligne « En retard »** : elle l'avait, mais le perdait dès qu'une séance existait (cas 1 à 3).
+8. **Le ▶ d'Aujourd'hui au doigt** : retiré exprès (28 px qui écrasaient le libellé). Le « ⋯ » le remplace : il héritait donc des cas 1 à 4.
+9. **La palette** refusait pendant une pause (« Un focus est déjà en cours »).
+10. **Un démarrage qui échoue** (base indisponible) ne disait rien : la promesse rejetée était avalée par un `void`.
+11. **Une séance lancée par-dessus une autre** n'aurait pas clos la première en base (ligne sans `ended_at`, que l'app peut reprendre au démarrage suivant). Aucun chemin n'y menait avant ce chantier ; il fallait le fermer avant d'autoriser le cas 2.
+12. **Une tâche récurrente** : aucun défaut. L'entrée y était et y est (vu à l'écran sur « Production client (matin) »).
+13. **La carte mentale** : son menu est celui d'un NŒUD (Sous-nœud, Renommer, Replier, Supprimer). Il n'a aucun geste de tâche, ni Dater ni Priorité. **Non traité**, voir PASSATION.
+
+**La règle** (`src/lib/seance/focusTache.ts`, `regleFocus`, pure et testée). L'entrée est toujours là. Selon l'état :
+
+| État du minuteur | L'entrée |
+|---|---|
+| Rien ne tourne | « Focus 25 min » : lance |
+| Une pause tourne (enchaînée ou non, en pause ou non) | « Focus 25 min » : lance quand même, la pause est close |
+| La séance de CETTE tâche tourne | grisée, « Focus en cours » |
+| La séance de CETTE tâche est en pause | « Reprendre le focus » : reprend |
+| Une séance de travail sur autre chose | grisée, « Autre session en cours » ; la bulle nomme la tâche |
+| La tâche est cochée | grisée, « Focus 25 min » ; la bulle dit de la rouvrir |
+
+**Pourquoi le libellé d'une entrée grisée change.** La raison d'un grisage est une info-bulle. Au doigt, il n'y a pas d'info-bulle. « Autre session en cours » et « Focus en cours » se lisent sans elle.
+
+**Pourquoi une séance de travail ne se remplace pas.** Ce serait couper court, en silence, à un travail compté. Une pause, elle, ne coûte rien à couper.
+
+**Le geste** (`src/lib/seance/gesteFocus.ts`, `GesteFocus.agir`). Une seule fonction pour le ▶ d'Aujourd'hui, l'entrée de chaque menu et la palette (règle 18). Elle arrive par un **contexte React** (`ContexteFocus`, posé une fois dans `App.tsx`) et non plus par une prop passée de vue en vue : c'est parce qu'elle descendait à la main que le Calendrier et la feuille de route ne l'avaient jamais reçue. La valeur du contexte ne change qu'aux changements de sens (séance lancée, finie, mise en pause), pas à chaque seconde.
+
+**Deux tests de source tiennent la règle** (`gesteFocus.test.ts`) : tout fichier qui construit un menu de tâche lit le geste ; aucune vue ne relance le minuteur à la main sur une tâche.
+
+**`useFocus.start` clôt la séance ouverte avant d'écrire la suivante**, et ignore un second appel tant que le premier n'a pas répondu.
+
+##### 2026-10-12 (soir) — La pastille de séance
+
+**Antonin** : « On ne peut pas la fermer directement d'un clic droit, de plus le timer est en plein écran si on clique dessus, ce n'est pas bon. »
+
+`src/components/timer/PastilleSeance.tsx` (sortie de `FocusOverlay.tsx`).
+
+- **Un clic ouvre la page Timer** (`allerVers("timer")`, la garde de navigation d'`App.tsx`).
+- **Clic droit : le menu de l'app**, pas celui du système. Quatre entrées : « Pause » / « Reprendre », « Terminer la session », « Ouvrir le Timer », « Plein écran » (`components/menu/catalogue/seance.tsx`).
+- **Règle 17** : un « ⋯ » visible en permanence ouvre le même menu, à la souris, au clavier (Tab puis Entrée ; Maj+F10 sur la pastille) et au doigt. Pause / Reprendre a en plus son bouton.
+- **Règle 18** : le bouton, le clic et les entrées appellent les mêmes fonctions (`pause`, `resume`, `stop` du minuteur).
+- **« Terminer » n'est pas rouge** : le temps fait est gardé, rien n'est détruit.
+- **Ce n'est plus un bouton mais un groupe de trois.** Un bouton dans un bouton n'est pas du HTML valide.
+- **« en pause » est écrit avant le nom de la tâche.** À la suite d'un nom long, il partait dans les points de suspension (vu à l'écran).
+- **Au téléphone** : chaque cible fait 44 pt ; la pastille fait 46 px (ses cibles et son filet). La réserve `--reserve-seance` passe de 52 à 54 px. Mesuré à 390 px, fin de liste dégagée.
+- Une pause s'écrit « pause » traduit (« break » en anglais). Avant : « Pause », en dur.
+
+**Vocabulaire.** La mission disait « Terminer la séance ». L'écran Timer dit « session » partout (« Terminer la session », « session en cours », « Sessions du jour »). Le menu de la pastille et les entrées grisées disent « session », comme lui. Performance dit « séance ». Les deux mots cohabitent dans l'app : non tranché ici.
+
+##### 2026-10-12 (soir) — La séance dans la barre des menus du Mac
+
+**Antonin** : « la barre style Apple […] c'est sympa, mais est-ce qu'on peut l'intégrer au vrai truc Apple ? »
+
+Sur un Mac, l'équivalent natif est la barre des menus, où l'app a déjà son icône. `src-tauri/src/seance_tray.rs` :
+
+- **Pendant une séance** : le temps restant à côté de l'icône (« 24:31 »). En pause : « 24:31 · pause ». Hors séance : rien.
+- **Dans le menu de l'icône, pendant une séance** : « Pause » / « Reprendre » et « Terminer la session », en tête, séparées du reste. Elles disparaissent avec la séance.
+
+**Pourquoi aucun appel nouveau du front, aucune permission nouvelle.** La fenêtre principale diffuse déjà l'état de la séance pour la fenêtre séparée du Timer (`shale:timer-etat`) et exécute déjà les commandes qu'on lui renvoie (`shale:timer-commande`). Le Rust écoute l'un et émet l'autre. La barre des menus est une télécommande de plus sur le même canal ; les gestes restent ceux de l'app, la séance garde une seule source de vérité. Rien à ajouter dans `capabilities/` ; `tests/permissions_fenetres.rs` le note à l'endroit de `plugin:event|emit`.
+
+**Pourquoi le compte est tenu en Rust, pas dans la page.** Ce qui voyage est l'instant de fin. Une page dont la fenêtre est cachée ou recouverte voit ses minuteurs ralentis par WebKit : un titre réécrit depuis le JavaScript avancerait par à-coups, justement quand on regarde la barre des menus (Shale n'est pas devant). Un fil Rust se réveille après chaque changement de chiffre et s'arrête avec la séance.
+
+**Portage à tenir d'accord** : `restant_sec` et `delai_avant_prochaine_seconde` recopient `restantDepuisEtat` et `delaiAvantProchaineSeconde` de `src/lib/timerFenetre.ts`. Sinon la barre des menus et la pastille n'affichent pas le même chiffre.
+
+**Bureau seulement** (`#[cfg(desktop)]`) : rien sur iOS, rien hors Tauri.
+
+**Le menu du tray reste en français**, comme « Ouvrir Shale » et « Quitter » qui y étaient déjà. « pause » s'écrit pareil dans les deux langues.
+
+### `dates-claires` — la pastille « sans date », l'échéance d'un objectif
+
+##### `dates-claires` — l'ajout rapide annonce sa règle, l'échéance d'un objectif se voit et se pose sur place
+
+###### 2026-10-12 — Le champ d'ajout de Tâches dit « sans date » avant qu'on valide
+
+**Le défaut** (labo, seconde passe, rang 7, cinq utilisateurs). Les deux champs d'ajout rapide se ressemblent et ne font pas pareil. Celui d'Aujourd'hui date d'office à aujourd'hui, et le montre par une pastille. Celui de Tâches rangeait la tâche dans « Sans date », en bas de liste, sans le dire : il ne montrait qu'une icône de calendrier. Au téléphone, l'écran sautait tout en bas.
+
+**La règle ne change pas.** Dans Tâches, une tâche ajoutée sans date naît sans date (décision d'Antonin du 2026-09-30). Ce qui change, c'est qu'elle **s'écrit**.
+
+**Ce qui est fait** (`src/components/taches/SaisieRapide.tsx`, toujours un seul composant pour les deux écrans) :
+- quand la ligne n'a pas de date, elle porte une pastille **« sans date »**, au même endroit et de la même forme que la pastille « aujourd'hui » de la carte du jour (bordée, estompée : une règle, pas un choix) ;
+- la toucher ouvre le calendrier de l'app, sur place (`lib/selecteurDate.ts`) ;
+- elle devient la pastille de date dès qu'une date est lue dans la phrase ou choisie.
+- Il n'existe plus d'état où la ligne ne dit rien. L'icône seule a disparu.
+
+**Après l'ajout, l'écran ne défile plus tout seul** (`TasksView`).
+- La section où la tâche tombe se déplie, et sa ligne est surlignée un instant. Comme avant.
+- Si la ligne est **sous les yeux**, c'est tout.
+- Sinon, un message dit où elle est : **« Ajoutée dans « Sans date » »**, avec **« Voir »** pour y aller. Le nom est celui de la section, quel que soit le rangement (« Sans objectif », le nom d'un objectif).
+- **Décision retournée par la mission** : le défilement automatique vers la tâche ajoutée (chantier `taches-jour`, 2026-10-11, « elle doit se VOIR arriver »). Il faisait sortir le champ de l'écran au téléphone. Le défilement est devenu un geste (« Voir »).
+
+**« Est-elle à l'écran ? » se demande au navigateur** (`estEnVue`, `src/lib/defilement.ts`). On sonde deux points de la ligne avec `elementFromPoint`. On ne compare pas des rectangles : au téléphone, la barre d'onglets recouvre le bas de la vue, et une ligne « dans la zone » y est cachée.
+
+###### 2026-10-12 — L'échéance d'un objectif : en tête de sa page, sur place, avec l'année
+
+**Le défaut** (rang 8, cinq utilisateurs). La date se posait sous « ⋯ › Modifier… › Deadline » : quatre commandes. Elle s'affichait sans année (« moyen terme · 12 février » pour février 2027). Rien ne disait le temps qui reste. Ce temps n'était écrit que dans Performance › « Par objectif », retiré le même soir.
+
+**Sur la page d'un objectif** (`src/components/objectifs/EcheanceObjectif.tsx`, rendu par `GoalsView`) : une ligne sous le titre.
+- Pas d'échéance : un bouton **« Ajouter une échéance »**. Il ouvre le calendrier de l'app, sur place.
+- Une échéance : le mot « Échéance », puis le champ de date de l'app (`ChampDate`). Il écrit l'année dès que ce n'est pas l'année en cours. On la change ou on la retire (la croix) sans ouvrir de fenêtre.
+- L'écriture passe par `daterObjectif` (une seule colonne), comme l'échéance d'une étape.
+- L'échéance a quitté la ligne de petites capitales au-dessus du titre (« moyen terme · Activité » reste).
+
+**Le temps qui reste : des faits, jamais un pronostic** (`src/lib/objectifs/echeance.ts`, pur, 17 tests).
+- **Dépassée ou en péril : le verdict du Calendrier**, avec ses nombres (`calendrier/peril.ts`). Rien n'est recalculé. « Dépassée de 41 jours. 2 étapes ou tâches restantes. » ; « 3 jours restants, 62 % fait. ». La mention « (progression déclarée à la main, pas mesurée) » suit quand c'est le cas.
+- **Sinon : les semaines pleines** qui restent (sept jours chacune, à partir d'aujourd'hui). « 17 semaines pleines d'ici là ». Sous sept jours : « 5 jours d'ici là ».
+- Échéance aujourd'hui sans alerte : rien de plus, le champ écrit déjà « Aujourd'hui ».
+- Objectif atteint : la date reste, sans commentaire.
+- **Jamais** « à ce rythme, fini le… ». L'app ne sait pas estimer le travail restant.
+- Le calcul vient de `faitDEcheance` (`lib/performance/parObjectif.ts`, essai du 2026-10-11). Il est **recopié** : ce fichier part avec l'onglet « Par objectif ». La part « heures promises » n'est pas reprise.
+- ⚠️ La page écrit « Dépassée de 41 jours. » là où le Calendrier écrit « échéance dépassée de 41 jours. » : le mot « Échéance » est déjà devant le champ. Même verdict, mêmes nombres ; deux clés de traduction.
+- Les périls sont maintenant calculés pour tout le monde dans `GoalsView` (avant : seulement pour les abonnés, pour offrir « Pourquoi, et que faire ? »).
+
+**Une seule écriture de la date** : `dateDEcheance` (`lib/objectifs/echeance.ts`), qui passe par `formaterDansPhrase`. « 12 février », « 12 février 2027 », “February 12, 2027”. Elle sert :
+- à la **liste des objectifs** : « échéance 12 février 2027 », en tête de la ligne, avant la prochaine action. Dans la dernière semaine, « · J−3 » en rouge s'ajoute. Avant : « J−123 », qu'il fallait compter. Une échéance dépassée garde « en retard de 41 j » (la place manque pour la date ; le nombre de jours n'a pas d'ambiguïté d'année) ;
+- à **« Objectifs en cours »** d'Aujourd'hui : « échéance 31 décembre », et « · dépassée de 41 jours » le cas échéant ;
+- à **« En retard »** d'Aujourd'hui : « échéance 1 septembre · dépassée de 41 jours » (avant : « échéance dépassée de 41 jours », sans la date) ;
+- à la **pastille d'une étape** dans la feuille de route — et, par la même fonction, à la date d'un événement rattaché et à « compté depuis le … ».
+
+**Le mot.** En français l'interface dit « Échéance » partout. La fenêtre « Nouvel objectif / Modifier » était la seule à dire « Deadline », écrit en dur (audit A06a-42). Son champ vide dit « Sans échéance » (il disait « Sans date »). En anglais : “Deadline”.
+
+###### 2026-10-12 — L'accueil demande l'échéance de l'objectif qu'il plante (⚠️ retourne la décision du 2026-09-16)
+
+**Ce qui était décidé.** « Aucune échéance », ni sur l'objectif de l'accueil ni sur ses jalons : sinon « objectif en péril » une semaine après l'installation, sur la première chose que l'utilisateur ait dite à l'app. Tenu par `lib/onboarding/planification.ts` et ses tests.
+
+**La phrase qui la retourne** (Antonin, 2026-10-12) : « Pour la date, la deadline de l'objectif, c'est très important donc on le fait. »
+
+**Ce qui est fait.** L'écran « objectif » porte un champ **« Son échéance (facultatif) »**, entre le titre et les étapes. C'est le calendrier de l'app. Rien n'est proposé. Une date passée ne se choisit pas. Vide, ou écran passé : l'objectif naît sans échéance, exactement comme avant.
+- `planDuPremierObjectif` reçoit l'échéance ; `echeanceDuPlan` la vérifie (un vrai jour, pas dans le passé).
+- **Toujours aucune échéance sur les jalons** : l'écran n'en demande pas, et en déduire de celle de l'objectif serait inventer un calendrier.
+- L'objectif « Récupérer N h par semaine » (écran laissé vide) et les objectifs d'exemple restent sans échéance.
+- Les tests sont mis à jour, et le disent en commentaire.
+- L'accueil passe de `z-[200]` à `z-[180]` : le calendrier vit dans un portail à `z-[190]` et passait dessous.
+
+###### 2026-10-12 — Un objectif né aujourd'hui ou hier n'est pas « en péril » (⚠️ décision à valider)
+
+**Ce que la règle disait d'un objectif tout neuf** (`calendrier/peril.ts`, regardé avant de toucher à l'accueil).
+- Daté à trois mois, rien de fait : **rien**. La règle ne regarde que les sept derniers jours avant la date. Il n'est signalé ni le premier jour, ni une semaine après. La crainte du 16 septembre ne se réalisait donc pas pour une échéance lointaine.
+- Créé **avec** une échéance à sept jours ou moins : signalé **dans la seconde** (0 %, donc « rythme insuffisant »). C'est le rang 9 du labo : bandeau rouge pour une étape née dix minutes plus tôt.
+
+**La règle ajoutée, la plus petite** (`vientDeNaitre`) : un objectif ou une étape **né aujourd'hui ou hier n'est pas jugé**. On ne mesure pas le rythme de ce qui n'a pas eu un jour entier pour avancer. Dès le surlendemain, la règle d'avant s'applique telle quelle.
+- **Une échéance dépassée n'est jamais tue**, même pour un objectif né aujourd'hui.
+- « Ou hier » et pas « aujourd'hui » seul : en natif la date de création est écrite en temps universel. Un objectif créé à 0 h 30 à Paris porte la date de la veille.
+- Sans date de création lisible, rien ne change.
+- Elle vaut partout où le péril est lu : bandeau du Calendrier, page d'un objectif, IA (« Pourquoi, et que faire ? », revue de la semaine).
+- **Phrase d'Antonin : aucune.** La mission demandait de la proposer et de l'appliquer. À lui de la valider.
