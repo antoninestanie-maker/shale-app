@@ -18,7 +18,7 @@ import { COMMERCE_AUTORISE, presenceModule } from "./lib/boutique";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
-import { deposerDemande, EVT_ALLER, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import { deposerDemande, EVT_ALLER, EVT_OUVRIR, ouvrirParId, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import { installerMenuNatif } from "./lib/menu/natif";
 import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
 import Toast from "./components/Toast";
@@ -435,13 +435,12 @@ function App() {
   // les deux surfaces divergeraient à la première retouche.
   const ouvrirNoteRapide = useCallback(async () => {
     const id = await createNote(t("Nouvelle note"), "");
-    setView("notes");
     await refresh();
-    // laisse NotesView se monter avant de demander l'ouverture
-    setTimeout(
-      () => window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
-      60,
-    );
+    // Par la porte commune (2026-10-12) : la demande est DÉPOSÉE, la vue Notes
+    // la trouve à son montage. L'ancien rendez-vous à 60 ms arrivait avant une
+    // vue chargée en `lazy` : la note s'ouvrait par chance (la plus récente est
+    // en tête), sans que la vue sache qu'on venait de la créer.
+    ouvrirParId("note", id);
   }, [refresh]);
 
   // Raccourci note : ⌘⇧N (Ctrl+⇧N) → crée une note et l'ouvre dans Notes

@@ -161,6 +161,9 @@ export default function NotesView({ data, refresh }: Props) {
       if (id) {
         aSaisir.current = id;
         setSelectedId(id);
+        // La vue était déjà là : la demande déposée est servie, on la retire,
+        // sinon elle rouvrirait cette note au prochain montage.
+        consommerDemande("note");
       }
     };
     window.addEventListener("sb:open-note", onOpen);

@@ -1,5 +1,6 @@
 // Registre d'actions central : consommé par la palette ⌘K et la quick capture.
 // Une action = un id stable + un exécuteur.
+import { ouvrirParId } from "./naviguer";
 import type { View } from "../components/Sidebar";
 import { FINANCE_ACTIF, isFinanceView } from "./features";
 import { tachesAFaire, todayStr } from "./logic";
@@ -218,13 +219,9 @@ export const ACTIONS: AppAction[] = [
     keywords: ["creer", "rediger", "raccourci", "cmd shift n"],
     run: async (ctx) => {
       const id = await createNote(t("Nouvelle note"), "");
-      ctx.navigate("notes");
       await ctx.refresh();
-      setTimeout(
-        () =>
-          window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
-        60,
-      );
+      // Même porte que ⌘⇧N : la demande est déposée, la vue la trouve à son montage.
+      ouvrirParId("note", id);
     },
   },
   // — Tâches
