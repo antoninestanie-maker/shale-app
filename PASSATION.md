@@ -2452,3 +2452,40 @@ Branche `chantier/texte-net` (worktree `Shale-chantiers/texte-net`). Front seul 
 
 
 **Pas installé.** ⚠️ Le build natif du 13/10 à 00:23 (`eff40f0`, session [correctifs]) est parti quelques minutes AVANT cette fusion : il porte la nouvelle pastille, encore floue. Le correctif part avec le build suivant.
+
+## 2026-10-12 (nuit) — « Supprimés récemment » : la suppression définitive et « Vider » réparés
+
+Branche `chantier/corbeille-definitive`. Demande d'Antonin : « des fois certains items ne se suppriment pas dans Supprimés récemment, et Tout supprimer ne marche pas tout le temps, vérifie et corrige ». Décisions : `CLAUDE.md`, même date. Pièges : `PIEGES.md` § 42.
+
+**La cause, en deux lignes.** La base applique les clés étrangères (sqlx les allume d'office ; `repo.ts` disait le contraire). Un objectif qui a un historique de progression, ou une tâche qui a une séance de focus, ne pouvait pas être effacé ; et « Vider » s'arrêtait au premier refus sans relire la liste ni rien dire.
+
+**Rejoué sur une copie de la vraie base** (prise par `.backup` en lecture seule le 12/10 à 23:35 ; la base réelle n'a pas été touchée) :
+
+| | Lignes en corbeille | Objets effacés | Refus |
+|---|---|---|---|
+| Avant le geste | 63 (128 objets : 76 objectifs, 50 tâches, 1 habitude, 1 événement) | — | — |
+| Code d'avant, boucle de la vue | 62 restent | 1 | arrêt au premier (`FOREIGN KEY constraint failed`) |
+| Code d'avant, boucle tolérante | 7 restent | 104 | 7 |
+| **Code corrigé** | **0** | **128** | **0** |
+
+Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs, 30 tâches, 3 habitudes, 21 notes, 6 fiches, 4 sujets, 1 événement), 18 séances de focus avant et après (une détachée de sa tâche), `integrity_check` ok, `foreign_key_check` 0.
+
+**Fichiers.** `src/lib/suppression.ts` (nouveau, avec son test), `repo.ts` (les `delete*`, `viderCorbeille`, `purgerCorbeille`, `supprimerExemples`), `demo.ts` (`deleteTask`), `sync/local.ts` (`supprimerLigne`), `views/CorbeilleView.tsx`, `components/corbeille/geste.tsx`, `en.ts` (3 clés). Aucune migration, aucun Rust.
+
+**Tests.**
+- `suppression.test.ts` (7) : toute clé étrangère du schéma est connue de `DEPENDANTS` ; contre-épreuve faite (une ligne retirée → rouge).
+- `corbeille/api.test.ts` (+7, natif et démo) : objectif suivi, tâche chronométrée, purge, vider, vider et purge après un refus, exemples. Vus rouges avant le correctif.
+- `sync/corbeille.test.ts` (+3, deux appareils) : les trois en `FOREIGN KEY constraint failed` sans le correctif de `supprimerLigne`.
+
+**Vu à l'écran** (build de démo du chantier, Chrome piloté du labo, bureau 1440×900) : une tâche et un objectif à 2 étapes et 4 tâches jetés ; « Supprimés récemment » affiche 2 lignes, « Vider (8 éléments) » ; « Tout supprimer » → « Rien à restaurer » et le toast « 8 éléments supprimés pour de bon ».
+
+⚠️ **Pas vu.**
+- L'app installée : rien n'est installé. Le correctif n'atteint Antonin qu'après un build natif.
+- Le message d'échec (« … n'a pas pu être supprimé ») : le mode démo ne sait pas fabriquer un refus de la base. Le chemin est tenu par les tests natifs et par les types.
+- Deux vraies machines : le correctif de synchronisation est prouvé sur le banc à deux bases, pas sur un vrai second appareil.
+
+▶️ **Après le build : un seul geste d'Antonin.** Ouvrir « Supprimés récemment », cliquer « Vider », puis « Tout supprimer ». Les 63 lignes partent. Rien à faire sinon : aucune donnée n'est à réparer.
+
+⚠️ **À savoir avant ce geste.** Vider envoie 76 pierres tombales d'objectifs et 50 de tâches. Un appareil resté sur une version D'AVANT ce correctif, et qui a ces objets, verrait sa synchronisation s'arrêter dessus (PIEGES § 42.2). L'iPhone et le simulateur doivent recevoir ce correctif avant de resynchroniser.
+
+**Ligne de base** (après recalage sur `d420ab4`) : `tsc`, `test:types`, `i18n:check` (2807), `i18n:durs` verts. vitest : 2525 verts, 3 ignorés, **1 échec** — `finance/facturation/demo.test.ts`, « jour par jour », délai de 60 s dépassé. Le même test dépasse son délai sur le tronc SANS ce chantier, rejoué dans la même minute (machine à 70 puis 110 de charge : rendus Blender et ffmpeg d'une autre session). Ce n'est pas ce chantier ; à rejouer machine calme.
