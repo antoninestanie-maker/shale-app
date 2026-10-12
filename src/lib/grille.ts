@@ -146,3 +146,74 @@ export function colonneCss(largeur: number, ancre: Ancre | null): string {
   if (ancre === "fin") return `span ${largeur} / -1`;
   return `span ${largeur}`;
 }
+
+/**
+ * ⭐ LA PLACE DE LA BARRE DE POIGNÉES DANS UN EN-TÊTE (2026-10-12).
+ *
+ * LE DÉFAUT. Antonin, sur Performance : « les widgets bougent quand je passe
+ * dessus, car un s'agrandit quand je passe la souris dessus ». Au survol d'un
+ * panneau, la barre de poignées apparaît en haut à droite ; un en-tête marqué
+ * `.rgrid-head` réserve alors sa place par un `padding-right`, pour que ses
+ * contrôles ne passent pas dessous. Mais cet en-tête sait se replier
+ * (`flex-wrap`) : quand il n'avait pas la place de s'écarter, il passait sur
+ * deux lignes, la carte grandissait de 24 px et la grille se réagençait — au
+ * simple passage de la souris. Mesuré à 1470×923, densité 110 % : « par jour
+ * de la semaine » (Performance) et « objectif quotidien » (Timer).
+ *
+ * LA RÈGLE. Survoler un panneau ne change JAMAIS sa hauteur. Un en-tête est
+ * donc dans l'un de trois cas, décidés par la MESURE, pas par le survol :
+ *   • hors de portée de la barre (plus bas, ou plus à gauche) : rien n'est
+ *     réservé, ni au repos ni au survol ;
+ *   • il a la place : la réserve n'est posée qu'au survol, comme avant — la
+ *     mesure a vérifié qu'elle ne change pas sa hauteur ;
+ *   • il n'a PAS la place (« serré ») : la réserve est PERMANENTE. Il est
+ *     replié au repos comme il l'aurait été au survol, et le survol n'y
+ *     change plus rien.
+ * Dans les trois cas, aucun contrôle ne passe sous la barre.
+ *
+ * Ces deux fonctions sont la règle ; la mesure elle-même (lire le DOM, poser
+ * le résultat) est dans `components/grid/entetes.ts`.
+ */
+
+/** L'air laissé entre la barre de poignées et ce qui s'en écarte, en px locaux. */
+export const AIR_BARRE = 8;
+
+/** Un rectangle lu à l'écran (`getBoundingClientRect`) : seuls ces bords comptent. */
+export interface BordsEcran {
+  haut: number;
+  bas: number;
+  gauche: number;
+  droite: number;
+}
+
+/**
+ * La largeur à réserver à droite d'un en-tête pour que la barre de poignées ne
+ * recouvre rien, en px LOCAUX. 0 : la barre ne passe pas sur cet en-tête.
+ *
+ * ⚠️ Calculée d'après les rectangles RÉELS, plus d'après une constante. La
+ * constante (5,25 rem) supposait une carte au bord rembourré de 20 px : sur un
+ * panneau sans carte (« Métriques »), le bouton « Ajouter » restait 4 px sous
+ * la barre ; sur une carte, elle réservait 10 px de trop.
+ *
+ * `echelle` : px d'écran pour un px local (la densité de l'interface) — les
+ * rectangles sont en px d'écran, le `padding` s'écrit en px locaux.
+ */
+export function reserveDEntete(tete: BordsEcran, barre: BordsEcran, echelle: number): number {
+  const e = Number.isFinite(echelle) && echelle > 0 ? echelle : 1;
+  // Barre absente (au doigt elle est `display: none`) : rectangle vide.
+  if (barre.droite - barre.gauche <= 0 || barre.bas - barre.haut <= 0) return 0;
+  // Pas à la même hauteur : un second en-tête, plus bas dans la carte.
+  if (tete.haut >= barre.bas || tete.bas <= barre.haut) return 0;
+  const recouvert = (tete.droite - barre.gauche) / e;
+  if (recouvert <= 0) return 0;
+  return Math.ceil(recouvert + AIR_BARRE);
+}
+
+/**
+ * L'en-tête est-il « serré » : la réserve le fait-elle GRANDIR ?
+ * `sans` et `avec` : sa hauteur mesurée sans réserve, puis avec. Un demi-pixel
+ * de jeu : deux mesures du même en-tête peuvent différer d'un arrondi.
+ */
+export function enteteSerre(sans: number, avec: number): boolean {
+  return avec - sans > 0.5;
+}

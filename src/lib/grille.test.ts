@@ -1,14 +1,18 @@
 // La grille et un panneau qui n'existe plus — voir l'en-tête de `grille.ts`.
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  AIR_BARRE,
   ancreTient,
   colonneCss,
   dispositionIntacte,
+  enteteSerre,
   masquesConnus,
   ordreAujourdhuiAuTelephone,
   ordreEffectif,
   placerApres,
+  reserveDEntete,
 } from "./grille";
 
 // Les panneaux d'Aujourd'hui tels que le code les rend après le 2026-10-11 :
@@ -202,5 +206,141 @@ describe("placerApres", () => {
   });
   it("un élément ne se place pas après lui-même", () => {
     expect(placerApres(["a", "b"], "a", "a")).toEqual(["a", "b"]);
+  });
+});
+
+// ── Performance épurée (2026-10-12) : deux panneaux retirés ─────────────────
+
+describe("Performance — une disposition enregistrée qui porte encore `perf-tiles` et `perf-focus`", () => {
+  // Les panneaux que le code rend AUJOURD'HUI, lus dans la vue elle-même : le
+  // test ne peut pas dériver d'une liste recopiée.
+  const source = readFileSync("src/views/PerformanceView.tsx", "utf8");
+  // Deux panneaux n'existent que sous condition (Shale Pro, module Trading) :
+  // le compte d'ici ne les a pas.
+  const presents = [...source.matchAll(/<ResizablePanel id="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((id) => id !== "perf-revue-ia" && id !== "perf-trading");
+  // Ce qu'un compte d'avant le 12 octobre a pu enregistrer en rangeant sa grille.
+  const AVANT = [
+    "perf-tiles",
+    "perf-analyse",
+    "perf-discipline",
+    "perf-habitudes",
+    "perf-semaine",
+    "perf-focus-temps",
+    "perf-streaks",
+    "perf-goals",
+    "perf-focus",
+    "perf-metrics",
+  ];
+
+  it("la vue ne rend plus ni les tuiles de période ni « focus par tag »", () => {
+    expect(presents).not.toContain("perf-tiles");
+    expect(presents).not.toContain("perf-focus");
+    // Ce qui reste, d'après Antonin : la discipline, la régularité, les quatre demi-cartes, les métriques.
+    for (const id of ["perf-analyse", "perf-discipline", "perf-habitudes", "perf-semaine", "perf-focus-temps", "perf-streaks", "perf-goals", "perf-metrics"]) {
+      expect(presents).toContain(id);
+    }
+  });
+
+  it("⭐ l'ordre enregistré se charge sans trou : les deux absents n'y prennent aucune place", () => {
+    const ordre = ordreEffectif(["perf-focus", ...AVANT.filter((id) => id !== "perf-focus").reverse()], presents);
+    expect(ordre).not.toContain("perf-tiles");
+    expect(ordre).not.toContain("perf-focus");
+    expect([...ordre].sort()).toEqual([...presents].sort());
+    expect(new Set(ordre).size).toBe(ordre.length);
+    // L'ordre choisi pour le reste est gardé : « Métriques » avait été remontée en tête.
+    expect(ordre[0]).toBe("perf-metrics");
+  });
+
+  it("⭐ masqués avant d'être retirés : aucune pastille « + … » pour les rallumer", () => {
+    expect(masquesConnus(["perf-focus", "perf-goals", "perf-tiles"], presents)).toEqual(["perf-goals"]);
+  });
+
+  it("leur taille enregistrée ne compte pas comme une disposition touchée", () => {
+    const panneaux = presents.map((id) => ({ id, largeurParDefaut: 12 }));
+    // L'ordre affiché est celui d'avant, les deux absents ôtés (`ordreEffectif`).
+    const ordre = ordreEffectif(AVANT, presents);
+    expect(ordre).toEqual(presents);
+    expect(dispositionIntacte(ordre, panneaux, { "perf-focus": { w: 6 }, "perf-tiles": { w: 8 } })).toBe(true);
+  });
+});
+
+// ── La barre de poignées et les en-têtes (2026-10-12) ───────────────────────
+
+describe("reserveDEntete — la place que la barre de poignées recouvre vraiment", () => {
+  // Un panneau de 472 px : la barre (82 px) est à 6 px du bord droit et du haut.
+  const barre = { haut: 6, bas: 36, gauche: 384, droite: 466 };
+  // L'en-tête d'une carte au bord rembourré de 20 px.
+  const tete = { haut: 20, bas: 38, gauche: 20, droite: 452 };
+
+  it("⭐ ce que la barre recouvre, plus un peu d'air", () => {
+    expect(reserveDEntete(tete, barre, 1)).toBe(452 - 384 + AIR_BARRE);
+  });
+
+  it("⭐ un panneau sans carte (« Métriques ») : l'en-tête va jusqu'au bord, la réserve suit", () => {
+    // La constante d'avant (84 px) laissait « Ajouter » 4 px sous la barre.
+    const r = reserveDEntete({ ...tete, haut: 0, bas: 32, gauche: 0, droite: 472 }, barre, 1);
+    expect(r).toBe(472 - 384 + AIR_BARRE);
+    expect(472 - r).toBeLessThan(barre.gauche);
+  });
+
+  it("⭐ un second en-tête, plus bas dans la carte : rien à réserver", () => {
+    expect(reserveDEntete({ ...tete, haut: 180, bas: 198 }, barre, 1)).toBe(0);
+    // Juste sous la barre, bord à bord : toujours rien.
+    expect(reserveDEntete({ ...tete, haut: 36, bas: 54 }, barre, 1)).toBe(0);
+  });
+
+  it("un en-tête qui s'arrête avant la barre (une colonne de gauche) : rien", () => {
+    expect(reserveDEntete({ ...tete, droite: 300 }, barre, 1)).toBe(0);
+  });
+
+  it("au doigt la barre n'existe pas (rectangle vide) : rien", () => {
+    expect(reserveDEntete(tete, { haut: 0, bas: 0, gauche: 0, droite: 0 }, 1)).toBe(0);
+  });
+
+  it("⭐ à 110 %, les rectangles sont en px d'écran et la réserve en px locaux", () => {
+    const z = 1.1;
+    const fois = (b: typeof barre) => ({ haut: b.haut * z, bas: b.bas * z, gauche: b.gauche * z, droite: b.droite * z });
+    expect(reserveDEntete(fois(tete), fois(barre), z)).toBe(reserveDEntete(tete, barre, 1));
+  });
+
+  it("une échelle illisible vaut 1", () => {
+    expect(reserveDEntete(tete, barre, Number.NaN)).toBe(reserveDEntete(tete, barre, 1));
+    expect(reserveDEntete(tete, barre, 0)).toBe(reserveDEntete(tete, barre, 1));
+  });
+});
+
+describe("enteteSerre — la réserve fait-elle grandir l'en-tête ?", () => {
+  it("⭐ une ligne de plus : serré, la réserve devient permanente", () => {
+    expect(enteteSerre(18, 44)).toBe(true);
+  });
+
+  it("même hauteur, à un arrondi près : il a la place, la réserve reste au survol", () => {
+    expect(enteteSerre(18, 18)).toBe(false);
+    expect(enteteSerre(18.1, 18.4)).toBe(false);
+  });
+});
+
+describe("la feuille de style et la jauge se tiennent", () => {
+  const css = readFileSync("src/index.css", "utf8");
+  const jauge = readFileSync("src/components/grid/entetes.ts", "utf8");
+
+  it("⭐ un en-tête serré garde sa réserve SANS survol", () => {
+    // La règle qui pose le padding : au survol, au clavier, menu ouvert — et serré.
+    const regle = css.match(/([^{}]*)\{\s*padding-right: var\(--rgrid-reserve, var\(--rgrid-handle-w, 5\.25rem\)\);/);
+    expect(regle).not.toBeNull();
+    const selecteurs = regle![1];
+    expect(selecteurs).toMatch(/\.group\\\/panel:hover \.rgrid-head/);
+    expect(selecteurs).toMatch(/\.rgrid-head\[data-rgrid-serre\]/);
+  });
+
+  it("la jauge pose exactement ce que la feuille lit", () => {
+    expect(jauge).toContain('"--rgrid-reserve"');
+    expect(jauge).toContain('"data-rgrid-serre"');
+  });
+
+  it("⭐ la jauge n'écrit aucune classe : l'observateur du panneau regarde `class`, elle se relancerait", () => {
+    expect(jauge).not.toMatch(/classList|className/);
   });
 });
