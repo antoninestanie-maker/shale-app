@@ -127,7 +127,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               onClick={() => onToggle(task)}
               data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
               data-tip-sub={t("Compte dans la discipline et le streak du jour.")}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
+              className="cible-tactile-ligne flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
             >
               <CocheVisuelle cochee={task.done} />
 

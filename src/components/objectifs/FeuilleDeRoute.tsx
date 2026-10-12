@@ -536,7 +536,9 @@ function LigneEtape(p: PropsLigne) {
                 type="button"
                 onClick={() => onReplier(cle, !ouvert)}
                 onDoubleClick={() => setRenommer(true)}
-                className={`truncate truncate-souris text-left text-sm ${termine ? "text-text-dim" : "text-text"}`}
+                // 44 pt de haut au doigt (le titre mesurait 20 px), repris en
+                // marge négative : la ligne de l'étape ne s'écarte pas pour autant.
+                className={`cible-tactile-ligne truncate truncate-souris text-left text-sm [@media(pointer:coarse)]:-my-2.5 ${termine ? "text-text-dim" : "text-text"}`}
                 title={etape.title}
               >
                 {etape.title}

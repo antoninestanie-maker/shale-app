@@ -202,7 +202,10 @@ export default function TimerPanel({ data, focus }: Props) {
             {/* auto-tiles-sm : les presets se réorganisent selon la largeur
                 réelle de la carte. En `flex`, le `min-width:auto` des items
                 faisait déborder la rangée dès que la carte devenait étroite. */}
-            <div className="auto-tiles-sm gap-1.5">
+            {/* Au téléphone, deux colonnes : à quatre de front, « POMODORO »
+                et « DEEP WORK » étaient coupés à cinq lettres, sans bulle pour
+                lire la suite. */}
+            <div className="auto-tiles-sm gap-1.5 telephone:grid-cols-2">
               {TIMER_PRESETS.map((p, i) => {
                 const on = !customMode && presetIdx === i && customWork === null;
                 return (
