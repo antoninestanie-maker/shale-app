@@ -435,7 +435,7 @@ export default function PerformanceView({ data, refresh }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
+    <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <header className="view-head">
         <h1 className="text-3xl text-text">{t("Performance")}</h1>
         <div role="tablist" aria-label={t("Ce que montre Performance")} className="flex flex-wrap gap-1.5">
