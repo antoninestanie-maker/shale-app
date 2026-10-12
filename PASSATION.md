@@ -2428,3 +2428,27 @@ Aucun code écrit. Faits lus dans `src-tauri/gen/apple/project.yml`, `gen/apple/
 - Les info-bulles des nouvelles pastilles n'ont pas été regardées à l'écran.
 
 **Vu en passant, pas corrigé** : au téléphone, dans la feuille de route, le titre d'une étape sur deux lignes chevauche sa pastille de date (« Signer deux clients récurrents » / « 15 août »). Antérieur à ce chantier.
+
+## 2026-10-12 (nuit) — « l'écriture est floue » : la pastille du minuteur, et tout ce qui était centré de la même façon
+
+Branche `chantier/texte-net` (worktree `Shale-chantiers/texte-net`). Front seul : `timer/PastilleSeance.tsx` (la pastille y a déménagé le même soir, chantier `focus-ile`), `timer/pastille.css` (commentaire), `NoteComposer.tsx`, `EditeurCarte.tsx`, `Sidebar.tsx`, `LoginScreen.tsx`, `KnowledgeView.tsx`, `PositionSizeWidget.tsx`, `lib/nettete.source.test.ts`, `tools/webkit-pilote.swift`. Ni `index.css`, ni `en.ts`, ni migration, ni Rust. Décisions : `CLAUDE.md`, même date. Pièges : § 41.
+
+**Mesuré dans WebKit** (pilote, démo, 1470×923 à 110 %, sombre, en lisant ce que l'écran compose) :
+- avant : pastille à x = 657,75 ; gradient moyen 0,0256 ; la même, centrée par des marges : 0,0278 ;
+- après (build de démo du correctif, AVANT recalage : l'ancienne pastille, mêmes classes de centrage) : pastille centrée sur 735,00 (fenêtre de 1470), `translate: none` ; gradient 0,0282 ; au survol elle ne bouge pas ;
+- une entrée animée tenue par `both` (`transform` identité) ne la rend pas floue : 0,0282 — utile au chantier `focus-ile` ;
+- bulle de mise en forme du Savoir : centrée sur la sélection (535,38 des deux côtés), 8 px au-dessus, nette à la capture ;
+- repère d'onglet actif : 10,5 px au-dessus, 10,5 px au-dessous ; loupe du Savoir : 11,98 et 12,01.
+
+**Tests** : `nettete.source.test.ts` (4), vu rouge sur l'ancien code (sept fichiers) ; `tsc --noEmit` 0 erreur.
+
+⚠️ **Pas vu** :
+- l'app installée ;
+- les trois bandeaux de la carte mentale (ils n'existent que pendant un glissement) ;
+- l'œil du mot de passe et le « % » du calculateur (écran de connexion et module de côté) : équivalence de CSS, pas de mesure ;
+- la comparaison des positions avec l'ancien build : le passage est resté bloqué, machine à plus de 90 de charge ;
+- un écran non Retina. La capture d'Antonin fait 1 pixel par point : soit son écran, soit le collage l'a réduite.
+
+- la NOUVELLE pastille (`PastilleSeance.tsx`) avec le correctif : mêmes classes, pas remesurée à l'écran.
+
+**Pas installé.** ⚠️ Le build natif du 13/10 à 00:23 (`eff40f0`, session [correctifs]) est parti quelques minutes AVANT cette fusion : il porte la nouvelle pastille, encore floue. Le correctif part avec le build suivant.

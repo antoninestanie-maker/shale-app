@@ -15,7 +15,16 @@
 //   {"js":"…","log":true,"nom":"…"}  {"attendre":ms}
 //   {"survol":[x,y]}  {"survolSel":"sélecteur","index":0,"dx":0.5,"dy":0.5}
 //   {"clic":[x,y]}    {"capture":"nom","zone":[x,y,l,h]}   (points CSS)
+//   {"fond":true}     {"ecran":"nom","zone":[x,y,l,h]}     {"echelle":1}
 // À lancer sur le mode démo (PASSATION § 13.2), jamais sur tauri dev.
+//
+// ⚠️ DEUX CAPTURES, QUI NE DISENT PAS LA MÊME CHOSE (2026-10-12, PIEGES § 41).
+// `capture` (takeSnapshot) redessine la page : elle ne montre PAS un calque
+// rééchantillonné par le compositeur — un texte flou à l'écran y sort net.
+// `ecran` lit ce que le serveur de fenêtres compose VRAIMENT. Elle exige
+// `{"fond":true}` en tête de plan : la fenêtre devient opaque et passe SOUS le
+// bureau (invisible pour Antonin, composée quand même). `echelle` force le
+// nombre de pixels par point (1 = écran non Retina).
 // ─────────────────────────────────────────────────────────────────────────────
 import Cocoa
 import WebKit
@@ -86,7 +95,33 @@ func shot(_ nom: String, _ clip: [Double]?) {
   while !fini { spin(20) }
 }
 
+// `CGWindowListCreateImage` est retirée du SDK mais toujours dans le système :
+// on la prend par son nom. Notre propre fenêtre se lit sans autorisation
+// d'enregistrement d'écran.
+typealias Lire = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+func ecran(_ nom: String, _ zone: [Double]?) {
+  guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { print("capture écran indisponible"); return }
+  // 8 = cette fenêtre seule ; 1 | 8 = sans son ombre, en pleine résolution.
+  guard var img = unsafeBitCast(sym, to: Lire.self)(CGRect.null, 8, UInt32(win.windowNumber), 1 | 8)?.takeRetainedValue() else { print("capture écran vide", nom); return }
+  let k = Double(img.width) / W
+  if let z = zone, let c = img.cropping(to: CGRect(x: z[0] * k, y: z[1] * k, width: z[2] * k, height: z[3] * k)) { img = c }
+  if let png = NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:]) {
+    try? png.write(to: URL(fileURLWithPath: "\(out)/\(nom).png"))
+  }
+}
+
 for pas in plan {
+  if pas["fond"] as? Bool == true {
+    win.alphaValue = 1
+    win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) - 1)
+  }
+  if let k = pas["echelle"] as? Double {
+    let sel = NSSelectorFromString("_setOverrideDeviceScaleFactor:")
+    if wv.responds(to: sel) {
+      typealias G = @convention(c) (AnyObject, Selector, CGFloat) -> Void
+      unsafeBitCast(wv.method(for: sel), to: G.self)(wv, sel, CGFloat(k))
+    } else { print("pas d'échelle forcée") }
+  }
   if let u = pas["url"] as? String {
     nav.fini = false; wv.load(URLRequest(url: URL(string: u)!))
     while !nav.fini { spin(50) }
@@ -104,5 +139,6 @@ for pas in plan {
   if let p = pas["clic"] as? [Double] { souris(.leftMouseDown, p[0], p[1]); souris(.leftMouseUp, p[0], p[1]) }
   if let ms = pas["attendre"] as? Double { spin(ms) }
   if let n = pas["capture"] as? String { shot(n, pas["zone"] as? [Double]) }
+  if let n = pas["ecran"] as? String { ecran(n, pas["zone"] as? [Double]) }
 }
 print("ok")

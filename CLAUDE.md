@@ -8450,3 +8450,17 @@ Sur un Mac, l'équivalent natif est la barre des menus, où l'app a déjà son i
 - Sans date de création lisible, rien ne change.
 - Elle vaut partout où le péril est lu : bandeau du Calendrier, page d'un objectif, IA (« Pourquoi, et que faire ? », revue de la semaine).
 - **Phrase d'Antonin : aucune.** La mission demandait de la proposer et de l'appliquer. À lui de la valider.
+
+## 2026-10-12 — Netteté : on ne centre plus rien par un `translate` en pourcentage
+
+Antonin, capture de la pastille du minuteur à l'appui : « l'écriture est floue dans l'app ». État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 41.
+
+- **La cause** : la pastille était centrée par `left-1/2 -translate-x-1/2`. Décalé par un `translate`, un calque n'est plus calé sur les pixels ; à 110 % il tombait à x = 657,75 et tout son contenu était rééchantillonné.
+- **La règle, pour tout élément** : centrer par des marges (`inset-x-0 mx-auto w-fit`, `inset-y-0 my-auto h-fit`), jamais par `-translate-x-1/2` ni `-translate-y-1/2`. Au-dessus d'un point : une ancre sans taille en `flex` (la bulle de `NoteComposer`). Une position calculée en JS se cale sur les pixels physiques (`Tooltip.tsx` le faisait déjà).
+- **Corrigé large** : la pastille, la bulle de mise en forme du Savoir, les trois bandeaux d'aide de la carte mentale, et quatre repères centrés en hauteur (onglet actif de la barre latérale, œil du mot de passe, loupe du Savoir, « % » du calculateur). Les quatre derniers n'étaient pas des calques : corrigés par cohérence, sans flou constaté.
+- **Deux exceptions, nommées dans le test** : les pastilles d'état de la carte mentale (dans une scène qu'on zoome librement) et les pivots de l'horloge à volets (un trait sans texte, dans une scène en 3D).
+- **`translate-none` sur la pastille** : sans la classe de centrage, le soulèvement des cartes au survol (2 px) s'y appliquait de nouveau.
+- **Les bandeaux de la carte mentale** peuvent maintenant prendre toute la largeur de la scène (moins 12 px de chaque côté). Avant, ils se repliaient à la moitié.
+- **Pas touché** : `index.css` (le soulèvement de 2 px des cartes vaut 2,2 px à 110 % — § 41.3).
+- **La pastille a changé de fichier le même soir** (`timer/PastilleSeance.tsx`, chantier `focus-ile`, fusionné à 00:22) avec le même centrage : corrigée là, au recalage. Son entrée animée reste un `transform` tenu par `both` (identité à l'arrivée) : mesuré net.
+- **Outil** : `tools/webkit-pilote.swift` sait lire ce que l'écran compose (`fond`, `ecran`, `echelle`). Sa capture habituelle ne montre pas ce flou.

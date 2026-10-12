@@ -5155,3 +5155,42 @@ Pièges rencontrés par les trois chantiers du soir du 12 octobre. Numérotation
 
 - Taper une date dans le calendrier : à l'ouverture le focus est sur la grille, pas sur le champ « jj/mm/aaaa ». `{"taper": "17/10"}` seul ne tape nulle part. Il faut `{"dans": <n° du champ>, "taper": …}`.
 - `{"clic": "Aujourd'hui"}` depuis le Calendrier touche le bouton « Aujourd'hui » du Calendrier, pas la barre latérale. Passer par le numéro.
+
+# 41. Texte flou : un calque décalé par un `translate` (2026-10-12)
+
+## 41.1 `left-1/2 -translate-x-1/2` sur un élément fixe : il n'est plus calé sur les pixels
+
+**Symptôme.** Antonin : « l'écriture est floue dans l'app », capture de la pastille du minuteur. Le reste de l'écran est net.
+
+**Cause.** La pastille était centrée par `left-1/2 -translate-x-1/2`. Un élément `fixed` (ou « verre », ou animé) est un calque à part. Sans `translate`, WebKit cale ce calque sur la grille de pixels. Avec, il ne le fait plus — et la moitié d'une largeur tombe presque toujours sur une fraction : à 110 %, x = 657,75, soit 1315,5 pixels d'écran. Le calque est rééchantillonné : texte, point et contour flous.
+
+**Mesure** (même pastille, même instant, ce que l'écran compose) : gradient moyen 0,0256 avec le `translate`, 0,0278 centrée par des marges.
+
+**Parade.**
+- centrer en largeur : `inset-x-0 mx-auto w-fit` ; en hauteur : `inset-y-0 my-auto h-fit` ;
+- poser au-dessus d'un point : une ancre `flex h-0 w-0 items-end justify-center`, l'élément dedans (`NoteComposer`, la bulle) ;
+- position calculée en JS : la caler sur les pixels physiques (`Tooltip.tsx`, `snap` — le même défaut y avait déjà été payé) ;
+- `nettete.source.test.ts` refuse `-translate-x-1/2`, `-translate-y-1/2`, `-translate-*-full` et `translate(-N%)`. Deux exceptions nommées.
+
+⚠️ Une `.card` se soulève de 2 px au survol (`translate: 0 -2px`). Sur un élément centré par des marges, ce soulèvement s'applique de nouveau (avant, la classe de centrage l'écrasait) : poser `translate-none`.
+
+## 41.2 `takeSnapshot` ne montre PAS ce flou
+
+La capture du pilote WebKit (`{"capture":…}`) redessine la page : 0,0283 de gradient dans les deux cas, pastille nette. Le défaut était invisible à l'outil qui sert à vérifier l'app. Chrome sans fenêtre ne le montre pas non plus (autre moteur).
+
+**Parade.** `{"fond":true}` en tête de plan, puis `{"ecran":"nom","zone":[…]}` : la fenêtre passe sous le bureau, opaque, et on lit ce que le serveur de fenêtres compose. Comparer deux captures par un chiffre (gradient moyen), pas à l'œil : agrandies par `sips`, elles sont lissées et se ressemblent.
+
+## 41.3 Non corrigé : le soulèvement des cartes au survol, à 110 %
+
+`translate: 0 -2px` vaut 2,2 px à 110 % : le texte d'une carte survolée n'est pas calé le temps du survol. Non mesuré, non corrigé (`index.css` était pris par un autre chantier ce soir-là). Piste : `calc(-2px * var(--zoom-inv))`.
+
+## 41.4 Un correctif qui rate le build de quelques minutes
+
+Le chantier `focus-ile` réécrivait la pastille le même soir (`PastilleSeance.tsx`), avec le même centrage. Il a été fusionné et son build natif lancé à 00:23, pendant que ce correctif finissait ses mesures : le build du 13/10 à 00:23 porte donc ENCORE la pastille floue. Corrigée au recalage, dans le fichier neuf.
+
+**Parade.** Quand le carnet annonce qu'une autre session réécrit le fichier fautif, lui écrire la correction (une ligne) DÈS que la cause est prouvée, avant de finir ses propres vérifications.
+
+## 41.5 Outils
+
+- La charge machine : une autre session rendait dans Blender et lançait vitest (charge 60 à 150). Un plan du pilote WebKit de vingt pas a pris plus de dix minutes. Lancer ces plans en arrière-plan.
+- `git stash` est commun aux worktrees (§ 34.3) : je l'ai utilisé pour la contre-épreuve du test, à tort. Rien n'a été perdu ; `git diff > x.patch` puis `git checkout`.
