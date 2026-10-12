@@ -35,7 +35,9 @@ export default function BoutonDate(props: {
       aria-haspopup="dialog"
       aria-label={t("Échéance : {date}. Changer", { date: formaterComplet(task.due_date) })}
       data-tip={t("Changer la date")}
-      className={`cible-tactile-ligne inline-flex shrink-0 items-center rounded underline decoration-dotted decoration-1 underline-offset-[3px] transition-colors hover:text-text ${
+      // Au doigt : 44 pt de cible, mais la ligne ne grandit pas d'autant — la
+      // marge négative laisse la zone déborder sans écarter le libellé de ses faits.
+      className={`cible-tactile-ligne inline-flex shrink-0 items-center rounded underline decoration-dotted decoration-1 underline-offset-[3px] transition-colors hover:text-text [@media(pointer:coarse)]:-my-2 ${
         props.className ?? ""
       }`}
     >

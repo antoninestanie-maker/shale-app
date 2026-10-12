@@ -414,7 +414,10 @@ export default function TasksView({ data, refresh, focus }: Props) {
       setReplis((r) => new Set([...r].filter((x) => x !== cle)));
       return;
     }
-    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`));
+    // ⚠️ Au MILIEU de l'écran, pas « au plus près » : au téléphone, le plus près
+    // est le bord bas, SOUS la barre d'onglets — la tâche qu'on vient d'ajouter
+    // y arrivait à moitié cachée (vu à 390 px le 2026-10-12).
+    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`), { block: "center" });
   }, [nouvelle, vues, replis]);
 
   useEffect(() => {

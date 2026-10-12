@@ -17,7 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { objectifsEnPeril } from "../calendrier/peril";
-import { addDays, isDueOn, weekdayOf } from "../logic";
+import { addDays, estPrevueLe, weekdayOf } from "../logic";
 import { mesurer, type ContexteProgression } from "../objectifs/progression";
 import { createTask, getSetting, setSetting } from "../repo";
 import { estRecurrente, planificationDeSaisie } from "../taches";
@@ -109,7 +109,9 @@ export function payloadRevue(
 
   let horsPrevu = 0;
   const parJour = jours.map((j) => {
-    const prevues = data.tasks.filter((t) => (estRecurrente(t) ? isDueOn(t, j) : t.due_date === j));
+    // « Prévue ce jour-là » se lit dans la règle unique (`estPrevueLe`,
+    // `lib/logic.ts`) : la revue en portait une copie, mot pour mot.
+    const prevues = data.tasks.filter((t) => estPrevueLe(t, j));
     const faites = faitesLe.get(j) ?? new Set<number>();
     const ids = new Set(prevues.map((t) => t.id));
     const faitesPrevues = prevues.filter((t) => faites.has(t.id)).length;
