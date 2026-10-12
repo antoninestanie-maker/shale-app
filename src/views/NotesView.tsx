@@ -64,7 +64,10 @@ export default function NotesView({ data, refresh }: Props) {
   const champTitre = useRef<HTMLInputElement>(null);
   // La note qu'on vient de DEMANDER (création, ⌘⇧N, palette, raccourci de
   // l'iPhone) : si elle est neuve, elle reçoit le curseur dans son texte.
-  const aSaisir = useRef<number | null>(null);
+  // ⚠️ Un ÉTAT, pas une ref : lue pendant le rendu, une ref remise à zéro dans
+  // l'effet faisait changer sa dépendance au rendu suivant, et le nettoyage
+  // annulait le focus avant qu'il ait lieu (vu à l'écran sur le bouton « + »).
+  const [aSaisir, setASaisir] = useState<number | null>(null);
   const menu = useMenuContextuel<Note>();
 
   // ─── L'onglet « Sans titre » ───────────────────────────────────────────────
@@ -136,15 +139,21 @@ export default function NotesView({ data, refresh }: Props) {
   // curseur dans son TEXTE : une note prise à la volée s'écrit tout de suite,
   // sans clic. Ouvrir une note existante ne prend toujours pas le clavier.
   // La règle est dans `lib/notesSansTitre.ts` (`estNoteNeuve`).
-  const idNeuve = selected && aSaisir.current === selected.id && estNoteNeuve(selected.title, selected.body) ? selected.id : null;
+  const neuvePrete = aSaisir !== null && selected?.id === aSaisir && estNoteNeuve(selected.title, selected.body);
   useEffect(() => {
-    if (idNeuve === null) return;
-    aSaisir.current = null;
+    if (!neuvePrete) return;
     // Après la peinture : l'éditeur sème son contenu dans un effet, et au
     // téléphone la liste doit d'abord céder la place.
-    const r = requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-corps-note]")?.focus());
+    const r = requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>("[data-corps-note]")?.focus();
+      setASaisir(null);
+    });
     return () => cancelAnimationFrame(r);
-  }, [idNeuve]);
+  }, [neuvePrete]);
+  // Une note demandée qui n'est pas neuve (ou qu'on a quittée) : plus rien à saisir.
+  useEffect(() => {
+    if (aSaisir !== null && selected && (selected.id !== aSaisir || !estNoteNeuve(selected.title, selected.body))) setASaisir(null);
+  }, [aSaisir, selected]);
 
   // recherche (FTS en natif, LIKE en démo)
   useEffect(() => {
@@ -159,7 +168,7 @@ export default function NotesView({ data, refresh }: Props) {
     const onOpen = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
       if (id) {
-        aSaisir.current = id;
+        setASaisir(id);
         setSelectedId(id);
         // La vue était déjà là : la demande déposée est servie, on la retire,
         // sinon elle rouvrirait cette note au prochain montage.
@@ -171,7 +180,7 @@ export default function NotesView({ data, refresh }: Props) {
     // encore quand l'événement est parti (voir `lib/naviguer.ts`).
     const enAttente = consommerDemande("note");
     if (enAttente) {
-      aSaisir.current = enAttente;
+      setASaisir(enAttente);
       setSelectedId(enAttente);
     }
     return () => window.removeEventListener("sb:open-note", onOpen);
@@ -279,7 +288,7 @@ export default function NotesView({ data, refresh }: Props) {
     const id = await createNote(t("Nouvelle note"), "");
     await refresh();
     setQuery("");
-    aSaisir.current = id;
+    setASaisir(id);
     setSelectedId(id);
   };
 
@@ -296,7 +305,7 @@ export default function NotesView({ data, refresh }: Props) {
   // (« renommer une tâche effaçait sa date ») transposé aux notes, et la
   // parade est la même : ne pas écrire ce qu'on ne voulait pas changer.
   const renommerNote = (note: Note) => {
-    aSaisir.current = null; // c'est le TITRE qu'on vient chercher, pas le texte
+    setASaisir(null); // c'est le TITRE qu'on vient chercher, pas le texte
     setSelectedId(note.id);
     // Après la peinture : le champ n'existe pas encore si la note vient d'être
     // sélectionnée, et sur téléphone la liste doit d'abord céder la place.
