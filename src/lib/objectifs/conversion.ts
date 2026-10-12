@@ -2,7 +2,7 @@ import { prioriteDe } from "../priorite";
 import type { TaskInput } from "../repo";
 import { planificationDeSaisie } from "../taches";
 import type { Goal, LinkKind, Task } from "../types";
-import { mesurer, type SourcesProgression } from "./progression";
+import { mesurer, uidDeLigne, type SourcesProgression } from "./progression";
 
 /**
  * ⭐ UNE ÉTAPE VIDE DEVIENT UNE TÂCHE — ce qui se passe, décidé ici (2026-10-12).
@@ -29,10 +29,15 @@ import { mesurer, type SourcesProgression } from "./progression";
  *     fiches, événements qui reviennent — passe au parent. Sans cela, les
  *     tâches partiraient à la corbeille AVEC l'étape (`corbeille/lots.ts`).
  *
- * CE QUI NE SUIT PAS
+ * CE QUI NE SUIT PAS — et que l'écran dit AVANT de convertir
  *   • sa DESCRIPTION : une tâche n'en a pas (aucune colonne, et pas de
- *     migration pour ça). Elle reste avec l'étape, dans Supprimés récemment ;
- *     l'écran le dit AVANT de convertir (`description` ci-dessous).
+ *     migration pour ça). Elle reste avec l'étape, dans Supprimés récemment
+ *     (`description` ci-dessous) ;
+ *   • les CITATIONS de l'étape dans le texte d'une note ou d'une fiche (un
+ *     `@étape`, un nœud de carte) : elles désignent l'étape par son identité,
+ *     et réécrire le texte de quelqu'un pour le faire désigner autre chose
+ *     n'est pas un geste de conversion. La note, elle, passe au parent comme
+ *     tout ce qui était rattaché (`citations` ci-dessous).
  *
  * L'étape elle-même part à la corbeille par le chemin normal : rien n'est
  * détruit, et « Annuler » rend tout (`repo.annulerConversionEnTache`).
@@ -64,6 +69,13 @@ export interface PlanConversion {
   rattachesQuiSuivent: { kind: LinkKind; uid: string }[];
   /** ⚠️ Ne suit PAS : à annoncer avant de convertir. `null` s'il n'y en a pas. */
   description: string | null;
+  /** ⚠️ Ne suivent PAS : combien de textes (notes, fiches) CITENT l'étape. */
+  citations: number;
+}
+
+/** Y a-t-il quelque chose à dire avant de convertir ? */
+export function aAnnoncer(p: Pick<PlanConversion, "description" | "citations">): boolean {
+  return !!p.description || p.citations > 0;
 }
 
 export function planConversion(etapeId: number, s: SourcesProgression): PlanConversion | { refus: RefusConversion } {
@@ -79,6 +91,8 @@ export function planConversion(etapeId: number, s: SourcesProgression): PlanConv
   if (m.origine.type !== "unite") return { refus: "pas-vide" };
 
   const description = etape.description?.trim() || null;
+  const uid = uidDeLigne("goal", etape);
+  const citations = (s.liens ?? []).filter((l) => l.to_kind === "goal" && l.to_uid === uid && l.origin === "mention").length;
   return {
     etape,
     parent,
@@ -98,6 +112,7 @@ export function planConversion(etapeId: number, s: SourcesProgression): PlanConv
     tachesQuiSuivent: s.tasks.filter((t) => t.goal_id === etape.id),
     rattachesQuiSuivent: [...m.ressources, ...m.nonComptes].filter((r) => r.kind !== "task"),
     description,
+    citations,
   };
 }
 

@@ -24,9 +24,9 @@ import {
   type Replis,
 } from "../../lib/objectifs/libelles";
 import { compterSource, debutDuCompte, elementsDe, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
-import { etapesTriees, natureDe, peutAjouterEtape } from "../../lib/objectifs/structure";
+import { contientDesEtapes, etapesTriees, natureDe, peutAjouterEtape } from "../../lib/objectifs/structure";
 import { ajouterEtape } from "../../lib/objectifs/ajouter";
-import { planConversion } from "../../lib/objectifs/conversion";
+import { aAnnoncer, planConversion } from "../../lib/objectifs/conversion";
 import { convertirEnTache } from "./gesteConversion";
 import { filDObjectif, type Fil } from "../../lib/objectifs/fil";
 import { estRecurrente } from "../../lib/taches";
@@ -408,7 +408,7 @@ function LigneEtape(p: PropsLigne) {
         const x = mesures.get(id);
         return !!x && estAcheve(x);
       },
-      (id) => data.goals.some((g) => g.parent_goal_id === id),
+      (id) => contientDesEtapes({ id }, data.goals),
     );
   const [renommer, setRenommer] = useState(false);
   const compteePar = sourceNommee(etape, data);
@@ -438,14 +438,16 @@ function LigneEtape(p: PropsLigne) {
    * ⭐ « EN FAIRE UNE TÂCHE » (2026-10-12) — une étape vide est une chose à
    * faire : elle devient une vraie tâche, rattachée au parent. `planConversion`
    * (pur) pose la même question que la case — « est-ce une unité ? » — et dit
-   * ce qui ne suivrait pas. Seule la DESCRIPTION ne suit pas (une tâche n'en a
-   * pas) : dans ce cas, et dans ce cas seulement, on le dit AVANT.
+   * ce qui ne suivrait pas : la DESCRIPTION (une tâche n'en a pas) et les
+   * CITATIONS de l'étape dans le texte d'une note. Dans ces cas, et dans ces
+   * cas seulement, on le dit AVANT.
    * Un geste = une fonction : le bouton de la ligne et l'entrée du menu « ⋯ »
    * appellent `demanderConversion`.
    */
   const plan = unite ? planConversion(etape.id, p.sources) : null;
-  const convertible = !!plan && !("refus" in plan);
-  const laisse = plan && !("refus" in plan) ? plan.description : null;
+  const pret = plan && !("refus" in plan) ? plan : null;
+  const convertible = !!pret;
+  const laisse = !!pret && aAnnoncer(pret);
   const [aConfirmer, setAConfirmer] = useState(false);
   const [conversion, setConversion] = useState(false);
   const convertir = async () => {
@@ -657,8 +659,9 @@ function LigneEtape(p: PropsLigne) {
 
       {/* ⭐ CE QUI NE SUIT PAS SE DIT AVANT (2026-10-12). Une tâche n'a pas de
           description : celle de l'étape reste avec elle, dans Supprimés
-          récemment. Le reste — titre, échéance, priorité, coche, ce qui lui
-          était rattaché — suit, et « Annuler » rend tout. */}
+          récemment. Une note qui CITE l'étape dans son texte garde sa
+          citation telle quelle. Le reste — titre, échéance, priorité, coche,
+          ce qui lui était rattaché — suit, et « Annuler » rend tout. */}
       {aConfirmer && (
         <div
           role="group"
@@ -671,7 +674,14 @@ function LigneEtape(p: PropsLigne) {
           }}
         >
           <span className="min-w-0 flex-1 basis-[14rem]">
-            {t("Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.")}
+            {pret?.description && t("Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.")}
+            {pret?.description && !!pret.citations && " "}
+            {!!pret?.citations &&
+              tp(
+                pret.citations,
+                "Citée {n} fois dans tes notes ou tes fiches : cette citation ne suivra pas la tâche.",
+                "Citée {n} fois dans tes notes ou tes fiches : ces citations ne suivront pas la tâche.",
+              )}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             <button

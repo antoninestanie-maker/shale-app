@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Completion, Goal, ObjectLink, Task } from "../types";
-import { planConversion, type PlanConversion } from "./conversion";
+import { aAnnoncer, planConversion, type PlanConversion } from "./conversion";
 import { objectif, tache } from "./objectif.testutil";
 import { mesurer, type SourcesProgression } from "./progression";
 import { natureDe } from "./structure";
@@ -81,7 +81,7 @@ describe("le plan : ce qui suit l'étape", () => {
       start_at: null,
       end_at: null,
     });
-    expect([p.faite, p.exemple, p.description]).toEqual([false, false, null]);
+    expect([p.faite, p.exemple, p.description, p.citations]).toEqual([false, false, null, 0]);
   });
 
   it("sous une étape : la tâche se rattache à l'étape au-dessus, pas à l'objectif", () => {
@@ -126,6 +126,26 @@ describe("le plan : ce qui suit l'étape", () => {
     const p = plan(2, sources({ goals: [racine, etape(2, 1, { description: "  Demander trois devis.  " })] }));
     expect(p.description).toBe("Demander trois devis.");
     expect(plan(2, sources({ goals: [racine, etape(2, 1, { description: "   " })] })).description).toBeNull();
+  });
+
+  it("⚠️ une note qui CITE l'étape dans son texte : la note passe au parent, la citation ne suit pas — le plan la compte", () => {
+    const cite: ObjectLink = {
+      id: 2,
+      uid: "l-2",
+      from_kind: "note",
+      from_uid: "n-7",
+      to_kind: "goal",
+      to_uid: "g-2",
+      origin: "mention",
+      created_at: "2099-01-01 00:00:00",
+    };
+    const p = plan(2, sources({ goals: [racine, etape(2, 1)], liens: [cite] }));
+    expect(p.citations).toBe(1);
+    expect(p.rattachesQuiSuivent).toEqual([{ kind: "note", uid: "n-7" }]);
+    expect(aAnnoncer(p)).toBe(true);
+    // Un rattachement fait à la main n'est pas une citation : rien à annoncer.
+    const manuel = plan(2, sources({ goals: [racine, etape(2, 1)], liens: [{ ...cite, origin: "manual" }] }));
+    expect([manuel.citations, aAnnoncer(manuel)]).toEqual([0, false]);
   });
 });
 
