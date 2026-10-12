@@ -35,7 +35,12 @@ const APPELS: &[(&str, &str, &str)] = &[
     ("main", "plugin:window|set_fullscreen", "lib/timerFenetre.ts — usePleinEcranNatif (plein écran du Timer)"),
     ("main", "plugin:event|listen", "App.tsx, notifications.ts, timerFenetre.ts"),
     ("main", "plugin:event|unlisten", "App.tsx, notifications.ts, timerFenetre.ts"),
-    ("main", "plugin:event|emit", "lib/timerFenetre.ts — diffuserEtat"),
+    // ⚠️ Cet appel porte AUSSI la séance de la barre des menus (2026-10-12) :
+    // `src/seance_tray.rs` écoute `shale:timer-etat` côté Rust et renvoie ses
+    // commandes par `shale:timer-commande`, que `listen` ci-dessus reçoit. La
+    // barre des menus n'ajoute donc AUCUN appel du front ni aucune permission :
+    // si `emit` ou `listen` étaient refusés à `main`, elle resterait vide.
+    ("main", "plugin:event|emit", "lib/timerFenetre.ts — diffuserEtat (lu par seance_tray.rs)"),
     ("main", "plugin:sql|load", "lib/db.ts"),
     ("main", "plugin:sql|select", "lib/db.ts"),
     ("main", "plugin:sql|execute", "lib/db.ts"),

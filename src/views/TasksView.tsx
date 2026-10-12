@@ -25,7 +25,7 @@ import {
   type Rangement,
 } from "../lib/tachesVue";
 import { planificationRapide } from "../lib/taches/saisieRapide";
-import type { FocusController } from "../lib/useFocus";
+import { useGesteFocus } from "../lib/seance/gesteFocus";
 import BoutonDate from "../components/taches/BoutonDate";
 import ChampRenommage from "../components/taches/ChampRenommage";
 import SaisieRapide from "../components/taches/SaisieRapide";
@@ -41,8 +41,6 @@ import { afficherToast } from "../lib/toast";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
-  /** Le minuteur de l'app — pour « Focus 25 min » dans le menu d'une tâche. */
-  focus?: FocusController;
 }
 
 /**
@@ -165,7 +163,9 @@ interface SectionVue {
   lignes: { task: LigneVue; moment: CleSection; etape: Goal | null }[];
 }
 
-export default function TasksView({ data, refresh, focus }: Props) {
+export default function TasksView({ data, refresh }: Props) {
+  /** Le minuteur de l'app — pour « Focus 25 min » dans le menu d'une tâche. */
+  const gesteFocus = useGesteFocus();
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
@@ -365,12 +365,9 @@ export default function TasksView({ data, refresh, focus }: Props) {
     basculer: (task) => void handleToggle(task as LigneVue),
     renommer: (task) => setRenommeId(task.id),
     modifier: (task) => setEditing(task),
-    // ⭐ La même séance que le ▶ d'Aujourd'hui (règle 18) — absente pendant une
-    // séance en cours, comme lui.
-    focus:
-      focus && !focus.session
-        ? (task) => void focus.start({ minutes: 25, taskId: task.id, label: task.label })
-        : undefined,
+    // ⭐ Le même geste que le ▶ d'Aujourd'hui (règle 18). Toujours là : c'est
+    // `regleFocus` qui dit s'il lance, reprend, ou est grisé avec sa raison.
+    focus: gesteFocus,
   };
 
   const validerRenommage = async (task: Task, libelle: string) => {

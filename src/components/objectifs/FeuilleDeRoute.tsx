@@ -51,6 +51,7 @@ import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../menu/catalogue/tache";
 import { ouvrirParId } from "../../lib/naviguer";
 import { useIaPossible } from "../../lib/ia/useIa";
+import { useGesteFocus } from "../../lib/seance/gesteFocus";
 import { demanderIa } from "../../lib/ia/demande";
 import { peutDecomposer } from "../../lib/ia/planifier";
 import { IconeIa } from "../ia/IconeIa";
@@ -1220,6 +1221,7 @@ function ListeElements(props: {
    */
   const menu = useMenuContextuel<Task>();
   const ia = useIaPossible();
+  const gesteFocus = useGesteFocus();
   const cocher = (tache: Task, faite: boolean) =>
     void basculer(`t${tache.id}`, faite, async (fait) => {
       await basculerTache(tache, todayStr(), fait);
@@ -1230,6 +1232,8 @@ function ListeElements(props: {
     basculer: (tache) => cocher(tache, etat(`t${tache.id}`, faites.has(tache.id))),
     renommer: () => undefined,
     modifier: (tache) => ouvrirParId("task", tache.id),
+    // « Focus 25 min » manquait au menu d'une tâche d'objectif (2026-10-12).
+    focus: gesteFocus,
   };
 
   const bouton = "cible-tactile flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-surface-2 hover:text-text";

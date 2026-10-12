@@ -34,6 +34,14 @@ export const IconSablier = (p: IconProps) => (
   </Icon>
 );
 
+/** Minuteur — le dessin du module Timer dans la barre latérale (`Sidebar.tsx`). */
+export const IconMinuteur = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2.5 2.5M9 2h6" />
+  </Icon>
+);
+
 /** Barre latérale — le panneau et son volet gauche (réduire / étendre). */
 export const IconBarre = (p: IconProps) => (
   <Icon {...p}>

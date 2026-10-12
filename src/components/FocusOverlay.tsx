@@ -11,17 +11,21 @@ import {
   usePontFenetreTimer,
 } from "../lib/timerFenetre";
 import EcranTimer, { ActionFenetre } from "./timer/EcranTimer";
-import { IconPause, IconReduire } from "./icons";
+import PastilleSeance from "./timer/PastilleSeance";
+import { IconReduire } from "./icons";
 
 import { t } from "../lib/i18n";
-function fmt(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
-/** La place que la pastille de séance réserve en bas d'un téléphone : ses 44 pt et leur marge. */
-const RESERVE_SEANCE = "3.25rem";
+/**
+ * La place que la pastille de séance réserve en bas d'un téléphone : sa hauteur
+ * et sa marge de 8 px.
+ *
+ * ⚠️ 46 px, plus 44 (2026-10-12 au soir) : la pastille n'est plus un bouton de
+ * 44 pt bordure comprise, mais un cadre qui CONTIENT trois cibles de 44 pt —
+ * son filet d'1 px s'ajoute en haut et en bas. Mesuré à l'écran à 390 px ; si
+ * la pastille change de hauteur, cette valeur change avec elle.
+ */
+const RESERVE_SEANCE = "3.375rem";
 
 /**
  * Ouvre la séance dans sa propre fenêtre — et le dit si ça échoue, plutôt que
@@ -34,23 +38,30 @@ export async function detacherLeTimer(focus: FocusController): Promise<void> {
 }
 
 /**
- * Mode session : plein écran (l'horloge à volets ET ses commandes) + pastille
- * compacte quand réduit. Héberge aussi le pont vers la fenêtre séparée du
- * Timer : c'est ici que vit l'affichage de la séance, et ce composant est monté
- * une seule fois, au niveau d'`App`.
+ * Mode session : la pastille compacte (`PastilleSeance`) tant qu'on travaille
+ * dans l'app, et le plein écran quand on le DEMANDE. Héberge aussi le pont vers
+ * la fenêtre séparée du Timer : c'est ici que vit l'affichage de la séance, et
+ * ce composant est monté une seule fois, au niveau d'`App`.
  *
- * ⭐ LE PLEIN ÉCRAN MONTRE SES COMMANDES (2026-10-12, seconde passe du labo,
- * constats 1 et 3). ⚠️ Cela RETOURNE une demande d'Antonin du 2026-09-30 (« en
- * plein écran, seul le timer affiché, pas de bouton pause, rien — on sort avec
- * Échap et c'est tout »). Depuis, « ⋯ › Focus 25 min » mène ici d'un geste,
- * depuis Tâches comme depuis Aujourd'hui : six utilisateurs simulés sur douze
- * s'y sont trouvés sans pause, sans arrêt, sans sortie et sans le nom de leur
- * tâche — au téléphone et sur tablette, il n'y a pas d'Échap. Cinq en ont fait
- * leur moment de fermer l'app.
+ * ⭐ LE PLEIN ÉCRAN EST L'HORLOGE SEULE (`epure`) — décision d'Antonin du
+ * 2026-09-30 (« en plein écran, seul le timer affiché, pas de bouton pause,
+ * rien — on sort avec Échap et c'est tout »), rétablie à la fusion du
+ * 2026-10-12. ⚠️ Cet en-tête a dit le contraire pendant une journée (« le plein
+ * écran montre ses commandes », chantier `retours-passe2`) : c'était faux dès
+ * la fusion, corrigé le 2026-10-12 au soir. Les commandes visibles existent
+ * toujours dans `EcranTimer` (retirer `epure` suffit) ; `lib/calque.test.ts`
+ * tient la décision en place.
  *
- * Ce que l'écran porte, visible AU REPOS : le nom de la tâche (ou « Session
- * libre »), « Pause » / « Reprendre », « Terminer », « Réduire ». Et le clavier
- * est à lui : voir `CalqueSeance`.
+ * ⭐ ON N'Y ENTRE PLUS SANS L'AVOIR VOULU (2026-10-12 au soir, Antonin : « le
+ * focus qu'on lance depuis une tâche ne doit pas être le mode plein écran
+ * complet. Ça, c'est seulement si l'utilisateur le décide. »). Lancer une
+ * séance ne l'ouvre pas (`useFocus.start`), cliquer la pastille non plus (elle
+ * ouvre la page Timer). Seul un geste nommé « Plein écran » y mène : celui de
+ * la page Timer, de la carte Timer d'Aujourd'hui, du menu de la pastille.
+ * C'est ce qui rend l'horloge seule tenable : on n'y arrive plus par surprise,
+ * sans savoir en sortir (les six utilisateurs simulés du labo, seconde passe).
+ *
+ * Le clavier est à l'horloge tant qu'elle est ouverte : voir `CalqueSeance`.
  */
 export default function FocusOverlay({ focus }: { focus: FocusController }) {
   // ⚠️ Avant tout `return` : un crochet ne se saute pas.
@@ -87,34 +98,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
 
   if (!session) return null;
 
-  const isBreak = session.kind === "break";
-  const accent = isBreak ? "var(--color-success)" : "var(--color-blue)";
-
-  if (!overlayOpen) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOverlayOpen(true)}
-        className={`card cible-tactile-ligne fixed left-1/2 z-40 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-3 px-4 py-2 ${
-          isPhone ? "" : "top-4"
-        }`}
-        style={isPhone ? { bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)" } : undefined}
-        data-tip={t("Agrandir la session")}
-      >
-        <span
-          className={paused ? "h-2 w-2 rounded-full" : "animate-pulse-dot h-2 w-2 rounded-full"}
-          style={{ backgroundColor: paused ? "var(--color-yellow)" : accent }}
-        />
-        <span className="font-mono text-sm font-semibold text-text">
-          {paused && <IconPause className="mr-1 inline h-3 w-3" />}
-          {fmt(remainingSec)}
-        </span>
-        <span className="max-w-44 min-w-0 truncate text-xs text-text-dim">
-          {session.label}
-        </span>
-      </button>
-    );
-  }
+  if (!overlayOpen) return <PastilleSeance focus={focus} enBas={isPhone} />;
 
   return (
     <CalqueSeance>

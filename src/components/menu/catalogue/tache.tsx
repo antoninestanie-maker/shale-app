@@ -4,6 +4,9 @@
  *
  * ⚠️ RÈGLE 18 — CHAQUE ENTRÉE APPELLE LA FONCTION DU GESTE ÉQUIVALENT :
  *   • Terminer / Rouvrir → la MÊME fonction que la case à cocher de la vue ;
+ *   • Focus 25 min       → `GesteFocus.agir`, le ▶ d'Aujourd'hui et la palette ;
+ *                          ce qu'il fait selon le minuteur est dans
+ *                          `lib/seance/focusTache.ts` (2026-10-12) ;
  *   • Dater ▸            → `setTaskSchedule`, ce qu'écrit le glisser-déposer du
  *                          calendrier (le créneau horaire est gardé, comme
  *                          quand on fait glisser une tâche d'un jour à l'autre),
@@ -37,6 +40,7 @@ import { estRecurrente, replanifier } from "../../../lib/taches";
 import { lundiProchain, plusUnJour } from "../../../lib/taches/dates";
 import { demanderIa } from "../../../lib/ia/demande";
 import { IconeIa } from "../../ia/IconeIa";
+import { focusDeTache, type GesteFocus } from "../../../lib/seance/gesteFocus";
 import type { Goal, Priority, Task } from "../../../lib/types";
 
 export interface GestesTache {
@@ -53,13 +57,20 @@ export interface GestesTache {
   dupliquer: (task: Task) => Promise<void>;
   supprimer: (task: Task) => Promise<void>;
   /**
-   * « Focus 25 min » — le ▶ d'Aujourd'hui, et la même séance depuis Tâches
-   * (2026-10-11 : le menu de Tâches ne l'avait pas, crible du labo, constat 23).
-   * Absent seulement là où aucun minuteur n'est à portée, ou pendant une séance.
+   * ⭐ « Focus 25 min » — LE geste du minuteur sur une tâche (`useGesteFocus()`,
+   * `lib/seance/gesteFocus.ts`), le même que le ▶ d'Aujourd'hui (règle 18).
+   *
+   * Depuis le 2026-10-12 l'entrée est là dans TOUS les menus de tâche, quel
+   * que soit l'état du minuteur : elle lance, elle lance par-dessus une pause,
+   * elle reprend — ou elle est grisée et dit pourquoi (`regleFocus`). Avant,
+   * chaque vue passait `undefined` dès qu'une séance existait, et l'entrée
+   * disparaissait sans un mot.
+   *
+   * Absent seulement hors de l'app (un test, la fenêtre de capture).
    * ⚠️ Au doigt, le ▶ cède sa place au libellé (`TodayTasks`) : cette entrée
    * est alors SA seule porte (règle 17).
    */
-  focus?: (task: Task) => void;
+  focus?: GesteFocus | null;
 }
 
 export interface ContexteTache {
@@ -149,6 +160,23 @@ export function objectifsEnArbre(objectifs: readonly Goal[]): { goal: Goal; libe
   return out;
 }
 
+/**
+ * L'entrée « Focus 25 min » : toujours là quand un minuteur est à portée. Son
+ * libellé, son grisage et sa raison viennent de `regleFocus` — rien n'est
+ * décidé ici.
+ */
+function entreeFocus(task: Task, geste: GesteFocus | null | undefined, faite: boolean): EntreePossible {
+  if (!geste) return null;
+  const { libelle, raison } = focusDeTache(geste, task, faite);
+  return {
+    id: "focus",
+    libelle,
+    icone: <IconPlay />,
+    desactive: raison ? { raison } : undefined,
+    executer: () => geste.agir(task, faite),
+  };
+}
+
 export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache): EntreePossible[] {
   const aujourdhui = todayStr();
 
@@ -231,12 +259,7 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
       icone: ctx.faite ? <IconX /> : <IconCheck />,
       executer: () => gestes.basculer(task),
     },
-    !ctx.faite && gestes.focus && {
-      id: "focus",
-      libelle: t("Focus 25 min"),
-      icone: <IconPlay />,
-      executer: () => gestes.focus?.(task),
-    },
+    entreeFocus(task, gestes.focus, ctx.faite),
     ctx.renommable !== false && {
       id: "renommer",
       libelle: t("Renommer"),
