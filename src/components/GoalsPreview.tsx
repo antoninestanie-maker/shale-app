@@ -1,7 +1,8 @@
 import { effectiveProgress, todayStr } from "../lib/logic";
 import { ouvrirParId } from "../lib/naviguer";
 import { estAcheve, mesurer, type SourcesProgression } from "../lib/objectifs/progression";
-import { estRacine, joursDeRetard } from "../lib/objectifs/retard";
+import { mentionEcheance } from "../lib/objectifs/echeance";
+import { estRacine } from "../lib/objectifs/retard";
 import type { AppData, Goal } from "../lib/types";
 
 import { t, tp } from "../lib/i18n";
@@ -27,6 +28,11 @@ const SCOPE_LABEL: Record<Goal["scope"], string> = {
  * chiffres pour le même objectif. Elle ne recompte rien de son côté.
  *
  * Chaque ligne dit le retard de l'objectif s'il y en a un, et l'ouvre.
+ *
+ * ⭐ Chaque ligne écrit l'ÉCHÉANCE de l'objectif (2026-10-12) — Antonin : « la
+ * deadline de l'objectif, c'est très important ». La date vient de
+ * `mentionEcheance` (`lib/objectifs/echeance.ts`), la même écriture que la
+ * liste des objectifs : l'année paraît dès que ce n'est pas l'année en cours.
  */
 export default function GoalsPreview({ data, sources }: { data: AppData; sources: SourcesProgression }) {
   const { goals } = data;
@@ -39,7 +45,7 @@ export default function GoalsPreview({ data, sources }: { data: AppData; sources
       // ⚠️ « En cours » = pas ACHEVÉ, pas « sous 100 % » : un objectif à 100 %
       // dont des étapes sont vides n'est pas fini (feuille de route, 2026-09-15).
       acheve: estAcheve(mesurer(g, sources)),
-      retard: joursDeRetard(g.deadline, today),
+      echeance: mentionEcheance(g.deadline, today),
     }));
 
   // Plus de `.slice(0, 4)` : la liste défile dans la carte (`.panel-scroll`) —
@@ -61,7 +67,7 @@ export default function GoalsPreview({ data, sources }: { data: AppData; sources
 
   return (
     <ul className="panel-scroll flex flex-col gap-2 pr-0.5">
-      {active.map(({ goal, pct, retard }) => (
+      {active.map(({ goal, pct, echeance }) => (
         <li key={goal.id} className="shrink-0">
           {/* Toute la ligne ouvre l'objectif : c'est là qu'on agit sur lui. */}
           <button
@@ -88,10 +94,14 @@ export default function GoalsPreview({ data, sources }: { data: AppData; sources
                 {t(SCOPE_LABEL[goal.scope])}
               </span>
             </span>
-            {/* Le retard : un fait, écrit en clair — pas une alarme rouge. */}
-            {retard > 0 && (
+            {/* L'échéance, et le retard s'il y en a un : un fait, écrit en
+                clair — pas une alarme rouge. */}
+            {echeance && (
               <span className="mt-1 block text-xs text-text-dim">
-                {tp(retard, "échéance dépassée d'un jour", "échéance dépassée de {n} jours")}
+                {t("échéance {date}", { date: echeance.date })}
+                {echeance.retard > 0 && (
+                  <> · {tp(echeance.retard, "dépassée d'un jour", "dépassée de {n} jours")}</>
+                )}
               </span>
             )}
           </button>

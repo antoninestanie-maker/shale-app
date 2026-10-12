@@ -10,6 +10,7 @@ import { t, tp } from "../lib/i18n";
 import { useIaPossible } from "../lib/ia/useIa";
 import { effectiveProgress, todayStr } from "../lib/logic";
 import { ouvrirParId } from "../lib/naviguer";
+import { dateDEcheance } from "../lib/objectifs/echeance";
 import { estAcheve, mesurer, type SourcesProgression } from "../lib/objectifs/progression";
 import { objectifsEnRetard } from "../lib/objectifs/retard";
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
@@ -171,7 +172,21 @@ export default function EnRetard(props: {
                     {objectif!.goal.title}
                   </span>
                   <span className="shrink-0 text-xs text-text-dim">
-                    {tp(objectif!.jours, "échéance dépassée d'un jour", "échéance dépassée de {n} jours")}
+                    {/* La date ÉCRITE, année comprise quand il le faut (2026-10-12) —
+                        la même écriture que la liste des objectifs. */}
+                    {/* Deux morceaux insécables : à 390 px la ligne se coupe au
+                        point médian, pas au milieu de « 41 jours ». */}
+                    {objectif!.goal.deadline && (
+                      <>
+                        <span className="whitespace-nowrap">
+                          {t("échéance {date}", { date: dateDEcheance(objectif!.goal.deadline, today) })}
+                        </span>
+                        {" · "}
+                      </>
+                    )}
+                    <span className="whitespace-nowrap">
+                      {tp(objectif!.jours, "dépassée d'un jour", "dépassée de {n} jours")}
+                    </span>
                   </span>
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-text-dim">

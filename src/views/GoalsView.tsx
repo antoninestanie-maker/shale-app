@@ -3,9 +3,11 @@ import GoalModal from "../components/GoalModal";
 import ImporterChecklist from "../components/objectifs/ImporterChecklist";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
 import CarteObjectif from "../components/objectifs/CarteObjectif";
+import EcheanceObjectif from "../components/objectifs/EcheanceObjectif";
 import { IconCarte, IconCheck, IconChevronLeft, IconChevronRight, IconPencil, IconPlus, IconTrash } from "../components/icons";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import { todayStr } from "../lib/logic";
+import { faitDEcheance, mentionEcheance } from "../lib/objectifs/echeance";
 import { lireReplis, origineEnClair, type Replis } from "../lib/objectifs/libelles";
 import { estAcheve, mesurer, type Mesure, type SourcesProgression } from "../lib/objectifs/progression";
 import { prochaineAction, type ProchaineAction } from "../lib/objectifs/prochaineAction";
@@ -26,7 +28,7 @@ import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { IconeIa } from "../components/ia/IconeIa";
 import type { AppData, Goal } from "../lib/types";
 
-import { formatDate, pick, t } from "../lib/i18n";
+import { pick, t } from "../lib/i18n";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -96,27 +98,44 @@ const CLE_REPLIS = "layout.goals.replis";
 /** L'événement qu'`App.tsx` réémet quand on demande d'ouvrir un objectif déjà à l'écran. */
 const EVT_OUVRIR_OBJECTIF = "sb:open-goal";
 
+/**
+ * Ce que la LIGNE d'un objectif écrit de son échéance.
+ *
+ * ⭐ 2026-10-12 — la date est ÉCRITE, année comprise quand ce n'est pas l'année
+ * en cours (`mentionEcheance`, `lib/objectifs/echeance.ts` : la même écriture
+ * que sur Aujourd'hui et sur une étape). Avant, une échéance à venir ne
+ * donnait que « J−123 » : il fallait compter pour savoir quel jour, et
+ * personne ne savait quelle année (labo, seconde passe, rang 8).
+ */
 function deadlineInfo(deadline: string | null): {
+  /** « échéance 12 février 2027 » — vide une fois l'échéance dépassée : le retard la remplace. */
+  date: string;
+  /** « en retard de 41 j », « aujourd'hui », « J−3 » — vide quand l'échéance est loin. */
   label: string;
   urgent: boolean;
   /** L'échéance est DÉPASSÉE — la ligne de la liste le dit même quand elle montre la prochaine action. */
   depassee: boolean;
 } | null {
-  if (!deadline) return null;
-  const today = todayStr();
-  const days = Math.round(
-    (new Date(deadline).getTime() - new Date(today).getTime()) / 86_400_000,
-  );
-  if (days < 0) return { label: t("en retard de {n} j", { n: -days }), urgent: true, depassee: true };
-  if (days === 0) return { label: t("aujourd'hui"), urgent: true, depassee: false };
+  const m = mentionEcheance(deadline, todayStr());
+  if (!m) return null;
+  if (m.retard > 0) return { date: "", label: t("en retard de {n} j", { n: m.retard }), urgent: true, depassee: true };
+  const date = t("échéance {date}", { date: m.date });
+  if (m.joursRestants === 0) return { date: "", label: t("échéance aujourd'hui"), urgent: true, depassee: false };
   // « J−3 » en français, « D−3 » en anglais : l'initiale suit la langue.
-  return { label: `${pick("J", "D")}−${days}`, urgent: days <= 7, depassee: false };
+  // Seulement dans la dernière semaine : plus loin, la date suffit.
+  const proche = m.joursRestants <= 7;
+  return { date, label: proche ? `${pick("J", "D")}−${m.joursRestants}` : "", urgent: proche, depassee: false };
 }
 
-/** `Intl` dans la langue de l'app ; midi, pour rester dans la bonne journée (PIEGES § 4.1). */
-function jourLong(jour: string): string {
-  const [a, m, j] = jour.split("-").map(Number);
-  return formatDate(new Date(a, m - 1, j, 12), { day: "numeric", month: "long" });
+/** L'échéance d'une ligne : la date, puis ce qui presse (« J−3 », le retard) — en rouge. */
+function echeanceDeLigne(dl: NonNullable<ReturnType<typeof deadlineInfo>>) {
+  return (
+    <>
+      {dl.date && <span className="shrink-0">{dl.date}</span>}
+      {dl.date && dl.label && <span className="shrink-0" aria-hidden>·</span>}
+      {dl.label && <span className={`shrink-0 ${dl.urgent ? "font-medium text-red" : ""}`}>{dl.label}</span>}
+    </>
+  );
 }
 
 /** « hier », « demain », sinon « mar. 22 sept. » — la date d'un champ, en minuscule au fil d'une ligne. */
@@ -415,20 +434,19 @@ export default function GoalsView({ data, refresh }: Props) {
   // menu (règle 18). Les étapes ont le leur dans la feuille de route (`MenuEtape`).
   const menu = useMenuContextuel<Goal>();
   const ia = useIaPossible();
-  // Les objectifs en péril, pour offrir « Pourquoi, et que faire ? » (#13) à
-  // ceux-là seulement. Même détection que le Calendrier, relue ici.
-  const enPeril = useMemo(
+  // ⭐ Les objectifs en péril — la MÊME détection que le Calendrier, relue ici.
+  // Depuis le 2026-10-12 la page d'un objectif écrit ce verdict sous son
+  // échéance (`EcheanceObjectif`) : elle est donc calculée pour tout le monde,
+  // plus seulement pour offrir « Pourquoi, et que faire ? » (#13) aux abonnés.
+  const perils = useMemo(
     () =>
-      ia
-        ? new Set(
-            objectifsEnPeril(goals, data.tasks, completions, todayStr(), {
-              habits: data.habits,
-              habitChecks: data.habitChecks,
-            }).map((p) => p.goal.id),
-          )
-        : new Set<number>(),
-    [ia, goals, data.tasks, completions, data.habits, data.habitChecks],
+      objectifsEnPeril(goals, data.tasks, completions, todayStr(), {
+        habits: data.habits,
+        habitChecks: data.habitChecks,
+      }),
+    [goals, data.tasks, completions, data.habits, data.habitChecks],
   );
+  const enPeril = useMemo(() => new Set(perils.map((p) => p.goal.id)), [perils]);
   const entreesObjectif = (goal: Goal): EntreePossible[] => {
     const bilan = bilanDeDepart(goals, data.tasks, goal.id);
     const unite = uniteDe(goal);
@@ -511,9 +529,11 @@ export default function GoalsView({ data, refresh }: Props) {
             <span className="mt-0.5 block text-xs text-success">{t("Atteint")}</span>
           ) : suite ? (
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">
-              {dl?.depassee && (
+              {/* ⭐ L'échéance en tête, toujours (2026-10-12) : la date écrite,
+                  ou le retard. La prochaine action ne la cache plus. */}
+              {dl && (
                 <>
-                  <span className="shrink-0 font-medium text-red">{dl.label}</span>
+                  {echeanceDeLigne(dl)}
                   <span className="shrink-0" aria-hidden>·</span>
                 </>
               )}
@@ -531,7 +551,7 @@ export default function GoalsView({ data, refresh }: Props) {
               )}
             </span>
           ) : dl ? (
-            <span className={`mt-0.5 block text-xs ${dl.urgent ? "font-medium text-red" : "text-text-dim"}`}>{dl.label}</span>
+            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">{echeanceDeLigne(dl)}</span>
           ) : null}
           </span>
           <span className="flex min-w-0 flex-[2_1_14rem] items-center gap-3">
@@ -557,7 +577,6 @@ export default function GoalsView({ data, refresh }: Props) {
     // La case, le fil et le chiffre suivent le clic ; la base suit.
     const unite = uniteDe(goal);
     const acheve = unite ? unite.cochee : estAcheve(m);
-    const dl = deadlineInfo(goal.deadline);
     const pct = unite ? (unite.cochee ? 100 : 0) : m.pct;
     const menuOuvert = menu.ouvert && menu.cible?.id === goal.id;
 
@@ -611,16 +630,26 @@ export default function GoalsView({ data, refresh }: Props) {
         </div>
 
         <section className="min-h-0 flex-1 overflow-y-auto pb-10" aria-label={goal.title}>
+          {/* L'échéance a quitté cette ligne (2026-10-12) : elle s'y écrivait sans
+              année, en petites capitales, et ne s'y changeait pas. Elle a sa
+              propre ligne sous le titre (`EcheanceObjectif`). */}
           <p className="hud-label">
             {t(SCOPE_LABEL[goal.scope])}
             {goal.category?.trim() && <> · {goal.category.trim()}</>}
-            {goal.deadline && <> · {jourLong(goal.deadline)}</>}
-            {dl?.urgent && !acheve && <span className="text-red"> · {dl.label}</span>}
           </p>
           <h1 className="mt-1.5 font-display text-3xl font-extrabold text-text [overflow-wrap:anywhere]">
             {goal.title}
           </h1>
           {goal.description && <p className="mt-2 max-w-[68ch] text-sm text-text-dim">{goal.description}</p>}
+
+          {/* ⭐ L'ÉCHÉANCE, EN TÊTE ET SUR PLACE (2026-10-12) — Antonin : « la
+              deadline de l'objectif, c'est très important ». Elle se pose, se
+              change et se retire ici, et dit ce qu'on sait du temps qui reste. */}
+          <EcheanceObjectif
+            goal={goal}
+            fait={faitDEcheance(goal, perils, acheve, sources.maintenant.slice(0, 10))}
+            refresh={refresh}
+          />
 
           {/* ⭐ Le fil couché remplace la barre pleine : la même grammaire
               que le fil debout, juste dessous, le long des étapes. */}

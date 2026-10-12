@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { chargeDuJour, joursSurcharges, SEUIL_SURCHARGE } from "./charge";
 import { profilDisponibilite, REPLI_DEBUT, REPLI_FIN, SESSIONS_MINIMUM } from "./disponibilite";
-import { objectifsEnPeril, ecartEnJours, HORIZON_JOURS } from "./peril";
+import { objectifsEnPeril, ecartEnJours, HORIZON_JOURS, vientDeNaitre } from "./peril";
+import { addDays } from "../logic";
 import type { EntreeAgenda } from "./agenda";
 import type { Completion, FocusSession, Goal, Task } from "../types";
 import { objectif as objectifDeBase } from "../objectifs/objectif.testutil";
@@ -272,5 +273,65 @@ describe("les objectifs en péril", () => {
     // Alerter à trente jours ferait de l'alerte un décor permanent ; alerter à
     // deux jours ne laisserait rien faire de la nouvelle.
     expect(HORIZON_JOURS).toBe(7);
+  });
+});
+
+/**
+ * ⭐ 2026-10-12 — l'accueil propose maintenant une échéance pour l'objectif
+ * qu'il plante (Antonin : « la deadline de l'objectif, c'est très important »).
+ * La crainte du 2026-09-16 était « objectif en péril une semaine après
+ * l'installation ». Ces tests disent ce que la règle fait VRAIMENT d'un
+ * objectif tout neuf, et tiennent la seule correction qu'il fallait.
+ */
+describe("⭐ un objectif qui vient de naître", () => {
+  const neLe = (jour: string) => `${jour} 09:00:00`;
+  /** Mesuré, vide, à 0 % : l'objectif que l'accueil plante. */
+  const neuf = (p: Partial<Goal> = {}) => objectif({ manual_progress: 0, created_at: neLe(MARDI), ...p });
+
+  it("daté à trois mois, rien de fait : PAS en péril — ni le premier jour, ni une semaine après, ni un mois après", () => {
+    const g = neuf({ deadline: addDays(MARDI, 90) });
+    for (const jour of [MARDI, addDays(MARDI, 7), addDays(MARDI, 30), addDays(MARDI, 82)]) {
+      expect(objectifsEnPeril([g], [], [], jour)).toEqual([]);
+    }
+    // Il n'est signalé qu'à sept jours de sa date, s'il est toujours loin du compte.
+    expect(objectifsEnPeril([g], [], [], addDays(MARDI, 83))[0]).toMatchObject({ joursRestants: 7, raison: "rythme-insuffisant" });
+  });
+
+  it("⭐ créé AVEC une échéance à sept jours ou moins : pas jugé le jour de sa naissance, ni le lendemain", () => {
+    // Le défaut vu par le labo (rang 9) : bandeau rouge sur une étape créée dix
+    // minutes plus tôt, échéance à sept jours.
+    const g = neuf({ deadline: addDays(MARDI, 7) });
+    expect(objectifsEnPeril([g], [], [], MARDI)).toEqual([]);
+    expect(objectifsEnPeril([g], [], [], addDays(MARDI, 1))).toEqual([]);
+    // Le surlendemain, la règle d'avant s'applique telle quelle.
+    expect(objectifsEnPeril([g], [], [], addDays(MARDI, 2))[0]).toMatchObject({ joursRestants: 5, progression: 0, raison: "rythme-insuffisant" });
+  });
+
+  it("vaut pour une ÉTAPE née à l'instant sous un vieil objectif", () => {
+    const racine = objectif({ id: 1, manual_progress: 0 });
+    const etape = neuf({ id: 2, parent_goal_id: 1, is_milestone: 1, deadline: addDays(MARDI, 3) });
+    expect(objectifsEnPeril([racine, etape], [], [], MARDI)).toEqual([]);
+  });
+
+  it("⚠️ une échéance DÉPASSÉE n'est jamais tue, même pour un objectif né aujourd'hui", () => {
+    const g = neuf({ deadline: addDays(MARDI, -2) });
+    expect(objectifsEnPeril([g], [], [], MARDI)[0]).toMatchObject({ raison: "depassee", joursRestants: -2 });
+  });
+
+  it("⚠️ la date de création est en temps UNIVERSEL en natif : la veille compte comme « vient de naître »", () => {
+    // Créé à 0 h 30 à Paris : SQLite écrit 22 h 30 la VEILLE.
+    expect(vientDeNaitre(`${addDays(MARDI, -1)} 22:30:00`, MARDI)).toBe(true);
+    expect(vientDeNaitre(neLe(MARDI), MARDI)).toBe(true);
+    // À l'ouest de Greenwich, le soir : SQLite écrit déjà le LENDEMAIN.
+    expect(vientDeNaitre(`${addDays(MARDI, 1)} 03:00:00`, MARDI)).toBe(true);
+    expect(vientDeNaitre(neLe(addDays(MARDI, -2)), MARDI)).toBe(false);
+  });
+
+  it("sans date de création lisible, rien ne change : l'objectif est jugé", () => {
+    expect(vientDeNaitre(null, MARDI)).toBe(false);
+    expect(vientDeNaitre("", MARDI)).toBe(false);
+    expect(vientDeNaitre("pas-une-date", MARDI)).toBe(false);
+    const g = neuf({ deadline: addDays(MARDI, 3), created_at: "" });
+    expect(objectifsEnPeril([g], [], [], MARDI)).toHaveLength(1);
   });
 });

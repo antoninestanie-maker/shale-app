@@ -35,7 +35,8 @@ import { CaptureIa } from "../components/ia/CaptureIa";
 import { IconeIa } from "../components/ia/IconeIa";
 import { useIa } from "../lib/ia/useIa";
 import { PastillePriorite } from "../components/Priorite";
-import { defilerVers } from "../lib/defilement";
+import { defilerVers, estEnVue } from "../lib/defilement";
+import { afficherToast } from "../lib/toast";
 
 interface Props {
   data: AppData;
@@ -176,6 +177,8 @@ export default function TasksView({ data, refresh, focus }: Props) {
   const [gererTags, setGererTags] = useState(false);
   /** La tâche qu'on vient d'ajouter : surlignée un instant, pour qu'on la voie arriver. */
   const [nouvelle, setNouvelle] = useState<number | null>(null);
+  /** Celle dont l'arrivée reste à ANNONCER — une fois, pas à chaque rendu. */
+  const aAnnoncer = useRef<number | null>(null);
   /** Les tâches qu'on vient de cocher ou de rouvrir restent un instant à leur place (clé de section). */
   const [garder, setGarder] = useState<ReadonlyMap<number, string>>(new Map());
   /** ⭐ Par moment (défaut) ou par objectif — un réglage, retenu et synchronisé. */
@@ -402,23 +405,53 @@ export default function TasksView({ data, refresh, focus }: Props) {
     // tombe se déplie — quelle qu'elle soit, dans l'un ou l'autre rangement.
     setRecherche("");
     await refresh();
+    aAnnoncer.current = id;
     setNouvelle(id);
   };
 
-  // La section de la tâche qu'on vient d'ajouter se déplie (sans réécrire le
-  // choix retenu sur ce poste : c'est le temps de la voir arriver), PUIS on y
-  // défile — repliée, sa ligne n'existe pas encore à l'écran.
+  /**
+   * « Voir » : aller à la tâche, parce qu'on l'a DEMANDÉ, et la surligner.
+   * ⚠️ Au MILIEU de l'écran, pas « au plus près » : au téléphone, le plus près
+   * est le bord bas, SOUS la barre d'onglets — la ligne y arrivait à moitié
+   * cachée (vu à 390 px le 2026-10-12).
+   */
+  const voirTache = (id: number) => {
+    defilerVers(document.querySelector(`[data-tache="${id}"]`), { block: "center" });
+    setNouvelle(id);
+  };
+
+  /**
+   * ⭐ APRÈS L'AJOUT : ON SAIT OÙ LA TÂCHE EST ALLÉE, ET L'ÉCRAN NE SAUTE PAS
+   * (2026-10-12 ; labo, seconde passe, rang 7 — Antonin : « Corrige aussi le
+   * souci d'une tâche sans date »).
+   *
+   * Avant, l'écran DÉFILAIT jusqu'à la tâche : au téléphone, taper une tâche
+   * sans date faisait partir la vue tout en bas, vers « Sans date », et le champ
+   * où l'on écrivait sortait de l'écran. Maintenant :
+   *   • la section où elle tombe se déplie (sans réécrire le choix retenu sur ce
+   *     poste), et sa ligne est surlignée un instant ;
+   *   • si la ligne est SOUS LES YEUX, c'est tout — on la voit arriver ;
+   *   • sinon un message dit où elle est (« Ajoutée dans « Sans date » »), avec
+   *     « Voir » pour y aller. Le défilement est un geste, plus une conséquence.
+   */
   useEffect(() => {
     if (nouvelle == null) return;
-    const cle = vues.find((v) => v.lignes.some((x) => x.task.id === nouvelle))?.cle;
-    if (cle && replis.has(cle)) {
-      setReplis((r) => new Set([...r].filter((x) => x !== cle)));
-      return;
+    const vue = vues.find((v) => v.lignes.some((x) => x.task.id === nouvelle));
+    if (vue && replis.has(vue.cle)) {
+      setReplis((r) => new Set([...r].filter((x) => x !== vue.cle)));
+      return; // repliée, sa ligne n'existe pas encore à l'écran : au rendu suivant
     }
-    // ⚠️ Au MILIEU de l'écran, pas « au plus près » : au téléphone, le plus près
-    // est le bord bas, SOUS la barre d'onglets — la tâche qu'on vient d'ajouter
-    // y arrivait à moitié cachée (vu à 390 px le 2026-10-12).
-    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`), { block: "center" });
+    if (aAnnoncer.current !== nouvelle) return; // déjà annoncée (ou « Voir »)
+    const ligne = document.querySelector(`[data-tache="${nouvelle}"]`);
+    if (!vue || !ligne) return; // pas encore rendue : au rendu suivant
+    aAnnoncer.current = null;
+    if (estEnVue(ligne)) return;
+    const id = nouvelle;
+    afficherToast({
+      msg: t("Ajoutée dans « {section} »", { section: vue.titre }),
+      actionLabel: t("Voir"),
+      onAction: () => voirTache(id),
+    });
   }, [nouvelle, vues, replis]);
 
   useEffect(() => {

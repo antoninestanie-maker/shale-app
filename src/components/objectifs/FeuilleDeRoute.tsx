@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatDate, t, tp } from "../../lib/i18n";
+import { t, tp } from "../../lib/i18n";
 import { formaterChamp } from "../../lib/calendrier/champDate";
+import { dateDEcheance } from "../../lib/objectifs/echeance";
 import { todayStr } from "../../lib/logic";
 import {
   basculerTache,
@@ -1607,8 +1608,16 @@ function sourceNommee(etape: Goal, data: AppData): { nom: string; habitude: bool
   return null;
 }
 
-/** `Intl` dans la langue de l'app ; midi, pour rester dans la bonne journée (PIEGES § 4.1). */
+/**
+ * Une date au fil d'une ligne de la feuille de route : l'échéance d'une étape,
+ * la date d'un événement rattaché, le début d'un compte.
+ *
+ * ⭐ 2026-10-12 — L'ANNÉE paraît dès que ce n'est pas l'année en cours : la
+ * pastille d'une étape écrivait « 12 février » pour février 2027 (labo, seconde
+ * passe, rang 8). Une seule écriture pour toute l'app : `dateDEcheance`
+ * (`lib/objectifs/echeance.ts`), qui passe par `formaterDansPhrase`.
+ */
 function formaterJour(jour: string): string {
-  const [a, m, j] = (jour || todayStr()).split("-").map(Number);
-  return formatDate(new Date(a, m - 1, j, 12), { day: "numeric", month: "long" });
+  const aujourdHui = todayStr();
+  return dateDEcheance(jour || aujourdHui, aujourdHui);
 }

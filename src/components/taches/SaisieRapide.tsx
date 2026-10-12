@@ -27,6 +27,17 @@ import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
  *     d'Aujourd'hui passe le jour — c'est la liste du jour, une tâche sans date
  *     n'y paraîtrait pas ; Tâches ne passe rien (décision du 2026-09-30).
  *
+ * ⭐ 2026-10-12 — LA LIGNE ANNONCE TOUJOURS SA RÈGLE, PAR UNE PASTILLE. Antonin,
+ * après essai : « Corrige aussi le souci d'une tâche sans date. » Le labo
+ * (seconde passe, rang 7, cinq utilisateurs) : les deux champs se ressemblent
+ * et ne font pas pareil — celui d'Aujourd'hui date d'office et le montre
+ * (« aujourd'hui »), celui de Tâches rangeait dans « Sans date » sans rien
+ * dire : il ne montrait qu'une icône de calendrier. La règle de Tâches ne
+ * change pas ; elle s'ÉCRIT : une pastille « sans date », au même endroit et de
+ * la même forme que la pastille « aujourd'hui ». Elle se touche pour dater (le
+ * calendrier de l'app, sur place) et devient la pastille de date dès qu'une
+ * date est lue ou choisie. Il n'y a donc plus d'état où la ligne ne dit rien.
+ *
  * Ce composant ne crée rien : il rend un titre, un jour et une heure à
  * `onAjouter`, qui écrit par `planificationRapide` (`lib/taches/saisieRapide.ts`).
  */
@@ -166,16 +177,23 @@ export default function SaisieRapide(props: {
                 )}
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={ouvrirCalendrier}
-                aria-label={t("Choisir une date")}
-                data-tip={t("Choisir une date")}
-                data-tip-sub={t("Ou écris-la dans la phrase : « jeudi 14h30 », « demain », « le 22 ».")}
-                className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim transition-colors hover:bg-surface-2 hover:text-text"
-              >
-                <IconCalendar className="h-4 w-4" />
-              </button>
+              /* ⭐ « sans date » — la même pastille que « aujourd'hui » sur la
+                 carte du jour (bordée, estompée : une règle, pas un choix). Avant
+                 le 2026-10-12, une icône seule : rien ne disait où irait la tâche. */
+              <span className="pill inline-flex items-center border border-border text-[11px] font-medium text-text-dim">
+                <button
+                  type="button"
+                  onClick={ouvrirCalendrier}
+                  aria-haspopup="dialog"
+                  aria-label={t("Sans date. Choisir une date")}
+                  data-tip={t("Choisir une date")}
+                  data-tip-sub={t("Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».")}
+                  className="cible-tactile-ligne inline-flex items-center gap-1 py-1 pl-2 pr-2 transition-colors hover:text-text"
+                >
+                  <IconCalendar className="h-3 w-3 shrink-0" />
+                  <span className="whitespace-nowrap">{t("sans date")}</span>
+                </button>
+              </span>
             )}
           </span>
           {props.children}

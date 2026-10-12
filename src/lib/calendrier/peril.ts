@@ -1,5 +1,6 @@
 import { estAcheve, mesurer, pourcentDe, type ContexteProgression, type SourcesProgression } from "../objectifs/progression";
 import { racineDe } from "../objectifs/structure";
+import { addDays } from "../logic";
 import { joursEntre } from "./agenda";
 import type { Completion, Goal, Task } from "../types";
 
@@ -59,6 +60,42 @@ export const HORIZON_JOURS = 7;
  */
 export const PROGRESSION_RASSURANTE = 80;
 
+/**
+ * ⭐ UN OBJECTIF QUI VIENT DE NAÎTRE N'EST PAS « EN PÉRIL » (2026-10-12).
+ *
+ * D'OÙ ÇA VIENT. Le 2026-09-16, l'accueil s'était interdit de donner une
+ * échéance à l'objectif qu'il plante : « sinon "objectif en péril" une semaine
+ * après l'installation, sur la première chose que l'utilisateur ait dite à
+ * l'app ». Le 2026-10-12, Antonin demande que l'accueil la propose (« la
+ * deadline de l'objectif, c'est très important ») ; et la seconde passe du
+ * labo (rang 9) a vu le bandeau rouge sur une étape créée dix minutes plus
+ * tôt, échéance à sept jours.
+ *
+ * CE QUE LA RÈGLE DISAIT DÉJÀ. Une échéance à plus de sept jours n'est jamais
+ * signalée (`HORIZON_JOURS`) : un objectif neuf daté à trois mois ne crie pas,
+ * ni le premier jour ni la première semaine. Le défaut ne touche que
+ * l'objectif — ou l'étape — créé AVEC une échéance à sept jours ou moins : il
+ * est à 0 %, donc « rythme insuffisant » dans la seconde.
+ *
+ * LA RÈGLE, la plus petite : né aujourd'hui ou hier, il n'est pas jugé. On ne
+ * mesure pas le rythme de ce qui n'a pas encore eu un jour entier pour avancer.
+ * Dès le surlendemain, la règle d'avant s'applique telle quelle.
+ *
+ * ⚠️ UNE ÉCHÉANCE DÉPASSÉE N'EST JAMAIS TUE : la grâce ne vaut que pour une
+ * échéance d'aujourd'hui ou à venir.
+ *
+ * ⚠️ « Aujourd'hui OU HIER », pas « aujourd'hui » seul : en natif `created_at`
+ * est écrit par SQLite en temps UNIVERSEL (`datetime('now')`). Un objectif
+ * créé à 0 h 30 à Paris porte la date de la veille ; avec « aujourd'hui » seul,
+ * il serait jugé dans la minute. Le jour d'écart couvre le décalage.
+ *
+ * Sans date de création lisible, rien ne change : l'objectif est jugé.
+ */
+export function vientDeNaitre(creeLe: string | null | undefined, aujourdhui: string): boolean {
+  const jour = (creeLe ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(jour) && jour >= addDays(aujourdhui, -1);
+}
+
 export function objectifsEnPeril(
   goals: readonly Goal[],
   tasks: readonly Task[],
@@ -92,6 +129,8 @@ export function objectifsEnPeril(
 
     const joursRestants = ecartEnJours(aujourdhui, g.deadline);
     if (joursRestants > HORIZON_JOURS) continue;
+    // ⭐ Né aujourd'hui ou hier : pas encore jugé — sauf échéance DÉPASSÉE.
+    if (joursRestants >= 0 && vientDeNaitre(g.created_at, aujourdhui)) continue;
 
     const enfants = goals.filter((x) => x.parent_goal_id === g.id && !x.is_example);
     const etapesRestantes = enfants.filter((x) => !estAcheve(mesurer(x, sources))).length;
