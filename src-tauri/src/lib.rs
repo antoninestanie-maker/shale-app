@@ -4,6 +4,10 @@ pub mod note_rapide;
 pub mod pieces_jointes;
 pub mod notifications;
 pub mod sauvegardes;
+// La séance du minuteur dans la barre des menus : bureau seulement, comme le
+// tray lui-même (voir la garde plus bas).
+#[cfg(desktop)]
+pub mod seance_tray;
 pub mod secrets;
 
 // ⚠️ Menu, tray et raccourci global sont des concepts de BUREAU. `TrayIcon` est
@@ -521,7 +525,9 @@ pub fn run() {
                 let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&open, &capture, &quit])?;
 
-                let tray = TrayIconBuilder::new()
+                // Un identifiant CONNU : `seance_tray` retrouve l'icône par lui
+                // pour écrire le temps restant à côté d'elle pendant une séance.
+                let tray = TrayIconBuilder::with_id(seance_tray::TRAY_ID)
                     .icon(app.default_window_icon().unwrap().clone())
                     .menu(&menu)
                     // Conventions opposées, d'où le `cfg` plutôt qu'un réglage unique :
@@ -535,7 +541,11 @@ pub fn run() {
                         "open" => show_main(app),
                         "capture" => toggle_capture(app),
                         "quit" => app.exit(0),
-                        _ => {}
+                        // « Pause » / « Reprendre », « Terminer la session » :
+                        // présentes seulement pendant une séance.
+                        autre => {
+                            seance_tray::sur_menu(app, autre);
+                        }
                     });
 
                 #[cfg(not(target_os = "macos"))]
@@ -553,6 +563,9 @@ pub fn run() {
                 });
 
                 tray.build(app)?;
+                // Pendant une séance : le temps restant à côté de l'icône, et
+                // deux entrées de plus dans ce menu. Rien le reste du temps.
+                seance_tray::installer(app.handle(), &menu)?;
             }
 
             Ok(())
