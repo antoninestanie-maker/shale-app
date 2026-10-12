@@ -9,7 +9,7 @@ import {
   type BlocContraint,
   type ReglagesHoraires,
 } from "../../lib/onboarding/reglages";
-import { NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
+import { heuresDuPlan, NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
 import {
   creerObjectifDuCurseur,
   creerObjectifPlanifie,
@@ -45,7 +45,9 @@ import GrilleSemaine from "./GrilleSemaine";
  *                          créneaux libres du calendrier et la capacité d'une
  *                          journée, donc la détection de surcharge
  *   blocs contraints     → la grille et les créneaux libres
- *   curseur de clôture   → un objectif dans le module Objectifs
+ *   curseur de clôture   → un objectif dans le module Objectifs, et (2026-10-11)
+ *                          les heures PROMISES à l'objectif planté, que
+ *                          Performance met en face des heures passées
  *
  * ─── CE QUI EST INTERDIT ICI, ET LE RESTE ───────────────────────────────────
  *
@@ -77,6 +79,9 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   const [etape, setEtape] = useState<Etape>("heures");
   const [reglages, setReglages] = useState<ReglagesHoraires>(REGLAGES_PAR_DEFAUT);
   const [heuresVoulues, setHeuresVoulues] = useState<number | null>(null);
+  // ⭐ La case ALLUMÉE quand l'écran de la grille est validé par « Suivant »
+  // (2026-10-11) : la valeur montrée est la valeur retenue — `heuresDuPlan`.
+  const [heuresMontrees, setHeuresMontrees] = useState<number | null>(null);
   const [premiereTache, setPremiereTache] = useState("");
   const [titreObjectif, setTitreObjectif] = useState("");
   const [jalons, setJalons] = useState<string[]>(Array(NB_JALONS_MAX).fill(""));
@@ -86,6 +91,8 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   const bornes = bornesDuCurseur(grille);
   const libres = heuresLibres(grille);
   const curseur = heuresVoulues ?? valeurProposee(grille);
+  /** Les heures de l'objectif PLANTÉ : la case cliquée, sinon celle qui était allumée. */
+  const heuresPlan = heuresDuPlan(heuresVoulues, heuresMontrees);
 
   const index = ETAPES.indexOf(etape);
   const patch = (p: Partial<ReglagesHoraires>) => setReglages((r) => ({ ...r, ...p }));
@@ -112,11 +119,15 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
        * ⭐ L'objectif PLANTÉ remplace celui du curseur (décision d'Antonin,
        * 2026-09-16) : deux objectifs au premier lancement, dont un que l'app ne
        * sait pas mesurer, seraient un mauvais accueil. Le chiffre du curseur
-       * n'est pas perdu — il devient la description de l'objectif planté.
+       * n'est pas perdu — il devient la description de l'objectif planté, et
+       * (2026-10-11) sa PROMESSE d'heures par semaine, lue par Performance.
+       *
+       * ⚠️ L'objectif du curseur, lui, ne naît toujours que d'une case CLIQUÉE
+       * (`heuresVoulues`), pas de la case allumée par défaut.
        */
       let jalonPourLaTache: number | null = null;
       if (options.avecObjectif && planRempli(titreObjectif)) {
-        const plante = await creerObjectifPlanifie(titreObjectif, jalons, heuresVoulues ?? 0);
+        const plante = await creerObjectifPlanifie(titreObjectif, jalons, heuresPlan);
         jalonPourLaTache = plante.premierJalonId;
       } else if (options.avecObjectif && heuresVoulues != null && heuresVoulues > 0) {
         await creerObjectifDuCurseur(heuresVoulues);
@@ -137,6 +148,9 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
 
   const suivant = () => {
     if (etape === "action") return void terminer({ avecObjectif: true, avecTache: true });
+    // « Suivant » sur la grille valide la case allumée. Sans case à l'écran
+    // (aucune heure libre), il n'y a rien à retenir.
+    if (etape === "grille") setHeuresMontrees(bornes.maximum > 0 ? curseur : null);
     setEtape(ETAPES[index + 1]);
   };
 
@@ -172,7 +186,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
         )}
         {etape === "objectif" && (
           <EtapeObjectif
-            heures={heuresVoulues}
+            heures={heuresPlan > 0 ? heuresPlan : null}
             titre={titreObjectif}
             onTitre={setTitreObjectif}
             jalons={jalons}

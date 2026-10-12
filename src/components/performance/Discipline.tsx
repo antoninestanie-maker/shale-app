@@ -124,8 +124,12 @@ export function CourbeDiscipline(props: {
   );
 }
 
-/** La légende des deux traits — et du repère, quand il y en a un. */
-export function LegendeCourbe({ seuil }: { seuil?: string }) {
+/**
+ * La légende des deux traits — et du repère, quand il y en a un.
+ * `seuilAide` : ce que le repère VEUT DIRE, en bulle (« 80 % : jour tenu » ne
+ * s'expliquait nulle part — crible du labo, constat 28).
+ */
+export function LegendeCourbe({ seuil, seuilAide }: { seuil?: string; seuilAide?: { titre: string; detail: string } }) {
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-dim">
       <span className="flex items-center gap-1.5">
@@ -137,7 +141,7 @@ export function LegendeCourbe({ seuil }: { seuil?: string }) {
         {t("jour par jour")}
       </span>
       {seuil && (
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5" data-tip={seuilAide?.titre} data-tip-sub={seuilAide?.detail}>
           <span className="w-4 border-t border-dashed border-border-strong" aria-hidden />
           {seuil}
         </span>
@@ -161,8 +165,22 @@ export interface Carre {
  * ⭐ Calées À DROITE et rognées à gauche (`justify-end` + `overflow-hidden`) :
  * une carte étroite montre moins de semaines, toujours les plus récentes, sans
  * barre de défilement à ramener au bout.
+ *
+ * ⭐ TOUTE COULEUR DE LA GRILLE EST DANS LA LÉGENDE (2026-10-11). Elle ne
+ * montrait que les quatre teintes d'encre : le carré rouge sombre d'un jour
+ * manqué et le carré gris d'un jour neutre n'y étaient pas, et les cinq
+ * utilisateurs du labo l'ont relevé (constat 28). `vide` nomme le carré gris ;
+ * `zero` nomme le rouge, et n'a de sens qu'avec `zeroEnRouge`.
  */
-export function GrilleCarres(props: { semaines: readonly (readonly Carre[])[]; zeroEnRouge?: boolean }) {
+export function GrilleCarres(props: {
+  semaines: readonly (readonly Carre[])[];
+  zeroEnRouge?: boolean;
+  /** Le nom du carré gris : « rien de dû », « aucune tenue ». */
+  vide: string;
+  /** Le nom du carré rouge (tâches seulement). */
+  zero?: string;
+}) {
+  const rouge = !!props.zeroEnRouge;
   return (
     <div>
       <div className="flex justify-end gap-[3px] overflow-hidden">
@@ -173,24 +191,54 @@ export function GrilleCarres(props: { semaines: readonly (readonly Carre[])[]; z
                 key={c.date}
                 title={`${jourCourt(c.date)}${c.pct !== null ? ` — ${c.pct}%` : ""}`}
                 className="h-3.5 w-3.5 rounded-[3px]"
-                style={{ backgroundColor: c.futur ? "transparent" : couleurCarre(c.pct, !!props.zeroEnRouge) }}
+                style={{ backgroundColor: c.futur ? "transparent" : couleurCarre(c.pct, rouge) }}
               />
             ))}
           </div>
         ))}
       </div>
-      {/* shrink-0 sur les deux libellés : `.hud-label` tronque en ellipse, et
-          sans lui « moins » et « plus » disparaissaient en fenêtre étroite. */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="hud-label mr-1 shrink-0">{t("moins")}</span>
-        {[10, 50, 80, 100].map((p) => (
-          <span key={p} className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: couleurCarre(p, false) }} />
-        ))}
-        <span className="hud-label ml-1 shrink-0">{t("plus")}</span>
+      {/* shrink-0 sur les libellés : `.hud-label` tronque en ellipse, et sans
+          lui « moins » et « plus » disparaissaient en fenêtre étroite. La
+          légende se replie sur deux lignes plutôt que de couper un mot. */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: couleurCarre(null, false) }} aria-hidden />
+          <span className="hud-label shrink-0">{props.vide}</span>
+        </span>
+        {rouge && props.zero && (
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: couleurCarre(0, true) }} aria-hidden />
+            <span className="hud-label shrink-0">{props.zero}</span>
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="hud-label mr-1 shrink-0">{t("moins")}</span>
+          {PALIERS.map((p) => (
+            <span
+              key={p.exemple}
+              className="h-3 w-3 shrink-0 rounded-[3px]"
+              style={{ backgroundColor: couleurCarre(p.exemple, false) }}
+              aria-label={t(p.nom)}
+              data-tip={t(p.nom)}
+            />
+          ))}
+          <span className="hud-label ml-1 shrink-0">{t("plus")}</span>
+        </span>
       </div>
     </div>
   );
 }
+
+/**
+ * Les quatre teintes d'encre, et ce que chacune couvre — les seuils de
+ * `couleurCarre`. Clés FRANÇAISES : table de module, traduite à l'affichage.
+ */
+const PALIERS = [
+  { exemple: 10, nom: "1 à 49 %" },
+  { exemple: 50, nom: "50 à 79 %" },
+  { exemple: 80, nom: "80 à 99 %" },
+  { exemple: 100, nom: "100 %" },
+] as const;
 
 /** Le réussi en grande surface est à l'ENCRE (`--color-success-fill`, DESIGN.md). */
 function couleurCarre(pct: number | null, zeroEnRouge: boolean): string {
