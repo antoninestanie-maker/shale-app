@@ -1482,6 +1482,7 @@ const links: ObjectLink[] = [
   lienDemo(2, "goal", 1, "note", 1),
   lienDemo(3, "task", 9, "note", 2),
   lienDemo(4, "goal", 1, "object", 6),
+  lienDemo(5, "task", 14, "note", 5), // le devis du jour cite la note « Mes devis »
 ];
 
 // ── Profils de licence de démonstration ───────────────────────────────────
