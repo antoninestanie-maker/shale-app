@@ -2493,3 +2493,13 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 **Installé le 2026-10-13 à 01:16**, par le build groupé de la session [correctifs] (carnet, 01:17) : `mobile-ios` `7727898`, 01:10 → 01:16, code 0. Il porte aussi le correctif de netteté de [texte-net]. Témoin dans `dist/assets` : « n'a pas pu être supprimé » (3). Relu par cette session : sha256 du binaire installé `8ea6fc7989f8…`, base en version 30, corbeille INCHANGÉE (76 objectifs, 50 tâches, 1 habitude, 1 événement) — elle attend le geste d'Antonin, personne ne l'a vidée à sa place.
 
 ⚠️ **Pas vu dans l'app installée** : ni « Vider », ni la suppression d'une ligne. Le premier essai réel sera celui d'Antonin.
+
+## 2026-10-13 (01:16) — build groupé installé : retours d'Antonin, texte net, corbeille
+
+- **Installé** : `/Applications/Shale.app` = `mobile-ios` `7727898`, empreinte `8ea6fc7989f8`. Il porte les trois chantiers du soir du 12 (Performance épurée, focus sans plein écran + pastille + barre des menus, dates), la pastille nette de [texte-net] et la corbeille réparée de [corbeille-definitive]. Pas le renommage d'habitude (non fusionné à cette heure).
+- Un premier build (`eff40f0`, 00:45) a précédé de trente minutes ; l'app qu'il avait lancée attendait la fenêtre du trousseau et ne répondait pas à « quit » : arrêtée par son numéro de processus avant l'installation du second.
+- Base : version 30, intégrité ok, 88 objectifs / 80 tâches / 21 notes / 4 habitudes / 18 séances, identiques aux deux sauvegardes (`sauvegardes-locales/avant-retours-essai-20261013-0022`, `avant-build-groupe-20261013-0104`).
+- **À regarder par Antonin, jamais vu par une session** : le temps restant dans la barre des menus pendant une séance (« 24:31 », « · pause », les deux entrées du menu de l'icône, la disparition en fin de séance, pas de tremblement).
+- **iPhone** : rien d'installé. Le téléphone n'était pas branché et son profil gratuit a expiré le 3 septembre. Le Rust neuf compile pour iOS (`cargo check --lib --target aarch64-apple-ios-sim`, code 0). Pour le mettre à jour : brancher l'iPhone, le déverrouiller, puis procédure de `MOBILE.md` § 20.
+- **Décisions en attente d'Antonin** : listées en tête de la section du 2026-10-12 (soir) de `CLAUDE.md`.
+- Suite de tests : 2 467 verts sur `eff40f0` + trois fichiers tombés en délai sous charge (50 à 117), verts rejoués seuls ; sur `7727898`, la suite de [corbeille-definitive] (2 525 verts, le même délai dépassé de Finance) fait foi.
