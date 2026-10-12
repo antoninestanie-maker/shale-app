@@ -5,10 +5,12 @@
 //! dire « ta série est en danger » sans fenêtre ouverte, le Rust doit refaire le
 //! même calcul. Deux implémentations d'une même règle métier finissent par
 //! diverger : la **source de vérité reste `logic.ts`**, et toute évolution de
-//! `isDueOn`, `dayStat`, `todayTasks` ou `computeStreak` doit être répercutée ici.
+//! `isDueOn`, `estPrevueLe`, `dayStat`, `todayTasks` ou `computeStreak` doit être
+//! répercutée ici. Les cas de `src/lib/logic.jour.test.ts` sont rejoués en bas.
 //!
 //! Correspondances :
 //!   `isDueOn`      → [`is_due_on`]
+//!   `estPrevueLe`  → [`est_prevue_le`] (la définition de « la tâche du jour »)
 //!   `dayStat().pct`→ [`day_pct`]
 //!   `pctOfList(todayTasks())` → [`today_pct`]
 //!   `computeStreak`→ [`streak_before`] (à une différence près, documentée)
@@ -54,8 +56,24 @@ pub fn is_due_on(task: &Task, date: NaiveDate) -> bool {
         .unwrap_or(false)
 }
 
+/// Une tâche est-elle PRÉVUE ce jour-là ? Port de `estPrevueLe` — LA définition
+/// de « la tâche du jour » (2026-10-11) : une routine due ce jour-là, ou une
+/// ponctuelle DATÉE de ce jour-là. Ni les « sans date », ni les « à venir », ni
+/// les « en retard ».
+pub fn est_prevue_le(task: &Task, date: NaiveDate) -> bool {
+    if is_recurring(task) {
+        return is_due_on(task, date);
+    }
+    task.due_date.as_deref() == Some(day_str(date).as_str())
+}
+
 /// Pourcentage de complétion d'un jour PASSÉ. `None` = aucune tâche due,
 /// journée neutre qui ne casse pas la série. Port de `dayStat().pct`.
+///
+/// Un jour passé compte les routines dues ce jour-là et les ponctuelles
+/// COCHÉES ce jour-là. ⚠️ Une ponctuelle cochée puis décochée (ligne
+/// `done = 0`) ne compte plus comme un manqué depuis le 2026-10-11 : elle
+/// n'était ni prévue, ni faite. Un pourcentage passé ne peut que monter.
 pub fn day_pct(tasks: &[Task], completions: &[Completion], date: NaiveDate) -> Option<i64> {
     let day = day_str(date);
     let comps: Vec<&Completion> = completions.iter().filter(|c| c.date == day).collect();
@@ -65,9 +83,7 @@ pub fn day_pct(tasks: &[Task], completions: &[Completion], date: NaiveDate) -> O
         .filter(|t| is_due_on(t, date))
         .map(|t| t.id)
         .collect();
-    // Les tâches ponctuelles comptent pour un jour passé si elles y ont une
-    // ligne de complétion — c'est ce que fait `dayStat`.
-    for c in &comps {
+    for c in comps.iter().filter(|c| c.done) {
         if let Some(t) = tasks.iter().find(|t| t.id == c.task_id) {
             if !is_recurring(t) && !due.contains(&t.id) {
                 due.push(t.id);
@@ -84,45 +100,44 @@ pub fn day_pct(tasks: &[Task], completions: &[Completion], date: NaiveDate) -> O
     Some(((done as f64 / due.len() as f64) * 100.0).round() as i64)
 }
 
-/// Pourcentage du JOUR EN COURS, calculé sur la liste réellement affichée
-/// (`pctOfList(todayTasks(...))`) et non sur `dayStat` : c'est ce que voient
-/// `TodayView` et `PerformanceView`, donc ce que l'utilisateur appelle « sa
-/// journée ». `None` = rien à faire aujourd'hui.
+/// Pourcentage du JOUR EN COURS, calculé sur la liste du jour
+/// (`pctOfList(todayTasks(...))`) : c'est ce que voient `TodayView` et
+/// `PerformanceView`, donc ce que l'utilisateur appelle « sa journée ».
+/// `None` = rien de prévu aujourd'hui.
+///
+/// La liste du jour, comme `todayTasks` :
+///   • une routine due aujourd'hui ;
+///   • une ponctuelle datée d'aujourd'hui, tant qu'elle n'a pas été faite un
+///     AUTRE jour (faite en avance, elle a compté ce jour-là) ;
+///   • une ponctuelle COCHÉE aujourd'hui, quelle que soit sa date.
+///
+/// ⚠️ Avant le 2026-10-11, toute ponctuelle non faite y entrait, datée ou non :
+/// noter une tâche pour jeudi faisait baisser le pourcentage du jour, et la
+/// notification « série en danger » sonnait pour des tâches qui n'étaient pas
+/// prévues aujourd'hui.
 pub fn today_pct(tasks: &[Task], completions: &[Completion], today: NaiveDate) -> Option<i64> {
     let day = day_str(today);
+    let cochee_aujourdhui =
+        |t: &Task| completions.iter().any(|c| c.task_id == t.id && c.date == day && c.done);
+    let faite_un_jour = |t: &Task| completions.iter().any(|c| c.task_id == t.id && c.done);
+
     let list: Vec<&Task> = tasks
         .iter()
         .filter(|t| {
-            if is_due_on(t, today) {
+            if is_recurring(t) {
+                return is_due_on(t, today);
+            }
+            if cochee_aujourdhui(t) {
                 return true;
             }
-            if is_recurring(t) {
-                return false;
-            }
-            if let Some(created) = &t.created_at {
-                if created.len() >= 10 && &created[..10] > day.as_str() {
-                    return false;
-                }
-            }
-            // Une tâche ponctuelle déjà faite un autre jour a quitté la liste.
-            match completions.iter().find(|c| c.task_id == t.id && c.done) {
-                Some(c) => c.date == day,
-                None => true,
-            }
+            est_prevue_le(t, today) && !faite_un_jour(t)
         })
         .collect();
 
     if list.is_empty() {
         return None;
     }
-    let done = list
-        .iter()
-        .filter(|t| {
-            completions
-                .iter()
-                .any(|c| c.task_id == t.id && c.date == day && c.done)
-        })
-        .count() as i64;
+    let done = list.iter().filter(|t| cochee_aujourdhui(t)).count() as i64;
     Some(((done as f64 / list.len() as f64) * 100.0).round() as i64)
 }
 
@@ -157,7 +172,12 @@ mod tests {
     }
 
     fn task(id: i64, recurrence: &str) -> Task {
-        Task { id, recurrence: Some(recurrence.into()), created_at: None }
+        Task { id, recurrence: Some(recurrence.into()), created_at: None, due_date: None }
+    }
+
+    /// Une ponctuelle datée (`None` = sans date).
+    fn datee(id: i64, due: Option<&str>) -> Task {
+        Task { id, recurrence: Some("none".into()), created_at: None, due_date: due.map(Into::into) }
     }
 
     fn done(task_id: i64, date: &str) -> Completion {
@@ -173,7 +193,10 @@ mod tests {
     #[test]
     fn une_tache_non_recurrente_n_est_jamais_due() {
         assert!(!is_due_on(&task(1, "none"), d("2026-07-27")));
-        assert!(!is_due_on(&Task { id: 1, recurrence: None, created_at: None }, d("2026-07-27")));
+        assert!(!is_due_on(
+            &Task { id: 1, recurrence: None, created_at: None, due_date: None },
+            d("2026-07-27")
+        ));
     }
 
     #[test]
@@ -199,6 +222,7 @@ mod tests {
             id: 1,
             recurrence: Some("daily".into()),
             created_at: Some("2026-07-28 09:00:00".into()),
+            due_date: None,
         };
         assert!(!is_due_on(&t, d("2026-07-27")));
         assert!(is_due_on(&t, d("2026-07-28")));
@@ -220,10 +244,33 @@ mod tests {
     }
 
     #[test]
-    fn une_ponctuelle_compte_le_jour_ou_elle_a_une_ligne() {
+    fn une_ponctuelle_compte_le_jour_ou_elle_est_cochee() {
+        let tasks = vec![task(1, "daily"), task(2, "none")];
+        let comps = vec![done(2, "2026-07-27")];
+        // Routine manquée, ponctuelle faite : 1 sur 2.
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), Some(50));
+    }
+
+    /// Port de « une ponctuelle cochée PUIS décochée ne compte plus comme un
+    /// manqué » : avant le 2026-10-11, sa ligne `done = 0` valait 0 %.
+    #[test]
+    fn une_ponctuelle_decochee_ne_compte_plus_comme_un_manque() {
         let tasks = vec![task(1, "none")];
         let comps = vec![undone(1, "2026-07-27")];
-        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), Some(0));
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), None, "ni prévue, ni faite : neutre");
+
+        let tasks = vec![task(1, "daily"), task(2, "none")];
+        let comps = vec![done(1, "2026-07-27"), undone(2, "2026-07-27")];
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), Some(100));
+    }
+
+    /// Une tâche sans date ou à venir, jamais cochée, n'a jamais pesé sur un
+    /// jour passé — avant comme après la règle.
+    #[test]
+    fn une_ponctuelle_jamais_cochee_ne_pese_sur_aucun_jour_passe() {
+        let tasks = vec![task(1, "daily"), datee(2, None), datee(3, Some("2026-07-30"))];
+        let comps = vec![done(1, "2026-07-27")];
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), Some(100));
     }
 
     // — Série —
@@ -261,18 +308,112 @@ mod tests {
         assert_eq!(streak_before(&tasks, &comps, d("2026-07-27")), 1);
     }
 
-    // — Jour en cours —
+    // — Jour en cours : la définition de « la tâche du jour » (2026-10-11) —
+    // Les mêmes cas que `src/lib/logic.jour.test.ts`.
 
     #[test]
-    fn le_jour_en_cours_suit_la_liste_affichee() {
-        let tasks = vec![task(1, "daily"), task(2, "none")];
-        let comps = vec![done(1, "2026-07-27")];
-        // La ponctuelle non faite reste dans la liste du jour : 1/2 = 50 %.
-        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(50));
+    fn prevue_le_jour_de_sa_date_et_lui_seul() {
+        let auj = d("2026-07-27");
+        assert!(est_prevue_le(&datee(1, Some("2026-07-27")), auj));
+        assert!(!est_prevue_le(&datee(1, Some("2026-07-26")), auj));
+        assert!(!est_prevue_le(&datee(1, Some("2026-07-28")), auj));
+        assert!(!est_prevue_le(&datee(1, None), auj));
+        assert!(est_prevue_le(&task(1, "daily"), auj));
+        // Une routine ne suit pas une date égarée dans sa ligne (samedi, lun–ven).
+        let egaree = Task {
+            id: 1,
+            recurrence: Some("weekdays".into()),
+            created_at: None,
+            due_date: Some("2026-08-01".into()),
+        };
+        assert!(!est_prevue_le(&egaree, d("2026-08-01")));
+    }
+
+    /// A17-19 : ajouter une tâche sans date, ou datée de jeudi, ne change pas
+    /// le pourcentage du jour.
+    #[test]
+    fn ajouter_une_tache_sans_date_ne_change_pas_le_jour() {
+        let auj = d("2026-07-27");
+        let comps = vec![done(2, "2026-07-27")];
+        let avant = vec![datee(1, Some("2026-07-27")), task(2, "daily"), task(3, "daily")];
+        assert_eq!(today_pct(&avant, &comps, auj), Some(33));
+
+        let mut sans_date = avant.clone();
+        sans_date.push(datee(10, None));
+        assert_eq!(today_pct(&sans_date, &comps, auj), Some(33));
+
+        let mut a_venir = avant.clone();
+        a_venir.push(datee(11, Some("2026-07-30")));
+        assert_eq!(today_pct(&a_venir, &comps, auj), Some(33));
+
+        let mut en_retard = avant.clone();
+        en_retard.push(datee(12, Some("2026-07-20")));
+        assert_eq!(today_pct(&en_retard, &comps, auj), Some(33));
     }
 
     #[test]
-    fn une_ponctuelle_faite_un_autre_jour_quitte_la_liste() {
+    fn une_tache_datee_d_aujourd_hui_compte() {
+        let tasks = vec![task(1, "daily"), datee(2, Some("2026-07-27"))];
+        let comps = vec![done(1, "2026-07-27")];
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(50));
+    }
+
+    /// Ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa
+    /// date : sans date, en retard rattrapée, faite en avance.
+    #[test]
+    fn ce_qu_on_coche_aujourd_hui_compte_pour_aujourd_hui() {
+        let tasks = vec![
+            task(1, "daily"),
+            datee(2, None),
+            datee(3, Some("2026-07-26")),
+            datee(4, Some("2026-07-28")),
+        ];
+        let comps = vec![done(2, "2026-07-27"), done(3, "2026-07-27"), done(4, "2026-07-27")];
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(75));
+    }
+
+    #[test]
+    fn cochee_puis_decochee_une_tache_sans_date_ressort_de_la_liste() {
+        let tasks = vec![datee(2, None)];
+        let comps = vec![undone(2, "2026-07-27")];
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), None);
+    }
+
+    #[test]
+    fn datee_d_aujourd_hui_mais_faite_hier_elle_a_compte_hier() {
+        let tasks = vec![datee(1, Some("2026-07-27"))];
+        let comps = vec![done(1, "2026-07-26")];
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), None);
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-26")), Some(100));
+    }
+
+    /// À minuit, le chiffre du jour ne peut que monter : seule la tâche datée
+    /// d'aujourd'hui et pas faite sort du compte.
+    #[test]
+    fn a_minuit_le_chiffre_du_jour_ne_peut_que_monter() {
+        let auj = d("2026-07-27");
+        let tasks = vec![
+            task(1, "daily"),
+            task(2, "daily"),
+            datee(3, Some("2026-07-27")),
+            datee(4, Some("2026-07-27")),
+            datee(5, None),
+        ];
+        let comps = vec![done(1, "2026-07-27"), done(3, "2026-07-27"), done(5, "2026-07-27")];
+        assert_eq!(today_pct(&tasks, &comps, auj), Some(60));
+        assert_eq!(day_pct(&tasks, &comps, auj), Some(75));
+    }
+
+    #[test]
+    fn une_ponctuelle_sans_date_ne_met_plus_la_journee_a_zero() {
+        // Avant : la ponctuelle non faite restait dans la liste du jour (1/2).
+        let tasks = vec![task(1, "daily"), task(2, "none")];
+        let comps = vec![done(1, "2026-07-27")];
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(100));
+    }
+
+    #[test]
+    fn une_ponctuelle_faite_un_autre_jour_n_est_pas_dans_la_liste() {
         let tasks = vec![task(1, "daily"), task(2, "none")];
         let comps = vec![done(2, "2026-07-20")];
         assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(0));
@@ -281,5 +422,8 @@ mod tests {
     #[test]
     fn journee_vide_vaut_none() {
         assert_eq!(today_pct(&[], &[], d("2026-07-27")), None);
+        // Rien de prévu aujourd'hui : neutre, pas 0 %.
+        let tasks = vec![datee(1, None), datee(2, Some("2026-07-20"))];
+        assert_eq!(today_pct(&tasks, &[], d("2026-07-27")), None);
     }
 }
