@@ -2256,7 +2256,10 @@ Même branche (`chantier/barre-laterale`). Front seul : `Sidebar.tsx`, `SyncIndi
 **Mesure de fluidité** (glissement sur Aujourd'hui, processeur ralenti ×4, ancien et nouveau code à la même charge machine) : médiane 45,2 → 18,6 ms ; pire dixième 102 → 23,7 ms ; images de plus de 34 ms 151 → 1 ; tâches longues 76 → 0. Sans ralentissement : 16,7 ms, aucune image manquée.
 **Rejoué dans WebKit** (`webkit-pilote`, pointeur simulé) : masque rendu, bord à 95 px puis rail, pastille de synchro sans débordement, veille posée puis retirée.
 
-**Ligne de base** : voir la ligne « Installé » ci-dessous.
+**Ligne de base** : vitest 2488 (1 ignoré), `tsc`, `test:types`, `i18n:check` (2827), `i18n:durs`, `build` verts.
+
+**Installé le 2026-10-12 à 22:22** : build depuis `mobile-ios` `07a4d07` (arbre inchangé), 22:20 → 22:22. Témoins dans `dist/assets` : `sb:barre-lachee`, `data-barre-glisse`, `barre-coupe`, `barre-repli`, `--barre-marge` ; contre-épreuve 0. sha256 installée = source `287ecb4716fb…` (ancienne `fb70acefa8b3…`), `diff -r` identique. Base 30 avant et après, intégrité ok, 88 objectifs / 81 tâches / 22 notes / 4 habitudes / 3 liens identiques. Sauvegarde : `sauvegardes-locales/avant-barre-continue-20261012-2220/`. Ce build porte aussi `chantier/retours-passe2` de [correctifs], fusionné l'après-midi et jamais installé.
+⚠️ **Deux anomalies de ce build, sans conséquence constatée** (PIEGES § 10.6, ajout du 12/10) : l'étape DMG a échoué (`bundle_dmg.sh`, code 1 — le `.app` était déjà produit), et `/Applications/Shale.app` portait DÉJÀ le nouveau binaire avant tout `ditto` de la session, l'ancienne instance fermée proprement. Image restée montée : démontée (`hdiutil detach`). Bundle supprimé. Shale relancée (processus neuf). Antonin doit cliquer **« Toujours autoriser »**.
 
 ⚠️ **Pas vu** : l'app installée, la vraie souris dans WKWebView, l'iPad. Pendant le geste, un panneau d'Aujourd'hui dont le texte passe à la ligne garde sa hauteur jusqu'au lâcher (voulu : c'est la veille).
 
