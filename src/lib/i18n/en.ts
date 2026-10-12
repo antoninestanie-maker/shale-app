@@ -3623,7 +3623,7 @@ export const EN: Record<string, string> = {
   "Sept jours, aujourd'hui compris": "Seven days, today included",
 
   // ── Performance : l'onglet « Par objectif », à l'essai (2026-10-11) ──
-  "Semaine du {dates}": "Week of {dates}",
+  "Cette semaine · {dates}": "This week · {dates}",
   "Du lundi au dimanche, aujourd'hui compris": "Monday to Sunday, today included",
   "lundi → dimanche, aujourd'hui compris": "Monday → Sunday, today included",
   "Le Timer, lui, compte sept jours glissants : les deux totaux ne coïncident que le dimanche.": "The Timer counts seven rolling days: the two totals only match on Sundays.",
@@ -3642,7 +3642,7 @@ export const EN: Record<string, string> = {
   "Heures promises par semaine à « {titre} »": "Hours promised per week to “{titre}”",
   "Heures promises par semaine": "Hours promised per week",
   "Vide : pas de promesse, la ligne ne montre que le temps passé.": "Empty: no promise, the row only shows the time spent.",
-  "h par semaine": "h a week",
+  "h promises par semaine": "h promised a week",
   "Semaines précédentes": "Previous weeks",
   "semaine en cours": "current week",
   "{n} semaine précédente": "{n} previous week",

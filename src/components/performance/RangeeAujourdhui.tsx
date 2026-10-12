@@ -47,9 +47,11 @@ export function RangeeAujourdhui({ jour }: { jour: JourEnCours }) {
       </div>
       <dl className="grid min-w-[min(100%,15rem)] flex-1 grid-cols-3 gap-4">
         {cases.map((c) => (
-          <div key={c.nom} className="flex min-w-0 flex-col-reverse" data-tip={c.bulle}>
-            <dt className="hud-label truncate-souris">{c.nom}</dt>
-            <dd className="truncate font-display text-xl font-extrabold tabular-nums text-text">{c.valeur}</dd>
+          // Le nombre AU-DESSUS de son nom, alignés en haut : au téléphone un
+          // nom sur deux lignes ne doit pas faire descendre le nombre voisin.
+          <div key={c.nom} className="flex min-w-0 flex-col" data-tip={c.bulle}>
+            <dt className="hud-label truncate-souris order-2">{c.nom}</dt>
+            <dd className="order-1 truncate font-display text-xl font-extrabold tabular-nums text-text">{c.valeur}</dd>
           </div>
         ))}
       </dl>

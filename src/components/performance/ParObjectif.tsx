@@ -90,7 +90,7 @@ export default function ParObjectif({ data }: { data: AppData }) {
           data-tip-sub={t("Le Timer, lui, compte sept jours glissants : les deux totaux ne coïncident que le dimanche.")}
           data-tip-attente="longue"
         >
-          <h2 className="hud-label">{t("Semaine du {dates}", { dates })}</h2>
+          <h2 className="hud-label">{t("Cette semaine · {dates}", { dates })}</h2>
           <p className="text-xs text-text-dim">{t("lundi → dimanche, aujourd'hui compris")}</p>
         </div>
         <p className="flex shrink-0 items-baseline gap-2">
@@ -139,8 +139,10 @@ export default function ParObjectif({ data }: { data: AppData }) {
         </ul>
       )}
 
-      {/* « Hors objectif » : montré, jamais réparti. Total = lignes + ceci. */}
-      {(tableau.horsObjectif.minutes > 0 || tableau.horsObjectif.passees.some((s) => s.minutes > 0)) && (
+      {/* « Hors objectif » : montré, jamais réparti. Total = lignes + ceci.
+          Présent dès que le compte a une séance, même à zéro cette semaine :
+          c'est la ligne qui permet de refaire l'addition. */}
+      {(tableau.total > 0 || tableau.horsObjectif.passees.length > 0) && (
         <section className="card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h3
@@ -304,7 +306,7 @@ function ChampPromesse({
         data-tip-sub={t("Vide : pas de promesse, la ligne ne montre que le temps passé.")}
         className="cible-tactile w-16 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 text-right text-sm tabular-nums text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
       />
-      <span className="whitespace-nowrap">{t("h par semaine")}</span>
+      <span className="whitespace-nowrap">{t("h promises par semaine")}</span>
     </label>
   );
 }
@@ -387,7 +389,7 @@ function Echeance({ fait, promesse, today }: { fait: FaitEcheance; promesse: num
     const p = fait.peril;
     const restant = p.etapesRestantes + p.tachesRestantes;
     return (
-      <p className="mt-3 text-xs text-red">
+      <p className="mt-3 text-xs text-red first-letter:uppercase">
         {p.joursRestants < 0
           ? tp(-p.joursRestants, "échéance dépassée d'{n} jour.", "échéance dépassée de {n} jours.")
           : tp(p.joursRestants, "{n} jour restant, {pct} % fait.", "{n} jours restants, {pct} % fait.", { pct: p.progression })}{" "}

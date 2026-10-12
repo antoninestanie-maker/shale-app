@@ -119,7 +119,7 @@ function enSemaines(serie: readonly PointJour[], lundi: string, today: string): 
     const col: Carre[] = [];
     for (let d = 0; d < 7; d++) {
       const date = addDays(lundi, -7 * w + d);
-      col.push({ date, pct: par.get(date) ?? null, futur: date > today });
+      col.push({ date, pct: par.get(date) ?? null, futur: date > today, enCours: date === today });
     }
     semaines.push(col);
   }
@@ -486,7 +486,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               data-tip={t(LIBELLE_PLAGE[p].long)}
               data-tip-sub={t("Tout l'onglet suit cette période, et se compare à la même durée juste avant.")}
               data-tip-attente="longue"
-              className={`pill border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`pill cible-tactile inline-flex items-center justify-center border px-3 py-1 text-xs font-medium transition-colors ${
                 plage === p ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
               }`}
             >

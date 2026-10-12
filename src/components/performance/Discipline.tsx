@@ -155,6 +155,11 @@ export interface Carre {
   /** `null` : jour neutre ou à venir. */
   pct: number | null;
   futur: boolean;
+  /**
+   * Le jour EN COURS. Il n'est jamais teinté de rouge : « rien de fait » à dix
+   * heures du matin n'est pas un jour manqué, c'est un jour pas fini.
+   */
+  enCours?: boolean;
 }
 
 /**
@@ -189,9 +194,9 @@ export function GrilleCarres(props: {
             {semaine.map((c) => (
               <div
                 key={c.date}
-                title={`${jourCourt(c.date)}${c.pct !== null ? ` — ${c.pct}%` : ""}`}
+                title={`${jourCourt(c.date)}${c.pct !== null ? ` — ${c.pct}%` : ""}${c.enCours ? ` · ${t("en cours|jour")}` : ""}`}
                 className="h-3.5 w-3.5 rounded-[3px]"
-                style={{ backgroundColor: c.futur ? "transparent" : couleurCarre(c.pct, rouge) }}
+                style={{ backgroundColor: c.futur ? "transparent" : couleurCarre(c.pct, rouge && !c.enCours) }}
               />
             ))}
           </div>
