@@ -58,6 +58,31 @@ export function planRempli(titre: string): boolean {
   return titre.trim().length > 0;
 }
 
+/**
+ * ⭐ Les heures que l'objectif planté retient (2026-10-11).
+ *
+ * LE DÉFAUT. L'écran de la grille ouvre avec une case d'heures ALLUMÉE (la
+ * valeur proposée), mais l'accueil ne retenait un chiffre que si on CLIQUAIT
+ * une case. Qui lisait « 5 h » allumé et faisait « Suivant » plantait un
+ * objectif sans ses heures : l'écran montrait une réponse que l'app ne gardait
+ * pas (trouvé par un prototypeur du labo).
+ *
+ * LA RÈGLE : la valeur montrée est la valeur retenue.
+ *   • `choisies` — la case cliquée, sinon `null` ;
+ *   • `montrees` — la case allumée au moment où l'écran de la grille a été
+ *     VALIDÉ par « Suivant » ; `null` si l'écran a été passé, ou jamais vu.
+ *
+ * ⚠️ Ne vaut que pour l'objectif PLANTÉ, celui dont l'utilisateur écrit le
+ * titre. L'objectif du curseur (« Récupérer N h par semaine », créé quand
+ * l'écran suivant est laissé vide) reste réservé à une case CLIQUÉE : traverser
+ * l'accueil à coups de « Suivant » ne doit pas faire apparaître un objectif que
+ * personne n'a demandé (voir `Accueil.tsx`, « pas de réponse, pas d'objectif »).
+ */
+export function heuresDuPlan(choisies: number | null, montrees: number | null): number {
+  const n = choisies ?? montrees ?? 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export interface Plan {
   /** L'objectif racine, MESURÉ : sa progression viendra de ses jalons. */
   racine: GoalInput;

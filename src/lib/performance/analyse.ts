@@ -1,6 +1,6 @@
 import { addDays, dayStat, weekdayOf, ORDRE_SEMAINE } from "../logic";
 import { sansExemples } from "../onboarding/exemples";
-import { estRecurrente, SEUIL_REPORT } from "../taches";
+import { estEnRetard, estRecurrente, ponctuellesFaites, SEUIL_REPORT } from "../taches";
 import type { Completion, FocusSession, Habit, HabitCheck, Task } from "../types";
 
 /**
@@ -22,6 +22,12 @@ import type { Completion, FocusSession, Habit, HabitCheck, Task } from "../types
  *    Aujourd'hui n'est pas terminé — le compter ferait baisser la moyenne
  *    chaque matin. Il reste dessiné, en dernier point de la courbe ;
  *  • **le contenu de départ ne compte pas** (`sansExemples`), comme partout.
+ *
+ * ⭐ 2026-10-11 — le jour en cours SE VOIT, à part (`jour.ts`), sans entrer
+ * dans une moyenne ni dans un écart : la règle des jours finis tient, mais un
+ * écran qui dit « aucune séance » à qui vient d'en finir une mentait (crible du
+ * labo, constat 2). Et une tuile dit ce qu'elle NE compte PAS
+ * (`tachesHorsCompte`, constat 9).
  */
 
 /** Les périodes proposées par l'onglet, en jours. */
@@ -238,28 +244,59 @@ export function minutesDeFocus(sessions: readonly FocusSession[], debut: string,
 export interface TrancheFocus {
   /** Premier jour de la tranche. */
   debut: string;
+  /** Dernier jour de la tranche (le même en pas « jour »). */
+  fin: string;
   minutes: number;
+  /** Vrai pour la barre d'AUJOURD'HUI : un jour pas fini, hors de tout total. */
+  enCours?: boolean;
 }
 
 /**
  * Le focus dans le temps : par JOUR jusqu'à 30 jours, par SEMAINE au-delà
  * (cent quatre-vingts barres d'un pixel ne se lisent pas). Les tranches vides
  * restent, à zéro : un trou dans le rythme est une information.
+ *
+ * ⚠️ En pas « semaine », une tranche est SEPT JOURS À PARTIR DU DÉBUT DE LA
+ * PÉRIODE, pas une semaine du lundi au dimanche — et la dernière est plus
+ * courte (90 = 12 × 7 + 6). Chaque tranche porte donc sa `fin` : l'écran écrit
+ * ses dates au lieu de dire « semaine ».
+ *
+ * `aujourdHui` : le jour en cours, s'il faut le MONTRER. En pas « jour », il
+ * devient une dernière barre marquée `enCours` (elle n'entre dans aucun total,
+ * comme le dernier point des courbes). En pas « semaine » il n'a pas de barre —
+ * un jour à côté de semaines se lirait comme une semaine ratée — mais ses
+ * minutes sont rendues, pour que l'écran ne dise pas « aucune séance ».
  */
-export function focusDansLeTemps(sessions: readonly FocusSession[], debut: string, fin: string): { pas: "jour" | "semaine"; tranches: TrancheFocus[] } {
+export function focusDansLeTemps(
+  sessions: readonly FocusSession[],
+  debut: string,
+  fin: string,
+  aujourdHui?: string,
+): { pas: "jour" | "semaine"; tranches: TrancheFocus[]; minutesAujourdHui: number } {
   const liste = jours(debut, fin);
   const parJour = new Map<string, number>();
   for (const s of seancesDeFocus(sessions, debut, fin)) {
     const j = s.started_at.slice(0, 10);
     parJour.set(j, (parJour.get(j) ?? 0) + minutesDeSeance(s));
   }
-  if (liste.length <= 31) return { pas: "jour", tranches: liste.map((d) => ({ debut: d, minutes: parJour.get(d) ?? 0 })) };
+  const minutesAujourdHui = aujourdHui ? minutesDeFocus(sessions, aujourdHui, aujourdHui) : 0;
+  if (liste.length <= 31) {
+    const tranches: TrancheFocus[] = liste.map((d) => ({ debut: d, fin: d, minutes: parJour.get(d) ?? 0 }));
+    if (aujourdHui && aujourdHui > fin) {
+      tranches.push({ debut: aujourdHui, fin: aujourdHui, minutes: minutesAujourdHui, enCours: true });
+    }
+    return { pas: "jour", tranches, minutesAujourdHui };
+  }
   const tranches: TrancheFocus[] = [];
   for (let i = 0; i < liste.length; i += 7) {
     const semaine = liste.slice(i, i + 7);
-    tranches.push({ debut: semaine[0], minutes: semaine.reduce((a, d) => a + (parJour.get(d) ?? 0), 0) });
+    tranches.push({
+      debut: semaine[0],
+      fin: semaine[semaine.length - 1],
+      minutes: semaine.reduce((a, d) => a + (parJour.get(d) ?? 0), 0),
+    });
   }
-  return { pas: "semaine", tranches };
+  return { pas: "semaine", tranches, minutesAujourdHui };
 }
 
 // ─── Ce qui décroche ────────────────────────────────────────────────────────
@@ -300,6 +337,49 @@ export const SEUILS = {
   max: 3,
 } as const;
 
+/**
+ * ⭐ CE QUE « TÂCHES TENUES » NE COMPTE PAS (crible du labo, constat 9 ; audit
+ * A07b-06) : les tâches ponctuelles en retard ou reportées, toujours pas faites.
+ *
+ * LE DÉFAUT. La tuile écrivait « Tâches tenues 100 % » juste au-dessus de
+ * « 1 tâche reportée au moins deux fois, toujours pas faite ». Les deux étaient
+ * vraies, et se contredisaient à l'écran : le pourcentage d'un jour passé
+ * (`dayStat`) ne lit que les routines dues ce jour-là et les ponctuelles
+ * COCHÉES ce jour-là. Une ponctuelle pas faite ne pèse sur aucun jour.
+ *
+ * POURQUOI ON NE LA FAIT PAS PESER SUR SON JOUR. Ce serait réécrire l'histoire
+ * avec ce que la base ne sait pas :
+ *   • `tasks` ne garde que la date ACTUELLE (`due_date`) et la date d'ORIGINE
+ *     (`postponed_from`). Les jours intermédiaires d'une tâche reportée trois
+ *     fois sont perdus ;
+ *   • « Replanifier » remet le compteur à zéro et efface l'origine
+ *     (`replanifier`, `lib/taches.ts`) : le pourcentage d'un jour d'il y a deux
+ *     semaines remonterait aujourd'hui, à cause d'un geste d'aujourd'hui ;
+ *   • surtout, le chiffre d'un jour a UNE définition pour toute l'app
+ *     (`dayStat` : l'anneau, les séries, les notifications portées en Rust).
+ *     Une seconde, ici, donnerait une courbe où un jour est « manqué » et une
+ *     série qui le compte « tenu ».
+ *
+ * CE QU'ON FAIT À LA PLACE : la tuile dit ce qu'elle laisse de côté, là où elle
+ * l'affiche. Ce compte est un état d'AUJOURD'HUI (ce qui traîne maintenant),
+ * pas un chiffre de la période — il ne se compare à rien.
+ *
+ * Y entrent, parmi les ponctuelles pas faites et hors exemples :
+ *   • celles dont la date est passée (`estEnRetard`) ;
+ *   • celles qui ont déjà glissé au moins une fois (`postponed_count ≥ 1`) : un
+ *     report n'arrive qu'à une tâche qui était en retard (`reporter`), donc
+ *     elle a manqué au moins un jour — même si sa date est aujourd'hui.
+ */
+export function tachesHorsCompte(tasks: readonly Task[], completions: readonly Completion[], today: string): Task[] {
+  const faites = ponctuellesFaites(completions);
+  return sansExemples(tasks).filter(
+    (t) =>
+      !estRecurrente(t) &&
+      !faites.has(t.id) &&
+      (estEnRetard(t, today, false) || (t.postponed_count ?? 0) >= 1),
+  );
+}
+
 export function pointsDAttention(p: {
   tasks: Task[];
   completions: Completion[];
@@ -314,9 +394,10 @@ export function pointsDAttention(p: {
   const points: PointDAttention[] = [];
 
   // 1) Ce qui attend une décision : les tâches reportées trop de fois, pas faites.
-  const faites = new Set(p.completions.filter((c) => c.done).map((c) => c.task_id));
-  const reports = sansExemples(p.tasks).filter(
-    (t) => !estRecurrente(t) && !faites.has(t.id) && (t.postponed_count ?? 0) >= SEUIL_REPORT,
+  // ⚠️ Tirées de `tachesHorsCompte`, pas recomptées à part : tout ce que cette
+  // ligne annonce est donc AUSSI annoncé sous la tuile « Tâches tenues ».
+  const reports = tachesHorsCompte(p.tasks, p.completions, today).filter(
+    (t) => (t.postponed_count ?? 0) >= SEUIL_REPORT,
   ).length;
   if (reports > 0) points.push({ genre: "reports", n: reports });
 

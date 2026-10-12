@@ -6,6 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Line,
   ResponsiveContainer,
@@ -38,6 +39,7 @@ import {
   seancesDeFocus,
   serieHabitudes,
   serieTaches,
+  tachesHorsCompte,
   tenueParHabitude,
   PLAGES,
   PLAGE_PAR_DEFAUT,
@@ -45,7 +47,12 @@ import {
   type PointDAttention,
   type PointJour,
 } from "../lib/performance/analyse";
+import { jourEnClair, plageDeDates } from "../lib/performance/dates";
+import { jourEnCours, periodeSansMesure } from "../lib/performance/jour";
+import { enHeuresInsecable } from "../lib/performance/durees";
 import { CourbeDiscipline, GrilleCarres, LegendeCourbe, type Carre } from "../components/performance/Discipline";
+import ParObjectif from "../components/performance/ParObjectif";
+import { RangeeAujourdhui } from "../components/performance/RangeeAujourdhui";
 import { serieHabitude } from "../lib/habitudes";
 import { allerVers } from "../lib/naviguer";
 import type { View } from "../components/Sidebar";
@@ -79,6 +86,15 @@ const LIBELLE_PLAGE: Record<Plage, { court: string; long: string }> = {
   180: { court: "6 mois", long: "6 derniers mois" },
 };
 
+/**
+ * ⭐ LES DEUX VUES DE L'ONGLET (2026-10-11). « Par objectif » est un ESSAI :
+ * tout son contenu vit dans `components/performance/ParObjectif.tsx` et
+ * `lib/performance/parObjectif.ts`. Pour le retirer : ce tableau, le sélecteur
+ * de l'en-tête et la branche du rendu.
+ */
+const VUES = ["ensemble", "objectifs"] as const;
+type Vue = (typeof VUES)[number];
+
 /** Le réglage qui retient la période choisie (synchronisé : c'est une préférence, pas une géométrie). */
 const CLE_PLAGE = "perf.plage";
 
@@ -104,7 +120,7 @@ function enSemaines(serie: readonly PointJour[], lundi: string, today: string): 
     const col: Carre[] = [];
     for (let d = 0; d < 7; d++) {
       const date = addDays(lundi, -7 * w + d);
-      col.push({ date, pct: par.get(date) ?? null, futur: date > today });
+      col.push({ date, pct: par.get(date) ?? null, futur: date > today, enCours: date === today });
     }
     semaines.push(col);
   }
@@ -155,6 +171,7 @@ export default function PerformanceView({ data, refresh }: Props) {
   const today = todayStr();
   const { tasks, completions, goals, metrics, metricEntries, goalLog } = data;
 
+  const [vue, setVue] = useState<Vue>("ensemble");
   const [plage, setPlage] = useState<Plage>(PLAGE_PAR_DEFAUT);
   useEffect(() => {
     getSetting(CLE_PLAGE).then((v) => {
@@ -176,12 +193,30 @@ export default function PerformanceView({ data, refresh }: Props) {
     const todayPct = pctOfList(list);
     const runs = streakHistory(tasks, completions, today, todayPct);
     return {
+      liste: list,
       todayPct,
       current: computeStreak(tasks, completions, today, todayPct),
       best: runs.reduce((m, r) => Math.max(m, r.length), 0),
       runs: runs.slice(0, 6),
     };
   }, [tasks, completions, today]);
+
+  /**
+   * ⭐ LE JOUR EN COURS, À PART (2026-10-11) — il se voit, et ne se compare à
+   * rien. La liste du jour vient de `todayTasks` : c'est elle qui dit ce
+   * qu'est « une tâche du jour », pas cette vue.
+   */
+  const jour = useMemo(
+    () =>
+      jourEnCours({
+        listeDuJour: derived.liste,
+        habits: data.habits,
+        habitChecks: data.habitChecks,
+        focusSessions: data.focusSessions,
+        today,
+      }),
+    [derived.liste, data.habits, data.habitChecks, data.focusSessions, today],
+  );
 
   /**
    * ⭐ TOUTE L'ANALYSE DE LA PÉRIODE, en un seul endroit — et calculée par
@@ -231,7 +266,9 @@ export default function PerformanceView({ data, refresh }: Props) {
     const seances = seancesDeFocus(focusSessions, b.debut, b.fin);
     const focus = minutesDeFocus(focusSessions, b.debut, b.fin);
     const focusAvant = minutesDeFocus(focusSessions, b.debutAvant, b.finAvant);
-    const temps = focusDansLeTemps(focusSessions, b.debut, b.fin);
+    // ⭐ Le jour en cours a sa barre (pas « jour »), marquée : elle n'entre
+    // dans aucun total, comme le dernier point des courbes.
+    const temps = focusDansLeTemps(focusSessions, b.debut, b.fin, today);
     const parTag = new Map<string, number>();
     for (const s of seances) {
       const task = tasks.find((x) => x.id === s.task_id);
@@ -241,6 +278,24 @@ export default function PerformanceView({ data, refresh }: Props) {
     const tags = [...parTag.entries()].map(([tag, min]) => ({ tag, min })).sort((x, y) => y.min - x.min);
 
     return {
+      // ⭐ Chaque chiffre dit sa période (2026-10-11) : ses dates, en clair.
+      periode: plageDeDates(b.debut, b.fin, today),
+      periodeAvant: plageDeDates(b.debutAvant, b.finAvant, today),
+      // Ce que « Tâches tenues » ne compte pas (constat 9 du labo, A07b-06).
+      horsCompte: tachesHorsCompte(tasks, completions, today).length,
+      sansMesure: periodeSansMesure({ taches: cTaches.valeur, habitudes: cHabitudes.valeur, focus }),
+      focusAvant,
+      // Le chiffre du TIMER (« cette semaine » = sept jours glissants,
+      // aujourd'hui compris) : donné dans la bulle de la tuile Focus, sur
+      // « 7 j » seulement, pour qu'on puisse recouper les deux écrans.
+      focusGlissant:
+        plage === 7
+          ? {
+              minutes: minutesDeFocus(focusSessions, addDays(today, -6), today),
+              dates: plageDeDates(addDays(today, -6), today, today),
+            }
+          : null,
+      aDejaDesSeances: focusSessions.some((x) => x.kind === "focus" && !!x.ended_at),
       cTaches,
       cHabitudes,
       courbeTaches,
@@ -251,8 +306,18 @@ export default function PerformanceView({ data, refresh }: Props) {
       aDesJours: semT.some((j) => j.pct !== null) || semH.some((j) => j.pct !== null),
       focus,
       focusEcart: focusAvant > 0 || focus > 0 ? focus - focusAvant : null,
-      focusAujourdHui: minutesDeFocus(focusSessions, today, today),
-      temps: { pas: temps.pas, tranches: temps.tranches.map((x) => ({ label: jourCourt(x.debut), minutes: x.minutes })) },
+      temps: {
+        pas: temps.pas,
+        tranches: temps.tranches.map((x) => ({
+          label: x.enCours ? t("auj.") : jourCourt(x.debut),
+          // Le titre de la bulle : les DATES de la tranche. En pas « semaine »
+          // ce sont sept jours depuis le début de la période, pas un
+          // lundi → dimanche — d'où les dates plutôt que le mot « semaine ».
+          titre: x.enCours ? `${jourEnClair(x.debut)} · ${t("en cours|jour")}` : plageDeDates(x.debut, x.fin, today),
+          minutes: x.minutes,
+          enCours: !!x.enCours,
+        })),
+      },
       tags,
       tagMax: tags[0]?.min ?? 1,
       habitudes: tenueParHabitude(habits, habitChecks, today, plage).map((h) => ({
@@ -371,9 +436,46 @@ export default function PerformanceView({ data, refresh }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      {/* ⭐ La période se choisit UNE fois, ici, pour toutes les cartes. */}
       <header className="view-head">
         <h1 className="text-3xl text-text">{t("Performance")}</h1>
+        <div role="tablist" aria-label={t("Ce que montre Performance")} className="flex flex-wrap gap-1.5">
+          {VUES.map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={vue === v}
+              onClick={() => setVue(v)}
+              data-tip={v === "objectifs" ? t("Les heures passées sur chaque objectif") : undefined}
+              data-tip-sub={v === "objectifs" ? t("Cette semaine, face aux heures que tu lui as promises.") : undefined}
+              data-tip-attente="longue"
+              className={`pill cible-tactile inline-flex items-center justify-center border px-3 py-1 text-xs font-medium transition-colors ${
+                vue === v ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
+              }`}
+            >
+              {v === "ensemble" ? t("Vue d'ensemble") : t("Par objectif")}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {vue === "objectifs" ? (
+        <ParObjectif data={data} />
+      ) : (
+      <>
+      {/* ⭐ Aujourd'hui se voit, à part : il n'entre dans aucun chiffre plus bas. */}
+      <RangeeAujourdhui jour={jour} />
+
+      {/* ⭐ La période se choisit UNE fois, ici, pour toutes les cartes — et elle
+          écrit ses DATES : des jours finis, aujourd'hui non compris. */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p
+          className="hud-label"
+          data-tip={t("La période analysée : des jours finis")}
+          data-tip-sub={t("Elle s'arrête à hier. Aujourd'hui n'est pas terminé : il est montré à part, au-dessus.")}
+        >
+          {analyse.periode} · {t("jours finis")}
+        </p>
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("Période analysée")}>
           {PLAGES.map((p) => (
             <button
@@ -385,7 +487,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               data-tip={t(LIBELLE_PLAGE[p].long)}
               data-tip-sub={t("Tout l'onglet suit cette période, et se compare à la même durée juste avant.")}
               data-tip-attente="longue"
-              className={`pill border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`pill cible-tactile inline-flex items-center justify-center border px-3 py-1 text-xs font-medium transition-colors ${
                 plage === p ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
               }`}
             >
@@ -393,9 +495,9 @@ export default function PerformanceView({ data, refresh }: Props) {
             </button>
           ))}
         </div>
-      </header>
+      </div>
 
-      <ResizableGrid gridId="performance" className="mt-6">
+      <ResizableGrid gridId="performance" className="mt-3">
       {/* ⭐ Les tuiles COMPARENT : chaque chiffre de la période, et son écart à
           la même durée juste avant. Un 72 % seul ne dit pas si on progresse. */}
       <ResizablePanel id="perf-tiles" defaultW={12}>
@@ -407,6 +509,17 @@ export default function PerformanceView({ data, refresh }: Props) {
             sous: <Ecart n={analyse.cTaches.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
             ecart: analyse.cTaches.ecart,
             compare: true,
+            // ⭐ La tuile dit EXACTEMENT ce qu'elle compte (A07b-06).
+            bulle: t("La part des tâches du jour faites, en moyenne sur les jours finis"),
+            detail: t("Chaque jour : les routines dues, et les tâches ponctuelles cochées ce jour-là. Une tâche en retard ou reportée ne pèse sur aucun jour."),
+            avant: analyse.cTaches.avant === null ? null : `${analyse.cTaches.avant} %`,
+            points: true,
+            // …et ce qu'elle laisse de côté, tant qu'il y en a : « 100 % » ne se
+            // lit plus au-dessus de « 1 tâche reportée, toujours pas faite ».
+            note:
+              analyse.horsCompte > 0
+                ? tp(analyse.horsCompte, "{n} en retard ou reportée, non comptée", "{n} en retard ou reportées, non comptées")
+                : null,
           },
           {
             label: t("Habitudes tenues"),
@@ -414,6 +527,11 @@ export default function PerformanceView({ data, refresh }: Props) {
             sous: <Ecart n={analyse.cHabitudes.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
             ecart: analyse.cHabitudes.ecart,
             compare: true,
+            bulle: t("La part des habitudes cochées, en moyenne sur les jours finis"),
+            detail: t("Une habitude compte à partir du jour de sa première coche."),
+            avant: analyse.cHabitudes.avant === null ? null : `${analyse.cHabitudes.avant} %`,
+            points: true,
+            note: null,
           },
           {
             label: t("Focus"),
@@ -421,26 +539,60 @@ export default function PerformanceView({ data, refresh }: Props) {
             sous: <Ecart n={analyse.focusEcart} texte={fmtMinutes} />,
             ecart: analyse.focusEcart,
             compare: true,
+            bulle: t("Le temps des séances de concentration terminées, sur les jours finis"),
+            // D'où vient l'écart avec la tuile « cette semaine » du Timer.
+            detail: analyse.focusGlissant
+              ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
+                  dates: analyse.focusGlissant.dates,
+                  // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
+                  total: enHeuresInsecable(analyse.focusGlissant.minutes),
+                })
+              : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut."),
+            avant: analyse.focusAvant > 0 || analyse.focus > 0 ? enHeuresInsecable(analyse.focusAvant) : null,
+            points: false,
+            note: null,
           },
           {
-            label: t("Série en cours"),
+            // « Série » de QUOI : de jours tenus (constat 28 du labo).
+            label: t("Jours tenus d'affilée"),
             valeur: t("{n} j", { n: derived.current }),
             sous: <span className="truncate">{t("record {n} j", { n: derived.best })}</span>,
             ecart: null as number | null,
             compare: false,
+            bulle: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
+            detail: t("Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série."),
+            avant: null as string | null,
+            points: false,
+            note: null,
           },
         ].map((tile) => (
-          <div key={tile.label} className="card min-w-0 p-5">
-            <p className="hud-label" title={tile.label}>
-              {tile.label}
-            </p>
-            <p className="mt-1 truncate font-display text-3xl font-extrabold text-text" title={tile.valeur}>
-              {tile.valeur}
-            </p>
-            <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">
+          <div key={tile.label} className="card min-w-0 p-5" data-tip={tile.bulle} data-tip-sub={tile.detail} data-tip-attente="longue">
+            <p className="hud-label">{tile.label}</p>
+            <p className="mt-1 truncate font-display text-3xl font-extrabold text-text">{tile.valeur}</p>
+            {/* La période, en dates, sous chaque chiffre. */}
+            <p className="mt-1 truncate text-[11px] text-text-dim">{tile.compare ? analyse.periode : t("à ce jour")}</p>
+            <p
+              className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-dim"
+              data-tip={tile.compare ? t("Période d'avant : {dates}", { dates: analyse.periodeAvant }) : undefined}
+              data-tip-sub={
+                !tile.compare
+                  ? undefined
+                  : tile.avant === null
+                    ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
+                    : tile.points
+                      ? t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: tile.avant })
+                      : t("{valeur} sur ces jours-là.", { valeur: tile.avant })
+              }
+            >
               {tile.sous}
               {tile.compare && tile.ecart !== null && <span className="truncate">{t("vs période d'avant")}</span>}
             </p>
+            {tile.note && (
+              <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-text-dim">
+                <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-yellow" aria-hidden />
+                <span className="min-w-0">{tile.note}</span>
+              </p>
+            )}
           </div>
         ))}
       </div>
@@ -452,10 +604,14 @@ export default function PerformanceView({ data, refresh }: Props) {
       <section className="card p-5">
         <div className="rgrid-head flex items-center justify-between gap-2">
           <h2 className="hud-label">{t("À améliorer")}</h2>
-          <span className="shrink-0 text-[11px] text-text-dim">{t(LIBELLE_PLAGE[plage].long)}</span>
+          <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
         </div>
         {analyse.points.length === 0 ? (
-          <p className="mt-3 text-sm text-text-dim">{t("Rien ne décroche sur cette période.")}</p>
+          // ⚠️ « Rien ne décroche » sur une période VIDE se lisait comme un bon
+          // point, le matin d'un compte neuf (constat 2 du labo).
+          <p className="mt-3 text-sm text-text-dim">
+            {analyse.sansMesure ? t("Rien de mesuré sur cette période.") : t("Rien ne décroche sur cette période.")}
+          </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
             {analyse.points.map((pt, i) => {
@@ -496,11 +652,17 @@ export default function PerformanceView({ data, refresh }: Props) {
       <section className="card p-5">
         <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
           <h2 className="hud-label shrink-0">{t("discipline — tâches")}</h2>
-          <LegendeCourbe seuil={t("80 % : jour tenu")} />
+          <LegendeCourbe
+            seuil={t("80 % : jour tenu")}
+            seuilAide={{
+              titre: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
+              detail: t("C'est le seuil des séries de jours tenus."),
+            }}
+          />
         </div>
         <CourbeDiscipline className="mt-3" points={analyse.courbeTaches.points} lisse={analyse.courbeTaches.lisse} seuil={80} />
         <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
-        <GrilleCarres semaines={analyse.carresTaches} zeroEnRouge />
+        <GrilleCarres semaines={analyse.carresTaches} zeroEnRouge vide={t("rien de dû")} zero={t("rien de fait")} />
       </section>
       </ResizablePanel>
 
@@ -520,7 +682,7 @@ export default function PerformanceView({ data, refresh }: Props) {
           <>
             <CourbeDiscipline className="mt-3" points={analyse.courbeHabitudes.points} lisse={analyse.courbeHabitudes.lisse} />
             <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
-            <GrilleCarres semaines={analyse.carresHabitudes} />
+            <GrilleCarres semaines={analyse.carresHabitudes} vide={t("aucune tenue")} />
             {/* Une ligne par habitude : c'est elle qui dit LAQUELLE décroche. */}
             <ul className="mt-5 flex flex-col gap-2.5">
               {analyse.habitudes.map((h) => (
@@ -560,7 +722,8 @@ export default function PerformanceView({ data, refresh }: Props) {
       <section className="card p-5">
         <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
           <h2 className="hud-label shrink-0">{t("par jour de la semaine")}</h2>
-          <p className="flex items-center gap-3 text-[11px] text-text-dim">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
+            <span>{analyse.periode}</span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-[2px] bg-[var(--color-success-fill)]" aria-hidden />
               {t("tâches")}
@@ -597,9 +760,22 @@ export default function PerformanceView({ data, refresh }: Props) {
       {/* ⭐ Le focus dans le temps : le rythme, pas seulement le total. */}
       <ResizablePanel id="perf-focus-temps" defaultW={6} minH={220}>
       <section className="card p-5">
-        <h2 className="hud-label">{analyse.temps.pas === "jour" ? t("focus — par jour") : t("focus — par semaine")}</h2>
-        {analyse.focus === 0 ? (
+        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+          <h2 className="hud-label shrink-0">
+            {/* « Par tranche de 7 jours », pas « par semaine » : ces tranches
+                partent du début de la période, pas d'un lundi. */}
+            {analyse.temps.pas === "jour" ? t("focus — par jour") : t("focus — par tranche de 7 jours")}
+          </h2>
+          <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
+        </div>
+        {analyse.focus === 0 && jour.focus.minutes === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">{t("Aucune séance de focus sur cette période.")}</p>
+        ) : analyse.focus === 0 && analyse.temps.pas === "semaine" ? (
+          // Le jour en cours n'a pas de barre parmi des tranches de sept jours :
+          // on dit ce qu'il porte, plutôt qu'« aucune séance ».
+          <p className="py-6 text-center text-sm text-text-dim">
+            {t("Aucune séance sur les jours finis de cette période. Aujourd'hui : {duree}.", { duree: enHeuresInsecable(jour.focus.minutes) })}
+          </p>
         ) : (
           <div className="panel-chart mt-3 min-h-[150px]">
             <ResponsiveContainer width="100%" height="100%" minHeight={150}>
@@ -607,8 +783,21 @@ export default function PerformanceView({ data, refresh }: Props) {
                 <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
                 <YAxis tick={{ fill: "var(--color-text-dim)", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip cursor={{ fill: "var(--color-overlay)" }} contentStyle={tooltipStyle} formatter={(v) => [fmtMinutes(Number(v ?? 0)), t("focus")]} />
-                <Bar dataKey="minutes" fill="var(--color-success-fill)" radius={[3, 3, 3, 3]} maxBarSize={22} />
+                <Tooltip
+                  cursor={{ fill: "var(--color-overlay)" }}
+                  contentStyle={tooltipStyle}
+                  labelFormatter={(label, lignes) => (lignes?.[0]?.payload as { titre?: string } | undefined)?.titre ?? String(label ?? "")}
+                  formatter={(v) => [fmtMinutes(Number(v ?? 0)), t("focus")]}
+                />
+                <Bar dataKey="minutes" fill="var(--color-success-fill)" radius={[3, 3, 3, 3]} maxBarSize={22}>
+                  {/* Aujourd'hui, plus clair : un jour pas fini, hors de tout total. */}
+                  {analyse.temps.tranches.map((x, i) => (
+                    <Cell
+                      key={i}
+                      fill={x.enCours ? "color-mix(in srgb, var(--color-success-fill) 40%, transparent)" : "var(--color-success-fill)"}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -616,15 +805,20 @@ export default function PerformanceView({ data, refresh }: Props) {
       </section>
       </ResizablePanel>
 
-      {/* Historique des streaks */}
+      {/* Les séries de jours tenus — UN mot pour la chose : « série » (le
+          titre disait « streaks », la tuile « série » ; constat 28 du labo). */}
       <ResizablePanel id="perf-streaks" defaultW={6} minH={200}>
         <section className="card p-5">
-          <h2 className="hud-label">
-            {t("Historique des streaks")}
+          <h2
+            className="hud-label"
+            data-tip={t("Un jour est tenu quand 80 % des tâches dues sont faites")}
+            data-tip-sub={t("Une série, ce sont des jours tenus qui se suivent. Un jour sans tâche due ne la casse pas.")}
+          >
+            {t("Séries de jours tenus")}
           </h2>
           {derived.runs.length === 0 ? (
             <p className="py-6 text-center text-sm text-text-dim">
-              {t("Pas encore de streak — vise ≥80% de tes tâches un jour donné.")}
+              {t("Pas encore de série. Elle commence le premier jour où 80 % des tâches dues sont faites.")}
             </p>
           ) : (
             <ul className="panel-scroll mt-3 flex flex-col gap-2.5">
@@ -805,10 +999,19 @@ export default function PerformanceView({ data, refresh }: Props) {
       {/* Temps de focus par tag */}
       <ResizablePanel id="perf-focus" defaultW={12} minH={200}>
       <section className="card p-5">
-        <h2 className="hud-label">{t("focus par tag")}</h2>
+        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+          <h2 className="hud-label shrink-0">{t("focus par tag")}</h2>
+          <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
+        </div>
         {analyse.tags.length === 0 ? (
+          // ⚠️ « Lance ta première session… » s'affichait à qui venait d'en
+          // finir une (constat 2 du labo) : la carte ne lit que les jours finis.
           <p className="py-6 text-center text-sm text-text-dim">
-            {t("Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.")}
+            {jour.focus.seances > 0
+              ? t("Aucune séance sur les jours finis de cette période. Celles d'aujourd'hui y entreront demain.")
+              : analyse.aDejaDesSeances
+                ? t("Aucune séance de focus sur cette période.")
+                : t("Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.")}
           </p>
         ) : (
           <ul className="panel-scroll mt-3 flex flex-col gap-2.5">
@@ -909,6 +1112,8 @@ export default function PerformanceView({ data, refresh }: Props) {
       </section>
       </ResizablePanel>
       </ResizableGrid>
+      </>
+      )}
 
       <MenuContextuel
         etat={menuMetrique}
@@ -999,9 +1204,11 @@ function MetricCard({
           <span className="text-xs text-text-dim">{t("{unite} aujourd'hui", { unite: metric.unit })}</span>
         )}
       </div>
-      <p className="mt-0.5 text-[11px] text-text-dim">
+      {/* Un total hebdomadaire porte ses DATES : ici sept jours glissants,
+          aujourd'hui compris — ce n'est pas la période de l'onglet. */}
+      <p className="mt-0.5 text-[11px] text-text-dim" data-tip={t("Sept jours, aujourd'hui compris")}>
         {Math.round(total7 * 10) / 10}
-        {metric.unit ? ` ${metric.unit}` : ""} {t("sur 7 jours")}
+        {metric.unit ? ` ${metric.unit}` : ""} · {plageDeDates(addDays(today, -6), today, today)}
       </p>
 
       <div className="mt-2 h-12">

@@ -2377,25 +2377,6 @@ export async function fetchLinksTo(kind: LinkKind, uid: string): Promise<ObjectL
 }
 
 /**
- * Toutes les arêtes qui TOUCHENT une note, dans un sens ou dans l'autre.
- *
- * Sert à l'onglet « À trier » de la vue Notes (`lib/notesATrier.ts`), qui doit
- * savoir d'un coup quelles notes ne sont reliées à rien — une requête par note
- * en ferait trois cents à l'ouverture de la vue.
- *
- * ⚠️ BRUTES, comme `fetchLinksFrom` et `fetchLinksTo` : ni résolues, ni
- * filtrées par la corbeille. Une arête vers un objet en corbeille en fait donc
- * partie, jusqu'à sa purge (limite écrite en tête de `notesATrier.ts`).
- */
-export async function fetchLiensDesNotes(): Promise<ObjectLink[]> {
-  if (!isTauri) return demo.fetchLiensDesNotes();
-  const db = await getDb();
-  return db.select<ObjectLink[]>(
-    "SELECT * FROM object_links WHERE from_kind = 'note' OR to_kind = 'note' ORDER BY created_at",
-  );
-}
-
-/**
  * Crée une arête, sans erreur si elle existe déjà.
  *
  * L'`ON CONFLICT DO NOTHING` porte sur l'index unique des quatre colonnes : une

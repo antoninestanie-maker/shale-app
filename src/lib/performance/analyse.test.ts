@@ -14,6 +14,7 @@ import {
   pointsDAttention,
   serieHabitudes,
   serieTaches,
+  tachesHorsCompte,
   tenueParHabitude,
   SEUILS,
   type PointJour,
@@ -218,5 +219,110 @@ describe("pointsDAttention — ce qui décroche, en chiffres", () => {
     expect(pts).toHaveLength(SEUILS.max);
     expect(pts[0].genre).toBe("reports");
     expect(pts[1].genre).toBe("habitude");
+  });
+});
+
+describe("⭐ le focus dans le temps montre le jour en cours, sans le compter", () => {
+  const sessions = [seance(j(-3), 30), seance(AUJ, 20)];
+  it("pas « jour » : une dernière barre pour aujourd'hui, marquée « en cours »", () => {
+    const f = focusDansLeTemps(sessions, j(-7), j(-1), AUJ);
+    expect(f.tranches).toHaveLength(8);
+    expect(f.tranches[7]).toEqual({ debut: AUJ, fin: AUJ, minutes: 20, enCours: true });
+    expect(f.tranches.filter((x) => x.enCours)).toHaveLength(1);
+    // …et le total de la période, lui, ne bouge pas.
+    expect(minutesDeFocus(sessions, j(-7), j(-1))).toBe(30);
+    expect(f.minutesAujourdHui).toBe(20);
+  });
+  it("un compte dont l'histoire tient en un jour a sa barre", () => {
+    const f = focusDansLeTemps([seance(AUJ, 1)], j(-30), j(-1), AUJ);
+    expect(f.tranches[f.tranches.length - 1]).toMatchObject({ debut: AUJ, minutes: 1, enCours: true });
+  });
+  it("pas « semaine » : pas de barre d'un jour parmi des tranches de sept, mais ses minutes sont rendues", () => {
+    const f = focusDansLeTemps(sessions, j(-90), j(-1), AUJ);
+    expect(f.pas).toBe("semaine");
+    expect(f.tranches.some((x) => x.enCours)).toBe(false);
+    expect(f.minutesAujourdHui).toBe(20);
+  });
+  it("chaque tranche porte ses dates : sept jours depuis le début de la période, la dernière plus courte", () => {
+    const f = focusDansLeTemps(sessions, j(-90), j(-1), AUJ);
+    expect(f.tranches[0]).toMatchObject({ debut: j(-90), fin: j(-84) });
+    expect(f.tranches[f.tranches.length - 1]).toMatchObject({ debut: j(-6), fin: j(-1) });
+  });
+  it("sans `aujourdHui`, rien ne change (l'appel d'avant le 2026-10-11)", () => {
+    const f = focusDansLeTemps(sessions, j(-7), j(-1));
+    expect(f.tranches).toHaveLength(7);
+    expect(f.minutesAujourdHui).toBe(0);
+  });
+});
+
+describe("⭐ A07b-06 — « Tâches tenues 100 % » au-dessus de « 1 tâche reportée, pas faite »", () => {
+  // Le cas du labo : des routines toutes tenues, et une ponctuelle qui traîne.
+  const routine = tache(1);
+  const reportee = tache(2, { recurrence: "none", due_date: j(-1), postponed_count: 2, postponed_from: j(-6) });
+  const tasks = [routine, reportee];
+  const completions = [-7, -6, -5, -4, -3, -2, -1].map((d) => coche(1, j(d)));
+
+  it("le constat tient : le pourcentage de la période ne voit pas la tâche qui traîne", () => {
+    const b = bornes(AUJ, 7);
+    expect(moyenne(serieTaches(tasks, completions, b.debut, b.fin))).toBe(100);
+    const reports = pointsDAttention({ tasks, completions, habits: [], habitChecks: [], focusSessions: [], today: AUJ, plage: 7 });
+    expect(reports).toContainEqual({ genre: "reports", n: 1 });
+  });
+
+  it("⭐ donc la tuile dit ce qu'elle laisse de côté : la tâche est « hors compte »", () => {
+    expect(tachesHorsCompte(tasks, completions, AUJ).map((t) => t.id)).toEqual([2]);
+  });
+
+  it("⚠️ tout ce que « À améliorer » annonce comme reporté est aussi annoncé sous la tuile", () => {
+    // La garantie contre la contradiction : la ligne « reports » se TIRE de
+    // `tachesHorsCompte`, elle ne peut pas compter une tâche que la tuile tait.
+    const variantes: Task[][] = [
+      [tache(1, { recurrence: "none", due_date: AUJ, postponed_count: 2, postponed_from: j(-3) })], // reportée ce matin : due aujourd'hui
+      [tache(1, { recurrence: "none", due_date: j(-10), postponed_count: 5, postponed_from: j(-30) })],
+      [tache(1, { recurrence: "none", due_date: null, postponed_count: 3, postponed_from: null })], // date retirée depuis
+      [tache(1, { recurrence: "none", due_date: j(-2), postponed_count: 2 }), tache(2, { recurrence: "none", due_date: j(-1), postponed_count: 4 })],
+    ];
+    for (const liste of variantes) {
+      const hors = tachesHorsCompte(liste, [], AUJ).length;
+      const pt = pointsDAttention({ tasks: liste, completions: [], habits: [], habitChecks: [], focusSessions: [], today: AUJ, plage: 7 }).find(
+        (x) => x.genre === "reports",
+      );
+      expect(pt && pt.genre === "reports" ? pt.n : 0).toBeGreaterThan(0);
+      expect(hors).toBeGreaterThanOrEqual(pt && pt.genre === "reports" ? pt.n : 0);
+    }
+  });
+
+  it("y entrent : une ponctuelle en retard, même jamais reportée ; une reportée une seule fois", () => {
+    const liste = [
+      tache(1, { recurrence: "none", due_date: j(-1) }), // en retard, le calendrier n'a pas encore reporté
+      tache(2, { recurrence: "none", due_date: AUJ, postponed_count: 1, postponed_from: j(-1) }), // a glissé une fois
+    ];
+    expect(tachesHorsCompte(liste, [], AUJ).map((t) => t.id)).toEqual([1, 2]);
+    // …sans que « À améliorer » en fasse une alerte : son seuil est à deux reports.
+    expect(pointsDAttention({ tasks: liste, completions: [], habits: [], habitChecks: [], focusSessions: [], today: AUJ, plage: 7 })).toEqual([]);
+  });
+
+  it("n'y entrent pas : une tâche faite (même en retard), une routine, une tâche d'aujourd'hui ou à venir, sans date, un exemple", () => {
+    const liste = [
+      tache(1, { recurrence: "none", due_date: j(-3), postponed_count: 2 }), // faite depuis
+      tache(2), // routine : elle pèse déjà sur chaque jour
+      tache(3, { recurrence: "none", due_date: AUJ }),
+      tache(4, { recurrence: "none", due_date: j(4) }),
+      tache(5, { recurrence: "none", due_date: null }),
+      tache(6, { recurrence: "none", due_date: j(-2), is_example: 1 }),
+    ];
+    expect(tachesHorsCompte(liste, [coche(1, AUJ)], AUJ)).toEqual([]);
+  });
+
+  it("⚠️ on ne réécrit PAS l'histoire : le pourcentage d'un jour passé ne bouge pas quand la tâche glisse", () => {
+    // Pourquoi la tâche ne pèse pas sur « son » jour : la base ne garde que sa
+    // date actuelle et sa date d'origine. Le jour d'origine garde son chiffre,
+    // que la tâche soit en retard, reportée, ou replanifiée.
+    const jourDOrigine = j(-6);
+    const lecture = (t: Task) => serieTaches([routine, t], completions, jourDOrigine, jourDOrigine)[0].pct;
+    const enRetard = tache(2, { recurrence: "none", due_date: jourDOrigine });
+    const glissee = tache(2, { recurrence: "none", due_date: j(-1), postponed_count: 2, postponed_from: jourDOrigine });
+    const replanifiee = tache(2, { recurrence: "none", due_date: j(3), postponed_count: 0, postponed_from: j(3) });
+    expect([lecture(enRetard), lecture(glissee), lecture(replanifiee)]).toEqual([100, 100, 100]);
   });
 });

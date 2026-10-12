@@ -2478,11 +2478,6 @@ export const demo = {
     return links.filter((l) => l.to_kind === kind && l.to_uid === uid);
   },
 
-  /** Même sémantique que le natif : brutes, dans les deux sens (voir `repo.ts`). */
-  async fetchLiensDesNotes(): Promise<ObjectLink[]> {
-    return links.filter((l) => l.from_kind === "note" || l.to_kind === "note");
-  },
-
   async createLink(arete: AreteVoulue, now: string): Promise<void> {
     // L'équivalent en mémoire de l'`ON CONFLICT DO NOTHING` du natif.
     const existe = links.some(
