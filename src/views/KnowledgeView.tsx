@@ -605,7 +605,7 @@ export default function KnowledgeView() {
         {/* Barre d'outils : même position à l'accueil et dans un sujet. */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <label className="relative min-w-[180px] flex-1">
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-dim" />
+            <IconSearch className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-text-dim" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}

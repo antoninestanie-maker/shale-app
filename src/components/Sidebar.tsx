@@ -780,7 +780,7 @@ export default function Sidebar({
         {/* Repère d'onglet actif : petit bâton d'accent à gauche (macOS/Linear) */}
         <span
           aria-hidden
-          className={`pill absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 bg-blue transition-all duration-200 ${
+          className={`pill absolute inset-y-0 left-0 my-auto h-4 w-[3px] bg-blue transition-all duration-200 ${
             active ? "opacity-100" : "scale-y-0 opacity-0"
           }`}
         />

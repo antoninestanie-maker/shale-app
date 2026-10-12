@@ -562,11 +562,17 @@ export default function NoteComposer({
           de pixels). Même raison pour la feuille de croquis plein écran. */}
       {bubble && !reading &&
         createPortal(
+        // ⚠️ NETTETÉ (2026-10-12) — un point d'ancrage SANS taille, et la bulle
+        // qui en déborde : centrée (`justify-center`) et posée au-dessus
+        // (`items-end`). Plus de `-translate-x-1/2 -translate-y-full` : un
+        // calque « verre » décalé par un `translate` n'est pas calé sur les
+        // pixels, son texte est flou (PIEGES § 41).
         <div
-          className="fixed z-[78] -translate-x-1/2 -translate-y-full pb-2"
+          className="fixed z-[78] flex h-0 w-0 items-end justify-center"
           style={{ left: bubble.x, top: bubble.y }}
           onMouseDown={(e) => e.preventDefault()}
         >
+          <div className="w-max shrink-0 pb-2">
           <div className="glass flex items-center gap-0.5 rounded-[12px] border border-border p-1 shadow-lg">
             {linkDraft === null ? (
               <>
@@ -636,6 +642,7 @@ export default function NoteComposer({
                 </button>
               </form>
             )}
+          </div>
           </div>
         </div>,
         document.body,

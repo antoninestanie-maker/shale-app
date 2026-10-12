@@ -6,9 +6,12 @@
  * qui dit que la séance est partie. Elle glisse donc depuis le bord où elle
  * vit (le haut au bureau, le bas au téléphone), une fois, sans boucle.
  *
- * ⚠️ `transform`, pas `translate` : la pastille est centrée par
- * `translate: -50% 0` (Tailwind `-translate-x-1/2`). Les deux propriétés se
- * composent ; animer `translate` aurait décentré la pastille pendant l'entrée.
+ * ⚠️ `transform`, pas `translate` : la pastille porte `translate: none`
+ * (`translate-none`, contre le soulèvement des cartes au survol), qu'une
+ * animation de `translate` écraserait le temps de l'entrée. Elle est centrée
+ * par des MARGES, plus par `translate: -50% 0` : ce décalage la rendait floue
+ * (PIEGES § 41). Tenu par `both`, le `transform` final est l'identité : mesuré
+ * net.
  *
  * Mouvement réduit : aucun déplacement, un fondu court (le patron
  * d'`.entree-app`, `index.css`). Le `!important` bat la règle globale qui met

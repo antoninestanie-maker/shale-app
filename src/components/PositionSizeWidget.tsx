@@ -112,7 +112,7 @@ export default function PositionSizeWidget() {
             aria-label={t("Risque %")}
             className={`${inputCls} pr-6`}
           />
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs text-text-dim">
+          <span className="absolute inset-y-0 right-2.5 my-auto h-fit font-mono text-xs text-text-dim">
             %
           </span>
         </div>

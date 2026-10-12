@@ -2115,9 +2115,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             )}
           </div>
 
-          {/* Ce qu'un glissement va faire, dit à l'écran plutôt que deviné. */}
+          {/* Ce qu'un glissement va faire, dit à l'écran plutôt que deviné.
+              ⚠️ Ces trois bandeaux « verre » sont centrés par des marges
+              (`inset-x-0 mx-auto w-fit`), jamais par `left-1/2
+              -translate-x-1/2` : décalé par un `translate`, un calque n'est
+              plus calé sur les pixels et son texte est flou (PIEGES § 41). */}
           {apercu && (
-            <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
+            <div className="glass pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
               {t("Déplacé à l'écran — la structure ne change pas")}
               <span className="text-text-dim [@media(pointer:coarse)]:hidden">
                 {" · "}
@@ -2126,14 +2130,14 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             </div>
           )}
           {rattache && (
-            <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-blue px-3 py-1.5 text-[11px] text-text">
+            <div className="glass pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-blue px-3 py-1.5 text-[11px] text-text">
               {t("Choisis le nœud qui accueillera « {titre} »", {
                 titre: noeudDe(courante, rattache)?.texte || t("sans titre"),
               })}
             </div>
           )}
           {glisse && (
-            <div className="glass pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
+            <div className="glass pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-border px-3 py-1.5 text-[11px] text-text">
               {glisse.cible && glisse.cible !== glisse.id
                 ? t("Déposer sous « {cible} »", {
                     cible: noeudDe(courante, glisse.cible)?.texte || t("sans titre"),

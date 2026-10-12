@@ -73,7 +73,14 @@ export default function PastilleSeance({ focus, enBas }: { focus: FocusControlle
         // Au téléphone, pas de marge verticale : les trois cibles font déjà
         // 44 pt, et la pastille doit rester à la hauteur que `--reserve-seance`
         // lui réserve (`RESERVE_SEANCE`, `FocusOverlay`).
-        className={`pastille-seance card fixed left-1/2 z-40 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-0.5 px-1 ${
+        // ⚠️ NETTETÉ (2026-10-12) — centrée par des MARGES (`inset-x-0 mx-auto
+        // w-fit`), jamais par `left-1/2 -translate-x-1/2`. Une pastille fixe
+        // est un calque à part ; décalée par un `translate`, WebKit ne la cale
+        // plus sur les pixels : à 110 % elle tombait à x = 657,75 et tout son
+        // texte était flou (vu par Antonin). `translate-none` écarte aussi le
+        // soulèvement de 2 px des cartes au survol, qui la remettrait à cheval.
+        // PIEGES § 41 ; `nettete.source.test.ts` refuse le retour du motif.
+        className={`pastille-seance card fixed inset-x-0 z-40 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] translate-none items-center gap-0.5 px-1 ${
           enBas ? "py-0" : "top-4 py-1"
         }`}
         style={enBas ? { bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)" } : undefined}

@@ -215,7 +215,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
             <button
               type="button"
               onClick={() => setShowPw((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
+              className="absolute inset-y-0 right-2 my-auto h-fit rounded-md p-1.5 text-text-dim transition-colors hover:bg-overlay hover:text-text"
               aria-label={showPw ? t("Masquer") : t("Afficher")}
               data-tip={showPw ? t("Masquer") : t("Afficher")}
             >
