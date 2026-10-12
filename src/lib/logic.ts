@@ -2,7 +2,6 @@
 import { localeTag, t } from "./i18n";
 import { sansExemples } from "./onboarding/exemples";
 import { mesurer, type ContexteProgression } from "./objectifs/progression";
-import { ponctuellesFaites } from "./taches";
 import type {
   Completion,
   DayStat,
@@ -11,6 +10,7 @@ import type {
   Task,
   TodayTask,
 } from "./types";
+import { ponctuellesFaites } from "./taches";
 
 export const DAY_SHORT = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
 
