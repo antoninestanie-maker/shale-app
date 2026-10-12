@@ -128,6 +128,17 @@ describe("la clôture", () => {
     expect(p.faites).toEqual([{ titre: "Tâche 5" }]);
   });
 
+  it("⭐ une tâche EN RETARD reste proposée, bien qu'elle ne soit plus dans la liste du jour", () => {
+    // Depuis le 2026-10-11, `todayTasks` ne rend plus les tâches en retard : la
+    // clôture les lit donc sur toutes les tâches. Sans cela, elle ne proposerait
+    // plus de reporter précisément celles qui traînent.
+    const data = donnees(
+      [tache(1, { due_date: "2026-10-12" }), tache(2, { due_date: "2026-10-12" }), tache(3)],
+      [{ id: 1, task_id: 2, date: "2026-10-13", done: 1 }],
+    );
+    expect(tachesAReporter(data, JOUR).map((t) => t.id)).toEqual([1, 3]);
+  });
+
   it("une proposition dont la tâche a disparu est écartée", () => {
     const data = donnees([tache(1)]);
     const ps = propositionsDe(

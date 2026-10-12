@@ -75,181 +75,12 @@ export default function ChampDate(props: {
   disabled?: boolean;
   id?: string;
 }) {
-  const { valeur, onChange, aria, effacable = true, disabled, min, max } = props;
+  const { valeur, onChange, aria, effacable = true, disabled } = props;
   const [ouvert, setOuvert] = useState(false);
   const aujourdHui = todayStr();
-  /** Le jour mis en évidence : il se déplace aux flèches sans rien choisir. */
-  const [curseur, setCurseur] = useState(valeur || aujourdHui);
-  const [saisie, setSaisie] = useState("");
-  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
   const bouton = useRef<HTMLButtonElement>(null);
-  const panneau = useRef<HTMLDivElement>(null);
-  const cellule = useRef<HTMLButtonElement>(null);
-  const titreId = useId();
-
-  // Ouvrir remet le curseur sur la date en place — ou sur aujourd'hui. Sans ça,
-  // rouvrir le panneau rendrait le mois où l'on avait navigué la fois d'avant.
-  useEffect(() => {
-    if (ouvert) {
-      const depart = valeur || aujourdHui;
-      setCurseur(min && depart < min ? min : max && depart > max ? max : depart);
-      setSaisie("");
-    }
-  }, [ouvert]);
-
-  /**
-   * ⭐ LA HAUTEUR UTILE, PAS LA HAUTEUR DE LA FENÊTRE.
-   *
-   * ⚠️ Sur iPhone, ouvrir le clavier logiciel ne change PAS `innerHeight` : la
-   * fenêtre garde sa taille, le clavier se pose PAR-DESSUS. Or ce panneau porte
-   * un champ de frappe — le toucher ouvre donc le clavier, et un panneau placé
-   * d'après `innerHeight` se retrouverait dessous, invisible et inatteignable.
-   * `visualViewport` mesure ce qui reste visible, clavier déduit ; c'est la
-   * seule mesure qui dise la vérité ici (même parade que `MentionPicker`).
-   *
-   * `offsetTop` compte aussi : la partie visible peut être DÉCALÉE vers le bas
-   * quand la page a été poussée. Repli sur `innerHeight` pour le bureau, où les
-   * deux coïncident.
-   */
-  const vu = () => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
-    const haut = vv?.offsetTop ?? 0;
-    return {
-      haut,
-      bas: haut + (vv?.height ?? window.innerHeight),
-      largeur: vv?.width ?? window.innerWidth,
-    };
-  };
-
-  const placer = () => {
-    const ancre = bouton.current?.getBoundingClientRect();
-    const boite = panneau.current?.getBoundingClientRect();
-    if (!ancre || !boite) return;
-    /**
-     * ⚠️ L'ANCRE PEUT AVOIR QUITTÉ L'ÉCRAN — on referme, on ne rattrape pas.
-     *
-     * Le panneau suit le défilement (voir plus bas) : si le champ sort de la
-     * fenêtre, le panneau le suit dehors et devient invisible sans être fermé.
-     * Mesuré le 2026-09-18 sur l'export comptable de Finance, tout en bas d'une
-     * page longue : `top: 1606px` dans une fenêtre de 900.
-     *
-     * Le recaler de force serait pire : un calendrier posé au milieu de l'écran,
-     * détaché du champ auquel il appartient, ne dit plus ce qu'il modifie.
-     */
-    const ecran = vu();
-    if (ancre.bottom < ecran.haut || ancre.top > ecran.bas) {
-      setOuvert(false);
-      return;
-    }
-    const z = zoomFactor();
-    const marge = 8;
-    const enDessous = ancre.bottom + 6 + boite.height <= ecran.bas - marge;
-    const brut = enDessous ? ancre.bottom + 6 : ancre.top - 6 - boite.height;
-    // Une ancre à demi visible ne doit pas produire un panneau à demi dehors :
-    // on borne des deux côtés, le haut gagnant si la place manque (on préfère
-    // voir le mois que les raccourcis).
-    const top = Math.max(ecran.haut + marge, Math.min(brut, ecran.bas - boite.height - marge));
-    const left = Math.min(
-      Math.max(marge, ancre.left),
-      Math.max(marge, ecran.largeur - boite.width - marge),
-    );
-    setPlace({ top: top / z, left: left / z });
-  };
-
-  useLayoutEffect(() => {
-    if (!ouvert) return setPlace(null);
-    placer();
-  }, [ouvert, curseur]);
-
-  // La cellule du curseur porte le focus : c'est ce qui rend les flèches
-  // utilisables dès l'ouverture, sans cliquer d'abord.
-  useEffect(() => {
-    if (ouvert) cellule.current?.focus();
-  }, [ouvert, curseur]);
-
-  useEffect(() => {
-    if (!ouvert) return;
-    const dehors = (e: PointerEvent) => {
-      const cible = e.target as Node;
-      if (!bouton.current?.contains(cible) && !panneau.current?.contains(cible)) setOuvert(false);
-    };
-    const touche = (e: KeyboardEvent) => {
-      // ⚠️ Une couche AU-DESSUS a déjà traité la touche : elle l'a marquée. Sans
-      // ce garde, un seul Échap ferme le calendrier ET le formulaire qui le
-      // porte, et la saisie part avec (convention de l'app depuis le 2026-08-28).
-      if (e.defaultPrevented || e.key !== "Escape") return;
-      e.preventDefault();
-      setOuvert(false);
-      bouton.current?.focus();
-    };
-    // Défiler déplace l'ancre : le panneau la SUIT plutôt que de se refermer
-    // sous les doigts — un défilement involontaire ne doit rien coûter.
-    const suivre = () => placer();
-    window.addEventListener("pointerdown", dehors);
-    window.addEventListener("keydown", touche);
-    window.addEventListener("scroll", suivre, true);
-    window.addEventListener("resize", suivre);
-    /**
-     * ⚠️ ET SUR `visualViewport`, sans quoi tout ce qui précède est inutile sur
-     * iPhone : l'ouverture du clavier logiciel NE déclenche PAS `resize` sur
-     * `window` (la fenêtre n'a pas changé de taille), seulement sur le viewport
-     * visuel. Sans ces deux écouteurs, le panneau resterait placé d'après une
-     * hauteur qui n'existe plus.
-     */
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", suivre);
-    vv?.addEventListener("scroll", suivre);
-    return () => {
-      window.removeEventListener("pointerdown", dehors);
-      window.removeEventListener("keydown", touche);
-      window.removeEventListener("scroll", suivre, true);
-      window.removeEventListener("resize", suivre);
-      vv?.removeEventListener("resize", suivre);
-      vv?.removeEventListener("scroll", suivre);
-    };
-  }, [ouvert]);
-
-  const jours = useMemo(() => grilleDuMois(curseur), [curseur]);
-  const moisAffiche = moisDe(curseur);
-
-  /** Hors bornes, un jour ne se choisit ni au clic, ni à la flèche, ni à la frappe. */
-  const admis = (jour: string) => !(min && jour < min) && !(max && jour > max);
-
-  const choisir = (jour: string) => {
-    if (!admis(jour)) return;
-    onChange(jour);
-    setOuvert(false);
-    bouton.current?.focus();
-  };
-
-  const auClavier = (e: React.KeyboardEvent) => {
-    const pas = pasDeTouche(e.key);
-    if (pas != null) {
-      e.preventDefault();
-      // Le mois suit le curseur : franchir le bord de la grille fait tourner la
-      // page, comme dans le calendrier du système.
-      setCurseur((j) => {
-        const d = new Date(`${j}T12:00:00`);
-        d.setDate(d.getDate() + pas);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      });
-      return;
-    }
-    if (e.key === "PageUp" || e.key === "PageDown") {
-      e.preventDefault();
-      setCurseur((j) => moisDecale(j, e.key === "PageUp" ? -1 : 1));
-      return;
-    }
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      choisir(curseur);
-    }
-  };
 
   const etiquette = valeur ? formaterChamp(valeur, aujourdHui) : (props.placeholder ?? t("Choisir une date"));
-
-  const cellulePleine =
-    "cible-tactile relative flex h-8 w-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums outline-none transition-colors";
 
   return (
     <>
@@ -290,174 +121,404 @@ export default function ChampDate(props: {
         )}
       </button>
 
-      {ouvert &&
-        createPortal(
-          <div
-            ref={panneau}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby={titreId}
-            /* `card-solid` et pas `card` : un panneau qui flotte au-dessus du
-               reste prend un aplat opaque, le dégradé de `.card` laissant
-               transparaître la vue (règle du design system V6). */
-            className="card card-solid fixed z-[190] w-[17.5rem] rounded-2xl p-3 shadow-2xl"
-            style={{
-              top: place?.top ?? -9999,
-              left: place?.left ?? -9999,
-              // Tant que la mesure n'est pas faite, le panneau est hors champ :
-              // sans ça, il apparaît un éclair en haut à gauche de l'écran.
-              visibility: place ? "visible" : "hidden",
-            }}
-          >
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                id={titreId}
-                onClick={() => setCurseur(aujourdHui)}
-                data-tip={t("Revenir au mois en cours")}
-                className="cible-tactile-ligne min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-left text-sm font-medium text-text first-letter:uppercase hover:bg-overlay"
-              >
-                {formaterMois(curseur)}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurseur((j) => moisDecale(j, -1))}
-                aria-label={t("Mois précédent")}
-                className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
-              >
-                <IconChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurseur((j) => moisDecale(j, 1))}
-                aria-label={t("Mois suivant")}
-                className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
-              >
-                <IconChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* ⚠️ La semaine commence le LUNDI — `ORDRE_SEMAINE`, comme partout
-                dans l'app, et `nomCourtDuJour` demande les noms à `Intl` plutôt
-                qu'à une table figée en français (PIEGES § 4.2 et § 5.2 bis). */}
-            <div className="mt-2 grid grid-cols-7 gap-0.5" aria-hidden>
-              {ORDRE_SEMAINE.map((j) => (
-                <span key={j} className="flex h-6 items-center justify-center text-[10px] font-semibold uppercase text-text-dim">
-                  {nomCourtDuJour(j).slice(0, 2)}
-                </span>
-              ))}
-            </div>
-
-            <div role="grid" aria-labelledby={titreId} className="grid grid-cols-7 gap-0.5">
-              {jours.map((jour) => {
-                const dehors = moisDe(jour) !== moisAffiche;
-                const choisi = jour === valeur;
-                const cejour = jour === aujourdHui;
-                const surLeCurseur = jour === curseur;
-                return (
-                  <button
-                    key={jour}
-                    ref={surLeCurseur ? cellule : undefined}
-                    type="button"
-                    role="gridcell"
-                    aria-selected={choisi}
-                    aria-current={cejour ? "date" : undefined}
-                    aria-label={formaterComplet(jour)}
-                    /* Un seul arrêt de tabulation dans la grille : celui du
-                       curseur. Quarante-deux cellules tabulables auraient rendu
-                       la sortie du panneau interminable au clavier. */
-                    tabIndex={surLeCurseur ? 0 : -1}
-                    disabled={!admis(jour)}
-                    onKeyDown={auClavier}
-                    onClick={() => choisir(jour)}
-                    className={`${cellulePleine} disabled:cursor-not-allowed disabled:text-text-dim/30 disabled:hover:bg-transparent ${
-                      choisi
-                        ? "bg-blue-solid font-semibold text-on-blue"
-                        : cejour
-                          ? "font-semibold text-blue hover:bg-overlay"
-                          : dehors
-                            ? "text-text-dim/55 hover:bg-overlay"
-                            : "text-text hover:bg-overlay"
-                    } ${surLeCurseur && !choisi ? "ring-1 ring-border-strong" : ""}`}
-                  >
-                    {Number(jour.slice(8, 10))}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Les trois dates qu'on pose le plus souvent. Celle qui est déjà en
-                place se marque, pour qu'un second clic ne se cherche pas. */}
-            <div className="mt-2 flex flex-wrap gap-1 border-t border-border pt-2">
-              {raccourcis(aujourdHui).map((r) => (
-                <button
-                  key={r.cle}
-                  type="button"
-                  onClick={() => choisir(r.jour)}
-                  className={`pill cible-tactile-ligne border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                    valeur === r.jour
-                      ? "border-blue/40 bg-blue/15 text-text"
-                      : "border-border text-text-dim hover:text-text"
-                  }`}
-                >
-                  {r.libelle}
-                </button>
-              ))}
-              {valeur && effacable && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange("");
-                    setOuvert(false);
-                  }}
-                  className="pill cible-tactile-ligne ml-auto px-2.5 py-1 text-[11px] font-medium text-text-dim hover:text-text"
-                >
-                  {t("Effacer")}
-                </button>
-              )}
-            </div>
-
-            {/* ⚠️ LE CHEMIN CLAVIER, celui qui garde la frappe plus rapide que
-                le clic. `inputMode="numeric"` pour que le doigt reçoive le pavé
-                de chiffres et non l'alphabet. */}
-            <div className="mt-2">
-              <input
-                value={saisie}
-                onChange={(e) => setSaisie(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  // Le formulaire qui porte le champ ne doit PAS être soumis par
-                  // cette touche : on la consomme ici.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const lu = parserSaisie(saisie, curseur);
-                  if (lu && admis(lu)) choisir(lu);
-                }}
-                inputMode="numeric"
-                placeholder={gabaritDeSaisie()}
-                aria-label={t("Taper une date")}
-                aria-invalid={saisie.trim() !== "" && parserSaisie(saisie, curseur) === null}
-                className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-center text-[13px] tabular-nums text-text placeholder:text-text-dim focus:border-blue focus:outline-none aria-[invalid=true]:border-red/60"
-              />
-              {/* Ce qui a été lu, AVANT de valider : « 24/09 » est ambigu pour
-                  qui doute de l'ordre des champs, et la réponse lève le doute
-                  sans qu'il faille essayer. */}
-              {saisie.trim() !== "" && (
-                <p className="mt-1 text-center text-[11px] text-text-dim">
-                  {(() => {
-                    const lu = parserSaisie(saisie, curseur);
-                    if (!lu) return t("Date illisible");
-                    // Une date lue mais hors bornes le DIT : muette, elle
-                    // laisserait croire que `Entrée` n'a pas marché.
-                    if (!admis(lu)) return t("Date hors des bornes");
-                    return libelleRelatif(lu, aujourdHui) ?? formaterComplet(lu);
-                  })()}
-                </p>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {ouvert && (
+        <PanneauDate
+          ancre={() => bouton.current?.getBoundingClientRect() ?? null}
+          ami={() => bouton.current}
+          valeur={valeur}
+          onChoisir={onChange}
+          onFermer={(rendreLeFocus) => {
+            setOuvert(false);
+            if (rendreLeFocus) bouton.current?.focus();
+          }}
+          effacable={effacable}
+          min={props.min}
+          max={props.max}
+        />
+      )}
     </>
+  );
+}
+
+/** Un rectangle d'ancrage, en coordonnées de fenêtre. */
+export interface AncreDate {
+  top: number;
+  bottom: number;
+  left: number;
+}
+
+/**
+ * ⭐ LE CALENDRIER SEUL — le panneau de `ChampDate`, détaché de son bouton
+ * (2026-10-11).
+ *
+ * Le crible du labo (constats 7 et 10) : « Dater › Choisir une date… » rouvrait
+ * toute la fenêtre de modification d'une tâche, et depuis Aujourd'hui faisait
+ * quitter l'écran. Il fallait pouvoir ouvrir CE calendrier sur place — sous le
+ * « ⋯ » d'une ligne, sous la date d'une tâche, dans la ligne d'ajout rapide —
+ * sans en écrire un second : il n'y a toujours qu'UN calendrier dans l'app.
+ * `ChampDate` l'ouvre sous son bouton ; `SelecteurDateFlottant` l'ouvre où on le
+ * lui demande (`lib/selecteurDate.ts`).
+ *
+ * Il n'existe que pendant qu'il est ouvert : le monter l'ouvre, `onFermer` le
+ * démonte. `rendreLeFocus` dit si le focus doit revenir à ce qui l'a ouvert
+ * (un choix, Échap) ou rester où il est allé (un clic ailleurs).
+ */
+export function PanneauDate(props: {
+  /** Où s'accrocher — relu à chaque placement. `null` : l'ancre n'existe plus. */
+  ancre: () => AncreDate | null;
+  /** 'YYYY-MM-DD', ou '' quand aucune date n'est posée. */
+  valeur: string;
+  /** Le jour choisi, ou '' pour retirer la date. */
+  onChoisir: (jour: string) => void;
+  onFermer: (rendreLeFocus: boolean) => void;
+  effacable?: boolean;
+  min?: string;
+  max?: string;
+  /** Un élément où cliquer n'est PAS « cliquer dehors » : le bouton qui ouvre. */
+  ami?: () => HTMLElement | null;
+}) {
+  const { valeur, effacable = true, min, max } = props;
+  const aujourdHui = todayStr();
+  // Ouvrir pose le curseur sur la date en place — ou sur aujourd'hui, ramené
+  // dans les bornes. Le panneau naît à l'ouverture : rouvrir ne rend donc
+  // jamais le mois où l'on avait navigué la fois d'avant.
+  const [curseur, setCurseur] = useState(() => {
+    const depart = valeur || aujourdHui;
+    return min && depart < min ? min : max && depart > max ? max : depart;
+  });
+  const [saisie, setSaisie] = useState("");
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
+  const panneau = useRef<HTMLDivElement>(null);
+  const cellule = useRef<HTMLButtonElement>(null);
+  const titreId = useId();
+
+  // Les props changent à chaque rendu du parent ; les écouteurs, eux, sont
+  // posés une fois. Ils lisent donc la version courante par une référence.
+  const courant = useRef(props);
+  courant.current = props;
+
+  /**
+   * ⭐ LA HAUTEUR UTILE, PAS LA HAUTEUR DE LA FENÊTRE.
+   *
+   * ⚠️ Sur iPhone, ouvrir le clavier logiciel ne change PAS `innerHeight` : la
+   * fenêtre garde sa taille, le clavier se pose PAR-DESSUS. Or ce panneau porte
+   * un champ de frappe — le toucher ouvre donc le clavier, et un panneau placé
+   * d'après `innerHeight` se retrouverait dessous, invisible et inatteignable.
+   * `visualViewport` mesure ce qui reste visible, clavier déduit ; c'est la
+   * seule mesure qui dise la vérité ici (même parade que `MentionPicker`).
+   *
+   * `offsetTop` compte aussi : la partie visible peut être DÉCALÉE vers le bas
+   * quand la page a été poussée. Repli sur `innerHeight` pour le bureau, où les
+   * deux coïncident.
+   */
+  const vu = () => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
+    const haut = vv?.offsetTop ?? 0;
+    return {
+      haut,
+      bas: haut + (vv?.height ?? window.innerHeight),
+      largeur: vv?.width ?? window.innerWidth,
+    };
+  };
+
+  const placer = () => {
+    const ancre = courant.current.ancre();
+    const boite = panneau.current?.getBoundingClientRect();
+    if (!ancre || !boite) return;
+    /**
+     * ⚠️ L'ANCRE PEUT AVOIR QUITTÉ L'ÉCRAN — on referme, on ne rattrape pas.
+     *
+     * Le panneau suit le défilement (voir plus bas) : si le champ sort de la
+     * fenêtre, le panneau le suit dehors et devient invisible sans être fermé.
+     * Mesuré le 2026-09-18 sur l'export comptable de Finance, tout en bas d'une
+     * page longue : `top: 1606px` dans une fenêtre de 900.
+     *
+     * Le recaler de force serait pire : un calendrier posé au milieu de l'écran,
+     * détaché du champ auquel il appartient, ne dit plus ce qu'il modifie.
+     */
+    const ecran = vu();
+    if (ancre.bottom < ecran.haut || ancre.top > ecran.bas) {
+      courant.current.onFermer(false);
+      return;
+    }
+    const z = zoomFactor();
+    const marge = 8;
+    const enDessous = ancre.bottom + 6 + boite.height <= ecran.bas - marge;
+    const brut = enDessous ? ancre.bottom + 6 : ancre.top - 6 - boite.height;
+    // Une ancre à demi visible ne doit pas produire un panneau à demi dehors :
+    // on borne des deux côtés, le haut gagnant si la place manque (on préfère
+    // voir le mois que les raccourcis).
+    const top = Math.max(ecran.haut + marge, Math.min(brut, ecran.bas - boite.height - marge));
+    const left = Math.min(
+      Math.max(marge, ancre.left),
+      Math.max(marge, ecran.largeur - boite.width - marge),
+    );
+    setPlace({ top: top / z, left: left / z });
+  };
+
+  useLayoutEffect(() => {
+    placer();
+  }, [curseur]);
+
+  // La cellule du curseur porte le focus : c'est ce qui rend les flèches
+  // utilisables dès l'ouverture, sans cliquer d'abord.
+  //
+  // ⚠️ SEULEMENT UNE FOIS LE PANNEAU VISIBLE. Il naît en `visibility: hidden`,
+  // le temps d'être mesuré, et un élément invisible ne peut PAS recevoir le
+  // focus : `focus()` échoue en silence (même piège que le sous-menu,
+  // `MenuContextuel`). Vu le 2026-10-12 : ouvert depuis « Dater › Choisir une
+  // date… », le calendrier laissait le focus au bouton « ⋯ », et les flèches
+  // ne déplaçaient rien. D'où `visible` dans les dépendances.
+  const visible = place !== null;
+  useEffect(() => {
+    if (visible) cellule.current?.focus();
+  }, [curseur, visible]);
+
+  useEffect(() => {
+    const dehors = (e: PointerEvent) => {
+      const cible = e.target as Node;
+      if (courant.current.ami?.()?.contains(cible) || panneau.current?.contains(cible)) return;
+      courant.current.onFermer(false);
+    };
+    const touche = (e: KeyboardEvent) => {
+      // ⚠️ Une couche AU-DESSUS a déjà traité la touche : elle l'a marquée. Sans
+      // ce garde, un seul Échap ferme le calendrier ET le formulaire qui le
+      // porte, et la saisie part avec (convention de l'app depuis le 2026-08-28).
+      if (e.defaultPrevented || e.key !== "Escape") return;
+      e.preventDefault();
+      courant.current.onFermer(true);
+    };
+    // Défiler déplace l'ancre : le panneau la SUIT plutôt que de se refermer
+    // sous les doigts — un défilement involontaire ne doit rien coûter.
+    const suivre = () => placer();
+    window.addEventListener("pointerdown", dehors);
+    window.addEventListener("keydown", touche);
+    window.addEventListener("scroll", suivre, true);
+    window.addEventListener("resize", suivre);
+    /**
+     * ⚠️ ET SUR `visualViewport`, sans quoi tout ce qui précède est inutile sur
+     * iPhone : l'ouverture du clavier logiciel NE déclenche PAS `resize` sur
+     * `window` (la fenêtre n'a pas changé de taille), seulement sur le viewport
+     * visuel. Sans ces deux écouteurs, le panneau resterait placé d'après une
+     * hauteur qui n'existe plus.
+     */
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", suivre);
+    vv?.addEventListener("scroll", suivre);
+    return () => {
+      window.removeEventListener("pointerdown", dehors);
+      window.removeEventListener("keydown", touche);
+      window.removeEventListener("scroll", suivre, true);
+      window.removeEventListener("resize", suivre);
+      vv?.removeEventListener("resize", suivre);
+      vv?.removeEventListener("scroll", suivre);
+    };
+  }, []);
+
+  const jours = useMemo(() => grilleDuMois(curseur), [curseur]);
+  const moisAffiche = moisDe(curseur);
+
+  /** Hors bornes, un jour ne se choisit ni au clic, ni à la flèche, ni à la frappe. */
+  const admis = (jour: string) => !(min && jour < min) && !(max && jour > max);
+
+  const choisir = (jour: string) => {
+    if (!admis(jour)) return;
+    props.onChoisir(jour);
+    props.onFermer(true);
+  };
+
+  const auClavier = (e: React.KeyboardEvent) => {
+    const pas = pasDeTouche(e.key);
+    if (pas != null) {
+      e.preventDefault();
+      // Le mois suit le curseur : franchir le bord de la grille fait tourner la
+      // page, comme dans le calendrier du système.
+      setCurseur((j) => {
+        const d = new Date(`${j}T12:00:00`);
+        d.setDate(d.getDate() + pas);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      });
+      return;
+    }
+    if (e.key === "PageUp" || e.key === "PageDown") {
+      e.preventDefault();
+      setCurseur((j) => moisDecale(j, e.key === "PageUp" ? -1 : 1));
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      choisir(curseur);
+    }
+  };
+
+  const cellulePleine =
+    "cible-tactile relative flex h-8 w-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums outline-none transition-colors";
+
+  return createPortal(
+    <div
+      ref={panneau}
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={titreId}
+      /* `card-solid` et pas `card` : un panneau qui flotte au-dessus du
+         reste prend un aplat opaque, le dégradé de `.card` laissant
+         transparaître la vue (règle du design system V6). */
+      className="card card-solid fixed z-[190] w-[17.5rem] rounded-2xl p-3 shadow-2xl"
+      style={{
+        top: place?.top ?? -9999,
+        left: place?.left ?? -9999,
+        // Tant que la mesure n'est pas faite, le panneau est hors champ :
+        // sans ça, il apparaît un éclair en haut à gauche de l'écran.
+        visibility: place ? "visible" : "hidden",
+      }}
+    >
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          id={titreId}
+          onClick={() => setCurseur(aujourdHui)}
+          data-tip={t("Revenir au mois en cours")}
+          className="cible-tactile-ligne min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-left text-sm font-medium text-text first-letter:uppercase hover:bg-overlay"
+        >
+          {formaterMois(curseur)}
+        </button>
+        <button
+          type="button"
+          onClick={() => setCurseur((j) => moisDecale(j, -1))}
+          aria-label={t("Mois précédent")}
+          className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
+        >
+          <IconChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setCurseur((j) => moisDecale(j, 1))}
+          aria-label={t("Mois suivant")}
+          className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
+        >
+          <IconChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* ⚠️ La semaine commence le LUNDI — `ORDRE_SEMAINE`, comme partout
+          dans l'app, et `nomCourtDuJour` demande les noms à `Intl` plutôt
+          qu'à une table figée en français (PIEGES § 4.2 et § 5.2 bis). */}
+      <div className="mt-2 grid grid-cols-7 gap-0.5" aria-hidden>
+        {ORDRE_SEMAINE.map((j) => (
+          <span key={j} className="flex h-6 items-center justify-center text-[10px] font-semibold uppercase text-text-dim">
+            {nomCourtDuJour(j).slice(0, 2)}
+          </span>
+        ))}
+      </div>
+
+      <div role="grid" aria-labelledby={titreId} className="grid grid-cols-7 gap-0.5">
+        {jours.map((jour) => {
+          const dehors = moisDe(jour) !== moisAffiche;
+          const choisi = jour === valeur;
+          const cejour = jour === aujourdHui;
+          const surLeCurseur = jour === curseur;
+          return (
+            <button
+              key={jour}
+              ref={surLeCurseur ? cellule : undefined}
+              type="button"
+              role="gridcell"
+              aria-selected={choisi}
+              aria-current={cejour ? "date" : undefined}
+              aria-label={formaterComplet(jour)}
+              /* Un seul arrêt de tabulation dans la grille : celui du
+                 curseur. Quarante-deux cellules tabulables auraient rendu
+                 la sortie du panneau interminable au clavier. */
+              tabIndex={surLeCurseur ? 0 : -1}
+              disabled={!admis(jour)}
+              onKeyDown={auClavier}
+              onClick={() => choisir(jour)}
+              className={`${cellulePleine} disabled:cursor-not-allowed disabled:text-text-dim/30 disabled:hover:bg-transparent ${
+                choisi
+                  ? "bg-blue-solid font-semibold text-on-blue"
+                  : cejour
+                    ? "font-semibold text-blue hover:bg-overlay"
+                    : dehors
+                      ? "text-text-dim/55 hover:bg-overlay"
+                      : "text-text hover:bg-overlay"
+              } ${surLeCurseur && !choisi ? "ring-1 ring-border-strong" : ""}`}
+            >
+              {Number(jour.slice(8, 10))}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Les trois dates qu'on pose le plus souvent. Celle qui est déjà en
+          place se marque, pour qu'un second clic ne se cherche pas. */}
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-border pt-2">
+        {raccourcis(aujourdHui).map((r) => (
+          <button
+            key={r.cle}
+            type="button"
+            onClick={() => choisir(r.jour)}
+            className={`pill cible-tactile-ligne border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              valeur === r.jour
+                ? "border-blue/40 bg-blue/15 text-text"
+                : "border-border text-text-dim hover:text-text"
+            }`}
+          >
+            {r.libelle}
+          </button>
+        ))}
+        {valeur && effacable && (
+          <button
+            type="button"
+            onClick={() => {
+              props.onChoisir("");
+              props.onFermer(true);
+            }}
+            className="pill cible-tactile-ligne ml-auto px-2.5 py-1 text-[11px] font-medium text-text-dim hover:text-text"
+          >
+            {t("Effacer")}
+          </button>
+        )}
+      </div>
+
+      {/* ⚠️ LE CHEMIN CLAVIER, celui qui garde la frappe plus rapide que
+          le clic. `inputMode="numeric"` pour que le doigt reçoive le pavé
+          de chiffres et non l'alphabet. */}
+      <div className="mt-2">
+        <input
+          value={saisie}
+          onChange={(e) => setSaisie(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            // Le formulaire qui porte le champ ne doit PAS être soumis par
+            // cette touche : on la consomme ici.
+            e.preventDefault();
+            e.stopPropagation();
+            const lu = parserSaisie(saisie, curseur);
+            if (lu && admis(lu)) choisir(lu);
+          }}
+          inputMode="numeric"
+          placeholder={gabaritDeSaisie()}
+          aria-label={t("Taper une date")}
+          aria-invalid={saisie.trim() !== "" && parserSaisie(saisie, curseur) === null}
+          className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-center text-[13px] tabular-nums text-text placeholder:text-text-dim focus:border-blue focus:outline-none aria-[invalid=true]:border-red/60"
+        />
+        {/* Ce qui a été lu, AVANT de valider : « 24/09 » est ambigu pour
+            qui doute de l'ordre des champs, et la réponse lève le doute
+            sans qu'il faille essayer. */}
+        {saisie.trim() !== "" && (
+          <p className="mt-1 text-center text-[11px] text-text-dim">
+            {(() => {
+              const lu = parserSaisie(saisie, curseur);
+              if (!lu) return t("Date illisible");
+              // Une date lue mais hors bornes le DIT : muette, elle
+              // laisserait croire que `Entrée` n'a pas marché.
+              if (!admis(lu)) return t("Date hors des bornes");
+              return libelleRelatif(lu, aujourdHui) ?? formaterComplet(lu);
+            })()}
+          </p>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }

@@ -2,7 +2,7 @@
 // Une action = un id stable + un exécuteur.
 import type { View } from "../components/Sidebar";
 import { FINANCE_ACTIF, isFinanceView } from "./features";
-import { todayStr, todayTasks } from "./logic";
+import { tachesAFaire, todayStr } from "./logic";
 import { createNote, createTask, setMetricValue, setTaskDone } from "./repo";
 import type { AppData } from "./types";
 import type { FocusController } from "./useFocus";
@@ -277,7 +277,7 @@ export const ACTIONS: AppAction[] = [
   {
     id: "task.complete",
     module: "tasks",
-    title: "Cocher une tâche du jour",
+    title: "Cocher une tâche",
     category: "tâches",
     keywords: ["terminer", "fait", "done", "check"],
     input: { placeholder: "Début du nom de la tâche…" },
@@ -285,13 +285,11 @@ export const ACTIONS: AppAction[] = [
       if (!ctx.data) return t("Données non chargées");
       const q = norm(arg ?? "");
       if (!q) return t("Précise le nom de la tâche");
-      const list = todayTasks(
-        ctx.data.tasks,
-        ctx.data.completions,
-        todayStr(),
-      ).filter((t) => !t.done);
+      // Toute tâche qu'on peut cocher maintenant, datée ou non : la palette
+      // sert à cocher ce qu'on vient de faire, pas seulement ce qui était prévu.
+      const list = tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr());
       const match = list.find((t) => norm(t.label).includes(q));
-      if (!match) return t("Aucune tâche du jour ne correspond à « {q} »", { q: arg ?? "" });
+      if (!match) return t("Aucune tâche à faire ne correspond à « {q} »", { q: arg ?? "" });
       await setTaskDone(match.id, todayStr(), true);
       await ctx.refresh();
       return t("« {label} » cochée ✓", { label: match.label });
@@ -313,11 +311,9 @@ export const ACTIONS: AppAction[] = [
       let taskId: number | null = null;
       let label = arg?.trim() || "Focus";
       if (q && ctx.data) {
-        const match = todayTasks(
-          ctx.data.tasks,
-          ctx.data.completions,
-          todayStr(),
-        ).find((t) => norm(t.label).includes(q));
+        const match = tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr()).find((t) =>
+          norm(t.label).includes(q),
+        );
         if (match) {
           taskId = match.id;
           label = match.label;

@@ -260,6 +260,10 @@ pub struct Task {
     pub recurrence: Option<String>,
     /// `YYYY-MM-DD HH:MM:SS` (UTC, `datetime('now')` côté SQLite).
     pub created_at: Option<String>,
+    /// `YYYY-MM-DD` local — le jour où une tâche PONCTUELLE est prévue, `None`
+    /// si elle n'a pas de date. C'est lui qui dit si elle est « du jour »
+    /// (`task_streak::today_pct`, règle du 2026-10-11).
+    pub due_date: Option<String>,
 }
 
 /// Ce qui a une DATE dans le calendrier : un événement, une tâche datée ou une

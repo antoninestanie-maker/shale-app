@@ -22,6 +22,7 @@ import { deposerDemande, EVT_ALLER, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuvertu
 import { installerMenuNatif } from "./lib/menu/natif";
 import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
 import Toast from "./components/Toast";
+import SelecteurDateFlottant from "./components/SelecteurDateFlottant";
 import type { LinkKind } from "./lib/types";
 import { useFocus } from "./lib/useFocus";
 import { useMarketBrain } from "./lib/market/useMarketBrain";
@@ -721,7 +722,7 @@ function App() {
               config={ui.config}
             />
           ) : view === "tasks" ? (
-            <TasksView data={data} refresh={refresh} />
+            <TasksView data={data} refresh={refresh} focus={focus} />
           ) : view === "calendar" ? (
             <CalendarView data={data} refresh={refresh} />
           ) : view === "timer" ? (
@@ -769,6 +770,9 @@ function App() {
         <Toast toast={toastGlobal} onClose={fermerToast} duration={toastGlobal?.duree ?? 4500} />,
         document.body,
       )}
+      {/* Le calendrier ouvert sur place (« Dater › Choisir une date… », la date
+          d'une ligne, l'ajout rapide) — un seul hôte, déjà dans un portail. */}
+      <SelecteurDateFlottant />
     </div>
     </SyncProvider>
   );

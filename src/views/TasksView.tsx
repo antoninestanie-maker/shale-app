@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import TaskModal from "../components/TaskModal";
 import { recurrenceLabel, todayStr } from "../lib/logic";
-import { addTag, basculerTache, createTask, deleteTag, renommerTache } from "../lib/repo";
+import { addTag, basculerTache, createTask, deleteTag, getSetting, renommerTache, setSetting } from "../lib/repo";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
-import type { AppData, Priority, Tag, Task } from "../lib/types";
-import { IconChevronDown, IconPlus, IconSearch, IconSliders, IconTarget, IconTrash, IconX } from "../components/icons";
+import type { AppData, Goal, Priority, Tag, Task } from "../lib/types";
+import { IconChevronDown, IconSearch, IconSliders, IconTarget, IconTrash, IconX } from "../components/icons";
 
 import { pick, t, tp } from "../lib/i18n";
 import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
@@ -14,8 +14,21 @@ import { consommerDemande, ouvrirParId } from "../lib/naviguer";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
-import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
-import { ORDRE_SECTIONS, correspond, ranger, type CleSection, type LigneVue } from "../lib/tachesVue";
+import {
+  ORDRE_SECTIONS,
+  correspond,
+  ranger,
+  rangementDe,
+  rangerParObjectif,
+  type CleSection,
+  type LigneVue,
+  type Rangement,
+} from "../lib/tachesVue";
+import { planificationDeSaisie } from "../lib/taches";
+import type { FocusController } from "../lib/useFocus";
+import BoutonDate from "../components/taches/BoutonDate";
+import ChampRenommage from "../components/taches/ChampRenommage";
+import SaisieRapide from "../components/taches/SaisieRapide";
 // Le contour de la case dit la priorité — la règle de toute l'app, écrite une fois.
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
 import { CaptureIa } from "../components/ia/CaptureIa";
@@ -27,6 +40,8 @@ import { defilerVers } from "../lib/defilement";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
+  /** Le minuteur de l'app — pour « Focus 25 min » dans le menu d'une tâche. */
+  focus?: FocusController;
 }
 
 /**
@@ -50,6 +65,18 @@ interface Props {
  * quand, et le Calendrier montre un jour donné. Plus de grille redimensionnable
  * non plus — une liste se lit en une colonne, comme la vue Objectifs refaite
  * la veille.
+ *
+ * ⭐ Depuis le 2026-10-11 :
+ *   • un second RANGEMENT, « Par objectif » (`rangerParObjectif`) : une section
+ *     par objectif racine, « Sans objectif » en dernier, les routines à part.
+ *     Le choix est un réglage (`taches.rangement`), retenu et synchronisé ;
+ *     « Par moment » reste le défaut. Les filtres et la recherche valent pour
+ *     les deux ;
+ *   • l'ajout rapide LIT une date dans la phrase et la montre en pastille
+ *     (`SaisieRapide`) ; sans date, la tâche naît toujours sans date ici ;
+ *   • la date d'une ligne est un bouton qui ouvre le calendrier sur place, et
+ *     le « ⋯ » est visible au repos ;
+ *   • « Focus 25 min » est dans le menu, comme sur Aujourd'hui.
  */
 
 /** Les couleurs proposées pour un nouveau tag. ⚠️ Accordées aux tokens (DESIGN.md). */
@@ -70,6 +97,8 @@ const FAITES_VISIBLES = 20;
 const DELAI_DEPART_MS = 1200;
 /** La clé des sections repliées — une commodité de CE poste, jamais synchronisée. */
 const CLE_REPLIS = "shale.taches.replis";
+/** Le réglage qui retient le rangement (synchronisé : c'est une préférence, pas une géométrie). */
+const CLE_RANGEMENT = "taches.rangement";
 
 /** Les libellés des sections. ⚠️ Une FONCTION : `t()` à l'affichage, jamais à l'import. */
 function libelleSection(s: CleSection): string {
@@ -107,37 +136,62 @@ function aideSection(s: CleSection): string {
   }
 }
 
-function lireReplis(): Set<CleSection> {
+/**
+ * Les sections repliées, par leur clé : un moment (`retard`, `faites`…) ou,
+ * rangé par objectif, `o:<id>`, `sansObjectif`, `routines`.
+ */
+function lireReplis(): Set<string> {
   try {
     const brut = localStorage.getItem(CLE_REPLIS);
-    if (brut) return new Set(JSON.parse(brut) as CleSection[]);
+    if (brut) return new Set(JSON.parse(brut) as string[]);
   } catch {
     /* stockage indisponible : les défauts */
   }
-  return new Set<CleSection>(["faites"]);
+  return new Set<string>(["faites"]);
 }
 
-/** « hier », « demain », sinon « mar. 22 sept. » — une date au fil d'une ligne. */
-function auFilDeLaLigne(jour: string, aujourdHui: string): string {
-  const relatif = libelleRelatif(jour, aujourdHui);
-  return relatif ? relatif.toLocaleLowerCase() : formaterChamp(jour, aujourdHui);
+/** Une section à l'écran, quel que soit le rangement. */
+interface SectionVue {
+  cle: string;
+  titre: string;
+  aide: string;
+  /** « En retard » : le seul titre en rouge. */
+  accent?: boolean;
+  /** L'objectif de la section, rangé par objectif — son titre l'ouvre. */
+  objectif?: Goal | null;
+  /** Les tâches faites : vingt, puis « Afficher les autres ». */
+  limiter?: boolean;
+  lignes: { task: LigneVue; moment: CleSection; etape: Goal | null }[];
 }
 
-export default function TasksView({ data, refresh }: Props) {
+export default function TasksView({ data, refresh, focus }: Props) {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
   const [creating, setCreating] = useState(false);
   /** La tâche dont le libellé est en cours de renommage, EN PLACE. */
   const [renommeId, setRenommeId] = useState<number | null>(null);
-  const [replis, setReplis] = useState<Set<CleSection>>(lireReplis);
+  const [replis, setReplis] = useState<Set<string>>(lireReplis);
   const [toutesFaites, setToutesFaites] = useState(false);
   const [gererTags, setGererTags] = useState(false);
   /** La tâche qu'on vient d'ajouter : surlignée un instant, pour qu'on la voie arriver. */
   const [nouvelle, setNouvelle] = useState<number | null>(null);
-  /** Les tâches qu'on vient de cocher ou de rouvrir restent un instant à leur place. */
-  const [garder, setGarder] = useState<ReadonlyMap<number, CleSection>>(new Map());
-  const [brouillon, setBrouillon] = useState("");
+  /** Les tâches qu'on vient de cocher ou de rouvrir restent un instant à leur place (clé de section). */
+  const [garder, setGarder] = useState<ReadonlyMap<number, string>>(new Map());
+  /** ⭐ Par moment (défaut) ou par objectif — un réglage, retenu et synchronisé. */
+  const [rangement, setRangement] = useState<Rangement>("moment");
+  useEffect(() => {
+    getSetting(CLE_RANGEMENT)
+      .then((v) => setRangement(rangementDe(v)))
+      .catch(() => undefined);
+  }, []);
+  const choisirRangement = (r: Rangement) => {
+    if (r === rangement) return;
+    // Une tâche « gardée » l'était dans une section de l'autre rangement.
+    setGarder(new Map());
+    setRangement(r);
+    void setSetting(CLE_RANGEMENT, r);
+  };
   const [prioriteNouvelle, setPrioriteNouvelle] = useState<Priority>("medium");
   const menu = useMenuContextuel<LigneVue>();
 
@@ -203,16 +257,61 @@ export default function TasksView({ data, refresh }: Props) {
     [data.tasks, data.goals, tagFilter, recherche],
   );
 
+  const parObjectif = rangement === "objectif";
   const sections = useMemo(
     () =>
       ranger(filtrees, data.completions, today, {
         coche: (task, faite) => etat(`t${task.id}:${today}`, faite),
-        garder,
+        // `garder` porte des clés du rangement EN COURS : ici, des moments.
+        garder: parObjectif ? undefined : (garder as ReadonlyMap<number, CleSection>),
       }),
-    [filtrees, data.completions, today, etat, garder],
+    [filtrees, data.completions, today, etat, garder, parObjectif],
   );
+
+  /**
+   * ⭐ Ce que l'écran montre, section par section — dans l'un ou l'autre
+   * rangement. Les deux sortent de `lib/tachesVue.ts` ; ici on ne fait que les
+   * nommer.
+   */
+  const vues = useMemo<SectionVue[]>(() => {
+    if (!parObjectif) {
+      return ORDRE_SECTIONS.map((s) => ({
+        cle: s,
+        titre: libelleSection(s),
+        aide: aideSection(s),
+        accent: s === "retard",
+        limiter: s === "faites",
+        lignes: sections.get(s)!.map((task) => ({ task, moment: s, etape: null })),
+      })).filter((v) => v.lignes.length > 0);
+    }
+    return rangerParObjectif(filtrees, data.completions, data.goals, today, {
+      coche: (task, faite) => etat(`t${task.id}:${today}`, faite),
+      garder,
+    }).map((g) => ({
+      cle: g.cle,
+      titre:
+        g.genre === "objectif"
+          ? (g.racine?.title ?? "")
+          : g.genre === "sansObjectif"
+            ? t("Sans objectif")
+            : libelleSection(g.genre),
+      aide:
+        g.genre === "objectif"
+          ? t("Ses tâches à faire, celles de ses étapes comprises — les retards d'abord.")
+          : g.genre === "sansObjectif"
+            ? t("Les tâches à faire qui ne sont rattachées à aucun objectif.")
+            : g.genre === "routines"
+              ? t("Les tâches récurrentes — celles du jour d'abord.")
+              : aideSection(g.genre),
+      objectif: g.racine,
+      limiter: g.genre === "faites",
+      lignes: g.lignes.map((l) => ({ task: l, moment: l.moment, etape: l.etape })),
+    }));
+    // `t()` suit la langue : elle change sans rechargement, et `data` avec elle.
+  }, [parObjectif, sections, filtrees, data.completions, data.goals, today, etat, garder]);
+
   /** Toutes les lignes affichées, à plat — pour le menu, qui relit la ligne FRAÎCHE. */
-  const lignes = useMemo(() => ORDRE_SECTIONS.flatMap((s) => sections.get(s)!), [sections]);
+  const lignes = useMemo(() => vues.flatMap((v) => v.lignes.map((l) => l.task)), [vues]);
 
   const ouvertes = (s: CleSection) => sections.get(s)!.filter((x) => !x.done).length;
   const nAujourdhui = ouvertes("aujourdhui");
@@ -233,7 +332,7 @@ export default function TasksView({ data, refresh }: Props) {
    * s'affiche faite dès qu'un jour quelconque la dit faite.
    */
   const handleToggle = (task: LigneVue) => {
-    const ici = ORDRE_SECTIONS.find((s) => sections.get(s)!.some((x) => x.id === task.id));
+    const ici = vues.find((v) => v.lignes.some((x) => x.task.id === task.id))?.cle;
     if (ici) {
       setGarder((m) => new Map(m).set(task.id, ici));
       window.setTimeout(
@@ -263,6 +362,12 @@ export default function TasksView({ data, refresh }: Props) {
     basculer: (task) => void handleToggle(task as LigneVue),
     renommer: (task) => setRenommeId(task.id),
     modifier: (task) => setEditing(task),
+    // ⭐ La même séance que le ▶ d'Aujourd'hui (règle 18) — absente pendant une
+    // séance en cours, comme lui.
+    focus:
+      focus && !focus.session
+        ? (task) => void focus.start({ minutes: 25, taskId: task.id, label: task.label })
+        : undefined,
   };
 
   const validerRenommage = async (task: Task, libelle: string) => {
@@ -274,38 +379,54 @@ export default function TasksView({ data, refresh }: Props) {
   };
 
   /**
-   * ⭐ L'AJOUT RAPIDE : un libellé, Entrée. La tâche naît sans date, avec le
-   * tag qu'on regarde — comme la ligne d'ajout du widget d'Aujourd'hui. Le
-   * reste (date, rythme, objectif) se règle ensuite, au menu ou en l'ouvrant.
+   * ⭐ L'AJOUT RAPIDE : une phrase, Entrée. La tâche prend le tag qu'on regarde,
+   * et la date que la ligne a lue dans la phrase ou qu'on a choisie au
+   * calendrier (`SaisieRapide`) ; sans date, elle naît SANS DATE (décision du
+   * 2026-09-30). Le reste (rythme, objectif) se règle ensuite.
    */
-  const ajouter = async () => {
-    const label = brouillon.trim();
-    if (!label) return;
-    setBrouillon("");
-    const id = await createTask({ label, tag: tagFilter, priority: prioriteNouvelle, recurrence: "none", goal_id: null });
+  const ajouter = async (label: string, jour: string | null) => {
+    const id = await createTask({
+      label,
+      tag: tagFilter,
+      priority: prioriteNouvelle,
+      recurrence: "none",
+      goal_id: null,
+      // Jamais d'écriture directe de `due_date` (`lib/taches.ts`).
+      ...planificationDeSaisie("none", jour ?? "", "", ""),
+    });
     // Chaque tâche repart « moyenne » : une priorité restée collée d'un ajout à
     // l'autre en ferait passer cinq en élevée sans qu'on l'ait voulu.
     setPrioriteNouvelle("medium");
-    // Elle doit se VOIR arriver : sa section se déplie, la recherche s'efface.
+    // Elle doit se VOIR arriver : la recherche s'efface, et la section où elle
+    // tombe se déplie — quelle qu'elle soit, dans l'un ou l'autre rangement.
     setRecherche("");
-    setReplis((r) => {
-      if (!r.has("sansDate")) return r;
-      const n = new Set(r);
-      n.delete("sansDate");
-      return n;
-    });
     await refresh();
     setNouvelle(id);
   };
 
+  // La section de la tâche qu'on vient d'ajouter se déplie (sans réécrire le
+  // choix retenu sur ce poste : c'est le temps de la voir arriver), PUIS on y
+  // défile — repliée, sa ligne n'existe pas encore à l'écran.
   useEffect(() => {
     if (nouvelle == null) return;
-    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`));
+    const cle = vues.find((v) => v.lignes.some((x) => x.task.id === nouvelle))?.cle;
+    if (cle && replis.has(cle)) {
+      setReplis((r) => new Set([...r].filter((x) => x !== cle)));
+      return;
+    }
+    // ⚠️ Au MILIEU de l'écran, pas « au plus près » : au téléphone, le plus près
+    // est le bord bas, SOUS la barre d'onglets — la tâche qu'on vient d'ajouter
+    // y arrivait à moitié cachée (vu à 390 px le 2026-10-12).
+    defilerVers(document.querySelector(`[data-tache="${nouvelle}"]`), { block: "center" });
+  }, [nouvelle, vues, replis]);
+
+  useEffect(() => {
+    if (nouvelle == null) return;
     const minuterie = window.setTimeout(() => setNouvelle(null), 1600);
     return () => window.clearTimeout(minuterie);
   }, [nouvelle]);
 
-  const replier = (s: CleSection) =>
+  const replier = (s: string) =>
     setReplis((r) => {
       const n = new Set(r);
       if (n.has(s)) n.delete(s);
@@ -360,14 +481,26 @@ export default function TasksView({ data, refresh }: Props) {
    * séparateur : un morceau masqué sur bureau (le tag) ne doit pas laisser son
    * « · » traîner en fin de ligne — vu à l'écran le 2026-09-30.
    */
-  const meta = (task: LigneVue, section: CleSection): { noeud: ReactNode; classe?: string }[] => {
+  const meta = (
+    task: LigneVue,
+    section: CleSection,
+    /** L'étape à nommer — seulement dans la section d'un objectif (`undefined` ailleurs). */
+    etape: Goal | null | undefined,
+  ): { noeud: ReactNode; classe?: string }[] => {
     const out: { noeud: ReactNode; classe?: string }[] = [];
     const push = (noeud: ReactNode, classe?: string) => out.push({ noeud, classe });
-    if (task.due_date && (section === "retard" || section === "avenir")) {
+    // ⭐ La date est un BOUTON : il ouvre le calendrier sur place (`BoutonDate`).
+    // Rangée par moment, « Aujourd'hui » ne répète pas sa date ; rangée par
+    // objectif, la section ne dit plus quand — la ligne le dit donc toujours.
+    if (task.due_date && (section === "retard" || section === "avenir" || (parObjectif && section === "aujourdhui"))) {
       push(
-        <span key="date" className={section === "retard" ? "font-medium text-red" : undefined}>
-          {auFilDeLaLigne(task.due_date, today)}
-        </span>,
+        <BoutonDate
+          key="date"
+          task={task}
+          aujourdHui={today}
+          dater={gestes.dater}
+          className={section === "retard" ? "font-medium text-red" : undefined}
+        />,
       );
     }
     if (task.start_at && task.due_date) {
@@ -387,7 +520,9 @@ export default function TasksView({ data, refresh }: Props) {
         </span>,
       );
     }
-    const objectif = objectifDe(task.goal_id);
+    // Rangée par objectif, le titre de la section EST l'objectif : la ligne ne
+    // nomme que l'étape qui porte la tâche, s'il y en a une.
+    const objectif = etape !== undefined ? etape : objectifDe(task.goal_id);
     if (objectif) {
       push(
         <button
@@ -423,8 +558,8 @@ export default function TasksView({ data, refresh }: Props) {
     return out;
   };
 
-  const ligne = (task: LigneVue, section: CleSection) => {
-    const infos = meta(task, section);
+  const ligne = (task: LigneVue, section: CleSection, etape: Goal | null | undefined) => {
+    const infos = meta(task, section, etape);
     return (
       /* ⚠️ Clic droit et touches de LIGNE sur le <li> : ils marchent que le
          focus soit sur la case, sur le libellé ou sur « ⋯ ». F2 renomme
@@ -458,27 +593,11 @@ export default function TasksView({ data, refresh }: Props) {
 
         <div className="min-w-0 flex-1">
           {renommeId === task.id ? (
-            /* ⭐ RENOMMER EN PLACE, jamais dans une fenêtre (cahier des
-               charges, § 7). Entrée valide, Échap annule, quitter le champ
-               valide — comme un nom de fichier dans le Finder. */
-            <input
-              autoFocus
-              defaultValue={task.label}
-              aria-label={t("Nouveau nom de la tâche")}
-              onFocus={(e) => e.currentTarget.select()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void validerRenommage(task, e.currentTarget.value);
-                } else if (e.key === "Escape") {
-                  // On MARQUE la touche : Échap ne doit rien fermer d'autre.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setRenommeId(null);
-                }
-              }}
-              onBlur={(e) => void validerRenommage(task, e.currentTarget.value)}
-              className="w-full rounded-md border border-blue bg-surface px-2 py-0.5 text-sm text-text focus:outline-none"
+            /* ⭐ RENOMMER EN PLACE, jamais dans une fenêtre (`ChampRenommage`). */
+            <ChampRenommage
+              valeur={task.label}
+              onValider={(libelle) => void validerRenommage(task, libelle)}
+              onAnnuler={() => setRenommeId(null)}
             />
           ) : (
             /* ⭐ Toucher la tâche l'OUVRE — sa date, son rythme, son objectif
@@ -531,6 +650,7 @@ export default function TasksView({ data, refresh }: Props) {
         )}
 
         <BoutonMenu
+          visible
           onOuvrir={(e) => menu.ouvrirSousLeBouton(e, task)}
           ouvert={menu.ouvert && menu.cible?.id === task.id}
           libelle={t("Actions sur « {titre} »", { titre: task.label })}
@@ -541,33 +661,44 @@ export default function TasksView({ data, refresh }: Props) {
 
   // ─── Une section ─────────────────────────────────────────────────────────
 
-  const section = (s: CleSection) => {
-    const rangees = sections.get(s)!;
+  const section = (v: SectionVue) => {
+    const rangees = v.lignes;
     if (rangees.length === 0) return null;
+    const s = v.cle;
     const replie = replis.has(s);
-    const visibles = s === "faites" && !toutesFaites ? rangees.slice(0, FAITES_VISIBLES) : rangees;
+    const visibles = v.limiter && !toutesFaites ? rangees.slice(0, FAITES_VISIBLES) : rangees;
     const idTitre = `taches-${s}`;
     return (
       <section key={s} aria-labelledby={idTitre}>
-        <h2 id={idTitre}>
+        <h2 id={idTitre} className="flex items-center">
           <button
             type="button"
             onClick={() => replier(s)}
             aria-expanded={!replie}
-            data-tip={libelleSection(s)}
-            data-tip-sub={aideSection(s)}
-            className="cible-tactile-ligne flex w-full items-center gap-2 rounded-md px-3 pb-1 pt-3 text-left"
+            data-tip={v.titre}
+            data-tip-sub={v.aide}
+            className="cible-tactile-ligne flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 pb-1 pt-3 text-left"
           >
-            <span className={`hud-label ${s === "retard" ? "text-red" : ""}`}>{libelleSection(s)}</span>
+            {v.objectif && <IconTarget className="h-3.5 w-3.5 shrink-0 text-text-dim" />}
+            <span className={`hud-label min-w-0 truncate ${v.accent ? "text-red" : ""}`}>{v.titre}</span>
             <span className="text-xs tabular-nums text-text-dim">{rangees.length}</span>
             <IconChevronDown
-              className={`h-3.5 w-3.5 text-text-dim transition-transform duration-200 ${replie ? "-rotate-90" : ""}`}
+              className={`h-3.5 w-3.5 shrink-0 text-text-dim transition-transform duration-200 ${replie ? "-rotate-90" : ""}`}
             />
           </button>
+          {v.objectif && (
+            <button
+              type="button"
+              onClick={() => ouvrirParId("goal", v.objectif!.id)}
+              className="cible-tactile-ligne mr-2 mt-2 shrink-0 rounded-md px-2 text-xs font-medium text-text-dim transition-colors hover:text-text"
+            >
+              {t("Ouvrir l'objectif")}
+            </button>
+          )}
         </h2>
         {!replie && (
           <ul className="flex flex-col">
-            {visibles.map((x) => ligne(x, s))}
+            {visibles.map((x) => ligne(x.task, x.moment, v.objectif ? x.etape : undefined))}
             {visibles.length < rangees.length && (
               <li className="px-3 py-1.5">
                 <button
@@ -628,47 +759,33 @@ export default function TasksView({ data, refresh }: Props) {
         </div>
       </header>
 
-      {/* ⭐ L'ajout rapide : un libellé, Entrée. */}
-      <form
+      {/* ⭐ L'ajout rapide : une phrase, Entrée. La date qu'elle contient est lue
+          et montrée en pastille avant validation (`SaisieRapide`). */}
+      <SaisieRapide
         className="mt-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ajouter();
-        }}
+        plus
+        placeholder={t("Ajouter une tâche…")}
+        aria={t("Ajouter une tâche")}
+        onAjouter={ajouter}
       >
-        {/* Un <div>, plus un <label> : la pastille de priorité en est un, et un
-            <label> dans un <label> n'est pas du HTML. */}
-        <div className="flex items-center gap-2.5 rounded-[12px] border border-border bg-surface py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-blue">
-          <IconPlus className="h-4 w-4 shrink-0 text-text-dim" />
-          <input
-            value={brouillon}
-            onChange={(e) => setBrouillon(e.target.value)}
-            placeholder={t("Ajouter une tâche…")}
-            aria-label={t("Ajouter une tâche")}
-            className="min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-text-dim focus:outline-none"
-          />
-          {tagFilter && (
-            <span
-              className="pill shrink-0 px-2 py-0.5 text-[11px] font-medium"
-              style={{ backgroundColor: `color-mix(in srgb, ${tagColor(tagFilter)} 16%, transparent)`, color: tagColor(tagFilter) }}
-              data-tip={t("Elle prendra ce tag")}
-              data-tip-sub={t("C'est le tag que tu regardes. Retire le filtre pour ajouter sans tag.")}
-            >
-              {tagFilter}
-            </span>
-          )}
-          {brouillon.trim() && (
-            <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-text-dim sm:inline-block">
-              {t("Entrée")}
-            </kbd>
-          )}
-          <PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />
-        </div>
-      </form>
+        {tagFilter && (
+          <span
+            className="pill shrink-0 px-2 py-0.5 text-[11px] font-medium"
+            style={{ backgroundColor: `color-mix(in srgb, ${tagColor(tagFilter)} 16%, transparent)`, color: tagColor(tagFilter) }}
+            data-tip={t("Elle prendra ce tag")}
+            data-tip-sub={t("C'est le tag que tu regardes. Retire le filtre pour ajouter sans tag.")}
+          >
+            {tagFilter}
+          </span>
+        )}
+        <PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />
+      </SaisieRapide>
 
       {/* Les filtres : les tags, et une recherche. */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <div className="-mx-1 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]">
+        {/* Les tags prennent toute la première ligne : avec le rangement à côté,
+            « Gérer » était rogné par le défilement (vu à 1440 px, 2026-10-12). */}
+        <div className="-mx-1 flex min-w-0 basis-full items-center gap-1.5 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]">
           <button type="button" onClick={() => setTagFilter(null)} className={chip(tagFilter === null)}>
             {t("Toutes")}
           </button>
@@ -711,7 +828,29 @@ export default function TasksView({ data, refresh }: Props) {
           </button>
         </div>
 
-        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:w-56">
+        {/* ⭐ Le rangement : par moment (défaut) ou par objectif — retenu. */}
+        <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto" role="radiogroup" aria-label={t("Rangement des tâches")}>
+          {(["moment", "objectif"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              role="radio"
+              aria-checked={rangement === r}
+              onClick={() => choisirRangement(r)}
+              data-tip={r === "moment" ? t("Ranger par moment") : t("Ranger par objectif")}
+              data-tip-sub={
+                r === "moment"
+                  ? t("En retard, aujourd'hui, à venir, sans date.")
+                  : t("Une section par objectif, ses étapes comprises ; « Sans objectif » en dernier.")
+              }
+              className={chip(rangement === r)}
+            >
+              {r === "moment" ? t("Par moment") : t("Par objectif")}
+            </button>
+          ))}
+        </div>
+
+        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:ml-auto sm:w-56">
           <IconSearch className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           <input
             type="search"
@@ -822,7 +961,7 @@ export default function TasksView({ data, refresh }: Props) {
         </section>
       )}
 
-      {/* La liste, rangée par moment. */}
+      {/* La liste, rangée par moment ou par objectif. */}
       <div className="card mt-4 p-2">
         {data.tasks.length === 0 ? (
           <div className="px-3 py-10 text-center">
@@ -846,7 +985,7 @@ export default function TasksView({ data, refresh }: Props) {
             )}
           </div>
         ) : (
-          ORDRE_SECTIONS.map(section)
+          vues.map(section)
         )}
       </div>
 

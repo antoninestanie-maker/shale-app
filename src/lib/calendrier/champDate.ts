@@ -195,6 +195,16 @@ export function formaterChamp(jour: string, aujourdHui: string): string {
   });
 }
 
+/**
+ * Une date AU FIL D'UNE LIGNE de liste : « hier », « demain », sinon
+ * « jeu. 24 sept. ». Le mot relatif en minuscule — il suit un libellé, il
+ * n'ouvre pas une phrase.
+ */
+export function dateAuFil(jour: string, aujourdHui: string): string {
+  const relatif = libelleRelatif(jour, aujourdHui);
+  return relatif ? relatif.toLocaleLowerCase(localeTag()) : formaterChamp(jour, aujourdHui);
+}
+
 /** Le mois et l'année en titre du calendrier : « septembre 2026 ». */
 export function formaterMois(jour: string): string {
   return new Date(`${jour}T12:00:00`).toLocaleDateString(localeTag(), {

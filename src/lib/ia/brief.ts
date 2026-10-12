@@ -16,7 +16,7 @@ import { profilDisponibilite } from "../calendrier/disponibilite";
 import { entreesDuJour } from "../calendrier/agenda";
 import { todayTasks } from "../logic";
 import { appliquerReport, getSetting, mettreEnCorbeille, setSetting, setTaskSchedule } from "../repo";
-import { estRecurrente } from "../taches";
+import { estDatee, ponctuellesFaites } from "../taches";
 import type { AppData, CalendarEvent, Priority, Task } from "../types";
 import type { ActionCloture, ContratsIa, JourneeBrief, LangIa } from "./contrats";
 
@@ -144,8 +144,12 @@ export function payloadBrief(
  *  aujourd'hui, pas faites. Une récurrente ne se reporte pas (ses occurrences
  *  se calculent), une tâche sans date n'a rien à reporter. */
 export function tachesAReporter(data: AppData, jour: string): Task[] {
-  return todayTasks(data.tasks, data.completions, jour)
-    .filter((t) => !t.done && !estRecurrente(t) && t.due_date !== null && t.due_date <= jour)
+  // ⚠️ Lu sur TOUTES les tâches, plus sur la liste du jour : depuis le
+  // 2026-10-11 celle-ci ne contient plus les tâches en retard (`todayTasks`,
+  // `lib/logic.ts`), et ce sont justement elles qu'une clôture doit proposer.
+  const faites = ponctuellesFaites(data.completions);
+  return data.tasks
+    .filter((t) => estDatee(t) && (t.due_date as string) <= jour && !faites.has(t.id))
     .slice(0, 30);
 }
 

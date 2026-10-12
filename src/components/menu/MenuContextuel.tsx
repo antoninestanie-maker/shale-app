@@ -184,18 +184,21 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
       // On ferme AVANT d'agir : l'action peut ouvrir une fenêtre, naviguer ou
       // rendre la main plus tard, et un menu qui resterait ouvert par-dessus
       // serait à la fois laid et faux.
+      // L'endroit où le menu était ouvert, lu AVANT de fermer : l'entrée qui
+      // ouvre quelque chose sur place (un calendrier) s'y accroche.
+      const ou = { element: etat.elementAncre, ancre: etat.ancre };
       fermer();
       // Une action qui échoue ne doit pas laisser l'app dans un état bancal :
       // le menu est déjà fermé, on se contente de le dire à la console.
       void (async () => {
         try {
-          await e.executer?.();
+          await e.executer?.(ou);
         } catch (err) {
           console.error("menu contextuel :", e.id, err);
         }
       })();
     },
-    [fermer, aConfirmer],
+    [fermer, aConfirmer, etat.elementAncre, etat.ancre],
   );
 
   // ── Clavier ───────────────────────────────────────────────────────────────
@@ -533,6 +536,13 @@ export function BoutonMenu(props: {
   onOuvrir: (e: React.MouseEvent<HTMLElement>) => void;
   libelle: string;
   ouvert?: boolean;
+  /**
+   * Visible AU REPOS, même à la souris (2026-10-11) — pour les lignes de tâche.
+   * Le crible du labo (constat 10) : reporter ou renommer une tâche n'existait
+   * qu'au survol de sa ligne, ce que la règle 17 interdit. Estompé au repos,
+   * plein au survol : la liste n'est pas criblée de points pour autant.
+   */
+  visible?: boolean;
   className?: string;
 }) {
   return (
@@ -544,7 +554,11 @@ export function BoutonMenu(props: {
       aria-label={props.libelle}
       data-tip={t("Actions")}
       className={`cible-tactile flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-dim transition-opacity hover:bg-surface hover:text-text focus-visible:opacity-100 ${
-        props.ouvert ? "opacity-100" : "opacity-0 group-hover/ligne:opacity-100"
+        props.ouvert
+          ? "opacity-100"
+          : props.visible
+            ? "opacity-60 hover:opacity-100 group-hover/ligne:opacity-100"
+            : "opacity-0 group-hover/ligne:opacity-100"
       } [@media(pointer:coarse)]:opacity-100 ${props.className ?? ""}`}
     >
       <IconPoints className="h-4 w-4" />

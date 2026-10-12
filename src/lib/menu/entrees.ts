@@ -56,8 +56,20 @@ export interface EntreeMenu {
    * ⚠️ DOIT APPELER EXACTEMENT LA MÊME FONCTION que le bouton ou le raccourci
    * correspondant (règle 18). Une entrée qui réimplémente l'action diverge de
    * son jumeau au premier correctif.
+   *
+   * `ou` dit OÙ le menu était ouvert — pour l'entrée qui ouvre quelque chose
+   * SUR PLACE (le calendrier de « Choisir une date… », 2026-10-11). La plupart
+   * des entrées l'ignorent.
    */
-  executer?: () => void | Promise<unknown>;
+  executer?: (ou?: OrigineMenu) => void | Promise<unknown>;
+}
+
+/** Où un menu était ouvert, au moment où l'on a choisi une entrée. */
+export interface OrigineMenu {
+  /** Le bouton « ⋯ » ou la ligne — `null` pour un clic droit (un point). */
+  element: HTMLElement | null;
+  /** Le point ou le rectangle d'ancrage, en coordonnées de fenêtre. */
+  ancre: { top: number; bottom: number; left: number; right: number } | null;
 }
 
 /**

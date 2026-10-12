@@ -1,8 +1,10 @@
 import { effectiveProgress, todayStr } from "../lib/logic";
-import { estAcheve, mesurer } from "../lib/objectifs/progression";
+import { ouvrirParId } from "../lib/naviguer";
+import { estAcheve, mesurer, type SourcesProgression } from "../lib/objectifs/progression";
+import { estRacine, joursDeRetard } from "../lib/objectifs/retard";
 import type { AppData, Goal } from "../lib/types";
 
-import { t } from "../lib/i18n";
+import { t, tp } from "../lib/i18n";
 /** Clés françaises, traduites à l'affichage — cf. `GoalsView`. */
 const SCOPE_LABEL: Record<Goal["scope"], string> = {
   short: "court terme",
@@ -10,17 +12,35 @@ const SCOPE_LABEL: Record<Goal["scope"], string> = {
   long: "long terme",
 };
 
-export default function GoalsPreview({ data }: { data: AppData }) {
-  const { goals, tasks, completions } = data;
-  const contexte = { habits: data.habits, habitChecks: data.habitChecks };
-  const sources = { goals, tasks, completions, ...contexte, maintenant: `${todayStr()} ${new Date().toTimeString().slice(0, 5)}` };
-  const withPct = goals.map((g) => ({
-    goal: g,
-    pct: effectiveProgress(g, goals, tasks, completions, contexte),
-    // ⚠️ « En cours » = pas ACHEVÉ, pas « sous 100 % » : un objectif à 100 %
-    // dont des étapes sont vides n'est pas fini (feuille de route, 2026-09-15).
-    acheve: estAcheve(mesurer(g, sources)),
-  }));
+/**
+ * La carte « Objectifs en cours » d'Aujourd'hui.
+ *
+ * ⭐ Les objectifs RACINES seulement (2026-10-11). Elle listait chaque étape
+ * comme un objectif à part : quatre « objectifs en cours » ici, deux dans la vue
+ * Objectifs ; créer un objectif à deux étapes ajoutait trois lignes (crible du
+ * labo, constat 13 ; audit A06a-09). Une étape se lit sur la page de son
+ * objectif — et son avancement est déjà dans celui de l'objectif.
+ *
+ * ⭐ L'avancement se lit par `effectiveProgress`, avec les sources COMPLÈTES
+ * (`useSourcesProgression` : arêtes et événements rattachés compris). La carte
+ * mesurait sans les événements, que la page de l'objectif compte : deux
+ * chiffres pour le même objectif. Elle ne recompte rien de son côté.
+ *
+ * Chaque ligne dit le retard de l'objectif s'il y en a un, et l'ouvre.
+ */
+export default function GoalsPreview({ data, sources }: { data: AppData; sources: SourcesProgression }) {
+  const { goals } = data;
+  const today = todayStr();
+  const withPct = goals
+    .filter((g) => estRacine(g, goals))
+    .map((g) => ({
+      goal: g,
+      pct: effectiveProgress(g, sources.goals, sources.tasks, sources.completions, sources),
+      // ⚠️ « En cours » = pas ACHEVÉ, pas « sous 100 % » : un objectif à 100 %
+      // dont des étapes sont vides n'est pas fini (feuille de route, 2026-09-15).
+      acheve: estAcheve(mesurer(g, sources)),
+      retard: joursDeRetard(g.deadline, today),
+    }));
 
   // Plus de `.slice(0, 4)` : la liste défile dans la carte (`.panel-scroll`) —
   // agrandir le widget montre RÉELLEMENT plus d'objectifs.
@@ -40,28 +60,41 @@ export default function GoalsPreview({ data }: { data: AppData }) {
   }
 
   return (
-    <ul className="panel-scroll flex flex-col gap-4 pr-0.5">
-      {active.map(({ goal, pct }) => (
+    <ul className="panel-scroll flex flex-col gap-2 pr-0.5">
+      {active.map(({ goal, pct, retard }) => (
         <li key={goal.id} className="shrink-0">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="min-w-0 truncate text-sm text-text" title={goal.title}>
-              {goal.title}
+          {/* Toute la ligne ouvre l'objectif : c'est là qu'on agit sur lui. */}
+          <button
+            type="button"
+            onClick={() => ouvrirParId("goal", goal.id)}
+            className="-mx-2 block w-[calc(100%+1rem)] rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-overlay"
+          >
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="min-w-0 truncate text-sm text-text" title={goal.title}>
+                {goal.title}
+              </span>
+              <span className="shrink-0 font-display text-sm font-bold text-text">
+                {pct}%
+              </span>
             </span>
-            <span className="shrink-0 font-display text-sm font-bold text-text">
-              {pct}%
+            <span className="mt-1.5 flex items-center gap-2">
+              <span className="pill block h-1.5 flex-1 overflow-hidden bg-surface-2">
+                <span
+                  className="pill block h-full bg-[image:var(--gradient-brand)] transition-[width] duration-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+              <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
+                {t(SCOPE_LABEL[goal.scope])}
+              </span>
             </span>
-          </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="pill h-1.5 flex-1 overflow-hidden bg-surface-2">
-              <div
-                className="pill h-full bg-[image:var(--gradient-brand)] transition-[width] duration-500"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-              {t(SCOPE_LABEL[goal.scope])}
-            </span>
-          </div>
+            {/* Le retard : un fait, écrit en clair — pas une alarme rouge. */}
+            {retard > 0 && (
+              <span className="mt-1 block text-xs text-text-dim">
+                {tp(retard, "échéance dépassée d'un jour", "échéance dépassée de {n} jours")}
+              </span>
+            )}
+          </button>
         </li>
       ))}
     </ul>

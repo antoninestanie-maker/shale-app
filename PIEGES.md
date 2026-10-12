@@ -4479,3 +4479,16 @@ Outil : `Shale-projet/labo/outils/pilote.mjs`. Ces pièges valent pour tout scri
 
 - **Symptôme.** « Créer » d'une fenêtre trop haute n'apparaissait dans aucune liste : son rectangle est dans la fenêtre du navigateur, mais rogné par le cadre qui défile (c'est le défaut A17-15, vu par l'outil avant de l'être par un agent).
 - **Parade.** Tester le centre de l'élément contre le rectangle de chaque ancêtre qui rogne, et le compter à part (« cachés dans un cadre qui défile »).
+
+## 35.8 « Quitter » peut réussir SANS que le processus s'arrête — et `open` réveille alors l'ancien binaire
+
+**Symptôme.** 2026-10-12 : `osascript … to quit` rend la main sans erreur (aucune fenêtre de trousseau en attente, ce n'est pas le § 28.4), mais `pgrep` montre encore le processus huit secondes plus tard. L'app vit dans la barre de menus (« garder Shale actif en arrière-plan »).
+
+**Risque.** Installer puis `open -a Shale` : macOS réactive le processus DÉJÀ lancé, donc l'ancien binaire. On croit essayer la nouvelle version, on regarde l'ancienne — et le sha256 du fichier installé, lui, est juste.
+
+**Parade.** Après « Quitter », vérifier par `pgrep -f "^/Applications/Shale.app/Contents/MacOS/shale$"`. S'il reste un processus, l'arrêter par son numéro (il a déjà traité la demande de sortie), puis installer, puis vérifier que le numéro de processus a CHANGÉ après `open`.
+
+## 35.9 Construire ce qui est POUSSÉ quand le dossier principal porte le travail d'une autre session
+
+Le 2026-10-12, `mobile-ios` du dossier principal avait huit commits d'une autre session, ni poussés ni annoncés au carnet. Construire là aurait installé un travail que personne n'avait déclaré fini. Build lancé depuis le worktree du chantier (au commit d'`origin/mobile-ios`) avec `CARGO_TARGET_DIR=<principal>/src-tauri/target` : le cache des dépendances sert, seule la caisse `shale` se recompile, et le bundle sort dans le `target` principal. Contre-épreuve dans `dist/assets` : une phrase de l'AUTRE session doit rendre 0.
+

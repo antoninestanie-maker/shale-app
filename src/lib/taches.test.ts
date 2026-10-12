@@ -13,6 +13,7 @@ import {
   reportsAAppliquer,
   SEUIL_REPORT,
   tachesADecider,
+  tachesEnRetard,
 } from "./taches";
 import type { Completion, Task } from "./types";
 
@@ -246,5 +247,38 @@ describe("les reports écrits à l'ouverture du calendrier", () => {
   it("au seuil ou récurrente : rien, la règle de `reporter` tient", () => {
     expect(reportsAAppliquer([tache({ due_date: "2026-10-08", postponed_count: SEUIL_REPORT })], [], JOUR)).toEqual([]);
     expect(reportsAAppliquer([tache({ recurrence: "daily", due_date: "2026-10-08" })], [], JOUR)).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("tachesEnRetard — la ligne « En retard » d'Aujourd'hui (2026-10-11)", () => {
+  const JOUR = "2026-10-11";
+  const coche = (task_id: number, date: string, done = 1): Completion => ({ id: task_id * 100, task_id, date, done });
+
+  it("datées d'avant le jour et pas faites — la plus ancienne d'abord", () => {
+    const tasks = [
+      tache({ id: 1, due_date: "2026-10-10" }),
+      tache({ id: 2, due_date: "2026-09-28" }),
+      tache({ id: 3, due_date: JOUR }), // aujourd'hui : encore à l'heure
+      tache({ id: 4, due_date: "2026-10-12" }),
+      tache({ id: 5, due_date: null }),
+    ];
+    expect(tachesEnRetard(tasks, [], JOUR).map((t) => t.id)).toEqual([2, 1]);
+  });
+
+  it("une tâche faite n'est plus en retard, quel que soit le jour de la coche", () => {
+    const tasks = [tache({ id: 1, due_date: "2026-10-10" }), tache({ id: 2, due_date: "2026-10-09" })];
+    expect(tachesEnRetard(tasks, [coche(1, JOUR), coche(2, "2026-10-09")], JOUR)).toEqual([]);
+  });
+
+  it("⚠️ décochée (done = 0), elle l'est de nouveau", () => {
+    const tasks = [tache({ id: 1, due_date: "2026-10-10" })];
+    expect(tachesEnRetard(tasks, [coche(1, JOUR, 0)], JOUR)).toHaveLength(1);
+  });
+
+  it("⚠️ une routine manquée n'est jamais en retard", () => {
+    const tasks = [tache({ id: 1, recurrence: "daily", due_date: "2026-10-01" })];
+    expect(tachesEnRetard(tasks, [], JOUR)).toEqual([]);
   });
 });
