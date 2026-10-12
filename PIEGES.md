@@ -4390,6 +4390,8 @@ un test jetable, jamais commité), son CSS réel, les jetons du thème recopiés
 d'`index.css`, la police en `data:`. Rien de l'app, rien de l'authentification.
 # 34. La jauge d'énergie (2026-10-09)
 
+> ⚠️ **La jauge a été retirée le 2026-10-11** (chapitre des correctifs d'après le labo). Le piège `Number(null)` ci-dessous vaut toujours pour tout réglage lu en nombre.
+
 ## 34.1 `Number(null)` vaut 0 : un réglage ABSENT passait pour un réglage à zéro
 
 **Symptôme.** En mode démo, la jauge « Énergie restante » d'Aujourd'hui affichait 100 % et « −0 % » avec 4 h 26 d'écran.
@@ -4492,3 +4494,440 @@ Outil : `Shale-projet/labo/outils/pilote.mjs`. Ces pièges valent pour tout scri
 
 Le 2026-10-12, `mobile-ios` du dossier principal avait huit commits d'une autre session, ni poussés ni annoncés au carnet. Construire là aurait installé un travail que personne n'avait déclaré fini. Build lancé depuis le worktree du chantier (au commit d'`origin/mobile-ios`) avec `CARGO_TARGET_DIR=<principal>/src-tauri/target` : le cache des dépendances sert, seule la caisse `shale` se recompile, et le bundle sort dans le `target` principal. Contre-épreuve dans `dist/assets` : une phrase de l'AUTRE session doit rendre 0.
 
+# 37. Correctifs d'après le labo (2026-10-11 et 12)
+
+Huit chantiers en parallèle, un agent par worktree. Chaque entrée dit de quel chantier elle vient.
+
+## 37.1 La grille « au premier endroit libre » ne fait pas deux colonnes
+
+*Chantier `sans-energie`.*
+
+**Symptôme.** Sur Aujourd'hui, un trou sous l'anneau de Discipline ; le Calendrier et les Objectifs à gauche alors que Personnaliser les range dans la « colonne droite ». Selon le nombre de tâches du jour, le trou apparaît ou disparaît.
+
+**Cause.** `grid-auto-flow: row dense` pose chaque carte à la première place libre en partant du haut. Une carte étroite (4 colonnes) qui suit une carte large plus courte que sa voisine se glisse sous elle, pas sous la voisine. La carte large suivante a besoin de 8 colonnes libres d'un seul tenant : elle descend, et laisse un vide qu'aucune carte restante ne peut remplir. Aucun ordre de cartes ne corrige cela dans tous les cas (essayé sur le papier : cartes larges d'abord, étroites d'abord, première rangée égalisée — chaque variante casse pour une autre hauteur de contenu).
+
+**Parade.** Donner une colonne aux cartes : `ancre="debut"` ou `ancre="fin"` sur `ResizablePanel` (`lib/grille.ts`). L'ancre ne vaut que pour la disposition intacte ; toute disposition retouchée à la main retrouve le placement libre.
+
+**Comment on l'a payé.** Le trou datait d'avant ce chantier et personne ne l'avait écrit. La capture d'étalonnage du labo du 11/10 ne le montrait pas : ce jour-là la démo avait quatre tâches, et « Liens rapides » tombait par chance exactement dans le vide. **Regarder Aujourd'hui avec trois tâches et avec un compte neuf, pas seulement avec le jeu de démo du jour.**
+
+## 37.2 Retirer un widget décale l'alternance gauche/droite : un ordre enregistré ne « redevient » pas l'ordre par défaut
+
+*Chantier `sans-energie`.*
+
+**Symptôme.** Après le retrait de `energy`, un `order.today` enregistré par l'ancienne version, même jamais réarrangé, ne correspond plus à l'ordre du code.
+
+**Cause.** `TodayView` alterne colonne gauche et colonne droite (`interleave`). Ôter le deuxième widget de gauche décale tous les suivants d'un cran : `discipline, tasks, energy, calendar, timer…` devient, une fois filtré, `discipline, tasks, calendar, timer…`, alors que le code rend maintenant `discipline, tasks, timer, calendar…`.
+
+**Parade.** Ne rien supposer d'un ordre enregistré : il est respecté tel quel (`ordreEffectif`), et la grille de cet utilisateur reste « libre ». Ne pas écrire de test qui attend que l'ancien ordre par défaut soit reconnu comme intact.
+
+**Comment on l'a payé.** Vu en semant une disposition d'avant dans un build de vérification ; sans cet essai, on aurait annoncé à tort que tous les comptes passent en deux colonnes.
+
+## 37.3 Vérifier une disposition enregistrée en mode démo demande de la semer au build
+
+*Chantier `sans-energie`.*
+
+**Symptôme.** Impossible de voir, dans le labo, ce que devient un réglage enregistré par une version antérieure.
+
+**Cause.** En mode démo, les réglages vivent dans une `Map` en mémoire (`lib/demo.ts`), pas dans le `localStorage` : rien à poser avant le chargement, et le pilote n'exécute pas de script dans la page.
+
+**Parade.** Un build de vérification qui ajoute, par un plugin `transform` de Vite, quelques `settings.set(...)` à la fin de `demo.ts` (même principe que `labo/outils/construire.mjs`, aucun fichier source modifié), servi par `construire.mjs servir`.
+
+## 37.4 « ⋯ › Renommer » ne fait rien : le menu reprend le focus au champ qu'il vient d'ouvrir
+
+*Chantier `taches-jour`.*
+
+- **Symptôme.** On choisit « Renommer » dans le menu ouvert par le bouton « ⋯ ». Le menu se ferme, aucun champ ne s'ouvre. Par clic droit, le même geste marche. Au téléphone, où « ⋯ » est le seul accès, l'entrée est morte.
+- **Cause.** Le champ s'ouvre bien, avec le focus. Mais le menu, en se fermant, rend le focus à l'élément qui l'avait avant — une image plus tard (`requestAnimationFrame`). Par « ⋯ », cet élément est le bouton « ⋯ », toujours à l'écran : il reprend le focus au champ. Or quitter le champ **valide** le renommage : il se referme aussitôt, inchangé. Par clic droit, l'élément d'avant était la case, que le champ remplace : rien à qui rendre le focus.
+- **Parade.** `rendreLeFocus` (`components/menu/useMenuContextuel.ts`) : on ne rend le focus que s'il n'est **nulle part** (sur `<body>`, ou encore dans le menu). Si l'action l'a posé quelque part, il y reste. Tenu par `useMenuContextuel.focus.test.ts`.
+- **Comment on l'a payé.** Relevé à l'audit (A11-08), retrouvé par une utilisatrice du crible au téléphone, classé « incertain » jusqu'au rejeu. Aucune erreur, aucun test rouge : le champ existe pendant seize millisecondes.
+- **À retenir.** Toute action de menu qui ouvre un champ, un calendrier ou une fenêtre avec le focus est concernée — pas seulement « Renommer ».
+
+## 37.5 Un panneau qui naît invisible ne peut pas recevoir le focus
+
+*Chantier `taches-jour`.*
+
+- **Symptôme.** Le calendrier ouvert par « Dater › Choisir une date… » s'affiche, mais les flèches ne déplacent rien : le focus est resté sur le bouton « ⋯ ».
+- **Cause.** Le panneau naît en `visibility: hidden`, le temps d'être mesuré et placé. Un élément invisible ne peut pas recevoir le focus : `focus()` échoue en silence. L'effet qui posait le focus sur la cellule tournait avant que le panneau soit visible.
+- **Parade.** Dans `PanneauDate` (`components/ChampDate.tsx`), l'effet de focus dépend de « le panneau est placé ». Même piège, déjà payé le 2026-09-21 par le sous-menu (`MenuContextuel`, commentaire de `SousMenu`).
+- **Comment on l'a payé.** Vu au pilote : l'écran en texte disait « a le focus » sur le « ⋯ », pas sur une cellule. Une capture ne l'aurait pas montré.
+
+## 37.6 « Défiler au plus près » pose l'élément sous la barre d'onglets du téléphone
+
+*Chantier `taches-jour`.*
+
+- **Symptôme.** À 390 px, la tâche qu'on vient d'ajouter arrive coupée par le bas de l'écran, sous la barre d'onglets.
+- **Cause.** `scrollIntoView({ block: "nearest" })` amène l'élément au bord le plus proche de la zone qui défile. Pour un élément plus bas, c'est le bord bas — que la barre d'onglets, posée par-dessus, recouvre.
+- **Parade.** `defilerVers(el, { block: "center" })` quand on veut **montrer** ce qu'on vient de créer (`TasksView`).
+- **Comment on l'a payé.** Le pilote annonçait « 3 présents mais inatteignables » sur la ligne ajoutée.
+
+## 37.7 Une carte qui mesure un objectif sans ses événements donne un autre chiffre que sa page
+
+*Chantier `taches-jour`.*
+
+- **Symptôme.** « Objectifs en cours » (Aujourd'hui) et la page de l'objectif n'affichent pas le même pourcentage quand un événement est rattaché.
+- **Cause.** Les arêtes et les événements rattachés vivent hors d'`AppData` (`fetchContexteObjectifs`). Qui appelle `effectiveProgress` avec les seules tâches et habitudes obtient une mesure incomplète, sans erreur.
+- **Parade.** `useSourcesProgression(data)` (`lib/objectifs/useProgression.ts`) rend les sources complètes. Tout écran qui affiche l'avancement d'un objectif hors de la vue Objectifs passe par lui.
+
+## 37.8 Les tests qui montent une base PGlite expirent pendant une compilation Rust
+
+*Chantier `taches-jour`.*
+
+- **Symptôme.** `src/lib/ia/serveur.test.ts` et `serveur.sql.test.ts` échouent sur « Hook timed out in 60000ms ».
+- **Cause.** Une première compilation `cargo test` (quinze minutes ici) occupe tous les cœurs. Rien à voir avec le code testé. C'est PIEGES § 9.11, avec une autre source de charge.
+- **Parade.** Ne pas lancer vitest sur tout `src/lib/ia` pendant que cargo compile ; nommer les fichiers.
+
+## 37.9 `tp()` met zéro au pluriel — juste en anglais, faux en français
+
+*Chantier `etapes-cochables`.*
+
+**Symptôme.** Un compteur qui démarre à zéro affiche « 0 étapes sur 3 ».
+
+**Cause.** `tp(n, un, plusieurs)` choisit le singulier pour 1 seulement. C'est la règle anglaise (“0 steps”). En français, zéro s'accorde au singulier (« 0 étape »).
+
+**Parade.** Pour un compteur qui s'affiche souvent à zéro : choisir la forme soi-même (`auSingulier` dans `objectifs/libelles.ts` : 1, ou 0 en français), et écrire chaque clé EN LITTÉRAL dans son `t("…")`.
+
+**Comment on l'a payée.** Vu en écrivant le test français, avant l'écran. La première version passait les clés par une variable : `i18n:check` annonçait « 0 manquante » avec six clés sans traduction (c'est le § 5.2, clé dynamique).
+
+## 37.10 `sqlite3 -readonly` sur la vraie base répond « unable to open database file (14) »
+
+*Chantier `etapes-cochables`.*
+
+**Symptôme.** `sqlite3 -readonly "~/Library/Application Support/com.atnfx.shale/shale.db" "select …"` échoue, alors que `ls` voit le fichier. Même échec sur une copie.
+
+**Cause.** La base est en mode WAL : même pour lire, SQLite veut ouvrir ses fichiers `-wal` / `-shm`, ce que `-readonly` (et le bac à sable d'une session) lui refuse.
+
+**Parade.** Copier `shale.db` dans le dossier de brouillon, l'ouvrir en `sqlite3 "file:<copie>?immutable=1"`, puis SUPPRIMER la copie (ce sont les données d'Antonin). Ne jamais ouvrir l'original en écriture.
+
+**Comment on l'a payée.** Trois essais avant de lire douze lignes. ⚠️ Le § 35.1 recommande `sqlite3 -readonly` tel quel : il ne marche pas depuis une session en bac à sable.
+
+## 37.11 Le compte « neuf » du labo n'a PAS les exemples si l'accueil est sauté
+
+*Chantier `etapes-cochables`.*
+
+**Symptôme.** Pour rejouer A06a-02 (l'objectif d'exemple), on ouvre le build `neuf` : aucun objectif, « Aucun objectif en cours ».
+
+**Cause.** Le pilote saute l'accueil par défaut (`--accueil sauter`), et c'est la fin de l'accueil qui sème les exemples.
+
+**Parade.** `pilote.mjs demarrer … --accueil voir`, puis « Passer » sur le premier écran : les douze exemples sont semés.
+
+**Comment on l'a payée.** Une session du pilote pour rien.
+
+## 37.12 Dans une commande du pilote, un numéro vaut pour l'écran d'AVANT
+
+*Chantier `etapes-cochables`.*
+
+**Symptôme.** `[{"clic":"Détacher…"},{"clic":9}]` : le second clic ne fait rien, ou clique autre chose.
+
+**Cause.** Les numéros changent à chaque écran ; le 9 lu avant la commande ne désigne plus la même chose après le premier pas. Et `{"clic":"texte"}` ne trouve pas une case par son nom de lecteur d'écran, seulement par un texte visible.
+
+**Parade.** Un geste qui change l'écran, puis une NOUVELLE commande pour relire les numéros. Pour une case à cocher : son numéro, jamais son libellé.
+
+**Comment on l'a payée.** Deux fois un « rien n'a changé » pris un instant pour un bogue de la coche.
+
+## 37.13 Un « Annuler » de toast ne se teste pas en deux commandes du pilote
+
+*Chantier `etapes-taches`.*
+
+**Symptôme.** On convertit (ou on supprime), on lit l'écran, puis on envoie `[{"clic":"Annuler"}]` : rien ne revient. On croit l'annulation cassée.
+
+**Cause.** Le toast reste 8 secondes (`DUREE_ANNULER`). Le pilote met environ dix secondes entre deux commandes : le toast est parti avant le second clic.
+
+**Parade.** Le geste et son annulation dans LA MÊME commande : `[{"clic":40},{"attendre":700},{"capture":"toast"},{"clic":"Annuler"},{"attendre":700}]`. Et lire la ligne `PAS n` du clic : « rien à l'écran ne s'appelle Annuler » dit que le toast n'y était plus.
+
+**Comment on l'a payée.** Une commande, et cinq minutes à relire un accès qui marchait (ses tests le disaient).
+
+## 37.14 `i18n:check` ne dit pas qu'une clé anglaise n'a plus d'emploi — et un commentaire la fait passer pour vivante
+
+*Chantier `etapes-taches`.*
+
+**Symptôme.** On retire un bouton. Sa clé reste dans `en.ts` pour toujours : `i18n:check` annonce « 0 clé manquante » et rien d'autre. Une recherche à la main de la clé dans `src` la trouve encore… dans le commentaire qui raconte qu'on l'a retirée.
+
+**Cause.** L'outil cherche les clés MANQUANTES, pas les clés orphelines. Et dans ce dépôt, on cite souvent une ancienne phrase entre guillemets dans un commentaire daté.
+
+**Parade.** Comparer les clés sans emploi AVANT et APRÈS : extraire `src` du commit de départ (`git archive <commit> src | tar -x -C <brouillon>`), lister dans chaque arbre les clés d'`en.ts` qu'aucun fichier `.ts`/`.tsx` ne contient, et faire la différence. Puis vérifier une à une celles qu'on sait avoir retirées et que la liste ne montre pas : elles vivent dans un commentaire. Ici : 27 trouvées par la différence, 6 de plus à la main (quatre citées dans un commentaire, deux déjà orphelines avant le chantier).
+
+**Comment on l'a payée.** Vu avant de commiter. Sans la seconde passe, « Sous-objectif », « En faire une phase » et « Redevenir un sous-objectif » restaient dans le dictionnaire — les trois mots que le chantier retirait.
+
+## 37.15 Jeter une étape emporte ses tâches récurrentes
+
+*Chantier `etapes-taches`.*
+
+**Symptôme.** On veut « remplacer » une étape par autre chose (ici : une tâche) en la jetant. Ses tâches récurrentes disparaissent de Tâches et d'Aujourd'hui.
+
+**Cause.** Depuis le 2026-09-30, un objectif ou une étape mis à la corbeille emportent TOUTES leurs tâches (`corbeille/lots.ts`), récurrentes comprises. Or une étape peut être « vide » pour la mesure et porter quand même une récurrente (une récurrente ne compte jamais comme une unité).
+
+**Parade.** Avant de jeter une étape qu'on remplace : rattacher ses tâches ailleurs (`rattacherTache`), et noter lesquelles pour pouvoir les rendre. C'est ce que fait `convertirEtapeEnTache` (le reçu `tachesDeplacees`).
+
+**Comment on l'a payée.** Vu en écrivant le plan, avant l'écran. Un test le tient (« rien n'est perdu en silence »).
+
+## 37.16 `rattacherTache` et `setTaskDone` ADOPTENT un exemple
+
+*Chantier `etapes-taches`.*
+
+**Symptôme.** Une tâche d'exemple qu'un geste technique déplace ou coche cesse d'être un exemple : « Supprimer les exemples » ne l'emporte plus.
+
+**Cause.** Les deux accès appellent `adopter` (un exemple cesse d'en être un dès que l'utilisateur y touche). C'est voulu pour un geste de l'utilisateur, pas pour une écriture que l'app fait à sa place.
+
+**Parade.** Dans une écriture composée : cocher D'ABORD, marquer exemple ENSUITE (`marquerExemple(table, id, true)`), et re-marquer toute tâche d'exemple qu'on vient de déplacer.
+
+**Comment on l'a payée.** Vu à la lecture de `repo.ts`. Le test « une étape d'EXEMPLE donne une tâche d'exemple » échoue si on inverse l'ordre.
+
+## 37.17 Dans la fenêtre « Nouvel objectif », « Créer » est sous le pli : le pilote ne le voit pas
+
+*Chantier `etapes-taches`.*
+
+**Symptôme.** `{"clic":"Créer"}` : « rien à l'écran ne s'appelle Créer », alors que la fenêtre est ouverte.
+
+**Cause.** À 900 px de haut, dès qu'une ligne est saisie dans « Par quoi commencer », le pied de la fenêtre passe sous le bas (constat 20 du labo, que le chantier `telephone` corrige).
+
+**Parade.** En attendant sa fusion : `{"defiler":"bas","sur": <n° d'un champ de la fenêtre>}`, puis `{"clic":"Créer"}`.
+
+**Comment on l'a payée.** Une commande.
+
+*(Déjà écrit par le chantier précédent, et repayé une fois ici : dans une commande du pilote, un numéro vaut pour l'écran d'AVANT. Après avoir ajouté une ligne, relire les numéros.)*
+
+## 37.18 `formatRange` existe dans tous les moteurs, pas dans les types du projet
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : `npx tsc --noEmit` refuse `new Intl.DateTimeFormat(…).formatRange(a, b)` (« Property 'formatRange' does not exist »). Le code tourne pourtant sous Node et Chrome.
+- **Cause** : la cible de compilation (ES2021) n'a pas les types d'`Intl` plus récents.
+- **Parade** : lire la méthode à travers un type local, et garder un repli (`lib/performance/dates.ts`). Ne pas changer la `lib` du projet pour un appel.
+- **Payé** : une passe de `tsc`.
+
+## 37.19 `.at(-1)` passe sous vitest et casse `npm run test:types`
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : les tests sont verts, `tsc -p tsconfig.test.json` échoue (« Property 'at' does not exist… es2022 »).
+- **Cause** : vitest exécute sans vérifier les types ; la cible des types de test est ES2021.
+- **Parade** : `tableau[tableau.length - 1]`. Toujours jouer `test:types` après avoir écrit un test.
+- **Payé** : trois lignes à reprendre.
+
+## 37.20 `title` + `data-tip` sur le même élément : deux bulles
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : au survol, la bulle de l'app, puis une seconde, grise, du navigateur.
+- **Cause** : `title` déclenche la bulle native en plus de `data-tip`.
+- **Parade** : l'un ou l'autre. Si l'élément porte `data-tip`, donner son nom par `aria-label`, pas par `title`.
+- **Payé** : rattrapé avant le premier build.
+
+## 37.21 Une durée dans une phrase se coupe en fin de ligne
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : dans une bulle étroite, « 8 h 15 » devient « 8 » puis « h 15 ».
+- **Cause** : des espaces ordinaires.
+- **Parade** : `enHeuresInsecable` (`lib/performance/durees.ts`) pour toute durée placée dans une phrase ; `enHeures` pour un chiffre seul.
+- **Payé** : vu au survol, un build de plus.
+
+## 37.22 Labo — les numéros du pilote changent après un clic, et un pas raté n'arrête pas la capture
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : `[{"clic":"Par objectif"},{"dans":20,"taper":"5"}]` : la capture montre l'onglet sans la saisie, sans erreur visible si l'on ne lit que la dernière ligne.
+- **Cause** : le « 20 » était le numéro d'un élément de l'écran d'AVANT le clic. Le pas n'est pas joué.
+- **Parade** : un `faire` pour changer d'écran, relire les numéros, un second `faire` pour agir. Lire le texte rendu, pas seulement le chemin de la capture.
+- **Payé** : une capture à refaire.
+
+## 37.23 Labo — le pilote ne survole que ce qui se clique
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : `{"survol":"9 h 35"}` répond « rien à l'écran ne s'appelle… » : impossible de voir la bulle d'une tuile ou d'une légende.
+- **Cause** : le pilote ne numérote que les éléments actionnables.
+- **Parade** : un petit script à part, avec le même `puppeteer-core` (celui de `shale-site/vitrine`), `--disable-features=MacAppCodeSignClone`, un profil jetable supprimé à la fin, les requêtes hors `127.0.0.1` bloquées. Entrer d'abord dans le panneau avant de viser un élément de son en-tête : l'en-tête se décale pour laisser la place aux poignées de la grille, et la souris tombait sur « Actions ». Attendre 2,7 s : les explications (`data-tip-attente="longue"`) n'apparaissent qu'après 2 s.
+- **Payé** : trois essais du script.
+
+## 37.24 Machine chargée : `tsc` dépasse deux minutes
+
+*Chantier `performance-jour`.*
+
+- **Symptôme** : `npx tsc --noEmit` ne rend pas la main en 120 s, avec quatre chantiers en parallèle (charge moyenne à 41).
+- **Cause** : § 9.11, la charge machine.
+- **Parade** : lancer les vérifications longues et les builds du labo en arrière-plan, avec un délai de dix minutes.
+
+## 37.25 Un champ ouvert depuis un menu contextuel perd le focus une image plus tard
+
+*Chantier `notes-a-trier`.*
+
+- **Symptôme.** « Rattacher… » choisi dans le menu « ⋯ » ouvrait bien le champ
+  « Lier », mais la frappe partait dans le vide : le focus était sur la ligne de
+  la liste. Le même bouton, cliqué dans l'éditeur, laissait le focus au champ.
+- **Cause.** `useMenuContextuel.fermer` rend le focus à l'élément d'origine dans
+  un `requestAnimationFrame`, et le menu se ferme AVANT d'exécuter l'entrée. Le
+  champ prend le focus à son montage (`autoFocus`), puis le menu le lui reprend.
+- **Parade.** Dans le composant qui ouvre le champ, redemander le focus dans un
+  `requestAnimationFrame` posé par l'effet : demandé après celui du menu, il
+  passe après lui (`PanneauLiens`, effet de `demandeAjout`).
+- **Comment on l'a payée.** Vu au pilote (« a le focus » sur la mauvaise
+  ligne) ; une reconstruction de plus.
+
+## 37.26 Au pilote, un « Annuler » de toast a disparu avant la commande suivante
+
+*Chantier `notes-a-trier`.*
+
+- **Symptôme.** `{"clic":"Annuler"}` répond « rien à l'écran ne s'appelle
+  Annuler » alors que la capture précédente montrait le toast.
+- **Cause.** Un toast avec « Annuler » dure 8 s ; une dizaine de secondes
+  passent entre deux commandes `faire`.
+- **Parade.** Enchaîner le geste et « Annuler » dans la MÊME commande `faire`.
+- **Comment on l'a payée.** Un aller-retour, et un doute de deux minutes sur le
+  bouton.
+
+## 37.27 Un fichier « pur » qui importe `lib/actions.ts` embarque tout le dépôt
+
+*Chantier `notes-a-trier`.*
+
+- **Symptôme.** Aucun à l'écran. `norm` (minuscules, sans accents) vit dans
+  `lib/actions.ts`, qui importe `repo.ts`.
+- **Parade.** Prendre `normaliser` dans `lib/tachesVue.ts` (même formule, pur),
+  et tenir les deux d'accord par un test. Il y a déjà trois copies de cette
+  formule (`actions.ts`, `tachesVue.ts`, `knowledge.ts`) : ne pas en écrire une
+  quatrième.
+
+## 37.28 Un titre « par défaut » est une DONNÉE, figée dans la langue du jour de la création
+
+*Chantier `notes-sans-titre`.*
+
+- **Symptôme.** Aucun à l'écran tant qu'on ne change pas de langue. Une note
+  créée par ⌘⇧N en anglais s'appelle « New note » pour toujours, même une fois
+  l'app repassée en français. Un critère qui compare le titre à
+  `t("Nouvelle note")` — la langue du jour — la raterait.
+- **Cause.** `createNote(t("Nouvelle note"), "")` traduit à la création et
+  stocke le résultat. Et l'enregistrement d'un titre effacé écrit « Sans
+  titre » en dur, en français, même en anglais.
+- **Parade.** Reconnaître **toutes** les formes à la fois, sans regarder la
+  langue du jour (`TITRES_D_OFFICE` dans `lib/notesSansTitre.ts`), et tenir la
+  liste d'accord avec `en.ts` par un test. Si une traduction change, garder
+  l'ancienne dans la liste.
+- **Comment on l'a payée.** Pas payée : trouvée en lisant `createNote` avant
+  d'écrire le critère.
+
+## 37.29 `tools/i18n-check.mjs` lit aussi les commentaires des tests
+
+*Chantier `notes-sans-titre`.*
+
+- **Symptôme.** `npm run i18n:check` : « 1 clé sans traduction anglaise : "…" »,
+  dans un fichier de test.
+- **Cause.** Un commentaire citait la forme d'un appel, avec `t(` suivi d'un
+  guillemet et de points de suspension. L'outil cherche ce motif dans tout
+  `src`, tests et commentaires compris.
+- **Parade.** Dans un commentaire, décrire l'appel en mots plutôt que le citer.
+- **Comment on l'a payée.** Un aller-retour.
+
+## 37.30 Au pilote, cliquer par son nom un onglet qui porte le même mot qu'un texte d'invite
+
+*Chantier `notes-sans-titre`.*
+
+- **Symptôme.** `{"clic":"Sans titre"}` répond « ok » mais l'onglet ne change
+  pas.
+- **Cause.** Le champ du titre a « Sans titre » pour texte d'invite : le pilote
+  a cliqué le champ, pas l'onglet.
+- **Parade.** Cliquer l'onglet par son numéro (`{"clic":20}`), lu sur l'écran
+  précédent. Et dans une même commande `faire`, les numéros sont ceux de
+  l'écran de DÉPART : après un clic qui change d'écran, relancer une commande.
+- **Comment on l'a payée.** Deux commandes pour rien.
+
+## 37.31 De `DOC-notes-a-trier.md`, à recopier quand même
+
+*Chantier `notes-sans-titre`.*
+
+- « Au pilote, un "Annuler" de toast a disparu avant la commande suivante » :
+  toujours vrai.
+- « Un fichier "pur" qui importe `lib/actions.ts` embarque tout le dépôt » :
+  toujours vrai.
+- « Un champ ouvert depuis un menu contextuel perd le focus une image plus
+  tard » : le piège reste vrai (c'est `useMenuContextuel.fermer` qui rend le
+  focus), mais le code qui servait d'exemple (`PanneauLiens`, `demandeAjout`)
+  n'existe plus. L'exemple vivant est `renommerNote` dans `NotesView.tsx`, qui
+  demande le focus dans un `requestAnimationFrame`.
+
+## 37.32 Deux écouteurs clavier sur `window` : c'est l'ordre de POSE qui décide, pas l'ordre des couches
+
+*Chantier `telephone`.*
+
+**Symptôme.** Échap sur le calendrier de date ferme la fenêtre qui le porte, saisie comprise. Le garde `if (e.defaultPrevented) return` est pourtant écrit dans la fenêtre, et le calendrier appelle bien `preventDefault()`.
+
+**Cause.** Les deux écoutent `window` en phase de remontée. À phase égale, les écouteurs d'un même élément passent dans l'ordre où ils ont été posés. La fenêtre est montée avant le calendrier : elle lit la touche avant qu'elle ne soit marquée.
+
+**Parade.** La couche qui s'ouvre par-dessus écoute en **capture** (`addEventListener("keydown", f, true)`, et le même `true` au retrait). Elle y ajoute `|| menuContextuelOuvert()` : en capture, elle passerait aussi avant un menu contextuel. Tenu par `src/lib/fenetres.source.test.ts`.
+
+**Comment on l'a payée.** Témoin A17-01 de l'audit d'octobre, resté ouvert alors que la règle était écrite dans `CLAUDE.md` et appliquée des deux côtés. Aucun utilisateur du crible ne l'a vu : personne n'a pressé Échap à cet endroit.
+
+## 37.33 Un `position: fixed` dans une vue DÉFILE avec elle — au doigt, la fenêtre s'en va
+
+*Chantier `telephone`.*
+
+**Symptôme.** Une fenêtre ouverte, on glisse du doigt sur son pied : la page derrière défile, et la fenêtre monte avec elle hors de l'écran. Au bureau, même chose avec la molette sur le voile. Et ouvrir une fenêtre ramène la vue tout en haut.
+
+**Cause.** Suite du § 9.5. La zone qui défile (`App.tsx`) porte `animate-fade-up`, dont le remplissage `both` tient `transform: translateY(0)` après l'animation. Elle devient le bloc conteneur de ses descendants `fixed` : `inset-0` y veut dire « le contenu de la vue », qui défile. Le champ en `autoFocus` de la fenêtre explique le retour en haut : le navigateur fait défiler la vue pour le montrer.
+
+**Parade.** Au téléphone : `animation-fill-mode: backwards` sur `.vue-defilante`, et `overflow-y: hidden` tant qu'elle contient un `.fenetre-voile`. Au bureau le défaut reste (voir PASSATION). Pour une couche nouvelle : un portail sur `document.body`.
+
+**Comment on l'a payée.** Trouvé en pilotant au doigt, par hasard : la sonde amenait un champ à l'écran (`scrollIntoView`) et la fenêtre sortait par le haut. Mesuré ensuite avec un vrai glissé tactile : 550 px.
+
+## 37.34 Un conteneur flex borné COMPRIME ses enfants avant de défiler
+
+*Chantier `telephone`.*
+
+**Symptôme.** Dans une fenêtre pleine, une zone de texte perd une ligne de hauteur ; rien d'autre ne semble changé.
+
+**Cause.** Un corps écrit `flex flex-col gap-4` dont la hauteur est bornée (`overflow-y: auto`, `min-height: 0`) : ses enfants ont `flex-shrink: 1`, donc ils rétrécissent tant qu'ils le peuvent — un `<textarea>` le peut — et le défilement n'arrive qu'ensuite.
+
+**Parade.** `flex-shrink: 0` sur les enfants d'un corps qui défile (`.fenetre-corps > *`).
+
+**Comment on l'a payée.** Vu seulement en comparant, élément par élément, la mise en page du bureau avant et après (`outils/bureau.mjs` puis `comparer.mjs`) : 62 px devenus 49. À l'œil, sur la capture, rien.
+
+## 37.35 Une règle de la couche `components` perd contre un utilitaire, quelle que soit sa spécificité
+
+*Chantier `telephone`.*
+
+**Symptôme.** `html[data-telephone] .vue-defilante { animation-fill-mode: backwards }`, écrit dans `@layer components`, ne change rien : l'élément garde `both`.
+
+**Cause.** `animate-fade-up` est déclaré dans `@layer utilities`, couche postérieure. Entre deux couches, la dernière gagne — la spécificité ne compte qu'à l'intérieur d'une couche. Même piège que `.truncate-souris` (qui s'en sort par `!important`).
+
+**Parade.** Écrire la règle hors de toute couche (elle passe devant toutes), ou en utilitaire (`telephone:…`), ou avec `!important` quand elle doit battre un utilitaire posé par la vue (`.fenetre-voile` et ses marges).
+
+## 37.36 Outils de mesure : trois façons de se tromper
+
+*Chantier `telephone`.*
+
+- **Chercher un élément par son texte trouve d'abord celui qui est DERRIÈRE le voile.** « Échéance » désignait la date d'une tâche de la liste, sous la fenêtre ouverte ; le toucher tombait sur le voile et fermait la fenêtre. Le rejeu concluait « Échap ferme la fenêtre » alors qu'Échap n'y était pour rien. Parade : chercher DANS la fenêtre (`dans: ".fenetre"`).
+- **`innerText` rend le texte tel qu'il est AFFICHÉ.** Un titre en `text-transform: uppercase` s'y lit « MENTIONNÉ DANS » : une recherche de « Mentionné dans » ne le trouve pas, et une mesure qui dépend de lui répond « pas de chevauchement » sur un élément absent. Parade : comparer sans la casse, et vérifier que l'élément a été trouvé avant de conclure.
+- **Un contrôle replié dans un cadre qui masque a toujours un rectangle.** Les modules d'un groupe fermé de la barre latérale mesurent 36 px de haut, sous un parent de hauteur nulle. Un clic à leurs coordonnées tombe ailleurs. Parade : écarter ce qui est hors du rectangle d'un ancêtre en `overflow: hidden`.
+- **Une zone de toucher élargie par un pseudo-élément ne se mesure pas** avec `getBoundingClientRect()` : le rectangle rendu est celui du dessin.
+
+## 37.37 Une ref lue pendant le rendu, remise à zéro dans l'effet, annule l'effet
+
+*Chantier `fusion`.*
+
+- **Symptôme.** Le curseur allait dans le texte après ⌘⇧N, jamais après le bouton « + ». Aucune erreur.
+- **Cause.** La « note à saisir » était une `useRef`, lue pendant le rendu pour calculer la dépendance de l'effet, et remise à `null` DANS l'effet. Au rendu suivant (le « + » en provoque un, ⌘⇧N non) la dépendance changeait, et le nettoyage de l'effet annulait le `requestAnimationFrame` avant qu'il pose le focus.
+- **Parade.** Ce qui décide d'un effet est un ÉTAT, pas une ref ; et on le remet à zéro quand le geste est FAIT (dans le rappel), pas quand il est programmé.
+- **Comment on l'a payée.** Deux builds de démo et trois rejeux au pilote.
+
+## 37.38 `git merge-tree` propre ne promet pas un `git rebase` propre
+
+*Chantier `fusion`.*
+
+- **Symptôme.** Un chantier annonçait « fusion simulée sans conflit » ; son rebase sur le tronc s'est arrêté au premier commit.
+- **Cause.** Un rebase rejoue les commits UN PAR UN : un fichier modifié puis rendu à son état d'origine dans la branche (ici `ia/revue.ts`) entre en conflit au commit intermédiaire, alors que l'état final fusionne sans rien.
+- **Parade.** Quand une branche a plusieurs commits et que le tronc a bougé : `git merge mobile-ios` DANS le worktree de la branche, vérifier là, puis avance rapide du tronc. `git rebase --abort` ne laisse rien.
+
+## 37.39 Deux chantiers ajoutent la même clé à `en.ts` : la fusion passe, `tsc` refuse
+
+*Chantier `fusion`.*
+
+- **Symptôme.** Après une fusion sans conflit : `error TS1117: An object literal cannot have multiple properties with the same name` sur `en.ts`.
+- **Cause.** « Par objectif » ajoutée par deux chantiers, à deux endroits du fichier, avec la même traduction. Git n'y voit aucun conflit.
+- **Parade.** `npx tsc --noEmit` après CHAQUE fusion, avant de pousser. ⚠️ Et lire son code de sortie sans tuyau : `npx tsc --noEmit | tail; echo $?` affiche le code de `tail`, toujours 0.
+
+## 37.40 Fusionner dans le worktree principal sans l'écrire au carnet
+
+*Chantier `fusion`.*
+
+- **Symptôme.** Une session voisine a pris le verrou de build et trouvé huit commits locaux « non poussés et non annoncés » dans le worktree principal. Elle a dû construire depuis son propre worktree.
+- **Cause.** Trois branches fusionnées en avance rapide puis vingt minutes de tests avant la ligne `FUSIONNÉ` et le `git push`.
+- **Parade.** Vérifier la branche fusionnée DANS SON worktree d'abord ; puis, d'un seul geste : avance rapide du tronc, `git push`, ligne au carnet.

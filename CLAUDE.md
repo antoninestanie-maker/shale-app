@@ -647,7 +647,7 @@ contenu de la carte sur tout le coin haut-droit.
      volume / création de fréquence). `useFocus` (mode concentration) lance `startActiveMix()`
      et coupe via `stopAllTracks()`. Jarvis (`router.ts`) routé sur le mixeur.
    - **Supprimé** : `src/lib/ambientPresets.ts` (mort). `audio.ts` ne sert plus que `playChime`.
-4. **Jauge de charge mentale (énergie restante).** `src/lib/mentalLoad.ts` (calcul + hook
+4. **Jauge de charge mentale (énergie restante).** ⚠️ **Retirée le 2026-10-11** à la demande d'Antonin (« le système d'énergie que je ne trouve pas intéressant ») : voir la section du 2026-10-12. `src/lib/mentalLoad.ts` (calcul + hook
    `useScreenTime` monté dans App qui accumule `screen_min_<jour>` chaque minute visible) ;
    `MentalLoadGauge.tsx` (widget dashboard `energy`, couleur verte→jaune→rouge). Énergie =
    startEnergy − trades·coûtTrade − heuresÉcran·coûtHeure, en % de startEnergy. Coefficients
@@ -7539,3 +7539,574 @@ Demande d'Antonin : « Crée tout un système d'agents qui vont créer, tester p
 - **Une idée de module passe devant un gardien qui peut répondre « aucun »** — quatre modules ont été retirés en deux mois. Le 11/10 il l'a répondu.
 
 ⚠️ **Trois définitions de « cette semaine » cohabitent** (constaté par les deux prototypeurs) : la tuile du Timer compte 7 jours glissants, Performance 7 jours FINIS, et un calcul du lundi au dimanche ne coïncide avec la première que le dimanche. Tout chiffre hebdomadaire nouveau doit d'abord dire laquelle il suit. Non tranché.
+
+## 2026-10-12 — Les correctifs d'après le labo : Tâches, Aujourd'hui, Performance, Objectifs, Notes, téléphone ; la jauge d'énergie retirée
+
+Demande d'Antonin, le soir du crible du labo (11/10) : « corrige la vue des tâches, trie-la par objectifs si ça peut être utile, corrige le souci de Performance, pour les étapes vides donne la possibilité de cocher une étape pour que ce soit compté, corrige la vue Aujourd'hui, corrige l'ajout rapide, le report de tâches, et tout sur le téléphone. Lance des worktrees pour tout ça si nécessaire et supprime aussi le système d'énergie que je ne trouve pas intéressant. » Les constats cités viennent de `Shale-projet/labo/passes/2026-10-11-app/SYNTHESE.md`.
+
+Ses réponses du 12/10, qui ont réorienté trois points :
+- **Étapes** : « cocher une étape sans tâche n'a pas tellement de sens. Dans ce cas, l'étape est une tâche. » → une chose à faire s'ajoute comme TÂCHE ; une étape vide se convertit (« En faire une tâche ») ; sa case reste pour le calcul. Ajouter une tâche à une étape cochée la remet à zéro : confirmé.
+- **Vocabulaire** : « je valide » → un seul mot à l'écran, « étape » ; « phase » quand elle en contient d'autres ; « sous-objectif » retiré.
+- **Notes** : « toutes les notes sans titre peuvent avoir un petit onglet à part » → l'onglet « À trier » (critère par les liens) livré la veille est remplacé par « Sans titre ».
+- **Heures promises** : « on peut tester à voir ce que ça apporte et si un onglet dans Performance ne suffirait pas » → onglet « Par objectif », À L'ESSAI.
+
+**Comment le travail a été mené.** Huit chantiers en worktrees (`Shale-chantiers/<nom>`, branches `chantier/<nom>`), un agent chacun, règles communes dans `Shale-chantiers/CORRECTIFS-2026-10-11.md`. Chaque agent a écrit sa documentation dans `Shale-chantiers/DOC-<nom>.md` ; elle est recopiée ci-dessous telle quelle, un sous-titre par chantier. Chaque interface a été vue à l'écran avec les outils du labo (build démo + pilote Chrome : bureau, 390 px au doigt, anglais).
+
+**Décisions prises sans Antonin, à valider** (détail dans chaque chantier) : cocher une tâche sans date ou en retard la compte dans la Discipline du jour, comme faite ; « jeudi » tapé un jeudi = dans sept jours ; Aujourd'hui en deux colonnes ancrées tant que rien n'a été déplacé ; au téléphone, sept jours par habitude et quatorze secondes pour un toast à geste ; une étape convertie passe ses notes au parent et reste 30 jours dans Supprimés récemment ; un objectif créé nu s'ouvre sur le champ « Tâche » ; le début du texte tient lieu de titre dans la liste des notes.
+
+### `sans-energie` — la jauge « Énergie restante » est retirée
+
+#### La jauge « Énergie restante » est retirée pour tout le monde (2026-10-11)
+
+**Décision retournée.** La jauge de charge mentale datait du 2026-07-12 (« Jauge de charge mentale (énergie restante) », point 4 de la session de ce jour-là) et avait été retouchée le 09/10 (chantier `jauge-energie`, `PIEGES.md` § 34.1) puis le 11/10 (`a408624`). Antonin, le 2026-10-11 : « supprime aussi le système d'énergie que je ne trouve pas intéressant ».
+
+**Ce qui est parti.**
+- La carte `energy` d'Aujourd'hui (`MentalLoadGauge.tsx`, supprimé), son calcul et ses réglages (`lib/mentalLoad.ts` et son test, supprimés).
+- Le compteur de minutes d'écran : `useScreenTime` n'est plus monté dans `App.tsx`. **Plus rien n'écrit `screen_min_<jour>`**, et plus aucune minuterie ne tourne chaque minute en arrière-plan.
+- La section « charge mentale — énergie restante » des Réglages (panneau `settings-energy`) et les événements `sb:mental-load-config` et `sb:screen-time`.
+- Quatorze clés de `i18n/en.ts` devenues sans emploi.
+- Les deux info-bulles de la barre latérale qui citaient le sujet. « Aujourd'hui » dit maintenant « tâches, discipline, habitudes, performance ». « Réglages » disait « Clés d'API, apparence, charge mentale, réglages du tracker » : trois de ces quatre mots étaient faux depuis que le trading est de côté (30/09). Elle dit « Compte, langue, apparence, notifications, sauvegarde », c'est-à-dire ce que la page contient.
+
+**⚠️ Ce qui n'est PAS concerné : la note « Énergie » du Journal** (les cinq éclairs, de 1 à 5, à côté de l'humeur). Elle reste, avec tout ce qui la lit : Journal, Calendrier, Performance, revue hebdomadaire de l'IA. La colonne `journal_entries.energy` n'a rien à voir avec les réglages `energy_*`.
+
+**Aucune donnée n'est supprimée, et c'est voulu.** Les réglages `energy_start`, `energy_cost_trade`, `energy_cost_hour` et les `screen_min_<jour>` restent dans les bases, sans lecteur. Raison : des appareils restés en ancienne version les lisent et les écrivent encore.
+- `lib/sync/scope.ts` : l'exclusion de `screen_min_` **reste**. La lever ferait partir dans le cloud des mois de compteurs.
+- Les trois `energy_*` ont toujours été synchronisés ; ils le restent, inertes. `outbox.test.ts` continue de le dire.
+
+**Une disposition déjà enregistrée porte encore `energy`. Elle se charge sans trou ni carte fantôme.** Quatre réglages peuvent le porter :
+- `ui.config` (Personnaliser) : `mergeList` de `uiConfig.ts` jette un identifiant qui n'est plus dans les défauts ; les voisins gardent leur ordre et leur visibilité. Contrairement à `week` (07/10), rien ne remplace la jauge : il n'y a donc rien à renommer. Tenu par `uiConfig.test.ts`.
+- `order.today`, `hidden.today`, `layout.today` (la grille) : la règle vivait en ligne dans `ResizableGrid.tsx`. Elle est sortie dans **`lib/grille.ts`** (`ordreEffectif`, `masquesConnus`) pour qu'un test la tienne (`grille.test.ts`) : un identifiant orphelin ne prend aucune place et ne donne aucune pastille « + … » sous la grille. Une taille épinglée orpheline n'est jamais lue.
+- Même chose pour `settings-energy` dans `order.settings` et `hidden.settings`.
+- On ne nettoie pas ces réglages : ils restent tels quels dans la base.
+
+**Deux fichiers citaient le sujet sans en dépendre.**
+- `lib/calendrier/disponibilite.ts` : un commentaire explique pourquoi `screen_min_` ne sert pas à apprendre les heures de travail. Le raisonnement tient toujours ; une phrase ajoute que le compteur n'est plus tenu.
+- `lib/trading-de-cote.test.ts` : un bloc gardait « la jauge ne compte plus les trades ». La jauge n'existe plus, le bloc est retiré, un commentaire dit pourquoi. Le reste du fichier est intact.
+
+#### Aujourd'hui tient en deux vraies colonnes tant que rien n'a été déplacé (2026-10-11)
+
+**Pourquoi, dans ce chantier.** En regardant l'écran sans la jauge, un trou restait sous l'anneau de Discipline, compte habité (trois tâches) comme compte neuf. Vérifié sur un build d'avant le retrait : **le trou existait déjà avec la jauge** (`captures-correctifs/sans-energie/avant-neuf/001.jpg`). Elle ne le masquait que si la liste des tâches était assez longue.
+
+**La cause.** La grille place chaque carte « au premier endroit où elle tient » (`grid-auto-flow: row dense`). Avec des cartes de 4 colonnes et de 8, cela ne fait pas deux colonnes. Dès que « Tâches du jour » est plus courte que « Discipline », le Timer et les Habitudes se glissent sous les tâches, le Calendrier (8 colonnes) descend sous eux, et rien ne remplit le vide de gauche. L'écran contredisait aussi Personnaliser : la « colonne droite » (Calendrier, Objectifs) s'affichait à gauche.
+
+**La parade.** Un panneau peut s'**ancrer** à un bord de la grille (prop `ancre` de `ResizablePanel`). `TodayView` ancre la « colonne gauche » de Personnaliser au début de la grille et la « colonne droite » à la fin. Chaque colonne devient une pile continue. Les règles sont pures, dans `lib/grille.ts` (`dispositionIntacte`, `ancreTient`, `colonneCss`), avec leurs tests.
+
+**⚠️ L'ancre ne vaut que pour la disposition intacte.** Dès qu'un panneau est déplacé à la main (glisser, « Avancer / Reculer d'une place ») ou qu'une largeur est changée, **toute la grille redevient libre, exactement comme avant**. Raisons : on ne reprend pas à quelqu'un ce qu'il a rangé, et Personnaliser ne sait pas faire passer une carte d'une colonne à l'autre — seul le glisser le permet.
+- Une hauteur épinglée ne compte pas comme une modification.
+- Fenêtre étroite et téléphone : aucune ancre. Le calcul part de la largeur mesurée de la grille (pas d'un seuil d'écran) : l'ancre tombe dès qu'un voisin ne tient plus à côté.
+- Les autres grilles (Réglages, Personnaliser, Performance…) ne passent pas d'ancre : rien n'y change.
+
+**Conséquence pour qui avait déjà touché une poignée.** L'ordre enregistré d'avant, jauge ôtée, n'est plus l'ordre du code (retirer la jauge décale l'alternance gauche/droite). Sa grille reste donc libre, avec SON ordre. C'est le comportement d'avant, sans la jauge.
+
+### `taches-jour` — la tâche du jour, l'ajout rapide daté, le report, « En retard », Tâches par objectif
+
+#### Une seule définition de « la tâche du jour » (2026-10-11)
+
+**Le défaut.** La carte « Tâches du jour » listait toute tâche ponctuelle pas encore faite, datée ou non. Noter « Relancer le devis jeudi » un dimanche faisait baisser la Discipline du dimanche. La vue Tâches disait « 1 tâche aujourd'hui » quand la carte en montrait quatre (crible du labo, constat 1 ; audit A17-19).
+
+**La règle, à un seul endroit : `estPrevueLe(task, jour)` dans `src/lib/logic.ts`.** Une tâche est prévue un jour donné si c'est une routine due ce jour-là, ou une tâche ponctuelle **datée de ce jour-là**. Ni les « sans date », ni les « à venir », ni les « en retard ».
+
+**La liste du jour (`todayTasks`)** = ce qui est prévu aujourd'hui, plus ce qu'on a coché aujourd'hui.
+- Une tâche du jour cochée reste dans la liste, barrée, et compte comme faite.
+- **Ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa date** : une tâche en retard qu'on rattrape, une tâche sans date qu'on fait. Elle entre dans la liste, cochée. Raison : c'est déjà ce que fait un jour passé (voir plus bas), et sans cela le chiffre du soir ne serait pas celui du lendemain. Conséquence : cocher une tâche sans date fait **monter** la Discipline, jamais baisser. ⚠️ C'est un choix de ce chantier, au-delà de la demande écrite (« datées d'aujourd'hui et routines du jour ») — à valider par Antonin.
+- Une tâche en retard, pas faite, n'est pas dans le compte du jour. Elle a sa ligne « En retard ».
+
+**Qui lit cette règle** (vérifié par recherche dans le code, aucun écran ne recompte de son côté) :
+- la carte « Tâches du jour » et l'anneau de Discipline (`TodayView`) ;
+- le sous-titre de Tâches et sa section « Aujourd'hui » (`sectionDe`, `lib/tachesVue.ts`) ;
+- le bandeau de performance et la vue Performance (`pctOfList(todayTasks())`, `dayStat`) ;
+- le brief de l'IA (ses trois priorités) ;
+- le **portage Rust** `src-tauri/src/notifications/task_streak.rs` (`est_prevue_le`, `today_pct`, `day_pct`).
+
+⚠️ **Une copie de la règle reste, exprès, dans `lib/ia/revue.ts`** (la revue hebdomadaire de l'IA, ligne « prevues ») : `estRecurrente(t) ? isDueOn(t, j) : t.due_date === j`. C'est la même règle, mot pour mot. La remplacer par `estPrevueLe(t, j)` touchait une ligne d'import collée à celle que le chantier `etapes-cochables` a changée : conflit de fusion garanti. **À faire après la fusion, en une ligne** (et retirer `isDueOn` de l'import).
+
+**La fraction et le pourcentage sortent du même compte (`statDeListe`).** L'anneau écrivait « 25 % » sur « 1/6 » : le pourcentage excluait les tâches d'exemple, la fraction les comptait.
+
+**Ce que la règle fait aux jours déjà écoulés : presque rien, et jamais à la baisse.**
+- Un jour passé se relit depuis les coches, qui sont datées (`dayStat`). Il compte les routines dues ce jour-là et les tâches ponctuelles **cochées** ce jour-là. Il n'a jamais compté les tâches sans date ni à venir : elles n'avaient pas de coche ce jour-là. **Son chiffre est donc celui d'avant.**
+- Une seule différence : une tâche ponctuelle cochée puis décochée laissait une ligne « pas faite », qui comptait comme un manqué le jour de la coche. Elle ne compte plus. **Un pourcentage passé ne peut que monter, une série ne peut que s'allonger.** Tenu par des tests (`src/lib/logic.jour.test.ts`, et les mêmes cas en Rust).
+- ⚠️ **Limite connue, laissée telle quelle.** Une tâche datée d'un jour et pas faite sort du compte de ce jour à minuit (elle devient « en retard »). Le chiffre du soir peut donc monter le lendemain matin, jamais baisser. Exemple : 3 faites sur 5 le soir (60 %), 3 sur 4 le lendemain (75 %). La faire peser sur son jour demanderait de savoir quelle était sa date **ce jour-là**, et la base ne garde que la date actuelle : chaque report réécrirait le passé. C'était déjà le comportement d'avant (constat 9 du crible, audit A07b-06). Le chantier Performance, qui suit, devra trancher.
+
+**Le minuteur et la palette ne lisent PAS la liste du jour.** Ils lisent `tachesAFaire` : toute tâche ponctuelle pas faite, celles du jour en tête. Sans cela, la nouvelle liste du jour leur aurait retiré les tâches sans date. Le sélecteur « tâche liée » du Timer les montre en deux groupes (« Aujourd'hui », « Autres tâches »). L'action de la palette s'appelle maintenant « Cocher une tâche » (elle disait « du jour »).
+
+**La clôture de l'IA** lit les tâches à reporter sur toutes les tâches, plus sur la liste du jour, qui ne contient plus les retards.
+
+**Le Rust lit `due_date` en vérifiant que la colonne existe.** Le lecteur des notifications peut tourner avant que l'app ait joué ses migrations. Une requête qui échoue y rend une liste vide : la règle de série s'éteindrait sans rien dire. Même parade que `filtre_vivant` (PIEGES § 19.7).
+
+#### L'ajout rapide comprend une date (2026-10-11)
+
+**Le défaut.** « Relancer le devis jeudi » tombait dans « Sans date », le mot resté dans le titre (constat 6, quatre utilisateurs sur cinq).
+
+**Ce qui est lu** (`src/lib/taches/saisieRapide.ts`, logique pure, testée sous les deux langues) :
+- en français : aujourd'hui, ce soir, demain, après-demain ; un jour de la semaine (« jeudi », « ce jeudi », « jeudi prochain », « pour jeudi ») ; « dans 3 jours », « dans une semaine » ; « 15/10 », « 15/10/2027 » ; « le 15 » ; « 15 octobre » ;
+- en anglais : today, tonight, tomorrow ; thursday, next thursday, on thursday ; in 3 days ; 10/15 ; the 15th ; October 15.
+
+**Les choix tranchés.**
+- **La langue de l'app seulement.** Lire les deux vocabulaires ferait de « Préparer le Black Friday » une tâche du vendredi dans l'app française.
+- **Un jour de la semaine désigne sa prochaine occurrence, jamais aujourd'hui.** « jeudi » tapé un jeudi, c'est dans sept jours. Pour aujourd'hui, on écrit « aujourd'hui ».
+- **« jeudi » et « jeudi prochain » donnent le même jour.** La nuance varie d'une personne à l'autre ; la pastille montre la date retenue avant qu'on valide.
+- **Plusieurs dates dans la phrase : la dernière compte.** On écrit « Préparer la réunion de lundi demain », rarement l'inverse.
+- **Une date sans année tombe à sa prochaine occurrence.** « 15/01 » tapé en octobre, c'est janvier prochain.
+- **Un jour qui n'existe pas n'est pas lu** (« le 30 février »), et rien n'est deviné à sa place.
+- L'ordre jour/mois d'une date en chiffres et les noms de jours et de mois viennent d'`Intl` (`parserSaisie` de `lib/calendrier/champDate.ts`), jamais d'une table recopiée.
+
+**La date lue n'est jamais appliquée en silence.** Elle apparaît en pastille dans la ligne (« jeu. 15 oct. ✕ »). La croix, ou Échap, l'écarte : le mot reste alors dans le titre (« Lire Vendredi ou la vie sauvage » reste entier). Validée, le mot quitte le titre. Un bouton calendrier date sans rien taper.
+
+**Une seule ligne de saisie pour les deux écrans : `src/components/taches/SaisieRapide.tsx`.**
+- Dans **Tâches**, une tâche ajoutée sans date naît sans date (décision du 2026-09-30, qui tient).
+- Dans la **carte d'Aujourd'hui**, elle naît **datée d'aujourd'hui**. C'est la liste du jour : avec la nouvelle règle, une tâche sans date n'y paraîtrait pas. La pastille « aujourd'hui » le dit avant qu'on valide. Si la date lue est un autre jour, la tâche n'entre pas dans la liste : un message le dit (« … est prévue le jeudi 15 octobre »).
+- L'écriture passe par `planificationDeSaisie` (`lib/taches.ts`), jamais par une écriture directe de `due_date`.
+
+#### Reporter une tâche sans rouvrir une fenêtre (2026-10-11)
+
+**Le défaut.** « ⋯ › Dater › Choisir une date… » rouvrait toute la fenêtre de modification. Depuis Aujourd'hui, il faisait quitter l'écran (constats 7 et 10, les cinq utilisateurs).
+
+**« Dater ▸ » propose maintenant** : « + 1 jour », « Aujourd'hui », « Demain », « Lundi prochain », « Choisir une date… », « Retirer la date ».
+- **« + 1 jour » part de la date de la tâche** (le 16 devient le 17). Si elle est en retard ou sans date, il part d'aujourd'hui : repousser d'un jour une tâche d'avant-hier la laisserait en retard (`plusUnJour`, `lib/taches/dates.ts`).
+- « Aujourd'hui » s'efface quand la tâche l'est déjà ; « Retirer la date » quand elle n'en a pas. Une entrée qui n'écrirait rien est du bruit.
+- Pour une tâche du jour, « + 1 jour » et « Demain » écrivent la même date. Les deux restent : le menu garde la même forme pour toutes les tâches.
+
+**« Choisir une date… » ouvre le calendrier sur place.** Il n'y a toujours **qu'un calendrier dans l'app** (décision du 2026-09-18) : c'est le panneau de `ChampDate`, sorti dans `PanneauDate` et ouvert là où on le demande par `src/lib/selecteurDate.ts`. Un seul hôte, monté dans `App.tsx` (`SelecteurDateFlottant`), sur le modèle du toast. **Décision retournée** : le commentaire du 2026-09-18 dans le catalogue disait « un second sélecteur ici serait un second champ de date » et renvoyait à la fenêtre de la tâche. Ce n'est pas un second calendrier, c'est le même, ouvert ailleurs. Antonin, le 2026-10-11 : « corrige […] le report de tâches ».
+
+**La date d'une ligne est un bouton** (`src/components/taches/BoutonDate.tsx`) : il ouvre ce même calendrier, sous lui. Visible au repos (un soulignement pointillé), 44 pt de haut au doigt.
+
+**Dater à la main remet le compteur de reports à zéro** (`replanifier()`, règle du 2026-09-02). C'est fait dans le geste commun `dater` du catalogue (`components/menu/catalogue/tache.tsx`) : il vaut donc pour Tâches, Aujourd'hui, la feuille de route et le Calendrier. Avant, seul le glisser-déposer du Calendrier le faisait : une tâche qu'on venait de poser à jeudi par le menu gardait « reportée 2 fois ».
+
+**Une entrée de menu sait où le menu était ouvert.** `executer` reçoit `OrigineMenu` (le bouton « ⋯ », ou le point du clic droit). C'est ce qui permet d'accrocher le calendrier au bon endroit.
+
+#### Aujourd'hui dit ce qui est en retard, et montre des objectifs (2026-10-11)
+
+**La ligne « En retard »** (`src/components/EnRetard.tsx`) est **en tête de l'écran**, au-dessus des cartes. Pas dans la carte des tâches : cette carte peut être masquée par Personnaliser, et un objectif en retard n'est pas une tâche.
+- Les tâches datées d'avant aujourd'hui et pas faites, la plus ancienne d'abord, avec « hier » et « reportée 2 fois ». La case coche sur place (la tâche rejoint alors la liste du jour, cochée) ; la date et le « ⋯ » reportent sur place.
+- Les objectifs **racines** dont l'échéance est dépassée et qui ne sont pas achevés : « échéance dépassée de 41 jours ». La ligne ouvre l'objectif.
+- **Absente quand il n'y a rien** : un compte neuf ne la voit pas.
+- Trois lignes, puis « Afficher les N autres ».
+- **Pas de rouge.** C'est un fait, pas une alarme : un sablier et le mot.
+- Une **étape** en retard n'y remonte pas. Elle se lit sur la page de son objectif. La remonter referait de chaque étape un objectif à part.
+
+**La carte « Objectifs en cours » ne liste que les objectifs racines.** Elle montrait chaque étape comme un objectif à part : quatre lignes là où la vue Objectifs en a deux (constat 13 ; audit A06a-09). Chaque ligne dit le retard de l'objectif s'il y en a un, et l'ouvre.
+
+**Elle lit l'avancement par `effectiveProgress`, avec les sources complètes** (`useSourcesProgression`, `src/lib/objectifs/useProgression.ts`) : les événements rattachés comptent, comme sur la page de l'objectif. Elle mesurait sans eux : deux chiffres pour le même objectif (signalé par le chantier `etapes-cochables`). Elle ne recompte rien de son côté.
+
+**La ligne de la liste Objectifs écrit le retard de l'objectif en tête**, même quand elle montre la prochaine action (« en retard de 41 j · ☐ Mettre à jour le portfolio · hier »). La prochaine action le cachait.
+
+#### Le menu d'une tâche (2026-10-11)
+
+**« ⋯ › Renommer » ne faisait rien** (constat 11 ; audit A11-08). Au téléphone, « ⋯ » est le seul accès au menu. La cause est dans `useMenuContextuel` : voir PIEGES. La correction (`rendreLeFocus`) vaut pour **tous** les menus de l'app, pas seulement celui des tâches.
+
+**« Focus 25 min » est dans le menu de Tâches**, comme dans celui d'Aujourd'hui (constat 23). `TasksView` reçoit le minuteur (`focus`) d'`App.tsx`. L'entrée reste absente du Calendrier et de la feuille de route (aucun minuteur n'y est branché), et pendant une séance en cours.
+
+**Le « ⋯ » d'une ligne de tâche est visible au repos** (`BoutonMenu`, option `visible`) : estompé, plein au survol. Reporter ou renommer n'existait qu'au survol de la ligne, ce que la règle 17 interdit (constat 10). Vaut pour Tâches, la carte d'Aujourd'hui et la ligne « En retard ». Les autres listes de l'app gardent le « ⋯ » révélé au survol.
+
+**Renommer en place est écrit une fois** (`src/components/taches/ChampRenommage.tsx`) pour les trois endroits qui le font.
+
+#### Tâches, rangées par objectif (2026-10-11)
+
+Antonin : « trie-la par objectifs si ça peut être utile ».
+
+**Un choix en tête de la vue : « Par moment » (défaut, inchangé) ou « Par objectif ».** Retenu dans le réglage `taches.rangement`, synchronisé, sur le modèle de `perf.plage`.
+
+**Par objectif** (`rangerParObjectif`, `lib/tachesVue.ts`, pur et testé) :
+- une section par objectif **racine**, les tâches de ses étapes comprises ; l'étape est nommée sur la ligne ;
+- dans une section : les retards en tête, puis par échéance, puis les « sans date » ; à date égale, l'heure puis la priorité ;
+- « Sans objectif » en dernier ;
+- les routines et les tâches faites gardent leur section à part. Une routine revient seule : elle n'est pas « ce qui reste à faire » d'un objectif. Son objectif se lit sur sa ligne ;
+- le titre d'une section d'objectif porte « Ouvrir l'objectif » ;
+- rangée par objectif, la ligne écrit toujours sa date (la section ne dit plus quand).
+
+**Les filtres de tag et la recherche valent pour les deux rangements.** Le sous-titre (« 4 tâches aujourd'hui · 1 en retard ») aussi.
+
+**Les tags prennent toute la première ligne des filtres.** Avec le choix du rangement à côté, « Gérer » était rogné.
+
+### `etapes-cochables` — une étape vide se coche et compte
+
+#### 2026-10-11 — Objectifs : une étape vide se coche, et elle compte
+
+Demande d'Antonin : « Pour les étapes vides, donne la possibilité de cocher une étape pour que ce soit compté. » État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md`.
+
+- ⚠️ **DÉCISION RETOURNÉE.** La règle du 2026-09-16 disait : « les vides sortent du dénominateur, et se signalent ». Une étape vide n'était ni à 0 % ni à 100 % : elle était exclue du calcul. Elle évitait d'afficher 30 % pour une feuille de route à moitié remplie. À l'usage, personne ne l'a comprise (labo du 2026-10-11, constat 3, les cinq utilisateurs) : trois étapes, une seule garnie, une tâche cochée sur deux, et l'objectif affichait 50 % à côté de deux étapes à « — », sous « 1 étape ». Yanis : « je ne crois plus aux chiffres de l'app ».
+- **La règle, maintenant.** Une étape (phase ou sous-objectif) ou un objectif qui n'a ni sous-étape, ni élément comptable (tâche ponctuelle, événement), ni cible chiffrée, est UNE UNITÉ : 0 tant qu'elle n'est pas cochée, 100 % une fois cochée. Elle pèse chez son parent comme les autres. Trois étapes dont une cochée : 33 %.
+- **Ce que ça change pour un objectif EXISTANT.** Son pourcentage BAISSE s'il a des étapes vides. Exemple : quatre étapes finies et deux vides affichaient 100 % ; elles affichent 67 %, jusqu'à ce que les deux vides soient cochées ou garnies. Autre exemple, celui du labo : une étape à 1 tâche sur 2 et deux étapes vides affichaient 50 % ; elles affichent 17 %.
+- **Sur la vraie base d'Antonin au 2026-10-11** (lue sur une copie, en lecture seule, copie supprimée) : 2 objectifs, 12 lignes, aucun suivi à la main, aucune tâche d'objectif cochée. Aucun chiffre ne bouge aujourd'hui : les deux sont à 0 % avant comme après. Un seul objectif a une étape vide (deux étapes, l'une avec 2 tâches, l'autre vide). Quand la première tâche sera cochée, il affichera 25 % au lieu de 50 % ; les deux tâches cochées, 50 % au lieu de 100 %. L'autre objectif (six étapes, toutes garnies) ne change pas.
+- **Ce qui est gardé : le suivi à la main reste SOUVERAIN** (décision du 2026-09-14). Un objectif ou une étape « suivi à la main » garde le chiffre saisi, vide ou pas. Il n'a pas de case, et sa ligne dit toujours « saisi à la main ».
+- **La coche n'a pas de colonne à elle : aucune migration.** C'est `progress_pct = 100` sur une ligne MESURÉE (`manual_progress = 0`). Cette colonne ne servait à rien pour une ligne mesurée. Elle n'est lue que tant que l'étape est vide. Une seule écriture : `cocherEtape` (`repo.ts` et `demo.ts`, même sémantique, test `objectifs/cocher.api.test.ts` joué des deux côtés). ⚠️ Pas par le suivi à la main : la ligne aurait dit « saisi à la main », et une tâche ajoutée n'aurait plus rien changé (le manuel est souverain).
+- **Ce que devient une coche quand l'étape reçoit quelque chose : elle dort, elle n'est pas perdue.** Dès qu'on donne à l'étape une tâche, une sous-étape ou une cible, la case disparaît et ce qu'elle contient la mesure (une tâche non faite : 0 %). Si l'étape redevient vide (tâche détachée ou supprimée), la case revient, dans l'état où on l'avait laissée. Aucune écriture au moment de l'ajout : c'est la lecture qui choisit.
+- ⚠️ **Conséquence à connaître** : ajouter une tâche à une étape cochée fait baisser l'objectif (33 % → 0 % dans l'exemple à trois étapes). C'est voulu : l'étape a de nouveau quelque chose à faire.
+- **Une récurrente ou une note ne suffisent pas à « garnir » une étape** : elles ne comptent toujours pas (« écrire n'est pas avancer »). L'étape reste une case à cocher. Avant, un objectif qui n'avait qu'une tâche récurrente restait à « — » pour toujours.
+- **Un objectif racine sans rien se coche « Atteint »** sur sa page (et par son menu, clic droit dans la liste : « Marquer atteint »). « Suivre à la main » reste proposé à côté, pour qui veut régler un pourcentage. La phrase « Pas encore de feuille de route. » est partie.
+- **« 100 % » veut de nouveau dire « terminé ».** `Mesure.vides` et `Mesure.videsProfonds` sont supprimés ; `estAcheve` ne lit plus que le pourcentage. La fonction reste, pour que les écrans posent la question à un seul endroit. Ce qu'il reste du piège : l'arrondi seulement (audit A06a-03, 99,5 % s'affiche 100 %), qui n'est pas de ce chantier.
+- **Un réglage cassé n'est pas une étape vide.** Une cible à zéro ou une source supprimée n'ont pas de mesure : leur ligne affiche « — » et dit la panne (« cible à zéro », « source introuvable »). Chez le parent, elles pèsent 0 tant qu'elles ne sont pas réparées. Avant, elles sortaient du dénominateur elles aussi. Plus rien n'en sort : ce qui est à l'écran compte. Dans le code, l'origine s'appelle `panne` (elle s'appelait `vide`).
+- **Les compteurs disent ce qu'on voit.** « 1 étape sur 3 · 2 tâches sur 5 » : toutes les étapes directes, et celles qui sont faites. Remplace « 1 étape » (qui ne comptait que les étapes garnies) et « 0/1 élément ». « Tâches » quand il n'y a que des tâches, « éléments » dès qu'un événement s'y mêle. Le nom s'accorde avec ce qui est fait : « 0 étape sur 3 » en français, “0 steps out of 3” en anglais (`libelles.ts`, pas `tp()` qui met zéro au pluriel).
+- **Un seul chiffre partout.** `effectiveProgress`, le péril du Calendrier et la revue de l'IA passent par `pourcentDe` (`progression.ts`). ⚠️ Ils ne se replient plus sur le % stocké : un objectif mesuré vide affichait « — » dans la liste et « 45 % » sur Aujourd'hui (son ancien % saisi). Il affiche 0 % partout ; son 45 % revient s'il repasse en « suivi à la main ».
+- **Le péril du Calendrier** (`calendrier/peril.ts`) ne recompte plus les étapes vides : elles pèsent dans le chiffre. Un objectif daté et vide n'est plus « rassurant » sur un vieux 90 % saisi. Le Calendrier lui-même n'est pas touché.
+- **Le fil** : une étape vide a un état. Nœud vide tant qu'elle n'est pas cochée ; nœud à l'encre et tronçon plein une fois cochée ; l'orbe passe à la suivante. Avant, trois étapes vides faisaient trois nœuds vides et l'orbe ne quittait jamais la première.
+- **A06a-02 — l'objectif d'exemple se mesure sur ses propres exemples.** Le filtre des exemples écartait les étapes d'exemple de l'objectif d'exemple lui-même : il restait à « — » quoi qu'on coche, sous une description qui promet que « l'avancement se calcule tout seul ». Règle : un exemple ne nourrit jamais le chiffre d'un objectif RÉEL ; un objectif d'exemple compte ses exemples (`enfantsDe`, `elementsDe`). Compte neuf : 0 % et « 0 étape sur 2 », puis 50 % une fois la tâche d'exemple cochée.
+- **Cocher une étape d'exemple ne l'adopte pas** (comme `majFeuilleDeRoute`) : sinon essayer la case laisserait une étape orpheline derrière « Supprimer les exemples ».
+- **A06a-12 — une tâche s'ajoute à l'objectif lui-même.** Sur la page, avec ou sans étapes, une rangée : « Ajouter une étape · Tâche · Rattacher ». Un seul champ ouvert à la fois (`BarreAjout`, prop `etape`). Un objectif simple se réduit à trois tâches. Le titre « Rattaché directement » ne s'affiche que s'il y a des étapes à côté.
+- **Dessin (à recopier dans `DESIGN.md`)** : la case d'une étape vide est `CaseACocher` en taille `sm`, devant le titre, après l'icône du genre ; cochée à l'encre ; la barre de droite dit 0 % ou 100 %. Sur la page d'un objectif vide : la case en taille normale, puis le mot « Atteint » (seconde cible du même geste). Cibles de 44 pt au doigt.
+- **Vocabulaire (constat 22), non touché, avis seulement.** La case rend le mélange plus visible : la bulle dit « Une étape vide se coche », la légende dit « Phase / Sous-objectif », le bouton dit « Ajouter une étape » puis propose « Phase | Sous-objectif ». Mon avis : garder « étape » comme seul mot affiché partout, et réserver « phase » au seul cas où une étape contient d'autres étapes (le dossier). « Sous-objectif » pourrait disparaître de l'écran. À décider par Antonin.
+
+### `etapes-taches` — une chose à faire est une tâche ; « étape », et « phase » quand elle en contient d'autres
+
+#### 2026-10-12 — Objectifs : une chose à faire est une tâche ; une ligne s'appelle « étape »
+
+État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md`. Dessin : `DESIGN.md`, bloc « 2026-10-12 — "Étape", et "phase" quand elle en contient d'autres ».
+
+**La tâche d'abord**
+
+- Ce qu'on ajoute en premier à un objectif ou à une étape est une TÂCHE. Dans chaque rangée d'ajout, l'ordre est « ＋ Tâche · ＋ Étape · Rattacher ». Avant : « Ajouter une étape · Tâche · Rattacher ».
+- « Ajouter une étape » et « Ajouter un sous-objectif », qui étaient seuls sur leur ligne, sont entrés dans la rangée (`BarreAjout`, `components/objectifs/RattacherElement.tsx`). Le bouton s'appelle « Étape » ; sa bulle dit : « Une étape regroupe des tâches. »
+- Le menu de l'objectif propose « Ajouter une tâche » avant « Ajouter une étape ».
+- La fenêtre « Nouvel objectif » saisit les tâches avant les étapes. Les deux intitulés disent lequel est lequel : « Tâches · ce qu'il y a à faire », « Étapes · pour regrouper des tâches ». La phrase d'aide écrite sous les tâches est passée dans une bulle (règle du 2026-09-30 : pas de phrase d'aide permanente).
+- Un objectif créé nu (ni tâche ni étape saisies) ouvre sa page sur le champ « Tâche ». C'est ma lecture de « c'est elle qui reçoit le focus par défaut ». À confirmer par Antonin.
+
+**Une étape vide devient une tâche**
+
+- Sur la ligne d'une étape vide, à droite : « En faire une tâche ». La même entrée est en tête de son menu « ⋯ ». Un geste, une fonction (`components/objectifs/gesteConversion.tsx`).
+- La conversion crée une VRAIE tâche (table `tasks`) : elle paraît dans Tâches, le Calendrier, Aujourd'hui et le minuteur.
+- Ce qui suit l'étape : son titre, son échéance (elle devient la date de la tâche), sa priorité, sa coche (une étape cochée donne une tâche faite, à la date du jour), son statut d'exemple. La tâche se rattache au PARENT de l'étape : l'objectif, ou l'étape au-dessus.
+- Ce qui était rattaché à l'étape sans la mesurer passe au parent : les tâches récurrentes, les notes, les fiches, les événements qui reviennent. ⚠️ Sans cela, les tâches récurrentes partiraient à la corbeille avec l'étape (règle du 2026-09-30 : un objectif supprimé emporte ses tâches).
+- ⚠️ Les notes passent au PARENT, pas à la tâche : une tâche n'affiche pas de rattachements, les y mettre les aurait cachées. À confirmer par Antonin.
+- Ce qui ne suit pas, et que l'écran dit AVANT : la description (une tâche n'en a pas, et on ne fait pas de migration pour ça) ; les citations de l'étape dans le texte d'une note (`@étape`, nœud de carte). Dans ces deux cas seulement, une bande s'ouvre sous la ligne avec « Annuler » et « En faire une tâche ». Sinon, un clic suffit.
+- L'étape part à la corbeille par le chemin normal (`mettreEnCorbeille`). Un seul toast : « "Titre" est maintenant une tâche », avec « Voir » (ouvre la tâche dans Tâches) et « Annuler ».
+- « Annuler » rend l'étape telle qu'elle était, rend à l'étape ce qui était passé au parent, et retire la tâche POUR DE BON (pas à la corbeille : elle y ferait un doublon de l'étape restaurée).
+- Conséquence à connaître : l'étape convertie reste 30 jours dans Supprimés récemment. La restaurer plus tard ramène l'étape À CÔTÉ de la tâche.
+- La règle de qui est convertible n'est pas réécrite : c'est la question de la case à cocher (« est-ce une unité ? »), posée à `mesurer`. Une étape qui a une tâche, une sous-étape, une cible ou un suivi à la main n'a pas le bouton. Un objectif racine non plus (il n'a pas de parent où ranger la tâche).
+- Où c'est écrit : le plan, pur, dans `lib/objectifs/conversion.ts` ; l'accès dans `repo.ts` (`convertirEtapeEnTache`, `annulerConversionEnTache`). L'accès ne parle qu'aux fonctions publiques de `repo.ts`, qui s'aiguillent chacune entre natif et démo : même sémantique des deux côtés par construction, et rien de plus à tenir d'accord dans `demo.ts`.
+- La case d'une étape vide RESTE (vide = 0, cochée = 100 %, règle du 2026-10-11 inchangée). Sa bulle renvoie maintenant à « En faire une tâche ».
+- La remise à zéro quand on ajoute une tâche à une étape cochée est confirmée par Antonin : non touchée.
+
+**L'avancement à la conversion**
+
+- Il ne bouge pas. Une étape vide pesait une unité (0, ou 1 si cochée) ; la tâche pèse une unité (0, ou 1 si faite).
+- Les deux compteurs bougent : « 0 étape sur 3 · 0 tâche sur 2 » devient « 0 étape sur 2 · 0 tâche sur 3 ». Une étape cochée quitte les étapes faites pour les tâches faites : « 1 étape sur 3 » devient « 0 étape sur 2 · 1 tâche sur 1 ».
+- Quand l'étape convertie était la seule de son parent : le parent garde son chiffre, et il redevient une « étape » (il ne contient plus d'étape).
+- Quand le parent mélange étapes et tâches : même chiffre avant et après (testé : 44 % et 44 %).
+- ⚠️ Le seul cas où le chiffre bouge : une étape qui porte un vieux POIDS différent de 1. Plus rien n'écrit de poids depuis le 2026-09-30, mais la colonne existe. Une tâche pèse toujours 1. Exemple du test : 25 % avant, 50 % après. Sur la vraie base d'Antonin au 2026-10-11, tous les poids valaient 1 (lecture du chantier précédent ; non relue aujourd'hui).
+
+**Le vocabulaire**
+
+- ⚠️ **DÉCISION RETOURNÉE.** Du 2026-09-14 au 2026-10-12, le genre d'une étape se choisissait à la création (« Phase | Sous-objectif ») et se lisait dans `goals.is_milestone`. Le labo du 2026-10-11 (constat 22, les cinq utilisateurs) : trois mots pour la même ligne. Antonin, le 12 octobre : « je valide ».
+- La règle, maintenant : une ligne de feuille de route est une **étape**. Elle s'appelle **phase** quand elle contient d'autres étapes. C'est le CONTENU qui nomme (`natureDe`, `lib/objectifs/structure.ts`). En anglais : *step* et *phase*.
+- « Sous-objectif », « sous-étape » et *sub-goal* ne sont plus affichés nulle part.
+- On ajoute « une étape ». L'ajouter sous une étape fait de celle-ci une phase. Trois niveaux au plus, comme avant : objectif, étape, étape. Au troisième niveau, il ne reste que des tâches.
+- « En faire une phase » et « Redevenir un sous-objectif » sont retirés du menu : il n'y a plus rien à déclarer.
+- Les lignes existantes s'affichent selon ce qu'elles contiennent. Une « phase » enregistrée mais vide s'affiche comme une étape (cadre en pointillé, losange, repliée). Exemple : les étapes saisies à l'accueil, que l'app enregistre comme phases. Ni l'ordre, ni le fil, ni l'avancement, ni la carte ne lisent le genre (tests).
+- **La colonne `is_milestone` reste, et reste écrite** : elle passe à 1 quand une étape reçoit une étape. C'est pour un appareil resté sur une version d'avant, qui lit encore le genre. Plus aucun écran de cette version ne la lit. Elle n'est jamais remise à 0.
+- **Les clés de code ne bougent pas** : `GenreEtape`, et `GenreRef = "objectif" | "phase" | "sous-objectif"`, enregistrée dans le bloc d'une carte mentale. « sous-objectif » y désigne une étape. La changer aurait fait perdre leur icône aux cartes déjà enregistrées dans des notes.
+- **Une icône par nature** : cible pour l'objectif, dossier pour la phase, losange pour l'étape (`IconEtape`, nouvelle), carré pour la tâche. Avant, l'étape portait la cible de l'objectif en plus pâle. Le losange est mon choix ; à valider par Antonin.
+- La carte mentale : le menu « Type » d'un nœud propose « Idée, Étape, Tâche, Habitude » (il proposait « Phase » et « Sous-objectif »). Où va l'étape se déduit de la carte : sous l'objectif au-dessus du nœud ; si c'est une étape du fond, sous la phase au-dessus, et l'écran le dit (« Étape rangée sous … : la feuille de route n'a que trois niveaux »). Dans la carte d'un objectif, « ajouter » propose « Tâche, Étape, Habitude », la tâche en tête.
+- L'IA : les textes de l'app disent « étapes » (« Créer 3 étapes », “Break into steps”). ⚠️ Le contrat et les prompts du serveur parlent encore de « sous-objectifs » : non touchés, ce ne sont pas des textes de l'app.
+- Un seul chemin pour créer une étape : `ajouterEtape` (`lib/objectifs/ajouter.ts`), que la feuille de route, la carte, le menu « Type » et l'IA appellent. Avant, quatre endroits écrivaient chacun `is_milestone` à leur idée. Conséquence : décomposer une étape avec l'IA en fait une phase.
+- La liste « Objectif parent » de la fenêtre « Modifier… » propose un objectif ou une de ses étapes de premier niveau, tant que ce qui pend sous la ligne tient en trois niveaux (`peutRangerSous`). Avant, seule une phase déclarée pouvait accueillir. Une phase ne se range plus sous une étape : ses étapes tomberaient au niveau 3.
+- Les clés anglaises devenues sans emploi sont retirées de `en.ts` (33 clés), pour ne pas inviter à ressusciter le mot. Un bloc daté le dit dans le fichier.
+
+**Ce qui change à l'écran sans avoir été demandé mot pour mot**
+
+- Les étapes saisies à l'accueil s'ouvraient d'office (elles étaient des « phases »). Elles sont maintenant des étapes, repliées. La première phase non finie, elle, s'ouvre toujours.
+- Dans une étape réglée sur « Atteindre un nombre », le bouton « Étape » n'est plus proposé (la rangée d'ajout vit sous « Compter des éléments »). Avant, « Ajouter un sous-objectif » restait visible dans ce cas.
+- Une carte mentale déjà enregistrée dans une note dessine un losange là où elle dessinait la cible pâle.
+- La confirmation de suppression d'une étape dit « avec 2 étapes » et plus « avec 2 sous-étapes ».
+
+### `performance-jour` — Performance au jour même, et « Par objectif » à l'essai
+
+#### 2026-10-11 — Performance dit vrai le jour même
+
+Constats du labo : 2 (Performance vide le jour même, « Aucune séance de focus » juste après une séance), 9 (« Tâches tenues 100 % » au-dessus de « 1 tâche reportée, pas faite » — audit A07b-06), 28 (légendes), et six essais sur six où Performance contredisait le Timer sans dire sa période.
+
+- **La décision du 2026-10-09 n'est PAS retournée.** « Une période = des jours finis : elle s'arrête à hier » tient, pour la même raison (les moyennes plongeraient chaque matin). Un test le garde : ce qu'on fait aujourd'hui ne change ni une moyenne ni un écart (`jour.test.ts`).
+- **Ce qui change : aujourd'hui se VOIT, à part.** Une rangée « Aujourd'hui » en tête de la vue d'ensemble : tâches faites sur prévues, focus du jour, habitudes tenues. Elle ne se compare à rien : ni flèche, ni écart, ni pourcentage. Calcul : `lib/performance/jour.ts`.
+- ⚠️ **Cette rangée ne décide pas ce qu'est « une tâche du jour ».** Elle compte la liste que rend `todayTasks` (`logic.ts`), avec le filtre de `pctOfList` (les exemples ne comptent pas). Quand le chantier `taches-jour` change la définition, la rangée suit sans retouche. Après fusion, `jourEnCours` peut lire `statDeListe` (créée par ce chantier-là) : c'est le même compte.
+- **Chaque chiffre écrit ses dates.** « 5–11 oct. · jours finis » à côté des pilules de période, les dates sous chaque tuile, et en haut à droite de chaque carte qui suit la période. Une seule façon de les écrire : `plageDeDates` (`lib/performance/dates.ts`).
+- **A07b-06 — la tuile dit ce qu'elle ne compte pas.** Sous « Tâches tenues », quand il y en a : « 1 en retard ou reportée, non comptée ». Calcul : `tachesHorsCompte` (`analyse.ts`). La ligne « reportée au moins deux fois » d'« À améliorer » se TIRE de cette liste : elle ne peut pas annoncer une tâche que la tuile tait.
+- ⚠️ **Pourquoi une tâche reportée ne pèse PAS sur le jour où elle était due.** Trois raisons, écrites en tête de `tachesHorsCompte` :
+  1. la base ne garde que la date actuelle (`due_date`) et la date d'origine (`postponed_from`) ; les jours intermédiaires sont perdus ;
+  2. « Replanifier » remet le compteur à zéro et efface l'origine : le chiffre d'un jour d'il y a deux semaines remonterait à cause d'un geste d'aujourd'hui. Ce serait réécrire l'histoire ;
+  3. le chiffre d'un jour a UNE définition pour toute l'app (`dayStat` : anneau, séries, notifications portées en Rust). Une seconde, dans Performance seule, donnerait une courbe où un jour est manqué et une série qui le compte tenu. Le chantier `taches-jour` a écrit la même limite dans `dayStat`.
+- **Légendes (constat 28).** Le carré gris (« rien de dû », « aucune tenue ») et le carré rouge (« rien de fait ») sont dans la légende ; chaque teinte d'encre dit sa tranche en bulle. « 80 % : jour tenu », « pts » et le « — » muet d'une comparaison ont leur bulle.
+- **Un seul mot pour la série.** La tuile s'appelle « Jours tenus d'affilée » (elle disait « Série en cours », sans dire de quoi) ; la carte du bas « Séries de jours tenus » (elle disait « Historique des streaks »).
+- **Le carré d'aujourd'hui n'est jamais rouge.** « Rien de fait » à dix heures du matin n'est pas un jour manqué (`Carre.enCours`).
+- **Le focus par jour montre aujourd'hui**, en dernière barre plus claire, « auj. ». Elle n'entre dans aucun total. Au-delà de 30 jours les barres sont des tranches de sept jours comptées depuis le début de la période, pas des semaines du lundi au dimanche : le titre dit « par tranche de 7 jours » et la bulle écrit les dates.
+- **Plus de message qui ment.** « Lance ta première session… » et « Aucune séance » ne s'affichent plus à qui vient d'en finir une ; « Rien ne décroche » devient « Rien de mesuré sur cette période. » quand la période est vide.
+- **Une métrique écrit les dates de son total** (« 12 km · 6–12 oct. ») : sept jours glissants, aujourd'hui compris, donc pas la période de l'onglet.
+
+#### ⚠️ « Cette semaine » : trois définitions, toujours pas réunies
+
+| Où | Ce que ça compte | Le 12 octobre (un lundi) |
+|---|---|---|
+| Timer, tuile « cette semaine » | 7 jours glissants, aujourd'hui compris | 6–12 oct. |
+| Performance, « 7 j » | 7 jours finis | 5–11 oct. |
+| Performance, « Par objectif » | lundi → dimanche, aujourd'hui compris | 12–18 oct. |
+
+Dans Performance, chaque total porte maintenant ses dates. La bulle de la tuile Focus, sur « 7 j », donne le chiffre du Timer et dit pourquoi il diffère.
+
+**Ce qu'il faudrait faire au Timer** (non fait : le Timer était hors de ce chantier) : écrire les dates sous sa tuile « cette semaine », ou la faire aller du lundi au dimanche — c'est le sens courant du mot, et c'est déjà celui de « Par objectif ». Sa « moyenne / jour » divise par 7 dans les deux cas. À trancher par Antonin.
+
+#### 2026-10-11 — Un onglet « Par objectif », À L'ESSAI
+
+Troisième forme de la fiche « Semaine » du labo, après un module et un bloc sur la page d'un objectif, tous deux jugés « à retravailler ». Antonin : « on peut tester à voir ce que ça apporte et si un onglet dans Performance ne suffirait pas ».
+
+- **Où.** En tête de Performance, deux onglets : « Vue d'ensemble » (par défaut) et « Par objectif ». Ni module, ni entrée de barre latérale, rien sur la page d'un objectif.
+- **Ce qu'on y lit, par objectif racine.** Les heures passées cette semaine (lundi → dimanche, aujourd'hui compris, dates écrites) ; les heures promises, modifiables sur place ; ce qu'il reste d'ici dimanche ; jusqu'à huit semaines précédentes en barres à l'encre ; un fait sur l'échéance. En bas, « hors objectif ». En haut à droite, le total au minuteur.
+- **Total = lignes + hors objectif**, par construction : une seule répartition par semaine, lue par toutes les lignes (`repartir`, `tableauParObjectif`).
+- **Heures passées** = les séances de concentration terminées, les mêmes minutes que le Timer (`seancesDeFocus`, `minutesDeSeance`). Séance → tâche → objectif racine ; une tâche posée sur une étape remonte à sa racine.
+- **« Hors objectif »** = séances sans tâche, ou dont la tâche n'a pas d'objectif, ou dont la tâche est en corbeille. Montré, jamais réparti.
+- **Sans promesse, la ligne ne montre que le temps passé.** Aucun rouge, aucun mot de reproche. Le seul rouge de l'onglet est celui d'une échéance dépassée ou en péril, avec les mots du Calendrier.
+- ⚠️ **Aucune promesse tracée sur une semaine passée.** La base ne connaît que celle d'aujourd'hui ; l'appliquer au passé prêtait aux gens des échecs qu'ils n'avaient pas eus (les trois utilisateurs des prototypes).
+- ⚠️ **Aucun zéro avant la création de l'objectif** : la semaine n'a simplement pas de barre. Pour « hors objectif », les barres commencent à la première séance du compte.
+- **Un objectif né cette semaine (après lundi) n'a pas de « reste d'ici dimanche »** : il affiche « première semaine ». Limite connue : la règle lit la date de création de l'objectif, pas celle de la promesse (elle n'est pas datée).
+- **« Serai-je prêt à la date ? » — des faits, jamais un pronostic** (`faitDEcheance`) :
+  - échéance à venir : « 11 semaines pleines d'ici le 31 décembre · à 5 h par semaine, cela fait 55 h ». Semaines pleines = jours restants ÷ 7, arrondi vers le bas. Un produit que chacun refait de tête ;
+  - échéance dépassée ou en péril : le verdict de `calendrier/peril.ts`, avec les mêmes phrases que le Calendrier. Rien n'est recalculé ;
+  - pas d'échéance, ou objectif achevé : rien.
+- **Sans minuteur, tout est à zéro.** L'écran le dit en une ligne : « Les heures viennent du minuteur. »
+- **Les tâches de l'objectif ne sont pas listées** : le titre de la ligne ouvre l'objectif.
+
+**Où vit la promesse — sans migration.** Un réglage de la table `settings`, clé `objectifs.heures_semaine`, une carte JSON `uid d'objectif → heures`. Modèle : `notes.rangees`.
+- Synchronisée : `settingSynchronisable` est exécutée par un test, et un autre test écrit la promesse sur une vraie base SQLite puis la retrouve dans la file d'envoi.
+- Écrite seulement quand elle change. L'écriture relit d'abord le réglage, pour ne pas écraser une promesse arrivée entre-temps.
+- Vide ou zéro = pas de promesse : l'entrée est retirée.
+- ⚠️ Limites : une seule valeur pour tous les objectifs, en dernier-écrit-gagne (deux appareils qui changent chacun une promesse hors ligne n'en gardent qu'une) ; pas d'historique ; la carte n'est jamais élaguée (un objectif en corbeille garderait sinon sa promesse perdue à la restauration). Si l'essai est gardé, la vraie place est une colonne de `goals`.
+
+**L'accueil.**
+- Il écrit maintenant la promesse de l'objectif qu'il plante (`semer.ts`, `promettre`). La phrase de la description (« 5 h par semaine libérées pour ça. ») reste : décision du 2026-09-16, non retournée.
+- ⭐ **La valeur montrée est la valeur retenue** (`heuresDuPlan`, `planification.ts`). L'écran de la grille ouvre avec une case d'heures allumée ; l'accueil ne la retenait que si on la cliquait. Faire « Suivant » sur cet écran valide désormais la case allumée, pour l'objectif PLANTÉ.
+- ⚠️ **L'objectif du curseur (« Récupérer N h par semaine ») ne naît toujours que d'une case CLIQUÉE**, et ne reçoit pas de promesse. Traverser l'accueil à coups de « Suivant » sans rien écrire ne crée toujours aucun objectif : « pas de réponse, pas d'objectif » tient. « Récupérer 8 h » n'est pas « passer 8 h au minuteur sur cet objectif ».
+- Les interdits de l'accueil tiennent : aucune échéance (un test le vérifie sur l'objectif planté), aucune formulation en perte.
+
+**Pour retirer l'essai, d'un bloc :**
+1. `src/components/performance/ParObjectif.tsx`
+2. `src/lib/performance/parObjectif.ts`, `promesses.ts`, `promessesAcces.ts` et leurs quatre fichiers de test
+3. dans `PerformanceView.tsx` : `VUES`, l'état `vue`, les deux onglets de l'en-tête, la branche `vue === "objectifs"`
+4. dans `onboarding/semer.ts` : `promettre` et son appel
+5. les clés « Par objectif » de `i18n/en.ts` (un bloc titré)
+
+Rien d'autre n'en dépend : `jour.ts`, `dates.ts` et `durees.ts` servent la vue d'ensemble et restent.
+
+Le réglage `objectifs.heures_semaine` resterait dans les bases, inerte.
+
+### `notes-sans-titre` — l'onglet de Notes devient « Sans titre »
+
+#### Notes : un petit onglet « Sans titre » — le critère est le titre (2026-10-12)
+
+**Décision retournée.** Le 2026-10-11, la vue Notes avait reçu un onglet
+« À trier » : toute note reliée à rien, tant qu'on ne l'avait pas « gardée
+telle quelle ». Antonin, le 12 octobre : « Pour le "à trier", je ne suis pas
+d'accord. Je pense que oui, toutes les notes sans titre peuvent avoir un petit
+onglet à part. » Ce qu'il veut retrouver, c'est la note rapide (⌘⇧N, le
+raccourci de l'iPhone, le bouton « + ») jetée à la volée et jamais nommée.
+
+**Le critère vit dans `src/lib/notesSansTitre.ts`**, fichier pur. Une note est
+sans titre quand son titre est **vide** (ou fait d'espaces) ou **resté tel que
+l'app l'a écrit**. Le contenu ne compte pas : une note pleine de texte et sans
+titre y est ; une note titrée et vide n'y est pas.
+
+**Ce que l'app écrit réellement comme titre** (relevé dans le code) :
+
+- `createNote(t("Nouvelle note"), "")` — ⌘⇧N et le raccourci de l'iPhone
+  (`App.tsx`), la palette (`actions.ts`), le bouton « + » (`NotesView.tsx`).
+  Le titre est **traduit à la création, puis stocké** : « Nouvelle note » si
+  l'app était en français ce jour-là, « New note » si elle était en anglais. Il
+  ne change plus ensuite.
+- « Sans titre » — écrit par l'enregistrement de la vue quand on efface le
+  titre. Toujours en français, quelle que soit la langue (`TITRE_SI_VIDE`).
+- « … (copie) » / « … (copy) » — ajouté par « Dupliquer ». La copie d'une note
+  sans titre est sans titre aussi.
+
+Les deux langues sont donc reconnues **en même temps**, sans regarder la langue
+du jour : une note créée en anglais reste « sans titre » une fois l'app repassée
+en français, et une note venue d'un autre appareil aussi.
+
+**Trois règles à ne pas défaire :**
+
+1. **Si la traduction de « Nouvelle note », de « Sans titre » ou de
+   « {titre} (copie) » change dans `en.ts`, l'ancienne reste dans
+   `notesSansTitre.ts`.** Des notes la portent déjà en base. Un test lit
+   `en.ts` et tombe si la liste ne suit pas. Un autre test tombe si quelqu'un
+   ajoute une création de note vide sous un autre titre (« Note rapide »…) sans
+   l'apprendre au critère.
+2. **Le compte ne s'affiche que dans l'onglet.** Ni sur Aujourd'hui, ni dans la
+   barre latérale, ni en pastille. À zéro, aucun chiffre.
+3. **On sort de l'onglet en donnant un titre, et par rien d'autre.** Pas de
+   réglage, pas de geste « garder ». Dans l'onglet, ouvrir une note (clic sur la
+   ligne ou « Ouvrir » du menu — la même fonction, règle 18) met le curseur dans
+   son titre, le titre d'office sélectionné : taper le remplace. Hors de
+   l'onglet, ouvrir une note ne prend pas le clavier.
+
+**Un exemple de l'app suit la même règle que les autres.** Le critère est le
+titre, pas l'origine. Les exemples semés ont tous un titre : ils n'entrent dans
+l'onglet que si on le leur retire. (Le chantier précédent les excluait d'office ;
+cette exception n'a plus de raison d'être.)
+
+**La liste montre le début du texte à la place d'un titre d'office.** Avant,
+dix notes rapides étaient dix lignes « Nouvelle note », que seule l'ouverture
+distinguait. Une note sans titre montre maintenant le début de son texte, en
+maigre (le gras reste au titre donné) ; sans rien dedans, « Note vide » ; avec
+une image ou un dessin mais sans un mot, « Sans titre ». **C'est vrai dans les
+deux onglets**, pas seulement dans « Sans titre » : le défaut était dans la
+liste entière. La règle est `libelleDeLigne`, dans le même fichier pur.
+
+**Le champ du titre a un texte d'invite** (« Sans titre »). Un titre effacé
+laissait un champ invisible.
+
+#### Les limites du critère (connues, écrites dans le code)
+
+- Quelqu'un qui intitule **vraiment** sa note « Nouvelle note » la retrouve dans
+  l'onglet. Rien ne distingue ce titre du titre d'office sans une colonne.
+- Une note quitte l'onglet à l'**enregistrement** de son titre (0,7 s après la
+  frappe), pas à la première lettre. Elle reste ouverte dans l'éditeur.
+- Ailleurs dans l'app (palette ⌘K, mentions `@`, panneau des liens, corbeille),
+  une note sans titre s'appelle toujours « Nouvelle note ». Seule la liste de la
+  vue Notes montre le début du texte.
+
+#### Ce qui a été retiré du chantier `notes-a-trier`, et pourquoi
+
+Rien de tout cela n'avait été installé ; il n'y a pas de données à reprendre.
+
+- `src/lib/notesATrier.ts` et ses deux fichiers de tests (43 tests) : le critère
+  par les liens.
+- Le réglage `notes.rangees`. Si la clé existe dans une base, elle y reste,
+  inerte : plus rien ne la lit.
+- `fetchLiensDesNotes`, dans `repo.ts` et dans `demo.ts` : plus d'appelant.
+- La bande « À TRIER · Rattacher… · Garder telle quelle » de l'éditeur, et les
+  trois entrées de menu (« Rattacher… », « Garder telle quelle », « Remettre
+  dans « À trier » »). Le catalogue `menu/catalogue/note.tsx` reprend sa
+  signature d'avant : `entreesNote(note, gestes)`.
+- Les deux propriétés ajoutées à `PanneauLiens` (`onModifie`, `demandeAjout`) :
+  plus d'appelant. Le fichier est revenu, à l'octet près, à son état d'avant le
+  chantier.
+- Douze phrases de `en.ts` (le message du commit dit « onze » : c'est douze).
+
+**Ce qui a été gardé du chantier précédent :** le retour à la liste et le « + »
+à 44 pt au téléphone ; les onglets à 44 pt.
+
+**Deux réparations du chantier précédent n'ont plus d'objet, et sont parties
+avec ce qu'elles réparaient :**
+
+- « Le champ "Lier" garde la frappe quand on le demande depuis un menu » : la
+  réparation vivait dans `demandeAjout`. Plus aucun menu ne demande ce champ.
+  Le bouton « Lier » du panneau, lui, a toujours gardé la frappe.
+- « Une lecture ratée ne fait pas tomber la vue » : l'onglet ne lit plus rien en
+  base. Il n'y a plus de lecture qui puisse rater.
+
+### `telephone` — le tour complet au téléphone
+
+#### Fenêtres de saisie : le pied reste, le corps défile (2026-10-12)
+
+**Le défaut.** « Créer » passait sous le bas de « Nouvel objectif » dès qu'on y posait une étape et une tâche — au bureau à 900 px de haut, et au téléphone (crible du labo, constat 20 ; témoin A17-15). La carte entière défilait, boutons compris, sans rien qui l'annonce. « Nouvelle tâche » et « Nouvel événement » n'avaient **aucune** borne de hauteur : sur un écran bas elles sortaient par le haut et par le bas.
+
+**La règle, pour toute fenêtre de saisie : trois étages.** Le titre et le pied ne bougent pas ; seul le corps défile. La charpente est dans `src/index.css`, une fois :
+
+- `.fenetre-voile` sur le voile plein écran ;
+- `.fenetre` sur la carte (une colonne, bornée à la hauteur du voile, qui ne défile pas elle-même) ;
+- `.fenetre-colonne` sur le `<form>` s'il y en a un ;
+- `.fenetre-corps` autour des champs (c'est lui qui défile) ;
+- `.fenetre-pied` autour des boutons.
+
+**La borne de hauteur est « 100 % du voile », plus des `vh`.** Le voile occupe l'écran ; ses marges sont déjà retirées. Les anciens `90vh * var(--zoom-inv)` et « 78vh au doigt » de « Nouvel objectif » disparaissent : il n'y a plus de chiffre à tenir d'accord avec la densité.
+
+**L'indice de défilement.** Le bas du corps s'estompe sur 14 px. Quand tout tient, ces 14 px sont une marge vide et rien ne change à l'écran. Quand il reste du contenu dessous, il fond au lieu d'être tranché net.
+
+**Au téléphone, le voile réserve la barre d'onglets et l'encoche** (`html[data-telephone] .fenetre-voile`). La règle était écrite dans `DESIGN.md` et recopiée fenêtre par fenêtre ; elle est maintenant à un seul endroit.
+
+**Fenêtres passées aux trois étages :** objectif (`GoalModal`), tâche (`TaskModal`), événement (`EventModal`), type d'objet du Savoir (`EditeurType`), import de checklist (`ImporterChecklist`), trade (`TradeModal`, module mis de côté).
+**Fenêtres qui reçoivent seulement le voile et une borne** (pas de pied à boutons, ou module mis de côté) : IA (`FenetreIa`, `ReglagesIa`), offre (`UpgradeModal`), envoi au tracker (`SendToTrackerModal`), comptes Finance (`ComptesPanel`), confirmation de suppression d'un sujet (`KnowledgeView`).
+
+⚠️ **Les enfants du corps ne rétrécissent pas** (`.fenetre-corps > * { flex-shrink: 0 }`). Sans cela, un corps écrit en colonne flex comprime ses champs avant de défiler : la zone « Description » passait de 62 à 49 px.
+
+Tenu par `src/lib/fenetres.source.test.ts` (test de source : il lit le CSS et les six fichiers ; il échoue aussi si une nouvelle fenêtre centrée sur un voile n'a aucune borne de hauteur).
+
+#### Échap ne ferme qu'un étage : la couche du dessus écoute en capture (2026-10-12)
+
+**Le défaut.** Dans « Nouvel objectif », Échap sur le petit calendrier de date fermait toute la fenêtre et la saisie partait avec (témoin A17-01 de l'audit, toujours présent). Mesuré aussi sur « Nouvelle tâche » et « Nouvel événement ».
+
+**La cause.** La règle de la maison était écrite des deux côtés (« Échap lit `e.defaultPrevented`, puis marque »), et ne servait à rien : la fenêtre et le calendrier écoutaient tous deux `window` en phase de remontée, où les écouteurs passent **dans l'ordre où ils ont été posés**. La fenêtre, ouverte la première, lisait la touche avant que le calendrier ne l'ait marquée.
+
+**La règle complétée.** Une couche qui s'ouvre **par-dessus** une fenêtre écoute Échap **en phase de capture** (`addEventListener("keydown", f, true)`). Elle passe alors avant toutes les autres, quel que soit l'ordre d'ouverture. C'est ce que faisaient déjà le menu contextuel, `PanneauType` et `ImporterChecklist`. Le calendrier (`PanneauDate`, dans `ChampDate.tsx`) le fait maintenant ; il laisse aussi le clavier à un menu contextuel ouvert (`menuContextuelOuvert()`).
+
+La fenêtre d'événement ne lisait pas `defaultPrevented` du tout : corrigé.
+
+#### Au doigt, 44 pt sans y penser : la règle est posée sur le motif (2026-10-12)
+
+**Le défaut.** « Créer » 36 px, « 7 j » 26 px, « + Nouvel objectif » 36 px (constat 36). Chaque bouton devait porter `.cible-tactile` à la main, et un sur deux l'oubliait : la sonde comptait 204 cibles de moins de 44 px sur les treize écrans.
+
+**La règle générale**, sous `pointer: coarse` seulement (`src/index.css`) :
+- tout bouton en pastille (`button.pill`) fait au moins 44 × 44 ;
+- tout champ de saisie et toute liste déroulante font au moins 44 de haut.
+
+Le prochain bouton naît à la bonne taille. Le bureau ne bouge pas : la règle ne vit que sous pointeur grossier.
+
+**Trois précautions.** `button.pill` et pas `.pill` (la classe sert aussi aux jauges et aux badges). Pas les interrupteurs (`role="switch"`) : c'est leur ligne qui est la cible. `.cible-libre` sort un élément de la règle s'il en faut un jour.
+
+**Là où agrandir aurait écarté une ligne**, la zone de toucher grandit et la mise en page reste : la hauteur est reprise en marge négative (titre d'une tâche, titre d'une étape, date d'une ligne). Pour la croix d'un lien rapide (16 px, posée sur le coin d'une pastille), c'est un pseudo-élément invisible qui élargit la zone à 44.
+
+#### `telephone:` — une variante Tailwind, et `html[data-telephone]` (2026-10-12)
+
+`App.tsx` pose l'attribut `data-telephone` sur `<html>` d'après `useIsPhone()`. La feuille de style le lit ; **la condition « téléphone » n'est écrite qu'à un endroit** (`lib/platform.ts`). `telephone:p-4` s'écrit comme `sm:p-4`.
+
+À préférer à `sm:`/`lg:` quand on ne veut rien changer à une fenêtre de bureau étroite.
+
+**Premier usage : les marges de page.** Aujourd'hui, Journal, Timer, Calendrier, Réglages, Personnaliser et Savoir avaient 32 px de marge de chaque côté au téléphone ; Tâches, Objectifs et la corbeille en avaient 16. Les sept passent à 16 (`p-8 telephone:p-4`). Le contenu gagne 32 px de large : c'est ce qui rend leur longueur aux titres. ⚠️ **Performance garde 32 px** : un autre chantier tient ce fichier. À aligner après la fusion, en une classe.
+
+#### Au téléphone, une fenêtre ouverte ne glisse plus avec la page (2026-10-12)
+
+**Le défaut**, trouvé en pilotant l'app au doigt : « Nouvel événement » ouvert, un glissé parti du pied de la fenêtre faisait défiler la vue derrière, et **la fenêtre partait avec elle** (mesuré : 550 px au-dessus de l'écran). Ouvrir une fenêtre ramenait aussi la vue tout en haut.
+
+**La cause** est le piège du bloc conteneur (`PIEGES.md` § 9.5) : la zone qui défile porte `animate-fade-up`, qui tient un `transform` après l'animation. Le voile d'une fenêtre (`fixed inset-0`) n'est alors plus accroché à l'écran mais au contenu de la vue.
+
+**Au téléphone seulement**, l'entrée ne tient plus son `transform` (`.vue-defilante`, en bas d'`index.css`) : le voile redevient fixe à l'écran. Et tant qu'une fenêtre est ouverte, la vue derrière ne défile pas.
+
+⚠️ **Pas au bureau, exprès.** Ce même piège y centre les fenêtres dans la zone de contenu et laisse la barre latérale hors du voile : le lever déplacerait toutes les fenêtres. Le défaut y existe pourtant — voir PASSATION.
+
+#### Aujourd'hui au téléphone : les habitudes sous les tâches (2026-10-12)
+
+**Le défaut.** « Habitudes à tenir » était à plus de deux écrans de défilement (constat 14 ; le moment où l'utilisatrice du crible aurait fermé l'app). Au téléphone les cartes s'empilent dans l'ordre du bureau, colonnes gauche et droite entrelacées.
+
+**La règle : `ordreAujourdhuiAuTelephone`, dans `src/lib/grille.ts`.** Au téléphone, « habitudes » se place juste après « tasks ». Rien d'autre ne bouge. L'ordre du bureau et les réglages enregistrés ne sont pas modifiés : la règle s'applique à l'ordre rendu, au dernier moment (`ajusterOrdre`, nouvelle prop de `ResizableGrid`). Elle vaut donc aussi pour un ordre obtenu en glissant les cartes sur le bureau.
+
+Si la carte des tâches est masquée dans Personnaliser, les habitudes restent où elles sont.
+
+#### Les habitudes du Journal ont un nom, à toutes les largeurs (2026-10-12)
+
+**Le défaut.** Au téléphone, trois lignes « case, flamme, carrés » sans un mot (constat 8) : les quatorze carrés écrasaient la colonne du nom à une largeur nulle. Au bureau, le nom était figé à 128 px et coupé à côté d'une ligne vide.
+
+**Au bureau.** Le nom prend toute la place libre. La flamme et son chiffre se rangent contre les carrés, en colonne. C'est le seul changement de mise en page du bureau de ce chantier, et il est voulu.
+
+**Au téléphone.** Le nom sur la première ligne, avec la flamme et « ⋯ ». Dessous, **sept jours** au lieu de quatorze, en cases de 44 pt qui portent l'initiale du jour (aujourd'hui est souligné). Une case cochée prend la couleur de l'habitude en liseré et en fond léger. La règle « combien de jours » est `joursDeLigne` dans `src/lib/habitudes.ts`. Les douze semaines restent lisibles dans la grille au-dessus.
+
+L'info-bulle d'un jour dit maintenant la date en toutes lettres (« samedi 10 octobre »), plus « 2026-10-10 ».
+
+#### Un toast à geste dure quatorze secondes au doigt (2026-10-12)
+
+**Le défaut.** Le « Annuler » d'une suppression dure huit secondes et s'arrête tant que la souris est dessus. Au doigt il n'y a pas de survol : le compte court pendant qu'on lit et qu'on amène le pouce (constat 34, trois utilisateurs l'ont manqué).
+
+**La règle : `dureeAffichage`, dans `src/lib/toast.ts`.** Au doigt, un toast qui porte un geste (« Annuler », « Voir ») reste au moins 14 s. Un toast sans geste garde sa durée. À la souris rien ne change. La croix le referme à tout moment.
+
+#### La feuille « Plus » : le pied ne défile plus (2026-10-12)
+
+**Le défaut.** « Supprimés récemment » était la dernière ligne d'une feuille bornée à 78 % de l'écran : sous le pli (constat 34).
+
+**Ce qui change.** La feuille a trois étages : la poignée, la liste des modules (qui défile si besoin), et un pied fixe. Personnaliser, Réglages et Supprimés récemment y sont en **tuiles**, icône au-dessus du libellé, comme la barre d'onglets juste dessous. Ils sont à l'écran dès que la feuille s'ouvre, sur toute hauteur de téléphone. La feuille monte aussi plus haut (jusque sous l'encoche) : sur 844 pt, les neuf modules tiennent sans défiler.
+
+**Ce qui ne change pas** (décision de `MOBILE.md` § 5.4, non rouverte) : « Plus » liste **tous** les modules, y compris les quatre de la barre d'onglets, rangés par catégorie.
+
+#### La pastille du minuteur vit en bas, au téléphone (2026-10-12)
+
+**Le défaut.** Pendant une séance, la pastille flottante recouvrait le titre de chaque écran (constat 36). Sur un iPhone elle se serait posée sous l'encoche : sa position ne connaissait pas la zone sûre.
+
+**Au téléphone**, elle est en bas, au-dessus de la barre d'onglets, et fait 44 pt de haut. **Elle réserve sa place** par une variable (`--reserve-seance`), lue à trois endroits : le bas de chaque vue, le toast, le voile des fenêtres. Rien n'est recouvert en fin de défilement. Au bureau elle reste en haut.
+
+#### Divers, au doigt (2026-10-12)
+
+- **Titres coupés** (constat 36) : au doigt, pas de bulle pour lire la suite. Les titres de « En retard », du calendrier d'Aujourd'hui, d'« Objectifs en cours » et des séances du Timer passent à la ligne (`.truncate-souris`, déjà dans le dépôt). **La classe vaut maintenant aussi pour un titre coupé à deux lignes** (`clamp-2`) : posée avec lui, le titre reprend toutes ses lignes au doigt. C'est le cas des titres de « Tâches du jour » et de la vue Tâches.
+- **Timer** : au téléphone, les préréglages sont sur deux colonnes. À quatre de front, « POMODORO » était coupé à cinq lettres.
+- **Notes** : la carte de l'éditeur défile et l'éditeur garde un plancher de hauteur. Le champ « Lier » ouvert ne l'écrase plus et ne recouvre plus la barre d'outils (signalé par le chantier Notes).
+- **Calendrier** : les trois boutons d'une tâche reportée passent à la ligne (« Supprimer » était écrasé hors de sa pastille).
+
+### `fusion` — fusion et finitions
+
+#### Une note neuve reçoit le curseur dans son texte (2026-10-12)
+
+Après ⌘⇧N, le bouton « + », la palette ou le raccourci de l'iPhone, il fallait cliquer avant d'écrire. Une note prise à la volée s'écrit maintenant tout de suite : la vue Notes pose le curseur dans le texte d'une note **neuve** (sans titre et vide — `estNoteNeuve`, `src/lib/notesSansTitre.ts`) qu'on vient de demander. Ouvrir une note existante ne prend toujours pas le clavier ; dans l'onglet « Sans titre », ouvrir vise le titre.
+
+⌘⇧N et la palette passent par `ouvrirParId("note", id)` (`src/lib/naviguer.ts`) : la demande est déposée, la vue la trouve à son montage. L'ancien code changeait de vue puis émettait `sb:open-note` 60 ms plus tard — avant qu'une vue chargée en `lazy` soit là. La note s'ouvrait par chance (la plus récente est en tête de liste).

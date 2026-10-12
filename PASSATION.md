@@ -1835,3 +1835,371 @@ Suite du chantier du jour, même branche. Front seul : `Sidebar.tsx`, `lib/barre
 ⚠️ « Quitter » a réussi sans arrêter le processus (PIEGES § 35.8) : arrêté par son numéro, nouvelle instance vérifiée (numéro de processus différent). Antonin doit cliquer **« Toujours autoriser »**.
 ⚠️ Ce build ne contient PAS les huit commits de [correctifs] (`bdb8cc0`…`7923482` : jauge retirée, étape vide cochable, Notes « À trier ») : au moment du build ils n'étaient que dans le `mobile-ios` LOCAL du dossier principal ; ils ont été poussés pendant la compilation (vers 09:50). L'app installée est donc à `eff0b24`, huit commits derrière `origin/mobile-ios`.
 
+## 2026-10-12 — Les correctifs d'après le labo : Tâches, Aujourd'hui, Performance, Objectifs, Notes, téléphone ; la jauge d'énergie retirée
+
+**Tout est fusionné dans `mobile-ios` et poussé.** Aucune migration (base 30, dépôt 30). Du Rust est touché par `taches-jour` seulement (`src-tauri/src/notifications/` : le portage de la règle du jour). Suite complète au vert sur l'ensemble fusionné, machine calme : **169 fichiers, 2415 tests** (2025 la veille) ; `tsc`, `test:types`, `i18n:check` (0 manquante), `i18n:durs` (0 sûrement française).
+
+**Vérifié** : chaque chantier à l'écran, en mode démo dans Chrome (bureau, téléphone 390 px, anglais). **Pas vérifié** : l'app native et l'iPhone réel au moment où ces lignes sont écrites — l'installation fait l'objet de l'entrée suivante ; la synchronisation des nouveaux réglages (`taches.rangement`, `objectifs.heures_semaine`) entre deux appareils.
+
+**Reste, et qui décide** : les décisions listées dans `CLAUDE.md` (même date) ; garder ou retirer l'onglet « Par objectif » de Performance (à l'essai) ; le Timer (sa tuile « cette semaine » compte sept jours glissants, sans dates) ; la barre d'outils de l'éditeur de notes au téléphone (22 cibles sous 44 pt) ; la molette sur le voile d'une fenêtre au bureau ; un build iOS pour porter tout cela sur l'iPhone.
+
+**Worktrees laissés** dans `Shale-chantiers/` : sans-energie, taches-jour, etapes-cochables, notes-a-trier, performance-jour, telephone, etapes-taches, notes-sans-titre, finitions (branches toutes fusionnées) ; `src-tauri/target/` de taches-jour pèse plusieurs gigaoctets (compilation des tests Rust).
+
+### `sans-energie` — la jauge « Énergie restante » est retirée
+
+#### 2026-10-11 — Jauge « Énergie restante » retirée ; Aujourd'hui en deux colonnes
+
+Branche `chantier/sans-energie` (worktree `~/Desktop/Shale-chantiers/sans-energie`), depuis `mobile-ios` `147dc3e`. Commits `a77ea06` et `7f5a3ee`. **Ni fusionnée, ni installée.**
+
+**Fait.**
+- La carte d'Aujourd'hui, la section des Réglages, le compteur de minutes d'écran et les textes associés sont retirés pour tout le monde. La note « Énergie » du Journal n'est pas touchée.
+- Une disposition enregistrée qui porte `energy` se charge sans trou. Vu à l'écran avec les quatre réglages semés (`ui.config`, `order.today`, `hidden.today`, `layout.today`) : pas de carte vide, pas de pastille « masqués », Personnaliser ne liste plus la jauge.
+- Aujourd'hui, disposition par défaut : deux colonnes continues, plus de trou sous Discipline.
+- Fichiers touchés : `src/App.tsx`, `src/views/TodayView.tsx`, `src/views/SettingsView.tsx`, `src/components/Sidebar.tsx`, `src/components/grid/ResizableGrid.tsx`, `src/lib/uiConfig.ts` (+ test), `src/lib/grille.ts` (+ test, nouveaux), `src/lib/i18n/en.ts`, `src/lib/sync/scope.ts`, `src/lib/sync/outbox.test.ts`, `src/lib/calendrier/disponibilite.ts`, `src/lib/licence/catalogue.ts`, `src/lib/trading-de-cote.test.ts`. Supprimés : `src/components/MentalLoadGauge.tsx`, `src/lib/mentalLoad.ts`, `src/lib/mentalLoad.test.ts`.
+
+**Vérifié.** `tsc`, `test:types`, `i18n:check` (0 manquante, 2709 entrées), `i18n:durs` (0 sûrement française) verts. Vitest des zones touchées : 37 fichiers, 517 tests verts (`uiConfig`, `grille`, `sync`, `licence`, `calendrier`, `trading-de-cote`, `widgets-listables`). **La suite complète n'a pas été lancée** (consigne des correctifs du 11/10). À l'écran, en mode démo : Aujourd'hui au bureau (1440 et 1280), au téléphone (390), en anglais, en thème clair, compte habité et compte neuf ; Réglages en français et en anglais. Captures dans `~/Desktop/Shale-chantiers/captures-correctifs/sans-energie/`.
+
+**Pas fait.**
+- Aucune donnée nettoyée : `energy_*` et `screen_min_*` restent dans les bases (voulu).
+- `CLAUDE.md` garde le point 4 de la session du 12/07 (« Jauge de charge mentale ») et `PIEGES.md` son § 34 : ce sont des traces d'époque, à annoter « retirée le 2026-10-11 » à la fusion plutôt qu'à effacer.
+- Le site n'est pas touché (voir DETTE-SITE).
+
+**Pas vérifié.**
+- **Rien dans l'app native** (pas de build, consigne). En particulier : une vraie base qui porte des mois de `screen_min_*` et un `ui.config` enregistré.
+- **Le glisser d'un panneau** : l'outil du labo ne sait pas glisser. Seul « Reculer d'une place » (menu « ⋯ ») a été joué : la grille redevient libre, rien ne casse. Le moment où l'ancre tombe en plein glisser n'a pas été vu.
+- **Une fenêtre entre le téléphone et 1280 px** : l'outil n'a que trois tailles. La règle qui lâche l'ancre en fenêtre étroite est tenue par un test, pas par une capture.
+- La synchro réelle entre un appareil à jour et un appareil en ancienne version.
+
+**Vu en passant, pas corrigé (hors chantier).** Dans les Réglages en mode démo, un vide d'environ 200 px sépare « Synchronisation chiffrée » de « Données » : le panneau `settings-sauvegardes` a un plancher de 200 px et son contenu ne s'affiche que dans l'app native. C'est la démo, pas le produit. Il gêne la lecture des captures du labo.
+
+### `taches-jour` — la tâche du jour, l'ajout rapide daté, le report, « En retard », Tâches par objectif
+
+#### Fait
+
+1. **La définition du jour** : `estPrevueLe`, `todayTasks`, `statDeListe`, `dayStat`, `tachesAFaire` (`lib/logic.ts`), `tachesEnRetard` (`lib/taches.ts`) ; l'anneau, le brief, la revue, le minuteur, la palette ; le portage Rust.
+2. **L'ajout rapide daté** : `lib/taches/saisieRapide.ts`, `components/taches/SaisieRapide.tsx`, branché dans Tâches et dans la carte d'Aujourd'hui.
+3. **Le report sur place** : le sous-menu « Dater », le calendrier flottant, la date-bouton, `replanifier()` dans le geste commun.
+4. **Aujourd'hui** : la ligne « En retard », la carte « Objectifs en cours » sur les racines, le retard dans la liste Objectifs.
+5. **Le menu** : « ⋯ › Renommer », « Focus 25 min » dans Tâches, le « ⋯ » visible au repos.
+6. **Le rangement par objectif**, retenu.
+
+#### Pas fait
+
+- **La vue Performance** n'est pas touchée (un autre chantier la reprend). Elle lit la nouvelle définition par `todayTasks` et `dayStat`. La limite « une tâche datée pas faite sort du compte à minuit » lui est laissée.
+- **La page d'un objectif et la feuille de route** ne sont pas touchées. Leur menu de tâche reçoit les nouvelles entrées de « Dater » (c'est le catalogue commun), sans « Focus 25 min ».
+- **Les étapes en retard** ne sont signalées ni sur Aujourd'hui ni dans la carte : seulement les objectifs racines.
+- **Le « ▶ » de la carte d'Aujourd'hui** n'apparaît toujours qu'au survol de la ligne. Sa fonction est dans le « ⋯ », lui visible au repos.
+- **Les autres listes de l'app** (notes, fiches, étapes…) gardent un « ⋯ » révélé au survol. Seules les lignes de tâche l'ont visible au repos.
+- **Renommer une tâche** ne lit pas de date dans le nouveau nom : seul l'ajout rapide le fait.
+- **`lib/ia/revue.ts` garde sa copie de la règle « prévue ce jour-là »** (voir CLAUDE) : une ligne à changer après la fusion.
+- **⌘Z sur une suppression, les habitudes, le Calendrier, le site** : hors mission.
+- **Le « + 1 jour » d'une routine** n'existe pas : « Dater » reste grisé pour une tâche récurrente, avec sa raison.
+
+#### Pas vérifié
+
+- **Rien n'a été vu dans l'app native** (macOS ni iPhone) : seulement le mode démo, sous Chrome sans fenêtre, au pilote du labo. Pas de build natif (interdit pendant les chantiers). En particulier : le calendrier flottant et le clavier logiciel d'iOS ; la notification « série en danger » réelle.
+- **Le Rust est testé, pas exécuté dans l'app** : `cargo test --lib notifications::` passe (131 tests), mais la notification n'a pas été déclenchée sur une vraie base.
+- **La synchronisation du réglage `taches.rangement`** entre deux appareils n'a pas été essayée. Il suit le chemin de `perf.plage`.
+- **La suite complète (`npm test`) n'a pas été jouée** (consigne : quatre chantiers en parallèle). Jouées : les zones touchées, 41 fichiers, 737 tests.
+- **La fusion** avec `mobile-ios` n'a pas été faite, mais elle a été **simulée sans rien fusionner** (`git merge-tree`, contre `mobile-ios` `7923482`) : **aucun conflit**. Cinq fichiers sont touchés des deux côtés et se fusionnent seuls : `src/views/TodayView.tsx`, `src/App.tsx`, `src/lib/i18n/en.ts`, `src/views/GoalsView.tsx`, `src/lib/logic.ts` (`effectiveProgress` n'y est pas touché). Sur une copie de l'arbre fusionné : `tsc --noEmit` passe, `i18n:check` donne 0 clé manquante, 33 fichiers de tests des zones touchées passent (578 tests). La suite complète reste à jouer après la vraie fusion.
+- **Le thème clair** a été vu en anglais (bureau et téléphone), pas en français.
+- **Le compte neuf** a été vu au bureau en français, pas au téléphone.
+
+#### À décider par Antonin
+
+1. **Cocher une tâche sans date ou en retard la fait entrer dans la liste et la Discipline du jour, comme faite.** Voulu ici pour que le chiffre du soir soit celui du lendemain. L'autre lecture de la demande : seules les tâches datées d'aujourd'hui comptent, faites ou non.
+2. **Un jour passé ne compte pas une tâche datée de ce jour et jamais faite.** Le chiffre monte donc à minuit. Le compter demanderait de garder l'histoire des dates d'une tâche. À trancher avec le chantier Performance.
+3. **« jeudi » tapé un jeudi = dans sept jours.** L'autre choix serait aujourd'hui.
+4. **« + 1 jour » et « Demain » coexistent** dans le menu, même quand ils écrivent la même date.
+5. **Les étapes en retard** : faut-il les montrer sur Aujourd'hui ?
+
+### `etapes-cochables` — une étape vide se coche et compte
+
+#### 2026-10-11 — Étapes cochables (branche `chantier/etapes-cochables`, NON fusionnée, NON installée)
+
+**Fait**
+- La règle de mesure (`src/lib/objectifs/progression.ts`) : étape vide = unité à cocher ; pannes à 0 chez le parent ; `estAcheve` = 100 % ; `pourcentDe` ; `estCochee` ; objectif d'exemple mesuré sur ses exemples.
+- L'accès `cocherEtape(id, faite)` dans `repo.ts` et `demo.ts`. Il n'écrit que `progress_pct`, ne touche jamais une ligne suivie à la main, n'adopte pas un exemple.
+- Les libellés (`libelles.ts`) : « 1 étape sur 3 · 2 tâches sur 5 » ; `pourquoiVide` devient `pourquoiSansMesure` (pannes seulement). Sept clés anglaises retirées (elles expliquaient pourquoi une étape vide « ne comptait pas »), quatorze ajoutées (`en.ts`, dans le bloc des objectifs, pas en fin de fichier).
+- La feuille de route (`FeuilleDeRoute.tsx`) : case sur la ligne d'une étape vide, bascule optimiste, entrée « Marquer faite / Marquer à faire » dans le menu « ⋯ » (même fonction). Rangée d'ajout au niveau de l'objectif. `AjoutEtape` est scindé (`ChampEtape`).
+- La page d'un objectif (`GoalsView.tsx`, fonction `page` et menu) : case « Atteint » pour un objectif vide ; entrée de menu « Marquer atteint / Marquer non atteint ». ⚠️ La LIGNE de la liste (`ligneListe`) n'est pas touchée : elle lit seulement le nouveau chiffre.
+- `effectiveProgress` (`logic.ts`, une ligne), `calendrier/peril.ts`, `ia/revue.ts` (une ligne) : délégation à `pourcentDe`.
+- Tests : `progression.test.ts` (bloc de l'ancienne règle mis à jour EXPRÈS, daté, chaque ancien chiffre gardé en commentaire ; nouveaux tests : 0 / 100, 33 %, bascule, sans perte, manuel souverain, pannes, exemple A06a-02), `fil.test.ts`, `libelles.test.ts` (français et anglais), `charge.test.ts` (péril), `cocher.api.test.ts` (natif SQLite et démo, 12 tests).
+
+**Vérifié**
+- `npx tsc --noEmit` : vert. `npm run test:types` : vert. `npm run i18n:check` : 0 manquante (2730 entrées), 0 doublon. `npm run i18n:durs` : 0 sûrement française.
+- `npx vitest run src/lib/objectifs src/lib/logic src/lib/calendrier src/lib/onboarding` : 21 fichiers, 415 tests, verts. Aussi `src/lib/ia src/lib/carteEtat src/components src/views` : verts.
+- À l'écran, au pilote du labo, build démo du commit (captures dans `~/Desktop/Shale-chantiers/captures-correctifs/etapes-cochables/`) :
+  - compte habité, bureau, français : objectif à trois étapes, une cochée → 33 % sur la page, dans la liste et sur Aujourd'hui ; tâche ajoutée à l'étape cochée → la case part, 0 % ; tâche détachée → la case revient cochée ; décoché par le menu ; objectif sans étape : deux tâches ajoutées directement (50 % après une coche), puis vidé et coché « Atteint » (100 %, « Atteint » dans la liste) ; phase vide cochée ;
+  - téléphone 390 px, français : la même feuille de route, case cochée au doigt, tâche ajoutée à l'objectif ;
+  - téléphone, anglais : objectif sans étape, tâche directe, « Reached » ;
+  - bureau, anglais, thème clair : « 1 step out of 3 » ;
+  - compte neuf (accueil passé), bureau français puis téléphone anglais : A06a-02 rejoué, 0 % → 50 % → 100 %.
+
+**PAS fait**
+- **Aujourd'hui, Tâches, Calendrier, accueil, IA, liste des objectifs** : hors périmètre, non touchés (sauf la ligne de délégation de `ia/revue.ts`).
+- **La phrase de l'accueil** (`components/onboarding/Accueil.tsx`) : « Une étape avance quand tu coches ses tâches, ou quand tu atteins un nombre que tu t'es fixé… » ne dit pas qu'une étape vide se coche. À compléter par qui a l'accueil. Deux commentaires (`Accueil.tsx` l. 124, `onboarding/semer.ts` l. 195) citent encore « 0/1 élément » : l'écran dit maintenant « 0 tâche sur 1 ».
+- **A06a-03** (un objectif « Atteint » dès 99,5 %, à cause de l'arrondi) : toujours présent, pas de ce chantier.
+- **Événements rattachés : deux chiffres possibles, défaut ANTÉRIEUR.** La page et la liste des objectifs lisent les événements rattachés ; la carte d'Aujourd'hui, le relevé quotidien, le péril et la revue de l'IA ne les lisent pas (ils n'ont pas les arêtes). Un objectif dont le seul élément est un événement peut donc afficher un chiffre différent sur Aujourd'hui. Non corrigé : il faut charger les arêtes dans `GoalsPreview.tsx`, que le chantier voisin touche.
+- **Cocher une étape depuis la carte mentale** : pas fait. La carte montre le bon pourcentage, elle ne coche pas l'étape.
+- **`DESIGN.md`** : non modifié (voir « Dessin » ci-dessus, à recopier).
+- **Vocabulaire phase / sous-objectif / étape** : non touché.
+
+**PAS vérifié**
+- L'app native (SQLite réel dans Tauri, iPhone) : rien n'a été construit ni installé. Le chemin natif de `cocherEtape` est tenu par un test sur une vraie base SQLite, pas vu dans l'app.
+- La synchronisation entre deux appareils : la coche voyage dans une colonne déjà synchronisée, non rejoué. Un appareil resté sur l'ancienne version affiche une étape cochée comme avant (« — », exclue).
+- La suite complète `npm test` : non jouée (consigne). Le build Rust : non concerné.
+- La hauteur de la case au doigt : vue sur capture en émulation 390 px, pas mesurée au pixel ni sur un vrai téléphone.
+- Le relevé quotidien de Performance : la courbe « Objectifs » marquera une marche vers le bas le jour de la mise à jour pour tout objectif qui a des étapes vides. Non vu à l'écran.
+
+**À décider par Antonin**
+1. Ajouter une tâche à une étape cochée remet l'étape à 0 % (et fait baisser l'objectif). La coche revient si l'étape redevient vide. Est-ce le comportement voulu, ou préfères-tu que la coche soit effacée pour de bon à ce moment-là ?
+2. Un réglage cassé (cible à zéro, source supprimée) pèse maintenant 0 chez son parent, au lieu d'être ignoré. C'est la suite logique (« ce qui est à l'écran compte »), mais c'est un second changement de chiffre.
+3. Le vocabulaire (constat 22), voir l'avis dans la section CLAUDE.
+
+### `etapes-taches` — une chose à faire est une tâche ; « étape », et « phase » quand elle en contient d'autres
+
+#### 2026-10-12 — Étapes et tâches (branche `chantier/etapes-taches`, NON fusionnée, NON installée)
+
+**Fait**
+- Les règles pures : `lib/objectifs/structure.ts` (`natureDe`, `peutAjouterEtape` sans genre, `premierAccueil`, `peutRangerSous`, `hauteurSous`, `cleDeNature` ; `peutPromouvoir` et `peutRetrograder` supprimées), `lib/objectifs/ajout.ts` (ce qui s'écrit pour une étape neuve), `lib/objectifs/conversion.ts` (le plan de conversion), `lib/objectifs/libelles.ts` (`nomDeNature`, `aideDeNature`, `deplieParDefaut` par contenu ; `nomDeGenre` et `aideDeGenre` supprimées), `lib/objectifs/typage.ts` (le menu « Type » : `planDirect` à trois types ; `planEtape`, `planHabitude`, `planTache`, `genresPour` supprimées, plus aucun écran ne les appelait).
+- Les écritures : `lib/objectifs/ajouter.ts` (`ajouterEtape`), `repo.ts` (`convertirEtapeEnTache`, `annulerConversionEnTache`), `lib/objectifs/typer.ts`, `lib/ia/planifier.ts`.
+- Le genre lu dans le contenu partout où il se dessine : `lib/objectifs/carte.ts`, `lib/carteEtat.ts`, `repo.infosDeCartes` (en SQL) et `demo.infosDeCartes`.
+- Les écrans : `components/objectifs/FeuilleDeRoute.tsx` (ligne, menu, champ d'étape, légende), `RattacherElement.tsx` (rangée d'ajout), `gesteConversion.tsx` (nouveau), `GoalModal.tsx` (bloc « Par quoi commencer » et liste des parents seulement — la structure de la fenêtre n'est pas touchée, le chantier `telephone` s'en occupe), `views/GoalsView.tsx` (menu, focus par défaut), `components/carte/EditeurCarte.tsx`, `PanneauType.tsx`, `components/objectifs/CarteObjectif.tsx`, `components/ia/ActionsIa.tsx`, `components/corbeille/geste.tsx`, `components/icons.tsx` (`IconEtape`), `lib/carte.ts` (le même tracé pour le rendu enregistré).
+- `DESIGN.md` : un bloc daté du 2026-10-12 en tête de la section du vocabulaire, et les tableaux mis à jour.
+- Des commentaires qui décrivaient le présent avec l'ancien mot sont mis à jour (corbeille, calendrier, types) : aucun code changé dans ces fichiers.
+- Tests neufs : `structure.test.ts` (19), `conversion.test.ts` (15), `conversion.api.test.ts` (16 : natif SQLite et démo), `ajouter.api.test.ts` (6 : natif et démo). Tests mis à jour EXPRÈS, datés, l'ancien comportement gardé en commentaire : `libelles.test.ts`, `progression.test.ts` (bloc « profondeur »), `typage.test.ts`, `carteEtat.test.ts`, `ia/planifier.test.ts`.
+
+**Vérifié**
+- `npx tsc --noEmit` : vert. `npm run test:types` : vert. `npm run i18n:check` : 0 clé manquante (2832 entrées). `npm run i18n:durs` : 0 sûrement française.
+- `npx vitest run src/lib/objectifs src/lib/logic src/lib/calendrier src/lib/onboarding src/lib/corbeille src/lib/carte src/lib/ia src/lib/carteEtat src/components src/views src/lib/i18n src/lib/performance src/lib/taches` : 68 fichiers, 1151 tests verts, 1 sauté (il l'était déjà).
+- Le test d'accès attrape une régression : deux lignes retirées exprès de `convertirEtapeEnTache` ont fait échouer 4 tests, puis remises.
+- À l'écran, au pilote du labo, builds démo (captures dans `~/Desktop/Shale-chantiers/captures-correctifs/etapes-taches/`) :
+  - compte habité, bureau, français (commit 84917b3) : la fenêtre de création (tâches d'abord) ; une tâche puis deux étapes ajoutées à un objectif ; une étape sous une étape, qui devient une phase (dossier, cadre plein) ; une étape vide convertie, les compteurs passent de « 0 étape sur 3 · 0 tâche sur 2 » à « 0 étape sur 2 · 0 tâche sur 3 », 0 % avant et après ; la tâche retrouvée dans Tâches (« Sans date », avec son objectif) et l'étape dans Supprimés récemment ; « Annuler » rend l'étape ; le menu « ⋯ » d'une étape vide ; la bande « Sa description ne suit pas… » ; la seule étape d'une phase convertie (« 0 étape sur 1 » devient « 0 tâche sur 1 ») ; la carte mentale de l'objectif et son menu d'ajout ; le menu « Type » d'un nœud dans la carte d'une note, l'étape rangée sous un objectif choisi, puis le repli « la feuille de route n'a que trois niveaux » ;
+  - téléphone 390 px, français : deux étapes, une étape sous une étape, la conversion et son toast ;
+  - bureau, anglais, thème clair : la fenêtre de création, « Phase · Step · Task », « Make it a task », le toast « … is now a task », le menu de la carte ;
+  - compte neuf, bureau, français (commit 7c9a2d5), accueil joué en entier : l'objectif de l'accueil et ses deux étapes (enregistrées comme phases, affichées comme étapes) ; un objectif créé nu s'ouvre sur le champ « Tâche » ; l'objectif d'exemple ;
+  - compte neuf, téléphone, anglais : la fenêtre de création ;
+  - compte habité, bureau, français (commit b25f804, le dernier) : une étape citée par `@` dans une note, la bande « Citée 1 fois… », la conversion, la note rattachée à l'objectif.
+
+**PAS fait**
+- **Aujourd'hui, Tâches, Performance, le Calendrier, les fenêtres au téléphone, le serveur d'IA, le site** : hors périmètre, non touchés. Dans `calendrier/agenda.ts` et `calendrier/peril.ts`, seuls trois commentaires ont changé.
+- **Le serveur d'IA** : `decomposer_objectif` et ses prompts disent toujours « sous-objectifs ». Les réponses de l'IA peuvent donc employer le mot dans un titre qu'elle propose.
+- **Le sélecteur `@` et Supprimés récemment** nomment une étape par sa famille : « Objectif », « Objectifs ». Non changé (il faudrait que ces listes connaissent le parent de la ligne).
+- **Le Calendrier** écrit « étape de … » : déjà le bon mot, non relu.
+- **L'import d'une liste** (`lib/objectifs/importChecklist.ts`) : le modèle de texte à donner à une IA dit encore « Une sous-étape (facultative, seulement sous une étape) ». C'est une consigne de format, pas un nom de l'app. Laissé. À décider.
+- **« dont 2 phases »** dans « En faire un objectif » (`DepuisCarte.tsx`) et dans l'import : gardé, c'est le bon mot (des étapes qui en contiennent d'autres).
+- **La phrase de l'accueil** (`components/onboarding/Accueil.tsx`) : non touchée. Elle reste vraie.
+- **Convertir depuis la carte mentale** : pas fait. La carte ne propose pas « En faire une tâche ».
+- **Convertir un objectif racine vide en tâche libre** : pas fait, pas demandé.
+
+**PAS vérifié**
+- L'app native (SQLite dans Tauri, iPhone) : rien n'a été construit ni installé. Le chemin natif de la conversion et de l'ajout est tenu par des tests sur une vraie base SQLite, pas vu dans l'app.
+- La synchronisation entre deux appareils : non rejouée. Un appareil resté sur l'ancienne version verra « Phase » ou « Sous-objectif » selon `is_milestone`, et ne pourra pas ajouter d'étape sous une étape que la nouvelle version n'a pas encore fait devenir phase.
+- La suite complète `npm test` : non jouée (consigne).
+- Les bulles (survol prolongé) : écrites, pas vues à l'écran.
+- « Annuler » au doigt : vu sur le bureau seulement. Le thème clair : vu sur le bureau en anglais seulement.
+- La conversion d'une étape qui porte une tâche récurrente : prouvée par test (natif et démo), pas vue à l'écran.
+- Le bloc ENREGISTRÉ d'une carte dans le corps d'une note (le losange dans l'image figée) : vu dans l'éditeur de carte, pas dans la note refermée.
+- La hauteur au doigt de « En faire une tâche » : vue sur capture à 390 px, pas mesurée au pixel.
+- La vraie base d'Antonin : non relue aujourd'hui (poids des étapes, étapes vides).
+
+**À décider par Antonin**
+1. Les notes rattachées à une étape convertie passent à l'objectif (ou à l'étape au-dessus), pas à la tâche. Est-ce ce que tu veux ?
+2. L'étape convertie reste 30 jours dans Supprimés récemment ; la restaurer plus tard fait un doublon avec la tâche. Préfères-tu qu'elle soit effacée pour de bon une fois le toast passé ?
+3. Un objectif créé nu s'ouvre sur le champ « Tâche ». À garder ?
+4. Le losange comme icône de l'étape.
+5. Le sélecteur `@` et Supprimés récemment disent « Objectif » pour une étape : faut-il qu'ils disent « Étape » ?
+6. Le modèle d'import dit « sous-étape » : à remplacer par « une étape sous une étape » ?
+
+### `performance-jour` — Performance au jour même, et « Par objectif » à l'essai
+
+#### 2026-10-11 — `performance-jour`
+
+**Fait**
+- Rangée « Aujourd'hui », dates sur chaque chiffre, « hors compte » sous « Tâches tenues », légendes complètes, un seul mot pour la série, messages vides corrigés, barre du jour dans le focus, carré du jour jamais rouge.
+- Onglet « Par objectif » : heures passées / promises, reste d'ici dimanche, huit semaines précédentes, hors objectif, faits d'échéance, état sans minuteur.
+- Promesse dans `settings` (`objectifs.heures_semaine`), écrite par l'onglet et par l'accueil.
+- Accueil : la case d'heures allumée est retenue pour l'objectif planté.
+- Anglais : 83 clés ajoutées, dans un bloc placé après les clés de Performance (pas en fin de fichier).
+
+**Fichiers touchés**
+- Nouveaux : `src/lib/performance/{jour,dates,durees,parObjectif,promesses,promessesAcces}.ts`, leurs tests (`jour.test.ts`, `dates.test.ts`, `parObjectif.test.ts`, `promesses.test.ts`, `promesses.api.test.ts`), `src/components/performance/{ParObjectif,RangeeAujourdhui}.tsx`.
+- Modifiés : `src/views/PerformanceView.tsx`, `src/components/performance/Discipline.tsx`, `src/lib/performance/analyse.ts` et son test, `src/lib/onboarding/{planification,semer}.ts`, `planification.test.ts`, `src/components/onboarding/Accueil.tsx`, `src/lib/i18n/en.ts`.
+
+**Vérifié par les tests** (`npx vitest run src/lib/performance src/lib/onboarding src/lib/sync/scope src/lib/sync/outbox.test.ts src/lib/i18n` : 12 fichiers, tout passe)
+- le jour en cours à part et hors des moyennes ; A07b-06 ; lignes + hors objectif = total ; semaine du lundi au dimanche ; pas de zéro avant la création ; les faits de date ; la clé synchronisable ; la promesse écrite seulement quand elle change, des deux côtés (vraie base SQLite et démo) ; l'accueil qui écrit la promesse.
+- `npx tsc --noEmit`, `npm run test:types`, `npm run i18n:check` (0 manquante), `npm run i18n:durs` (0 sûrement française) : propres.
+- ⚠️ La suite complète (`npm test`) n'a PAS été jouée (règle du soir : quatre chantiers en parallèle).
+
+**Vu à l'écran** (mode démo, Chrome sans fenêtre ; captures dans `~/Desktop/Shale-chantiers/captures-correctifs/performance-jour/`)
+- Compte neuf, accueil joué en choisissant 5 h, une séance d'une minute liée à la première tâche : la rangée « Aujourd'hui » montre « 1 min » ; « Par objectif » montre « 1 min / 5 h » et « reste 4 h 59 d'ici dimanche ». Rejoué aussi sans cliquer de case : la case allumée (10 h) est retenue.
+- Compte habité : les deux vues, 7 j et 30 j ; promesses posées, changées, saisie « 2h30 » lue 2,5, saisie illisible refusée ; le titre d'une ligne ouvre l'objectif.
+- Téléphone (390 px, au doigt), anglais, thème clair : les deux vues.
+- Les bulles (tuile Tâches, tuile Focus, écart, seuil de 80 %) : lues à l'écran par survol.
+
+**Recoupement avec le Timer, le 12 octobre (compte habité)**
+- Timer « aujourd'hui » 25 min = rangée « Aujourd'hui » 25 min = « Par objectif », total de la semaine 25 min (un lundi, la semaine commence).
+- Timer « cette semaine » 8 h 15 (6–12 oct.) ; Performance « 7 j » 9 h 35 (5–11 oct.). L'écart vient des deux jours qui ne sont pas communs : Performance compte le 5 octobre et pas aujourd'hui, le Timer l'inverse. 9 h 35 − 1 h 45 (le 5 octobre, déduit et cohérent avec sa barre) + 25 min (aujourd'hui) = 8 h 15. La bulle de la tuile Focus écrit « 8 h 15 ».
+- Compte neuf : Timer 1 min partout, Performance 1 min aujourd'hui, « Par objectif » 1 min. Aucun écart.
+
+**PAS fait**
+- Le Timer : aucune date sous sa tuile « cette semaine ». Vu en passant, pendant une séance en cours : sa carte « sessions du jour » dit « Aucune session aujourd'hui — lance la première. ».
+- Les comptes qui ont déjà passé l'accueil n'ont aucune promesse : elle n'est pas relue dans la phrase de la description (deviner un nombre dans un texte, en deux langues, a été écarté). Elle se tape dans l'onglet.
+- La phrase de la description ne change pas quand la promesse change (relevé par le jury du labo).
+- Aucun rappel de la promesse dans Aujourd'hui ; rien sur la page d'un objectif.
+- Pas d'historique des promesses.
+- La tuile « Jours tenus d'affilée » : son nom, plus long, passe sous les poignées de la grille quand on survole le panneau des tuiles.
+- En anglais, les durées gardent le format français (« 2 h 30 ») — déjà noté le 2026-10-10.
+- La période de l'onglet ne s'applique toujours pas à la carte « Objectifs » ni aux métriques (elles écrivent maintenant leurs propres dates).
+- Clés anglaises devenues sans appelant, laissées : « Série en cours », « Historique des streaks », « focus — par semaine », « sur 7 jours », « Pas encore de streak… ».
+
+**PAS vérifié**
+- Rien n'a été vu dans l'app native (WKWebView) ni sur iPhone réel : seulement en démo sous Chrome.
+- La promesse entre deux appareils : prouvée jusqu'à la file d'envoi sur une vraie base, pas sur un vrai échange.
+- `Intl.DateTimeFormat.formatRange` sous WKWebView : présent depuis Safari 14.1 ; un repli existe, non vu.
+- Le dimanche (« reste … d'ici ce soir ») et le changement de semaine : tenus par les tests, pas vus à l'écran.
+
+**À décider par Antonin**
+1. Garder l'onglet « Par objectif », ou le retirer. S'il reste : une colonne sur `goals` à la place du réglage.
+2. Le Timer : écrire ses dates, ou passer sa « semaine » du lundi au dimanche.
+3. A07b-06 : la tuile dit ce qu'elle ne compte pas. L'autre voie (faire peser une tâche reportée sur son jour) se décide dans `dayStat`, donc pour l'anneau, les séries et les notifications.
+4. L'accueil : la case allumée vaut pour l'objectif planté seulement. Faut-il aussi qu'elle crée « Récupérer N h par semaine » quand l'écran suivant est laissé vide ? Aujourd'hui non.
+
+### `notes-sans-titre` — l'onglet de Notes devient « Sans titre »
+
+**Fait, sur `chantier/notes-sans-titre` (un commit, `0d95dde`) :**
+
+- L'onglet « Sans titre » (« Untitled ») à côté de « Toutes les notes », avec
+  son compte ; à zéro, pas de chiffre ; vide : « Aucune note sans titre. ». La
+  recherche filtre aussi dans l'onglet.
+- Dans l'onglet, ouvrir une note met le curseur dans son titre.
+- Dans la liste (les deux onglets), une note sans titre montre le début de son
+  texte.
+- Le critère dans `src/lib/notesSansTitre.ts` : 38 tests (22 purs, 16 par l'API
+  publique sur vraie base SQLite et en démo).
+- Tout ce qui servait « À trier » est retiré (liste ci-dessus).
+- Trois phrases ajoutées à `en.ts`, douze retirées.
+
+**Vu à l'écran, au pilote, en mode démo** (captures dans
+`~/Desktop/Shale-chantiers/captures-correctifs/notes-sans-titre/`) : bureau en
+français, bureau en thème clair, bureau en anglais, écran de portable
+(1280 px), téléphone 390 px en français et en anglais, compte neuf. Joué : trois
+notes par ⌘⇧N, chacune paraît dans l'onglet avec le début de son texte ; un
+titre donné, elle en sort ; le titre effacé, elle y revient ; l'état vide sur
+le compte habité et sur le compte neuf.
+
+**PAS fait :**
+
+- La note rapide ne met pas le curseur dans le texte. Après ⌘⇧N, la note
+  s'ouvre mais il faut cliquer dans le texte pour écrire. C'était déjà le cas
+  avant ce chantier ; vu au pilote, pas corrigé (hors mission).
+- Rien dans la palette ⌘K ni dans la recherche : une note sans titre s'y
+  appelle toujours « Nouvelle note ».
+- Aucun compteur ailleurs dans l'app — exprès.
+
+**PAS vérifié :**
+
+- **L'app native** (macOS, iPhone) : aucun build natif. Le critère est prouvé
+  sur une vraie base SQLite par les tests, pas l'écran.
+- **Le clavier de l'iPhone.** Dans l'onglet, toucher une note met bien le
+  curseur dans le titre au pilote. Sur un vrai iPhone, iOS n'ouvre pas toujours
+  le clavier pour un curseur posé par le code : il faudra peut-être toucher le
+  titre. À regarder au prochain build.
+- **Le raccourci de l'iPhone** (AppIntent) : il appelle la même fonction que
+  ⌘⇧N, qui a été jouée au pilote.
+- **Une note créée en anglais puis relue en français** : prouvé par les tests
+  (les deux titres sont reconnus quelle que soit la langue), pas joué à l'écran
+  — le pilote ne change pas de langue en cours de séance.
+- La suite de tests complète (`npm test`) : non lancée, par consigne.
+
+### `telephone` — le tour complet au téléphone
+
+#### Fait
+
+Les constats du crible, vus au téléphone. Les captures sont dans `~/Desktop/Shale-chantiers/captures-correctifs/telephone/` : `avant/` (la version de départ), `apres/` (le dernier commit, `b5cbe4d` : français, anglais, thème clair, compte neuf, bureau à 900 et 700 px de haut ; `apres-6944dbe/` est la même série sur le commit d'avant), `bureau/` (la comparaison de mise en page), `outils/` (la sonde et ses rejeux). Les dossiers `essai1` à `essai3` sont des passes intermédiaires.
+
+| Constat | État | Mesure |
+|---|---|---|
+| 8 — habitudes sans nom au Journal | corrigé, téléphone et bureau | les trois noms entiers, 176 px de large au téléphone |
+| 14 — habitudes tout en bas d'Aujourd'hui | corrigé au sens de la demande | « Habitudes à tenir » à 1 420 px du haut au lieu de 1 980 ; **voir « À décider »** |
+| 20 / A17-15 — « Créer » sous le bas de la fenêtre | corrigé, toutes les fenêtres de saisie | bouton visible au bureau à 900 et 700 px de haut, et au téléphone |
+| A17-01 — Échap ferme toute la fenêtre | corrigé : objectif, tâche, événement | le calendrier se ferme, la fenêtre reste, le titre saisi est intact |
+| 34 — « Annuler » parti trop tôt | corrigé | encore là à 13 s, parti à 16 s ; boutons de 44 pt |
+| 34 — « Supprimés récemment » sous le pli | corrigé | visible sans défiler, tuile de 91 × 72 |
+| 36 — titres coupés | corrigé sur Aujourd'hui et le Timer | plus aucun texte coupé sans recours sur les treize écrans |
+| 36 — boutons de 26 à 38 px | corrigé | 204 cibles sous 44 px avant, voir le tableau |
+| 36 — pastille du minuteur sur le titre | corrigé | en bas, 44 pt de haut, titre dégagé |
+| 36 — l'onglet Tâches se rouvre en bas de liste | **non reproduit** | quitté défilé à 310/310, rouvert à 0 ; le crible l'avait classé « incertain » |
+| « Lier » écrase l'éditeur (chantier Notes) | corrigé | barre d'outils 109 px, texte 183 px, panneau dessous |
+
+Ce qui vient d'être livré (partie 2), rejoué au doigt sur compte habité et compte neuf : l'ajout rapide et sa pastille de date, le calendrier ouvert sur place (il tient dans l'écran, entre 8 et 545 px de haut), le menu « ⋯ › Dater », la ligne « En retard », « Par moment / Par objectif », la case d'une étape vide et la rangée « Ajouter une étape · Tâche · Rattacher », l'onglet « À trier » et sa bande, Aujourd'hui sans la carte Énergie. Rien ne déborde ni ne passe sous la barre. Ce qui était trop petit est corrigé (date d'une ligne : 22 → 46 px de large ; titre d'une tâche : 19 → 44 px de haut).
+
+Le tour à 390 px (partie 3), mesuré par une sonde (`captures-correctifs/telephone/outils/sonde.mjs`) sur les treize écrans, compte habité. Entre parenthèses : compte neuf, anglais, thème clair.
+
+| Écran | Cibles de moins de 44 px, avant → après | Ce qui était faux | Ce qui reste |
+|---|---|---|---|
+| Aujourd'hui | 14 → 4 (0, 4, 4) | habitudes en bas ; titres coupés ; préréglages du Timer à 38 px ; marge de 32 px | les 4 croix des liens rapides : dessin de 16 px, zone de toucher de 44 |
+| Tâches | 8 → 0 | titre d'une ligne à 19 px de haut ; date d'une ligne à 22 px de large ; champ de recherche à 30 px | rien |
+| Calendrier | 1 → 0 | « + Nouvel événement » à 36 px ; « Supprimer » écrasé dans le bandeau ; 23 titres coupés | la vue agenda défile dans une carte, elle-même dans la page |
+| Timer | 6 → 0 | libellés des préréglages coupés ; « − / + » à 36 et 24 px ; interrupteur à 16 px ; pastille sur le titre | rien |
+| Objectifs | 2 → 0 | « Importer », « + Nouvel objectif » à 36-38 px ; titre d'une étape à 20 px | rien |
+| Performance (regardée seulement) | 17 → 0 | période « 7 j » à 26 px, champs à 30 px | marge de page de 32 px (fichier d'un autre chantier) |
+| Notes | 0 → 0 en liste | éditeur écrasé par « Lier » ; « supprimer » à 24 px | **22 cibles de 32 et 16 px dans la barre d'outils de l'éditeur** |
+| Journal | 55 → 0 | habitudes sans nom ; 42 carrés de 14 px ; visages et éclairs à 36 px ; pastilles de couleur à 16 px | rien |
+| Savoir | 5 → 0 | boutons d'en-tête à 34-36 px, recherche à 38 px | rien |
+| Feuille « Plus » | — | « Supprimés récemment » sous le pli | rien |
+| Réglages | 27 → 0 | pastilles de choix à 28-34 px, boutons à 38 px | rien |
+| Personnaliser | 69 → 0 | « Masquer / Monter / Descendre » à 22-24 px, champs à 30 px | les mots « colonne gauche / droite » (voir « À décider ») |
+| Supprimés récemment | 0 → 0 | rien | rien |
+| **Total** | **204 → 4** | | |
+
+Sur les treize écrans, après : aucun débordement horizontal de page, aucun texte coupé sans recours (26 avant), aucun contrôle sous la barre d'onglets en fin de défilement (sauf la suite de la vue agenda du Calendrier, qui défile dans sa propre carte), aucune action visible seulement au survol.
+
+Le bureau (1440 × 900), comparé élément par élément avant et après (`outils/bureau.mjs`, `outils/comparer.mjs`) : **identique** sur Aujourd'hui, Calendrier, Timer, Objectifs et la page d'un objectif, Notes et une note ouverte, Savoir, Réglages, Personnaliser, Supprimés récemment, Tâches. Changé, exprès : les lignes d'habitudes du Journal (le nom s'élargit, la flamme passe contre les carrés) et « Nouvel objectif » quand son contenu déborde (la fenêtre prend la hauteur de l'écran, le pied reste). « Nouvelle tâche » et « Nouvel événement » : mêmes positions, au pixel.
+
+#### Pas fait
+
+- **Performance et l'accueil** : hors mission (autre chantier). Regardés seulement. Performance profite de la règle générale (ses 17 cibles trop petites n'en sont plus) mais garde 32 px de marge de page.
+- **La barre d'outils de l'éditeur de notes** : 22 cibles de 32 px (gras, italique, titres, dix pastilles de couleur de 16 px). Les passer à 44 pt ferait une barre de cinq rangées. Voir « À décider ».
+- **Les croix des liens rapides** d'Aujourd'hui : le dessin reste à 16 px, la zone de toucher fait 44 (pseudo-élément). Une sonde qui mesure les rectangles les compte encore.
+- **Le défaut des fenêtres au bureau** : la molette sur le voile fait défiler la page derrière et emporte la fenêtre (mesuré sur « Nouvel événement » : 84 px vers le haut, titre hors écran). Antérieur à ce chantier. Le corriger change la place de toutes les fenêtres du bureau, ce que la mission interdisait. Voir « À décider ».
+- **`AMELIORATIONS-UI.md` § 8** (anciennes cibles trop petites) : la règle générale et les retouches en traitent la quasi-totalité au téléphone. Restent les deux lots ci-dessus.
+
+#### Pas vérifié
+
+- **L'app native** (macOS, iPhone, iPad) : aucun build. Tout a été vu sous Chrome, en mode démo.
+- **La suite de tests complète** (`npm test`) : non lancée, par consigne.
+
+**Ce qui ne peut être su que sur un vrai iPhone :**
+
+1. **Le clavier.** Sur iPhone il se pose par-dessus la fenêtre sans en changer la hauteur. Une fenêtre de saisie ouverte, clavier sorti : le champ touché est-il visible, le pied atteignable ? Le corps défile, donc WebKit devrait amener le champ ; ce n'est pas vu. Même question pour le calendrier ouvert sur place (il mesure `visualViewport`), pour le champ « Lier » des notes et pour l'ajout rapide.
+2. **L'encoche et la barre d'accueil.** Toutes les réserves passent par `env(safe-area-inset-*)`, qui vaut 0 sous Chrome. La feuille « Plus » monte jusqu'à 2,5 rem sous l'encoche ; la pastille du minuteur se pose à 4,75 rem au-dessus de la barre d'accueil ; le voile des fenêtres réserve le haut et le bas. Les valeurs sont calculées, pas vues.
+3. **WebKit.** Trois choses reposent sur lui : `:has()` (la vue ne défile pas derrière une fenêtre), le fondu du bas du corps d'une fenêtre (`mask-image`), et le fait qu'un `position: fixed` redevienne fixe à l'écran une fois l'animation d'entrée finie. Les trois existent dans Safari 15.4 et après ; le rendu n'est pas vu.
+4. **Le toucher réel.** 44 pt est mesuré en pixels CSS. Qu'une case d'habitude de 44 × 44 ou une date de 46 × 44 se touche sans rater, seul un doigt le dit.
+5. **Le glissé sur une fenêtre.** Le défaut (la fenêtre qui part avec la page) a été mesuré et corrigé sous Chrome en émulation tactile. À refaire au pouce.
+6. **Le survol collant d'iOS** : une tape allume l'état `:hover` jusqu'à la tape suivante. Non observable sous Chrome.
+7. **La taille de texte du système** (Dynamic Type) : la densité de l'app s'y ajoute. Les cibles suivent (elles sont en px, donc agrandies par le zoom), les débordements à 390 px n'ont été mesurés qu'à 100 %.
+
+#### À décider par Antonin
+
+1. **Aujourd'hui au téléphone : faut-il monter aussi les tâches ?** Les habitudes sont maintenant juste sous les tâches, comme demandé. Mais la carte « Tâches du jour » commence elle-même à 956 px du haut, après « En retard », trois compteurs et l'anneau de Discipline : plus d'un écran de défilement. Mettre tâches puis habitudes en tête au téléphone tient en une ligne (`ordreAujourdhuiAuTelephone`). Le crible le dit deux fois (« aucune tâche avant de défiler », « cocher mes trois habitudes dès l'ouverture »).
+2. **La barre d'outils des notes au téléphone.** Une seule rangée de boutons de 44 pt qui défile de côté (l'usage sur iPhone), ou la laisser à 32 px ?
+3. **Les fenêtres au bureau** : la molette sur le voile emporte la fenêtre. Le corriger demande de sortir les fenêtres de la zone qui défile (un portail) : elles se centreraient alors sur la fenêtre entière, voile par-dessus la barre latérale. À faire ?
+4. **Sept jours par habitude au téléphone**, au lieu de quatorze. Quatorze ne tiennent pas en cases touchables.
+5. **Quatorze secondes** pour un toast à geste au doigt. Le chiffre est un choix.
+6. **Le Journal au bureau** : la flamme est maintenant contre les carrés, plus contre le nom.
+7. **Personnaliser au téléphone** parle encore de « colonne gauche » et « colonne droite » pour Aujourd'hui, alors qu'il n'y a qu'une colonne — et que les habitudes y sont maintenant placées d'office sous les tâches. Non touché (formulation à décider, déjà relevée dans `AMELIORATIONS-UI.md` § 9).
+
+#### Vu en passant, non corrigé (hors mission)
+
+- **Performance, téléphone** : marge de page de 32 px (les autres vues sont à 16).
+- **Calendrier, téléphone** : la vue agenda est une carte qui défile à l'intérieur de la page qui défile. Deux défilements emboîtés ; rien n'est inatteignable.
+- **Aujourd'hui, téléphone** : trois compteurs (série, sept jours, focus) occupent trois cartes pleine largeur avant tout contenu.
+- **Objectifs, téléphone** : une étape réserve à gauche la place de sa poignée de glissement et de son chevron ; le titre commence au milieu de la carte.
+
+### `fusion` — fusion et finitions
+
+#### Finitions (branche `chantier/finitions`, fusionnée)
+
+Fait et vu à l'écran en démo : ⌘⇧N depuis Aujourd'hui puis frappe immédiate ; bouton « + » puis frappe ; une note existante ouverte ne prend pas le clavier ; l'onglet « Sans titre » vise toujours le titre. Non vérifié : le clavier de l'iPhone (iOS n'ouvre pas toujours le clavier pour un curseur posé par le code).
