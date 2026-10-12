@@ -370,7 +370,6 @@ export const EN: Record<string, string> = {
   "Court terme": "Short term",
   "Moyen terme": "Medium term",
   "Long terme": "Long term",
-  "aujourd'hui": "today",
   "{n} tâche": "{n} task",
   "{n} tâches": "{n} tasks",
   "Description (optionnel)": "Description (optional)",
@@ -2770,10 +2769,6 @@ export const EN: Record<string, string> = {
     "“{mots}” will leave the title. The cross keeps the title whole.",
   "Ajoutée ici, la tâche est prévue aujourd'hui.": "Added here, the task is due today.",
   "Le titre reste entier.": "The title stays whole.",
-  "Ou écris-la dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
-    "Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
-  "échéance dépassée d'un jour": "deadline missed by a day",
-  "échéance dépassée de {n} jours": "deadline missed by {n} days",
   "Sans objectif": "No goal",
   "Ses tâches à faire, celles de ses étapes comprises — les retards d'abord.":
     "Its open tasks, including those of its steps — overdue first.",
@@ -2800,7 +2795,6 @@ export const EN: Record<string, string> = {
   // Les champs que le calendrier remplace, et le mot qui dit leur vide.
   // ⚠️ « toutes » et « Sans échéance » sont en MINUSCULES et le restent : le
   // design system met en majuscules en CSS (`.hud-label`).
-  "Deadline": "Deadline",
   "Sans date": "No date",
   "Sans échéance": "No due date",
   "Toujours actif": "Always active",
@@ -2914,7 +2908,7 @@ export const EN: Record<string, string> = {
   "Le centre devient l'objectif, les branches sa feuille de route. La carte, elle, ne bouge pas.":
     "The centre becomes the goal, the branches its roadmap. The map itself doesn’t change.",
   // Le même mot dans les deux langues — la clé existe quand même, sinon
-  // `i18n:check` signale un trou à chaque passage (cf. « Deadline »).
+  // `i18n:check` signale un trou à chaque passage.
   "Horizon": "Horizon",
   "Ce qui va être créé": "What will be created",
   "Un objectif seul : la carte n’a encore aucune branche à découper.":
@@ -3710,4 +3704,32 @@ export const EN: Record<string, string> = {
   "Largeur de la barre latérale": "Sidebar width",
   "Régler la largeur": "Adjust width",
   "Glisser le bord · double-clic : largeur d’origine.": "Drag the edge · double-click: default width.",
+
+  // ── Dates claires (2026-10-12) : la pastille « sans date » de l'ajout rapide,
+  //    et l'échéance d'un objectif écrite partout de la même façon ──
+  // L'ajout rapide de Tâches annonce sa règle, comme celui d'Aujourd'hui.
+  "sans date": "no date",
+  "Sans date. Choisir une date": "No date. Pick a date",
+  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
+    "Added like this, the task isn't due on any day. Or write the day in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
+  "Ajoutée dans « {section} »": "Added to “{section}”",
+  // L'échéance d'un objectif au fil d'une ligne (liste, cartes d'Aujourd'hui).
+  // `{date}` porte l'année dès que ce n'est pas l'année en cours.
+  "échéance {date}": "due {date}",
+  "échéance aujourd'hui": "due today",
+  "dépassée d'un jour": "a day overdue",
+  "dépassée de {n} jours": "{n} days overdue",
+  // La page d'un objectif : l'invite, puis ce qu'on sait du temps qui reste.
+  // Les deux phrases « dépassée… » suivent le mot « Échéance » et le champ :
+  // elles ne le répètent pas (le Calendrier, lui, écrit la phrase entière).
+  "Ajouter une échéance": "Add a deadline",
+  "dépassée d'un jour.": "missed by a day.",
+  "dépassée de {n} jours.": "missed by {n} days.",
+  "{n} jour d'ici là": "{n} day until then",
+  "{n} jours d'ici là": "{n} days until then",
+  "{n} semaine pleine d'ici là": "{n} full week until then",
+  "{n} semaines pleines d'ici là": "{n} full weeks until then",
+  // L'accueil demande l'échéance de l'objectif qu'il plante — facultative.
+  "Son échéance (facultatif)": "Its deadline (optional)",
+  "Échéance de l'objectif": "Goal deadline",
 };
