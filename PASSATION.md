@@ -2438,9 +2438,10 @@ Branche `chantier/texte-net` (worktree `Shale-chantiers/texte-net`). Front seul 
 - après (build de démo du correctif, AVANT recalage : l'ancienne pastille, mêmes classes de centrage) : pastille centrée sur 735,00 (fenêtre de 1470), `translate: none` ; gradient 0,0282 ; au survol elle ne bouge pas ;
 - une entrée animée tenue par `both` (`transform` identité) ne la rend pas floue : 0,0282 — utile au chantier `focus-ile` ;
 - bulle de mise en forme du Savoir : centrée sur la sélection (535,38 des deux côtés), 8 px au-dessus, nette à la capture ;
+- la NOUVELLE pastille (`PastilleSeance.tsx`, build de démo `a064b55`) : centrée sur 735,00 en marche (220,63 de large) comme en pause (289,02), `translate: none`, immobile au survol, nette à la capture de l'écran. Pas de chiffre avant / après pour elle : la comparaison dans le même passage a raté ;
 - repère d'onglet actif : 10,5 px au-dessus, 10,5 px au-dessous ; loupe du Savoir : 11,98 et 12,01.
 
-**Tests** : `nettete.source.test.ts` (4), vu rouge sur l'ancien code (sept fichiers) ; `tsc --noEmit` 0 erreur.
+**Tests** (sur `a064b55`) : `nettete.source.test.ts` (4), vu rouge sur l'ancien code (sept fichiers) ; `tsc --noEmit` et `test:types` 0 erreur ; 122 tests des fichiers touchés verts. ⚠️ Suite complète NON rejouée (machine à 60–150 de charge toute la soirée).
 
 ⚠️ **Pas vu** :
 - l'app installée ;
@@ -2449,6 +2450,5 @@ Branche `chantier/texte-net` (worktree `Shale-chantiers/texte-net`). Front seul 
 - la comparaison des positions avec l'ancien build : le passage est resté bloqué, machine à plus de 90 de charge ;
 - un écran non Retina. La capture d'Antonin fait 1 pixel par point : soit son écran, soit le collage l'a réduite.
 
-- la NOUVELLE pastille (`PastilleSeance.tsx`) avec le correctif : mêmes classes, pas remesurée à l'écran.
 
 **Pas installé.** ⚠️ Le build natif du 13/10 à 00:23 (`eff40f0`, session [correctifs]) est parti quelques minutes AVANT cette fusion : il porte la nouvelle pastille, encore floue. Le correctif part avec le build suivant.
