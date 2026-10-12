@@ -357,10 +357,6 @@ export const EN: Record<string, string> = {
   "Modifier l'objectif": "Edit goal",
   "Titre de l'objectif": "Goal title",
   "Objectif parent": "Parent goal",
-  "+ sous-objectif": "+ sub-goal",
-  "Ajouter un sous-objectif": "Add a sub-goal",
-  "Les sous-objectifs remontent d’un niveau, les tâches liées sont déliées.":
-    "Sub-goals move up one level and linked tasks are unlinked.",
   "ex. Formation, Santé, Finances… (optionnel)":
     "e.g. Learning, Health, Money… (optional)",
   "Aucun objectif en cours.": "No goal in progress.",
@@ -2679,7 +2675,6 @@ export const EN: Record<string, string> = {
   "mesurée": "measured",
   "Mesurée sur ce qui est fait : ses étapes, ses tâches, ses nombres à atteindre.": "Measured on what is done: its steps, its tasks, its numbers to reach.",
   "Rattaché directement": "Attached directly",
-  "Ajouter une première étape": "Add a first step",
   "Ajouter une étape": "Add a step",
   "Déplacer « {titre} »": "Move “{titre}”",
   "Glisser pour réordonner": "Drag to reorder",
@@ -2687,12 +2682,7 @@ export const EN: Record<string, string> = {
   "Déplier « {titre} »": "Expand “{titre}”",
   "Titre de l’étape": "Step title",
   "Actions sur « {titre} »": "Actions for “{titre}”",
-  "Redevenir un sous-objectif": "Turn back into a sub-goal",
   "Supprimer l’étape": "Delete step",
-  "Ses sous-objectifs remontent d’un niveau, ses tâches sont déliées.": "Its sub-goals move up one level, its tasks are unlinked.",
-  "Genre de l’étape": "Kind of step",
-  "Sous-objectif": "Sub-goal",
-  "Nom du sous-objectif — Entrée pour valider et continuer": "Sub-goal name — Enter to confirm and continue",
   "Cette étape est suivie à la main.": "This step is tracked by hand.",
   "La mesurer": "Measure it",
   "Comment cette étape avance": "How this step moves forward",
@@ -2735,13 +2725,10 @@ export const EN: Record<string, string> = {
   "{n} tâches sur {total}": "{n} tasks out of {total}",
   "{n} élément sur {total}": "{n} item out of {total}",
   "{n} éléments sur {total}": "{n} items out of {total}",
-  "Une étape vide se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.":
-    "An empty step is checked off by hand. Give it a task, and its tasks do the counting.",
   "Un objectif sans étape ni tâche se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.":
     "A goal with no step and no task is checked off by hand. Give it a task, and its tasks do the counting.",
   "Marquer atteint": "Mark as reached",
   "Marquer non atteint": "Mark as not reached",
-  "Une tâche neuve, rattachée à l’objectif lui-même": "A new task, linked to the goal itself",
   "À faire pour cet objectif…": "To do for this goal…",
   "Suivre à la main": "Track by hand",
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
@@ -2832,7 +2819,6 @@ export const EN: Record<string, string> = {
 
   // ── Objectifs : ajouter une tâche depuis la feuille de route (2026-09-18) ─
   "Rattacher": "Link",
-  "Une tâche neuve, déjà rattachée à cette étape": "A new task, already linked to this step",
   "Rattacher quelque chose qui existe déjà": "Link something that already exists",
   "Une tâche, une note, une fiche du Savoir ou un événement.": "A task, a note, a knowledge card or an event.",
   "Chercher une tâche, une note, une fiche…": "Search a task, a note, a card…",
@@ -2840,17 +2826,57 @@ export const EN: Record<string, string> = {
   "Nouvelle tâche pour « {titre} »": "New task for “{titre}”",
   // ── Objectifs : le vocabulaire, le premier jet, et la carte (2026-09-20) ──
   //
+  // ── Objectifs : « étape », et « phase » quand elle en contient d'autres (2026-10-12) ──
+  //
+  // ⚠️ « Sous-objectif » / “sub-goal” ne s'affichent plus : “step”, et “phase”
+  // pour une étape qui en contient d'autres. Le genre ne se choisit plus, c'est
+  // le contenu qui nomme. Les clés « sous-objectif », « En faire une phase »,
+  // « Redevenir un sous-objectif », « Nom de la phase… » ont été RETIRÉES de ce
+  // dictionnaire le même jour — les garder inviterait à ressusciter le mot.
+  // Les clés de CODE (`GenreEtape`, `GenreRef`, `is_milestone`) ne bougent pas.
+  "Ce que tu veux atteindre.": "What you want to reach.",
+  "Une phase regroupe des étapes.": "A phase groups steps.",
+  "Une étape regroupe des tâches.": "A step groups tasks.",
+  "Une étape sous celle-ci, pour regrouper des tâches": "A step under this one, to group tasks",
+  "Nom de l’étape — Entrée pour valider et continuer": "Step name — Enter to confirm and continue",
+  "Une chose à faire pour cet objectif": "Something to do for this goal",
+  "Une chose à faire pour cette étape": "Something to do for this step",
+  // Une étape vide devient une tâche (le geste, sa bulle, ce qui ne suit pas, le toast).
+  "Une chose à faire est une tâche : « En faire une tâche » la range dans Tâches et le Calendrier.":
+    "Something to do is a task: “Make it a task” puts it in Tasks and the Calendar.",
+  "Une étape sans rien dedans est une chose à faire": "A step with nothing in it is something to do",
+  "Elle devient une tâche de « {parent} » : dans Tâches, le Calendrier, Aujourd’hui et le minuteur.":
+    "It becomes a task of “{parent}”: in Tasks, the Calendar, Today and the timer.",
+  "Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.":
+    "Its description doesn't follow: a task has none. It stays with the step, in Recently deleted.",
+  "« {titre} » est maintenant une tâche": "“{titre}” is now a task",
+  "Cette étape n’est plus vide : elle reste une étape.": "This step is no longer empty: it stays a step.",
+  // La fenêtre « Nouvel objectif » : les tâches d'abord, et des intitulés qui disent lequel est lequel.
+  "Tâches · ce qu’il y a à faire": "Tasks · what there is to do",
+  "Étapes · pour regrouper des tâches": "Steps · to group tasks",
+  "Elles comptent dans l’avancement de l’objectif": "They count toward the goal's progress",
+  "Avec une échéance, elles paraissent dans le Calendrier et dans Aujourd’hui.":
+    "With a due date, they show up in the Calendar and in Today.",
+  "ex. Préparation": "e.g. Preparation",
+  // La carte mentale : un seul mot dans le menu « Type ».
+  "Étape rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.":
+    "Step placed under “{objectif}”: the roadmap only has three levels.",
+  "Étape ajoutée à « {objectif} ».": "Step added to “{objectif}”.",
+  "Étape « {titre} » : sous quel objectif ?": "Step “{titre}”: under which goal?",
+  // L'IA : elle propose des étapes.
+  "Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en étapes. Propose-lui plutôt des tâches.":
+    "This step is already at the last level of the roadmap: it can't be split into steps. Suggest tasks for it instead.",
+  "L'IA propose des étapes, ajoutées après celles de la feuille de route.": "AI suggests steps, added after the roadmap's existing ones.",
+  "L'échéance de l'objectif est déjà passée : les étapes sont datées à partir d'aujourd'hui.":
+    "The goal's deadline has already passed: steps are dated from today.",
+  "Créer {n} étape": "Create {n} step",
+  "Créer {n} étapes": "Create {n} steps",
+
   // ⚠️ « Phase » remplace « Jalon » : le mot AFFICHÉ change, la clé de code
   // (`GenreEtape = "jalon" | …`) et la colonne `is_milestone` ne bougent pas.
   // Les anciennes clés « jalon » ont été retirées de ce dictionnaire le même
   // jour — les garder aurait invité une session future à ressusciter le mot.
   "Phase": "Phase",
-  "En faire une phase": "Make it a phase",
-  "Nom de la phase — Entrée pour valider et continuer": "Phase name — Enter to confirm and continue",
-  "Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».":
-    "A phase groups several sub-goals: “Prepare”, “Test”, “Launch”.",
-  "Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.":
-    "A sub-goal is something to reach, measured by its tasks or by a number.",
 
   // L'en-tête du bloc, et l'échéance qui se pose sur place.
   "Feuille de route": "Roadmap",
@@ -2860,16 +2886,11 @@ export const EN: Record<string, string> = {
   "Par quoi commencer": "Where to start",
   "Facultatif : tout se complète ensuite dans la feuille de route.":
     "Optional: everything else goes in the roadmap later.",
-  "Premières étapes": "First steps",
-  "ex. Préparer le plan de révision": "e.g. Prepare the study plan",
   "Étape {n}": "Step {n}",
-  "Premières tâches": "First tasks",
   "ex. Réviser 1 h": "e.g. Study for 1 h",
   "Tâche suivante…": "Next task…",
   "Tâche {n}": "Task {n}",
   "Échéance de la tâche {n}": "Due date for task {n}",
-  "Les tâches naissent rattachées à l’objectif : elles comptent dans son avancement, et leur échéance les fait apparaître dans le calendrier.":
-    "Tasks are born linked to the goal: they count towards its progress, and their due date puts them on the calendar.",
 
   // La feuille de route regardée en carte mentale (lecture seule).
   "Voir en carte mentale": "View as a mind map",
@@ -3020,21 +3041,13 @@ export const EN: Record<string, string> = {
   // ─── Typage direct et suppression qui emporte l'objet (retours d'Antonin, 2026-09-29 au soir) ──
   "Tâche rattachée à « {objectif} ».": "Task attached to “{objectif}”.",
   "Tâche libre, dans Tâches : aucun objectif au-dessus d'elle.": "Standalone task, in Tasks: no goal above it.",
-  "Phase rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.": "Phase placed under “{objectif}”: the roadmap only has three levels.",
-  "Sous-objectif rangé sous « {objectif} » : la feuille de route n'a que trois niveaux.": "Sub-goal placed under “{objectif}”: the roadmap only has three levels.",
-  "Phase ajoutée à « {objectif} ».": "Phase added to “{objectif}”.",
-  "Sous-objectif ajouté à « {objectif} ».": "Sub-goal added to “{objectif}”.",
   "Habitude dans le Journal, comptée sur {n} jours dans « {objectif} ».": "Habit in the Journal, counted over {n} days in “{objectif}”.",
   "Habitude dans le Journal.": "Habit in the Journal.",
-  "Phase « {titre} » : sous quel objectif ?": "Phase “{titre}”: under which goal?",
-  "Sous-objectif « {titre} » : sous quel objectif ?": "Sub-goal “{titre}”: under which goal?",
   "Aucun objectif au-dessus de ce nœud sur la carte : choisis celui qui l'accueille.": "No goal above this node on the map: choose the one that holds it.",
   // ─── Suppression en cascade : un objectif emporte ses tâches, une carte ses objets (2026-09-30) ──
   "Il part dans Supprimés récemment avec {liste}.": "It goes to Recently Deleted with {liste}.",
   "Elle part dans Supprimés récemment avec {liste}.": "It goes to Recently Deleted with {liste}.",
   "{a} et {b}": "{a} and {b}",
-  "{n} sous-étape": "{n} sub-step",
-  "{n} sous-étapes": "{n} sub-steps",
   "La carte quitte la note.": "The map leaves the note.",
   "Ses tâches, étapes et habitudes partent aussi dans Supprimés récemment.": "Its tasks, steps and habits go to Recently Deleted too.",
   "Carte retirée de la note, et 1 élément dans Supprimés récemment": "Map removed from the note, and 1 item in Recently Deleted",
@@ -3274,12 +3287,10 @@ export const EN: Record<string, string> = {
   "Estimer « {titre} »": "Estimate “{titre}”",
   "Étape": "Step",
   "L'objectif lui-même": "The goal itself",
-  "Décomposer « {titre} »": "Break “{titre}” into sub-goals",
+  "Décomposer « {titre} »": "Break “{titre}” into steps",
   "Tâches pour « {titre} »": "Tasks for “{titre}”",
   "Lecture du calendrier…": "Reading the calendar…",
-  "Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en sous-objectifs. Propose-lui plutôt des tâches.": "This step is already at the last level of the roadmap: it can't be split into sub-goals. Suggest tasks for it instead.",
-  "Décomposer": "Break into sub-goals",
-  "L'IA propose des sous-objectifs, ajoutés après les étapes existantes de la feuille de route.": "AI suggests sub-goals, added after the roadmap's existing steps.",
+  "Décomposer": "Break into steps",
   "Leurs échéances tiennent avant le {d}, en tenant compte de ton calendrier.": "Their deadlines fit before {d}, taking your calendar into account.",
   "Les échéances suivent l'horizon de l'objectif et ton calendrier.": "Deadlines follow the goal's horizon and your calendar.",
   "Proposer des tâches": "Suggest tasks",
@@ -3296,11 +3307,9 @@ export const EN: Record<string, string> = {
   "{n} tâches comparables trouvées dans ton historique Timer. L'IA choisit celles qui ressemblent vraiment à celle-ci ; la fourchette est calculée sur ton temps réel.": "{n} comparable tasks found in your Timer history. AI picks the ones that really resemble this one; the range is computed from your actual time.",
   "Médiane {m}, sur {n} tâche comparable.": "Median {m}, over {n} comparable task.",
   "Médiane {m}, sur {n} tâches comparables.": "Median {m}, over {n} comparable tasks.",
-  "Créer {n} sous-objectif": "Create {n} sub-goal",
-  "Créer {n} sous-objectifs": "Create {n} sub-goals",
   "Découper avec l'IA…": "Break down with AI…",
   "Estimer la durée…": "Estimate duration…",
-  "Décomposer avec l'IA…": "Break into sub-goals with AI…",
+  "Décomposer avec l'IA…": "Break into steps with AI…",
   "Proposer des tâches avec l'IA…": "Suggest tasks with AI…",
   "Lister ce qui est déjà prêt et ce qui manque": "List what's ready and what's missing",
   "Préparer la première version en 45 minutes": "Prepare a first version in 45 minutes",
@@ -3317,7 +3326,6 @@ export const EN: Record<string, string> = {
   "Choisir les deux étapes qui comptent vraiment": "Pick the two steps that really matter",
   "Avancer la première étape restante": "Move the first remaining step forward",
   "Décider : décaler l'échéance ou réduire le périmètre": "Decide: move the deadline or shrink the scope",
-  "L'échéance de l'objectif est déjà passée : les sous-objectifs sont datés à partir d'aujourd'hui.": "The goal's deadline has already passed: sub-goals are dated from today.",
 
   // ── IA, phase F : les notes ────────────────────────────────────────────────
   "IA": "AI",

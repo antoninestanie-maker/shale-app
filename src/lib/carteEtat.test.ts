@@ -43,7 +43,18 @@ describe("⭐ l'état vivant d'un nœud typé", () => {
     const e = etatsVivants(typee(), base({ completions: [coche(1)] })).get("n1")!;
     expect(e).toMatchObject({ type: "sous-objectif", pct: 100, acheve: true });
     // Devenue phase ailleurs : l'état le dit, quel que soit le genre copié dans le nœud.
-    const phase = base({ goals: [objectif({ id: 1, uid: "g-1" }), objectif({ id: 2, uid: "g-2", parent_goal_id: 1, is_milestone: 1 })] });
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-12 : « devenue phase » se lisait dans
+    // `is_milestone = 1`. C'est maintenant le CONTENU qui le dit — elle porte
+    // une étape. Une « phase » stockée mais vide reste une étape.
+    const vide = base({ goals: [objectif({ id: 1, uid: "g-1" }), objectif({ id: 2, uid: "g-2", parent_goal_id: 1, is_milestone: 1 })] });
+    expect(etatsVivants(typee(), vide).get("n1")!.type).toBe("sous-objectif");
+    const phase = base({
+      goals: [
+        objectif({ id: 1, uid: "g-1" }),
+        objectif({ id: 2, uid: "g-2", parent_goal_id: 1 }),
+        objectif({ id: 3, uid: "g-3", parent_goal_id: 2 }),
+      ],
+    });
     expect(etatsVivants(typee(), phase).get("n1")!.type).toBe("phase");
   });
 

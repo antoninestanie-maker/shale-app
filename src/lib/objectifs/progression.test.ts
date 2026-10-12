@@ -4,7 +4,7 @@ import { effectiveProgress } from "../logic";
 import type { CalendarEvent, Completion, Goal, Habit, HabitCheck, ObjectLink, Task } from "../types";
 import { objectif } from "./objectif.testutil";
 import { enfantsDe, estAcheve, estCochee, evenementPasse, mesurer, pourcentDe, uidDeLigne, type SourcesProgression } from "./progression";
-import { niveauDe, peutAjouterEtape, peutPromouvoir, peutRetrograder } from "./structure";
+import { niveauDe, peutAjouterEtape } from "./structure";
 
 // ─── Fabriques ──────────────────────────────────────────────────────────────
 
@@ -645,13 +645,16 @@ describe("profondeur", () => {
   });
 
   it("trois niveaux au maximum à la création", () => {
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-12 : la question n'a plus de GENRE. Avant,
+    // « une phase ne naît que sous une racine, un sous-objectif sous une racine
+    // ou une phase » : `peutAjouterEtape(sousDirect, "sous-objectif")` rendait
+    // `false`. Une étape de premier niveau reçoit maintenant une étape — elle
+    // devient une phase par son contenu.
     const tous = [g, jalon, sousDuJalon, sousDirect];
-    expect(peutAjouterEtape(g, "jalon", tous)).toBe(true);
-    expect(peutAjouterEtape(g, "sous-objectif", tous)).toBe(true);
-    expect(peutAjouterEtape(jalon, "sous-objectif", tous)).toBe(true);
-    expect(peutAjouterEtape(jalon, "jalon", tous)).toBe(false);
-    expect(peutAjouterEtape(sousDuJalon, "sous-objectif", tous)).toBe(false);
-    expect(peutAjouterEtape(sousDirect, "sous-objectif", tous)).toBe(false);
+    expect(peutAjouterEtape(g, tous)).toBe(true);
+    expect(peutAjouterEtape(jalon, tous)).toBe(true);
+    expect(peutAjouterEtape(sousDirect, tous)).toBe(true);
+    expect(peutAjouterEtape(sousDuJalon, tous)).toBe(false);
   });
 
   it("une arborescence plus profonde, d'avant la 026, se lit sans erreur", () => {
@@ -668,17 +671,8 @@ describe("profondeur", () => {
     expect(niveauDe(a, [a, b])).toBe(1);
   });
 
-  it("promouvoir : un sous-objectif direct devient jalon s'il ne fait rien descendre au niveau 3", () => {
-    const petitEnfant = etape(5, 4);
-    expect(peutPromouvoir(sousDirect, [g, sousDirect])).toBe(true);
-    expect(peutPromouvoir(sousDirect, [g, sousDirect, petitEnfant])).toBe(true);
-    expect(peutPromouvoir(sousDirect, [g, sousDirect, petitEnfant, etape(6, 5)])).toBe(false);
-    expect(peutPromouvoir(sousDuJalon, [g, jalon, sousDuJalon])).toBe(false);
-    expect(peutPromouvoir(jalon, [g, jalon])).toBe(false);
-  });
-
-  it("rétrograder un jalon n'est possible que s'il est vide d'étapes", () => {
-    expect(peutRetrograder(jalon, [g, jalon])).toBe(true);
-    expect(peutRetrograder(jalon, [g, jalon, sousDuJalon])).toBe(false);
-  });
+  // « promouvoir » et « rétrograder » (deux tests, `peutPromouvoir` et
+  // `peutRetrograder`) sont partis le 2026-10-12 avec les deux entrées de menu
+  // qu'ils gardaient : une étape EST une phase dès qu'elle en contient
+  // d'autres. La règle qui les remplace est dans `structure.test.ts`.
 });

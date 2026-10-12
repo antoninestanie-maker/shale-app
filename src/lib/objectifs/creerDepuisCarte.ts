@@ -38,7 +38,7 @@ export async function creerObjectifDepuisPlan(
   base: Pick<Goal, "scope" | "category">,
   /**
    * Les habitudes citées : si une cible est donnée, chacune est rattachée par
-   * un sous-objectif de l'objectif, compté en jours tenus (le chemin de la
+   * une étape de l'objectif, comptée en jours tenus (le chemin de la
    * 026, décision C). Sans cible, elles restent seules — rien n'est imposé.
    */
   options: { cibleHabitudes?: number | null } = {},

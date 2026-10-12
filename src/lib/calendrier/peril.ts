@@ -24,12 +24,12 @@ export interface ObjectifEnPeril {
   /** Jours restants avant l'échéance, 0 le jour même, négatif si dépassée. */
   joursRestants: number;
   /**
-   * Étapes (jalons ou sous-objectifs) directes non ACHEVÉES.
+   * Étapes directes (phases ou non) non ACHEVÉES.
    *
    * ⚠️ S'appelait `jalonsRestants` avant la migration 026, du temps où tout
    * enfant d'un objectif s'appelait « jalon ». Le mot désigne désormais un
    * niveau précis de la feuille de route : le garder ici aurait annoncé
-   * « 3 jalons non terminés » pour trois sous-objectifs.
+   * « 3 jalons non terminés » pour trois étapes.
    */
   etapesRestantes: number;
   /** Tâches non récurrentes rattachées et non faites. */

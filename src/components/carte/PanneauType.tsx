@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Carte, GenreRef, RefNoeud } from "../../lib/carte";
 import { t } from "../../lib/i18n";
 import { menuContextuelOuvert } from "../../lib/menu/tactile";
-import { peutAjouterEtape, type GenreEtape } from "../../lib/objectifs/structure";
 import { objectifsAccueillants } from "../../lib/objectifs/typage";
 import { typerEnEtape } from "../../lib/objectifs/typer";
 import type { Goal } from "../../lib/types";
@@ -20,7 +19,6 @@ import type { Goal } from "../../lib/types";
  * confirmation, c'est un choix : un clic sur l'objectif crée l'étape.
  */
 export default function PanneauType(props: {
-  genre: GenreEtape;
   carte: Carte;
   noeudId: string;
   /** Les objectifs VIVANTS, lus par l'éditeur. */
@@ -29,13 +27,10 @@ export default function PanneauType(props: {
   /** L'étape est créée : le nœud devient sa référence. `sous` : le titre de l'objectif qui l'accueille. */
   onCree: (ref: RefNoeud, titre: string, genre: GenreRef, sous: string) => void;
 }) {
-  const { genre, carte, noeudId, goals } = props;
+  const { carte, noeudId, goals } = props;
   const titre = (carte.noeuds.find((n) => n.id === noeudId)?.texte ?? "").trim();
-  // Une phase ne va que sous un objectif racine ; un sous-objectif, sous une racine ou une phase.
-  const accueillants = useMemo(
-    () => objectifsAccueillants(goals).filter(({ goal }) => peutAjouterEtape(goal, genre, goals)),
-    [goals, genre],
-  );
+  // Un objectif, ou une de ses étapes de premier niveau (elle devient alors une phase).
+  const accueillants = useMemo(() => objectifsAccueillants(goals), [goals]);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const premier = useRef<HTMLButtonElement>(null);
@@ -64,7 +59,7 @@ export default function PanneauType(props: {
     setOccupe(true);
     setErreur(null);
     try {
-      const r = await typerEnEtape(titre, parent, genre, goals);
+      const r = await typerEnEtape(titre, parent, goals);
       if (r) props.onCree(r.ref, titre, r.genre, nomObjectif(parent));
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
@@ -73,8 +68,7 @@ export default function PanneauType(props: {
     }
   };
 
-  const entete =
-    genre === "jalon" ? t("Phase « {titre} » : sous quel objectif ?", { titre }) : t("Sous-objectif « {titre} » : sous quel objectif ?", { titre });
+  const entete = t("Étape « {titre} » : sous quel objectif ?", { titre });
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4" onClick={props.onFermer}>

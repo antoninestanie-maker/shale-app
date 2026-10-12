@@ -6,8 +6,8 @@
  *
  * Ce que l'écran promet, et d'où vient chaque promesse :
  *   • RESTAURER rend l'objet à l'identique, avec ses liens, ses tags, son
- *     sujet, ses sous-objectifs — la migration 027 n'a rien détruit en le jetant ;
- *   • restaurer un sous-objectif dont le parent est aussi ici RAMÈNE le parent,
+ *     sujet, ses étapes — la migration 027 n'a rien détruit en le jetant ;
+ *   • restaurer une étape dont le parent est aussi ici RAMÈNE le parent,
  *     et l'écran le dit AVANT d'agir (cahier des charges, § 5.4) ;
  *   • SUPPRIMER DÉFINITIVEMENT dit ce qui disparaît, avec le nombre d'éléments
  *     emportés, et ne propose pas d'« Annuler » : c'est irréversible ;

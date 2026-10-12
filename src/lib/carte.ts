@@ -53,6 +53,10 @@ export interface RefNoeud {
  * `rafraichirReferences` la réécrit au chargement. Ce n'est pas une seconde
  * vérité sur l'objectif, c'est la légende de son icône.
  */
+// ⚠️ Des CLÉS, enregistrées dans le bloc d'une note : « sous-objectif » y
+// désigne une ÉTAPE, « phase » une étape qui en contient d'autres. Le mot
+// affiché est « étape » depuis le 2026-10-12 ; la clé ne bouge pas, sinon les
+// cartes déjà enregistrées perdraient leur icône.
 export type GenreRef = "objectif" | "phase" | "sous-objectif";
 const GENRES_REF: readonly string[] = ["objectif", "phase", "sous-objectif"];
 
@@ -644,7 +648,7 @@ export function rafraichirReferences(
   titreDe: (kind: KindCarte, uid: string) => string | null,
   /**
    * Le genre ACTUEL d'un objectif cité, pour que l'icône suive une phase
-   * redevenue sous-objectif. Absent = on ne touche pas au genre.
+   * redevenue étape (elle n'en contient plus). Absent = on ne touche pas au genre.
    */
   genreDe?: (uid: string) => GenreRef | null,
 ): Carte {
@@ -1116,7 +1120,10 @@ export interface OptionsRendu {
 function iconeDeType(type: TypeNoeud, x: number, y: number, couleur: string): string {
   const traces: Partial<Record<TypeNoeud, string>> = {
     objectif: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="${couleur}"/>`,
-    "sous-objectif": `<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>`,
+    // La clé reste « sous-objectif » (elle est enregistrée dans les notes) ;
+    // elle désigne une ÉTAPE, et son icône est le losange depuis le 2026-10-12
+    // (`IconEtape`) — plus la cible de l'objectif en plus pâle.
+    "sous-objectif": `<path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/>`,
     phase: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>`,
     tache: `<rect x="4" y="4" width="16" height="16" rx="4"/>`,
     habitude: `<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>`,

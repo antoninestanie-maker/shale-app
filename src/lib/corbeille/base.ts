@@ -124,7 +124,7 @@ export async function mettreEnCorbeilleDans(
  * Ce que restaurer cet objet ramènera — SANS rien écrire.
  *
  * ⭐ Séparé de `restaurerDans` pour que l'interface puisse l'annoncer d'abord
- * (« Restaurer ce sous-objectif restaure aussi « Lancer la chaîne » et ses
+ * (« Restaurer cette étape restaure aussi « Lancer la chaîne » et ses
  * 4 éléments »), puis exécuter exactement ce qu'elle a annoncé.
  *
  * Rend `null` si l'objet n'est pas en corbeille (déjà restauré ailleurs, par la

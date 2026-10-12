@@ -38,6 +38,7 @@ import type { Document as DocumentRecherche } from "./recherche";
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
 import { assemblerContexte, type ContexteObjectifs } from "./objectifs/contexte";
+import { cleDeNature, natureDe } from "./objectifs/structure";
 import type {
   CalendarEventInput,
   FeuilleDeRoutePatch,
@@ -2517,7 +2518,8 @@ export const demo = {
     for (const g of goals) {
       const uid = g.uid ?? uidDemo("goal", g.id);
       if (!objectifs.includes(uid)) continue;
-      genres.set(uid, g.parent_goal_id == null ? "objectif" : g.is_milestone ? "phase" : "sous-objectif");
+      // Par le CONTENU, comme le natif (`repo.infosDeCartes`) et `natureDe`.
+      genres.set(uid, cleDeNature(natureDe(g, goals)));
     }
     return { titresHabitudes, genres };
   },

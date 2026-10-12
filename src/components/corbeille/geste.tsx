@@ -248,10 +248,9 @@ export function annonceDepart(
   bilan: { etapes: number; taches: number },
 ): string {
   const morceaux = [
-    bilan.etapes > 0 &&
-      (genre === "objectif"
-        ? tp(bilan.etapes, "{n} étape", "{n} étapes")
-        : tp(bilan.etapes, "{n} sous-étape", "{n} sous-étapes")),
+    // « sous-étape » pour une étape jusqu'au 2026-10-12 : un quatrième mot
+    // pour la même ligne. Ce qu'une phase emporte, ce sont des étapes.
+    bilan.etapes > 0 && tp(bilan.etapes, "{n} étape", "{n} étapes"),
     bilan.taches > 0 && tp(bilan.taches, "{n} tâche", "{n} tâches"),
   ].filter((x): x is string => !!x);
   const liste = morceaux.length === 2 ? t("{a} et {b}", { a: morceaux[0], b: morceaux[1] }) : (morceaux[0] ?? "");

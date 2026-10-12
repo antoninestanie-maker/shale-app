@@ -40,9 +40,9 @@ import type {
  *     route ou pas — décision d'Antonin du 2026-09-14 (migration 026) ;
  *   • cible chiffrée → `min(1, compte / cible)` ;
  *   • sinon → moyenne pondérée de ses PARTS : chaque étape enfant pèse son
- *     `weight`, chaque élément comptable pèse 1. Un sous-objectif qui n'a que
- *     des tâches vaut donc « faites / total » ; un jalon qui n'a que des
- *     sous-objectifs vaut leur moyenne pondérée. Une seule règle, et elle rend
+ *     `weight`, chaque élément comptable pèse 1. Une étape qui n'a que
+ *     des tâches vaut donc « faites / total » ; une phase qui n'a que des
+ *     étapes vaut leur moyenne pondérée. Une seule règle, et elle rend
  *     EXACTEMENT l'ancienne `effectiveProgress` quand tous les poids valent 1.
  *
  * ⭐⭐ UNE ÉTAPE VIDE SE COCHE, ET ELLE COMPTE (2026-10-11).

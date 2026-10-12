@@ -158,8 +158,8 @@ function FilCouche({ pct, acheve }: { pct: number | null; acheve: boolean }) {
 export default function GoalsView({ data, refresh }: Props) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
-  /** L'objectif dont la ligne « ajouter une étape » vient d'être ouverte par le menu. */
-  const [ajoutPour, setAjoutPour] = useState<number | null>(null);
+  /** L'objectif dont le menu vient d'ouvrir un champ d'ajout — et lequel : une tâche, ou une étape. */
+  const [ajoutPour, setAjoutPour] = useState<{ id: number; quoi: "tache" | "etape" } | null>(null);
   /** L'objectif regardé en carte mentale — un seul à la fois, plein écran. */
   const [enCarte, setEnCarte] = useState<Goal | null>(null);
   /**
@@ -369,8 +369,8 @@ export default function GoalsView({ data, refresh }: Props) {
   }, [pageOuverte]);
 
   /**
-   * ⭐ Corbeille (migration 027) : un objectif part AVEC ses phases et
-   * sous-objectifs — et, depuis le 2026-09-30, avec ses TÂCHES (demande
+   * ⭐ Corbeille (migration 027) : un objectif part AVEC ses étapes — et,
+   * depuis le 2026-09-30, avec ses TÂCHES (demande
    * d'Antonin ; `corbeille/lots.ts`). La confirmation ne reste que pour le cas
    * lourd — il emporte des étapes ou des tâches — et elle dit combien. Sinon,
    * la corbeille et son « Annuler » suffisent.
@@ -395,9 +395,14 @@ export default function GoalsView({ data, refresh }: Props) {
     return o?.type === "unite" ? { enBase: o.faite, cochee: coches.etat(`g${goal.id}`, o.faite) } : null;
   };
 
-  const ajouterEtape = (goal: Goal) => {
+  /**
+   * ⭐ LA TÂCHE D'ABORD (2026-10-12) : « Ajouter une tâche » précède « Ajouter
+   * une étape » dans le menu, comme dans la rangée de la page. Les deux ouvrent
+   * la page de l'objectif sur le champ voulu.
+   */
+  const ajouterA = (goal: Goal, quoi: "tache" | "etape") => {
     ouvrir(goal.id);
-    setAjoutPour(goal.id);
+    setAjoutPour({ id: goal.id, quoi });
   };
 
   // ─── Le menu d'un objectif ────────────────────────────────────────────────
@@ -429,7 +434,8 @@ export default function GoalsView({ data, refresh }: Props) {
         icone: <IconCheck />,
         executer: () => cocherObjectif(goal, unite.enBase),
       },
-      { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterEtape(goal) },
+      { id: "ajouter-tache", libelle: t("Ajouter une tâche"), icone: <IconPlus />, executer: () => ajouterA(goal, "tache") },
+      { id: "ajouter-etape", libelle: t("Ajouter une étape"), icone: <IconPlus />, executer: () => ajouterA(goal, "etape") },
       ia && peutDecomposer(goal, goals) && {
         id: "ia-decomposer",
         libelle: t("Décomposer avec l'IA…"),
@@ -692,8 +698,8 @@ export default function GoalsView({ data, refresh }: Props) {
             mesures={mesures}
             replis={replis}
             onReplier={onReplier}
-            ajoutOuvert={ajoutPour === goal.id}
-            onFermerAjout={() => setAjoutPour((a) => (a === goal.id ? null : a))}
+            ajoutOuvert={ajoutPour?.id === goal.id ? ajoutPour.quoi : null}
+            onFermerAjout={() => setAjoutPour((a) => (a?.id === goal.id ? null : a))}
             onModifier={setEditing}
             refresh={refresh}
             fil

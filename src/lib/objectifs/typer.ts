@@ -1,10 +1,9 @@
 import type { GenreRef, RefNoeud } from "../carte";
 import { HABIT_COLORS } from "../habitudes";
 import { t } from "../i18n";
-import { addHabit, createGoal, createTask, majFeuilleDeRoute, uidDe } from "../repo";
+import { addHabit, createTask, majFeuilleDeRoute, uidDe } from "../repo";
 import type { Goal } from "../types";
-import type { GenreEtape } from "./structure";
-import { rangEnDernier } from "./typage";
+import { ajouterEtape } from "./ajouter";
 
 /**
  * ⭐ ÉCRIRE le typage d'un nœud — la moitié impure de `typage.ts`.
@@ -36,36 +35,29 @@ export async function typerEnTache(titre: string, goal: Goal | null): Promise<Re
   return uid ? { kind: "task", uid } : null;
 }
 
-/** Une étape sous `parent`, en DERNIER rang — jamais ailleurs que la feuille de route ne la mettrait. */
+/**
+ * Une étape sous `parent`, en DERNIER rang — jamais ailleurs que la feuille de
+ * route ne la mettrait, et par la MÊME écriture qu'elle (`ajouterEtape`).
+ *
+ * `genre` : la clé que le nœud enregistre pour dessiner son icône. Une étape
+ * neuve ne contient rien : elle n'est jamais une phase (2026-10-12).
+ */
 export async function typerEnEtape(
   titre: string,
   parent: Goal,
-  genre: GenreEtape,
   goals: readonly Goal[],
 ): Promise<{ ref: RefNoeud; genre: GenreRef } | null> {
-  const id = await createGoal({
-    title: titre,
-    description: null,
-    scope: parent.scope,
-    category: parent.category,
-    parent_goal_id: parent.id,
-    deadline: null,
-    progress_pct: 0,
-    // Mesurée, comme toute étape neuve depuis la 026 : une barre à la main
-    // par-dessus une feuille de route serait une seconde vérité.
-    manual_progress: 0,
-    is_milestone: genre === "jalon" ? 1 : 0,
-    position: rangEnDernier(parent.id, goals),
-  });
+  const id = await ajouterEtape(parent, titre, goals);
+  if (id == null) return null;
   const uid = await uidDe("goal", id);
   signaler();
-  return uid ? { ref: { kind: "goal", uid }, genre: genre === "jalon" ? "phase" : "sous-objectif" } : null;
+  return uid ? { ref: { kind: "goal", uid }, genre: "sous-objectif" } : null;
 }
 
 /**
  * Une habitude — celles du Journal. Seule par défaut.
  *
- * Rattachée (case cochée dans le panneau) : un sous-objectif « <nom> » naît
+ * Rattachée : une étape « <nom> » naît
  * sous `rattacher.sous`, compté par cette habitude, avec la cible choisie en
  * jours — le chemin de la migration 026. `count_since` est posé à aujourd'hui
  * par `majFeuilleDeRoute` : une habitude tenue depuis des mois ne remplit pas
@@ -79,18 +71,11 @@ export async function typerEnHabitude(
   const id = await addHabit(titre, HABIT_COLORS[0]);
   const uid = await uidDe("habit", id);
   if (uid && rattacher) {
-    const etapeId = await createGoal({
-      title: titre,
-      description: null,
-      scope: rattacher.sous.scope,
-      category: rattacher.sous.category,
-      parent_goal_id: rattacher.sous.id,
-      deadline: null,
-      progress_pct: 0,
-      manual_progress: 0,
-      is_milestone: 0,
-      position: rangEnDernier(rattacher.sous.id, goals),
-    });
+    const etapeId = await ajouterEtape(rattacher.sous, titre, goals);
+    if (etapeId == null) {
+      signaler();
+      return { kind: "habit", uid };
+    }
     await majFeuilleDeRoute(etapeId, {
       count_source: "habit",
       count_ref_uid: uid,

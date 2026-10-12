@@ -22,7 +22,8 @@ import { normaliser } from "../tachesVue";
 import { addDays } from "../logic";
 import { estAcheve, mesurer, type ContexteProgression } from "../objectifs/progression";
 import { peutAjouterEtape } from "../objectifs/structure";
-import { createGoal, createLink, createTask, uidDe, type HistoriqueFocus } from "../repo";
+import { ajouterEtape } from "../objectifs/ajouter";
+import { createLink, createTask, uidDe, type HistoriqueFocus } from "../repo";
 import { estRecurrente, planificationDeSaisie } from "../taches";
 import type { CalendarEvent, Completion, Goal, Task } from "../types";
 import type { ChargeJour, ContratsIa, LangIa, ObjectifPourIa, PayloadDe, PrioriteIa, TacheProposee } from "./contrats";
@@ -243,9 +244,9 @@ export function objectifPourIa(goal: Goal): ObjectifPourIa {
   };
 }
 
-/** Peut-on DÉCOMPOSER cet objectif, c'est-à-dire lui ajouter des sous-objectifs ? */
+/** Peut-on DÉCOMPOSER cet objectif, c'est-à-dire lui ajouter des étapes ? */
 export function peutDecomposer(goal: Goal, goals: readonly Goal[]): boolean {
-  return peutAjouterEtape(goal, "sous-objectif", goals);
+  return peutAjouterEtape(goal, goals);
 }
 
 /** Tous les descendants d'un objectif, dans l'ordre de l'arbre (garde anti-cycle). */
@@ -281,10 +282,13 @@ export function payloadDecomposer(
 }
 
 /**
- * Crée les sous-objectifs validés, APRÈS les étapes existantes. Même règle que
- * la création à la main (`objectifs/creation.ts`) : sous-objectifs mesurés,
- * horizon et catégorie hérités. L'échéance proposée est gardée — l'utilisateur
- * l'a vue et pouvait la retirer.
+ * Crée les étapes validées, APRÈS les étapes existantes — par la MÊME écriture
+ * que la feuille de route (`objectifs/ajouter.ts`) : mesurées, horizon et
+ * catégorie hérités, et l'étape qu'on décompose devient une phase. L'échéance
+ * proposée est gardée — l'utilisateur l'a vue et pouvait la retirer.
+ *
+ * ⚠️ Le contrat du serveur parle encore de « sous-objectifs » (un nom de
+ * champ et un prompt, pas un texte de l'app) : non touché le 2026-10-12.
  */
 export async function appliquerEtapes(
   goal: Goal,
@@ -293,20 +297,11 @@ export async function appliquerEtapes(
 ): Promise<void> {
   const freres = goals.filter((g) => g.parent_goal_id === goal.id);
   let position = freres.reduce((m, g) => Math.max(m, (g.position ?? 0) + 1), 0);
+  // La promotion du parent s'écrit UNE fois, pas à chaque étape.
+  let parent = goal;
   for (const e of etapes) {
-    await createGoal({
-      title: e.titre.trim(),
-      description: null,
-      scope: goal.scope,
-      category: goal.category,
-      parent_goal_id: goal.id,
-      deadline: e.echeance,
-      progress_pct: 0,
-      manual_progress: 0,
-      is_milestone: 0,
-      position: position++,
-      priority: e.priorite,
-    });
+    const id = await ajouterEtape(parent, e.titre, goals, { position: position++, echeance: e.echeance, priorite: e.priorite });
+    if (id != null) parent = { ...parent, is_milestone: 1 };
   }
 }
 

@@ -73,6 +73,22 @@ export const IconTarget = (p: IconProps) => (
   </Icon>
 );
 
+/**
+ * Losange — une ÉTAPE de la feuille de route (2026-10-12).
+ *
+ * ⭐ UNE ICÔNE PAR NATURE : cible pour l'objectif, dossier pour la phase (une
+ * étape qui en contient d'autres), losange pour l'étape, carré pour la tâche.
+ * Jusque-là, l'étape portait la cible de l'objectif en plus pâle : le labo du
+ * 2026-10-11 (constat 22) l'a relevé — deux choses différentes, une icône.
+ * Le même tracé est dans `lib/carte.ts` (`iconeDeType`), pour le rendu
+ * enregistré d'une carte.
+ */
+export const IconEtape = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3.5 20.5 12 12 20.5 3.5 12Z" />
+  </Icon>
+);
+
 /** Triangle d'alerte — avertissements. */
 export const IconAlert = (p: IconProps) => (
   <Icon {...p}>

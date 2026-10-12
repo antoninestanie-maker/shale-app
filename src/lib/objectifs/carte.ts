@@ -10,7 +10,7 @@ import type { Goal, Habit, LinkKind, Priority, Task } from "../types";
 import type { KindCarte } from "../carte";
 import { rattachementsDe, type ContexteObjectifs } from "./contexte";
 import { uidDeLigne } from "./progression";
-import { etapesTriees } from "./structure";
+import { cleDeNature, etapesTriees, natureDe } from "./structure";
 
 /**
  * ⭐ LE PONT ENTRE UNE FEUILLE DE ROUTE ET UNE CARTE MENTALE — DANS LES DEUX SENS.
@@ -85,7 +85,9 @@ export function carteDObjectif(racine: Goal, s: SourcesCarte): Carte {
       parent: RACINE,
       texte: texteObjectif(etape),
       ref: refDe("goal", etape),
-      genre: etape.is_milestone ? "phase" : "sous-objectif",
+      // Par le CONTENU, plus par `is_milestone` (2026-10-12) : une « phase »
+      // stockée mais vide se dessine comme une étape, ici comme dans la liste.
+      genre: cleDeNature(natureDe(etape, s.goals)),
       // Le côté et la teinte sont POSÉS, jamais déduits du rang à l'affichage :
       // c'est ce que fait `lireCarte` pour une carte enregistrée, et ça garde
       // le dessin identique d'une ouverture à l'autre.
@@ -264,7 +266,7 @@ export interface RessourcePlan {
 
 export interface EtapePlan {
   titre: string;
-  /** `true` = phase (`is_milestone`), parce qu'elle porte des sous-objectifs. */
+  /** `true` = phase, parce qu'elle porte d'autres étapes. */
   phase: boolean;
   sousEtapes: EtapePlan[];
   taches: TachePlan[];
@@ -305,13 +307,13 @@ export interface ExistantsPlan {
  *
  *   centre              → l'objectif
  *   niveau 1 AVEC enfants  → une PHASE (elle en regroupe d'autres)
- *   niveau 1 SANS enfant   → un sous-objectif direct
- *   niveau 2               → un sous-objectif de la phase
- *   niveau 3 et au-delà    → des TÂCHES du sous-objectif qui les porte
+ *   niveau 1 SANS enfant   → une étape
+ *   niveau 2               → une étape de la phase
+ *   niveau 3 et au-delà    → des TÂCHES de l'étape qui les porte
  *
  * ⭐ Le dernier point est le cœur de la traduction : au fond d'une carte
  * mentale, on n'écrit plus des intentions, on écrit ce qu'il y a à faire. Les
- * transformer en sous-objectifs de sous-objectifs aurait demandé un quatrième
+ * transformer en étapes d'étapes d'étapes aurait demandé un quatrième
  * niveau à la feuille de route ; les jeter aurait fait disparaître du travail
  * déjà pensé. Elles deviennent donc des tâches, à plat, sur l'objectif le plus
  * proche au-dessus d'elles.
@@ -388,13 +390,13 @@ export function planDeCarte(carte: Carte, existants?: ExistantsPlan): PlanObject
         taches: [],
         ressources: [],
       };
-      // Tout ce qui pend sous le niveau 2 devient une tâche de ce
-      // sous-objectif, à plat, dans l'ordre où la carte les porte.
+      // Tout ce qui pend sous le niveau 2 devient une tâche de cette
+      // étape, à plat, dans l'ordre où la carte les porte.
       //
       // ⚠️ À CETTE PROFONDEUR, un nœud écarté n'emporte PAS son sous-arbre : il
       // n'y a plus de structure à préserver, tout arrive au même endroit. Un
       // nœud vide au milieu de la liste est donc simplement sauté, et ce qui
-      // pendait dessous reste une tâche du même sous-objectif.
+      // pendait dessous reste une tâche de la même étape.
       for (const profond of descendants(carte, niveau2.id)) {
         if (!retenu(profond)) {
           plan.ignores += 1;
@@ -406,8 +408,7 @@ export function planDeCarte(carte: Carte, existants?: ExistantsPlan): PlanObject
       etape.sousEtapes.push(sous);
     }
 
-    // Une étape qui porte des sous-objectifs est une PHASE : c'est la seule
-    // forme que la feuille de route accepte à ce niveau (`peutAjouterEtape`).
+    // Une étape qui en porte d'autres est une PHASE (`natureDe`).
     etape.phase = etape.sousEtapes.length > 0;
     plan.etapes.push(etape);
   }

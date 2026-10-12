@@ -13,7 +13,7 @@ import {
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { uidDeLigne } from "../../lib/objectifs/progression";
 import { peutAjouterEtape } from "../../lib/objectifs/structure";
-import { CIBLE_HABITUDE_PAR_DEFAUT, genresPour, premierAccueil } from "../../lib/objectifs/typage";
+import { CIBLE_HABITUDE_PAR_DEFAUT, premierAccueil } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
 import { ouvrirObjet } from "../../lib/naviguer";
 import {
@@ -35,7 +35,7 @@ import { jeterPlusieurs, type Jete } from "../corbeille/geste";
  * Antonin, 2026-09-20 : « ce serait aussi bon que ce système d'objectifs puisse
  * apparaître sous forme de carte mentale ». Elle était en lecture seule ; elle
  * devient une SECONDE VUE du même plan, modifiable des deux côtés :
- *   • ajouter un enfant EXIGE un type (phase, sous-objectif, tâche, habitude) ;
+ *   • ajouter un enfant EXIGE un type (étape, tâche, habitude) ;
  *   • renommer un nœud renomme l'objet, et la feuille de route le montre ;
  *   • cocher une tâche passe par `basculerTache`, comme partout ;
  *   • supprimer passe par `jeter` — deux temps, puis « Supprimés récemment » ;
@@ -94,14 +94,11 @@ export default function CarteObjectif(props: {
       if (ref.kind !== "goal") return [];
       const g = objectifDe(ref.uid);
       if (!g) return [];
-      const out: EnfantObjectif[] = genresPour(g, data.goals).map((x) => (x === "jalon" ? "phase" : "sous-objectif"));
+      const out: EnfantObjectif[] = peutAjouterEtape(g, data.goals) ? ["etape"] : [];
       out.push("tache");
       // Une habitude se rattache par l'étape qui la compte (décision C) : il
-      // faut donc une place pour un sous-objectif ici ou juste au-dessus.
-      const parent = g.parent_goal_id == null ? null : data.goals.find((x) => x.id === g.parent_goal_id);
-      if (peutAjouterEtape(g, "sous-objectif", data.goals) || (parent && peutAjouterEtape(parent, "sous-objectif", data.goals))) {
-        out.push("habitude");
-      }
+      // faut donc une place pour une étape ici ou juste au-dessus.
+      if (premierAccueil(g, data.goals)) out.push("habitude");
       return out;
     },
     creer: async (parentRef, type, titre) => {
@@ -113,10 +110,10 @@ export default function CarteObjectif(props: {
       else if (type === "habitude") {
         // Sans panneau depuis le 2026-09-29 : la cible prend sa valeur par
         // défaut, et se change dans la feuille de route (« Atteindre un nombre »).
-        const sous = premierAccueil(parent, "sous-objectif", data.goals);
+        const sous = premierAccueil(parent, data.goals);
         if (!sous) return;
         await typerEnHabitude(titre, { sous, cible: CIBLE_HABITUDE_PAR_DEFAUT }, data.goals);
-      } else await typerEnEtape(titre, parent, type === "phase" ? "jalon" : "sous-objectif", data.goals);
+      } else await typerEnEtape(titre, parent, data.goals);
     },
     renommer: async (ref, titre) => {
       const nom = titre.trim();

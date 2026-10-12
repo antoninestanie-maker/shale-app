@@ -59,9 +59,10 @@ export type BaseObjectif = Pick<Goal, "scope" | "category">;
 /**
  * Les étapes du premier jet, à créer sous `parentId`.
  *
- * ⚠️ Elles naissent SOUS-OBJECTIFS, pas phases (`is_milestone: 0`). Une phase
- * n'a de sens que si elle regroupe ; on promeut ensuite, d'un geste, celle qui
- * se découpe (menu « ⋯ » → « En faire une phase »).
+ * ⚠️ Elles naissent ÉTAPES (`is_milestone: 0`) : une étape neuve ne contient
+ * rien. Celle qui recevra d'autres étapes deviendra une phase toute seule, par
+ * son contenu (2026-10-12 — jusque-là il fallait la promouvoir par le menu
+ * « ⋯ », et le genre se lisait dans cette colonne).
  * (Jusqu'au 2026-10-11, la raison était aussi que trois phases vides rendaient
  * « — » juste après la saisie. Une étape vide compte désormais pour 0 et se
  * coche, phase ou non : l'objectif neuf affiche « 0 % · 0 étape sur 3 ».)

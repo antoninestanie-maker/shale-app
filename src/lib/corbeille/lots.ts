@@ -71,7 +71,7 @@ function parcourir(
 
 /**
  * Un objectif et tous ses descendants VIVANTS — ce que la mise en corbeille
- * emporte. Un sous-objectif déjà jeté pour son compte n'entre pas dans le lot.
+ * emporte. Une étape déjà jetée pour son compte n'entre pas dans le lot.
  */
 export function descendantsVivants(lignes: readonly LigneObjectif[], racine: number): number[] {
   return parcourir(lignes, racine, (l) => l.deleted_at == null);
@@ -95,7 +95,7 @@ export function lotObjectif(lignes: readonly LigneObjectif[], racine: number, st
 //
 // ⚠️ Le rattachement `goal_id` n'est JAMAIS effacé : c'est lui qui les rend à
 // leur objectif. Une tâche jetée AVANT pour son compte garde son horodatage,
-// donc son propre lot — exactement la règle des sous-objectifs.
+// donc son propre lot — exactement la règle des étapes.
 
 /** Le strict nécessaire d'une tâche pour savoir si elle part avec un objectif. */
 export interface LigneTache {
@@ -137,7 +137,7 @@ export function bilanDeDepart(
 
 /**
  * Les tâches en corbeille qui sont DANS le lot d'un objectif. La vue ne les
- * montre pas à part, exactement comme un sous-objectif parti avec son parent.
+ * montre pas à part, exactement comme une étape partie avec son parent.
  */
 export function tachesDansUnLot(taches: readonly LigneTache[], lignes: readonly LigneObjectif[]): Set<number> {
   const stampDe = new Map(lignes.map((l) => [l.id, l.deleted_at]));
@@ -178,8 +178,8 @@ export interface PlanRestauration {
  *
  * On remonte la chaîne des ancêtres EN CORBEILLE (un parent vivant arrête la
  * remontée : l'objectif revient sous lui, à sa place). Puis on restaure chaque
- * lot, du plus haut au plus bas, en sautant un lot déjà couvert : un
- * sous-objectif jeté AVEC son parent revient avec lui, pas une seconde fois.
+ * lot, du plus haut au plus bas, en sautant un lot déjà couvert : une
+ * étape jetée AVEC son parent revient avec lui, pas une seconde fois.
  */
 export function planObjectif(
   lignes: readonly LigneObjectif[],
@@ -225,9 +225,9 @@ export function planSimple(kind: KindCorbeille, id: number, deletedAt: string | 
 /**
  * Les RACINES de lot parmi les objectifs en corbeille, avec leur taille.
  *
- * Un sous-objectif jeté AVEC son objectif n'apparaît pas à part : il est
- * « dans » son parent. Le montrer deux fois ferait croire qu'on peut le
- * restaurer seul sans conséquence — alors que le restaurer remonte au parent.
+ * Une étape jetée AVEC son objectif n'apparaît pas à part : elle est
+ * « dans » son parent. La montrer deux fois ferait croire qu'on peut la
+ * restaurer seule sans conséquence — alors que la restaurer remonte au parent.
  */
 export function racinesDeLot(
   lignes: readonly LigneObjectif[],

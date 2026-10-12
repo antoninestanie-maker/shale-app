@@ -4,8 +4,8 @@ import { objectif } from "./objectif.testutil";
 import type { Mesure } from "./progression";
 
 type Libelles = typeof import("./libelles");
-let aideDeGenre: Libelles["aideDeGenre"];
-let nomDeGenre: Libelles["nomDeGenre"];
+let aideDeNature: Libelles["aideDeNature"];
+let nomDeNature: Libelles["nomDeNature"];
 let deplacer: Libelles["deplacer"];
 let deplieParDefaut: Libelles["deplieParDefaut"];
 let indexDInsertion: Libelles["indexDInsertion"];
@@ -22,7 +22,7 @@ let pourquoiSansMesure: Libelles["pourquoiSansMesure"];
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ aideDeGenre, deplacer, deplieParDefaut, indexDInsertion, lireReplis, nomDeGenre, origineEnClair, pourquoiSansMesure } =
+  ({ aideDeNature, deplacer, deplieParDefaut, indexDInsertion, lireReplis, nomDeNature, origineEnClair, pourquoiSansMesure } =
     await import("./libelles"));
 });
 
@@ -140,35 +140,50 @@ describe("les compteurs, en anglais", () => {
  * encore moins), et que le mot affiché soit accompagné de son explication.
  * Une étiquette sans explication ne fait que déplacer la question.
  */
-describe("le vocabulaire d'une étape", () => {
-  it("« jalon » s'affiche « Phase », et le sous-objectif garde son nom", () => {
-    expect(nomDeGenre("jalon")).toBe("Phase");
-    expect(nomDeGenre("sous-objectif")).toBe("Sous-objectif");
+describe("le vocabulaire d'une ligne (2026-10-12 : « étape », et « phase » quand elle en contient d'autres)", () => {
+  // ⚠️ MIS À JOUR EXPRÈS le 2026-10-12. Ce bloc disait : « jalon » s'affiche
+  // « Phase », et le sous-objectif garde son nom (`nomDeGenre("sous-objectif")`
+  // rendait « Sous-objectif »). Antonin, sur la proposition de retirer le mot :
+  // « je valide ». Le mot ne vient plus d'un genre stocké, mais de la nature
+  // de la ligne (`natureDe`, testée dans `structure.test.ts`).
+  it("une étape s'appelle « Étape », une étape qui en contient d'autres « Phase »", () => {
+    expect(nomDeNature("etape")).toBe("Étape");
+    expect(nomDeNature("phase")).toBe("Phase");
+    expect(nomDeNature("objectif")).toBe("Objectif");
   });
 
-  it("chaque genre dit à quoi il sert", () => {
-    expect(aideDeGenre("jalon")).toMatch(/regroupe/);
-    expect(aideDeGenre("sous-objectif")).toMatch(/atteindre/);
-    expect(aideDeGenre("jalon")).not.toBe(aideDeGenre("sous-objectif"));
+  it("« sous-objectif » n'est plus écrit nulle part, ni dans les noms ni dans les bulles", () => {
+    const tout = (["objectif", "phase", "etape"] as const).flatMap((n) => [nomDeNature(n), aideDeNature(n)]).join(" ");
+    expect(tout).not.toMatch(/sous-objectif|jalon/i);
+  });
+
+  it("chaque nature dit ce qu'elle regroupe : une phase des étapes, une étape des tâches", () => {
+    expect(aideDeNature("phase")).toMatch(/étapes/);
+    expect(aideDeNature("etape")).toMatch(/tâches/);
+    expect(aideDeNature("phase")).not.toBe(aideDeNature("etape"));
   });
 });
 
 describe("repliement par défaut : la phase en cours seule est ouverte", () => {
-  const jalons = [1, 2, 3, 4, 5, 6].map((id) => objectif({ id, is_milestone: 1 }));
+  const phases = [1, 2, 3, 4, 5, 6].map((id) => objectif({ id }));
   const acheve = (id: number) => id <= 4;
+  const toutesPhases = () => true;
 
   it("six phases dont quatre finies : seule la cinquième est dépliée", () => {
-    expect(jalons.map((j) => deplieParDefaut(j, jalons, acheve))).toEqual([false, false, false, false, true, false]);
+    expect(phases.map((j) => deplieParDefaut(j, phases, acheve, toutesPhases))).toEqual([false, false, false, false, true, false]);
   });
 
-  it("un jalon vide après des jalons finis est « en cours » : c'est lui qu'il faut remplir", () => {
-    // Un jalon vide n'est pas achevé : c'est le premier à remplir.
-    expect(jalons.map((j) => deplieParDefaut(j, jalons, (id) => id <= 4))).toEqual([false, false, false, false, true, false]);
+  it("une étape qui n'en contient pas d'autres ne déplie jamais son détail seule", () => {
+    const s = objectif({ id: 9 });
+    expect(deplieParDefaut(s, [s], () => false, () => false)).toBe(false);
   });
 
-  it("un sous-objectif ne déplie jamais son détail seul", () => {
-    const s = objectif({ id: 9, is_milestone: 0 });
-    expect(deplieParDefaut(s, [s], () => false)).toBe(false);
+  it("⚠️ une « phase » STOCKÉE mais vide (`is_milestone = 1`, aucune étape dessous) reste repliée : c'est une étape", () => {
+    // Avant le 2026-10-12, `is_milestone` suffisait à la déplier d'office.
+    const vide = objectif({ id: 1, is_milestone: 1 });
+    const pleine = objectif({ id: 2, is_milestone: 0 });
+    const estPhase = (id: number) => id === 2; // la seconde porte des étapes
+    expect([vide, pleine].map((x) => deplieParDefaut(x, [vide, pleine], () => false, estPhase))).toEqual([false, true]);
   });
 
   it("le réglage mémorisé se relit sans planter sur une valeur abîmée", () => {

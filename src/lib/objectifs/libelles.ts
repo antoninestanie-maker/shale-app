@@ -1,7 +1,7 @@
 import { formatNumber, pick, t } from "../i18n";
 import type { Goal } from "../types";
 import type { Mesure } from "./progression";
-import type { GenreEtape } from "./structure";
+import type { NatureLigne } from "./structure";
 
 /**
  * Ce que la vue Objectifs DIT de chaque ligne — logique pure, sans DOM.
@@ -16,22 +16,36 @@ import type { GenreEtape } from "./structure";
  */
 
 /**
- * ⭐ LE MOT D'UN GENRE D'ÉTAPE — à un seul endroit.
+ * ⭐ LE MOT D'UNE LIGNE — à un seul endroit, et d'après son CONTENU.
  *
- * Le pourquoi du mot « phase » (et l'abandon de « jalon ») est écrit en entier
- * au-dessus de `GenreEtape`, dans `structure.ts`. Ici, on se contente de dire le
- * mot — et de l'expliquer à qui découvre l'écran, parce qu'une étiquette sans
- * explication ne fait que déplacer la question.
+ * « Étape », et « phase » quand elle en contient d'autres (2026-10-12, validé
+ * par Antonin : « je valide »). Le pourquoi est écrit en entier au-dessus de
+ * `natureDe`, dans `structure.ts`. « Sous-objectif » ne s'affiche plus nulle
+ * part ; en anglais, “step” et “phase”, plus de “sub-goal”.
+ *
+ * ⚠️ Chaque clé EN LITTÉRAL dans son `t()` (`i18n:check` ne lit que ça).
  */
-export function nomDeGenre(genre: GenreEtape): string {
-  return genre === "jalon" ? t("Phase") : t("Sous-objectif");
+export function nomDeNature(nature: NatureLigne): string {
+  switch (nature) {
+    case "objectif":
+      return t("Objectif");
+    case "phase":
+      return t("Phase");
+    case "etape":
+      return t("Étape");
+  }
 }
 
-/** La phrase qui dit à quoi sert ce genre-là, sous le champ de saisie. */
-export function aideDeGenre(genre: GenreEtape): string {
-  return genre === "jalon"
-    ? t("Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».")
-    : t("Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.");
+/** Ce qu'est cette ligne, en une phrase — pour une bulle, jamais écrit à demeure. */
+export function aideDeNature(nature: NatureLigne): string {
+  switch (nature) {
+    case "objectif":
+      return t("Ce que tu veux atteindre.");
+    case "phase":
+      return t("Une phase regroupe des étapes.");
+    case "etape":
+      return t("Une étape regroupe des tâches.");
+  }
 }
 
 /**
@@ -140,15 +154,20 @@ export function pourquoiSansMesure(m: Mesure): string | null {
  * ⭐ Une feuille de route de six phases toutes ouvertes remplit l'écran d'un
  * objectif unique. Donc : la phase EN COURS (la première, dans l'ordre, qui
  * n'est pas terminée) est dépliée ; les terminées et celles d'après sont
- * repliées et se résument en une ligne. Un sous-objectif ne déplie jamais son détail seul.
+ * repliées et se résument en une ligne. Une étape qui n'en contient pas
+ * d'autres ne déplie jamais son détail seule.
+ *
+ * ⚠️ `estPhase` lit le CONTENU (`natureDe`), plus `is_milestone` (2026-10-12) :
+ * une « phase » stockée mais vide est une étape, elle reste repliée.
  */
 export function deplieParDefaut(
-  etape: Pick<Goal, "id" | "is_milestone">,
-  freres: readonly Pick<Goal, "id" | "is_milestone">[],
+  etape: Pick<Goal, "id">,
+  freres: readonly Pick<Goal, "id">[],
   acheve: (id: number) => boolean,
+  estPhase: (id: number) => boolean,
 ): boolean {
-  if (!etape.is_milestone) return false;
-  const enCours = freres.find((f) => f.is_milestone && !acheve(f.id));
+  if (!estPhase(etape.id)) return false;
+  const enCours = freres.find((f) => estPhase(f.id) && !acheve(f.id));
   return enCours?.id === etape.id;
 }
 

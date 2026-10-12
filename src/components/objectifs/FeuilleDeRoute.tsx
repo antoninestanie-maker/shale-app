@@ -6,40 +6,35 @@ import { todayStr } from "../../lib/logic";
 import {
   basculerTache,
   cocherEtape,
-  createGoal,
   deleteLink,
   majFeuilleDeRoute,
   rattacherTache,
   reordonnerObjectifs,
   renommerObjectif,
   daterObjectif,
-  type GoalInput,
 } from "../../lib/repo";
 import {
-  aideDeGenre,
+  aideDeNature,
   deplacer,
   deplieParDefaut,
   indexDInsertion,
-  nomDeGenre,
+  nomDeNature,
   origineEnClair,
   pourquoiSansMesure,
   type Replis,
 } from "../../lib/objectifs/libelles";
 import { compterSource, debutDuCompte, elementsDe, estAcheve, evenementPasse, sourceDe, uidDeLigne, type Mesure, type SourcesProgression } from "../../lib/objectifs/progression";
-import {
-  etapesTriees,
-  peutAjouterEtape,
-  peutPromouvoir,
-  peutRetrograder,
-  type GenreEtape,
-} from "../../lib/objectifs/structure";
+import { etapesTriees, natureDe, peutAjouterEtape } from "../../lib/objectifs/structure";
+import { ajouterEtape } from "../../lib/objectifs/ajouter";
+import { planConversion } from "../../lib/objectifs/conversion";
+import { convertirEnTache } from "./gesteConversion";
 import { filDObjectif, type Fil } from "../../lib/objectifs/fil";
 import { estRecurrente } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal, Task } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
-import { IconCheck, IconChevronDown, IconChevronRight, IconFlame, IconFolder, IconNote, IconPlus, IconTarget, IconX } from "../icons";
+import { IconCheck, IconChevronDown, IconChevronRight, IconEtape, IconFlame, IconFolder, IconNote, IconX } from "../icons";
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { placer as placerMenu } from "../../lib/menu/placement";
@@ -76,8 +71,20 @@ import { IconeIa } from "../ia/IconeIa";
  *     reçoit une tâche, une sous-étape ou une cible, la case s'en va : ce
  *     qu'elle contient la mesure. La règle est dans `progression.ts` ;
  *   • ⭐ 2026-10-11 — UNE TÂCHE S'AJOUTE À L'OBJECTIF LUI-MÊME (audit A06a-12) :
- *     « ＋ Tâche » et « Rattacher » vivent à côté d'« Ajouter une étape », avec
- *     ou sans étapes. Un objectif simple se réduit à trois tâches ;
+ *     « ＋ Tâche » et « Rattacher » vivent à côté d'« ＋ Étape », avec ou sans
+ *     étapes. Un objectif simple se réduit à trois tâches ;
+ *   • ⭐ 2026-10-12 — UNE CHOSE À FAIRE EST UNE TÂCHE, PAS UNE ÉTAPE VIDE.
+ *     Antonin : « cocher une étape sans tâche n'a pas tellement de sens. Dans
+ *     ce cas, l'étape est une tâche. » Donc : « Tâche » est le PREMIER bouton
+ *     de chaque rangée d'ajout ; « Étape » vient ensuite, et sa bulle dit ce
+ *     qu'elle est (ce qui regroupe des tâches) ; une étape vide porte, sur sa
+ *     ligne, « En faire une tâche » (`gesteConversion.tsx`). Sa case reste
+ *     (la règle de calcul ne change pas), mais ce n'est plus elle qu'on montre ;
+ *   • ⭐ 2026-10-12 — « ÉTAPE », ET « PHASE » QUAND ELLE EN CONTIENT D'AUTRES.
+ *     Le genre ne se choisit plus (« Phase | Sous-objectif ») : on ajoute une
+ *     étape, et c'est le CONTENU qui nomme la ligne, dessine son cadre et son
+ *     icône (`natureDe`, `lib/objectifs/structure.ts`). Ajouter une étape sous
+ *     une étape en fait une phase. « Sous-objectif » n'est plus écrit nulle part ;
  *   • ⭐ 2026-09-30 — L'ÉCRAN NE S'EXPLIQUE PLUS EN TOUTES LETTRES. Antonin :
  *     « c'est trop de texte […] ça doit être expliqué dans l'onboarding et pas
  *     marqué dans l'app tout le temps. À la limite, si on laisse le curseur
@@ -99,8 +106,8 @@ export interface PropsFeuille {
   mesures: ReadonlyMap<number, Mesure>;
   replis: Replis;
   onReplier: (cle: string, ouvert: boolean) => void;
-  /** L'ajout d'étape ouvert d'office (geste « Ajouter une étape » de la ligne racine). */
-  ajoutOuvert: boolean;
+  /** Le champ ouvert d'office : geste « Ajouter une tâche » ou « Ajouter une étape » du menu de l'objectif. */
+  ajoutOuvert: "tache" | "etape" | null;
   onFermerAjout: () => void;
   onModifier: (goal: Goal) => void;
   refresh: () => Promise<void>;
@@ -232,13 +239,12 @@ export default function FeuilleDeRoute(p: PropsFeuille) {
           data={data}
           contexte={p.contexte}
           refresh={refresh}
+          surObjectif
+          ouvertDOffice={p.ajoutOuvert}
+          onFermeDOffice={p.onFermerAjout}
           etape={{
-            libelle: etapes.length === 0 ? t("Ajouter une première étape") : t("Ajouter une étape"),
-            ouverte: p.ajoutOuvert,
-            onFermee: p.onFermerAjout,
-            champ: (fermer) => (
-              <ChampEtape parent={racine} goals={data.goals} genres={["jalon", "sous-objectif"]} refresh={refresh} onFermer={fermer} />
-            ),
+            tip: aideDeNature("etape"),
+            champ: (fermer) => <ChampEtape parent={racine} goals={data.goals} refresh={refresh} onFermer={fermer} />,
           }}
         />
       </div>
@@ -386,14 +392,24 @@ interface PropsLigne extends PropsFeuille {
 function LigneEtape(p: PropsLigne) {
   const { etape, freres, data, mesures, replis, onReplier, refresh } = p;
   const m = mesures.get(etape.id);
-  const estJalon = !!etape.is_milestone;
+  // ⭐ CE QUE LA LIGNE EST, D'APRÈS CE QU'ELLE CONTIENT (2026-10-12) : une
+  // phase si elle porte des étapes, une étape sinon. Le mot, le cadre, l'icône
+  // et le dépliage en découlent ; `is_milestone` n'est plus lu.
+  const nature = natureDe(etape, data.goals);
+  const estPhase = nature === "phase";
   const enfants = etapesTriees(etape.id, data.goals);
   const cle = `g${etape.id}`;
   const ouvert =
-    replis[cle] ?? deplieParDefaut(etape, freres, (id) => {
-      const x = mesures.get(id);
-      return !!x && estAcheve(x);
-    });
+    replis[cle] ??
+    deplieParDefaut(
+      etape,
+      freres,
+      (id) => {
+        const x = mesures.get(id);
+        return !!x && estAcheve(x);
+      },
+      (id) => data.goals.some((g) => g.parent_goal_id === id),
+    );
   const [renommer, setRenommer] = useState(false);
   const compteePar = sourceNommee(etape, data);
   const origine = m ? origineEnClair(m) : "";
@@ -418,17 +434,43 @@ function LigneEtape(p: PropsLigne) {
   const pct = unite ? (cochee ? 100 : 0) : (m?.pct ?? null);
   const termine = unite ? cochee : !!m && estAcheve(m);
 
+  /**
+   * ⭐ « EN FAIRE UNE TÂCHE » (2026-10-12) — une étape vide est une chose à
+   * faire : elle devient une vraie tâche, rattachée au parent. `planConversion`
+   * (pur) pose la même question que la case — « est-ce une unité ? » — et dit
+   * ce qui ne suivrait pas. Seule la DESCRIPTION ne suit pas (une tâche n'en a
+   * pas) : dans ce cas, et dans ce cas seulement, on le dit AVANT.
+   * Un geste = une fonction : le bouton de la ligne et l'entrée du menu « ⋯ »
+   * appellent `demanderConversion`.
+   */
+  const plan = unite ? planConversion(etape.id, p.sources) : null;
+  const convertible = !!plan && !("refus" in plan);
+  const laisse = plan && !("refus" in plan) ? plan.description : null;
+  const [aConfirmer, setAConfirmer] = useState(false);
+  const [conversion, setConversion] = useState(false);
+  const convertir = async () => {
+    if (conversion) return;
+    setConversion(true);
+    setAConfirmer(false);
+    try {
+      await convertirEnTache(etape, refresh);
+    } finally {
+      setConversion(false);
+    }
+  };
+  const demanderConversion = convertible ? () => (laisse ? setAConfirmer(true) : void convertir()) : null;
+
   return (
     <div
       data-frere-de={etape.parent_goal_id ?? ""}
       data-etape={etape.id}
       /* ⭐ UN LISERÉ PAR TYPE (2026-10-01, variante D choisie par Antonin sur
          quatre maquettes : « pour bien voir la distinction entre chaque item
-         sans se perdre »). Phase : cadre marqué ; sous-objectif : cadre en
+         sans se perdre »). Phase : cadre marqué ; étape : cadre en
          pointillé ; tâche : sa propre pastille (`ListeElements`). La légende
          en tête de la feuille de route dit lequel est lequel. */
       className={`mb-2 px-1.5 py-1 ${
-        estJalon
+        estPhase
           ? "rounded-[14px] border-[1.5px] border-border-strong bg-surface"
           : "rounded-[10px] border border-dashed border-border-strong"
       } ${p.enGlissement != null ? "relative z-10 bg-surface-2 shadow-lg" : ""}`}
@@ -481,28 +523,31 @@ function LigneEtape(p: PropsLigne) {
             {ouvert ? <IconChevronDown className="h-4 w-4" /> : <IconChevronRight className="h-4 w-4" />}
           </button>
 
-          {/* ⭐ L'ICÔNE DIT LE NIVEAU — le vocabulaire de la carte (DESIGN.md,
-              « Les types de nœud ») : dossier pour la phase, cible atténuée pour
-              le sous-objectif. Elle remplace la pastille « PHASE », qui était
-              la seule différence visible entre les deux (audit D1, point 1). */}
+          {/* ⭐ L'ICÔNE DIT LA NATURE — le vocabulaire de la carte (DESIGN.md,
+              « Les types de nœud ») : dossier pour la phase, losange pour
+              l'étape. Jusqu'au 2026-10-12 l'étape portait la cible de
+              l'objectif, en plus pâle (labo, constat 22). */}
           {/* ⭐ LA COULEUR DIT LA PRIORITÉ (2026-09-30) — la règle du contour de
               la case d'une tâche : rouge élevée, jaune moyenne, neutre faible.
               La FORME dit toujours le niveau. Aucun élément de plus sur la ligne. */}
           <span
             role="img"
-            aria-label={`${nomDeGenre(estJalon ? "jalon" : "sous-objectif")} · ${phrasePriorite(etape.priority)}`}
-            data-tip={`${nomDeGenre(estJalon ? "jalon" : "sous-objectif")} · ${phrasePriorite(etape.priority)}`}
-            data-tip-sub={aideDeGenre(estJalon ? "jalon" : "sous-objectif")}
+            aria-label={`${nomDeNature(nature)} · ${phrasePriorite(etape.priority)}`}
+            data-tip={`${nomDeNature(nature)} · ${phrasePriorite(etape.priority)}`}
+            data-tip-sub={aideDeNature(nature)}
             data-tip-attente="longue"
             className="flex h-7 w-4 shrink-0 items-center justify-center text-text-dim"
             style={{ color: couleurPriorite(etape.priority) }}
           >
-            {estJalon ? <IconFolder className="h-3.5 w-3.5" /> : <IconTarget className="h-3.5 w-3.5" />}
+            {estPhase ? <IconFolder className="h-3.5 w-3.5" /> : <IconEtape className="h-3.5 w-3.5" />}
           </span>
 
           {/* La case d'une étape vide : la même que celle d'une tâche, à la
               même place (devant le nom). Elle disparaît dès que l'étape a de
-              quoi se mesurer. */}
+              quoi se mesurer.
+              ⚠️ 2026-10-12 : elle RESTE (vide = 0, cochée = 100 %), mais ce
+              n'est plus la façon normale de faire. Sa bulle renvoie au geste
+              qu'on montre : « En faire une tâche », à droite de la ligne. */}
           {cocher && (
             <span className="mx-1 flex shrink-0 items-center">
               <CaseACocher
@@ -510,7 +555,7 @@ function LigneEtape(p: PropsLigne) {
                 cochee={cochee}
                 libelle={etape.title}
                 tip={cochee ? t("Marquer à faire") : t("Marquer faite")}
-                tipSub={t("Une étape vide se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.")}
+                tipSub={t("Une chose à faire est une tâche : « En faire une tâche » la range dans Tâches et le Calendrier.")}
                 onBascule={cocher}
               />
             </span>
@@ -552,7 +597,7 @@ function LigneEtape(p: PropsLigne) {
                 {/* `max-w-full` + `truncate` : l'origine garde sa place, et se
                     coupe elle-même si elle dépasse la ligne (390 pt). */}
                 <span className="max-w-full shrink-0 truncate">
-                  {termine && !ouvert && estJalon ? `${t("Terminé")} · ` : ""}
+                  {termine && !ouvert && estPhase ? `${t("Terminé")} · ` : ""}
                   {origine}
                 </span>
                 {/* ⭐ CE QUI COMPTE, nommé (audit D1, point 3) : une étape
@@ -574,11 +619,30 @@ function LigneEtape(p: PropsLigne) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {/* ⭐ SUR LA LIGNE, pas seulement dans le « ⋯ » : c'est le geste qu'on
+              veut voir devant une étape vide. Le carré est l'icône de la tâche. */}
+          {demanderConversion && (
+            <button
+              type="button"
+              onClick={demanderConversion}
+              disabled={conversion}
+              className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-blue hover:bg-surface disabled:opacity-40"
+              data-tip={t("Une étape sans rien dedans est une chose à faire")}
+              data-tip-sub={t("Elle devient une tâche de « {parent} » : dans Tâches, le Calendrier, Aujourd’hui et le minuteur.", {
+                parent: data.goals.find((g) => g.id === etape.parent_goal_id)?.title ?? "",
+              })}
+              data-tip-attente="longue"
+            >
+              <span className="h-3 w-3 shrink-0 rounded-[3px] border-[1.5px] border-current" aria-hidden />
+              {t("En faire une tâche")}
+            </button>
+          )}
           <BarreMesure pct={pct} acheve={termine} pourquoi={m ? pourquoiSansMesure(m) : null} />
 
           <MenuEtape
             etape={etape}
             coche={cocher ? { faite: cochee, basculer: cocher } : null}
+            convertir={demanderConversion}
             goals={data.goals}
             tasks={data.tasks}
             index={p.index}
@@ -590,6 +654,44 @@ function LigneEtape(p: PropsLigne) {
           />
         </div>
       </div>
+
+      {/* ⭐ CE QUI NE SUIT PAS SE DIT AVANT (2026-10-12). Une tâche n'a pas de
+          description : celle de l'étape reste avec elle, dans Supprimés
+          récemment. Le reste — titre, échéance, priorité, coche, ce qui lui
+          était rattaché — suit, et « Annuler » rend tout. */}
+      {aConfirmer && (
+        <div
+          role="group"
+          aria-label={t("En faire une tâche")}
+          className="mx-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[8px] bg-surface-2 px-2.5 py-2 text-xs text-text-dim"
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.preventDefault();
+            setAConfirmer(false);
+          }}
+        >
+          <span className="min-w-0 flex-1 basis-[14rem]">
+            {t("Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.")}
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAConfirmer(false)}
+              className="pill cible-tactile-ligne px-3 py-1.5 font-medium text-text-dim hover:text-text"
+            >
+              {t("Annuler")}
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => void convertir()}
+              className="pill cible-tactile-ligne fill-primary px-3 py-1.5 font-semibold"
+            >
+              {t("En faire une tâche")}
+            </button>
+          </span>
+        </div>
+      )}
 
       {ouvert && (
         <div
@@ -604,15 +706,9 @@ function LigneEtape(p: PropsLigne) {
           }}
         >
           {enfants.length > 0 && <ListeEtapes {...p} parent={etape} etapes={enfants} />}
-          {peutAjouterEtape(etape, "sous-objectif", data.goals) && (
-            <AjoutEtape
-              parent={etape}
-              goals={data.goals}
-              genres={["sous-objectif"]}
-              refresh={refresh}
-              libelle={t("Ajouter un sous-objectif")}
-            />
-          )}
+          {/* « Ajouter un sous-objectif », seul sur sa ligne jusqu'au
+              2026-10-12, a rejoint la rangée d'ajout de l'étape (`PanneauMesure`
+              → `BarreAjout`) : « Tâche · Étape · Rattacher », la tâche d'abord. */}
           <EcheanceEtape etape={etape} maintenant={p.sources.maintenant} refresh={refresh} />
           <PanneauMesure goal={etape} {...p} />
         </div>
@@ -664,6 +760,8 @@ function MenuEtape(props: {
   onDeplacer: (sens: -1 | 1) => void;
   /** L'étape est vide : elle se coche. `null` quand elle se mesure autrement. */
   coche: { faite: boolean; basculer: () => void } | null;
+  /** L'étape est vide : elle peut devenir une tâche. Le MÊME geste que le bouton de la ligne. */
+  convertir: (() => void) | null;
   refresh: () => Promise<void>;
 }) {
   const { etape, goals, refresh } = props;
@@ -681,7 +779,7 @@ function MenuEtape(props: {
    *
    * Posé dans la ligne, il débordait sous la carte de la DERNIÈRE étape, que le
    * panneau de grille rogne (`overflow: clip`) : vu à l'écran le 2026-09-15, le
-   * rectangle de « Redevenir un sous-objectif » à 1 025 px dans une fenêtre de
+   * rectangle de la dernière entrée du menu à 1 025 px dans une fenêtre de
    * 1 000, hors d'atteinte même en défilant — le clic tombait dans le vide. On le
    * mesure AVANT la peinture, on le retourne vers le haut s'il ne tient pas en
    * dessous, et on divise par le zoom de densité comme le fait `Tooltip`.
@@ -786,6 +884,13 @@ function MenuEtape(props: {
             />
           </div>
           <div className="my-1 h-px bg-border" />
+          {/* Le même geste que le bouton de la ligne (règle 18) — et en tête :
+              c'est ce qu'on fait d'une étape vide. La coche vient après. */}
+          {props.convertir && (
+            <button type="button" role="menuitem" className={entree} onClick={agir(props.convertir)}>
+              {t("En faire une tâche")}
+            </button>
+          )}
           {/* Le même geste que la case de la ligne (règle 18). */}
           {props.coche && (
             <button type="button" role="menuitem" className={entree} onClick={agir(props.coche.basculer)}>
@@ -812,32 +917,9 @@ function MenuEtape(props: {
           >
             {t("Descendre")}
           </button>
-          {peutPromouvoir(etape, goals) && (
-            <button
-              type="button"
-              role="menuitem"
-              className={entree}
-              onClick={agir(async () => {
-                await majFeuilleDeRoute(etape.id, { is_milestone: 1 });
-                await refresh();
-              })}
-            >
-              {t("En faire une phase")}
-            </button>
-          )}
-          {peutRetrograder(etape, goals) && (
-            <button
-              type="button"
-              role="menuitem"
-              className={entree}
-              onClick={agir(async () => {
-                await majFeuilleDeRoute(etape.id, { is_milestone: 0 });
-                await refresh();
-              })}
-            >
-              {t("Redevenir un sous-objectif")}
-            </button>
-          )}
+          {/* « En faire une phase » et « Redevenir un sous-objectif » sont
+              partis le 2026-10-12 : une étape EST une phase dès qu'elle en
+              contient d'autres, il n'y a plus rien à déclarer. */}
           {ia && (
             <>
               <div className="my-1 h-px bg-border" />
@@ -881,8 +963,8 @@ function MenuEtape(props: {
           </button>
           {confirmer && (
             <p className="px-3 pb-1 pt-0.5 text-[11px] text-text-dim">
-              {/* Disait « ses sous-objectifs remontent d'un niveau » : faux
-                  depuis la corbeille (migration 027), ils partent avec elle.
+              {/* Disait que ses étapes remontaient d'un niveau : faux depuis la
+                  corbeille (migration 027), elles partent avec elle.
                   Puis « Ses tâches restent » : faux depuis le 2026-09-30. */}
               {annonceDepart("etape", bilan)}
             </p>
@@ -897,112 +979,37 @@ function MenuEtape(props: {
 // ─── Ajouter une étape : UNE ligne ──────────────────────────────────────────
 
 /**
- * Le bouton « Ajouter un sous-objectif » d'une étape dépliée, et son champ.
+ * Le champ d'une étape neuve : son nom, sa priorité. Il vit dans la rangée
+ * d'ajout (`BarreAjout`), à côté de « ＋ Tâche » et « Rattacher ».
  *
- * ⚠️ Au niveau de l'OBJECTIF, ce bouton vit dans la rangée d'ajout
- * (`BarreAjout`, 2026-10-11) à côté de « ＋ Tâche » et « Rattacher » ; le champ,
- * lui, est le même (`ChampEtape`).
+ * ⚠️ PLUS DE GENRE À CHOISIR (2026-10-12). Deux boutons « Phase |
+ * Sous-objectif » précédaient le champ : on ajoute UNE ÉTAPE, et c'est ce
+ * qu'elle contiendra qui la nommera. Posée sous une étape, elle en fait une
+ * phase (`lib/objectifs/ajout.ts`).
  */
-function AjoutEtape(props: {
-  parent: Goal;
-  goals: Goal[];
-  genres: GenreEtape[];
-  libelle: string;
-  refresh: () => Promise<void>;
-}) {
-  const [ouvert, setOuvert] = useState(false);
-  if (!props.genres.some((g) => peutAjouterEtape(props.parent, g, props.goals))) return null;
-
-  if (!ouvert) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        className="cible-tactile-ligne flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-text-dim hover:bg-surface-2 hover:text-text"
-      >
-        <IconPlus className="h-3.5 w-3.5" />
-        {props.libelle}
-      </button>
-    );
-  }
-  return (
-    <ChampEtape
-      parent={props.parent}
-      goals={props.goals}
-      genres={props.genres}
-      refresh={props.refresh}
-      onFermer={() => setOuvert(false)}
-    />
-  );
-}
-
-/** Le champ d'une étape neuve : son genre (s'il y a le choix), son nom, sa priorité. */
 function ChampEtape(props: {
   parent: Goal;
   goals: Goal[];
-  genres: GenreEtape[];
   refresh: () => Promise<void>;
   onFermer: () => void;
 }) {
-  const { parent, goals, genres, refresh } = props;
-  const [genre, setGenre] = useState<GenreEtape>(genres[0]);
+  const { parent, goals, refresh } = props;
   const [priorite, setPriorite] = useState<Priority>("medium");
   const [cle, setCle] = useState(0);
   const fermer = props.onFermer;
 
-  const genresPossibles = genres.filter((g) => peutAjouterEtape(parent, g, goals));
-  if (genresPossibles.length === 0) return null;
-  const genreActif = genresPossibles.includes(genre) ? genre : genresPossibles[0];
+  if (!peutAjouterEtape(parent, goals)) return null;
 
   return (
     <div className="px-1 py-1">
       <div className="flex flex-wrap items-center gap-2">
-      {genresPossibles.length > 1 && (
-        <div className="flex shrink-0 overflow-hidden rounded-[8px] border border-border text-[11px]" role="radiogroup" aria-label={t("Genre de l’étape")}>
-          {genresPossibles.map((g) => (
-            <button
-              key={g}
-              type="button"
-              role="radio"
-              aria-checked={genreActif === g}
-              // La souris ne doit pas voler le focus au champ : on tape, on
-              // bascule le genre, on continue de taper.
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => setGenre(g)}
-              // ⭐ L'aide, qui était une phrase sous le champ, attend ici (2026-09-30).
-              data-tip={nomDeGenre(g)}
-              data-tip-sub={aideDeGenre(g)}
-              data-tip-attente="longue"
-              className={`cible-tactile px-2 py-1 font-medium ${genreActif === g ? "bg-blue/15 text-blue" : "text-text-dim hover:text-text"}`}
-            >
-              {nomDeGenre(g)}
-            </button>
-          ))}
-        </div>
-      )}
       <ChampLigne
         key={cle}
-        placeholder={
-          genreActif === "jalon"
-            ? t("Nom de la phase — Entrée pour valider et continuer")
-            : t("Nom du sous-objectif — Entrée pour valider et continuer")
-        }
+        placeholder={t("Nom de l’étape — Entrée pour valider et continuer")}
         onValider={async (titre) => {
           if (!titre) return fermer();
-          const soeurs = goals.filter((g) => g.parent_goal_id === parent.id);
-          await createGoal({
-            ...ficheDe(parent),
-            title: titre,
-            description: null,
-            parent_goal_id: parent.id,
-            deadline: null,
-            progress_pct: 0,
-            manual_progress: 0,
-            is_milestone: genreActif === "jalon" ? 1 : 0,
-            position: soeurs.reduce((mx, s) => Math.max(mx, (s.position ?? 0) + 1), soeurs.length),
-            priority: priorite,
-          });
-          // La ligne suivante s'ouvre, vide : cinq phases se tapent d'affilée.
+          await ajouterEtape(parent, titre, goals, { priorite });
+          // La ligne suivante s'ouvre, vide : cinq étapes se tapent d'affilée.
           // Et « moyenne » : une priorité collée d'une ligne à l'autre en
           // ferait passer cinq en élevée sans qu'on l'ait voulu.
           setCle((c) => c + 1);
@@ -1015,8 +1022,6 @@ function ChampEtape(props: {
           le champ, qui valide en le perdant, reste celui qui reçoit la frappe. */}
       <PastillePriorite valeur={priorite} onChange={setPriorite} />
       </div>
-      {/* L'aide « Une phase regroupe… », écrite ici sous le champ jusqu'au
-          2026-09-30, est dans la bulle des boutons « Phase / Sous-objectif ». */}
     </div>
   );
 }
@@ -1075,7 +1080,7 @@ function ChampLigne(props: {
  * La version d'avant passait par `updateGoal` et la fiche complète (`ficheDe`),
  * faute d'une écriture partielle qui connaisse l'échéance (la liste fermée de
  * `majFeuilleDeRoute` ne l'a pas) — donc réécrivait huit colonnes pour une
- * date. Avec la corbeille, un sous-objectif dont le parent est jeté se lit
+ * date. Avec la corbeille, une étape dont le parent est jeté se lit
  * sans parent en mémoire : la fiche complète aurait coupé ce lien pour de bon.
  */
 function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => Promise<void> }) {
@@ -1366,7 +1371,25 @@ function ListeElements(props: {
           );
         })}
       </ul>
-      {props.avecRattachement && <BarreAjout goal={goal} data={data} contexte={contexte} refresh={refresh} />}
+      {/* ⭐ La rangée d'ajout d'une étape : « Tâche » d'abord (2026-10-12). Au
+          niveau 1, « Étape » aussi : une étape posée sous celle-ci en fait une
+          phase. Au niveau 2, on est au fond : il ne reste que des tâches. */}
+      {props.avecRattachement && (
+        <BarreAjout
+          goal={goal}
+          data={data}
+          contexte={contexte}
+          refresh={refresh}
+          etape={
+            peutAjouterEtape(goal, data.goals)
+              ? {
+                  tip: t("Une étape sous celle-ci, pour regrouper des tâches"),
+                  champ: (fermer) => <ChampEtape parent={goal} goals={data.goals} refresh={refresh} onFermer={fermer} />,
+                }
+              : undefined
+          }
+        />
+      )}
       <MenuContextuel
         etat={menu}
         libelle={t("Actions sur « {titre} »", { titre: menu.cible?.label ?? "" })}
@@ -1526,19 +1549,22 @@ const PASTILLE_ELEMENT =
 /**
  * ⭐ LA LÉGENDE — demandée par Antonin avec la variante D : « il faut que
  * quelque part soit noté que le rond est […] le fichier une étape ». Les mêmes
- * icônes que les lignes (dossier, cible, case), une seule fois, en tête.
+ * icônes que les lignes (dossier, losange, case), une seule fois, en tête.
  * Un NOM pour chaque icône, pas une explication : celles-là restent dans les
  * bulles longues.
+ *
+ * 2026-10-12 : « Phase · Sous-objectif · Tâche » est devenu « Phase · Étape ·
+ * Tâche », et l'étape a son icône (le losange, plus la cible de l'objectif).
  */
 function Legende() {
   const item = "inline-flex items-center gap-1";
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim" aria-label={t("Légende")}>
-      <span className={item}>
-        <IconFolder className="h-3.5 w-3.5" aria-hidden /> {nomDeGenre("jalon")}
+      <span className={item} data-tip={aideDeNature("phase")} data-tip-attente="longue">
+        <IconFolder className="h-3.5 w-3.5" aria-hidden /> {nomDeNature("phase")}
       </span>
-      <span className={item}>
-        <IconTarget className="h-3.5 w-3.5" aria-hidden /> {nomDeGenre("sous-objectif")}
+      <span className={item} data-tip={aideDeNature("etape")} data-tip-attente="longue">
+        <IconEtape className="h-3.5 w-3.5" aria-hidden /> {nomDeNature("etape")}
       </span>
       <span className={item}>
         <span className="h-3 w-3 rounded-[3px] border-[1.5px] border-current" aria-hidden /> {t("Tâche")}
@@ -1567,20 +1593,6 @@ function sourceNommee(etape: Goal, data: AppData): { nom: string; habitude: bool
     return x ? { nom: x.label, habitude: false, aide: t("La tâche qui compte") } : null;
   }
   return null;
-}
-
-/** Les champs de la fiche, pour `updateGoal` — qui n'écrit que ceux-là. */
-export function ficheDe(g: Goal): GoalInput {
-  return {
-    title: g.title,
-    description: g.description,
-    scope: g.scope,
-    category: g.category,
-    parent_goal_id: g.parent_goal_id,
-    deadline: g.deadline,
-    progress_pct: g.progress_pct,
-    manual_progress: g.manual_progress,
-  };
 }
 
 /** `Intl` dans la langue de l'app ; midi, pour rester dans la bonne journée (PIEGES § 4.1). */

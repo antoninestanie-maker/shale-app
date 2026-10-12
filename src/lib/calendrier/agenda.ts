@@ -400,7 +400,7 @@ export function entreesDuJour(
     });
   }
 
-  // 4) Les échéances d'objectifs — y compris les sous-objectifs, qui sont les
+  // 4) Les échéances d'objectifs — y compris les étapes, qui sont les
   // jalons. `goals.deadline` existait déjà, et n'était visible QUE dans le
   // module Objectifs : personne ne la croisait avec un calendrier.
   for (const g of src.goals) {

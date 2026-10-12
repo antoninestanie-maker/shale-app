@@ -32,7 +32,6 @@ import {
 } from "../../lib/carte";
 import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
 import { objetsEmportes, resoudreEmportes } from "../../lib/objectifs/emportes";
-import type { GenreEtape } from "../../lib/objectifs/structure";
 import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
 import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
@@ -60,7 +59,7 @@ import {
   IconExpand,
   IconExternal,
   IconFlame,
-  IconFolder,
+  IconEtape,
   IconLink,
   IconNoeudEnfant,
   IconNoeudFrere,
@@ -98,7 +97,7 @@ import { kbd } from "../../lib/platform";
  */
 
 /** Ce qu'un nœud de la carte d'un objectif peut recevoir comme enfant. */
-export type EnfantObjectif = "phase" | "sous-objectif" | "tache" | "habitude";
+export type EnfantObjectif = "etape" | "tache" | "habitude";
 
 /**
  * ⭐ LA CARTE D'UN OBJECTIF, ÉDITABLE (2026-09-29) — une seconde vue du même
@@ -313,7 +312,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * Le panneau « sous quel objectif ? » — la SEULE question du typage direct
    * qui reste : une étape dont aucun ancêtre de la carte n'est un objectif.
    */
-  const [typage, setTypage] = useState<{ genre: GenreEtape; id: string } | null>(null);
+  const [typage, setTypage] = useState<{ id: string } | null>(null);
   /** Un typage en cours d'écriture : un second clic ne crée pas un second objet. */
   const typageEnCours = useRef(false);
   /**
@@ -1342,7 +1341,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     const goals = donnees.data.goals;
     const plan = planDirect(courante, id, type, goals);
     if (plan.quoi === "choisir-objectif") {
-      setTypage({ genre: plan.genre, id });
+      setTypage({ id });
       return;
     }
     const nom = (g: { title: string }) => g.title.trim() || t("Sans titre");
@@ -1359,18 +1358,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           5000,
         );
       } else if (plan.quoi === "etape") {
-        const r = await typerEnEtape(titre, plan.parent, plan.genre, goals);
+        const r = await typerEnEtape(titre, plan.parent, goals);
         if (!r) return;
         modifier((c) => poserReference(c, id, r.ref, titre, r.genre));
-        const phase = plan.genre === "jalon";
         dire(
           plan.repli
-            ? phase
-              ? t("Phase rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.", { objectif: nom(plan.parent) })
-              : t("Sous-objectif rangé sous « {objectif} » : la feuille de route n'a que trois niveaux.", { objectif: nom(plan.parent) })
-            : phase
-              ? t("Phase ajoutée à « {objectif} ».", { objectif: nom(plan.parent) })
-              : t("Sous-objectif ajouté à « {objectif} ».", { objectif: nom(plan.parent) }),
+            ? t("Étape rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.", { objectif: nom(plan.parent) })
+            : t("Étape ajoutée à « {objectif} ».", { objectif: nom(plan.parent) }),
           5000,
         );
       } else {
@@ -1480,10 +1474,12 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const menuCreation = useMenuContextuel<string>();
 
   /**
-   * ⭐ AJOUTER, DANS LA CARTE D'UN OBJECTIF, EXIGE UN TYPE — Étape (phase ou
-   * sous-objectif), Tâche ou Habitude. Pas d'idée : une carte dérivée n'a
-   * nulle part où ranger un texte libre. Le menu s'ouvre sur le nœud choisi ;
-   * les genres impossibles à cet endroit sont grisés, avec la raison.
+   * ⭐ AJOUTER, DANS LA CARTE D'UN OBJECTIF, EXIGE UN TYPE — Tâche, Étape ou
+   * Habitude. Pas d'idée : une carte dérivée n'a nulle part où ranger un texte
+   * libre. Le menu s'ouvre sur le nœud choisi ; ce qui est impossible à cet
+   * endroit est grisé, avec la raison.
+   * 2026-10-12 : « Phase » et « Sous-objectif » sont devenus « Étape » (une
+   * étape posée sous une étape en fait une phase), et la tâche passe en tête.
    */
   const ouvrirCreation = (comment: "enfant" | "frere") => {
     const n = noeudDe(courante, selection);
@@ -1515,9 +1511,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       executer: () => commencerEnfant(parentId, type),
     });
     return [
-      entree("phase", t("Phase"), <IconFolder />),
-      entree("sous-objectif", t("Sous-objectif"), <IconTarget />),
       entree("tache", t("Tâche"), <IconCheckCircle />),
+      entree("etape", t("Étape"), <IconEtape />),
       entree("habitude", t("Habitude"), <IconFlame />),
     ];
   };
@@ -1553,9 +1548,10 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         desactive: libre ? { raison: t("C'est déjà une idée : du texte libre.") } : undefined,
         executer: () => modifier((c) => poserReference(c, id, null, n.texte)),
       },
-      // Les MÊMES quatre mots que l'ajout dans la carte d'un objectif (règle 18).
-      { id: "phase", libelle: t("Phase"), icone: <IconFolder />, desactive: bloque, executer: direct("phase") },
-      { id: "sous-objectif", libelle: t("Sous-objectif"), icone: <IconTarget />, desactive: bloque, executer: direct("sous-objectif") },
+      // Les MÊMES trois mots que l'ajout dans la carte d'un objectif (règle 18).
+      // Où va l'étape se déduit de la carte (`planDirect`) : plus de choix
+      // « Phase | Sous-objectif » depuis le 2026-10-12.
+      { id: "etape", libelle: t("Étape"), icone: <IconEtape />, desactive: bloque, executer: direct("etape") },
       { id: "tache", libelle: t("Tâche"), icone: <IconCheckCircle />, desactive: bloque, executer: direct("tache") },
       { id: "habitude", libelle: t("Habitude"), icone: <IconFlame />, desactive: bloque, executer: direct("habitude") },
     ];
@@ -2345,7 +2341,6 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
 
       {typage && !lecture && donnees && (
         <PanneauType
-          genre={typage.genre}
           carte={courante}
           noeudId={typage.id}
           goals={donnees.data.goals}
@@ -2355,12 +2350,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             setTypage(null);
             modifier((c) => poserReference(c, id, ref, titreObjet, genre));
             setSelection(id);
-            dire(
-              genre === "phase"
-                ? t("Phase ajoutée à « {objectif} ».", { objectif: sous })
-                : t("Sous-objectif ajouté à « {objectif} ».", { objectif: sous }),
-              5000,
-            );
+            dire(t("Étape ajoutée à « {objectif} ».", { objectif: sous }), 5000);
           }}
         />
       )}
