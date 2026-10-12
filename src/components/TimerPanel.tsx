@@ -2,7 +2,7 @@
 // pause auto, contrôles de session. Minimaliste — ni mode concentration
 // ni son (retirés le 2026-07-23).
 import { useEffect, useMemo, useState } from "react";
-import { todayStr, todayTasks } from "../lib/logic";
+import { tachesAFaire, todayStr } from "../lib/logic";
 import { getSetting, setSetting } from "../lib/repo";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData } from "../lib/types";
@@ -93,8 +93,11 @@ export default function TimerPanel({ data, focus }: Props) {
   const workMin = customMode ? customWorkMin : (customWork ?? preset.work);
   const breakMin = customMode ? customBreakMin : preset.brk;
 
+  // ⚠️ `tachesAFaire`, pas la liste du jour : on doit pouvoir lier une séance à
+  // une tâche sans date ou en retard (la liste du jour ne les contient plus
+  // depuis le 2026-10-11 — voir `todayTasks`, `lib/logic.ts`).
   const undone = useMemo(
-    () => todayTasks(data.tasks, data.completions, today).filter((t) => !t.done),
+    () => tachesAFaire(data.tasks, data.completions, today),
     [data.tasks, data.completions, today],
   );
 

@@ -215,7 +215,9 @@ describe("⭐ les exemples n'alimentent AUCUN compteur", () => {
     const semaine = weekStats([vraie, exemple], [fait(1, JOUR)], JOUR, liste);
     expect(semaine).toHaveLength(7);
     expect(semaine[6].pct).toBe(100); // aujourd'hui, via `pctOfList`
-    expect(semaine[6].total).toBe(2); // ⚠️ le TOTAL affiché reste celui de la liste
+    // ⚠️ Depuis le 2026-10-11 le TOTAL sort du même compte que le pourcentage :
+    // l'anneau écrivait « 100 % » sur « 1/2 » (crible du labo, constat 1).
+    expect(semaine[6].total).toBe(1);
   });
 
   it("⚠️ ni la progression d'un objectif", () => {

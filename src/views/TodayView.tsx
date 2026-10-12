@@ -11,7 +11,7 @@ import CalendarCard from "../components/CalendarCard";
 import MentalLoadGauge from "../components/MentalLoadGauge";
 import {
   computeStreak,
-  pctOfList,
+  statDeListe,
   todayStr,
   todayTasks,
   weekStats,
@@ -123,11 +123,13 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
       ...x,
       done: etat(`t${x.id}`, x.done),
     }));
-    const pct = pctOfList(list);
+    // ⭐ La fraction et le pourcentage sortent du MÊME compte (`statDeListe`) :
+    // l'anneau écrivait « 25 % » sur « 1/6 » (crible du labo, constat 1).
+    const stat = statDeListe(list);
     return {
       list,
-      pct,
-      streak: computeStreak(data.tasks, data.completions, today, pct),
+      stat,
+      streak: computeStreak(data.tasks, data.completions, today, stat.pct),
       week: weekStats(data.tasks, data.completions, today, list),
     };
   }, [data, today, etat]);
@@ -167,10 +169,10 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
             recentre au lieu de laisser un vide sous lui. */}
         <div className="panel-grow flex items-center justify-center">
           <DisciplineRing
-            pct={derived.pct}
+            pct={derived.stat.pct}
             streak={derived.streak}
-            done={derived.list.filter((t) => t.done).length}
-            total={derived.list.length}
+            done={derived.stat.done}
+            total={derived.stat.total}
           />
         </div>
       </section>

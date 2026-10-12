@@ -307,7 +307,7 @@ export const EN: Record<string, string> = {
   "Contenu de la note…": "Note content…",
   "Note vide": "Empty note",
   "Note rapide": "Quick note",
-  "Cocher une tâche du jour": "Check off a task for today",
+  "Cocher une tâche": "Check off a task",
   "C'est noté.": "Noted.",
   "Données non chargées": "Data not loaded",
   "+1 sur une métrique": "+1 on a metric",
@@ -1114,8 +1114,7 @@ export const EN: Record<string, string> = {
   // ── Chaînes à variables ───────────────────────────────────────────────────
   "Tâche « {label} » ajoutée": "Task “{label}” added",
   "« {label} » cochée ✓": "“{label}” checked ✓",
-  "Aucune tâche du jour ne correspond à « {q} »":
-    "No task due today matches “{q}”",
+  "Aucune tâche à faire ne correspond à « {q} »": "No open task matches “{q}”",
   "Aucune métrique ne correspond à « {q} »": "No metric matches “{q}”",
   "Priorité {p}": "{p} priority",
   "Rattachée à l'objectif « {title} »": "Linked to the goal “{title}”",

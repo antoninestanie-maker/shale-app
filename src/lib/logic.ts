@@ -2,6 +2,7 @@
 import { localeTag, t } from "./i18n";
 import { sansExemples } from "./onboarding/exemples";
 import { mesurer, type ContexteProgression } from "./objectifs/progression";
+import { ponctuellesFaites } from "./taches";
 import type {
   Completion,
   DayStat,
@@ -164,34 +165,116 @@ export function isDueOn(task: Task, dateStr: string): boolean {
 }
 
 /**
- * Tâches affichées aujourd'hui : récurrentes dues ce jour + one-off
- * pas encore faites (ou faites aujourd'hui, pour rester visibles cochées).
+ * ⭐⭐ LA DÉFINITION DE « LA TÂCHE DU JOUR » — UN SEUL ENDROIT (2026-10-11).
+ *
+ * Avant, la carte « Tâches du jour » listait TOUTE tâche ponctuelle non faite,
+ * datée ou non : noter « Relancer le devis jeudi » un dimanche faisait baisser
+ * la Discipline du dimanche (crible du labo, constat 1 ; audit A17-19). Et la
+ * vue Tâches, à côté, disait « 1 tâche aujourd'hui » quand la carte en
+ * montrait quatre.
+ *
+ * Une tâche est PRÉVUE un jour donné si :
+ *   • c'est une routine (récurrente) due ce jour-là — `isDueOn` ;
+ *   • ou une ponctuelle DATÉE de ce jour-là.
+ * Ni les « sans date », ni les « à venir », ni les « en retard » (qui ont leur
+ * propre ligne sur Aujourd'hui — `tachesEnRetard`, `lib/taches.ts`).
+ *
+ * ⚠️ Tout le monde lit cette règle : la liste du jour (`todayTasks`), l'anneau
+ * de Discipline et les séries (`statDeListe`, `dayStat`), la section
+ * « Aujourd'hui » de la vue Tâches (`tachesVue.ts`), le brief, Performance — et
+ * le PORTAGE RUST `src-tauri/src/notifications/task_streak.rs`, à tenir
+ * d'accord à la main.
+ */
+export function estPrevueLe(task: Task, jour: string): boolean {
+  if (isRecurring(task)) return isDueOn(task, jour);
+  return task.due_date === jour;
+}
+
+/**
+ * La liste du jour EN COURS : ce qui est prévu aujourd'hui, plus ce qu'on a
+ * coché aujourd'hui.
+ *
+ *   • une routine due aujourd'hui, cochée ou non ;
+ *   • une ponctuelle datée d'aujourd'hui, tant qu'elle n'a pas été faite UN
+ *     AUTRE jour (faite en avance, elle a compté ce jour-là) ;
+ *   • une ponctuelle COCHÉE aujourd'hui, quelle que soit sa date : ce qu'on a
+ *     fait aujourd'hui compte pour aujourd'hui. C'est aussi ce qui garde à
+ *     l'écran, cochée, la tâche en retard qu'on vient de rattraper.
+ *
+ * ⚠️ Ajouter une tâche sans date, ou datée de jeudi, ne change donc RIEN à la
+ * liste ni au pourcentage du jour — c'est le défaut que la règle corrige.
  */
 export function todayTasks(
   tasks: Task[],
   completions: Completion[],
   today: string,
 ): TodayTask[] {
-  const doneToday = new Map(
+  const cochesDuJour = new Map(
     completions
       .filter((c) => c.date === today)
       .map((c) => [c.task_id, !!c.done]),
   );
+  const faitesUnJour = ponctuellesFaites(completions);
 
   return tasks
     .filter((t) => {
-      if (isDueOn(t, today)) return true;
-      if (isRecurring(t)) return false;
-      if (t.created_at && t.created_at.slice(0, 10) > today) return false;
-      const doneComp = completions.find((c) => c.task_id === t.id && c.done);
-      return !doneComp || doneComp.date === today;
+      if (isRecurring(t)) return isDueOn(t, today);
+      if (cochesDuJour.get(t.id)) return true;
+      return estPrevueLe(t, today) && !faitesUnJour.has(t.id);
     })
-    .map((t) => ({ ...t, done: doneToday.get(t.id) ?? false }));
+    .map((t) => ({ ...t, done: cochesDuJour.get(t.id) ?? false }));
 }
 
 /**
- * Stats d'un jour passé, reconstituées : récurrentes dues ce jour-là
- * + one-off ayant une ligne de complétion ce jour-là.
+ * Ce qu'on PEUT faire maintenant : les routines du jour pas encore cochées, et
+ * toutes les ponctuelles pas encore faites, datées ou non.
+ *
+ * ⚠️ Ce n'est PAS « la liste du jour » et ça ne compte dans aucun chiffre :
+ * c'est le choix offert au minuteur (« tâche liée ») et à la palette (« cocher
+ * une tâche »), où l'on doit pouvoir désigner une tâche sans date. C'était le
+ * contenu de `todayTasks` avant le 2026-10-11 ; les deux usages ont été séparés
+ * au lieu de laisser le minuteur perdre les tâches sans date. Les tâches du
+ * jour (`estPrevueLe`) viennent en tête.
+ */
+export function tachesAFaire(
+  tasks: Task[],
+  completions: Completion[],
+  today: string,
+): Task[] {
+  const cochesDuJour = new Set(
+    completions.filter((c) => c.date === today && c.done).map((c) => c.task_id),
+  );
+  const faitesUnJour = ponctuellesFaites(completions);
+  const possibles = tasks.filter((t) =>
+    isRecurring(t)
+      ? isDueOn(t, today) && !cochesDuJour.has(t.id)
+      : !faitesUnJour.has(t.id) && !(t.created_at && t.created_at.slice(0, 10) > today),
+  );
+  // Les tâches DU JOUR en tête : ce sont celles qu'on lie le plus souvent, et
+  // la palette prend la première qui correspond. Le tri est stable — dans
+  // chaque groupe, l'ordre de la base est gardé.
+  const rang = (t: Task) => (estPrevueLe(t, today) ? 0 : 1);
+  return possibles.sort((a, b) => rang(a) - rang(b));
+}
+
+/**
+ * Le compte d'un jour PASSÉ : les routines dues ce jour-là, et les ponctuelles
+ * COCHÉES ce jour-là.
+ *
+ * ⭐ CE QUE LA RÈGLE DU 2026-10-11 FAIT À L'HISTORIQUE : presque rien, et
+ * jamais à la baisse. Un jour écoulé se relit depuis les COCHES, qui sont
+ * datées ; il n'a jamais compté les tâches sans date ni les tâches à venir
+ * (elles n'avaient pas de ligne ce jour-là). Son chiffre est donc celui
+ * d'avant, à une exception près : une ponctuelle cochée PUIS décochée laissait
+ * une ligne `done = 0`, qui comptait comme un manqué le jour de la coche. Elle
+ * ne compte plus — elle n'était ni prévue, ni faite. Un pourcentage passé ne
+ * peut que MONTER, une série ne peut que s'allonger.
+ *
+ * ⚠️ LIMITE CONNUE, laissée telle quelle : une ponctuelle datée d'un jour et
+ * PAS faite sort du compte de ce jour à minuit (elle devient « en retard »). Le
+ * chiffre du soir peut donc monter le lendemain matin, jamais baisser. La faire
+ * peser sur son jour demanderait de savoir quelle était sa date CE JOUR-LÀ, et
+ * `due_date` ne garde que la date actuelle : chaque report réécrirait le passé.
  */
 export function dayStat(
   tousLesTasks: Task[],
@@ -209,9 +292,9 @@ export function dayStat(
 
   const due = new Set<number>();
   for (const t of tasks) if (isDueOn(t, date)) due.add(t.id);
-  for (const c of comps) {
-    const t = byId.get(c.task_id);
-    if (t && !isRecurring(t)) due.add(c.task_id);
+  for (const id of doneIds) {
+    const t = byId.get(id);
+    if (t && !isRecurring(t)) due.add(id);
   }
 
   const total = due.size;
@@ -224,14 +307,31 @@ export function dayStat(
   };
 }
 
-export function pctOfList(list: TodayTask[]): number | null {
-  // ⚠️ `todayTasks()` rend la liste AFFICHÉE, exemples compris — c'est voulu,
-  // un exemple doit se voir. Le filtre se pose donc ici, au moment où la liste
-  // devient un POURCENTAGE : sans lui, la tâche « revue de fin de journée »
-  // ferait tomber l'anneau de discipline à 0 % le premier jour.
+/**
+ * Le compte de la liste du jour : la fraction ET le pourcentage, tirés du MÊME
+ * tableau.
+ *
+ * ⚠️ `todayTasks()` rend la liste AFFICHÉE, exemples compris — c'est voulu, un
+ * exemple doit se voir. Le filtre se pose ici, au moment où la liste devient un
+ * CHIFFRE : sans lui, la tâche d'exemple ferait tomber l'anneau à 0 % le
+ * premier jour.
+ *
+ * ⚠️ L'anneau écrivait « 25 % » sur « 1/6 » : le pourcentage sortait d'ici
+ * (exemples exclus), la fraction de la liste affichée (exemples compris). Les
+ * deux sortent maintenant d'ici (crible du labo, constat 1).
+ */
+export function statDeListe(list: TodayTask[]): { total: number; done: number; pct: number | null } {
   const compte = sansExemples(list);
-  if (compte.length === 0) return null;
-  return Math.round((compte.filter((t) => t.done).length / compte.length) * 100);
+  const done = compte.filter((t) => t.done).length;
+  return {
+    total: compte.length,
+    done,
+    pct: compte.length > 0 ? Math.round((done / compte.length) * 100) : null,
+  };
+}
+
+export function pctOfList(list: TodayTask[]): number | null {
+  return statDeListe(list).pct;
 }
 
 /** 7 derniers jours (aujourd'hui inclus) ; le jour courant est calculé sur la liste live. */
@@ -245,12 +345,7 @@ export function weekStats(
   for (let i = 6; i >= 1; i--) {
     out.push(dayStat(tasks, completions, addDays(today, -i)));
   }
-  out.push({
-    date: today,
-    total: todayList.length,
-    done: todayList.filter((t) => t.done).length,
-    pct: pctOfList(todayList),
-  });
+  out.push({ date: today, ...statDeListe(todayList) });
   return out;
 }
 
