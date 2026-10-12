@@ -174,10 +174,19 @@ export default function EnRetard(props: {
                   <span className="shrink-0 text-xs text-text-dim">
                     {/* La date ÉCRITE, année comprise quand il le faut (2026-10-12) —
                         la même écriture que la liste des objectifs. */}
+                    {/* Deux morceaux insécables : à 390 px la ligne se coupe au
+                        point médian, pas au milieu de « 41 jours ». */}
                     {objectif!.goal.deadline && (
-                      <>{t("échéance {date}", { date: dateDEcheance(objectif!.goal.deadline, today) })} · </>
+                      <>
+                        <span className="whitespace-nowrap">
+                          {t("échéance {date}", { date: dateDEcheance(objectif!.goal.deadline, today) })}
+                        </span>
+                        {" · "}
+                      </>
                     )}
-                    {tp(objectif!.jours, "dépassée d'un jour", "dépassée de {n} jours")}
+                    <span className="whitespace-nowrap">
+                      {tp(objectif!.jours, "dépassée d'un jour", "dépassée de {n} jours")}
+                    </span>
                   </span>
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-text-dim">
