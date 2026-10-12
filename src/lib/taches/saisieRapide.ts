@@ -117,7 +117,8 @@ interface Vocabulaire {
   /**
    * Ce qui, juste après « le 15 », dit que ce n'était pas une date. Les deux
    * points n'en font partie que suivis d'un chiffre (« 14:30 ») : « Jeudi 22 :
-   * commander le chêne » est bien une date.
+   * commander le chêne » est bien une date. Un tiret suivi d'un chiffre est
+   * une plage (« jeudi 8-10h », « pages 10-15 »), pas un jour du mois.
    */
   pasUneDate: string;
   /** Un jour puis un mois, un mois puis un jour : groupes nommés j, m, a. */
@@ -153,7 +154,7 @@ const VOCABULAIRE: Record<Lang, Vocabulaire> = {
     nombres: { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, quinze: 15 },
     semaines: /^semaine/,
     quantieme: "le (\\d{1,2})(?:er)?",
-    pasUneDate: "(?:\\s*(?:h\\b|h\\d|heures?\\b|e\\b|eme\\b|[%€$/])|[:.,]\\d)",
+    pasUneDate: "(?:\\s*(?:h\\b|h\\d|heures?\\b|e\\b|eme\\b|[%€$/])|[:.,–-]\\d)",
     avecMois: ["(?:le )?(?<j>\\d{1,2})(?:er)? (?<m>MOIS)\\.?(?: (?<a>\\d{4}))?"],
     devantChiffres: "(?:le )?",
     heures: [
@@ -178,7 +179,7 @@ const VOCABULAIRE: Record<Lang, Vocabulaire> = {
     nombres: { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 },
     semaines: /^week/,
     quantieme: "the (\\d{1,2})(?:st|nd|rd|th)",
-    pasUneDate: "(?:\\s*(?:am|pm|a\\.m|p\\.m)\\b|[%€$/]|[:.,]\\d)",
+    pasUneDate: "(?:\\s*(?:am|pm|a\\.m|p\\.m)\\b|[%€$/]|[:.,–-]\\d)",
     avecMois: [
       "(?<m>MOIS)\\.? (?<j>\\d{1,2})(?:st|nd|rd|th)?(?:,? (?<a>\\d{4}))?",
       "(?:the )?(?<j>\\d{1,2})(?:st|nd|rd|th)? (?:of )?(?<m>MOIS)\\.?(?: (?<a>\\d{4}))?",
@@ -496,7 +497,7 @@ function lire(phrase: string, aujourdHui: string, parDefaut: string | null): Dat
     (m, fin) => {
       const jour = prochainQuantieme(Number(m[3]), aujourdHui);
       const suite = plate.slice(fin);
-      if (/^\s*(?:$|[,;:.!?)\]–—-])/.test(suite) || heureApres(plate, fin, v)) return jour;
+      if (/^\s*(?:$|[,;:.!?)\]])|^\s+[–—-](?:\s|$)/.test(suite) || heureApres(plate, fin, v)) return jour;
       return jour && weekdayOf(jour) === jours.indexOf(m[2]) ? jour : undefined;
     },
     trouvailles,

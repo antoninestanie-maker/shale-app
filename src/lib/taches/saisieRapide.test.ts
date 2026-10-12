@@ -317,6 +317,13 @@ describe("en français", () => {
       expect(jour("Payer le loyer le 15 : virement")).toBe("2026-10-15");
     });
 
+    it("⚠️ « jeudi 8-10h » est une plage d'heures, pas le 8 du mois", () => {
+      const lue = m.lireDate("Réunion jeudi 8-10h", LUN)!;
+      expect(lue.jour).toBe(l.addDays(LUN, 3));
+      expect(lue.titre).toBe("Réunion 8-10h");
+      expect(lue.heure).toBeNull();
+    });
+
     it("⚠️ une phrase qui n'est que la date n'est pas lue", () => {
       expect(m.lireDate("avant jeudi 22", LUN)).toBeNull();
     });
