@@ -9,13 +9,21 @@ import { useIaPossible } from "../lib/ia/useIa";
 import { ouvrirParId } from "../lib/naviguer";
 
 import { t } from "../lib/i18n";
+import { todayStr } from "../lib/logic";
 import { phrasePriorite } from "../lib/priorite";
+import ChampRenommage from "./taches/ChampRenommage";
+import SaisieRapide from "./taches/SaisieRapide";
 interface Props {
   tasks: TodayTask[];
   tags: Tag[];
   goals?: Goal[];
   onToggle: (task: TodayTask) => void;
-  onAdd: (label: string) => void;
+  /**
+   * Ajouter une tâche. `jour` : la date lue dans la phrase ou choisie au
+   * calendrier — à défaut AUJOURD'HUI, puisque c'est la liste du jour
+   * (`SaisieRapide`, 2026-10-11).
+   */
+  onAdd: (label: string, jour: string | null) => void;
   onFocus?: (task: TodayTask) => void;
   /**
    * Le rafraîchissement de l'app — il active le MENU CONTEXTUEL des tâches
@@ -33,7 +41,6 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocus, refresh }: Props) {
   const ia = useIaPossible();
-  const [draft, setDraft] = useState("");
   const [renommeId, setRenommeId] = useState<number | null>(null);
   const menu = useMenuContextuel<TodayTask>();
 
@@ -71,23 +78,16 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
     // panel-col + panel-grow : la carte grandit → c'est la LISTE qui prend la
     // hauteur (et défile si on rétrécit), pas un vide sous le contenu.
     <div className="panel-col panel-grow">
-      <form
+      {/* ⭐ La même ligne d'ajout que la vue Tâches. Ici, une tâche ajoutée
+          sans date naît datée d'AUJOURD'HUI : c'est la liste du jour, et une
+          tâche sans date n'y paraîtrait pas. La pastille le dit avant qu'on valide. */}
+      <SaisieRapide
         className="shrink-0"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const label = draft.trim();
-          if (!label) return;
-          onAdd(label);
-          setDraft("");
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t("Ajouter une tâche…  (Entrée)")}
-          className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
-        />
-      </form>
+        parDefaut={todayStr()}
+        placeholder={t("Ajouter une tâche…  (Entrée)")}
+        aria={t("Ajouter une tâche")}
+        onAjouter={onAdd}
+      />
 
       <ul className="panel-scroll mt-3 flex flex-col gap-1 pr-0.5">
         {sorted.length === 0 && (
@@ -112,22 +112,10 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
             {renommeId === task.id ? (
               /* Renommer EN PLACE. Pas dans le bouton-case : un champ dans un
                  <button> n'est pas du HTML valide, et chaque frappe cocherait. */
-              <input
-                autoFocus
-                defaultValue={task.label}
-                aria-label={t("Nouveau nom de la tâche")}
-                onFocus={(e) => e.currentTarget.select()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void validerRenommage(task, e.currentTarget.value);
-                  } else if (e.key === "Escape") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setRenommeId(null);
-                  }
-                }}
-                onBlur={(e) => void validerRenommage(task, e.currentTarget.value)}
+              <ChampRenommage
+                valeur={task.label}
+                onValider={(libelle) => void validerRenommage(task, libelle)}
+                onAnnuler={() => setRenommeId(null)}
                 className="my-1 min-w-0 flex-1 rounded-md border border-blue bg-surface px-2 py-1 text-sm text-text focus:outline-none"
               />
             ) : (
@@ -205,6 +193,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
             )}
             {gestes && renommeId !== task.id && (
               <BoutonMenu
+                visible
                 onOuvrir={(e) => menu.ouvrirSousLeBouton(e, task)}
                 ouvert={menu.ouvert && menu.cible?.id === task.id}
                 libelle={t("Actions sur « {titre} »", { titre: task.label })}

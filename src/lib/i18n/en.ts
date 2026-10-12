@@ -2765,6 +2765,34 @@ export const EN: Record<string, string> = {
   "Demain": "Tomorrow",
   "Hier": "Yesterday",
   "Lundi prochain": "Next Monday",
+
+  // ── Tâches du jour, ajout rapide, report, rangement par objectif (2026-10-11) ──
+  "+ 1 jour": "+ 1 day",
+  "Changer la date": "Change the date",
+  "Échéance : {date}. Changer": "Due {date}. Change",
+  "Date de la tâche : {date}. Changer": "Task date: {date}. Change",
+  "Date lue dans la phrase": "Date read from your sentence",
+  "« {mots} » quittera le titre. La croix garde le titre entier.":
+    "“{mots}” will leave the title. The cross keeps the title whole.",
+  "Ajoutée ici, la tâche est prévue aujourd'hui.": "Added here, the task is due today.",
+  "Le titre reste entier.": "The title stays whole.",
+  "Ou écris-la dans la phrase : « jeudi », « demain », « 15/10 ».":
+    "Or write it in the sentence: “thursday”, “tomorrow”, “10/15”.",
+  "échéance dépassée d'un jour": "deadline missed by a day",
+  "échéance dépassée de {n} jours": "deadline missed by {n} days",
+  "Sans objectif": "No goal",
+  "Ses tâches à faire, celles de ses étapes comprises — les retards d'abord.":
+    "Its open tasks, including those of its steps — overdue first.",
+  "Les tâches à faire qui ne sont rattachées à aucun objectif.": "Open tasks that aren’t linked to any goal.",
+  "Les tâches récurrentes — celles du jour d'abord.": "Recurring tasks — today’s first.",
+  "Rangement des tâches": "Task grouping",
+  "Ranger par moment": "Group by time",
+  "Ranger par objectif": "Group by goal",
+  "En retard, aujourd'hui, à venir, sans date.": "Overdue, today, upcoming, no date.",
+  "Une section par objectif, ses étapes comprises ; « Sans objectif » en dernier.":
+    "One section per goal, its steps included; “No goal” comes last.",
+  "Par moment": "By time",
+  "Par objectif": "By goal",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
   "Revenir au mois en cours": "Back to this month",

@@ -17,6 +17,11 @@ import {
   weekStats,
 } from "../lib/logic";
 import { basculerTache, createTask } from "../lib/repo";
+import { planificationDeSaisie } from "../lib/taches";
+import { afficherToast } from "../lib/toast";
+import { titreCourt } from "../components/corbeille/geste";
+import EnRetard from "../components/EnRetard";
+import { useSourcesProgression } from "../lib/objectifs/useProgression";
 import { useCochesOptimistes } from "../components/CaseACocher";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import type { FocusController } from "../lib/useFocus";
@@ -27,7 +32,7 @@ import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
 import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
 
-import { localeTag, t } from "../lib/i18n";
+import { formatDate, localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
 import { CarteBrief } from "../components/ia/CarteBrief";
 import { useIa } from "../lib/ia/useIa";
@@ -143,19 +148,45 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     [basculer, refresh],
   );
 
+  /**
+   * ⭐ L'ajout depuis la carte du jour. `jour` vient de la ligne de saisie : la
+   * date lue dans la phrase, celle du calendrier, ou — à défaut — AUJOURD'HUI.
+   * Sans elle, la tâche n'entrerait pas dans la liste du jour (`todayTasks`).
+   */
   const handleAdd = useCallback(
-    async (label: string) => {
+    async (label: string, jour: string | null) => {
       await createTask({
         label,
         tag: null,
         priority: "medium",
         recurrence: "none",
         goal_id: null,
+        // Jamais d'écriture directe de `due_date` : la règle datée / récurrente
+        // est tenue par `planificationDeSaisie` (`lib/taches.ts`).
+        ...planificationDeSaisie("none", jour ?? "", "", ""),
       });
       await refresh();
+      // Datée d'un autre jour, elle n'apparaît PAS dans la liste : le dire,
+      // sinon l'ajout a l'air d'avoir échoué.
+      if (jour && jour !== todayStr()) {
+        afficherToast({
+          msg: t("« {titre} » est prévue le {date}", {
+            titre: titreCourt(label),
+            date: formatDate(new Date(`${jour}T12:00:00`), { weekday: "long", day: "numeric", month: "long" }),
+          }),
+        });
+      }
     },
     [refresh],
   );
+
+  // Les sources de la mesure d'un objectif — lues UNE fois pour la ligne
+  // « En retard » et la carte « Objectifs en cours ».
+  const progression = useSourcesProgression(data);
+  const lancerFocus =
+    focus && !focus.session
+      ? (task: { id: number; label: string }) => focus.start({ minutes: 25, taskId: task.id, label: task.label })
+      : undefined;
 
   // Registre des widgets : la page Personnaliser pilote ordre et visibilité.
   const widgets: Record<string, () => ReactNode> = {
@@ -224,19 +255,14 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
           onToggle={handleToggle}
           onAdd={handleAdd}
           refresh={refresh}
-          onFocus={
-            focus && !focus.session
-              ? (task) =>
-                  focus.start({ minutes: 25, taskId: task.id, label: task.label })
-              : undefined
-          }
+          onFocus={lancerFocus}
         />
       </section>
     ),
     goals: () => (
       <section key="goals" className="card p-5">
         <h2 className="mb-3 hud-label">{t("Objectifs en cours")}</h2>
-        <GoalsPreview data={data} />
+        <GoalsPreview data={data} sources={progression} />
       </section>
     ),
     calendar: () => <CalendarCard key="calendar" data={data} />,
@@ -273,6 +299,16 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         </p>
         <h1 className="mt-2 text-[32px] text-text">{t("Aujourd'hui")}</h1>
       </header>
+
+      {/* ⭐ Ce qui est en retard — absent quand il n'y a rien (`EnRetard`). */}
+      <EnRetard
+        data={data}
+        sources={progression}
+        refresh={refresh}
+        onToggle={handleToggle}
+        cochee={(task) => etat(`t${task.id}`, false)}
+        onFocus={lancerFocus}
+      />
 
       {/* ⭐ Le bouton unique « supprimer les exemples ». Il s'efface de lui-même
           quand il n'y a plus rien à supprimer — voir `BarreExemples`. */}

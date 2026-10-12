@@ -98,16 +98,18 @@ const EVT_OUVRIR_OBJECTIF = "sb:open-goal";
 function deadlineInfo(deadline: string | null): {
   label: string;
   urgent: boolean;
+  /** L'échéance est DÉPASSÉE — la ligne de la liste le dit même quand elle montre la prochaine action. */
+  depassee: boolean;
 } | null {
   if (!deadline) return null;
   const today = todayStr();
   const days = Math.round(
     (new Date(deadline).getTime() - new Date(today).getTime()) / 86_400_000,
   );
-  if (days < 0) return { label: t("en retard de {n} j", { n: -days }), urgent: true };
-  if (days === 0) return { label: t("aujourd'hui"), urgent: true };
+  if (days < 0) return { label: t("en retard de {n} j", { n: -days }), urgent: true, depassee: true };
+  if (days === 0) return { label: t("aujourd'hui"), urgent: true, depassee: false };
   // « J−3 » en français, « D−3 » en anglais : l'initiale suit la langue.
-  return { label: `${pick("J", "D")}−${days}`, urgent: days <= 7 };
+  return { label: `${pick("J", "D")}−${days}`, urgent: days <= 7, depassee: false };
 }
 
 /** `Intl` dans la langue de l'app ; midi, pour rester dans la bonne journée (PIEGES § 4.1). */
@@ -463,11 +465,21 @@ export default function GoalsView({ data, refresh }: Props) {
             </span>
           {/* UNE ligne, jamais deux : la prochaine action si elle existe (le
               carré est l'icône de la tâche, DESIGN.md « Les types de nœud »),
-              sinon l'échéance de l'objectif. */}
+              sinon l'échéance de l'objectif.
+              ⭐ Le RETARD de l'objectif s'écrit toujours, en tête (2026-10-11) :
+              la prochaine action le cachait, et le Calendrier renvoyait à « un
+              objectif en péril, dans le module Objectifs » que la liste ne
+              désignait pas (crible du labo, constat 13). */}
           {acheve ? (
             <span className="mt-0.5 block text-xs text-success">{t("Atteint")}</span>
           ) : suite ? (
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">
+              {dl?.depassee && (
+                <>
+                  <span className="shrink-0 font-medium text-red">{dl.label}</span>
+                  <span className="shrink-0" aria-hidden>·</span>
+                </>
+              )}
               {/* L'espace avant les deux-points est française : l'anglais n'en met pas. */}
               <span className="sr-only">{t("Prochaine action")}{pick(" :", ":")}</span>
               <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] border border-current" aria-hidden />
