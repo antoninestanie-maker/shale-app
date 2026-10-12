@@ -152,6 +152,15 @@ function MoyenneDePeriode(p: {
   note?: string | null;
 }) {
   const { valeur, avant, ecart } = p.comparaison;
+  // La période d'avant, en dates, et ce qu'elle valait — sur l'écart, ou sur
+  // la période quand il n'y a pas d'écart à montrer.
+  const bulleAvant = {
+    "data-tip": t("Période d'avant : {dates}", { dates: p.periodeAvant }),
+    "data-tip-sub":
+      avant === null
+        ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
+        : t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: `${avant} %` }),
+  };
   return (
     <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <p
@@ -162,21 +171,18 @@ function MoyenneDePeriode(p: {
       >
         {valeur === null ? "—" : `${valeur}%`}
       </p>
-      <p className="text-xs text-text-dim">
+      {/* ⚠️ Sans écart à donner, pas de « — » : dans cette ligne il se lisait
+          comme un séparateur resté en l'air (vu au téléphone, où aucune bulle
+          ne l'explique). La raison passe alors sur la période elle-même. */}
+      <p className="text-xs text-text-dim" {...(ecart === null ? bulleAvant : {})}>
         {t("en moyenne")} · {p.periode}
       </p>
-      <p
-        className="flex min-w-0 items-center gap-1.5 text-xs text-text-dim"
-        data-tip={t("Période d'avant : {dates}", { dates: p.periodeAvant })}
-        data-tip-sub={
-          avant === null
-            ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
-            : t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: `${avant} %` })
-        }
-      >
-        <Ecart n={ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
-        {ecart !== null && <span>{t("par rapport à la période d'avant")}</span>}
-      </p>
+      {ecart !== null && (
+        <p className="flex min-w-0 items-center gap-1.5 text-xs text-text-dim" {...bulleAvant}>
+          <Ecart n={ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
+          <span>{t("par rapport à la période d'avant")}</span>
+        </p>
+      )}
       {p.note && (
         <p className="flex items-baseline gap-1.5 text-xs text-text-dim">
           <span className="h-1.5 w-1.5 shrink-0 -translate-y-px rounded-full bg-yellow" aria-hidden />
@@ -706,20 +712,28 @@ export default function PerformanceView({ data, refresh }: Props) {
             « cette semaine » du Timer. */}
         <p
           className="mt-2 flex h-5 items-baseline gap-1.5 text-[11px] text-text-dim"
-          data-tip={t("Le temps des séances de concentration terminées, sur les jours finis")}
+          data-tip={analyse.focus > 0 ? t("Le temps des séances de concentration terminées, sur les jours finis") : undefined}
           data-tip-sub={
-            analyse.focusGlissant
-              ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
-                  dates: analyse.focusGlissant.dates,
-                  // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
-                  total: enHeuresInsecable(analyse.focusGlissant.minutes),
-                })
-              : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut.")
+            analyse.focus === 0
+              ? undefined
+              : analyse.focusGlissant
+                ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
+                    dates: analyse.focusGlissant.dates,
+                    // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
+                    total: enHeuresInsecable(analyse.focusGlissant.minutes),
+                  })
+                : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut.")
           }
           data-tip-attente="longue"
         >
-          <span className="font-display text-base font-extrabold tabular-nums text-text">{enHeuresInsecable(analyse.focus)}</span>
-          {t("au total")}
+          {/* Rien à additionner : la ligne garde sa hauteur (les deux cartes
+              voisines restent alignées), le message plus bas dit le reste. */}
+          {analyse.focus > 0 && (
+            <>
+              <span className="font-display text-base font-extrabold tabular-nums text-text">{enHeuresInsecable(analyse.focus)}</span>
+              {t("au total")}
+            </>
+          )}
         </p>
         {analyse.focus === 0 && jour.focus.minutes === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">{t("Aucune séance de focus sur cette période.")}</p>
