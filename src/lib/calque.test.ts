@@ -159,10 +159,11 @@ describe("la règle tient partout", () => {
     }
   });
 
-  it("⭐ l'horloge plein écran de l'app montre ses commandes et tient le clavier", () => {
+  it("⭐ l'horloge plein écran de l'app tient le clavier — et reste épurée tant qu'Antonin ne dit pas le contraire", () => {
     const calque = sansCommentaires(lire("components/FocusOverlay.tsx"));
-    // Ni horloge seule, ni clavier partagé avec la page de derrière.
-    expect(calque).not.toMatch(/<EcranTimer[^>]*\bepure\b/);
+    // L'horloge seule est SA décision du 2026-09-30 ; les commandes visibles
+    // existent (retirer `epure`), mais ce test tient la décision en place.
+    expect(calque).toMatch(/<EcranTimer[^>]*\bepure\b/);
     expect(calque).toContain("clavierExclusif");
     expect(calque).toContain('t("Réduire|séance")');
     // Porté hors de `#root`, sinon il s'éteindrait lui-même (PIEGES § 18.1).

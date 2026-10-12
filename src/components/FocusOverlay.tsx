@@ -118,7 +118,14 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
 
   return (
     <CalqueSeance>
+      {/* ⚠️ `epure` : décision d'Antonin du 2026-09-30 (« en plein écran, seul le
+          timer affiché, pas de bouton pause, rien — on sort avec Échap et c'est
+          tout »). Le labo du 2026-10-12 a vu six utilisateurs simulés n'y trouver
+          aucune sortie ; les commandes visibles sont écrites (retirer `epure`
+          suffit), mais c'est à lui de retourner sa décision. Le clavier, lui, est
+          à l'horloge dans les deux cas (`clavierExclusif`). */}
       <EcranTimer
+        epure
         clavierExclusif
         seance={session}
         restantSec={remainingSec}
