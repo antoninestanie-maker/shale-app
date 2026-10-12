@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { IconCalendar, IconPlus, IconX } from "../icons";
 import { dateAuFil, formaterComplet } from "../../lib/calendrier/champDate";
-import { t } from "../../lib/i18n";
+import { formatHeure, t } from "../../lib/i18n";
 import { todayStr } from "../../lib/logic";
 import { ancreSurElement, ouvrirSelecteurDate } from "../../lib/selecteurDate";
 import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
@@ -15,6 +15,10 @@ import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
  * de dater. Maintenant :
  *   • la date écrite dans la phrase est LUE (`lib/taches/saisieRapide.ts`) et
  *     montrée en PASTILLE avant validation — jamais appliquée en silence ;
+ *   • un jour de la semaine suivi d'un numéro (« avant jeudi 22 ») désigne CE
+ *     jour du mois, et l'heure accolée (« jeudi 14h30 ») est lue avec la date :
+ *     la pastille écrit le jour, le numéro ET l'heure (« jeu. 22 oct. · 14:30 »)
+ *     — seconde passe du labo, 2026-10-12, constat 2 ;
  *   • la croix de la pastille (ou Échap) l'écarte : le mot reste dans le titre
  *     (« Lire Vendredi ou la vie sauvage » reste entier) ;
  *   • le bouton calendrier date sans rien taper (le calendrier de l'app,
@@ -23,11 +27,12 @@ import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
  *     d'Aujourd'hui passe le jour — c'est la liste du jour, une tâche sans date
  *     n'y paraîtrait pas ; Tâches ne passe rien (décision du 2026-09-30).
  *
- * Ce composant ne crée rien : il rend un titre et un jour à `onAjouter`, qui
- * écrit par `planificationDeSaisie` (`lib/taches.ts`).
+ * Ce composant ne crée rien : il rend un titre, un jour et une heure à
+ * `onAjouter`, qui écrit par `planificationRapide` (`lib/taches/saisieRapide.ts`).
  */
 export default function SaisieRapide(props: {
-  onAjouter: (titre: string, jour: string | null) => void | Promise<void>;
+  /** `heure` : 'HH:MM', lue dans la phrase avec la date — ou `null`. */
+  onAjouter: (titre: string, jour: string | null, heure: string | null) => void | Promise<void>;
   /** 'YYYY-MM-DD' : la date posée quand on n'en donne aucune. */
   parDefaut?: string | null;
   placeholder: string;
@@ -48,7 +53,7 @@ export default function SaisieRapide(props: {
   const valider = () => {
     if (!resolue.titre) return;
     setSaisie({ texte: "", choisie: null, ecartee: null });
-    void props.onAjouter(resolue.titre, resolue.jour);
+    void props.onAjouter(resolue.titre, resolue.jour, resolue.heure);
   };
 
   /** Retirer la date montrée — d'un geste, sans toucher au texte. */
@@ -75,6 +80,8 @@ export default function SaisieRapide(props: {
   };
 
   const retirable = resolue.origine === "lue" || resolue.origine === "choisie";
+  /** L'heure lue, dans la langue de l'app : « 14:30 », “2:30 PM”. */
+  const heure = resolue.heure ? formatHeure(resolue.heure) : null;
 
   return (
     <form
@@ -123,7 +130,9 @@ export default function SaisieRapide(props: {
                 <button
                   type="button"
                   onClick={ouvrirCalendrier}
-                  aria-label={t("Date de la tâche : {date}. Changer", { date: formaterComplet(resolue.jour) })}
+                  aria-label={t("Date de la tâche : {date}. Changer", {
+                    date: heure ? `${formaterComplet(resolue.jour)}, ${heure}` : formaterComplet(resolue.jour),
+                  })}
                   data-tip={resolue.origine === "lue" ? t("Date lue dans la phrase") : t("Changer la date")}
                   data-tip-sub={
                     resolue.origine === "lue"
@@ -135,7 +144,10 @@ export default function SaisieRapide(props: {
                   className={`cible-tactile-ligne inline-flex items-center gap-1 py-1 pl-2 ${retirable ? "pr-1" : "pr-2"}`}
                 >
                   <IconCalendar className="h-3 w-3 shrink-0" />
-                  <span className="whitespace-nowrap">{dateAuFil(resolue.jour, aujourdHui)}</span>
+                  <span className="whitespace-nowrap">
+                    {dateAuFil(resolue.jour, aujourdHui)}
+                    {heure && ` · ${heure}`}
+                  </span>
                 </button>
                 {retirable && (
                   <button
@@ -159,7 +171,7 @@ export default function SaisieRapide(props: {
                 onClick={ouvrirCalendrier}
                 aria-label={t("Choisir une date")}
                 data-tip={t("Choisir une date")}
-                data-tip-sub={t("Ou écris-la dans la phrase : « jeudi », « demain », « 15/10 ».")}
+                data-tip-sub={t("Ou écris-la dans la phrase : « jeudi 14h30 », « demain », « le 22 ».")}
                 className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim transition-colors hover:bg-surface-2 hover:text-text"
               >
                 <IconCalendar className="h-4 w-4" />

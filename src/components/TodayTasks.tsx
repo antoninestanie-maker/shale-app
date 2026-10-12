@@ -23,7 +23,7 @@ interface Props {
    * calendrier — à défaut AUJOURD'HUI, puisque c'est la liste du jour
    * (`SaisieRapide`, 2026-10-11).
    */
-  onAdd: (label: string, jour: string | null) => void;
+  onAdd: (label: string, jour: string | null, heure: string | null) => void;
   onFocus?: (task: TodayTask) => void;
   /**
    * Le rafraîchissement de l'app — il active le MENU CONTEXTUEL des tâches

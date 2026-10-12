@@ -16,7 +16,7 @@ import {
   weekStats,
 } from "../lib/logic";
 import { basculerTache, createTask } from "../lib/repo";
-import { planificationDeSaisie } from "../lib/taches";
+import { planificationRapide } from "../lib/taches/saisieRapide";
 import { afficherToast } from "../lib/toast";
 import { titreCourt } from "../components/corbeille/geste";
 import EnRetard from "../components/EnRetard";
@@ -153,7 +153,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
    * Sans elle, la tâche n'entrerait pas dans la liste du jour (`todayTasks`).
    */
   const handleAdd = useCallback(
-    async (label: string, jour: string | null) => {
+    async (label: string, jour: string | null, heure: string | null) => {
       await createTask({
         label,
         tag: null,
@@ -161,8 +161,9 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         recurrence: "none",
         goal_id: null,
         // Jamais d'écriture directe de `due_date` : la règle datée / récurrente
-        // est tenue par `planificationDeSaisie` (`lib/taches.ts`).
-        ...planificationDeSaisie("none", jour ?? "", "", ""),
+        // est tenue par `planificationDeSaisie` (`lib/taches.ts`), et une heure
+        // lue dans la phrase donne un créneau d'une heure (`planificationRapide`).
+        ...planificationRapide(jour, heure),
       });
       await refresh();
       // Datée d'un autre jour, elle n'apparaît PAS dans la liste : le dire,

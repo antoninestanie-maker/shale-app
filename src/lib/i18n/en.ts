@@ -2770,8 +2770,8 @@ export const EN: Record<string, string> = {
     "“{mots}” will leave the title. The cross keeps the title whole.",
   "Ajoutée ici, la tâche est prévue aujourd'hui.": "Added here, the task is due today.",
   "Le titre reste entier.": "The title stays whole.",
-  "Ou écris-la dans la phrase : « jeudi », « demain », « 15/10 ».":
-    "Or write it in the sentence: “thursday”, “tomorrow”, “10/15”.",
+  "Ou écris-la dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
+    "Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
   "échéance dépassée d'un jour": "deadline missed by a day",
   "échéance dépassée de {n} jours": "deadline missed by {n} days",
   "Sans objectif": "No goal",
@@ -3024,6 +3024,11 @@ export const EN: Record<string, string> = {
   "La fenêtre séparée n'a pas pu s'ouvrir.": "The separate window couldn't open.",
   "Raccourci : Espace": "Shortcut: Space",
   "Progression de la séance": "Session progress",
+  // Le plein écran du minuteur montre ses commandes (2026-10-12).
+  "Session libre": "Open session",
+  "Réduire|séance": "Minimize",
+  "La session continue, réduite en pastille. Raccourci : Échap": "The session keeps running, minimized to a pill. Shortcut: Esc",
+  "Session en plein écran": "Full-screen session",
   "Revenir à Shale": "Back to Shale",
   "Ramène la fenêtre principale devant. Le chrono reste ici.": "Brings the main window to the front. The timer stays here.",
   "Garder au premier plan": "Keep on top",

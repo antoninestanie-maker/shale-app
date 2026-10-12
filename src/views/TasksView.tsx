@@ -24,7 +24,7 @@ import {
   type LigneVue,
   type Rangement,
 } from "../lib/tachesVue";
-import { planificationDeSaisie } from "../lib/taches";
+import { planificationRapide } from "../lib/taches/saisieRapide";
 import type { FocusController } from "../lib/useFocus";
 import BoutonDate from "../components/taches/BoutonDate";
 import ChampRenommage from "../components/taches/ChampRenommage";
@@ -384,15 +384,16 @@ export default function TasksView({ data, refresh, focus }: Props) {
    * calendrier (`SaisieRapide`) ; sans date, elle naît SANS DATE (décision du
    * 2026-09-30). Le reste (rythme, objectif) se règle ensuite.
    */
-  const ajouter = async (label: string, jour: string | null) => {
+  const ajouter = async (label: string, jour: string | null, heure: string | null) => {
     const id = await createTask({
       label,
       tag: tagFilter,
       priority: prioriteNouvelle,
       recurrence: "none",
       goal_id: null,
-      // Jamais d'écriture directe de `due_date` (`lib/taches.ts`).
-      ...planificationDeSaisie("none", jour ?? "", "", ""),
+      // Jamais d'écriture directe de `due_date` (`lib/taches.ts`) ; une heure lue
+      // dans la phrase donne un créneau d'une heure.
+      ...planificationRapide(jour, heure),
     });
     // Chaque tâche repart « moyenne » : une priorité restée collée d'un ajout à
     // l'autre en ferait passer cinq en élevée sans qu'on l'ait voulu.
