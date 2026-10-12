@@ -44,6 +44,21 @@ describe("rendreLeFocus — à la fermeture d'un menu", () => {
     expect(document.activeElement).toBe(el("points"));
   });
 
+  it("⭐ le bouton d'origine est SOUS un calque plein écran (l'app est inerte) : il ne reçoit pas le focus", () => {
+    // « ⋯ › Focus 25 min » : l'horloge s'est ouverte, le « ⋯ » est dessous
+    // (seconde passe du labo, 2026-10-12, constat 3 — Espace rouvrait le menu).
+    const el = monter(
+      `<div id="root" inert=""><button id="points">⋯</button></div><div id="calque" tabindex="-1"></div>`,
+    );
+    el("calque").focus();
+    expect(rendreLeFocus(el("points"), document.activeElement)).toBe(false);
+    expect(document.activeElement).toBe(el("calque"));
+    // Même si le focus n'est nulle part : jamais sous le calque.
+    el("calque").blur();
+    expect(rendreLeFocus(el("points"), document.activeElement)).toBe(false);
+    expect(document.activeElement).not.toBe(el("points"));
+  });
+
   it("le bouton d'origine a quitté le document (la ligne a été retirée) : rien", () => {
     const el = monter(`<button id="points">⋯</button>`);
     const points = el("points");

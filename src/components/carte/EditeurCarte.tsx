@@ -1,3 +1,4 @@
+import { rendreLeResteInerte } from "../../lib/calque";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   agencer,
@@ -516,11 +517,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   // Repris de `SketchPad` : le voile s'occupe du visible, `inert` s'occupe du
   // clavier. Sans lui, tabuler depuis la carte finit par atteindre les boutons
   // du lecteur de note caché derrière.
-  useEffect(() => {
-    const app = document.getElementById("root");
-    app?.setAttribute("inert", "");
-    return () => app?.removeAttribute("inert");
-  }, []);
+  // Par `rendreLeResteInerte` (`lib/calque.ts`), qui COMPTE : un second calque
+  // ouvert par-dessus (l'horloge du minuteur) ne rallume pas l'app en se fermant.
+  useEffect(() => rendreLeResteInerte(), []);
 
   // ─── Le sélecteur `@` ──────────────────────────────────────────────────────
   //

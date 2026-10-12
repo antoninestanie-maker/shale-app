@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import { confierLeRetour } from "../../lib/calque";
 import type { Alignement, Ancre } from "../../lib/menu/placement";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 
@@ -151,10 +152,23 @@ function rectEnAncre(el: HTMLElement): Ancre {
  * encore dans le menu qu'on ferme). Si l'action choisie l'a posé quelque part —
  * un champ de renommage, un calendrier, une fenêtre — il y reste.
  *
+ * ⚠️⚠️ ET JAMAIS SOUS UN CALQUE PLEIN ÉCRAN (seconde passe du labo, 2026-10-12,
+ * constat 3). « ⋯ › Focus 25 min » ouvre l'horloge en plein écran ; ce retour
+ * de focus rendait alors le clavier au « ⋯ » resté DESSOUS : Espace rouvrait
+ * le menu de la tâche par-dessus l'horloge, un second Espace la marquait
+ * faite. Un calque plein écran rend l'app inerte (`lib/calque.ts`) : si la
+ * cible est sous lui, on ne lui donne pas le focus — on la CONFIE au calque,
+ * qui le lui rendra en se fermant. La règle vaut pour toute entrée de menu
+ * qui ouvre un calque (une carte mentale, un croquis), pas pour celle-là seule.
+ *
  * Rend VRAI si le focus a été rendu.
  */
 export function rendreLeFocus(cible: HTMLElement, actif: Element | null): boolean {
   if (!cible.isConnected) return false;
+  if (cible.closest("[inert]")) {
+    confierLeRetour(cible);
+    return false;
+  }
   const nullePart =
     !actif || actif === actif.ownerDocument?.body || !!actif.closest?.("[data-menu-contextuel]");
   if (!nullePart) return false;

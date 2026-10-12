@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ouvrirCalque } from "../lib/calque";
 import type { FocusController } from "../lib/useFocus";
 import { useIsPhone } from "../lib/platform";
 import { themeAuDemarrage, FONDS } from "../lib/theme";
@@ -9,8 +10,8 @@ import {
   usePleinEcranNatif,
   usePontFenetreTimer,
 } from "../lib/timerFenetre";
-import EcranTimer from "./timer/EcranTimer";
-import { IconPause } from "./icons";
+import EcranTimer, { ActionFenetre } from "./timer/EcranTimer";
+import { IconPause, IconReduire } from "./icons";
 
 import { t } from "../lib/i18n";
 function fmt(sec: number): string {
@@ -33,14 +34,23 @@ export async function detacherLeTimer(focus: FocusController): Promise<void> {
 }
 
 /**
- * Mode session : plein écran (l'horloge à volets, SEULE) + pastille compacte
- * quand réduit. Héberge aussi le pont vers la fenêtre séparée du Timer : c'est
- * ici que vit l'affichage de la séance, et ce composant est monté une seule
- * fois, au niveau d'`App`.
+ * Mode session : plein écran (l'horloge à volets ET ses commandes) + pastille
+ * compacte quand réduit. Héberge aussi le pont vers la fenêtre séparée du
+ * Timer : c'est ici que vit l'affichage de la séance, et ce composant est monté
+ * une seule fois, au niveau d'`App`.
  *
- * Le plein écran n'a plus aucun bouton (demande d'Antonin, 2026-09-29) : Échap
- * le referme, et les boutons se retrouvent dans la vue Timer. La fenêtre
- * séparée s'ouvre depuis la vue Timer.
+ * ⭐ LE PLEIN ÉCRAN MONTRE SES COMMANDES (2026-10-12, seconde passe du labo,
+ * constats 1 et 3). ⚠️ Cela RETOURNE une demande d'Antonin du 2026-09-30 (« en
+ * plein écran, seul le timer affiché, pas de bouton pause, rien — on sort avec
+ * Échap et c'est tout »). Depuis, « ⋯ › Focus 25 min » mène ici d'un geste,
+ * depuis Tâches comme depuis Aujourd'hui : six utilisateurs simulés sur douze
+ * s'y sont trouvés sans pause, sans arrêt, sans sortie et sans le nom de leur
+ * tâche — au téléphone et sur tablette, il n'y a pas d'Échap. Cinq en ont fait
+ * leur moment de fermer l'app.
+ *
+ * Ce que l'écran porte, visible AU REPOS : le nom de la tâche (ou « Session
+ * libre »), « Pause » / « Reprendre », « Terminer », « Réduire ». Et le clavier
+ * est à lui : voir `CalqueSeance`.
  */
 export default function FocusOverlay({ focus }: { focus: FocusController }) {
   // ⚠️ Avant tout `return` : un crochet ne se saute pas.
@@ -106,20 +116,67 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
     );
   }
 
-  // Portail sur `document.body` : un ancêtre animé ferait de `inset-0` « cet
-  // ancêtre » et laisserait la barre latérale allumée (PIEGES § 9.5).
-  return createPortal(
-    <div className="fixed inset-0 z-[80] bg-bg">
+  return (
+    <CalqueSeance>
       <EcranTimer
-        epure
+        clavierExclusif
         seance={session}
         restantSec={remainingSec}
         enPause={paused}
         onBasculerPause={paused ? resume : pause}
         onTerminer={() => void stop()}
         onEchap={() => setOverlayOpen(false)}
-        actions={null}
+        actions={
+          <ActionFenetre
+            onClick={() => setOverlayOpen(false)}
+            label={t("Réduire|séance")}
+            tipSub={t("La session continue, réduite en pastille. Raccourci : Échap")}
+          >
+            <IconReduire className="h-3.5 w-3.5" />
+            {t("Réduire|séance")}
+          </ActionFenetre>
+        }
       />
+    </CalqueSeance>
+  );
+}
+
+/**
+ * ⭐ LE CALQUE DU PLEIN ÉCRAN — il prend la main, et la rend (`lib/calque.ts`).
+ *
+ * LE DÉFAUT PAYÉ ICI (2026-10-12, constat 3). Le calque recouvrait l'app sans
+ * lui retirer le clavier : le focus restait sur le « ⋯ » de la tâche, DESSOUS.
+ * Espace rouvrait le menu de la tâche par-dessus l'horloge ; un second Espace
+ * la marquait faite.
+ *
+ * Tant qu'il est monté : l'app est inerte, le focus est ici (Espace = pause,
+ * Échap = réduire — `EcranTimer`, `clavierExclusif`), et à la fermeture le
+ * focus retourne d'où l'on venait.
+ *
+ * Portail sur `document.body` : un ancêtre animé ferait de `inset-0` « cet
+ * ancêtre » et laisserait la barre latérale allumée (PIEGES § 9.5) — et, rendu
+ * dans `#root`, le calque s'éteindrait lui-même (§ 18.1).
+ */
+function CalqueSeance({ children }: { children: ReactNode }) {
+  const calque = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = calque.current;
+    if (!el) return;
+    return ouvrirCalque(el);
+  }, []);
+  return createPortal(
+    <div
+      ref={calque}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("Session en plein écran")}
+      // Focalisable par programme seulement : c'est lui qui reçoit le clavier
+      // à l'ouverture, sans surligner un bouton que personne n'a choisi.
+      tabIndex={-1}
+      data-calque-plein-ecran=""
+      className="fixed inset-0 z-[80] bg-bg focus:outline-none"
+    >
+      {children}
     </div>,
     document.body,
   );
