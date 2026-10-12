@@ -780,7 +780,9 @@ export default function TasksView({ data, refresh, focus }: Props) {
 
       {/* Les filtres : les tags, et une recherche. */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <div className="-mx-1 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]">
+        {/* Les tags prennent toute la première ligne : avec le rangement à côté,
+            « Gérer » était rogné par le défilement (vu à 1440 px, 2026-10-12). */}
+        <div className="-mx-1 flex min-w-0 basis-full items-center gap-1.5 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]">
           <button type="button" onClick={() => setTagFilter(null)} className={chip(tagFilter === null)}>
             {t("Toutes")}
           </button>
@@ -845,7 +847,7 @@ export default function TasksView({ data, refresh, focus }: Props) {
           ))}
         </div>
 
-        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:w-56">
+        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:ml-auto sm:w-56">
           <IconSearch className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           <input
             type="search"

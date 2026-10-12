@@ -262,9 +262,17 @@ export function PanneauDate(props: {
 
   // La cellule du curseur porte le focus : c'est ce qui rend les flèches
   // utilisables dès l'ouverture, sans cliquer d'abord.
+  //
+  // ⚠️ SEULEMENT UNE FOIS LE PANNEAU VISIBLE. Il naît en `visibility: hidden`,
+  // le temps d'être mesuré, et un élément invisible ne peut PAS recevoir le
+  // focus : `focus()` échoue en silence (même piège que le sous-menu,
+  // `MenuContextuel`). Vu le 2026-10-12 : ouvert depuis « Dater › Choisir une
+  // date… », le calendrier laissait le focus au bouton « ⋯ », et les flèches
+  // ne déplaçaient rien. D'où `visible` dans les dépendances.
+  const visible = place !== null;
   useEffect(() => {
-    cellule.current?.focus();
-  }, [curseur]);
+    if (visible) cellule.current?.focus();
+  }, [curseur, visible]);
 
   useEffect(() => {
     const dehors = (e: PointerEvent) => {

@@ -2793,6 +2793,7 @@ export const EN: Record<string, string> = {
     "One section per goal, its steps included; “No goal” comes last.",
   "Par moment": "By time",
   "Par objectif": "By goal",
+  "Autres tâches": "Other tasks",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
   "Revenir au mois en cours": "Back to this month",

@@ -2,7 +2,7 @@
 // pause auto, contrôles de session. Minimaliste — ni mode concentration
 // ni son (retirés le 2026-07-23).
 import { useEffect, useMemo, useState } from "react";
-import { tachesAFaire, todayStr } from "../lib/logic";
+import { estPrevueLe, tachesAFaire, todayStr } from "../lib/logic";
 import { getSetting, setSetting } from "../lib/repo";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData } from "../lib/types";
@@ -95,11 +95,14 @@ export default function TimerPanel({ data, focus }: Props) {
 
   // ⚠️ `tachesAFaire`, pas la liste du jour : on doit pouvoir lier une séance à
   // une tâche sans date ou en retard (la liste du jour ne les contient plus
-  // depuis le 2026-10-11 — voir `todayTasks`, `lib/logic.ts`).
+  // depuis le 2026-10-11 — voir `todayTasks`, `lib/logic.ts`). Celles du jour
+  // viennent en tête, dans leur propre groupe.
   const undone = useMemo(
     () => tachesAFaire(data.tasks, data.completions, today),
     [data.tasks, data.completions, today],
   );
+  const duJour = undone.filter((x) => estPrevueLe(x, today));
+  const autres = undone.filter((x) => !estPrevueLe(x, today));
 
   const cyclesToday = useMemo(
     () =>
@@ -317,14 +320,38 @@ export default function TimerPanel({ data, focus }: Props) {
             <select
               value={taskId}
               onChange={(e) => setTaskId(e.target.value ? Number(e.target.value) : "")}
+              // Le libellé au-dessus n'est pas un <label> : sans ce nom, un
+              // lecteur d'écran annonçait une liste anonyme.
+              aria-label={t("tâche liée")}
               className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-xs text-text focus:border-blue focus:outline-none"
             >
               <option value="">{t("Sans tâche liée")}</option>
-              {undone.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
+              {/* Deux groupes seulement quand il y a de quoi : un seul groupe
+                  titré ne range rien. */}
+              {duJour.length > 0 && autres.length > 0 ? (
+                <>
+                  <optgroup label={t("Aujourd'hui")}>
+                    {duJour.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t("Autres tâches")}>
+                    {autres.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                undone.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.label}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
