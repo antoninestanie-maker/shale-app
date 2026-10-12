@@ -11,10 +11,27 @@ import type { GoalInput } from "../repo";
  *
  * LES CONTRAINTES, ET POURQUOI ELLES SONT ICI
  *
- * ⚠️ **AUCUNE ÉCHÉANCE**, ni sur l'objectif ni sur ses jalons.
- * `calendrier/peril.ts` ne signale que ce qui a une échéance : en donner une
- * ferait apparaître « objectif en péril » une semaine après l'installation, sur
- * la première chose que l'utilisateur ait dite à l'app.
+ * ⭐ **L'ÉCHÉANCE EST DEMANDÉE, ET FACULTATIVE** — décision d'Antonin du
+ * 2026-10-12, qui RETOURNE celle du 2026-09-16 (« aucune échéance, ni sur
+ * l'objectif ni sur ses jalons »). Sa phrase, après essai de l'app installée :
+ * « Pour la date, la deadline de l'objectif, c'est très important donc on le
+ * fait. » L'écran « objectif » porte un champ de date ; le laisser vide, ou
+ * passer l'écran, plante l'objectif sans échéance, exactement comme avant.
+ *
+ * La raison d'origine était réelle : `calendrier/peril.ts` ne signale que ce
+ * qui a une échéance, et en donner une risquait « objectif en péril » une
+ * semaine après l'installation, sur la première chose que l'utilisateur ait
+ * dite à l'app. Ce qui la tient maintenant :
+ *   • la règle du péril ne regarde que les SEPT derniers jours avant la date
+ *     (`HORIZON_JOURS`) : un objectif daté à trois mois ne crie ni le premier
+ *     jour, ni la première semaine ;
+ *   • un objectif né aujourd'hui ou hier n'est pas jugé (`vientDeNaitre`,
+ *     `calendrier/peril.ts`, 2026-10-12) — pour qui choisit une date dans la semaine ;
+ *   • l'app ne PROPOSE aucune date : celle qui s'écrit est celle que
+ *     l'utilisateur a choisie, et une date passée n'est pas retenue.
+ *
+ * ⚠️ **TOUJOURS AUCUNE ÉCHÉANCE SUR LES JALONS** : l'écran n'en demande pas, et
+ * en déduire de celle de l'objectif serait inventer un calendrier.
  *
  * ⚠️ **AUCUN JALON SUGGÉRÉ.** Les gabarits de feuille de route sont
  * explicitement hors de ce chantier : proposer « Choisir la ligne éditoriale »
@@ -91,12 +108,37 @@ export interface Plan {
 }
 
 /**
+ * ⭐ L'échéance que l'accueil retient (2026-10-12) : celle que l'utilisateur a
+ * choisie, si c'est un vrai jour ('YYYY-MM-DD') d'AUJOURD'HUI ou à venir.
+ *
+ * ⚠️ Une date PASSÉE n'est pas retenue : l'objectif naîtrait « échéance
+ * dépassée », sur le premier écran de l'app. Le champ de l'accueil la refuse
+ * déjà (borne `min`) ; cette garde tient la règle si l'écran change.
+ * `aujourdHui` s'injecte ; sans lui, seule la forme est vérifiée.
+ */
+export function echeanceDuPlan(echeance: string | null | undefined, aujourdHui?: string): string | null {
+  const jour = (echeance ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) return null;
+  // Le 30 février passe la forme, pas le calendrier.
+  const d = new Date(`${jour}T12:00:00`);
+  if (Number.isNaN(d.getTime()) || d.getDate() !== Number(jour.slice(8, 10))) return null;
+  if (aujourdHui && jour < aujourdHui) return null;
+  return jour;
+}
+
+/**
  * Les lignes à écrire pour l'objectif planté.
  *
  * `heures` est la valeur du curseur ; à 0 (ou non posée) aucune description
- * n'est inventée.
+ * n'est inventée. `echeance` est celle que l'écran a rendue (déjà passée par
+ * `echeanceDuPlan`) — `null` par défaut : pas de date, pas d'échéance.
  */
-export function planDuPremierObjectif(titre: string, lignes: readonly string[], heures: number): Plan {
+export function planDuPremierObjectif(
+  titre: string,
+  lignes: readonly string[],
+  heures: number,
+  echeance: string | null = null,
+): Plan {
   const nom = titre.trim().replace(/\s+/g, " ");
   const racine: GoalInput = {
     title: nom,
@@ -104,7 +146,7 @@ export function planDuPremierObjectif(titre: string, lignes: readonly string[], 
     scope: "medium",
     category: null,
     parent_goal_id: null,
-    deadline: null, // ⚠️ jamais d'échéance (voir l'en-tête)
+    deadline: echeanceDuPlan(echeance), // facultative, choisie par l'utilisateur (voir l'en-tête)
     progress_pct: 0,
     manual_progress: 0, // mesuré : c'est la feuille de route qui parle
     is_example: 0,

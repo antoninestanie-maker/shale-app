@@ -200,8 +200,9 @@ export async function creerObjectifPlanifie(
   titre: string,
   jalons: readonly string[],
   heures: number,
+  echeance: string | null = null,
 ): Promise<{ racineId: number; premierJalonId: number | null }> {
-  const plan = planDuPremierObjectif(titre, jalons, heures);
+  const plan = planDuPremierObjectif(titre, jalons, heures, echeance);
   const racineId = await createGoal(plan.racine);
   await promettre(racineId, heures);
   let premierJalonId: number | null = null;

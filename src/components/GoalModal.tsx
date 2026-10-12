@@ -312,14 +312,16 @@ export default function GoalModal({
               </select>
             </div>
             <div>
+              {/* « Échéance », le mot de toute l'interface (audit A06a-42) :
+                  ce champ était le seul à dire « Deadline », écrit en dur. */}
               <p className="mb-1.5 text-xs font-medium text-text-dim">
-                Deadline
+                {t("Échéance")}
               </p>
               <ChampDate
                 valeur={deadline}
                 onChange={setDeadline}
-                aria={t("Deadline")}
-                placeholder={t("Sans date")}
+                aria={t("Échéance")}
+                placeholder={t("Sans échéance")}
               />
             </div>
           </div>

@@ -5,23 +5,51 @@ let jalonsPropres: Planif["jalonsPropres"];
 let planDuPremierObjectif: Planif["planDuPremierObjectif"];
 let planRempli: Planif["planRempli"];
 let heuresDuPlan: Planif["heuresDuPlan"];
+let echeanceDuPlan: Planif["echeanceDuPlan"];
 let NB_JALONS_MAX: Planif["NB_JALONS_MAX"];
 
 /** La langue se fixe à l'import du module d'i18n (PIEGES § 14.2). */
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ jalonsPropres, planDuPremierObjectif, planRempli, heuresDuPlan, NB_JALONS_MAX } = await import("./planification"));
+  ({ jalonsPropres, planDuPremierObjectif, planRempli, heuresDuPlan, echeanceDuPlan, NB_JALONS_MAX } = await import("./planification"));
 });
 
 describe("ce que l'accueil plante", () => {
   const plan = () => planDuPremierObjectif("  Lancer  ma chaîne ", ["Choisir la ligne", "Tourner 3 pilotes"], 5);
 
-  it("un objectif MESURÉ, sans échéance — sinon « en péril » une semaine après l'installation", () => {
+  // ⚠️ TEST RETOURNÉ le 2026-10-12. Il s'appelait « un objectif MESURÉ, sans
+  // échéance — sinon "en péril" une semaine après l'installation » et tenait
+  // la décision du 2026-09-16 (« aucune échéance »). Antonin, après essai de
+  // l'app installée : « Pour la date, la deadline de l'objectif, c'est très
+  // important donc on le fait. » L'accueil la DEMANDE donc, facultative. Ce
+  // qui reste vrai, et que ce test tient : sans date donnée, aucune n'est
+  // inventée. La crainte d'origine est tenue ailleurs — voir « un objectif qui
+  // vient de naître » dans `calendrier/charge.test.ts`.
+  it("un objectif MESURÉ ; sans date donnée, AUCUNE échéance n'est inventée", () => {
     const { racine } = plan();
     expect(racine.deadline).toBeNull();
     expect(racine.manual_progress).toBe(0);
     expect(racine.progress_pct).toBe(0);
+  });
+
+  it("⭐ l'échéance choisie à l'accueil est celle de l'objectif planté (2026-10-12)", () => {
+    const { racine } = planDuPremierObjectif("Lancer ma chaîne", ["Choisir la ligne"], 5, "2027-02-12");
+    expect(racine.deadline).toBe("2027-02-12");
+    // Elle ne change rien d'autre : l'objectif reste mesuré, et n'est pas un exemple.
+    expect(racine.manual_progress).toBe(0);
+    expect(racine.is_example).toBe(0);
+  });
+
+  it("⚠️ les jalons, eux, restent sans échéance — même quand l'objectif en a une", () => {
+    const { jalons } = planDuPremierObjectif("Lancer ma chaîne", ["Choisir la ligne", "Tourner 3 pilotes"], 5, "2027-02-12");
+    expect(jalons.map((j) => j.deadline)).toEqual([null, null]);
+  });
+
+  it("une échéance qui n'est pas un jour n'est pas écrite", () => {
+    for (const faux of ["", "   ", "demain", "2027-02-30", "12/02/2027"]) {
+      expect(planDuPremierObjectif("Lancer ma chaîne", [], 5, faux).racine.deadline).toBeNull();
+    }
   });
 
   it("des jalons, dans l'ordre, sans échéance eux non plus", () => {
@@ -60,6 +88,28 @@ describe("ce que l'accueil plante", () => {
     const { racine, jalons } = planDuPremierObjectif("Arrêter de fumer", ["", "   "], 3);
     expect(racine.title).toBe("Arrêter de fumer");
     expect(jalons).toEqual([]);
+  });
+});
+
+describe("⭐ l'échéance que l'accueil retient (2026-10-12)", () => {
+  const AUJ = "2026-10-12";
+
+  it("un jour d'aujourd'hui ou à venir est retenu tel quel", () => {
+    expect(echeanceDuPlan("2027-02-12", AUJ)).toBe("2027-02-12");
+    expect(echeanceDuPlan(AUJ, AUJ)).toBe(AUJ);
+  });
+
+  it("⚠️ une date PASSÉE n'est pas retenue : l'objectif naîtrait « échéance dépassée »", () => {
+    expect(echeanceDuPlan("2026-10-11", AUJ)).toBeNull();
+    expect(echeanceDuPlan("2025-12-31", AUJ)).toBeNull();
+  });
+
+  it("rien de choisi, ou rien de lisible : pas d'échéance", () => {
+    expect(echeanceDuPlan(null, AUJ)).toBeNull();
+    expect(echeanceDuPlan(undefined, AUJ)).toBeNull();
+    expect(echeanceDuPlan("", AUJ)).toBeNull();
+    expect(echeanceDuPlan("2027-13-01", AUJ)).toBeNull();
+    expect(echeanceDuPlan("2027-02-30", AUJ)).toBeNull();
   });
 });
 

@@ -2,14 +2,14 @@ import { useMemo, useRef, useState } from "react";
 
 import { useAppTexts } from "../../lib/appTexts";
 import { t } from "../../lib/i18n";
-import { nomCourtDuJour, ORDRE_SEMAINE } from "../../lib/logic";
+import { nomCourtDuJour, ORDRE_SEMAINE, todayStr } from "../../lib/logic";
 import { bornesDuCurseur, choixHeures, grilleSemaine, heuresLibres, valeurProposee } from "../../lib/onboarding/grille";
 import {
   REGLAGES_PAR_DEFAUT,
   type BlocContraint,
   type ReglagesHoraires,
 } from "../../lib/onboarding/reglages";
-import { heuresDuPlan, NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
+import { echeanceDuPlan, heuresDuPlan, NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
 import {
   creerObjectifDuCurseur,
   creerObjectifPlanifie,
@@ -18,6 +18,7 @@ import {
   marquerAccueilFait,
   semerExemples,
 } from "../../lib/onboarding/semer";
+import ChampDate from "../ChampDate";
 import { IconCheckCircle, IconPlus, IconTrash } from "../icons";
 import ShaleMark from "../auth/ShaleMark";
 import GrilleSemaine from "./GrilleSemaine";
@@ -85,6 +86,9 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   const [premiereTache, setPremiereTache] = useState("");
   const [titreObjectif, setTitreObjectif] = useState("");
   const [jalons, setJalons] = useState<string[]>(Array(NB_JALONS_MAX).fill(""));
+  // ⭐ L'échéance de l'objectif planté — FACULTATIVE (2026-10-12, Antonin : « la
+  // deadline de l'objectif, c'est très important »). '' : aucune, comme avant.
+  const [echeanceObjectif, setEcheanceObjectif] = useState("");
   const [enCours, setEnCours] = useState(false);
 
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
@@ -127,7 +131,12 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
        */
       let jalonPourLaTache: number | null = null;
       if (options.avecObjectif && planRempli(titreObjectif)) {
-        const plante = await creerObjectifPlanifie(titreObjectif, jalons, heuresPlan);
+        const plante = await creerObjectifPlanifie(
+          titreObjectif,
+          jalons,
+          heuresPlan,
+          echeanceDuPlan(echeanceObjectif, todayStr()),
+        );
         jalonPourLaTache = plante.premierJalonId;
       } else if (options.avecObjectif && heuresVoulues != null && heuresVoulues > 0) {
         await creerObjectifDuCurseur(heuresVoulues);
@@ -155,7 +164,11 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm">
+    // ⚠️ `z-[180]`, plus `z-[200]` (2026-10-12) : l'écran « objectif » ouvre le
+    // calendrier de l'app, qui vit dans un portail à `z-[190]` (`PanneauDate`).
+    // À 200, l'accueil le recouvrait : le champ aurait semblé ne rien ouvrir.
+    // Rien d'autre dans l'app ne dépasse 96.
+    <div className="fixed inset-0 z-[180] flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm">
       <div className="card-solid w-full max-w-lg animate-fade-up rounded-[18px] border border-border p-6 sm:p-7">
         {etape === "heures" && (
           <div className="mb-5 flex items-center gap-3">
@@ -191,6 +204,8 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
             onTitre={setTitreObjectif}
             jalons={jalons}
             onJalons={setJalons}
+            echeance={echeanceObjectif}
+            onEcheance={setEcheanceObjectif}
           />
         )}
         {etape === "action" && (
@@ -527,6 +542,8 @@ function EtapeObjectif({
   onTitre,
   jalons,
   onJalons,
+  echeance,
+  onEcheance,
 }: {
   /** `null` = le curseur n'a pas été posé : on n'annonce alors AUCUN chiffre. */
   heures: number | null;
@@ -534,6 +551,9 @@ function EtapeObjectif({
   onTitre: (v: string) => void;
   jalons: string[];
   onJalons: (v: string[]) => void;
+  /** 'YYYY-MM-DD', ou '' : l'échéance est facultative. */
+  echeance: string;
+  onEcheance: (v: string) => void;
 }) {
   const champs = useRef<(HTMLInputElement | null)[]>([]);
   const champ =
@@ -562,6 +582,23 @@ function EtapeObjectif({
         placeholder={t("Ce que je veux atteindre…")}
         className={champ}
       />
+      {/* ⭐ L'ÉCHÉANCE, FACULTATIVE (2026-10-12) — décision d'Antonin, qui
+          retourne celle du 2026-09-16 (voir `lib/onboarding/planification.ts`).
+          Le calendrier de l'app ; rien n'est proposé, et une date passée ne se
+          choisit pas (`min`). Vide : l'objectif naît sans échéance, comme avant. */}
+      <p className="mt-4 text-xs font-medium uppercase tracking-wide text-text-dim">
+        {t("Son échéance (facultatif)")}
+      </p>
+      <div className="mt-2">
+        <ChampDate
+          valeur={echeance}
+          onChange={onEcheance}
+          aria={t("Échéance de l'objectif")}
+          min={todayStr()}
+          disabled={!titre.trim()}
+          className="cible-tactile flex w-full items-center gap-2 rounded-lg border border-border bg-overlay px-3 py-2.5 text-left text-sm text-text outline-none transition-colors focus:border-border-strong disabled:opacity-40"
+        />
+      </div>
       <p className="mt-4 text-xs font-medium uppercase tracking-wide text-text-dim">
         {t("Ses grandes étapes (facultatif)")}
       </p>
