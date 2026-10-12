@@ -4,6 +4,9 @@
  *
  * ⚠️ RÈGLE 18 — CHAQUE ENTRÉE APPELLE LA FONCTION DU GESTE ÉQUIVALENT :
  *   • Terminer / Rouvrir → la MÊME fonction que la case à cocher de la vue ;
+ *   • Focus 25 min       → `GesteFocus.agir`, le ▶ d'Aujourd'hui et la palette ;
+ *                          ce qu'il fait selon le minuteur est dans
+ *                          `lib/seance/focusTache.ts` (2026-10-12) ;
  *   • Dater ▸            → `setTaskSchedule`, ce qu'écrit le glisser-déposer du
  *                          calendrier (le créneau horaire est gardé, comme
  *                          quand on fait glisser une tâche d'un jour à l'autre),
