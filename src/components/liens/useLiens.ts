@@ -93,7 +93,7 @@ export function useLiens(kind: LinkKind, id: number | null) {
       sortie = rafraichirMentions(sortie, titreDe);
       if (desCartes.length > 0 || habitudes.length > 0) {
         // ⭐ Le GENRE des objectifs cités se relit aussi : c'est lui qui choisit
-        // l'icône (objectif, phase, sous-objectif) du rendu enregistré.
+        // l'icône (objectif, phase, étape) du rendu enregistré.
         const objectifs = desCartes.filter((r) => r.kind === "goal").map((r) => r.uid);
         const infos = await infosDeCartes(habitudes, objectifs);
         const titreCarte = (k: KindCarte, u: string) =>

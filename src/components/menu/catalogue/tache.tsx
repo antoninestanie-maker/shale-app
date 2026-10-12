@@ -6,7 +6,10 @@
  *   • Terminer / Rouvrir → la MÊME fonction que la case à cocher de la vue ;
  *   • Dater ▸            → `setTaskSchedule`, ce qu'écrit le glisser-déposer du
  *                          calendrier (le créneau horaire est gardé, comme
- *                          quand on fait glisser une tâche d'un jour à l'autre) ;
+ *                          quand on fait glisser une tâche d'un jour à l'autre),
+ *                          puis `replanifier()` si la tâche avait glissé : la
+ *                          dater à la main remet son compteur de reports à zéro,
+ *                          comme la déplacer dans le calendrier ;
  *   • Priorité ▸         → `prioriserTache`, qui n'écrit que la priorité (règle 16) ;
  *   • Rattacher ▸        → `rattacherTache`, celle de la feuille de route ;
  *   • Modifier…          → le même éditeur que le crayon ;
@@ -22,13 +25,16 @@
 import { IconCalendar, IconCheck, IconPencil, IconPlay, IconTarget, IconTrash, IconX } from "../../icons";
 import { IconDupliquer } from "../icones";
 import { formatDate, t } from "../../../lib/i18n";
-import { createTask, prioriserTache, rattacherTache, setTaskSchedule } from "../../../lib/repo";
+import { appliquerReport, createTask, prioriserTache, rattacherTache, setTaskSchedule } from "../../../lib/repo";
 import { nomDePriorite, PRIORITES, prioriteDe } from "../../../lib/priorite";
 import { IconePriorite } from "../../Priorite";
 import { afficherToast } from "../../../lib/toast";
 import { jeter, titreCourt } from "../../corbeille/geste";
-import { addDays, todayStr, weekdayOf } from "../../../lib/logic";
-import type { EntreeMenu, EntreePossible } from "../../../lib/menu/entrees";
+import { addDays, todayStr } from "../../../lib/logic";
+import type { EntreeMenu, EntreePossible, OrigineMenu } from "../../../lib/menu/entrees";
+import { ancreSurElement, ancreSurPoint, ouvrirSelecteurDate, type AncreFenetre } from "../../../lib/selecteurDate";
+import { estRecurrente, replanifier } from "../../../lib/taches";
+import { lundiProchain, plusUnJour } from "../../../lib/taches/dates";
 import { demanderIa } from "../../../lib/ia/demande";
 import { IconeIa } from "../../ia/IconeIa";
 import type { Goal, Priority, Task } from "../../../lib/types";
@@ -47,7 +53,9 @@ export interface GestesTache {
   dupliquer: (task: Task) => Promise<void>;
   supprimer: (task: Task) => Promise<void>;
   /**
-   * Le ▶ « Focus 25 min » d'Aujourd'hui — absent des vues qui ne l'ont pas.
+   * « Focus 25 min » — le ▶ d'Aujourd'hui, et la même séance depuis Tâches
+   * (2026-10-11 : le menu de Tâches ne l'avait pas, crible du labo, constat 23).
+   * Absent seulement là où aucun minuteur n'est à portée, ou pendant une séance.
    * ⚠️ Au doigt, le ▶ cède sa place au libellé (`TodayTasks`) : cette entrée
    * est alors SA seule porte (règle 17).
    */
@@ -74,14 +82,41 @@ export interface ContexteTache {
   ia?: boolean;
 }
 
-/** Le lundi STRICTEMENT après aujourd'hui — « lundi prochain », même un lundi. */
-export function lundiProchain(aujourdhui: string = todayStr()): string {
-  const jour = weekdayOf(aujourdhui); // 0 = dimanche
-  const ecart = ((8 - jour) % 7) || 7;
-  return addDays(aujourdhui, ecart);
+const recurrente = (task: Task) => estRecurrente(task);
+
+/** Où accrocher ce qu'une entrée ouvre sur place : le « ⋯ », ou le point du clic droit. */
+function ancreDuMenu(ou: OrigineMenu | undefined): () => AncreFenetre | null {
+  if (ou?.element) return ancreSurElement(ou.element);
+  if (ou?.ancre) return ancreSurPoint(ou.ancre.left, ou.ancre.bottom);
+  // Ni l'un ni l'autre (un appel hors menu) : le coin haut gauche, bordé par le panneau.
+  return ancreSurPoint(0, 0);
 }
 
-const recurrente = (task: Task) => !!task.recurrence && task.recurrence !== "none";
+/**
+ * ⭐ Le calendrier d'une tâche, ouvert SUR PLACE (2026-10-11) — sous le « ⋯ »,
+ * sous la date d'une ligne. Le jour choisi passe par `gestes.dater`, le geste
+ * des autres entrées de « Dater » (règle 18).
+ *
+ * Avant, « Choisir une date… » rouvrait toute la fenêtre de modification, et
+ * depuis Aujourd'hui faisait quitter l'écran (crible du labo, constats 7 et 10).
+ */
+export function choisirDateDeTache(
+  task: Task,
+  dater: GestesTache["dater"],
+  ancre: () => AncreFenetre | null,
+  bouton?: HTMLElement | null,
+): void {
+  ouvrirSelecteurDate({
+    ancre,
+    valeur: task.due_date ?? "",
+    ami: bouton ? () => bouton : undefined,
+    focusApres: bouton ? () => bouton : undefined,
+    onChoisir: (jour) => {
+      // Rechoisir la date en place n'écrit rien.
+      if ((jour || null) !== (task.due_date ?? null)) void dater(task, jour || null);
+    },
+  });
+}
 
 /**
  * Les objectifs dans l'ordre de l'arbre, chacun avec un libellé qui dit OÙ il
@@ -117,8 +152,31 @@ export function objectifsEnArbre(objectifs: readonly Goal[]): { goal: Goal; libe
 export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache): EntreePossible[] {
   const aujourdhui = todayStr();
 
+  /**
+   * ⭐ « Dater ▸ » (2026-10-11) : reporter sans rouvrir une fenêtre.
+   *   • « + 1 jour » part de la date de la TÂCHE (`plusUnJour`) — d'aujourd'hui
+   *     si elle est en retard ou sans date ;
+   *   • « Aujourd'hui » s'efface quand elle l'est déjà, « Retirer la date »
+   *     quand elle n'en a pas : une entrée qui n'écrirait rien est du bruit ;
+   *   • « Choisir une date… » ouvre le calendrier de l'app SUR PLACE.
+   */
   const dates: EntreeMenu[] = [
-    { id: "dater-auj", libelle: t("Aujourd'hui"), icone: <IconCalendar />, executer: () => gestes.dater(task, aujourdhui) },
+    {
+      id: "dater-plus-un",
+      libelle: t("+ 1 jour"),
+      icone: <IconCalendar />,
+      executer: () => gestes.dater(task, plusUnJour(task, aujourdhui)),
+    },
+    ...(task.due_date === aujourdhui
+      ? []
+      : [
+          {
+            id: "dater-auj",
+            libelle: t("Aujourd'hui"),
+            icone: <IconCalendar />,
+            executer: () => gestes.dater(task, aujourdhui),
+          },
+        ]),
     { id: "dater-demain", libelle: t("Demain"), icone: <IconCalendar />, executer: () => gestes.dater(task, addDays(aujourdhui, 1)) },
     {
       id: "dater-lundi",
@@ -130,18 +188,14 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
       id: "dater-choisir",
       libelle: t("Choisir une date…"),
       icone: <IconPencil />,
-      // Le champ de date de l'app vit dans l'éditeur de la tâche : le même que
-      // celui du crayon. Un second sélecteur ici serait un second champ de date,
-      // alors que le 2026-09-18 a justement tout ramené à UN seul (`ChampDate`).
-      executer: () => gestes.modifier(task),
+      // ⚠️ Toujours UN seul calendrier dans l'app (décision du 2026-09-18) : c'est
+      // le panneau de `ChampDate`, ouvert ici par `lib/selecteurDate.ts` au lieu
+      // de l'être par la fenêtre de la tâche.
+      executer: (ou) => choisirDateDeTache(task, gestes.dater, ancreDuMenu(ou), ou?.element),
     },
-    {
-      id: "dater-retirer",
-      libelle: t("Retirer la date"),
-      icone: <IconX />,
-      desactive: task.due_date ? undefined : { raison: t("Cette tâche n'a pas de date.") },
-      executer: () => gestes.dater(task, null),
-    },
+    ...(task.due_date
+      ? [{ id: "dater-retirer", libelle: t("Retirer la date"), icone: <IconX />, executer: () => gestes.dater(task, null) }]
+      : []),
   ];
 
   // La coche dit la priorité ACTUELLE ; la choisir de nouveau n'écrit rien.
@@ -260,6 +314,11 @@ export function gestesCommunsTache(
       // Le créneau horaire est GARDÉ quand on change de jour — c'est ce que fait
       // le glisser-déposer. Sans date, un créneau ne veut plus rien dire.
       await setTaskSchedule(task.id, date, date ? task.start_at : null, date ? task.end_at : null);
+      // ⭐ Dater à la main n'est pas subir un glissement : le compteur de reports
+      // repart de zéro (`replanifier`, `lib/taches.ts`) — comme quand on déplace
+      // la tâche dans le calendrier. Sans cela, une tâche qu'on vient de poser à
+      // jeudi gardait « reportée 2 fois » et son bandeau de décision.
+      if (date && task.postponed_count > 0) await appliquerReport(task.id, replanifier(date));
       await refresh();
       // La tâche peut sortir de la vue filtrée où l'on est : le dire, sinon elle
       // aurait l'air d'avoir disparu.

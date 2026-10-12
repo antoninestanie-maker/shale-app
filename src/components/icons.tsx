@@ -25,6 +25,23 @@ function Icon({ children, ...props }: IconProps & { children: ReactNode }) {
   );
 }
 
+/** Sablier — une échéance dépassée (remplace l'emoji ⌛, 2026-10-11). */
+export const IconSablier = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 3h12M6 21h12" />
+    <path d="M7 3v4a5 5 0 0 0 10 0V3" />
+    <path d="M7 21v-4a5 5 0 0 1 10 0v4" />
+  </Icon>
+);
+
+/** Barre latérale — le panneau et son volet gauche (réduire / étendre). */
+export const IconBarre = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M9 4v16" />
+  </Icon>
+);
+
 /** Flamme — streaks. */
 export const IconFlame = (p: IconProps) => (
   <Icon {...p}>
@@ -53,6 +70,22 @@ export const IconTarget = (p: IconProps) => (
     <circle cx="12" cy="12" r="9" />
     <circle cx="12" cy="12" r="5" />
     <circle cx="12" cy="12" r="1" />
+  </Icon>
+);
+
+/**
+ * Losange — une ÉTAPE de la feuille de route (2026-10-12).
+ *
+ * ⭐ UNE ICÔNE PAR NATURE : cible pour l'objectif, dossier pour la phase (une
+ * étape qui en contient d'autres), losange pour l'étape, carré pour la tâche.
+ * Jusque-là, l'étape portait la cible de l'objectif en plus pâle : le labo du
+ * 2026-10-11 (constat 22) l'a relevé — deux choses différentes, une icône.
+ * Le même tracé est dans `lib/carte.ts` (`iconeDeType`), pour le rendu
+ * enregistré d'une carte.
+ */
+export const IconEtape = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3.5 20.5 12 12 20.5 3.5 12Z" />
   </Icon>
 );
 
@@ -215,6 +248,16 @@ export const IconExpand = (p: IconProps) => (
     <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
     <path d="M3 16v3a2 2 0 0 0 2 2h3" />
     <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+
+/** Réduire — l'inverse d'`IconExpand` : les quatre coins rentrent (sortir d'un plein écran). */
+export const IconReduire = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+    <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+    <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+    <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
   </Icon>
 );
 

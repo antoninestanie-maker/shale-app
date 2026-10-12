@@ -78,7 +78,12 @@ export interface Goal {
   uid?: string;
 
   // ── Feuille de route (migration 026) ──────────────────────────────────────
-  /** 1 = jalon : niveau 2, entre l'objectif racine et ses sous-objectifs. */
+  /**
+   * ⚠️ PLUS LU PAR L'ÉCRAN depuis le 2026-10-12 : une « phase » est une étape
+   * qui en contient d'autres, et ça se lit dans l'arborescence (`natureDe`,
+   * `lib/objectifs/structure.ts`). La colonne reste écrite (1 quand une étape
+   * reçoit une étape), pour un appareil resté sur une version d'avant.
+   */
   is_milestone: number; // SQLite: 0 | 1
   /** Ordre croissant entre frères ; à égalité, échéance puis id. */
   position: number;
@@ -88,7 +93,7 @@ export interface Goal {
    * a remplacé le repli « Avancé / Poids ». Il vaut 1 partout.
    */
   weight: number;
-  /** Cible chiffrée, ENTIÈRE. `null` = le sous-objectif avance par ses éléments. */
+  /** Cible chiffrée, ENTIÈRE. `null` = l'étape avance par ses éléments. */
   target_count: number | null;
   /** Unité libre, texte de l'utilisateur, jamais traduite. */
   target_unit: string | null;

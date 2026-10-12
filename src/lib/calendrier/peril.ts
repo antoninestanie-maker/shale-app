@@ -1,4 +1,4 @@
-import { estAcheve, mesurer, type ContexteProgression, type SourcesProgression } from "../objectifs/progression";
+import { estAcheve, mesurer, pourcentDe, type ContexteProgression, type SourcesProgression } from "../objectifs/progression";
 import { racineDe } from "../objectifs/structure";
 import { joursEntre } from "./agenda";
 import type { Completion, Goal, Task } from "../types";
@@ -24,12 +24,12 @@ export interface ObjectifEnPeril {
   /** Jours restants avant l'échéance, 0 le jour même, négatif si dépassée. */
   joursRestants: number;
   /**
-   * Étapes (jalons ou sous-objectifs) directes non ACHEVÉES.
+   * Étapes directes (phases ou non) non ACHEVÉES.
    *
    * ⚠️ S'appelait `jalonsRestants` avant la migration 026, du temps où tout
    * enfant d'un objectif s'appelait « jalon ». Le mot désigne désormais un
    * niveau précis de la feuille de route : le garder ici aurait annoncé
-   * « 3 jalons non terminés » pour trois sous-objectifs.
+   * « 3 jalons non terminés » pour trois étapes.
    */
   etapesRestantes: number;
   /** Tâches non récurrentes rattachées et non faites. */
@@ -83,12 +83,12 @@ export function objectifsEnPeril(
     if (!g.deadline) continue;
 
     const m = mesurer(g, sources);
-    // ⚠️ ACHEVÉ, pas « à 100 % » : quatre jalons finis et deux vides font 100 %,
-    // et c'est précisément l'objectif qu'il faut signaler à l'approche de
-    // l'échéance (feuille de route, 2026-09-15).
+    // Achevé = à 100 % : depuis le 2026-10-11 une étape vide compte (0, ou 100
+    // une fois cochée), donc quatre étapes finies et deux vides font 67 %, plus
+    // 100 %. L'objectif qu'il fallait signaler l'est par son chiffre.
     if (estAcheve(m)) continue;
-    // Un objectif vide rend son % stocké — même repli qu'`effectiveProgress`.
-    const progression = m.pct ?? g.progress_pct ?? 0;
+    // Le même nombre qu'`effectiveProgress` (un réglage cassé vaut 0).
+    const progression = pourcentDe(m);
 
     const joursRestants = ecartEnJours(aujourdhui, g.deadline);
     if (joursRestants > HORIZON_JOURS) continue;
@@ -107,10 +107,10 @@ export function objectifsEnPeril(
     if (joursRestants < 0) raison = "depassee";
     // Plus de jalons que de jours : même à un par jour, le compte ne tombe pas.
     else if (restant > Math.max(0, joursRestants)) raison = "trop-peu-de-jours";
-    // ⚠️ Un pourcentage gonflé par des étapes VIDES ne rassure pas : elles sont
-    // sorties du dénominateur, pas faites. Quatre jalons finis sur six affichent
-    // 100 % — ce n'est pas un objectif qui tient sa route.
-    else if (progression < PROGRESSION_RASSURANTE || m.videsProfonds > 0) raison = "rythme-insuffisant";
+    // (Jusqu'au 2026-10-11, un pourcentage pouvait être gonflé par des étapes
+    // vides sorties du dénominateur, et il fallait les recompter ici. Elles
+    // pèsent désormais dans le chiffre : il suffit.)
+    else if (progression < PROGRESSION_RASSURANTE) raison = "rythme-insuffisant";
 
     if (!raison) continue;
 

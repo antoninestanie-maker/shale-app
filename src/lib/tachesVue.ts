@@ -1,7 +1,8 @@
-import { isDueOn } from "./logic";
+import { estPrevueLe } from "./logic";
+import { racineDe } from "./objectifs/structure";
 import { rangPriorite } from "./priorite";
 import { estRecurrente } from "./taches";
-import type { Completion, Task } from "./types";
+import type { Completion, Goal, Task } from "./types";
 
 /**
  * ⭐ LA VUE TÂCHES, RANGÉE PAR MOMENT (refonte du 2026-09-30).
@@ -60,11 +61,13 @@ export function estFaite(task: Task, completions: readonly Completion[], aujourd
 /** La section d'une tâche, pour un jour donné. */
 export function sectionDe(task: Task, faite: boolean, aujourdhui: string): CleSection {
   if (faite) return "faites";
-  if (estRecurrente(task)) return isDueOn(task, aujourdhui) ? "aujourdhui" : "routines";
+  // ⭐ « Aujourd'hui » se lit dans la règle unique (`estPrevueLe`, `lib/logic.ts`) :
+  // c'est elle qui fait que le sous-titre de la vue et la carte d'Aujourd'hui
+  // comptent les mêmes tâches (2026-10-11).
+  if (estPrevueLe(task, aujourdhui)) return "aujourdhui";
+  if (estRecurrente(task)) return "routines";
   if (!task.due_date) return "sansDate";
-  if (task.due_date < aujourdhui) return "retard";
-  if (task.due_date === aujourdhui) return "aujourdhui";
-  return "avenir";
+  return task.due_date < aujourdhui ? "retard" : "avenir";
 }
 
 /** Minuscule, sans accent : « Réviser » se trouve en tapant « revis ». */
@@ -138,5 +141,147 @@ export function ranger(
     out.get(section)!.push({ ...task, done, faiteLe: done ? (le ?? aujourdhui) : null });
   }
   for (const s of ORDRE_SECTIONS) out.get(s)!.sort(comparer(s));
+  return out;
+}
+
+// ─── Rangée par OBJECTIF (2026-10-11) ────────────────────────────────────────
+
+/**
+ * ⭐ LA MÊME VUE, RANGÉE PAR OBJECTIF.
+ *
+ * Antonin : « trie-la par objectifs si ça peut être utile ». Deux utilisateurs
+ * du crible ont cherché « ce qui tombe cette semaine pour un objectif » sans le
+ * trouver : la vue par moment mêle les tâches de tous les objectifs.
+ *
+ *   • une section par objectif RACINE — les tâches de ses étapes comprises,
+ *     l'étape nommée sur la ligne (`etape`) ;
+ *   • dans une section : les retards en tête, puis par échéance, puis sans date ;
+ *     à date égale l'heure, puis la priorité ;
+ *   • « Sans objectif » en dernier ;
+ *   • les routines et les tâches faites gardent leur section à part — une
+ *     routine revient seule, elle n'est pas « ce qui reste à faire » d'un
+ *     objectif, et son objectif se lit sur sa ligne.
+ *
+ * ⚠️ Le rattachement lu est `goal_id`, celui que la ligne affiche déjà. Un
+ * objectif absent de `goals` (en corbeille) : la tâche est « Sans objectif ».
+ */
+
+/** Le rangement de la vue — retenu dans le réglage `taches.rangement`. */
+export type Rangement = "moment" | "objectif";
+
+export const RANGEMENT_PAR_DEFAUT: Rangement = "moment";
+
+/** Ce qu'un réglage lu en base vaut : tout ce qui n'est pas « objectif » est le défaut. */
+export function rangementDe(valeur: string | null | undefined): Rangement {
+  return valeur === "objectif" ? "objectif" : RANGEMENT_PAR_DEFAUT;
+}
+
+export interface LigneObjectif extends LigneVue {
+  /** L'étape qui porte la tâche — `null` si elle tient à l'objectif lui-même, ou à aucun. */
+  etape: Goal | null;
+  /** Son moment (`sectionDe`) : c'est lui qui dit comment écrire sa date. */
+  moment: CleSection;
+}
+
+export interface GroupeObjectif {
+  /** Stable d'un rendu à l'autre : `o:<id>`, `sansObjectif`, `routines`, `faites`. */
+  cle: string;
+  genre: "objectif" | "sansObjectif" | "routines" | "faites";
+  /** L'objectif racine d'une section `objectif`. */
+  racine: Goal | null;
+  lignes: LigneObjectif[];
+}
+
+/** La clé de la section d'un objectif racine. */
+export const cleObjectif = (id: number) => `o:${id}`;
+
+/** Dans une section d'objectif : les retards, puis l'échéance, puis sans date. */
+function parEcheance(a: LigneObjectif, b: LigneObjectif): number {
+  return (
+    // « 9999 » : sans date, après toutes les dates. Les retards sont les dates
+    // les plus anciennes, donc en tête sans règle de plus.
+    (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") ||
+    (a.start_at ?? "99").localeCompare(b.start_at ?? "99") ||
+    rangPriorite(a.priority) - rangPriorite(b.priority) ||
+    a.label.localeCompare(b.label)
+  );
+}
+
+/**
+ * Range les tâches par objectif racine. Ne rend que les sections qui ont au
+ * moins une ligne.
+ *
+ * `garder` : comme dans `ranger`, une tâche qu'on vient de cocher reste un
+ * instant dans la section (par sa `cle`) où l'on a cliqué.
+ */
+export function rangerParObjectif(
+  tasks: readonly Task[],
+  completions: readonly Completion[],
+  goals: readonly Goal[],
+  aujourdhui: string,
+  options: {
+    coche?: (task: Task, faite: boolean) => boolean;
+    garder?: ReadonlyMap<number, string>;
+  } = {},
+): GroupeObjectif[] {
+  const parId = new Map(goals.map((g) => [g.id, g]));
+  const racines = new Map<number, Goal>();
+  const groupes = new Map<string, GroupeObjectif>();
+  const groupe = (cle: string, genre: GroupeObjectif["genre"], racine: Goal | null) => {
+    let g = groupes.get(cle);
+    if (!g) groupes.set(cle, (g = { cle, genre, racine, lignes: [] }));
+    return g;
+  };
+
+  for (const task of tasks) {
+    const { faite, le } = estFaite(task, completions, aujourdhui);
+    const done = options.coche ? options.coche(task, faite) : faite;
+    const direct = task.goal_id != null ? (parId.get(task.goal_id) ?? null) : null;
+    const racine = direct ? racineDe(direct, goals) : null;
+    if (racine) racines.set(racine.id, racine);
+    const ligne: LigneObjectif = {
+      ...task,
+      done,
+      faiteLe: done ? (le ?? aujourdhui) : null,
+      etape: direct && racine && direct.id !== racine.id ? direct : null,
+      moment: sectionDe(task, done, aujourdhui),
+    };
+
+    const naturelle = done
+      ? "faites"
+      : estRecurrente(task)
+        ? "routines"
+        : racine
+          ? cleObjectif(racine.id)
+          : "sansObjectif";
+    const cle = options.garder?.get(task.id) ?? naturelle;
+    const genre: GroupeObjectif["genre"] =
+      cle === "faites" || cle === "routines" || cle === "sansObjectif" ? cle : "objectif";
+    // Gardée dans la section d'un objectif : c'est forcément le sien.
+    groupe(cle, genre, genre === "objectif" ? racine : null).lignes.push(ligne);
+  }
+
+  const out: GroupeObjectif[] = [];
+  // Les objectifs dans l'ordre de leur feuille de route (position, puis création).
+  const ordonnees = [...racines.values()].sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.id - b.id);
+  for (const racine of ordonnees) {
+    const g = groupes.get(cleObjectif(racine.id));
+    if (g) out.push({ ...g, lignes: g.lignes.sort(parEcheance) });
+  }
+  const sans = groupes.get("sansObjectif");
+  if (sans) out.push({ ...sans, lignes: sans.lignes.sort(parEcheance) });
+  const routines = groupes.get("routines");
+  if (routines) {
+    // Celles du jour d'abord : ce sont les seules qu'on peut tenir maintenant.
+    const duJour = (l: LigneObjectif) => (l.moment === "aujourdhui" ? 0 : 1);
+    out.push({
+      ...routines,
+      lignes: routines.lignes.sort(
+        (a, b) => duJour(a) - duJour(b) || rangPriorite(a.priority) - rangPriorite(b.priority) || a.label.localeCompare(b.label),
+      ),
+    });
+  }
+  const faites = groupes.get("faites");
+  if (faites) out.push({ ...faites, lignes: faites.lignes.sort(comparer("faites")) });
   return out;
 }

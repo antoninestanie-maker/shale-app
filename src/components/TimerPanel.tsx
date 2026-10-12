@@ -2,7 +2,7 @@
 // pause auto, contrôles de session. Minimaliste — ni mode concentration
 // ni son (retirés le 2026-07-23).
 import { useEffect, useMemo, useState } from "react";
-import { todayStr, todayTasks } from "../lib/logic";
+import { estPrevueLe, tachesAFaire, todayStr } from "../lib/logic";
 import { getSetting, setSetting } from "../lib/repo";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData } from "../lib/types";
@@ -22,7 +22,9 @@ function Switch({
   hint?: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs text-text-dim">
+    // `cible-tactile-ligne` : l'interrupteur mesure 28 × 16 ; c'est sa ligne,
+    // libellé compris, qui se touche — 44 pt de haut au doigt.
+    <label className="cible-tactile-ligne flex cursor-pointer items-center gap-2 text-xs text-text-dim">
       <button
         type="button"
         role="switch"
@@ -93,10 +95,16 @@ export default function TimerPanel({ data, focus }: Props) {
   const workMin = customMode ? customWorkMin : (customWork ?? preset.work);
   const breakMin = customMode ? customBreakMin : preset.brk;
 
+  // ⚠️ `tachesAFaire`, pas la liste du jour : on doit pouvoir lier une séance à
+  // une tâche sans date ou en retard (la liste du jour ne les contient plus
+  // depuis le 2026-10-11 — voir `todayTasks`, `lib/logic.ts`). Celles du jour
+  // viennent en tête, dans leur propre groupe.
   const undone = useMemo(
-    () => todayTasks(data.tasks, data.completions, today).filter((t) => !t.done),
+    () => tachesAFaire(data.tasks, data.completions, today),
     [data.tasks, data.completions, today],
   );
+  const duJour = undone.filter((x) => estPrevueLe(x, today));
+  const autres = undone.filter((x) => !estPrevueLe(x, today));
 
   const cyclesToday = useMemo(
     () =>
@@ -140,14 +148,14 @@ export default function TimerPanel({ data, focus }: Props) {
             type="button"
             onClick={() => focus.setOverlayOpen(true)}
             data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le compte à rebours à l’écran.")}
+            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
             className={`mt-2 font-mono text-6xl font-semibold text-text ${
               paused ? "opacity-50" : ""
             }`}
           >
             {fmt(remainingSec)}
           </button>
-          <p className="mt-1 max-w-full truncate text-xs text-text-dim">
+          <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.label}
             {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
           </p>
@@ -194,7 +202,10 @@ export default function TimerPanel({ data, focus }: Props) {
             {/* auto-tiles-sm : les presets se réorganisent selon la largeur
                 réelle de la carte. En `flex`, le `min-width:auto` des items
                 faisait déborder la rangée dès que la carte devenait étroite. */}
-            <div className="auto-tiles-sm gap-1.5">
+            {/* Au téléphone, deux colonnes : à quatre de front, « POMODORO »
+                et « DEEP WORK » étaient coupés à cinq lettres, sans bulle pour
+                lire la suite. */}
+            <div className="auto-tiles-sm gap-1.5 telephone:grid-cols-2">
               {TIMER_PRESETS.map((p, i) => {
                 const on = !customMode && presetIdx === i && customWork === null;
                 return (
@@ -314,14 +325,38 @@ export default function TimerPanel({ data, focus }: Props) {
             <select
               value={taskId}
               onChange={(e) => setTaskId(e.target.value ? Number(e.target.value) : "")}
+              // Le libellé au-dessus n'est pas un <label> : sans ce nom, un
+              // lecteur d'écran annonçait une liste anonyme.
+              aria-label={t("tâche liée")}
               className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-xs text-text focus:border-blue focus:outline-none"
             >
               <option value="">{t("Sans tâche liée")}</option>
-              {undone.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
+              {/* Deux groupes seulement quand il y a de quoi : un seul groupe
+                  titré ne range rien. */}
+              {duJour.length > 0 && autres.length > 0 ? (
+                <>
+                  <optgroup label={t("Aujourd'hui")}>
+                    {duJour.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t("Autres tâches")}>
+                    {autres.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                undone.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.label}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

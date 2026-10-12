@@ -4,7 +4,7 @@
 //
 //   Découper (#7)        une tâche floue → des tâches reliées à elle
 //   Estimer (#8)         une durée, calculée ICI sur les comparables retenus
-//   Décomposer (#11)     un objectif → des sous-objectifs
+//   Décomposer (#11)     un objectif → des étapes
 //   Proposer des tâches (#12)  un objectif → des tâches datées, rattachées
 //   Pourquoi, et que faire ? (#13)  un objectif en péril → explication + plan
 //
@@ -328,7 +328,7 @@ function Objectif({
     if (!peutDecomposer(goal, data.goals))
       return (
         <FenetreIa titre={titre} onFermer={fermer}>
-          <p className="text-sm text-text">{t("Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en sous-objectifs. Propose-lui plutôt des tâches.")}</p>
+          <p className="text-sm text-text">{t("Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en étapes. Propose-lui plutôt des tâches.")}</p>
         </FenetreIa>
       );
     const payload = payloadDecomposer(getLang(), jour, goal, data.goals, charge);
@@ -338,7 +338,7 @@ function Objectif({
           <Propositions
             items={decomposer.sortie.etapes}
             cle={(x, i) => `${i}-${x.titre}`}
-            libelleValider={(n) => tp(n, "Créer {n} sous-objectif", "Créer {n} sous-objectifs")}
+            libelleValider={(n) => tp(n, "Créer {n} étape", "Créer {n} étapes")}
             onAnnuler={fermer}
             onValider={async (choisies) => {
               await appliquerEtapes(goal, data.goals, choisies);
@@ -358,13 +358,13 @@ function Objectif({
         ) : (
           <Avant payload={payload} libelle={t("Décomposer")} etat={decomposer.etat} onLancer={() => void decomposer.lancer(payload)}>
             <p>
-              {t("L'IA propose des sous-objectifs, ajoutés après les étapes existantes de la feuille de route.")}{" "}
+              {t("L'IA propose des étapes, ajoutées après celles de la feuille de route.")}{" "}
               {goal.deadline && goal.deadline >= jour
                 ? t("Leurs échéances tiennent avant le {d}, en tenant compte de ton calendrier.", {
                     d: formatDate(new Date(`${goal.deadline}T12:00:00`), { day: "numeric", month: "long", year: "numeric" }),
                   })
                 : goal.deadline
-                  ? t("L'échéance de l'objectif est déjà passée : les sous-objectifs sont datés à partir d'aujourd'hui.")
+                  ? t("L'échéance de l'objectif est déjà passée : les étapes sont datées à partir d'aujourd'hui.")
                   : t("Les échéances suivent l'horizon de l'objectif et ton calendrier.")}
             </p>
           </Avant>

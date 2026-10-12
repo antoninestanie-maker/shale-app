@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import { confierLeRetour } from "../../lib/calque";
 import type { Alignement, Ancre } from "../../lib/menu/placement";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 
@@ -135,6 +136,46 @@ function rectEnAncre(el: HTMLElement): Ancre {
   return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
 }
 
+/**
+ * ⚠️⚠️ RENDRE LE FOCUS — SAUF SI L'ACTION L'A DÉJÀ POSÉ AILLEURS.
+ *
+ * LE DÉFAUT PAYÉ ICI (crible du labo du 2026-10-11, constat 11 ; audit A11-08).
+ * « ⋯ › Renommer » ne faisait RIEN : le menu se fermait, aucun champ ne
+ * s'ouvrait. En réalité le champ s'ouvrait bien — `autoFocus` — puis, une image
+ * plus tard, ce retour de focus le reprenait pour le rendre au bouton « ⋯ » ;
+ * le champ perdait le focus, et quitter le champ VALIDE le renommage : il se
+ * refermait aussitôt, inchangé. Par clic droit le défaut ne se voyait pas (le
+ * focus d'avant était la case, que le champ remplace). Au téléphone, « ⋯ » est
+ * le seul accès au menu : l'entrée y était morte.
+ *
+ * La règle : on ne rend le focus que s'il n'est NULLE PART (sur `<body>`, ou
+ * encore dans le menu qu'on ferme). Si l'action choisie l'a posé quelque part —
+ * un champ de renommage, un calendrier, une fenêtre — il y reste.
+ *
+ * ⚠️⚠️ ET JAMAIS SOUS UN CALQUE PLEIN ÉCRAN (seconde passe du labo, 2026-10-12,
+ * constat 3). « ⋯ › Focus 25 min » ouvre l'horloge en plein écran ; ce retour
+ * de focus rendait alors le clavier au « ⋯ » resté DESSOUS : Espace rouvrait
+ * le menu de la tâche par-dessus l'horloge, un second Espace la marquait
+ * faite. Un calque plein écran rend l'app inerte (`lib/calque.ts`) : si la
+ * cible est sous lui, on ne lui donne pas le focus — on la CONFIE au calque,
+ * qui le lui rendra en se fermant. La règle vaut pour toute entrée de menu
+ * qui ouvre un calque (une carte mentale, un croquis), pas pour celle-là seule.
+ *
+ * Rend VRAI si le focus a été rendu.
+ */
+export function rendreLeFocus(cible: HTMLElement, actif: Element | null): boolean {
+  if (!cible.isConnected) return false;
+  if (cible.closest("[inert]")) {
+    confierLeRetour(cible);
+    return false;
+  }
+  const nullePart =
+    !actif || actif === actif.ownerDocument?.body || !!actif.closest?.("[data-menu-contextuel]");
+  if (!nullePart) return false;
+  cible.focus();
+  return true;
+}
+
 export function useMenuContextuel<C>(): EtatMenu<C> {
   const [etat, setEtat] = useState<Etat<C> | null>(null);
 
@@ -153,7 +194,7 @@ export function useMenuContextuel<C>(): EtatMenu<C> {
     focusAvant.current = null;
     // Après la peinture : rendre le focus pendant que le portail est encore
     // dans le document le ferait reprendre par le menu qu'on vient de fermer.
-    if (cible?.isConnected) requestAnimationFrame(() => cible.focus());
+    if (cible?.isConnected) requestAnimationFrame(() => rendreLeFocus(cible, document.activeElement));
   }, []);
 
   const ouvrirAuPoint = useCallback((e: ReactMouseEvent, cible: C) => {

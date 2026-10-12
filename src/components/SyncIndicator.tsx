@@ -149,10 +149,11 @@ export default function SyncIndicator({ onOuvrirReglages }: { onOuvrirReglages: 
       <span
         className={`h-1.5 w-1.5 shrink-0 rounded-full ${vue.pastille} ${vue.anime ? "animate-pulse-dot" : ""}`}
       />
-      {/* Barre latérale repliée (< 1024 px) : la pastille suffit — c'est elle qui
+      {/* Le libellé se coupe en s'estompant quand la barre rétrécit ; au rail
+          il est à largeur nulle. La pastille suffit — c'est elle qui
           porte l'état, le libellé ne fait que le nommer. Le `title` le rend au
           survol, et Réglages le donne en toutes lettres. */}
-      <span className="hidden truncate lg:inline">{vue.libelle}</span>
+      <span className="barre-texte barre-coupe barre-coupe-serre min-w-0">{vue.libelle}</span>
     </button>
   );
 }

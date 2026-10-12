@@ -17,8 +17,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { objectifsEnPeril } from "../calendrier/peril";
-import { addDays, isDueOn, weekdayOf } from "../logic";
-import { mesurer, type ContexteProgression } from "../objectifs/progression";
+import { addDays, estPrevueLe, weekdayOf } from "../logic";
+import { mesurer, pourcentDe, type ContexteProgression } from "../objectifs/progression";
 import { createTask, getSetting, setSetting } from "../repo";
 import { estRecurrente, planificationDeSaisie } from "../taches";
 import type { AppData, Goal } from "../types";
@@ -109,7 +109,8 @@ export function payloadRevue(
 
   let horsPrevu = 0;
   const parJour = jours.map((j) => {
-    const prevues = data.tasks.filter((t) => (estRecurrente(t) ? isDueOn(t, j) : t.due_date === j));
+    // La règle du jour vit dans logic.ts (`estPrevueLe`) : la revue la LIT, elle ne la recopie plus.
+    const prevues = data.tasks.filter((t) => estPrevueLe(t, j));
     const faites = faitesLe.get(j) ?? new Set<number>();
     const ids = new Set(prevues.map((t) => t.id));
     const faitesPrevues = prevues.filter((t) => faites.has(t.id)).length;
@@ -133,7 +134,8 @@ export function payloadRevue(
     const m = mesurer(g, sources);
     return {
       titre: g.title.slice(0, 200),
-      progression: Math.max(0, Math.min(100, Math.round(m.pct ?? g.progress_pct ?? 0))),
+      // Le même nombre que partout (`pourcentDe`) : plus de repli sur le % stocké.
+      progression: Math.max(0, Math.min(100, Math.round(pourcentDe(m)))),
       tachesFaites,
       enPeril: arbre.some((x) => enPeril.has(x.id)),
     };

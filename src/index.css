@@ -7,6 +7,13 @@
 
 @import "tailwindcss";
 
+/* ⭐ `telephone:` — une variante Tailwind qui dit « sur un téléphone », au sens
+   exact de `useIsPhone()` (`lib/platform.ts`) : petit côté étroit ET pointeur
+   grossier. `App.tsx` pose `html[data-telephone]` ; la requête n'est recopiée
+   nulle part. À préférer à `sm:`/`lg:` quand on ne veut RIEN changer à une
+   fenêtre de bureau étroite (2026-10-12). */
+@custom-variant telephone (html[data-telephone] &);
+
 /* ============================================================
    Design system V7 "Ink & Azure"                (voir DESIGN.md)
    Repeint la V6 "Obsidian & Jade" (2026-07-21 → 2026-09-20), jugée
@@ -118,6 +125,10 @@
   /* Verre : sidebar, barres d'outils flottantes, poignées */
   --glass-bg: rgb(17 19 24 / 0.72);
   --glass-blur: saturate(160%) blur(22px);
+  /* Barre latérale : la teinte du verre, posée sur le fond — mais OPAQUE.
+     Rien ne défile derrière la barre, et ses titres de catégorie collants
+     ont besoin d'un fond plein (2026-10-11). */
+  --barre-bg: color-mix(in srgb, rgb(17 19 24) 72%, var(--color-bg));
 
   /* Info-bulle : verre plus dense que les panneaux (elle flotte au-dessus
      de TOUT, y compris d'une carte claire) + ombre portée courte */
@@ -160,6 +171,15 @@
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+
+  /* Barre latérale : étendue, et réduite en icônes. Non thémées — donc ici, pas
+     dans les blocs de palette (qui sont écrits deux fois pour le thème clair). */
+  --barre-l: 232px;
+  --barre-rail: 66px;
+  /* La largeur du MOMENT (posée en ligne par `Sidebar.tsx`, et écrite à chaque
+     image pendant qu'on tire le bord) ; `--barre-n`, la même sans unité. */
+  --barre-w: 232px;
+  --barre-n: 232;
 }
 
 /* — Thème clair "Alabaster" (choix explicite) — */
@@ -199,6 +219,7 @@
 
   --glass-bg: rgb(255 255 255 / 0.78);
   --glass-blur: saturate(160%) blur(22px);
+  --barre-bg: color-mix(in srgb, rgb(255 255 255) 78%, var(--color-bg));
 
   --tip-bg: rgb(255 255 255 / 0.92);
   --tip-border: rgb(10 12 18 / 0.1);
@@ -259,6 +280,7 @@
 
     --glass-bg: rgb(255 255 255 / 0.78);
     --glass-blur: saturate(160%) blur(22px);
+    --barre-bg: color-mix(in srgb, rgb(255 255 255) 78%, var(--color-bg));
 
     --tip-bg: rgb(255 255 255 / 0.92);
     --tip-border: rgb(10 12 18 / 0.1);
@@ -302,6 +324,10 @@
        de défilement verticale sur une page vide. `--zoom-inv` est posée par
        `applyZoom()` et vaut 1 tant qu'il n'a pas tourné. */
     min-height: calc(100vh * var(--zoom-inv));
+    /* La page elle-même ne défile pas : sans cette ligne, une zone arrivée en
+       bout de course passe le geste au document et WKWebView fait rebondir
+       TOUTE la fenêtre, barre latérale comprise. */
+    overscroll-behavior: none;
     user-select: none;
     cursor: default;
   }
@@ -530,6 +556,159 @@
     background: var(--glass-bg);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
+  }
+
+  /* ==========================================================
+     Barre latérale (2026-10-11) — `Sidebar.tsx`, règle dans `lib/barre.ts`
+     ----------------------------------------------------------
+     Opaque (voir `--barre-bg`). Réduire ou étendre change sa largeur D'UN
+     COUP : ce qui bouge ensuite n'est fait que de `translate` et d'opacité,
+     que la carte graphique anime seule. Une `transition: width` ferait
+     remesurer la grille d'Aujourd'hui à chaque image.
+     `data-mouvement` n'est posé que par le bouton (ou ⌥⌘S) : ni le montage,
+     ni un redimensionnement de fenêtre ne font glisser quoi que ce soit.
+     ========================================================== */
+  .barre,
+  .barre-titre {
+    background: var(--barre-bg);
+  }
+  /* ── Une seule mise en page, du rail à 400 px (2026-10-12) ──────────────
+     Tout ce qui dépend de la largeur se lit dans `--barre-w` : c'est ce qui
+     permet de tirer le bord sans repasser par React.
+     La marge des blocs de texte (titre, pied) passe de 20 px à 16 au rail, où
+     la cloche et la pastille de synchro doivent tomber au centre des icônes. */
+  .barre {
+    --barre-marge: clamp(16px, calc(16px + (var(--barre-w) - var(--barre-rail)) / 8), 20px);
+  }
+  /* Un texte qui n'a plus la place : COUPÉ, et estompé sur ses vingt derniers
+     pixels — le pendant horizontal du fondu en bas de la liste. Jamais de
+     points de suspension ici (`.hud-label` en pose : d'où la spécificité).
+     Sur une boîte qui prend la place restante (`flex-1`), le fondu tombe dans
+     le vide tant que le texte tient. */
+  .barre .barre-coupe {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+  .barre .barre-coupe .hud-label {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  /* Même fondu sur une boîte SERRÉE sur son texte (le libellé de la pastille de
+     synchro) : sans cette réserve, il mangerait la fin du mot même quand il
+     tient. La réserve porte le fondu, la marge négative la rend à la mise en page. */
+  .barre .barre-coupe-serre {
+    /* ⚠️ La réserve se replie avec la barre : un padding ne rétrécit pas tout
+       seul, et au rail il laissait dépasser « syn… » hors de la pastille (vu à
+       l'écran). Le plafond de largeur, lui, mène le libellé à zéro au rail :
+       barre − deux marges − la pastille nue (34 px). */
+    --reserve: clamp(0px, calc(var(--barre-w) - 100px), 10px);
+    padding-right: var(--reserve);
+    margin-right: calc(-1 * var(--reserve));
+    max-width: max(0px, calc(var(--barre-w) - 2 * var(--barre-marge) - 34px + var(--reserve)));
+    /* Dix pixels, pas vingt : c'est le padding de la pastille. Au-delà, le
+       texte en fondu sortirait de son contour (vu à l'écran à 128 px). */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
+  }
+  /* Un bloc du pied (horloge, « mode démo », « systèmes actifs ») : il
+     s'estompe, puis se replie en hauteur, à mesure que la barre rétrécit —
+     tout est fini avant le rail. Calculé, pas animé : il suit le bord. */
+  .barre-repli {
+    overflow: hidden;
+    max-height: clamp(0px, calc((var(--barre-w) - 104px) * 2), 120px);
+    opacity: clamp(0, calc((var(--barre-n) - 118) / 44), 1);
+  }
+  /* Pied de la liste : il reste des modules plus bas. */
+  .barre-fondu {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 28px;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--barre-bg), transparent);
+    transition: opacity var(--dur-base) var(--ease-out-quint);
+  }
+  /* Les textes de la barre. Réduire : ils s'effacent AVANT que la largeur ne
+     change (`FONDU_MS`). Étendre : ils reviennent derrière le volet. */
+  .barre-texte {
+    transition: opacity var(--dur-fast) var(--ease-out-quint);
+  }
+  .barre[data-mouvement="fermer"] .barre-texte {
+    opacity: 0;
+  }
+  .barre[data-mouvement="ouvrir"] .barre-texte {
+    animation: barre-texte-entree var(--dur-base) var(--ease-out-quint) 90ms backwards;
+  }
+  /* Étendre : la barre fait déjà 232 px. Le cadre part décalé vers la gauche
+     et son contenu d'autant vers la droite — les icônes ne bougent pas, seul
+     le bord droit avance en découvrant les libellés. */
+  .barre[data-mouvement="ouvrir"] {
+    overflow: clip;
+    animation: barre-ouvrir var(--dur-slow) var(--ease-spring);
+  }
+  .barre[data-mouvement="ouvrir"] > .barre-corps {
+    animation: barre-ouvrir-corps var(--dur-slow) var(--ease-spring);
+  }
+  /* Réduire : la barre fait déjà 64 px ; ce volet, de la largeur qu'elle vient
+     de céder, glisse sous elle. Invisible et inerte hors de ce mouvement. */
+  .barre-voile {
+    position: absolute;
+    z-index: 15;
+    top: 0;
+    bottom: 0;
+    left: var(--barre-rail);
+    width: calc(var(--barre-l) - var(--barre-rail));
+    background: var(--barre-bg);
+    border-right: 1px solid var(--color-border);
+    pointer-events: none;
+    opacity: 0;
+  }
+  .barre[data-reduite][data-mouvement="fermer"] + .barre-voile {
+    animation: barre-fermer var(--dur-slow) var(--ease-spring);
+  }
+  /* Le bord qui se tire : une bande à cheval sur le filet droit, invisible au
+     repos. Le trait n'apparaît qu'après un court délai — traverser le bord
+     pour aller vers le contenu ne doit rien faire clignoter. */
+  .barre-poignee {
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    right: -5px;
+    width: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+  }
+  .barre-poignee::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: var(--color-blue);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out-quint);
+  }
+  .barre-poignee:hover::after {
+    opacity: 1;
+    transition-delay: 150ms;
+  }
+  .barre-poignee:focus-visible::after,
+  .barre[data-glisse] .barre-poignee::after {
+    opacity: 1;
+  }
+  @media (pointer: coarse) {
+    .barre-poignee {
+      right: -10px;
+      width: 20px;
+    }
+    .barre-poignee::after {
+      left: 8px;
+    }
   }
 
   /* Bouton primaire : le SEUL endroit où le dégradé d'action est écrit.
@@ -770,6 +949,15 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /* Dans une carte, la barre de défilement globale (10 px) pèse autant que le
+     contenu qu'elle accompagne : 8 px, poignée de 4. */
+  .panel-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .panel-scroll::-webkit-scrollbar-thumb,
+  .panel-scroll::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
+  }
   /* Racine en grille (bandeaux de tuiles) : les tuiles se
      répartissent la hauteur au lieu de laisser un vide en bas. */
   .panel-stretch {
@@ -856,6 +1044,18 @@
       text-overflow: clip !important;
       white-space: normal !important;
     }
+    /* ⭐ Et un titre coupé à DEUX LIGNES (`clamp-2`) est coupé lui aussi sans
+       recours au doigt (2026-10-12, crible du labo, constat 36 : « Réviser un
+       module de la… » dans « Tâches du jour », où le titre n'a que 93 px entre
+       la case et la pastille de tag). Posé avec `truncate-souris`, il reprend
+       toutes ses lignes sous pointeur grossier. `!important` pour la même
+       raison que ci-dessus : `.clamp-*` vit dans la couche `utilities`. */
+    .truncate-souris.clamp-1,
+    .truncate-souris.clamp-2,
+    .truncate-souris.clamp-3 {
+      display: block !important;
+      -webkit-line-clamp: unset !important;
+    }
   }
 
   /* En-tête de vue : le titre à gauche, les actions à droite — et qui SE REPLIE.
@@ -908,6 +1108,130 @@
     .cible-tactile-ligne {
       min-height: 44px;
     }
+
+    /* ⭐ LA RÈGLE GÉNÉRALE (2026-10-12) — un bouton en pastille et un champ de
+       saisie font 44 pt au doigt, SANS qu'on ait à y penser.
+
+       Le crible du labo (constat 36) a mesuré « Créer » à 36 px, « 7 j » à 26,
+       « + Nouvel objectif » à 36 : chaque bouton écrit depuis le chantier iOS
+       devait porter `.cible-tactile` à la main, et un sur deux l'oubliait. La
+       sonde du 12 octobre en comptait encore une soixantaine sur treize écrans.
+       Poser la règle sur le MOTIF (`button.pill`, les champs) plutôt que sur
+       chaque appel : le prochain bouton naît à la bonne taille.
+
+       ⚠️ `button.pill`, pas `.pill` : la classe sert aussi aux jauges et aux
+       badges (`<span class="pill">`), qui ne se touchent pas.
+       ⚠️ Pas les interrupteurs (`role="switch"`) : 44 × 44 en ferait un disque.
+       Leur ligne entière est la cible.
+       ⚠️ `min-*`, jamais `height` : un `h-9` posé par une vue reste le plancher
+       du bureau, et cède ici sans `!important` (propriétés différentes).
+       `.cible-libre` sort un élément de la règle, s'il en faut un jour. */
+    button.pill:not([role="switch"]):not(.cible-libre),
+    [role="button"].pill:not(.cible-libre) {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not(.cible-libre),
+    select:not(.cible-libre) {
+      min-height: 44px;
+    }
+  }
+
+  /* ─── Fenêtres de saisie : le pied reste, le corps défile (2026-10-12) ─────
+     Crible du labo, constat 20 (témoin A17-15) : « Créer » passait sous le bas
+     de « Nouvel objectif » dès qu'on y posait une étape et une tâche — au
+     bureau à 900 px de haut comme au téléphone. La carte entière défilait,
+     boutons compris, sans rien qui l'annonce ; « Nouvelle tâche » et « Nouvel
+     événement », elles, n'avaient AUCUNE borne de hauteur et sortaient de
+     l'écran par les deux bouts sur une fenêtre basse.
+
+     La règle, pour toute fenêtre de saisie : trois étages. Le titre et le pied
+     ne bougent pas ; SEUL le corps défile.
+
+       <div class="fenetre-voile …">            le voile, plein écran
+         <div class="card fenetre …">           la carte : colonne, bornée
+           <h2>…</h2>
+           <form class="fenetre-colonne">       (s'il y a un formulaire)
+             <div class="fenetre-corps">…</div> ce qui défile
+             <div class="fenetre-pied">…</div>  Annuler · Créer
+           </form>
+
+     ⚠️ La borne est `100 %` du VOILE, pas des `vh` : le voile est en `fixed
+     inset-0`, sa hauteur est celle de l'écran, et ses marges intérieures (dont
+     la réserve de la barre d'onglets au téléphone, ci-dessous) sont déjà
+     retirées. Plus de `vh * var(--zoom-inv)` à tenir d'accord avec la densité,
+     plus de « 78vh au doigt » à deviner. */
+  .fenetre {
+    --fenetre-marge: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    padding: var(--fenetre-marge);
+    /* La carte ne défile plus : c'est son corps qui le fait. */
+    overflow: hidden;
+  }
+  .fenetre-colonne {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+  .fenetre-corps {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Le cadre qui défile va jusqu'aux bords de la carte : sans cela, le liseré
+       de focus d'un champ serait rogné à gauche et à droite (un cadre qui
+       défile dans un sens masque dans l'autre). */
+    margin-inline: calc(-1 * var(--fenetre-marge));
+    padding-inline: var(--fenetre-marge);
+    /* ⭐ L'INDICE DE DÉFILEMENT. Le bas du corps s'estompe sur 14 px. Quand
+       tout tient, ces 14 px sont une marge vide : rien ne change à l'écran.
+       Quand il reste du contenu dessous, il fond au lieu d'être tranché net —
+       c'est ce qui manquait au constat 20 (« sans indice de défilement »). */
+    padding-bottom: 14px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+  }
+  /* ⚠️ LES ENFANTS DU CORPS NE RÉTRÉCISSENT PAS. Quand le corps est lui-même
+     une colonne flex (`flex flex-col gap-4`), sa hauteur est maintenant bornée :
+     avant de défiler, un conteneur flex COMPRIME ses enfants. Mesuré le
+     2026-10-12 sur « Nouvel objectif » : la zone « Description » passait de
+     62 à 49 px dès que la fenêtre était pleine. Un corps qui défile ne doit
+     rien comprimer — il défile. */
+  .fenetre-corps > * {
+    flex-shrink: 0;
+  }
+  .fenetre-pied {
+    flex: none;
+  }
+
+  /* ⭐ AU TÉLÉPHONE, LE VOILE RÉSERVE LA BARRE D'ONGLETS ET L'ENCOCHE.
+     La barre est en `fixed`, par-dessus les fenêtres des vues (elles vivent
+     dans le conteneur `z-10` d'`App.tsx`). Sans réserve, le pied d'une fenêtre
+     haute passe dessous. `DESIGN.md` écrit la règle (« une couche plein écran
+     doit réserver la barre d'onglets ») ; elle est ici, une fois, au lieu
+     d'être recopiée dans chaque fenêtre.
+
+     `html[data-telephone]` est posé par `App.tsx` d'après `useIsPhone()` : la
+     condition « téléphone » n'existe qu'à UN endroit (`lib/platform.ts`), elle
+     n'est pas recopiée en CSS.
+
+     ⚠️ `!important` : les marges du voile sont des utilitaires Tailwind (`p-6`,
+     `px-6 py-10`), couche postérieure à celle-ci — même piège que
+     `.truncate-souris` plus haut. */
+  html[data-telephone] .fenetre-voile {
+    padding-top: calc(env(safe-area-inset-top) + 0.5rem) !important;
+    /* `--reserve-seance` : la pastille du minuteur, quand une séance tourne
+       (`FocusOverlay`). Elle flotte au-dessus de la barre ; sans cette part,
+       elle recouvrirait le pied de la fenêtre. */
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4.75rem + var(--reserve-seance, 0px)) !important;
+    padding-left: calc(env(safe-area-inset-left) + 0.75rem) !important;
+    padding-right: calc(env(safe-area-inset-right) + 0.75rem) !important;
+  }
+  html[data-telephone] .fenetre {
+    --fenetre-marge: 1.25rem;
   }
 
   /* Glissement en cours dans la grille horaire (chantier iOS, 2026-09-02).
@@ -1521,6 +1845,39 @@
   }
 }
 
+/* ⭐ AU TÉLÉPHONE, UNE FENÊTRE OUVERTE NE GLISSE PLUS AVEC LA PAGE (2026-10-12).
+
+   Mesuré en pilotant l'app au doigt : « Nouvel événement » ouvert, un glissé
+   parti du pied de la fenêtre faisait défiler la vue DERRIÈRE — et la fenêtre
+   partait avec elle, 550 px au-dessus de l'écran. Ouvrir une fenêtre ramenait
+   aussi la vue tout en haut, et la position de lecture était perdue.
+
+   La cause est le piège du bloc conteneur (`PIEGES.md` § 9.5) : la zone qui
+   défile porte `animate-fade-up`, dont le remplissage `both` TIENT un
+   `transform` après l'animation. Un élément qui porte un `transform` devient
+   le bloc conteneur de ses descendants `position: fixed` : le voile d'une
+   fenêtre (`fixed inset-0`) n'est alors plus accroché à l'écran mais au
+   CONTENU de la vue, et défile avec lui.
+
+   Au téléphone, l'entrée ne tient donc plus son `transform` (`backwards`) :
+   le voile redevient fixe à l'écran. Et tant qu'une fenêtre est ouverte, la
+   vue derrière ne défile plus.
+
+   ⚠️ TÉLÉPHONE SEULEMENT. Au bureau, ce même piège est ce qui centre les
+   fenêtres dans la zone de contenu et laisse la barre latérale hors du voile :
+   le lever y déplacerait toutes les fenêtres. Le défaut y existe pourtant (la
+   molette sur le voile fait défiler la page et emporte la fenêtre) — voir
+   PASSATION.
+
+   Hors couche (`@layer`) : l'animation est un utilitaire, donc d'une couche
+   postérieure à `components` ; une règle hors couche passe devant toutes. */
+html[data-telephone] .vue-defilante {
+  animation-fill-mode: backwards;
+}
+html[data-telephone] .vue-defilante:has(.fenetre-voile) {
+  overflow-y: hidden;
+}
+
 /* Fond ambiant : un seul halo très doux, theme-aware. Rien d'autre. */
 .hud-bg {
   position: fixed;
@@ -1651,6 +2008,33 @@
 .cal-fantome {
   transition: none !important;
   animation: none !important;
+}
+
+/* Barre latérale — voir « Barre latérale » dans le calque components. */
+@keyframes barre-ouvrir {
+  from {
+    translate: calc(var(--barre-rail) - var(--barre-l)) 0;
+  }
+}
+@keyframes barre-ouvrir-corps {
+  from {
+    translate: calc(var(--barre-l) - var(--barre-rail)) 0;
+  }
+}
+@keyframes barre-fermer {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 1;
+    translate: calc(var(--barre-rail) - var(--barre-l)) 0;
+  }
+}
+@keyframes barre-texte-entree {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes spin {

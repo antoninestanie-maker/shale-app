@@ -47,8 +47,10 @@ export default function TimerCard({ data, focus }: Props) {
 
   return (
     <section className="card p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="hud-label">timer</h2>
+      {/* `.rgrid-head` : au survol, les points de cycles s'écartent de la barre
+          de poignées au lieu de passer dessous. */}
+      <div className="rgrid-head flex items-center justify-between">
+        <h2 className="hud-label">{t("Timer")}</h2>
         <span className="flex items-center gap-1" data-tip={t("cycles aujourd'hui")}>
           {Array.from({ length: Math.min(cyclesToday, 8) }).map((_, i) => (
             <span key={i} className="h-1.5 w-1.5 rounded-full bg-success" />
@@ -62,12 +64,12 @@ export default function TimerCard({ data, focus }: Props) {
             type="button"
             onClick={() => focus.setOverlayOpen(true)}
             data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le compte à rebours à l’écran.")}
+            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
             className={`font-mono text-5xl font-semibold text-text ${paused ? "opacity-50" : ""}`}
           >
             {fmt(remainingSec)}
           </button>
-          <p className="mt-1 max-w-full truncate text-xs text-text-dim">
+          <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.kind === "break" ? t("pause") : session.label}
           </p>
           <div className="mt-3 flex gap-2">
@@ -110,7 +112,7 @@ export default function TimerCard({ data, focus }: Props) {
                   onClick={() => setPresetIdx(i)}
                   data-tip={`${p.label} minutes`}
                   data-tip-sub={t(p.hint)}
-                  className={`min-w-0 overflow-hidden rounded-[10px] border px-1 py-2 text-center font-mono text-sm font-semibold transition-colors ${
+                  className={`cible-tactile-ligne min-w-0 overflow-hidden rounded-[10px] border px-1 py-2 text-center font-mono text-sm font-semibold transition-colors ${
                     on
                       ? "border-blue/50 bg-blue/15 text-blue"
                       : "border-border text-text hover:border-text-dim/40"
@@ -127,7 +129,7 @@ export default function TimerCard({ data, focus }: Props) {
             onClick={launch}
             data-tip={t("Lancer la session")}
             data-tip-sub={t("Démarre le compte à rebours de concentration.")}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] bg-success py-2.5 font-display text-sm font-bold uppercase tracking-wide text-on-success transition-opacity hover:opacity-90"
+            className="cible-tactile-ligne mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-field)] bg-success py-2.5 font-display text-sm font-bold uppercase tracking-wide text-on-success transition-opacity hover:opacity-90"
           >
             <IconPlay className="h-4 w-4" /> {t("Lancer {n} min", { n: preset.work })}
           </button>

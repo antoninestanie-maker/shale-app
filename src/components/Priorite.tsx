@@ -80,7 +80,7 @@ export function ChoixPriorite({
  * cliquant ailleurs ») : un `<select>` natif, qui doit prendre le focus pour
  * s'ouvrir, créait l'étape avant qu'on ait choisi — ou refermait le champ
  * encore vide. `pointerdown` empêché : le curseur reste dans le texte, comme
- * pour les boutons « Phase / Sous-objectif » juste à côté.
+ * pour les boutons de genre juste à côté (retirés le 2026-10-12 : on ajoute « une étape »).
  */
 export function PastillePriorite({ valeur, onChange }: { valeur: Priority; onChange: (p: Priority) => void }) {
   const suivante = PRIORITES[(PRIORITES.indexOf(valeur) + 1) % PRIORITES.length];

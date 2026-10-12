@@ -44,7 +44,7 @@ export function FenetreIa({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
+      className="fenetre-voile fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
       onClick={onFermer}
       role="dialog"
       aria-modal="true"

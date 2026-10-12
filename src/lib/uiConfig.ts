@@ -56,7 +56,6 @@ export const WIDGET_LABELS: Record<string, string> = {
   // Le trading sorti (2026-09-30), le bandeau n'en montre plus : le libellé suit.
   perf: TRADING_ACTIF ? "Bandeau performance (streak, focus, trading)" : "Bandeau performance (streak, focus)",
   discipline: "Anneau discipline",
-  energy: "Énergie restante (charge mentale)",
   timer: "Timer rapide",
   habitudes: "Habitudes à tenir (Journal)",
   position: "Calculateur de position (widget)",
@@ -78,7 +77,6 @@ const DEFAULTS: UiConfig = {
   ],
   dashLeft: [
     { id: "discipline", visible: true },
-    { id: "energy", visible: true },
     { id: "timer", visible: true },
     { id: "habitudes", visible: true },
     { id: "position", visible: true },
@@ -108,7 +106,16 @@ export function defaultUiConfig(): UiConfig {
 }
 
 /** Fusionne une liste sauvegardée avec les défauts : garde l'ordre/les réglages
- * connus, ignore les ids disparus, ajoute les nouveaux à la fin. */
+ * connus, ignore les ids disparus, ajoute les nouveaux à la fin.
+ *
+ * ⭐ 2026-10-11 — c'est ICI que part la jauge « Énergie restante » (`energy`),
+ * retirée pour tout le monde (Antonin : « supprime aussi le système d'énergie
+ * que je ne trouve pas intéressant »). Une disposition enregistrée avant la
+ * porte encore : comme elle n'est plus dans les défauts, elle est jetée, et ses
+ * voisins se resserrent sans changer d'ordre. Contrairement à `week`
+ * (ci-dessous), rien ne la remplace — donc rien à renommer.
+ * `uiConfig.test.ts` le tient ; pour la grille elle-même, voir
+ * `lib/grille.ts`. */
 function mergeList<T extends { id: string }>(saved: T[] | undefined, defs: T[]): T[] {
   if (!Array.isArray(saved)) return defs;
   const known = new Set(defs.map((d) => d.id));

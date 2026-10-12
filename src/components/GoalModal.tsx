@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { descendantIds } from "../lib/logic";
-import { niveauDe } from "../lib/objectifs/structure";
+import { peutRangerSous } from "../lib/objectifs/structure";
 import { createGoal, createTask, majFeuilleDeRoute, updateGoal, type GoalInput } from "../lib/repo";
 import { prioriteDe } from "../lib/priorite";
 import { ChoixPriorite } from "./Priorite";
@@ -19,7 +19,7 @@ import ChampDate from "./ChampDate";
 interface Props {
   goal: Goal | null; // null = création
   goals: Goal[];
-  defaultParentId?: number | null; // pré-rempli via t("+ sous-objectif")
+  defaultParentId?: number | null; // l'objectif sous lequel la ligne naît, s'il est déjà connu
   onClose: () => void;
   onSaved: () => Promise<void>;
 }
@@ -109,13 +109,13 @@ export default function GoalModal({
   const forbidden = goal ? descendantIds(goal.id, goals) : new Set<number>();
   if (goal) forbidden.add(goal.id);
   // Trois niveaux au plus (`lib/objectifs/structure.ts`) : un parent possible
-  // est une racine ou un jalon. Le parent ACTUEL reste proposé même s'il ne
-  // l'est plus — une arborescence d'avant la 026 ne doit pas perdre son lien
-  // parce qu'on corrige un titre.
+  // est un objectif ou une de ses étapes, tant que ce qui pend sous la ligne
+  // qu'on range y tient (2026-10-12 : plus besoin que le parent soit une
+  // « phase » déclarée, il le devient en recevant une étape). Le parent ACTUEL
+  // reste proposé même s'il ne l'est plus — une arborescence d'avant la 026 ne
+  // doit pas perdre son lien parce qu'on corrige un titre.
   const parentOptions = goals.filter(
-    (g) =>
-      !forbidden.has(g.id) &&
-      (g.id === goal?.parent_goal_id || niveauDe(g, goals) === 0 || (!!g.is_milestone && niveauDe(g, goals) === 1)),
+    (g) => !forbidden.has(g.id) && (g.id === goal?.parent_goal_id || peutRangerSous(g, goal, goals)),
   );
 
   const nbEtapes = lignesUtiles(etapes).length;
@@ -140,6 +140,19 @@ export default function GoalModal({
 
   const canSave = title.trim().length > 0 && !saving;
 
+  /**
+   * Ranger une ligne sous une ÉTAPE en fait une phase. L'écran le sait déjà (il
+   * nomme d'après le contenu) ; on tient la colonne `is_milestone` d'accord
+   * pour un appareil resté sur une version d'avant le 2026-10-12 — la même
+   * écriture que `lib/objectifs/ajouter.ts`.
+   */
+  const promouvoirParent = async () => {
+    const parent = parentId == null ? null : goals.find((g) => g.id === parentId);
+    if (parent && parent.parent_goal_id != null && !parent.is_milestone) {
+      await majFeuilleDeRoute(parent.id, { is_milestone: 1 });
+    }
+  };
+
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
@@ -158,6 +171,7 @@ export default function GoalModal({
       // ⚠️ Pas par `updateGoal`, qui n'écrit que la fiche et ne connaît pas la
       // priorité (même règle que la feuille de route, `majFeuilleDeRoute`).
       if (estEtape && priorite !== prioriteDe(goal)) await majFeuilleDeRoute(goal.id, { priority: priorite });
+      await promouvoirParent();
     } else {
       // ⚠️ L'ORDRE COMPTE : les étapes et les tâches ont besoin de l'`id` de la
       // racine, qui n'existe qu'une fois la ligne écrite. Aucune transaction
@@ -165,6 +179,7 @@ export default function GoalModal({
       // partiellement garni, visible et modifiable — jamais une donnée
       // fantôme.
       const racineId = await createGoal(estEtape ? { ...input, priority: priorite } : input);
+      await promouvoirParent();
       const base = { scope: input.scope, category: input.category };
       for (const etape of etapesACreer(base, etapes, racineId)) await createGoal(etape);
       for (const t of tachesACreer(taches, racineId)) await createTask(t);
@@ -174,21 +189,17 @@ export default function GoalModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       onClick={onClose}
     >
-      {/* ⚠️ `vh` MULTIPLIÉ par `--zoom-inv` : le `zoom` CSS de la densité
-          multiplie aussi les unités de viewport, donc `90vh` vaut 1 170 px dans
-          une fenêtre de 900 à densité « Large » — la fenêtre dépasserait
-          l'écran (règle du 2026-08-28).
-
-          ⚠️ Et 78vh AU DOIGT, pas 90 : la barre d'onglets du téléphone est en
-          `fixed` PAR-DESSUS (80 px environ). Mesuré sur iPhone 390 × 844 le
-          2026-09-20 : à 90vh, le pied de la fenêtre — donc le bouton
-          « Créer » — passait sous la barre. 78vh est la valeur que `MobileNav`
-          applique déjà à sa propre feuille, pour exactement cette raison. */}
+      {/* ⭐ Le pied reste, le corps défile — `.fenetre` dans `index.css`
+          (2026-10-12, crible du labo, constat 20). La carte entière défilait
+          jusque-là, « Créer » compris : avec une étape et une tâche, le bouton
+          passait sous le bas de la fenêtre à 900 px de haut, et sous la barre
+          d'onglets au téléphone. La borne de hauteur (les anciens `90vh` et
+          `78vh au doigt`) est maintenant celle du voile. */}
       <div
-        className="card max-h-[calc(90vh*var(--zoom-inv))] w-full max-w-md overflow-y-auto bg-surface p-6 [@media(pointer:coarse)]:max-h-[calc(78vh*var(--zoom-inv))]"
+        className="card fenetre w-full max-w-md bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg text-text">
@@ -196,12 +207,13 @@ export default function GoalModal({
         </h2>
 
         <form
-          className="mt-4 flex flex-col gap-4"
+          className="fenetre-colonne mt-4"
           onSubmit={(e) => {
             e.preventDefault();
             save();
           }}
         >
+          <div className="fenetre-corps flex flex-col gap-4">
           <input
             autoFocus
             value={title}
@@ -357,34 +369,25 @@ export default function GoalModal({
                 {t("Facultatif : tout se complète ensuite dans la feuille de route.")}
               </p>
 
-              <p className="mb-1 mt-3 text-xs font-medium text-text-dim">
-                {t("Premières étapes")}
-                {nbEtapes > 0 && <span className="ml-1.5 text-text-dim/70">{nbEtapes}</span>}
+              {/* ⭐ LES TÂCHES D'ABORD (2026-10-12). Antonin : « cocher une étape
+                  sans tâche n'a pas tellement de sens. Dans ce cas, l'étape est
+                  une tâche. » Ce qu'on a à faire se saisit donc en premier ; les
+                  étapes viennent ensuite, pour qui veut regrouper. Chaque
+                  intitulé dit lequel est lequel — sans phrase d'aide : celle
+                  qui était écrite sous les tâches attend dans leur bulle. */}
+              <p
+                className="mb-1 mt-3 text-xs font-medium text-text-dim"
+                data-tip={t("Elles comptent dans l’avancement de l’objectif")}
+                data-tip-sub={t("Avec une échéance, elles paraissent dans le Calendrier et dans Aujourd’hui.")}
+                data-tip-attente="longue"
+              >
+                {t("Tâches · ce qu’il y a à faire")}
+                {nbTaches > 0 && <span className="ml-1.5 text-text-dim/70">{nbTaches}</span>}
               </p>
               {/* ⚠️ L'ORDRE DU DOM EST L'ORDRE DES LIGNES : c'est lui que
                   `Entrée` suit pour descendre d'un champ. Un conteneur marqué
                   plutôt qu'un tableau de refs — le même geste vaut pour les
-                  tâches, juste dessous. */}
-              <div data-lignes className="flex flex-col gap-1.5">
-                {lignesEtapes.map((valeur, i) => (
-                  <input
-                    key={i}
-                    value={valeur}
-                    onChange={(e) =>
-                      setEtapes(lignesEtapes.map((v, k) => (k === i ? e.target.value : v)))
-                    }
-                    onKeyDown={ligneSuivante(i)}
-                    placeholder={i === 0 ? t("ex. Préparer le plan de révision") : t("Étape suivante…")}
-                    aria-label={t("Étape {n}", { n: i + 1 })}
-                    className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
-                  />
-                ))}
-              </div>
-
-              <p className="mb-1 mt-3 text-xs font-medium text-text-dim">
-                {t("Premières tâches")}
-                {nbTaches > 0 && <span className="ml-1.5 text-text-dim/70">{nbTaches}</span>}
-              </p>
+                  étapes, juste dessous. */}
               <div data-lignes className="flex flex-col gap-1.5">
                 {lignesTaches.map((ligne, i) => (
                   /* ⚠️ `flex-wrap` ET une base flex sur le nom : sur iPhone, le
@@ -421,13 +424,32 @@ export default function GoalModal({
                   </div>
                 ))}
               </div>
-              <p className="mt-1.5 text-[11px] text-text-dim">
-                {t("Les tâches naissent rattachées à l’objectif : elles comptent dans son avancement, et leur échéance les fait apparaître dans le calendrier.")}
+
+              <p className="mb-1 mt-3 text-xs font-medium text-text-dim">
+                {t("Étapes · pour regrouper des tâches")}
+                {nbEtapes > 0 && <span className="ml-1.5 text-text-dim/70">{nbEtapes}</span>}
               </p>
+              <div data-lignes className="flex flex-col gap-1.5">
+                {lignesEtapes.map((valeur, i) => (
+                  <input
+                    key={i}
+                    value={valeur}
+                    onChange={(e) =>
+                      setEtapes(lignesEtapes.map((v, k) => (k === i ? e.target.value : v)))
+                    }
+                    onKeyDown={ligneSuivante(i)}
+                    placeholder={i === 0 ? t("ex. Préparation") : t("Étape suivante…")}
+                    aria-label={t("Étape {n}", { n: i + 1 })}
+                    className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+                  />
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="mt-2 flex justify-end gap-2">
+          </div>
+
+          <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

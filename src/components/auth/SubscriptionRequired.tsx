@@ -74,7 +74,7 @@ export default function SubscriptionRequired({
   // qui n'a rien de commercial et sans lequel l'écran mentirait.
   if (!COMMERCE_AUTORISE) {
     return (
-      <div className="flex h-screen items-center justify-center bg-bg px-6">
+      <div className="flex h-[calc(100vh*var(--zoom-inv))] items-center justify-center bg-bg px-6">
         <div className="w-full max-w-md text-center">
           <div ref={marque} className="mb-6 flex flex-col items-center">
             <ShaleMark size={48} />
@@ -100,7 +100,7 @@ export default function SubscriptionRequired({
   }
 
   return (
-    <div className="flex h-screen items-center justify-center bg-bg px-6">
+    <div className="flex h-[calc(100vh*var(--zoom-inv))] items-center justify-center bg-bg px-6">
       <div className="w-full max-w-md text-center">
         <div ref={marque} className="mb-6 flex flex-col items-center">
           <ShaleMark size={48} />

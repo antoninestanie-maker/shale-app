@@ -4,13 +4,14 @@ type Planif = typeof import("./planification");
 let jalonsPropres: Planif["jalonsPropres"];
 let planDuPremierObjectif: Planif["planDuPremierObjectif"];
 let planRempli: Planif["planRempli"];
+let heuresDuPlan: Planif["heuresDuPlan"];
 let NB_JALONS_MAX: Planif["NB_JALONS_MAX"];
 
 /** La langue se fixe à l'import du module d'i18n (PIEGES § 14.2). */
 beforeAll(async () => {
   vi.resetModules();
   vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
-  ({ jalonsPropres, planDuPremierObjectif, planRempli, NB_JALONS_MAX } = await import("./planification"));
+  ({ jalonsPropres, planDuPremierObjectif, planRempli, heuresDuPlan, NB_JALONS_MAX } = await import("./planification"));
 });
 
 describe("ce que l'accueil plante", () => {
@@ -71,5 +72,24 @@ describe("les lignes de jalons", () => {
   it("un titre vide ne plante rien — « pas de réponse, pas d'objectif »", () => {
     expect(planRempli("   ")).toBe(false);
     expect(planRempli("x")).toBe(true);
+  });
+});
+
+describe("⭐ la valeur montrée est la valeur retenue (2026-10-11)", () => {
+  it("la case allumée par défaut est retenue quand l'écran de la grille est validé par « Suivant »", () => {
+    // Le défaut : « 5 h » allumé, « Suivant », et l'objectif planté sans ses heures.
+    expect(heuresDuPlan(null, 5)).toBe(5);
+    expect(planDuPremierObjectif("Mon mémoire", [], heuresDuPlan(null, 5)).racine.description).toBe("5 h par semaine libérées pour ça.");
+  });
+
+  it("la case cliquée l'emporte sur celle qui était allumée", () => {
+    expect(heuresDuPlan(8, 5)).toBe(8);
+    expect(heuresDuPlan(8, null)).toBe(8);
+  });
+
+  it("écran passé ou jamais vu, ou aucune heure libre : aucun chiffre n'est inventé", () => {
+    expect(heuresDuPlan(null, null)).toBe(0);
+    expect(heuresDuPlan(null, 0)).toBe(0);
+    expect(planDuPremierObjectif("Mon mémoire", [], heuresDuPlan(null, null)).racine.description).toBeNull();
   });
 });

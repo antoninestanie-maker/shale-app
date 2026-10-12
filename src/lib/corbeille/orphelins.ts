@@ -13,7 +13,7 @@
  * tolérant, et un objectif absent de la liste n'affiche simplement rien. Le
  * lien « dort », et toute écriture le préserve. Voir `PIEGES.md` § 19.
  *
- * ⚠️ LES SOUS-OBJECTIFS, EUX, RESTENT DÉTACHÉS : un enfant vivant sous un
+ * ⚠️ LES ÉTAPES, ELLES, RESTENT DÉTACHÉES : un enfant vivant sous un
  * parent jeté (cas rare, une synchronisation interrompue) disparaîtrait
  * autrement de tous les arbres — ni racine, ni sous un parent affiché. Les
  * réécritures d'une étape par la feuille de route passent donc par des

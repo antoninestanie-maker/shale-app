@@ -25,7 +25,7 @@ import { plainText } from "../../../lib/richtext";
 import type { Note } from "../../../lib/types";
 
 export interface GestesNote {
-  /** Exactement ce que fait le clic sur la ligne. */
+  /** Exactement ce que fait le clic sur la ligne — curseur dans le titre compris, dans l'onglet « Sans titre ». */
   ouvrir: (note: Note) => void;
   /** Sélectionne la note ET pose le curseur dans le champ du titre. */
   renommer: (note: Note) => void;

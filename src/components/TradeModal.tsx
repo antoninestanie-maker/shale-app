@@ -119,11 +119,11 @@ export default function TradeModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       onClick={onClose}
     >
       <div
-        className="card w-full max-w-md bg-surface p-6"
+        className="card fenetre w-full max-w-md bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -151,12 +151,13 @@ export default function TradeModal({
         </div>
 
         <form
-          className="mt-4 flex flex-col gap-4"
+          className="fenetre-colonne mt-4"
           onSubmit={(e) => {
             e.preventDefault();
             save();
           }}
         >
+          <div className="fenetre-corps flex flex-col gap-4">
           <div className="auto-tiles gap-3">
             <div>
               <p className="mb-1.5 text-xs font-medium text-text-dim">Date</p>
@@ -270,7 +271,9 @@ export default function TradeModal({
             )}
           </div>
 
-          <div className="mt-2 flex justify-end gap-2">
+          </div>
+
+          <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

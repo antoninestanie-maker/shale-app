@@ -7,6 +7,7 @@ import type { PairConfig } from "./pairs";
 import { t } from "./i18n";
 import { diffMentions, TABLE_DE_KIND, type AreteVoulue } from "./liens";
 import { assemblerContexte, FAMILLES_RATTACHABLES, type ContexteObjectifs } from "./objectifs/contexte";
+import { planConversion, type RecuConversion } from "./objectifs/conversion";
 import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
@@ -202,7 +203,7 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
       [sinceDate],
     ),
   ]);
-  // Une tâche ou un sous-objectif vivants dont la cible est en corbeille se
+  // Une tâche ou une étape vivantes dont la cible est en corbeille se
   // lisent détachés — sans toucher à la base (voir `corbeille/orphelins.ts`).
   const { taches: tasks, objectifs: goals } = detacherDesJetes(tasksBruts, goalsBruts);
   return {
@@ -1525,7 +1526,7 @@ export async function majFeuilleDeRoute(id: number, patch: FeuilleDeRoutePatch):
  * reconstituée (`ficheDe`), qui réécrit HUIT colonnes — l'échéance, la
  * description, la progression, le parent. C'est le piège de la règle 16 du
  * chantier (« renommer une tâche effaçait sa date », PIEGES § 6.2). Et depuis
- * la corbeille, pire : un sous-objectif dont le parent est jeté se lit sans
+ * la corbeille, pire : une étape dont le parent est jeté se lit sans
  * parent en mémoire ; le réécrire en entier aurait coupé ce lien pour de bon.
  */
 export async function renommerObjectif(goalId: number, titre: string): Promise<void> {
@@ -1546,6 +1547,136 @@ export async function daterObjectif(goalId: number, echeance: string | null): Pr
   if (!isTauri) return demo.majObjectif(goalId, { deadline: echeance });
   const db = await getDb();
   await db.execute("UPDATE goals SET deadline = $1 WHERE id = $2 AND deadline IS NOT $1", [echeance, goalId]);
+}
+
+/**
+ * ⭐ Coche (ou décoche) une étape VIDE — ou un objectif vide (2026-10-11).
+ *
+ * Demande d'Antonin : « Pour les étapes vides, donne la possibilité de cocher
+ * une étape pour que ce soit compté. » La coche n'a pas de colonne à elle :
+ * c'est `progress_pct = 100` sur une ligne MESURÉE, que `mesurer`
+ * (`lib/objectifs/progression.ts`) ne lit que tant que l'étape n'a ni
+ * sous-étape, ni élément comptable, ni cible. Aucune migration.
+ *
+ * ⚠️ `manual_progress = 0` DANS LE `WHERE` : pour une ligne suivie à la main,
+ * `progress_pct` EST le chiffre affiché, et il est souverain. Un écran en
+ * retard d'un rafraîchissement ne doit pas pouvoir l'écraser en cochant.
+ * ⚠️ Une seule colonne (règle 16), et `IS NOT $1` : recocher ce qui l'est
+ * déjà n'écrit rien, donc n'envoie rien à la synchronisation.
+ * ⚠️ N'ADOPTE PAS une étape d'exemple, comme `majFeuilleDeRoute` : cocher
+ * n'est pas écrire. Sinon, essayer la case de l'exemple laisserait une étape
+ * orpheline derrière « supprimer les exemples ».
+ */
+export async function cocherEtape(goalId: number, faite: boolean): Promise<void> {
+  const pct = faite ? 100 : 0;
+  if (!isTauri) return demo.cocherEtape(goalId, pct);
+  const db = await getDb();
+  await db.execute(
+    "UPDATE goals SET progress_pct = $1 WHERE id = $2 AND manual_progress = 0 AND progress_pct IS NOT $1",
+    [pct, goalId],
+  );
+}
+
+/**
+ * ⭐ Convertit une étape VIDE en une vraie tâche (2026-10-12).
+ *
+ * Antonin : « cocher une étape sans tâche n'a pas tellement de sens. Dans ce
+ * cas, l'étape est une tâche. » Ce qui suit l'étape, et ce qui ne la suit pas,
+ * est décidé par `planConversion` (`lib/objectifs/conversion.ts`, pur et
+ * testé). Ici, seulement l'application du plan, dans cet ordre :
+ *
+ *   1. la tâche naît, rattachée au PARENT de l'étape (faite si l'étape était
+ *      cochée, exemple si elle en était un) ;
+ *   2. ce qui était rattaché à l'étape sans la mesurer passe au parent — sinon
+ *      ses tâches récurrentes partiraient à la corbeille avec elle ;
+ *   3. l'étape part à la corbeille, par `mettreEnCorbeille` : le chemin normal.
+ *
+ * Rend le REÇU dont `annulerConversionEnTache` a besoin, ou `null` si rien n'a
+ * été écrit (étape introuvable, objectif racine, ou étape qui n'est plus vide
+ * — un autre écran, ou un autre appareil, lui a donné une tâche entre-temps).
+ *
+ * ⭐ MÊME SÉMANTIQUE EN NATIF ET EN DÉMO, PAR CONSTRUCTION : la fonction ne
+ * parle qu'aux accès publics de ce fichier, qui s'aiguillent chacun. Il n'y a
+ * pas de second chemin à tenir d'accord dans `demo.ts` (test joué des deux
+ * côtés : `objectifs/conversion.api.test.ts`).
+ *
+ * ⚠️ AUCUNE TRANSACTION (ce fichier n'en expose pas). L'ordre est choisi pour
+ * qu'une interruption ne perde rien : au pire, la tâche existe ET l'étape
+ * aussi — un doublon visible, jamais une chose à faire disparue.
+ */
+export async function convertirEtapeEnTache(goalId: number): Promise<RecuConversion | null> {
+  const jour = todayStr();
+  const [data, contexte] = await Promise.all([fetchAll(jour), fetchContexteObjectifs()]);
+  const plan = planConversion(goalId, {
+    goals: data.goals,
+    tasks: data.tasks,
+    completions: data.completions,
+    habits: data.habits,
+    habitChecks: data.habitChecks,
+    liens: contexte.liens,
+    evenements: contexte.evenements,
+    maintenant: localNow(),
+  });
+  if ("refus" in plan) return null;
+
+  const tacheId = await createTask(plan.tache);
+  // ⚠️ Cocher d'abord, marquer exemple ensuite : `setTaskDone` ADOPTE la ligne.
+  if (plan.faite) await setTaskDone(tacheId, jour, true);
+  if (plan.exemple) await marquerExemple("tasks", tacheId, true);
+
+  const tachesDeplacees: RecuConversion["tachesDeplacees"] = [];
+  for (const t of plan.tachesQuiSuivent) {
+    await rattacherTache(t.id, plan.parent.id);
+    // Déplacer n'est pas adopter : un exemple reste un exemple.
+    if (t.is_example) await marquerExemple("tasks", t.id, true);
+    tachesDeplacees.push({ id: t.id, exemple: !!t.is_example });
+  }
+
+  const liensCrees: number[] = [];
+  const uidParent = plan.rattachesQuiSuivent.length ? await uidDe("goal", plan.parent.id) : null;
+  if (uidParent) {
+    // Les arêtes créées se lisent par DIFFÉRENCE : `createLink` ne rend rien, et
+    // il ne crée rien si le parent citait déjà la note (`ON CONFLICT`) — une
+    // arête qui existait avant ne doit pas partir avec « Annuler ».
+    const avant = new Set((await fetchLinksFrom("goal", uidParent)).map((l) => l.id));
+    for (const r of plan.rattachesQuiSuivent) {
+      await createLink({ from_kind: "goal", from_uid: uidParent, to_kind: r.kind, to_uid: r.uid, origin: "manual" });
+    }
+    for (const l of await fetchLinksFrom("goal", uidParent)) if (!avant.has(l.id)) liensCrees.push(l.id);
+  }
+
+  const recu: RecuConversion = { etapeId: goalId, tacheId, tachesDeplacees, liensCrees };
+  const lot = await mettreEnCorbeille("goal", goalId);
+  if (lot.ids.length === 0) {
+    // L'étape n'est pas partie (disparue entre la lecture et l'écriture) : on
+    // défait ce qu'on vient de poser plutôt que de laisser une tâche en double.
+    await defaireConversion(recu, false);
+    return null;
+  }
+  return recu;
+}
+
+/**
+ * « Annuler » d'une conversion : l'étape revient de la corbeille, ce qui était
+ * passé au parent lui est rendu, et la tâche créée est retirée POUR DE BON —
+ * elle n'a jamais existé qu'à la place de l'étape, la laisser dans Supprimés
+ * récemment y ferait un doublon de l'étape restaurée.
+ *
+ * ⚠️ Règle 15 : tout vient du REÇU fermé à la naissance du toast, jamais de
+ * « l'étape sélectionnée » au moment du clic.
+ */
+export async function annulerConversionEnTache(recu: RecuConversion): Promise<void> {
+  await defaireConversion(recu, true);
+}
+
+async function defaireConversion(recu: RecuConversion, restaurerEtape: boolean): Promise<void> {
+  if (restaurerEtape) await restaurer("goal", recu.etapeId);
+  for (const t of recu.tachesDeplacees) {
+    await rattacherTache(t.id, recu.etapeId);
+    if (t.exemple) await marquerExemple("tasks", t.id, true);
+  }
+  for (const id of recu.liensCrees) await deleteLink(id);
+  await deleteTask(recu.tacheId);
 }
 
 /**
@@ -2599,7 +2730,7 @@ export async function titresDesMentions(
  *   • le nom des HABITUDES citées — `habit` n'étant pas une famille de lien,
  *     `titresDesMentions` ne les connaît pas (voir `KindCarte`, `lib/carte.ts`) ;
  *   • le GENRE des objectifs cités, pour que l'icône du bloc enregistré suive
- *     une phase redevenue sous-objectif.
+ *     une étape devenue phase (elle en contient d'autres), ou l'inverse.
  * Un objet en corbeille est absent des deux cartes — comme un objet supprimé.
  */
 export async function infosDeCartes(
@@ -2620,12 +2751,18 @@ export async function infosDeCartes(
   }
   if (objectifs.length > 0) {
     const jokers = objectifs.map((_, i) => `$${i + 1}`).join(", ");
-    const rows = await db.select<{ uid: string; parent_goal_id: number | null; is_milestone: number }[]>(
-      `SELECT uid, parent_goal_id, is_milestone FROM goals WHERE uid IN (${jokers}) AND ${VIVANT}`,
+    // ⭐ Par le CONTENU, plus par `is_milestone` (2026-10-12) : une phase est
+    // une étape qui en porte d'autres, VIVANTES. Même règle que `natureDe`
+    // (`objectifs/structure.ts`), écrite en SQL parce qu'on ne charge pas tous
+    // les objectifs pour dessiner trois icônes.
+    const rows = await db.select<{ uid: string; parent_goal_id: number | null; porte: number }[]>(
+      `SELECT uid, parent_goal_id,
+              EXISTS (SELECT 1 FROM goals e WHERE e.parent_goal_id = goals.id AND e.deleted_at IS NULL) AS porte
+         FROM goals WHERE uid IN (${jokers}) AND ${VIVANT}`,
       [...objectifs],
     );
     for (const r of rows) {
-      genres.set(r.uid, r.parent_goal_id == null ? "objectif" : r.is_milestone ? "phase" : "sous-objectif");
+      genres.set(r.uid, r.parent_goal_id == null ? "objectif" : r.porte ? "phase" : "sous-objectif");
     }
   }
   return { titresHabitudes, genres };
@@ -3206,7 +3343,7 @@ export async function supprimerExemples(): Promise<void> {
 // facture, arêtes, fiches « non classées »), sans rien réinventer.
 
 /**
- * Met un objet en corbeille — un objectif, avec ses phases et sous-objectifs.
+ * Met un objet en corbeille — un objectif, avec ses étapes.
  * Rend le lot : son horodatage est ce qu'« Annuler » restaure.
  */
 export async function mettreEnCorbeille(kind: KindCorbeille, id: number): Promise<Lot> {

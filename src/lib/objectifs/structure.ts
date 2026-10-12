@@ -4,9 +4,9 @@ import type { Goal } from "../types";
  * La forme d'une feuille de route : trois niveaux, et c'est une règle de SAISIE.
  *
  *   objectif racine (niveau 0)
- *   ├── jalon (niveau 1, `is_milestone = 1`)
- *   │   └── sous-objectif (niveau 2)
- *   └── sous-objectif direct (niveau 1)
+ *   ├── phase (niveau 1 : une étape qui en contient d'autres)
+ *   │   └── étape (niveau 2)
+ *   └── étape (niveau 1)
  *
  * ⚠️ AUCUN CHECK EN BASE (migration 026, PIEGES § 3.4) : une ligne distante qui
  * violerait une contrainte de profondeur arrêterait la synchronisation. La règle
@@ -69,56 +69,114 @@ export function etapesTriees(parentId: number, goals: readonly Goal[]): Goal[] {
 }
 
 /**
- * ⚠️ LES IDENTIFIANTS RESTENT `"jalon"`, LE MOT AFFICHÉ EST « PHASE ».
+ * ⚠️ LES IDENTIFIANTS RESTENT `"jalon"` ET `"sous-objectif"` : ce sont des CLÉS
+ * (la colonne `goals.is_milestone`, le `genre` d'un nœud de carte enregistré
+ * dans une note), pas du texte. Aucune migration pour un mot.
  *
- * Antonin, 2026-09-20 : « le nom de jalon n'est peut-être pas assez parlant,
- * réfléchis-y, sinon laisse-le. » Il ne l'était pas : un jalon, dans la langue
- * courante, est un REPÈRE qu'on franchit — un point sur une ligne. Ici, c'est un
- * CONTENANT : le niveau qui regroupe plusieurs sous-objectifs. Le mot promettait
- * une date, il livrait un dossier.
- *
- * « Phase » dit exactement cela, en un mot court, dans les deux langues, et sans
- * entrer en collision avec « étape » (le mot générique de la feuille de route,
- * qui désigne les deux genres) ni avec « sous-objectif ».
- *
- * Ce qui NE change pas : la colonne `goals.is_milestone` (aucune migration pour
- * un mot), ni ces identifiants de code, qui sont des clés et non du texte. Le
- * mot affiché se lit dans `libelles.ts` (`nomDeGenre`), donc à un seul endroit.
+ * 2026-09-20 — « jalon » ne s'affiche plus : le mot affiché était « phase ».
+ * 2026-10-12 — « sous-objectif » ne s'affiche plus non plus, et le genre ne se
+ * CHOISIT plus : voir `natureDe`, juste dessous. Ce type ne sert plus qu'à
+ * nommer la valeur stockée ; aucun écran ne le lit pour décider d'un mot.
  */
 export type GenreEtape = "jalon" | "sous-objectif";
 
 /**
- * Peut-on créer une étape de ce genre sous `parent` ?
+ * ⭐ CE QU'UNE LIGNE EST, D'APRÈS CE QU'ELLE CONTIENT (2026-10-12).
  *
- *   • un JALON ne naît que sous une racine ;
- *   • un SOUS-OBJECTIF naît sous une racine ou sous un jalon — jamais sous un
- *     autre sous-objectif, et jamais au-delà du niveau 2.
+ * Antonin a validé, le 12 octobre, la proposition du chantier « étapes
+ * cochables » : « garder "étape" comme seul mot affiché, "phase" seulement
+ * quand une étape en contient d'autres, et retirer "sous-objectif" de
+ * l'écran ». Réponse : « je valide ».
+ *
+ *   • la racine est l'OBJECTIF ;
+ *   • une ligne qui porte au moins une étape est une PHASE ;
+ *   • toute autre ligne est une ÉTAPE.
+ *
+ * ⚠️ DÉCISION RETOURNÉE. Du 2026-09-14 au 2026-10-12, le genre se choisissait
+ * à la création (« Phase | Sous-objectif ») et se lisait dans
+ * `goals.is_milestone`. Une phase vide s'appelait « phase », une étape
+ * s'appelait « sous-objectif », et le bouton disait « Ajouter une étape » :
+ * trois mots pour la même ligne (labo du 2026-10-11, constat 22, les cinq
+ * utilisateurs). La colonne reste écrite (voir `ajouter.ts`), pour qu'un
+ * appareil resté sur l'ancienne version lise encore une arborescence
+ * cohérente ; plus AUCUN écran de cette version ne la lit.
+ *
+ * `goals` : les lignes VIVANTES (ce que `fetchAll` rend). Une phase dont la
+ * dernière étape part à la corbeille redevient donc une étape, à la lecture.
  */
-export function peutAjouterEtape(parent: Goal, genre: GenreEtape, goals: readonly Goal[]): boolean {
-  const niveau = niveauDe(parent, goals);
-  if (genre === "jalon") return niveau === 0;
-  if (niveau === 0) return true;
-  return niveau === 1 && !!parent.is_milestone && niveau + 1 <= NIVEAU_MAX;
+export type NatureLigne = "objectif" | "phase" | "etape";
+
+export function natureDe(goal: Pick<Goal, "id" | "parent_goal_id">, goals: readonly Pick<Goal, "parent_goal_id">[]): NatureLigne {
+  if (goal.parent_goal_id == null) return "objectif";
+  return goals.some((g) => g.parent_goal_id === goal.id) ? "phase" : "etape";
 }
 
 /**
- * Un sous-objectif peut-il devenir jalon, sur place ?
- *
- * Seulement s'il pend directement d'une racine, et si ses propres enfants
- * restent dans la limite une fois promu : ils deviennent alors des
- * sous-objectifs du jalon (niveau 2), donc eux-mêmes ne doivent pas en avoir.
- * C'est le chemin de reprise des objectifs d'avant ce chantier, qui ne sont
- * pas migrés automatiquement.
+ * La CLÉ sous laquelle une nature est enregistrée dans une carte mentale
+ * (`GenreRef`, `lib/carte.ts`) : « sous-objectif » y désigne une étape. Le mot
+ * ne s'affiche jamais ; la clé ne change pas, les cartes déjà enregistrées
+ * dans des notes la portent.
  */
-export function peutPromouvoir(goal: Goal, goals: readonly Goal[]): boolean {
-  if (goal.is_milestone || niveauDe(goal, goals) !== 1) return false;
-  const enfants = goals.filter((g) => g.parent_goal_id === goal.id);
-  return enfants.every((e) => !goals.some((g) => g.parent_goal_id === e.id));
+export function cleDeNature(nature: NatureLigne): "objectif" | "phase" | "sous-objectif" {
+  return nature === "etape" ? "sous-objectif" : nature;
 }
 
-/** Rétrograder un jalon : possible s'il n'a pas d'enfant (sinon ils tomberaient au niveau 3). */
-export function peutRetrograder(goal: Goal, goals: readonly Goal[]): boolean {
-  return !!goal.is_milestone && !goals.some((g) => g.parent_goal_id === goal.id);
+/** Une ligne (étape OU objectif) porte-t-elle des étapes ? */
+export function contientDesEtapes(goal: Pick<Goal, "id">, goals: readonly Pick<Goal, "parent_goal_id">[]): boolean {
+  return goals.some((g) => g.parent_goal_id === goal.id);
+}
+
+/**
+ * Peut-on créer une étape sous `parent` ?
+ *
+ * Trois niveaux, et c'est tout : sous l'objectif (niveau 0) ou sous une de ses
+ * étapes (niveau 1) — qui devient alors une phase. Jamais sous une étape de
+ * niveau 2 : là, ce qu'on ajoute est une tâche.
+ *
+ * ⚠️ Jusqu'au 2026-10-12 la fonction prenait un GENRE (« une phase ne naît que
+ * sous une racine, un sous-objectif sous une racine ou une phase »). Le genre
+ * ne se choisit plus : c'est le contenu qui nomme.
+ */
+export function peutAjouterEtape(parent: Goal, goals: readonly Goal[]): boolean {
+  return niveauDe(parent, goals) < NIVEAU_MAX;
+}
+
+/** Combien de niveaux d'étapes pendent sous cette ligne (0 : aucune). Garde anti-cycle. */
+export function hauteurSous(goal: Pick<Goal, "id">, goals: readonly Goal[]): number {
+  const descendre = (id: number, vus: Set<number>): number => {
+    let h = 0;
+    for (const e of goals) {
+      if (e.parent_goal_id !== id || vus.has(e.id)) continue;
+      h = Math.max(h, 1 + descendre(e.id, new Set(vus).add(e.id)));
+    }
+    return h;
+  };
+  return descendre(goal.id, new Set([goal.id]));
+}
+
+/**
+ * Peut-on RANGER `goal` (avec ce qui pend dessous) sous `parent` sans dépasser
+ * les trois niveaux ? Sert à la liste « Objectif parent » de la fenêtre : une
+ * phase ne se range pas sous une étape, ses étapes tomberaient au niveau 3.
+ * `goal` absent : une ligne neuve, sans rien dessous.
+ */
+export function peutRangerSous(parent: Goal, goal: Pick<Goal, "id"> | null, goals: readonly Goal[]): boolean {
+  return niveauDe(parent, goals) + 1 + (goal ? hauteurSous(goal, goals) : 0) <= NIVEAU_MAX;
+}
+
+/**
+ * Le premier objectif, en remontant depuis `voulu` (inclus), qui peut recevoir
+ * une étape. Sert à la carte mentale : une étape dessinée sous une étape de
+ * niveau 2 naît sous la phase au-dessus, et l'écran le dit.
+ */
+export function premierAccueil(voulu: Goal, goals: readonly Goal[]): Goal | null {
+  const parDeId = new Map(goals.map((g) => [g.id, g]));
+  const vus = new Set<number>();
+  for (let g: Goal | undefined = voulu; g && !vus.has(g.id); g = g.parent_goal_id == null ? undefined : parDeId.get(g.parent_goal_id)) {
+    vus.add(g.id);
+    if (peutAjouterEtape(g, goals)) return g;
+  }
+  return null;
 }
 
 /** L'objectif a-t-il une feuille de route (au moins une étape) ? */

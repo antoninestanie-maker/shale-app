@@ -12,7 +12,7 @@ import { uidDeLigne } from "./progression";
  *
  * Ce qui part avec le nœud et tout ce qui pend dessous :
  *   • une TÂCHE, une HABITUDE ;
- *   • une ÉTAPE (phase, sous-objectif) — un objectif qui a un parent ;
+ *   • une ÉTAPE (phase ou non) — un objectif qui a un parent ;
  *   • les étapes COMPTÉES par une habitude qui part : sans elle, elles ne
  *     mesureraient plus rien (« source introuvable ») et resteraient là.
  * Ce qui ne part JAMAIS : un objectif RACINE cité sur la carte (ce n'est pas

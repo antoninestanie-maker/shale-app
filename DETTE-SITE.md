@@ -877,3 +877,86 @@ L'onglet Performance a changé de nature : une période unique (7 j · 30 j · 3
 ## AA — Retours du tournage en anglais (app, 2026-10-10)
 
 Aucun texte du site à changer (la maxime du bandeau n'y figure pas). Les captures ANGLAISES du Calendrier et d'Aujourd'hui prises avant ce jour montrent « 7 j », « due on 2026-… », « five times » : à refaire au prochain passage de captures.
+
+## AB — Barre latérale réductible, « Aujourd'hui » fixe (app, 2026-10-11)
+
+La démo jouable (`Demo.astro`, `NAV`) et les captures `shots/v2` montrent l'ancienne barre : pas de ligne « Réduire », « Aujourd'hui » dans la liste qui défile, en-tête Calendrier d'Aujourd'hui avec icône. Aucun texte du site ne décrit la barre : rien à corriger en mots. À reprendre au prochain passage de captures.
+
+## AC — Correctifs d'après le labo (app, 2026-10-12)
+
+Le site est en liste d'attente : rien de ceci n'est promis publiquement aujourd'hui, mais les pages et les captures décrivent l'app d'avant.
+
+### `sans-energie`
+
+Le site montre et dit encore la jauge. Rien n'a été touché côté site.
+
+**Captures où la carte « ÉNERGIE RESTANTE 100 % » est visible** (vu sur `dark-aujourdhui.webp`) :
+- `vitrine/public/shots/v2/dark-aujourdhui.webp` et `light-aujourdhui.webp` ;
+- `vitrine/public/shots/v2/dark-phone-aujourdhui.webp` et `light-phone-aujourdhui.webp` — à vérifier, la jauge est plus bas dans la page au téléphone ;
+- les anciennes `vitrine/public/shots/full-today.png`, `card-today.png`, `phone-today.png`, encore citées par deux articles du blog (`trois-taches-par-jour`, `pourquoi-tu-abandonnes-au-neuvieme-jour`, en français et en anglais) — à vérifier ;
+- `shots/3d/*-heros-iphone.webp` — à vérifier. `*-heros-mac.webp` montre Objectifs : pas concerné.
+
+Ces captures seront aussi fausses pour une autre raison : Aujourd'hui s'affiche maintenant en deux colonnes continues (Timer, Habitudes et Liens rapides sous Discipline).
+
+**Textes qui citent l'énergie restante** (pages de la refonte, dictionnaire `vitrine/src/lib/i18n/en.ts` à suivre) :
+- `views/refonte/Accueil.astro`, temps « 03 Aujourd'hui » : « … ce que le calendrier a déjà bloqué, et l'énergie qu'il reste. »
+- `views/refonte/Modules.astro` (deux fois) : « … la discipline tenue, l'énergie restante et l'agenda. »
+- `views/refonte/Fonctionsdecider.astro` : « … la discipline tenue, l'énergie restante, les objectifs en cours et l'agenda… » et la puce « L'état du jour en un coup d'œil : discipline, énergie, série en cours ».
+- Clés du dictionnaire sans doute orphelines, à contrôler : « Tâches du jour, objectifs, énergie restante. Zéro page blanche. », « L'énergie restante baisse avec les trades pris et les heures d'écran — elle dit quand t'arrêter. », « ÉNERGIE RESTANTE », « Énergie restante ».
+
+**À ne pas toucher sur le site** : tout ce qui parle de l'humeur et de l'énergie du **Journal** (« Humeur et énergie en un clic, deux échelles de 1 à 5 », etc.) reste vrai.
+
+### `taches-jour`
+
+- **Les captures de l'écran Aujourd'hui** deviennent fausses : une ligne « En retard » peut apparaître en tête ; la ligne d'ajout de la carte « Tâches du jour » porte une pastille « aujourd'hui » ; « Objectifs en cours » ne montre plus les étapes ; le « ⋯ » des lignes est visible au repos ; la Discipline ne compte plus les tâches sans date.
+- **Les captures de la vue Tâches** aussi : la ligne d'ajout porte un bouton calendrier ; un choix « Par moment / Par objectif » est apparu sous les tags ; les dates des lignes sont soulignées en pointillé.
+- **Les captures d'un menu de tâche** (s'il y en a) : « Dater » a changé, « Focus 25 min » est dans Tâches.
+- **Aucun texte du site** ne devient faux à ma connaissance. Si une page décrit l'ajout rapide ou le report, elle peut maintenant dire qu'on écrit « jeudi » dans la phrase et qu'on reporte d'un jour en un geste — à chercher et à proposer à Antonin avant d'écrire.
+
+### `etapes-cochables`
+
+- **Captures.** `shots/v2/*objectifs.webp` montre déjà l'ancienne vue (entrées M et Y). Les prochaines captures de la page d'un objectif montreront : une case devant chaque étape vide, « 1 étape sur 3 » sous le pourcentage, et la rangée « Ajouter une étape · Tâche · Rattacher ». Rien à refaire d'urgence.
+- **Une phrase à relire** : fiche Objectifs de `vitrine/src/views/refonte/Modules.astro` (et sa traduction, `vitrine/src/lib/i18n/en.ts`) — « Objectifs découpés en phases, dont l'avancement se déduit de ce qui est fait — jamais saisi à la main. » Une étape vide se coche maintenant à la main. Ce n'est pas un pourcentage saisi (c'est une coche, comme une tâche), mais « jamais saisi à la main » était déjà inexact depuis « Suivre à la main ». À reformuler par Antonin s'il le veut ; aucune autre promesse du site ne devient fausse (vérifié par `grep` dans `vitrine/src` : « ce qui est fait », « étape vide », « se coche »).
+
+### `etapes-taches`
+
+Le site emploie « sous-objectif » et *sub-goal*, que l'app n'affiche plus. Rien n'est faux sur ce que l'app FAIT ; ce sont des mots.
+
+- `vitrine/src/views/refonte/Fonctionsavancer.astro`, ligne 50 : « Un objectif se découpe en phases, puis en sous-objectifs. […] » — à dire : « en étapes, et une étape peut en regrouper d'autres ». Sa traduction : `vitrine/src/lib/i18n/en.ts`, ligne 1596 (“into phases, then sub-goals”).
+- `vitrine/src/lib/i18n/en.ts` porte trois autres clés avec le mot, que je n'ai retrouvées dans aucune vue de `vitrine/src` (à vérifier avant de les retirer) : « Sous-objectifs imbriqués : l'avancement du parent se calcule tout seul. » (ligne 521), « Objectifs court, moyen et long terme, découpés en sous-objectifs, avec les tâches qui les font avancer. […] » (ligne 1369), « Un objectif porte ses sous-objectifs, ses tâches et son échéance » (ligne 1501).
+- « un objectif découpé en phases » (`Accueil.astro` lignes 60 et suivantes, `Modules.astro` ligne 75, métadonnées) : une phase est maintenant une étape qui en contient d'autres ; un objectif se découpe d'abord en ÉTAPES. La phrase n'est pas fausse, elle n'est plus le mot de l'écran.
+- **Captures.** Toute capture de la page d'un objectif montre l'ancienne feuille de route : la légende « Phase · Sous-objectif · Tâche », la cible pâle devant les étapes, la rangée « Ajouter une étape · Tâche · Rattacher ». Les prochaines montreront « Phase · Étape · Tâche », un losange, « ＋ Tâche · ＋ Étape · Rattacher », et « En faire une tâche » sur les étapes vides. Même chose pour la fenêtre « Nouvel objectif » (tâches d'abord) et pour le menu « Type » d'une carte mentale.
+- La dette notée par le chantier `etapes-cochables` (la fiche Objectifs de `Modules.astro`, « jamais saisi à la main ») reste entière.
+
+### `performance-jour`
+
+- **Captures de Performance périmées** : `vitrine/public/shots/v2/dark-performance.webp` et `light-performance.webp` (utilisées par `Accueil.astro`, `Modules.astro`, `Fonctionsavancer.astro`). Elles ne montrent ni la rangée « Aujourd'hui », ni les deux onglets, ni les dates sous les tuiles ; la tuile s'y appelle encore « Série en cours ». À refaire avec le reste des captures de Performance déjà dues (section Z).
+- **Texte déjà faux depuis le 2026-10-09, toujours en ligne** : `vitrine/src/views/refonte/Fonctionsavancer.astro` écrit « par jour, par semaine ou par mois » et « Vue jour, semaine ou mois ». Ce réglage n'existe plus : la période se choisit en 7 j, 30 j, 3 mois ou 6 mois. (La section Z le cherchait dans `modules.ts` ; il est dans ce fichier.)
+- **Texte redevenu vrai** : même fichier, « Le total du jour part dans la performance et le journal ». Jusqu'ici le total du jour n'apparaissait dans Performance que le lendemain.
+- **Ne rien écrire sur le site à propos de « Par objectif »** tant que c'est un essai.
+
+### `notes-sans-titre`
+
+- Les quatre captures de la vue Notes du site
+  (`vitrine/public/shots/v2/dark-notes.webp`, `light-notes.webp`,
+  `dark-phone-notes.webp`, `light-phone-notes.webp`) montrent la liste **sans**
+  la rangée d'onglets « Toutes les notes / Sans titre ». Sur téléphone, le
+  bouton « + » et le champ de recherche sont aussi un peu plus hauts (44 pt). À
+  refaire au prochain passage de captures ; rien d'urgent, rien de faux.
+- Aucun texte du site ne devient faux : le site ne parle ni de tri des notes ni
+  de notes sans titre. Non relu page par page.
+
+### `telephone`
+
+- **Les captures d'iPhone préparées pour l'App Store** (`~/Desktop/Shale-chantiers/captures-ios-20261006/`, et les trois écrans iPhone des captures `v2` du site) montrent l'état d'avant : la feuille « Plus » en lignes pleines avec son pied sous le pli, Aujourd'hui avec 32 px de marge et les habitudes en bas, les boutons de 36 px. À refaire avant la soumission, **après** un build iOS de cette branche.
+- **Journal, bureau** : si une capture du site montre les lignes d'habitudes, la flamme n'est plus à la même place (contre les carrés).
+- Rien d'autre : aucun texte du site ne décrit ce qui change ici.
+
+## AD — Retours de la seconde passe du labo (app, 2026-10-12)
+
+Rien de neuf pour le site tant que l'horloge reste seule : la remarque du chantier ci-dessous ne vaut que si ses commandes deviennent visibles.
+
+### `retours-passe2`
+
+- Toute capture ou vidéo du site qui montre **le minuteur en plein écran avec l'horloge seule** devient fausse : l'écran porte maintenant le nom de la tâche, « Pause », « Terminer » et « Réduire ». À vérifier dans les captures du Timer et dans le reel qui montre l'horloge à volets. Non recensé page par page.
+- Aucun texte du site ne décrit l'ajout rapide au mot près, à ma connaissance : rien d'autre.

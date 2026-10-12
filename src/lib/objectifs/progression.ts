@@ -1,4 +1,4 @@
-import { sansExemples } from "../onboarding/exemples";
+import { estExemple, sansExemples } from "../onboarding/exemples";
 import { estRecurrente } from "../taches";
 import type {
   CalendarEvent,
@@ -40,15 +40,36 @@ import type {
  *     route ou pas — décision d'Antonin du 2026-09-14 (migration 026) ;
  *   • cible chiffrée → `min(1, compte / cible)` ;
  *   • sinon → moyenne pondérée de ses PARTS : chaque étape enfant pèse son
- *     `weight`, chaque élément comptable pèse 1. Un sous-objectif qui n'a que
- *     des tâches vaut donc « faites / total » ; un jalon qui n'a que des
- *     sous-objectifs vaut leur moyenne pondérée. Une seule règle, et elle rend
+ *     `weight`, chaque élément comptable pèse 1. Une étape qui n'a que
+ *     des tâches vaut donc « faites / total » ; une phase qui n'a que des
+ *     étapes vaut leur moyenne pondérée. Une seule règle, et elle rend
  *     EXACTEMENT l'ancienne `effectiveProgress` quand tous les poids valent 1.
  *
- * ⭐ LES VIDES SORTENT DU DÉNOMINATEUR. Une étape sans élément ni cible n'est
- * ni à 0 % (la moitié d'une feuille de route jamais remplie ferait un chiffre
- * faux) ni à 100 % (pire). Elle est exclue, et comptée dans `vides` pour que
- * l'interface le dise.
+ * ⭐⭐ UNE ÉTAPE VIDE SE COCHE, ET ELLE COMPTE (2026-10-11).
+ * Une étape — ou un objectif — sans sous-étape, sans élément comptable et sans
+ * cible est UNE UNITÉ : 0 tant qu'elle n'est pas cochée, 100 % une fois cochée.
+ * Elle entre dans la moyenne de son parent comme les autres.
+ *
+ * ⚠️ DÉCISION RETOURNÉE. Du 2026-09-16 au 2026-10-11, la règle était « les
+ * vides sortent du dénominateur, et se signalent » : une étape vide n'était ni
+ * à 0 % ni à 100 %, elle était exclue. Elle évitait d'afficher 30 % pour une
+ * feuille de route à moitié remplie. À l'usage, personne ne l'a comprise
+ * (labo du 2026-10-11, constat 3, les cinq utilisateurs) : trois étapes dont
+ * une seule garnie, une tâche cochée sur deux, et l'objectif affichait 50 % à
+ * côté de deux étapes à « — ». Antonin, le 2026-10-11 : « Pour les étapes
+ * vides, donne la possibilité de cocher une étape pour que ce soit compté. »
+ *
+ * LA COCHE N'A PAS DE COLONNE À ELLE (aucune migration) : c'est
+ * `progress_pct = 100` sur une ligne MESURÉE (`manual_progress = 0`). Cette
+ * colonne ne servait à rien pour une ligne mesurée ; elle n'est lue que tant
+ * que l'étape est vide. Lui donner une tâche, une sous-étape ou une cible la
+ * rend à ce qu'elle contient — la coche dort, intacte, et revient si l'étape
+ * redevient vide. Seule écriture : `cocherEtape` (`repo.ts` / `demo.ts`).
+ *
+ * UN RÉGLAGE CASSÉ (cible à zéro, source supprimée) N'EST PAS UNE ÉTAPE VIDE :
+ * il ne se mesure pas (`pct: null`, la ligne affiche « — » et dit la panne),
+ * et il pèse 0 chez son parent tant qu'il n'est pas réparé. Plus rien ne sort
+ * du dénominateur : ce qui est à l'écran compte.
  *
  * ⚠️ AUCUNE PROGRESSION N'EST STOCKÉE. Tout se calcule à la lecture.
  */
@@ -81,40 +102,40 @@ export type OrigineMesure =
   | { type: "manuel" }
   /** « 12/50 backtests ». `compte` peut dépasser `cible` : le % plafonne, pas le compte. */
   | { type: "cible"; compte: number; cible: number; unite: string | null; source: SourceCompte }
-  /** « 3/7 tâches · 2 étapes ». */
-  | { type: "feuille"; elementsFaits: number; elementsTotal: number; etapesComptees: number }
-  /** Rien de mesurable : exclu du dénominateur du parent. */
-  | { type: "vide"; raison: RaisonVide };
+  /**
+   * « 1 étape sur 3 · 2 tâches sur 5 » : TOUTES les étapes directes, et celles
+   * qui sont faites ; tous les éléments comptables, et ceux qui sont faits.
+   */
+  | {
+      type: "feuille";
+      elementsFaits: number;
+      elementsTotal: number;
+      /** Les éléments comptables sont tous des tâches : la ligne peut dire « tâches ». */
+      elementsSontDesTaches: boolean;
+      etapesFaites: number;
+      etapesTotal: number;
+    }
+  /** Rien dedans : une unité, qui se coche. */
+  | { type: "unite"; faite: boolean }
+  /** Un réglage cassé : ne se mesure pas, et pèse 0 chez son parent. */
+  | { type: "panne"; raison: RaisonPanne };
 
 export type SourceCompte = "manual" | "task" | "habit";
 
-export type RaisonVide =
-  /** Ni étape, ni élément comptable, ni cible. */
-  | "rien-a-mesurer"
-  /** Des étapes, mais toutes vides. */
-  | "etapes-vides"
+export type RaisonPanne =
   /** Une cible ≤ 0 : « atteindre zéro » ne se mesure pas. */
   | "cible-nulle"
   /** La tâche ou l'habitude qui comptait a disparu (ou n'est qu'un exemple). */
-  | "source-introuvable";
+  | "source-introuvable"
+  /** `parent_goal_id` boucle (ligne distante) : on ne redescend pas. */
+  | "cycle";
 
 export interface Mesure {
-  /** 0–100, arrondi. `null` = vide. */
+  /** 0–100, arrondi. `null` = un réglage cassé (`origine.type === "panne"`). */
   pct: number | null;
   /** 0–1, non arrondi : c'est lui qui entre dans la moyenne du parent. */
   fraction: number | null;
   origine: OrigineMesure;
-  /** Étapes enfants DIRECTES exclues parce que vides. */
-  vides: number;
-  /**
-   * Étapes vides dans TOUTE la descendance (les directes comprises).
-   *
-   * ⚠️ C'est elle qui dit si un objectif est ACHEVÉ. Quatre jalons finis et deux
-   * jalons vides font 100 % — la règle exclut les vides du dénominateur — mais
-   * l'objectif n'est pas terminé : il reste deux jalons à remplir. Vu à l'écran
-   * le 2026-09-15, un titre rayé en vert au-dessus de deux jalons vides.
-   */
-  videsProfonds: number;
   /** Notes et fiches rattachées : affichées, jamais comptées. */
   ressources: ElementRattache[];
   /** Récurrentes rattachées comme élément : visibles, non comptées en binaire. */
@@ -170,22 +191,45 @@ export function evenementPasse(e: Pick<CalendarEvent, "date" | "end_date" | "end
 
 // ─── La mesure ──────────────────────────────────────────────────────────────
 
-/** Mesure un objectif, à n'importe quel niveau de sa feuille de route. */
 /**
- * Un objectif est ACHEVÉ quand il est à 100 % ET qu'aucune de ses étapes n'est
- * vide. Le pourcentage seul ne suffit pas : voir `Mesure.videsProfonds`.
+ * Un objectif (ou une étape) est ACHEVÉ quand il est à 100 %.
+ *
+ * ⚠️ Du 2026-09-16 au 2026-10-11, « 100 % » ne voulait pas dire « terminé » :
+ * les étapes vides sortaient du dénominateur, donc quatre étapes finies et deux
+ * vides faisaient 100 % (`Mesure.videsProfonds` le rattrapait). Depuis que tout
+ * ce qui est à l'écran compte, il n'en reste RIEN : 100 % exige que chaque
+ * étape soit faite — cochée, mesurée à 100 %, ou déclarée à 100 % à la main.
+ * La fonction reste, pour que les écrans posent la question à un seul endroit.
  */
-export function estAcheve(m: Pick<Mesure, "pct" | "videsProfonds">): boolean {
-  return m.pct === 100 && m.videsProfonds === 0;
+export function estAcheve(m: Pick<Mesure, "pct">): boolean {
+  return m.pct === 100;
 }
 
+/**
+ * Le nombre des écrans qui ne savent afficher qu'un nombre (`effectiveProgress`,
+ * le péril, la revue). Un réglage cassé y vaut 0 : il n'a rien de fait à montrer.
+ */
+export function pourcentDe(m: Pick<Mesure, "pct">): number {
+  return m.pct ?? 0;
+}
+
+/**
+ * La coche d'une unité. ⚠️ Ne dit rien d'une ligne suivie à la main (son %
+ * saisi fait foi) ni d'une étape garnie (elle se mesure) : `mesurer` ne la lit
+ * que pour une étape vide.
+ */
+export function estCochee(goal: Pick<Goal, "progress_pct">): boolean {
+  return borner(goal.progress_pct) >= 100;
+}
+
+/** Mesure un objectif, à n'importe quel niveau de sa feuille de route. */
 export function mesurer(goal: Goal, sources: SourcesProgression): Mesure {
   return mesurerAvecGarde(goal, sources, new Set());
 }
 
 function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): Mesure {
   const { ressources, nonComptes, comptables } = elementsDe(goal, s);
-  const base = { vides: 0, videsProfonds: 0, ressources, nonComptes };
+  const base = { ressources, nonComptes };
 
   if (goal.manual_progress) {
     const pct = borner(goal.progress_pct);
@@ -196,27 +240,32 @@ function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): 
 
   // Garde anti-cycle : `parent_goal_id` n'a pas de contrainte de profondeur, et
   // une ligne distante peut en fabriquer un.
-  if (vus.has(goal.id)) return { ...base, pct: null, fraction: null, origine: { type: "vide", raison: "rien-a-mesurer" } };
+  if (vus.has(goal.id)) return { ...base, pct: null, fraction: null, origine: { type: "panne", raison: "cycle" } };
+
+  // ⭐ UNE UNITÉ : rien à l'écran sous elle, rien qui compte. Elle se coche.
+  // ⚠️ « Rien à l'écran » regarde TOUTES les étapes, exemples compris : un
+  // objectif réel qui ne porte que des étapes d'exemple n'est pas une case à
+  // cocher posée au-dessus de deux lignes visibles — il est à 0 %.
+  const aDesEtapes = s.goals.some((g) => g.parent_goal_id === goal.id);
+  if (!aDesEtapes && comptables.length === 0) {
+    const faite = estCochee(goal);
+    return { ...base, pct: faite ? 100 : 0, fraction: faite ? 1 : 0, origine: { type: "unite", faite } };
+  }
+
   vus.add(goal.id);
 
   let somme = 0;
   let poids = 0;
-  let etapesComptees = 0;
-  let vides = 0;
-  let videsProfonds = 0;
+  let etapesFaites = 0;
+  const enfants = enfantsDe(goal, s.goals);
 
-  for (const enfant of enfantsDe(goal, s.goals)) {
+  for (const enfant of enfants) {
     const m = mesurerAvecGarde(enfant, s, vus);
-    videsProfonds += m.videsProfonds;
-    if (m.fraction == null) {
-      vides++;
-      videsProfonds++;
-      continue;
-    }
     const w = poidsDe(enfant);
-    somme += m.fraction * w;
+    // Une étape en panne (`fraction: null`) pèse son poids et vaut 0.
+    somme += (m.fraction ?? 0) * w;
     poids += w;
-    etapesComptees++;
+    if (estAcheve(m)) etapesFaites++;
   }
 
   const elementsFaits = comptables.filter((e) => e.fait).length;
@@ -225,29 +274,29 @@ function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): 
 
   vus.delete(goal.id);
 
-  if (poids === 0) {
-    const raison: RaisonVide = vides > 0 ? "etapes-vides" : "rien-a-mesurer";
-    return { ...base, vides, videsProfonds, pct: null, fraction: null, origine: { type: "vide", raison } };
-  }
-
-  const fraction = somme / poids;
+  const fraction = poids > 0 ? somme / poids : 0;
   return {
     ...base,
-    vides,
-    videsProfonds,
     pct: Math.round(fraction * 100),
     fraction,
-    origine: { type: "feuille", elementsFaits, elementsTotal: comptables.length, etapesComptees },
+    origine: {
+      type: "feuille",
+      elementsFaits,
+      elementsTotal: comptables.length,
+      elementsSontDesTaches: comptables.every((e) => e.kind === "task"),
+      etapesFaites,
+      etapesTotal: enfants.length,
+    },
   };
 }
 
 function mesurerCible(goal: Goal, s: SourcesProgression): Pick<Mesure, "pct" | "fraction" | "origine"> {
   const cible = goal.target_count ?? 0;
-  if (cible <= 0) return { pct: null, fraction: null, origine: { type: "vide", raison: "cible-nulle" } };
+  if (cible <= 0) return { pct: null, fraction: null, origine: { type: "panne", raison: "cible-nulle" } };
 
   const source = sourceDe(goal);
   const compte = compterSource(goal, source, s);
-  if (compte == null) return { pct: null, fraction: null, origine: { type: "vide", raison: "source-introuvable" } };
+  if (compte == null) return { pct: null, fraction: null, origine: { type: "panne", raison: "source-introuvable" } };
 
   const fraction = Math.min(1, compte / cible);
   return {
@@ -295,9 +344,21 @@ export function compterSource(goal: Goal, source: SourceCompte, s: SourcesProgre
 
 // ─── Arborescence et éléments ───────────────────────────────────────────────
 
-/** Les étapes directes, dans l'ordre d'affichage : position, échéance, id. */
-export function enfantsDe(goal: Pick<Goal, "id">, goals: readonly Goal[]): Goal[] {
-  return sansExemples(goals.filter((g) => g.parent_goal_id === goal.id)).sort(
+/**
+ * Les étapes directes QUI COMPTENT, dans l'ordre d'affichage : position,
+ * échéance, id.
+ *
+ * ⭐ UN EXEMPLE NE NOURRIT JAMAIS LE CHIFFRE D'UN OBJECTIF RÉEL — mais un
+ * objectif D'EXEMPLE se mesure sur ses propres exemples (2026-10-11, audit
+ * A06a-02). Le filtre, posé sans cette nuance, écartait les étapes d'exemple
+ * de l'objectif d'exemple lui-même : sa description promet que « l'avancement
+ * se calcule tout seul quand tu coches les tâches », et il restait à « — »
+ * quoi qu'on coche. Le filtre protège les chiffres de l'utilisateur ; un
+ * exemple n'en est pas un.
+ */
+export function enfantsDe(goal: Pick<Goal, "id" | "is_example">, goals: readonly Goal[]): Goal[] {
+  const directs = goals.filter((g) => g.parent_goal_id === goal.id);
+  return (estExemple(goal) ? directs : sansExemples(directs)).sort(
     (a, b) =>
       (a.position ?? 0) - (b.position ?? 0) ||
       (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") ||
@@ -323,7 +384,8 @@ export function elementsDe(
   const vus = new Set<string>();
   const cle = (kind: LinkKind, uid: string) => `${kind}:${uid}`;
   const faites = new Set(s.completions.filter((c) => c.done).map((c) => c.task_id));
-  const taches = sansExemples(s.tasks);
+  // Même nuance que `enfantsDe` : les tâches d'exemple comptent DANS un exemple.
+  const taches = estExemple(goal) ? [...s.tasks] : sansExemples(s.tasks);
 
   const ajouterTache = (t: Task) => {
     const uid = uidDeLigne("task", t);

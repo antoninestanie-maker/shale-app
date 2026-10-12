@@ -90,14 +90,28 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
 
     // `recurrence` et `created_at` sont déclarées sans NOT NULL : d'où les
     // `Option`, plutôt qu'un `unwrap` qui ferait tomber toute l'évaluation.
-    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>)>(&format!(
-        "SELECT id, recurrence, created_at FROM tasks WHERE 1 = 1{f_tache}"
+    //
+    // ⚠️ `due_date` est arrivée avec la migration 020. Ce lecteur peut tourner
+    // AVANT que le front ait joué les migrations, et une requête qui échoue
+    // rend ici une liste vide : nommer la colonne en aveugle éteindrait la
+    // règle de série sur une base pas encore migrée (même piège que
+    // `filtre_vivant`, PIEGES § 19.7). Sans la colonne, aucune tâche n'a de
+    // date : `NULL` est alors EXACT.
+    let col_due = if colonne_existe(&mut conn, "tasks", "due_date").await { "due_date" } else { "CAST(NULL AS TEXT)" };
+    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>)>(&format!(
+        "SELECT id, recurrence, created_at, {col_due} FROM tasks WHERE 1 = 1{f_tache}"
     ))
     .fetch_all(&mut conn)
     .await
     .map(|rows| {
         rows.into_iter()
-            .map(|(id, recurrence, created_at)| Task { id, recurrence, created_at })
+            .map(|(id, recurrence, created_at, due_date)| Task {
+                id,
+                recurrence,
+                created_at,
+                // Une chaîne vide n'est pas une date.
+                due_date: due_date.filter(|d| !d.is_empty()),
+            })
             .collect()
     })
     .unwrap_or_else(|e| {
@@ -151,16 +165,22 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
 /// `alias` : `""` pour la table elle-même, `"h"` pour `h.deleted_at` dans une
 /// jointure.
 async fn filtre_vivant(conn: &mut SqliteConnection, table: &str, alias: &str) -> String {
-    let colonnes = sqlx::query_as::<_, (String,)>(&format!("SELECT name FROM pragma_table_info('{table}')"))
-        .fetch_all(&mut *conn)
-        .await
-        .unwrap_or_default();
-    if colonnes.iter().any(|(nom,)| nom == "deleted_at") {
+    if colonne_existe(conn, table, "deleted_at").await {
         let prefixe = if alias.is_empty() { String::new() } else { format!("{alias}.") };
         format!(" AND {prefixe}deleted_at IS NULL")
     } else {
         String::new()
     }
+}
+
+/// La table porte-t-elle cette colonne ? Faux aussi si la table n'existe pas.
+async fn colonne_existe(conn: &mut SqliteConnection, table: &str, colonne: &str) -> bool {
+    sqlx::query_as::<_, (String,)>(&format!("SELECT name FROM pragma_table_info('{table}')"))
+        .fetch_all(&mut *conn)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .any(|(nom,)| nom == colonne)
 }
 
 /// Ce qui est daté dans les jours qui viennent : événements, tâches datées,
@@ -561,6 +581,8 @@ mod tests {
         assert_eq!(snap.habits.iter().map(|h| h.id).collect::<Vec<_>>(), vec![1], "habitude jetée");
         assert_eq!(snap.habit_checks.iter().map(|c| c.habit_id).collect::<Vec<_>>(), vec![1], "case d'une habitude jetée");
         assert_eq!(snap.tasks.iter().map(|t| t.id).collect::<Vec<_>>(), vec![1], "tâche jetée");
+        // La date d'échéance est lue : c'est elle qui dit si une ponctuelle est « du jour ».
+        assert_eq!(snap.tasks[0].due_date.as_deref(), Some("2026-07-28"));
         assert_eq!(snap.completions.iter().map(|c| c.task_id).collect::<Vec<_>>(), vec![1], "coche d'une tâche jetée");
         let titres: Vec<_> = snap.calendar.iter().map(|c| format!("{}:{}", c.kind, c.title)).collect();
         assert!(titres.iter().all(|t| !t.contains("jet")), "rien de jeté dans le calendrier : {titres:?}");
@@ -593,6 +615,10 @@ mod tests {
         assert_eq!(snap.habit_checks.len(), 1);
         assert_eq!(snap.tasks.len(), 1);
         assert_eq!(snap.completions.len(), 1);
+        // ⚠️ La base de `seed()` date d'avant la migration 020 : pas de colonne
+        // `due_date`. La lecture ne doit PAS échouer pour autant (une liste vide
+        // éteindrait la règle de série) — sans colonne, aucune tâche n'a de date.
+        assert!(snap.tasks[0].due_date.is_none());
     }
 
     #[tokio::test]

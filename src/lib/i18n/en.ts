@@ -33,8 +33,8 @@ export const EN: Record<string, string> = {
   "Tenir les comptes": "Keep the books",
   "Système": "System",
 
-  "Tableau de bord du jour : tâches, énergie, discipline, performance.":
-    "Today’s dashboard: tasks, energy, discipline, performance.",
+  "Tableau de bord du jour : tâches, discipline, habitudes, performance.":
+    "Today’s dashboard: tasks, discipline, habits, performance.",
   "Créer, taguer et planifier les tâches récurrentes ou ponctuelles.":
     "Create, tag and schedule recurring or one-off tasks.",
   "Minuteur Pomodoro pour tes sessions de concentration.":
@@ -57,8 +57,8 @@ export const EN: Record<string, string> = {
     "Market briefing generated twice a day: bias, levels, no-trade zones.",
   "Calculateur de taille de position et de risque, envoi au tracker.":
     "Position size and risk calculator, with send-to-tracker.",
-  "Clés d'API, apparence, charge mentale, réglages du tracker.":
-    "API keys, appearance, mental load, tracker settings.",
+  "Compte, langue, apparence, notifications, sauvegarde.":
+    "Account, language, appearance, notifications, backup.",
   "Réorganiser les onglets et les widgets, densité, identité.":
     "Reorder tabs and widgets, density, identity.",
   "Console d'administration : utilisateurs, abonnements, métriques.":
@@ -307,7 +307,7 @@ export const EN: Record<string, string> = {
   "Contenu de la note…": "Note content…",
   "Note vide": "Empty note",
   "Note rapide": "Quick note",
-  "Cocher une tâche du jour": "Check off a task for today",
+  "Cocher une tâche": "Check off a task",
   "C'est noté.": "Noted.",
   "Données non chargées": "Data not loaded",
   "+1 sur une métrique": "+1 on a metric",
@@ -357,10 +357,6 @@ export const EN: Record<string, string> = {
   "Modifier l'objectif": "Edit goal",
   "Titre de l'objectif": "Goal title",
   "Objectif parent": "Parent goal",
-  "+ sous-objectif": "+ sub-goal",
-  "Ajouter un sous-objectif": "Add a sub-goal",
-  "Les sous-objectifs remontent d’un niveau, les tâches liées sont déliées.":
-    "Sub-goals move up one level and linked tasks are unlinked.",
   "ex. Formation, Santé, Finances… (optionnel)":
     "e.g. Learning, Health, Money… (optional)",
   "Aucun objectif en cours.": "No goal in progress.",
@@ -449,7 +445,6 @@ export const EN: Record<string, string> = {
 
   // ── Journal ───────────────────────────────────────────────────────────────
   "Énergie": "Energy",
-  "énergie": "energy",
   "Cocher ou décocher ce jour.": "Check or uncheck this day.",
   "Cocher pour aujourd’hui.": "Check for today.",
   "Cliquer à nouveau pour effacer.": "Click again to clear.",
@@ -578,15 +573,7 @@ export const EN: Record<string, string> = {
   "focus par tag — 30 jours": "focus by tag — 30 days",
   "Heures de backtesting": "Backtesting hours",
 
-  // ── Charge mentale / discipline ───────────────────────────────────────────
-  "charge mentale — énergie restante": "mental load — energy left",
-  "Énergie restante": "Energy left",
-  "Énergie restante (charge mentale)": "Energy left (mental load)",
-  "énergie de départ": "starting energy",
-  "coût par trade": "cost per trade",
-  "coût / heure d'écran": "cost per screen hour",
-  "Énergie basse : tes décisions se dégradent. Lève le pied.":
-    "Low energy: your decisions are degrading. Ease off.",
+  // ── Discipline ────────────────────────────────────────────────────────────
   "Garde le cap": "Stay the course",
 
   // ── Trading / journal de trades ───────────────────────────────────────────
@@ -1114,8 +1101,7 @@ export const EN: Record<string, string> = {
   // ── Chaînes à variables ───────────────────────────────────────────────────
   "Tâche « {label} » ajoutée": "Task “{label}” added",
   "« {label} » cochée ✓": "“{label}” checked ✓",
-  "Aucune tâche du jour ne correspond à « {q} »":
-    "No task due today matches “{q}”",
+  "Aucune tâche à faire ne correspond à « {q} »": "No open task matches “{q}”",
   "Aucune métrique ne correspond à « {q} »": "No metric matches “{q}”",
   "Priorité {p}": "{p} priority",
   "Rattachée à l'objectif « {title} »": "Linked to the goal “{title}”",
@@ -1776,6 +1762,14 @@ export const EN: Record<string, string> = {
   // du 2026-08-27 ; la refonte « grille de thèmes » l'a remplacé par son propre
   // « Revenir aux thèmes ». La clé est retirée avec le code qui l'utilisait.
   "Toutes les notes": "All notes",
+  // ── Onglet « Sans titre » de Notes (2026-10-12) — `lib/notesSansTitre.ts` ──
+  // ⚠️ « Nouvelle note », « Sans titre » et « {titre} (copie) » sont STOCKÉS
+  // comme titres : changer leur traduction oblige à garder l'ancienne dans
+  // `notesSansTitre.ts` (un test le rappelle).
+  "Notes affichées": "Notes shown",
+  "Aucune note sans titre.": "No untitled notes.",
+  "Les notes que tu n'as pas nommées": "Notes you haven’t named",
+  "Donne-leur un titre : elles quittent l'onglet.": "Give them a title and they leave this tab.",
   // Libellé du filtre de date de Tâches : sans lui, un `<input type="date">`
   // vide est un rectangle muet sur iOS.
   "échéance": "due",
@@ -1879,11 +1873,8 @@ export const EN: Record<string, string> = {
   "{nom} aujourd'hui": "{nom} today",
   "{done}/{n} tâche": "{done}/{n} task",
   "{done}/{n} tâches": "{done}/{n} tasks",
-  "{n} trade": "{n} trade",
-  "{n} trades": "{n} trades",
   "{n} position": "{n} position",
   "{n} positions": "{n} positions",
-  "{duree} écran": "{duree} on screen",
   "focus / {objectif}": "focus / {objectif}",
   "trading 7 j": "trading 7 d",
 
@@ -1990,10 +1981,6 @@ export const EN: Record<string, string> = {
     "Exports a clean copy of the whole database (tasks, goals, notes, trades…) — keep it on an external drive or your own cloud.",
   "Exporte une copie propre de toute la base (tâches, objectifs, notes…) — à garder sur un disque externe ou un cloud perso.":
     "Exports a clean copy of the whole database (tasks, goals, notes…) — keep it on an external drive or your own cloud.",
-  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.":
-    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the trades taken and the screen time spent today. Adjust how much each factor weighs.",
-  "Recalcule immédiatement la jauge d’énergie du tableau de bord.":
-    "Recalculates the dashboard’s energy gauge straight away.",
   // ── Auth, onboarding, cloche, grille (audit du 2026-08-28) ────────────────
   "E-mail": "Email",
   "Suivant": "Next",
@@ -2682,7 +2669,6 @@ export const EN: Record<string, string> = {
   "mesurée": "measured",
   "Mesurée sur ce qui est fait : ses étapes, ses tâches, ses nombres à atteindre.": "Measured on what is done: its steps, its tasks, its numbers to reach.",
   "Rattaché directement": "Attached directly",
-  "Ajouter une première étape": "Add a first step",
   "Ajouter une étape": "Add a step",
   "Déplacer « {titre} »": "Move “{titre}”",
   "Glisser pour réordonner": "Drag to reorder",
@@ -2690,12 +2676,7 @@ export const EN: Record<string, string> = {
   "Déplier « {titre} »": "Expand “{titre}”",
   "Titre de l’étape": "Step title",
   "Actions sur « {titre} »": "Actions for “{titre}”",
-  "Redevenir un sous-objectif": "Turn back into a sub-goal",
   "Supprimer l’étape": "Delete step",
-  "Ses sous-objectifs remontent d’un niveau, ses tâches sont déliées.": "Its sub-goals move up one level, its tasks are unlinked.",
-  "Genre de l’étape": "Kind of step",
-  "Sous-objectif": "Sub-goal",
-  "Nom du sous-objectif — Entrée pour valider et continuer": "Sub-goal name — Enter to confirm and continue",
   "Cette étape est suivie à la main.": "This step is tracked by hand.",
   "La mesurer": "Measure it",
   "Comment cette étape avance": "How this step moves forward",
@@ -2725,12 +2706,24 @@ export const EN: Record<string, string> = {
   "saisi à la main": "set by hand",
   "Une cible de zéro ne se mesure pas. Donne-lui un nombre à atteindre.": "A target of zero can’t be measured. Give it a number to reach.",
   "L’élément qui comptait a été supprimé. Choisis une autre source, ou compte à la main.": "The item that was counting has been deleted. Choose another source, or count by hand.",
-  "Aucune de ses étapes n’a encore de quoi se mesurer.": "None of its steps has anything to measure yet.",
-  "Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.": "Nothing to measure yet. Attach a task or set a number to reach.",
+  "Cette étape est rangée sous elle-même. Range-la ailleurs.": "This step is filed under itself. Move it somewhere else.",
   "{n} étape": "{n} step",
   "{n} étapes": "{n} steps",
-  "{faits}/{n} élément": "{faits}/{n} item",
-  "{faits}/{n} éléments": "{faits}/{n} items",
+  // ── Étapes cochables (2026-10-11) : une étape vide se coche, et les
+  // compteurs disent combien il y en a et combien sont faites. Le nom
+  // s'accorde avec ce qui est FAIT (« 0 steps out of 3 », « 1 step out of 3 »).
+  // Remplacent « {faits}/{n} élément(s) » et les phrases « … ne compte pas encore ».
+  "{n} étape sur {total}": "{n} step out of {total}",
+  "{n} étapes sur {total}": "{n} steps out of {total}",
+  "{n} tâche sur {total}": "{n} task out of {total}",
+  "{n} tâches sur {total}": "{n} tasks out of {total}",
+  "{n} élément sur {total}": "{n} item out of {total}",
+  "{n} éléments sur {total}": "{n} items out of {total}",
+  "Un objectif sans étape ni tâche se coche à la main. Donne-lui une tâche, et ce sont ses tâches qui comptent.":
+    "A goal with no step and no task is checked off by hand. Give it a task, and its tasks do the counting.",
+  "Marquer atteint": "Mark as reached",
+  "Marquer non atteint": "Mark as not reached",
+  "À faire pour cet objectif…": "To do for this goal…",
   "Suivre à la main": "Track by hand",
   "Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.": "For a goal that doesn’t break down into steps: you set its progress yourself.",
   "Un titre suffit. La feuille de route viendra quand tu en auras besoin.": "A title is enough. The roadmap will come when you need it.",
@@ -2766,6 +2759,35 @@ export const EN: Record<string, string> = {
   "Demain": "Tomorrow",
   "Hier": "Yesterday",
   "Lundi prochain": "Next Monday",
+
+  // ── Tâches du jour, ajout rapide, report, rangement par objectif (2026-10-11) ──
+  "+ 1 jour": "+ 1 day",
+  "Changer la date": "Change the date",
+  "Échéance : {date}. Changer": "Due {date}. Change",
+  "Date de la tâche : {date}. Changer": "Task date: {date}. Change",
+  "Date lue dans la phrase": "Date read from your sentence",
+  "« {mots} » quittera le titre. La croix garde le titre entier.":
+    "“{mots}” will leave the title. The cross keeps the title whole.",
+  "Ajoutée ici, la tâche est prévue aujourd'hui.": "Added here, the task is due today.",
+  "Le titre reste entier.": "The title stays whole.",
+  "Ou écris-la dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
+    "Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
+  "échéance dépassée d'un jour": "deadline missed by a day",
+  "échéance dépassée de {n} jours": "deadline missed by {n} days",
+  "Sans objectif": "No goal",
+  "Ses tâches à faire, celles de ses étapes comprises — les retards d'abord.":
+    "Its open tasks, including those of its steps — overdue first.",
+  "Les tâches à faire qui ne sont rattachées à aucun objectif.": "Open tasks that aren’t linked to any goal.",
+  "Les tâches récurrentes — celles du jour d'abord.": "Recurring tasks — today’s first.",
+  "Rangement des tâches": "Task grouping",
+  "Ranger par moment": "Group by time",
+  "Ranger par objectif": "Group by goal",
+  "En retard, aujourd'hui, à venir, sans date.": "Overdue, today, upcoming, no date.",
+  "Une section par objectif, ses étapes comprises ; « Sans objectif » en dernier.":
+    "One section per goal, its steps included; “No goal” comes last.",
+  "Par moment": "By time",
+  "Par objectif": "By goal",
+  "Autres tâches": "Other tasks",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
   "Revenir au mois en cours": "Back to this month",
@@ -2791,7 +2813,6 @@ export const EN: Record<string, string> = {
 
   // ── Objectifs : ajouter une tâche depuis la feuille de route (2026-09-18) ─
   "Rattacher": "Link",
-  "Une tâche neuve, déjà rattachée à cette étape": "A new task, already linked to this step",
   "Rattacher quelque chose qui existe déjà": "Link something that already exists",
   "Une tâche, une note, une fiche du Savoir ou un événement.": "A task, a note, a knowledge card or an event.",
   "Chercher une tâche, une note, une fiche…": "Search a task, a note, a card…",
@@ -2799,19 +2820,61 @@ export const EN: Record<string, string> = {
   "Nouvelle tâche pour « {titre} »": "New task for “{titre}”",
   // ── Objectifs : le vocabulaire, le premier jet, et la carte (2026-09-20) ──
   //
+  // ── Objectifs : « étape », et « phase » quand elle en contient d'autres (2026-10-12) ──
+  //
+  // ⚠️ « Sous-objectif » / “sub-goal” ne s'affichent plus : “step”, et “phase”
+  // pour une étape qui en contient d'autres. Le genre ne se choisit plus, c'est
+  // le contenu qui nomme. Les clés « sous-objectif », « En faire une phase »,
+  // « Redevenir un sous-objectif », « Nom de la phase… » ont été RETIRÉES de ce
+  // dictionnaire le même jour — les garder inviterait à ressusciter le mot.
+  // Les clés de CODE (`GenreEtape`, `GenreRef`, `is_milestone`) ne bougent pas.
+  "Ce que tu veux atteindre.": "What you want to reach.",
+  "Une phase regroupe des étapes.": "A phase groups steps.",
+  "Une étape regroupe des tâches.": "A step groups tasks.",
+  "Une étape sous celle-ci, pour regrouper des tâches": "A step under this one, to group tasks",
+  "Nom de l’étape — Entrée pour valider et continuer": "Step name — Enter to confirm and continue",
+  "Une chose à faire pour cet objectif": "Something to do for this goal",
+  "Une chose à faire pour cette étape": "Something to do for this step",
+  // Une étape vide devient une tâche (le geste, sa bulle, ce qui ne suit pas, le toast).
+  "Une chose à faire est une tâche : « En faire une tâche » la range dans Tâches et le Calendrier.":
+    "Something to do is a task: “Make it a task” puts it in Tasks and the Calendar.",
+  "Une étape sans rien dedans est une chose à faire": "A step with nothing in it is something to do",
+  "Elle devient une tâche de « {parent} » : dans Tâches, le Calendrier, Aujourd’hui et le minuteur.":
+    "It becomes a task of “{parent}”: in Tasks, the Calendar, Today and the timer.",
+  "Sa description ne suit pas : une tâche n’en a pas. Elle reste avec l’étape, dans Supprimés récemment.":
+    "Its description doesn't follow: a task has none. It stays with the step, in Recently Deleted.",
+  "Citée {n} fois dans tes notes ou tes fiches : cette citation ne suivra pas la tâche.":
+    "Mentioned {n} time in your notes or cards: that mention won't follow the task.",
+  "Citée {n} fois dans tes notes ou tes fiches : ces citations ne suivront pas la tâche.":
+    "Mentioned {n} times in your notes or cards: those mentions won't follow the task.",
+  "« {titre} » est maintenant une tâche": "“{titre}” is now a task",
+  "Cette étape n’est plus vide : elle reste une étape.": "This step is no longer empty: it stays a step.",
+  // La fenêtre « Nouvel objectif » : les tâches d'abord, et des intitulés qui disent lequel est lequel.
+  "Tâches · ce qu’il y a à faire": "Tasks · what there is to do",
+  "Étapes · pour regrouper des tâches": "Steps · to group tasks",
+  "Elles comptent dans l’avancement de l’objectif": "They count toward the goal's progress",
+  "Avec une échéance, elles paraissent dans le Calendrier et dans Aujourd’hui.":
+    "With a due date, they show up in the Calendar and in Today.",
+  "ex. Préparation": "e.g. Preparation",
+  // La carte mentale : un seul mot dans le menu « Type ».
+  "Étape rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.":
+    "Step placed under “{objectif}”: the roadmap only has three levels.",
+  "Étape ajoutée à « {objectif} ».": "Step added to “{objectif}”.",
+  "Étape « {titre} » : sous quel objectif ?": "Step “{titre}”: under which goal?",
+  // L'IA : elle propose des étapes.
+  "Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en étapes. Propose-lui plutôt des tâches.":
+    "This step is already at the last level of the roadmap: it can't be split into steps. Suggest tasks for it instead.",
+  "L'IA propose des étapes, ajoutées après celles de la feuille de route.": "AI suggests steps, added after the roadmap's existing ones.",
+  "L'échéance de l'objectif est déjà passée : les étapes sont datées à partir d'aujourd'hui.":
+    "The goal's deadline has already passed: steps are dated from today.",
+  "Créer {n} étape": "Create {n} step",
+  "Créer {n} étapes": "Create {n} steps",
+
   // ⚠️ « Phase » remplace « Jalon » : le mot AFFICHÉ change, la clé de code
   // (`GenreEtape = "jalon" | …`) et la colonne `is_milestone` ne bougent pas.
   // Les anciennes clés « jalon » ont été retirées de ce dictionnaire le même
   // jour — les garder aurait invité une session future à ressusciter le mot.
   "Phase": "Phase",
-  "En faire une phase": "Make it a phase",
-  "Nom de la phase — Entrée pour valider et continuer": "Phase name — Enter to confirm and continue",
-  "Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».":
-    "A phase groups several sub-goals: “Prepare”, “Test”, “Launch”.",
-  "Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.":
-    "A sub-goal is something to reach, measured by its tasks or by a number.",
-  "Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.":
-    "This phase doesn’t count yet. Add a sub-goal, attach a task or set a number to reach.",
 
   // L'en-tête du bloc, et l'échéance qui se pose sur place.
   "Feuille de route": "Roadmap",
@@ -2821,16 +2884,11 @@ export const EN: Record<string, string> = {
   "Par quoi commencer": "Where to start",
   "Facultatif : tout se complète ensuite dans la feuille de route.":
     "Optional: everything else goes in the roadmap later.",
-  "Premières étapes": "First steps",
-  "ex. Préparer le plan de révision": "e.g. Prepare the study plan",
   "Étape {n}": "Step {n}",
-  "Premières tâches": "First tasks",
   "ex. Réviser 1 h": "e.g. Study for 1 h",
   "Tâche suivante…": "Next task…",
   "Tâche {n}": "Task {n}",
   "Échéance de la tâche {n}": "Due date for task {n}",
-  "Les tâches naissent rattachées à l’objectif : elles comptent dans son avancement, et leur échéance les fait apparaître dans le calendrier.":
-    "Tasks are born linked to the goal: they count towards its progress, and their due date puts them on the calendar.",
 
   // La feuille de route regardée en carte mentale (lecture seule).
   "Voir en carte mentale": "View as a mind map",
@@ -2957,7 +3015,6 @@ export const EN: Record<string, string> = {
   "Mes objectifs": "My goals",
   "Tous les objectifs": "All goals",
   "Atteint": "Reached",
-  "Pas encore de feuille de route.": "No roadmap yet.",
   "Saisi à la main : la feuille de route ne compte pas.": "Set by hand: the roadmap doesn't count.",
   "La faire compter": "Make it count",
   "La même feuille de route, en carte mentale. Ce que tu y changes change ici aussi.": "The same roadmap, as a mind map. What you change there changes here too.",
@@ -2965,36 +3022,35 @@ export const EN: Record<string, string> = {
   "Fenêtre séparée": "Separate window",
   "Ouvre le chrono dans sa propre fenêtre, à poser sur un autre écran.": "Opens the timer in its own window, to put on another screen.",
   "La fenêtre séparée n'a pas pu s'ouvrir.": "The separate window couldn't open.",
-  "Le chrono continue. Raccourci : Échap": "The timer keeps running. Shortcut: Esc",
   "Raccourci : Espace": "Shortcut: Space",
-  "Raccourci : F": "Shortcut: F",
   "Progression de la séance": "Session progress",
+  // Le plein écran du minuteur montre ses commandes (2026-10-12).
+  "Session libre": "Open session",
+  "Réduire|séance": "Minimize",
+  "La session continue, réduite en pastille. Raccourci : Échap": "The session keeps running, minimized to a pill. Shortcut: Esc",
+  "Session en plein écran": "Full-screen session",
   "Revenir à Shale": "Back to Shale",
   "Ramène la fenêtre principale devant. Le chrono reste ici.": "Brings the main window to the front. The timer stays here.",
   "Garder au premier plan": "Keep on top",
   "Ne plus garder au premier plan": "Stop keeping on top",
   "La fenêtre reste visible par-dessus les autres applications.": "The window stays visible above other apps.",
-  "Quitter le plein écran": "Exit full screen",
   "Session terminée": "Session finished",
   "En attente du chrono…": "Waiting for the timer…",
+  // Plein écran épuré et fermeture (même soir, après le premier essai)
+  "Fermer la fenêtre": "Close window",
+  "Le chrono continue dans Shale. Raccourci : ⌘W": "The timer keeps running in Shale. Shortcut: ⌘W",
+  "Ne laisse que le chrono à l’écran. Échap pour en sortir.": "Only the timer stays on screen. Press Esc to leave.",
+  "Ne laisse que le chrono à l’écran. Échap pour en sortir. Raccourci : F": "Only the timer stays on screen. Press Esc to leave. Shortcut: F",
   // ─── Typage direct et suppression qui emporte l'objet (retours d'Antonin, 2026-09-29 au soir) ──
   "Tâche rattachée à « {objectif} ».": "Task attached to “{objectif}”.",
   "Tâche libre, dans Tâches : aucun objectif au-dessus d'elle.": "Standalone task, in Tasks: no goal above it.",
-  "Phase rangée sous « {objectif} » : la feuille de route n'a que trois niveaux.": "Phase placed under “{objectif}”: the roadmap only has three levels.",
-  "Sous-objectif rangé sous « {objectif} » : la feuille de route n'a que trois niveaux.": "Sub-goal placed under “{objectif}”: the roadmap only has three levels.",
-  "Phase ajoutée à « {objectif} ».": "Phase added to “{objectif}”.",
-  "Sous-objectif ajouté à « {objectif} ».": "Sub-goal added to “{objectif}”.",
   "Habitude dans le Journal, comptée sur {n} jours dans « {objectif} ».": "Habit in the Journal, counted over {n} days in “{objectif}”.",
   "Habitude dans le Journal.": "Habit in the Journal.",
-  "Phase « {titre} » : sous quel objectif ?": "Phase “{titre}”: under which goal?",
-  "Sous-objectif « {titre} » : sous quel objectif ?": "Sub-goal “{titre}”: under which goal?",
   "Aucun objectif au-dessus de ce nœud sur la carte : choisis celui qui l'accueille.": "No goal above this node on the map: choose the one that holds it.",
   // ─── Suppression en cascade : un objectif emporte ses tâches, une carte ses objets (2026-09-30) ──
   "Il part dans Supprimés récemment avec {liste}.": "It goes to Recently Deleted with {liste}.",
   "Elle part dans Supprimés récemment avec {liste}.": "It goes to Recently Deleted with {liste}.",
   "{a} et {b}": "{a} and {b}",
-  "{n} sous-étape": "{n} sub-step",
-  "{n} sous-étapes": "{n} sub-steps",
   "La carte quitte la note.": "The map leaves the note.",
   "Ses tâches, étapes et habitudes partent aussi dans Supprimés récemment.": "Its tasks, steps and habits go to Recently Deleted too.",
   "Carte retirée de la note, et 1 élément dans Supprimés récemment": "Map removed from the note, and 1 item in Recently Deleted",
@@ -3036,8 +3092,6 @@ export const EN: Record<string, string> = {
   // Variantes affichées quand `TRADING_ACTIF` est faux ; les phrases d'origine,
   // avec le trading, restent plus haut pour le jour où il revient.
   "Bandeau performance (streak, focus)": "Performance strip (streak, focus)",
-  "La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse avec le temps passé devant l'écran aujourd'hui. Règle son point de départ et son rythme.":
-    "The dashboard’s “energy left” gauge starts from your starting energy and drops with the screen time spent today. Set where it starts and how fast it drops.",
   "Idées": "Ideas",
 
   // ── Priorité des étapes et des tâches, feuille de route épurée (2026-09-30) ──
@@ -3048,7 +3102,7 @@ export const EN: Record<string, string> = {
   "{priorite} — passer à « {suivante} »": "{priorite} — switch to “{suivante}”",
   "Cliquer pour changer": "Click to change",
   "Modifier l'étape": "Edit step",
-  "Pas encore mesurée": "Not measured yet",
+  "Ne se mesure pas": "Can’t be measured",
   "L’étape avance à chaque tâche cochée parmi celles qui lui sont rattachées.":
     "The step moves forward with each task you check off among those attached to it.",
   "L’étape avance vers un nombre que tu fixes : 50 séances, 10 pages… compté à la main, par une tâche récurrente ou par une habitude.":
@@ -3236,12 +3290,10 @@ export const EN: Record<string, string> = {
   "Estimer « {titre} »": "Estimate “{titre}”",
   "Étape": "Step",
   "L'objectif lui-même": "The goal itself",
-  "Décomposer « {titre} »": "Break “{titre}” into sub-goals",
+  "Décomposer « {titre} »": "Break “{titre}” into steps",
   "Tâches pour « {titre} »": "Tasks for “{titre}”",
   "Lecture du calendrier…": "Reading the calendar…",
-  "Cette étape est déjà au dernier niveau de la feuille de route : on ne peut plus la découper en sous-objectifs. Propose-lui plutôt des tâches.": "This step is already at the last level of the roadmap: it can't be split into sub-goals. Suggest tasks for it instead.",
-  "Décomposer": "Break into sub-goals",
-  "L'IA propose des sous-objectifs, ajoutés après les étapes existantes de la feuille de route.": "AI suggests sub-goals, added after the roadmap's existing steps.",
+  "Décomposer": "Break into steps",
   "Leurs échéances tiennent avant le {d}, en tenant compte de ton calendrier.": "Their deadlines fit before {d}, taking your calendar into account.",
   "Les échéances suivent l'horizon de l'objectif et ton calendrier.": "Deadlines follow the goal's horizon and your calendar.",
   "Proposer des tâches": "Suggest tasks",
@@ -3258,11 +3310,9 @@ export const EN: Record<string, string> = {
   "{n} tâches comparables trouvées dans ton historique Timer. L'IA choisit celles qui ressemblent vraiment à celle-ci ; la fourchette est calculée sur ton temps réel.": "{n} comparable tasks found in your Timer history. AI picks the ones that really resemble this one; the range is computed from your actual time.",
   "Médiane {m}, sur {n} tâche comparable.": "Median {m}, over {n} comparable task.",
   "Médiane {m}, sur {n} tâches comparables.": "Median {m}, over {n} comparable tasks.",
-  "Créer {n} sous-objectif": "Create {n} sub-goal",
-  "Créer {n} sous-objectifs": "Create {n} sub-goals",
   "Découper avec l'IA…": "Break down with AI…",
   "Estimer la durée…": "Estimate duration…",
-  "Décomposer avec l'IA…": "Break into sub-goals with AI…",
+  "Décomposer avec l'IA…": "Break into steps with AI…",
   "Proposer des tâches avec l'IA…": "Suggest tasks with AI…",
   "Lister ce qui est déjà prêt et ce qui manque": "List what's ready and what's missing",
   "Préparer la première version en 45 minutes": "Prepare a first version in 45 minutes",
@@ -3279,7 +3329,6 @@ export const EN: Record<string, string> = {
   "Choisir les deux étapes qui comptent vraiment": "Pick the two steps that really matter",
   "Avancer la première étape restante": "Move the first remaining step forward",
   "Décider : décaler l'échéance ou réduire le périmètre": "Decide: move the deadline or shrink the scope",
-  "L'échéance de l'objectif est déjà passée : les sous-objectifs sont datés à partir d'aujourd'hui.": "The goal's deadline has already passed: sub-goals are dated from today.",
 
   // ── IA, phase F : les notes ────────────────────────────────────────────────
   "IA": "AI",
@@ -3700,6 +3749,92 @@ export const EN: Record<string, string> = {
   "focus": "focus",
   "habitudes": "habits",
 
+  // ── Performance : le jour même, les périodes en dates, les légendes (2026-10-11) ──
+  "Ce que montre Performance": "What Performance shows",
+  "Vue d'ensemble": "Overview",
+  "Les heures passées sur chaque objectif": "The hours spent on each goal",
+  "Cette semaine, face aux heures que tu lui as promises.": "This week, against the hours you promised it.",
+  "Le jour en cours, à part": "The current day, on its own",
+  "Il n'entre dans aucune moyenne ni aucun écart : la période analysée s'arrête à hier.": "It enters no average and no difference: the analysed period ends yesterday.",
+  "en cours|jour": "in progress",
+  "tâches faites": "tasks done",
+  "habitudes tenues": "habits kept",
+  "Faites sur prévues aujourd'hui": "Done out of planned today",
+  "Aucune tâche prévue aujourd'hui": "No task planned today",
+  "Les séances de concentration terminées aujourd'hui": "The focus sessions finished today",
+  "Cochées aujourd'hui sur celles que tu suis": "Checked today out of those you track",
+  "Aucune habitude suivie": "No habit tracked",
+  "La période analysée : des jours finis": "The analysed period: finished days",
+  "Elle s'arrête à hier. Aujourd'hui n'est pas terminé : il est montré à part, au-dessus.": "It ends yesterday. Today isn't over: it is shown on its own, above.",
+  "jours finis": "finished days",
+  "à ce jour": "to date",
+  "La part des tâches du jour faites, en moyenne sur les jours finis": "The share of each day's tasks done, averaged over finished days",
+  "Chaque jour : les routines dues, et les tâches ponctuelles cochées ce jour-là. Une tâche en retard ou reportée ne pèse sur aucun jour.": "Each day: the routines due, and the one-off tasks checked that day. An overdue or postponed task weighs on no day.",
+  "La part des habitudes cochées, en moyenne sur les jours finis": "The share of habits checked, averaged over finished days",
+  "Une habitude compte à partir du jour de sa première coche.": "A habit counts from the day it was first checked.",
+  "Le temps des séances de concentration terminées, sur les jours finis": "The time of finished focus sessions, over finished days",
+  "Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.": "The Timer counts differently: seven rolling days, today included ({dates}) — {total}.",
+  "Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut.": "Today isn't in it: its sessions are in the row at the top.",
+  "Jours tenus d'affilée": "Days held in a row",
+  "Un jour est tenu quand 80 % des tâches dues sont faites": "A day is held when 80% of the tasks due are done",
+  "Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série.": "Today counts as soon as it reaches 80%. A day with no task due doesn't break the streak.",
+  "C'est le seuil des séries de jours tenus.": "It's the threshold for streaks of held days.",
+  "Une série, ce sont des jours tenus qui se suivent. Un jour sans tâche due ne la casse pas.": "A streak is held days in a row. A day with no task due doesn't break it.",
+  "Séries de jours tenus": "Streaks of held days",
+  "Pas encore de série. Elle commence le premier jour où 80 % des tâches dues sont faites.": "No streak yet. It starts the first day 80% of the tasks due are done.",
+  "Période d'avant : {dates}": "Previous period: {dates}",
+  "Rien de mesuré sur ces jours-là : pas d'écart à donner.": "Nothing measured on those days: no difference to give.",
+  "{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.": "{valeur} on those days. The difference is in percentage points.",
+  "{valeur} sur ces jours-là.": "{valeur} on those days.",
+  "{n} en retard ou reportée, non comptée": "{n} overdue or postponed, not counted",
+  "{n} en retard ou reportées, non comptées": "{n} overdue or postponed, not counted",
+  "Rien de mesuré sur cette période.": "Nothing measured over this period.",
+  "rien de dû": "nothing due",
+  "rien de fait": "nothing done",
+  "aucune tenue": "none kept",
+  "1 à 49 %": "1 to 49%",
+  "50 à 79 %": "50 to 79%",
+  "80 à 99 %": "80 to 99%",
+  "100 %": "100%",
+  "focus — par tranche de 7 jours": "focus — per 7-day span",
+  "auj.": "today",
+  "Aucune séance sur les jours finis de cette période. Aujourd'hui : {duree}.": "No session on the finished days of this period. Today: {duree}.",
+  "Aucune séance sur les jours finis de cette période. Celles d'aujourd'hui y entreront demain.": "No session on the finished days of this period. Today's will enter it tomorrow.",
+  "Sept jours, aujourd'hui compris": "Seven days, today included",
+
+  // ── Performance : l'onglet « Par objectif », à l'essai (2026-10-11) ──
+  "Cette semaine · {dates}": "This week · {dates}",
+  "Du lundi au dimanche, aujourd'hui compris": "Monday to Sunday, today included",
+  "lundi → dimanche, aujourd'hui compris": "Monday → Sunday, today included",
+  "Le Timer, lui, compte sept jours glissants : les deux totaux ne coïncident que le dimanche.": "The Timer counts seven rolling days: the two totals only match on Sundays.",
+  "au minuteur": "on the timer",
+  "Les heures viennent du minuteur.": "The hours come from the timer.",
+  "Ouvrir les Objectifs": "Open Goals",
+  "hors objectif": "outside any goal",
+  "Le temps du minuteur sans objectif": "Timer time with no goal",
+  "Séances sans tâche, ou dont la tâche n'est rattachée à aucun objectif. Montré, jamais réparti.": "Sessions with no task, or whose task belongs to no goal. Shown, never spread out.",
+  "promesse tenue": "promise kept",
+  "première semaine": "first week",
+  "Objectif créé cette semaine": "Goal created this week",
+  "Sa première semaine est entamée : ce qu'il reste d'ici dimanche s'affichera à partir de lundi.": "Its first week has already started: what's left before Sunday will show from Monday.",
+  "reste {duree} d'ici ce soir": "{duree} left by tonight",
+  "reste {duree} d'ici dimanche": "{duree} left by Sunday",
+  "Heures promises par semaine à « {titre} »": "Hours promised per week to “{titre}”",
+  "Heures promises par semaine": "Hours promised per week",
+  "Vide : pas de promesse, la ligne ne montre que le temps passé.": "Empty: no promise, the row only shows the time spent.",
+  "h promises par semaine": "h promised a week",
+  "Semaines précédentes": "Previous weeks",
+  "semaine en cours": "current week",
+  "{n} semaine précédente": "{n} previous week",
+  "{n} semaines précédentes": "{n} previous weeks",
+  "{duree} en moyenne": "{duree} on average",
+  "Échéance aujourd'hui.": "Due today.",
+  "{n} jour d'ici le {date}": "{n} day until {date}",
+  "{n} jours d'ici le {date}": "{n} days until {date}",
+  "{n} semaine pleine d'ici le {date}": "{n} full week until {date}",
+  "{n} semaines pleines d'ici le {date}": "{n} full weeks until {date}",
+  "à {heures} par semaine, cela fait {total}": "at {heures} a week, that makes {total}",
+
   // ── Retours du tournage en anglais (2026-10-09) ──
   // « Annuler » au sens de DÉFAIRE (le bouton d'un toast qui rend ce qui vient
   // de partir, ⌘Z d'une carte ou d'un croquis). La clé nue « Annuler » reste
@@ -3708,4 +3843,16 @@ export const EN: Record<string, string> = {
   "Préparer la journée de demain": "Plan tomorrow",
   "Commander des échantillons d'emballage": "Order packaging samples",
   "Envoyer la facture de juin à Studio Hélice": "Send the June invoice to Studio Hélice",
+
+  // ── Barre latérale réductible (2026-10-11) ──
+  "Réduire la barre": "Collapse sidebar",
+  "Étendre la barre": "Expand sidebar",
+  "Réduire la barre latérale": "Collapse the sidebar",
+  "Étendre la barre latérale": "Expand the sidebar",
+  "Ne garde que les icônes.": "Keeps only the icons.",
+  "Affiche le nom des modules.": "Shows the module names.",
+  "Réduire ou étendre la barre latérale": "Collapse or expand the sidebar",
+  "Largeur de la barre latérale": "Sidebar width",
+  "Régler la largeur": "Adjust width",
+  "Glisser le bord · double-clic : largeur d’origine.": "Drag the edge · double-click: default width.",
 };

@@ -117,11 +117,14 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       onClick={onClose}
     >
+      {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). Cette
+          fenêtre n'avait AUCUNE borne de hauteur : sur un écran bas elle
+          sortait par le haut et par le bas, sans défiler. */}
       <div
-        className="card w-full max-w-md bg-surface p-6"
+        className="card fenetre w-full max-w-md bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg text-text">
@@ -129,12 +132,13 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
         </h2>
 
         <form
-          className="mt-4 flex flex-col gap-4"
+          className="fenetre-colonne mt-4"
           onSubmit={(e) => {
             e.preventDefault();
             save();
           }}
         >
+          <div className="fenetre-corps flex flex-col gap-4">
           <input
             autoFocus
             value={label}
@@ -320,7 +324,9 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
             </div>
           )}
 
-          <div className="mt-2 flex justify-end gap-2">
+          </div>
+
+          <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

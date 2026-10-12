@@ -205,11 +205,14 @@ describe("#11, #12 objectifs", () => {
     const sous = objectif(3, { parent_goal_id: 1 });
     const feuille = objectif(4, { parent_goal_id: 2 });
     const goals = [racine, phase, sous, feuille];
-    expect([racine, phase, sous, feuille].map((g) => peutDecomposer(g, goals))).toEqual([true, true, false, false]);
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-12 : `sous` (une étape de premier niveau
+    // sans le marqueur « phase ») rendait `false`. Elle peut maintenant recevoir
+    // des étapes — elle devient une phase par son contenu. Seul le FOND refuse.
+    expect([racine, phase, sous, feuille].map((g) => peutDecomposer(g, goals))).toEqual([true, true, true, false]);
     expect(descendants(racine, goals).map((g) => g.id)).toEqual([2, 4, 3]);
   });
 
-  it("les sous-objectifs validés s'ajoutent APRÈS les étapes existantes, avec horizon et catégorie hérités", async () => {
+  it("les étapes validées s'ajoutent APRÈS les étapes existantes, avec horizon et catégorie hérités", async () => {
     const racineId = await createGoal({ title: "Lancer la boutique", description: null, scope: "long", category: "Activité", parent_goal_id: null, deadline: null, progress_pct: 0, manual_progress: 0 });
     await createGoal({ title: "Déjà là", description: null, scope: "long", category: "Activité", parent_goal_id: racineId, deadline: null, progress_pct: 0, manual_progress: 0, position: 3 });
     let goals = (await fetchAll("2000-01-01")).goals;
@@ -222,6 +225,23 @@ describe("#11, #12 objectifs", () => {
     const enfants = goals.filter((g) => g.parent_goal_id === racineId).sort((a, b) => a.position - b.position);
     expect(enfants.map((g) => [g.title, g.position])).toEqual([["Déjà là", 3], ["Catalogue en ligne", 4], ["Paiement branché", 5]]);
     expect(enfants[1]).toMatchObject({ scope: "long", category: "Activité", deadline: "2026-11-01", priority: "high", is_milestone: 0, manual_progress: 0 });
+  });
+
+  it("⭐ décomposer une ÉTAPE en fait une phase : ses étapes naissent dessous, et la colonne suit (2026-10-12)", async () => {
+    const racineId = await createGoal({ title: "Lancer la boutique", description: null, scope: "long", category: null, parent_goal_id: null, deadline: null, progress_pct: 0, manual_progress: 0 });
+    const etapeId = await createGoal({ title: "Préparer", description: null, scope: "long", category: null, parent_goal_id: racineId, deadline: null, progress_pct: 0, manual_progress: 0 });
+    let goals = (await fetchAll("2000-01-01")).goals;
+    await appliquerEtapes(goals.find((g) => g.id === etapeId)!, goals, [
+      { titre: "Photos", priorite: "medium", echeance: null },
+      { titre: "Textes", priorite: "medium", echeance: null },
+    ]);
+    goals = (await fetchAll("2000-01-01")).goals;
+    expect(goals.filter((g) => g.parent_goal_id === etapeId).map((g) => [g.title, g.position, g.is_milestone])).toEqual([
+      ["Photos", 0, 0],
+      ["Textes", 1, 0],
+    ]);
+    expect(goals.find((g) => g.id === etapeId)!.is_milestone).toBe(1);
+    expect(goals.find((g) => g.id === racineId)!.is_milestone).toBe(0);
   });
 
   it("une tâche proposée va à son étape ; une étape disparue retombe sur l'objectif", async () => {

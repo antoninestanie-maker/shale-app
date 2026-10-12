@@ -137,7 +137,12 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // ⚠️ Une couche AU-DESSUS (le calendrier de date, un menu) a déjà traité
+      // la touche : elle l'a marquée. Ce garde manquait ici — un Échap fermait
+      // le calendrier ET la fenêtre, saisie comprise (témoin A17-01).
+      if (e.defaultPrevented || e.key !== "Escape") return;
+      e.preventDefault();
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -210,16 +215,22 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
+      {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). Cette
+          fenêtre n'avait AUCUNE borne de hauteur : ouverte sur un événement
+          récurrent (sept jours, une date de fin, une note), elle dépassait un
+          écran de 700 px par le haut et par le bas, sans défiler. */}
       <div
-        className="card card-solid w-full max-w-md p-6"
+        className="card card-solid fenetre w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl text-text">
           {event ? t("Modifier l'événement") : t("Nouvel événement")}
         </h2>
+
+        <div className="fenetre-corps">
 
         <label className="mt-5 block text-xs font-medium uppercase tracking-wide text-text-dim">
           {t("Titre")}
@@ -433,9 +444,13 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           className="mt-1.5 w-full resize-none rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
         />
 
-        {erreur && <p className="mt-3 text-sm text-red">{erreur}</p>}
+        </div>
 
-        <div className="mt-6 flex items-center justify-between">
+        {/* L'erreur vit dans le PIED : dans le corps, elle pourrait être hors
+            de vue au moment où « Enregistrer » la fait naître. */}
+        {erreur && <p className="fenetre-pied text-sm text-red">{erreur}</p>}
+
+        <div className="fenetre-pied mt-[10px] flex flex-wrap items-center justify-between gap-y-2">
           {event ? (
             <span className="flex items-center gap-1">
             <button

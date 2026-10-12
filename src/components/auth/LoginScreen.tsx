@@ -154,7 +154,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
     // qui peint aussi le décor. Un fond opaque à ce niveau le recouvrirait —
     // et l'écran perdrait la profondeur qui distingue « l'app est là, derrière »
     // de « l'app n'a pas démarré ».
-    <div className="flex h-screen items-center justify-center px-6">
+    <div className="flex h-[calc(100vh*var(--zoom-inv))] items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-7 flex flex-col items-center text-center">
           {/* `entree-marque` : la copie animée de la transition d'entrée vient

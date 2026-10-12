@@ -137,6 +137,30 @@ export function estEnRetard(
   return (t.due_date as string) < jour;
 }
 
+/**
+ * ⭐ Les tâches EN RETARD d'un jour donné : datées d'avant, pas faites — la plus
+ * ancienne d'abord.
+ *
+ * C'est la ligne « En retard » d'Aujourd'hui (2026-10-11) et la section du même
+ * nom dans la vue Tâches. Elles ne sont PAS dans le compte du jour (`todayTasks`,
+ * `lib/logic.ts`) : une tâche d'hier n'est pas « prévue aujourd'hui », elle
+ * attend qu'on la fasse ou qu'on la replanifie. Cochée, elle entre dans le
+ * compte du jour où on la coche.
+ *
+ * ⚠️ « Faite » se lit comme partout (`ponctuellesFaites`). Une routine manquée
+ * n'est jamais en retard (`estRecurrente`).
+ */
+export function tachesEnRetard<T extends Pick<Task, "id" | "due_date" | "recurrence">>(
+  tasks: readonly T[],
+  completions: readonly Pick<Completion, "task_id" | "done">[],
+  jour: string,
+): T[] {
+  const faites = ponctuellesFaites(completions);
+  return tasks
+    .filter((t) => estEnRetard(t, jour, faites.has(t.id)))
+    .sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string) || a.id - b.id);
+}
+
 /** Ce qu'un report écrit dans la tâche. `null` quand il ne doit pas avoir lieu. */
 export interface Report {
   due_date: string;

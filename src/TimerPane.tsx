@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import EcranTimer, { ActionFenetre } from "./components/timer/EcranTimer";
 import TooltipLayer from "./components/Tooltip";
-import { IconExpand, IconPin } from "./components/icons";
+import { IconExpand, IconPin, IconX } from "./components/icons";
 import {
+  delaiAvantProchaineSeconde,
   ecouterEtat,
   envoyerCommande,
   fermerCetteFenetre,
@@ -53,15 +54,21 @@ export default function TimerPane() {
     return () => window.clearInterval(id);
   }, [recu]);
 
-  // Le décompte, recalculé ICI depuis l'instant de fin : quatre fois par
-  // seconde, pour que le volet bascule au plus près du changement de seconde.
-  const tourne = !!etat?.session && etat.finMs !== null;
+  // Le décompte, recalculé ICI depuis l'instant de fin, et réveillé juste après
+  // chaque changement de chiffre (pas à intervalle fixe : les volets
+  // basculaient à des écarts irréguliers — `delaiAvantProchaineSeconde`).
+  const finMs = etat?.session ? etat.finMs : null;
   useEffect(() => {
-    if (!tourne) return;
-    setMaintenant(Date.now());
-    const id = window.setInterval(() => setMaintenant(Date.now()), 250);
-    return () => window.clearInterval(id);
-  }, [tourne]);
+    if (finMs === null) return;
+    let id = 0;
+    const battre = () => {
+      const t = Date.now();
+      setMaintenant(t);
+      id = window.setTimeout(battre, delaiAvantProchaineSeconde(finMs, t));
+    };
+    battre();
+    return () => window.clearTimeout(id);
+  }, [finMs]);
 
   // Plus de séance : on le dit, puis la fenêtre se ferme d'elle-même.
   const termine = etat !== null && etat.session === null;
@@ -129,10 +136,21 @@ export default function TimerPane() {
     }
   }, []);
 
-  // « F » bascule le plein écran (Espace et Échap sont gérés par l'écran).
+  const fermer = useCallback(() => {
+    void fermerCetteFenetre().catch((e) => console.error("timer : fermeture impossible", e));
+  }, []);
+
+  // « F » bascule le plein écran, ⌘W ferme la fenêtre (Espace et Échap sont
+  // gérés par l'écran).
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.defaultPrevented) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === "w" || e.key === "W")) {
+        e.preventDefault();
+        fermer();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
         void basculerPleinEcran();
@@ -140,7 +158,7 @@ export default function TimerPane() {
     };
     window.addEventListener("keydown", surTouche);
     return () => window.removeEventListener("keydown", surTouche);
-  }, [basculerPleinEcran]);
+  }, [basculerPleinEcran, fermer]);
 
   const session = etat?.session ?? null;
   const enPause = !!etat && etat.restantFigeSec !== null;
@@ -166,6 +184,8 @@ export default function TimerPane() {
         </div>
       ) : (
         <EcranTimer
+          // En plein écran : l'horloge seule. Échap en sort, et les boutons reviennent.
+          epure={pleinEcran}
           seance={session}
           restantSec={restantDepuisEtat(etat, maintenant)}
           enPause={enPause}
@@ -199,11 +219,17 @@ export default function TimerPane() {
               )}
               <ActionFenetre
                 onClick={() => void basculerPleinEcran()}
-                label={pleinEcran ? t("Quitter le plein écran") : t("Plein écran")}
-                tipSub={t("Raccourci : F")}
-                actif={pleinEcran}
+                label={t("Plein écran")}
+                tipSub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir. Raccourci : F")}
               >
                 <IconExpand className="h-3.5 w-3.5" />
+              </ActionFenetre>
+              <ActionFenetre
+                onClick={fermer}
+                label={t("Fermer la fenêtre")}
+                tipSub={t("Le chrono continue dans Shale. Raccourci : ⌘W")}
+              >
+                <IconX className="h-3.5 w-3.5" />
               </ActionFenetre>
             </>
           }

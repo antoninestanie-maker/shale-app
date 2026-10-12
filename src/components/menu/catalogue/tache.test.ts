@@ -1,7 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
-import { entreesTache, type GestesTache } from "./tache";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { entreesTache, gestesCommunsTache, type GestesTache } from "./tache";
 import { ordonner } from "../../../lib/menu/entrees";
+import { addDays, todayStr } from "../../../lib/logic";
+import { demandeDeDate, fermerSelecteurDate } from "../../../lib/selecteurDate";
+import { lundiProchain } from "../../../lib/taches/dates";
 import type { Task } from "../../../lib/types";
+
+// Les gestes communs écrivent par le dépôt : on regarde ce qu'ils lui demandent.
+const depot = vi.hoisted(() => ({
+  setTaskSchedule: vi.fn(async () => {}),
+  appliquerReport: vi.fn(async () => {}),
+}));
+vi.mock("../../../lib/repo", () => ({
+  ...depot,
+  createTask: vi.fn(),
+  prioriserTache: vi.fn(),
+  rattacherTache: vi.fn(),
+}));
 
 const tache = { id: 7, label: "Session trading", done: false, goal_id: null } as unknown as Task;
 
@@ -37,8 +52,132 @@ describe("« Focus 25 min » dans le menu d'une tâche", () => {
     expect(ids(gestes(vi.fn()), true)).not.toContain("focus");
   });
 
-  it("absent des vues qui n'ont pas de ▶ (Tâches, Calendrier)", () => {
+  it("absent là où aucun minuteur n'est à portée (Calendrier, feuille de route) ou pendant une séance", () => {
     expect(ids(gestes())).not.toContain("focus");
+  });
+});
+
+describe("⭐ « Dater ▸ » : reporter sans rouvrir une fenêtre (2026-10-11)", () => {
+  const AUJ = todayStr();
+  const dater = (task: Task, g: GestesTache) =>
+    ordonner(entreesTache(task, g, { faite: false, objectifs: [] })).find((e) => e.id === "dater")?.sousMenu ?? [];
+  const avec = (due_date: string | null, extra: Partial<Task> = {}) =>
+    ({ ...tache, recurrence: "none", due_date, postponed_count: 0, ...extra }) as Task;
+
+  afterEach(() => fermerSelecteurDate());
+
+  it("sans date : + 1 jour, Aujourd'hui, Demain, Lundi prochain, Choisir — pas de « Retirer »", () => {
+    expect(dater(avec(null), gestes()).map((e) => e.id)).toEqual([
+      "dater-plus-un",
+      "dater-auj",
+      "dater-demain",
+      "dater-lundi",
+      "dater-choisir",
+    ]);
+  });
+
+  it("datée d'aujourd'hui : « Aujourd'hui » n'écrirait rien, il s'efface ; « Retirer la date » apparaît", () => {
+    expect(dater(avec(AUJ), gestes()).map((e) => e.id)).toEqual([
+      "dater-plus-un",
+      "dater-demain",
+      "dater-lundi",
+      "dater-choisir",
+      "dater-retirer",
+    ]);
+  });
+
+  it("⭐ « + 1 jour » part de la date de la TÂCHE ; d'aujourd'hui si elle est en retard ou sans date", () => {
+    const g = gestes();
+    const dans5 = avec(addDays(AUJ, 5));
+    dater(dans5, g).find((e) => e.id === "dater-plus-un")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(dans5, addDays(AUJ, 6));
+
+    const enRetard = avec(addDays(AUJ, -3));
+    dater(enRetard, g).find((e) => e.id === "dater-plus-un")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(enRetard, addDays(AUJ, 1));
+
+    const sansDate = avec(null);
+    dater(sansDate, g).find((e) => e.id === "dater-plus-un")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(sansDate, addDays(AUJ, 1));
+  });
+
+  it("Demain, Lundi prochain et Retirer appellent le MÊME geste `dater`", () => {
+    const g = gestes();
+    const task = avec(addDays(AUJ, 5));
+    const entrees = dater(task, g);
+    entrees.find((e) => e.id === "dater-demain")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(task, addDays(AUJ, 1));
+    entrees.find((e) => e.id === "dater-lundi")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(task, lundiProchain(AUJ));
+    entrees.find((e) => e.id === "dater-retirer")!.executer!();
+    expect(g.dater).toHaveBeenLastCalledWith(task, null);
+  });
+
+  it("⭐ « Choisir une date… » ouvre le calendrier SUR PLACE — plus la fenêtre de la tâche", () => {
+    const g = gestes();
+    const task = avec(addDays(AUJ, 2));
+    dater(task, g).find((e) => e.id === "dater-choisir")!.executer!({
+      element: null,
+      ancre: { top: 100, bottom: 120, left: 300, right: 330 },
+    });
+    expect(g.modifier).not.toHaveBeenCalled();
+    const demande = demandeDeDate()!;
+    expect(demande.valeur).toBe(addDays(AUJ, 2));
+    // Accroché sous le point où le menu s'était ouvert.
+    expect(demande.ancre()).toEqual({ top: 120, bottom: 120, left: 300 });
+
+    // Le jour choisi passe par le geste commun ; la date déjà en place n'écrit rien.
+    demande.onChoisir(addDays(AUJ, 2));
+    expect(g.dater).not.toHaveBeenCalled();
+    demande.onChoisir(addDays(AUJ, 9));
+    expect(g.dater).toHaveBeenLastCalledWith(task, addDays(AUJ, 9));
+    // « Effacer » dans le calendrier retire la date.
+    demande.onChoisir("");
+    expect(g.dater).toHaveBeenLastCalledWith(task, null);
+  });
+
+  it("une routine ne se date pas : l'entrée est grisée, avec sa raison", () => {
+    const entree = ordonner(entreesTache(avec(null, { recurrence: "daily" }), gestes(), { faite: false, objectifs: [] })).find(
+      (e) => e.id === "dater",
+    )!;
+    expect(entree.desactive?.raison).toBeTruthy();
+  });
+});
+
+describe("⭐ dater à la main remet le compteur de reports à zéro (`replanifier`)", () => {
+  const AUJ = todayStr();
+  const refresh = vi.fn(async () => {});
+  const tacheDatee = (extra: Partial<Task>) =>
+    ({ ...tache, recurrence: "none", start_at: "09:00", end_at: "10:00", postponed_from: null, ...extra }) as Task;
+
+  afterEach(() => {
+    depot.setTaskSchedule.mockClear();
+    depot.appliquerReport.mockClear();
+  });
+
+  it("une tâche qui avait glissé deux fois : la date est écrite, puis le compteur repart de zéro", async () => {
+    const task = tacheDatee({ due_date: addDays(AUJ, -1), postponed_count: 2, postponed_from: addDays(AUJ, -3) });
+    await gestesCommunsTache(refresh).dater(task, addDays(AUJ, 4));
+    // Le créneau horaire est gardé quand on change de jour.
+    expect(depot.setTaskSchedule).toHaveBeenCalledWith(7, addDays(AUJ, 4), "09:00", "10:00");
+    expect(depot.appliquerReport).toHaveBeenCalledWith(7, {
+      due_date: addDays(AUJ, 4),
+      postponed_count: 0,
+      postponed_from: addDays(AUJ, 4),
+    });
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("une tâche jamais reportée : une seule écriture", async () => {
+    await gestesCommunsTache(refresh).dater(tacheDatee({ due_date: AUJ, postponed_count: 0 }), addDays(AUJ, 1));
+    expect(depot.setTaskSchedule).toHaveBeenCalledTimes(1);
+    expect(depot.appliquerReport).not.toHaveBeenCalled();
+  });
+
+  it("retirer la date ne touche pas au compteur, et le créneau tombe avec le jour", async () => {
+    await gestesCommunsTache(refresh).dater(tacheDatee({ due_date: AUJ, postponed_count: 2 }), null);
+    expect(depot.setTaskSchedule).toHaveBeenCalledWith(7, null, null, null);
+    expect(depot.appliquerReport).not.toHaveBeenCalled();
   });
 });
 

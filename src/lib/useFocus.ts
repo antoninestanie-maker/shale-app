@@ -3,6 +3,7 @@
 // pause/reprise, et enchaînement automatique travail → pause.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "./i18n";
+import { delaiAvantProchaineSeconde } from "./timerFenetre";
 import {
   endFocus,
   fetchActiveFocus,
@@ -93,11 +94,22 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
     });
   }, []);
 
-  // tick 1 s pendant une session active (pas en pause)
+  // Battement pendant une session active (pas en pause), CALÉ sur l'instant où
+  // le chiffre change — pas un `setInterval(1000)` au hasard du démarrage, qui
+  // sautait une seconde puis en montrait une deux fois : sur l'horloge à volets
+  // (2026-09-29), deux bascules collées puis un trou. Voir
+  // `delaiAvantProchaineSeconde`.
   useEffect(() => {
     if (!session || pausedAt !== null) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    const fin = endOf(session.startedAtMs, session.plannedMin);
+    let id = 0;
+    const battre = () => {
+      const maintenant = Date.now();
+      setNowMs(maintenant);
+      id = window.setTimeout(battre, delaiAvantProchaineSeconde(fin, maintenant));
+    };
+    id = window.setTimeout(battre, delaiAvantProchaineSeconde(fin, Date.now()));
+    return () => window.clearTimeout(id);
   }, [session, pausedAt]);
 
   const effectiveNow = pausedAt ?? nowMs;

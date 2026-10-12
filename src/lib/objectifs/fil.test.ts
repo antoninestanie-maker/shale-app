@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { etatFil, filDObjectif } from "./fil";
+import { objectif } from "./objectif.testutil";
+import { estAcheve, mesurer } from "./progression";
 
-const m = (pct: number | null, videsProfonds = 0) => ({ pct, fraction: pct == null ? null : pct / 100, videsProfonds });
+const m = (pct: number | null) => ({ pct, fraction: pct == null ? null : pct / 100 });
 const SANS = { presents: false, total: 0, faits: 0 };
 const cles = (f: ReturnType<typeof filDObjectif>) => f.troncons.map((t) => t.cle);
 
@@ -15,9 +17,20 @@ describe("etatFil — l'état d'un nœud", () => {
     expect(etatFil(m(1))).toBe("cours");
     expect(etatFil(m(99))).toBe("cours");
   });
-  it("atteint à 100 % — sauf s'il reste une sous-étape vide", () => {
+  // ⚠️ RÈGLE RETOURNÉE le 2026-10-11. Ce test disait « atteint à 100 % — sauf
+  // s'il reste une sous-étape vide » : une étape à 100 % qui portait une
+  // sous-étape vide restait « en cours ». Une sous-étape vide compte maintenant
+  // pour 0 : l'étape n'est PAS à 100 %, et le cas n'existe plus.
+  it("atteint à 100 %, sans réserve", () => {
     expect(etatFil(m(100))).toBe("atteint");
-    expect(etatFil(m(100, 1))).toBe("cours");
+  });
+  it("⭐ une étape VIDE : « vide » tant qu'elle n'est pas cochée (0 %), « atteint » une fois cochée", () => {
+    const g = objectif({ id: 1 });
+    const vide = objectif({ id: 2, parent_goal_id: 1 });
+    const cochee = objectif({ id: 3, parent_goal_id: 1, progress_pct: 100 });
+    const s = { goals: [g, vide, cochee], tasks: [], completions: [], maintenant: "2026-09-15 10:00" };
+    expect(etatFil(mesurer(vide, s))).toBe("vide");
+    expect(etatFil(mesurer(cochee, s))).toBe("atteint");
   });
 });
 
@@ -73,9 +86,41 @@ describe("filDObjectif — les tronçons, dans l'ordre de la page", () => {
   });
 
   it("une part hors bornes ou illisible ne déborde jamais du tronçon", () => {
-    const mesures = new Map([[1, { pct: 140, fraction: 1.4, videsProfonds: 0 }], [2, { pct: 10, fraction: Number.NaN, videsProfonds: 0 }]]);
+    const mesures = new Map([[1, { pct: 140, fraction: 1.4 }], [2, { pct: 10, fraction: Number.NaN }]]);
     const f = filDObjectif({ etapes: [{ id: 1 }, { id: 2 }], mesures, directs: SANS, atteint: false });
     expect(f.troncons[0].part).toBe(1);
     expect(f.troncons[1].part).toBe(0);
+  });
+
+  it("⭐ trois étapes vides dont la première cochée : son tronçon est plein, l'orbe passe à la deuxième (2026-10-11)", () => {
+    const g = objectif({ id: 10 });
+    const lignes = [
+      objectif({ id: 1, parent_goal_id: 10, position: 0, progress_pct: 100 }),
+      objectif({ id: 2, parent_goal_id: 10, position: 1 }),
+      objectif({ id: 3, parent_goal_id: 10, position: 2 }),
+    ];
+    const s = { goals: [g, ...lignes], tasks: [], completions: [], maintenant: "2026-09-15 10:00" };
+    const mesures = new Map(lignes.map((l) => [l.id, mesurer(l, s)]));
+    const racine = mesurer(g, s);
+    expect(racine.pct).toBe(33);
+    const f = filDObjectif({ etapes: lignes, mesures, directs: SANS, atteint: estAcheve(racine) });
+    expect(f.troncons.slice(0, 3)).toEqual([
+      { cle: "g1", etat: "atteint", part: 1 },
+      { cle: "g2", etat: "vide", part: 0 },
+      { cle: "g3", etat: "vide", part: 0 },
+    ]);
+    expect(f.courant).toBe("g2");
+    // Avant le 2026-10-11, ces trois étapes n'avaient pas de mesure : trois
+    // nœuds vides, et l'orbe restait sur la première pour toujours.
+  });
+
+  it("toutes cochées : l'objectif est atteint, plus d'orbe, l'arrivée s'allume", () => {
+    const g = objectif({ id: 10 });
+    const lignes = [1, 2].map((id) => objectif({ id, parent_goal_id: 10, progress_pct: 100 }));
+    const s = { goals: [g, ...lignes], tasks: [], completions: [], maintenant: "2026-09-15 10:00" };
+    const mesures = new Map(lignes.map((l) => [l.id, mesurer(l, s)]));
+    const f = filDObjectif({ etapes: lignes, mesures, directs: SANS, atteint: estAcheve(mesurer(g, s)) });
+    expect(f.courant).toBeNull();
+    expect(f.troncons[f.troncons.length - 1].etat).toBe("atteint");
   });
 });

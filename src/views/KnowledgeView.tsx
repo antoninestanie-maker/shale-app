@@ -497,7 +497,7 @@ export default function KnowledgeView() {
 
   return (
     <div
-      className="mx-auto flex h-full w-full max-w-6xl flex-col p-8"
+      className="mx-auto flex h-full w-full max-w-6xl flex-col p-8 telephone:p-4"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -1599,14 +1599,14 @@ function ConfirmDeleteTopic({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      className="fenetre-voile fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
       onPointerDown={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("Supprimer le sujet")}
-        className="card card-solid animate-fade-up w-full max-w-sm p-6"
+        className="card card-solid animate-fade-up max-h-full w-full max-w-sm overflow-y-auto p-6"
       >
         <p className="font-display text-lg font-bold text-text">
           {t("Supprimer « {nom} » ?", { nom: topic.name })}

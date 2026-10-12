@@ -39,6 +39,7 @@ import type { Document as DocumentRecherche } from "./recherche";
 // reçu les champs de planification (migration 020). Deux définitions du même
 // contrat ne restent d'accord que tant que personne ne touche à l'une des deux.
 import { assemblerContexte, type ContexteObjectifs } from "./objectifs/contexte";
+import { cleDeNature, natureDe } from "./objectifs/structure";
 import type {
   CalendarEventInput,
   FeuilleDeRoutePatch,
@@ -2320,6 +2321,13 @@ export const demo = {
     if (goal) Object.assign(goal, champs);
   },
 
+  async cocherEtape(id: number, pct: number): Promise<void> {
+    const goal = goals.find((g) => g.id === id);
+    // Même garde que le natif (`manual_progress = 0` dans son `WHERE`) : une
+    // ligne suivie à la main garde le % qu'on lui a saisi.
+    if (goal && !goal.manual_progress) goal.progress_pct = pct;
+  },
+
   async reordonnerObjectifs(ids: readonly number[]): Promise<void> {
     ids.forEach((id, position) => {
       const goal = goals.find((g) => g.id === id);
@@ -2771,7 +2779,8 @@ export const demo = {
     for (const g of goals) {
       const uid = g.uid ?? uidDemo("goal", g.id);
       if (!objectifs.includes(uid)) continue;
-      genres.set(uid, g.parent_goal_id == null ? "objectif" : g.is_milestone ? "phase" : "sous-objectif");
+      // Par le CONTENU, comme le natif (`repo.infosDeCartes`) et `natureDe`.
+      genres.set(uid, cleDeNature(natureDe(g, goals)));
     }
     return { titresHabitudes, genres };
   },

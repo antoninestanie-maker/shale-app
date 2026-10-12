@@ -56,6 +56,15 @@ import {
   type ReactNode,
 } from "react";
 import { getSetting, setSetting } from "../../lib/repo";
+import { zoomFactor } from "../../lib/uiConfig";
+import {
+  ancreTient,
+  colonneCss,
+  dispositionIntacte,
+  masquesConnus,
+  ordreEffectif,
+  type Ancre,
+} from "../../lib/grille";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { IconPoints } from "../menu/icones";
@@ -82,6 +91,20 @@ const REORDER_COOLDOWN_MS = 130; // laisse le FLIP se poser avant le swap suivan
 
 /** Arrondi au multiple de 8 supérieur (rythme vertical commun à toute l'app). */
 const ceil8 = (v: number) => Math.ceil(v / 8) * 8;
+
+/**
+ * ⭐ LA GRILLE SE MET EN VEILLE pendant qu'on tire le bord de la barre latérale
+ * (2026-10-12). Sa largeur change alors à chaque image ; la relire ici, c'était
+ * un rendu React de la grille et une mise en page forcée par panneau — mesuré
+ * processeur ralenti ×4 : 47 ms par image en médiane, 178 ms au pire dixième.
+ * Les colonnes, elles, suivent sans nous (`repeat(12, 1fr)`, du CSS). On relit
+ * tout UNE fois, à `EVT_BARRE_LACHEE`.
+ * ⚠️ Le nom de l'événement et l'attribut sont ceux de `Sidebar.tsx`, recopiés :
+ * la grille ne dépend pas de la barre. `barre.source.test.ts` les tient d'accord.
+ */
+const EVT_BARRE_LACHEE = "sb:barre-lachee";
+const enVeille = () =>
+  typeof document !== "undefined" && document.documentElement.hasAttribute("data-barre-glisse");
 
 /**
  * Courbe ressort physique échantillonnée en easing CSS `linear(...)`.
@@ -140,6 +163,8 @@ interface GridCtx {
   gridRef: React.RefObject<HTMLDivElement | null>;
   overrides: Record<string, PanelSize>;
   draggingId: string | null;
+  /** Personne n'a déplacé ni élargi de panneau : les ancres tiennent (`lib/grille.ts`). */
+  intacte: boolean;
   captureFlip: (excludeId?: string | null) => void;
   saveOverride: (id: string, size: PanelSize) => void;
   clearOverride: (id: string) => void;
@@ -175,6 +200,7 @@ interface PropsConnues {
   id: string;
   title?: string;
   onOpen?: () => void;
+  defaultW?: number;
 }
 
 interface DragState {
@@ -191,11 +217,19 @@ export function ResizableGrid({
   children,
   columns = COLUMNS,
   className = "",
+  ajusterOrdre,
 }: {
   gridId: string;
   children: ReactNode;
   columns?: number;
   className?: string;
+  /**
+   * Une dernière règle sur l'ordre RENDU, après l'ordre enregistré — et jamais
+   * écrite dans les réglages. Aujourd'hui s'en sert au téléphone pour remonter
+   * les habitudes sous les tâches (`ordreAujourdhuiAuTelephone`, `lib/grille.ts`).
+   * ⚠️ Une fonction STABLE (de module) : elle entre dans un `useMemo`.
+   */
+  ajusterOrdre?: (ordre: string[]) => string[];
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [overrides, setOverrides] = useState<Record<string, PanelSize>>({});
@@ -217,8 +251,9 @@ export function ResizableGrid({
   // Hauteur visible : borne haute des panneaux. Suivie au redimensionnement de
   // fenêtre ET à la rotation, sinon une taille enregistrée sur un grand écran
   // ferait "disparaître" le widget après passage sur un écran plus petit.
+  // En pixels LOCAUX (fenêtre ÷ densité) : c'est l'unité des hauteurs de panneau.
   const [viewportH, setViewportH] = useState(() =>
-    typeof window !== "undefined" ? window.innerHeight : 900,
+    typeof window !== "undefined" ? window.innerHeight / zoomFactor() : 900,
   );
   const sizeKey = `layout.${gridId}`;
   const orderKey = `order.${gridId}`;
@@ -236,15 +271,25 @@ export function ResizableGrid({
   const jsxIds = items.map((c) => c.props.id);
   const jsxKey = jsxIds.join("|");
 
-  const effectiveOrder = useMemo(() => {
-    const known = new Set(jsxIds);
-    const kept = order.filter((id) => known.has(id));
-    const seen = new Set(kept);
-    return [...kept, ...jsxIds.filter((id) => !seen.has(id))];
+  // Un identifiant enregistré dont le panneau n'existe plus (widget retiré de
+  // l'app) ne laisse ni trou ni pastille : la règle est dans `lib/grille.ts`.
+  const effectiveOrder = useMemo(
+    () => {
+      const ordre = ordreEffectif(order, jsxIds);
+      return ajusterOrdre ? ajusterOrdre(ordre) : ordre;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, jsxKey]);
+    [order, jsxKey, ajusterOrdre],
+  );
   const effectiveOrderRef = useRef(effectiveOrder);
   effectiveOrderRef.current = effectiveOrder;
+  // Les ancres (deux vraies colonnes) ne valent que pour la disposition du
+  // code : un panneau déplacé ou élargi à la main rend la grille libre.
+  const intacte = dispositionIntacte(
+    effectiveOrder,
+    items.map((c) => ({ id: c.props.id, largeurParDefaut: c.props.defaultW ?? 12 })),
+    overrides,
+  );
 
   // — Positions finales de layout (coords locales grille, sans transform) : hit-test du drag —
   const slotRects = useRef<Map<string, Rect>>(new Map());
@@ -309,6 +354,8 @@ export function ResizableGrid({
 
     // 3. Écriture : inversion (position d'avant) pour les voisins ; le panneau saisi
     //    reprend sa position sous le curseur, recalculée pour son nouveau slot.
+    //    ⚠️ Écrans → locaux : voir `zoomFactor` en tête de `startMove`.
+    const z = zoomFactor();
     const d = dragRef.current;
     for (const el of kids) {
       const id = el.dataset.pid!;
@@ -320,7 +367,7 @@ export function ResizableGrid({
           const py = d.pointer.y - gr.top;
           const dx = px - d.startLocal.x + (d.startSlot.left - d.curSlot.left);
           const dy = py - d.startLocal.y + (d.startSlot.top - d.curSlot.top);
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
         } else {
           el.style.transform = prevDragTransform.get(id) ?? "";
         }
@@ -332,7 +379,7 @@ export function ResizableGrid({
       const dx = f.left - l.left;
       const dy = f.top - l.top;
       if (Math.abs(dx) >= 1 || Math.abs(dy) >= 1) {
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
       }
     }
 
@@ -413,17 +460,28 @@ export function ResizableGrid({
   useLayoutEffect(() => {
     const el = gridRef.current;
     if (!el) return;
-    const read = () => setGridWidth((prev) => (Math.abs(prev - el.clientWidth) > 0.5 ? el.clientWidth : prev));
+    const read = () => {
+      // En veille pendant qu'on tire le bord de la barre latérale (voir
+      // `enVeille`) : relu une fois au lâcher.
+      if (enVeille()) return;
+      setGridWidth((prev) => (Math.abs(prev - el.clientWidth) > 0.5 ? el.clientWidth : prev));
+    };
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener(EVT_BARRE_LACHEE, read);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener(EVT_BARRE_LACHEE, read);
+    };
   }, []);
 
   // Hauteur visible — re-borne les panneaux au redimensionnement / à la rotation.
   useEffect(() => {
-    const onResize = () =>
-      setViewportH((prev) => (Math.abs(prev - window.innerHeight) > 1 ? window.innerHeight : prev));
+    const onResize = () => {
+      const h = window.innerHeight / zoomFactor();
+      setViewportH((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+    };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
     return () => {
@@ -589,7 +647,14 @@ export function ResizableGrid({
         const py = st.pointer.y - gr.top;
         const dx = px - st.startLocal.x + (st.startSlot.left - st.curSlot.left);
         const dy = py - st.startLocal.y + (st.startSlot.top - st.curSlot.top);
-        st.el.style.transform = `translate(${dx}px, ${dy}px)`;
+        // ⚠️ DENSITÉ (2026-10-11). Tout ce qui précède est en pixels ÉCRAN
+        // (`clientX`, `getBoundingClientRect`) ; un `translate` s'écrit en
+        // pixels LOCAUX, que le `zoom` de la densité multiplie ensuite. Sans
+        // cette division, à 110 % le panneau devançait le curseur de 10 % de la
+        // distance parcourue — 20 px au bout de 200 (mesuré, PIEGES § 35.3). Le
+        // hit-test, lui, compare des pixels écran entre eux : il ne change pas.
+        const z = zoomFactor();
+        st.el.style.transform = `translate(${dx / z}px, ${dy / z}px)`;
 
         // Hit-test sur les positions finales (stable pendant les FLIP).
         const now = performance.now();
@@ -678,6 +743,7 @@ export function ResizableGrid({
       gridRef,
       overrides,
       draggingId,
+      intacte,
       captureFlip,
       saveOverride,
       clearOverride,
@@ -693,6 +759,7 @@ export function ResizableGrid({
       viewportH,
       overrides,
       draggingId,
+      intacte,
       captureFlip,
       saveOverride,
       clearOverride,
@@ -705,7 +772,7 @@ export function ResizableGrid({
   );
 
   const byId = new Map(items.map((c) => [c.props.id, c]));
-  const hiddenKnown = hidden.filter((id) => byId.has(id));
+  const hiddenKnown = masquesConnus(hidden, jsxIds);
   const titreDe = (id: string) => byId.get(id)?.props.title ?? prettify(id);
 
   /**
@@ -816,6 +883,7 @@ export function ResizablePanel({
   maxW,
   minH,
   maxH,
+  ancre,
   onOpen,
   children,
 }: {
@@ -833,6 +901,10 @@ export function ResizablePanel({
   minH?: number;
   /** Hauteur maximale (px) : au-delà, la région `.panel-scroll` défile. */
   maxH?: number;
+  /** Bord de la grille auquel le panneau s'accroche tant que la disposition
+      est intacte : « debut » = colonne de gauche, « fin » = colonne de droite.
+      Sans ancre, il se place au premier endroit libre (`lib/grille.ts`). */
+  ancre?: Ancre;
   /** Ouvre la vue complète associée au widget (poignée ↗ discrète au survol). */
   onOpen?: () => void;
   children: ReactNode;
@@ -847,6 +919,7 @@ export function ResizablePanel({
     gridRef,
     overrides,
     draggingId,
+    intacte,
     captureFlip,
     saveOverride,
     clearOverride,
@@ -941,7 +1014,15 @@ export function ResizablePanel({
     // re-agencement, ex. une rangée de boutons qui passe sur 2 lignes).
     // On observe donc aussi les enfants directs de la carte, seuls libres de
     // varier, et on ré-attache l'observation quand la structure change.
-    const ro = new ResizeObserver(measure);
+    // Même veille que la largeur de la grille : pendant qu'on tire le bord de
+    // la barre latérale, la hauteur naturelle n'est pas relue à chaque pixel
+    // (chaque lecture force une mise en page). Le panneau garde sa hauteur ;
+    // s'il faut une ligne de plus, elle arrive au lâcher.
+    const mesurerSiEveille = () => {
+      if (!enVeille()) measure();
+    };
+    const ro = new ResizeObserver(mesurerSiEveille);
+    window.addEventListener(EVT_BARRE_LACHEE, measure);
     const attach = () => {
       ro.disconnect();
       ro.observe(el);
@@ -972,6 +1053,7 @@ export function ResizablePanel({
     return () => {
       ro.disconnect();
       mo.disconnect();
+      window.removeEventListener(EVT_BARRE_LACHEE, measure);
     };
   }, []);
 
@@ -989,7 +1071,11 @@ export function ResizablePanel({
     const startY = e.clientY;
     const startW = w;
     const keepH = pinnedH; // une hauteur épinglée survit à un drag purement horizontal
-    const startPx = wrap.getBoundingClientRect().height;
+    // Pixels ÉCRAN → LOCAUX : la hauteur d'un panneau s'enregistre en locaux, et
+    // le curseur se déplace en pixels écran. À 110 %, tirer de 60 px ajoutait
+    // 88 px au lieu de 55 (mesuré le 2026-10-11).
+    const z = zoomFactor();
+    const startPx = wrap.getBoundingClientRect().height / z;
     let moved = false;
     let lastEv: PointerEvent = e.nativeEvent;
     let applied: PanelSize | null = null;
@@ -1022,7 +1108,7 @@ export function ResizablePanel({
     // — PLAFOND — ~92% de la zone visible, borné par `maxH` s'il est fourni,
     // mais jamais sous le plancher (sinon la contrainte devient contradictoire).
     const ceilOf = () => {
-      const vp = scroller ? scroller.clientHeight : window.innerHeight;
+      const vp = scroller ? scroller.clientHeight : window.innerHeight / z;
       const viewCap = Math.floor((vp * 0.92) / HEIGHT_STEP) * HEIGHT_STEP;
       return Math.max(floorOf(), Math.min(maxH ?? Number.POSITIVE_INFINITY, viewCap));
     };
@@ -1034,7 +1120,7 @@ export function ResizablePanel({
     const compute = (ev: PointerEvent, commit: boolean): PanelSize => {
       const dw = Math.round((ev.clientX - startX) / colStride);
       const nextW = clamp(startW + dw, effMinW, effMaxW);
-      const dy = ev.clientY - startY;
+      const dy = (ev.clientY - startY) / z;
       const floorH = floorOf();
       if (Math.abs(dy) >= 12) {
         const raw = Math.round((startPx + dy) / HEIGHT_STEP) * HEIGHT_STEP;
@@ -1102,6 +1188,9 @@ export function ResizablePanel({
   const effW = clamp(preview?.w ?? w, effMinW, effMaxW);
   const effPinned = preview ? preview.h : pinnedH;
   const isPinned = effPinned !== undefined;
+  const ancreActive =
+    !!ancre &&
+    ancreTient({ intacte, largeur: effW, largeurParDefaut: defaultW, plancher: minCols, colonnes: columns });
 
   // — BORNES DE HAUTEUR AU RENDU (mêmes règles que pendant le drag) —
   // Hauteur naturelle du contenu, arrondie à la grille de base 8px : rythme
@@ -1156,7 +1245,7 @@ export function ResizablePanel({
         ouvrirMenuPanneau(e, id);
       }}
       style={{
-        gridColumn: `span ${effW}`,
+        gridColumn: colonneCss(effW, ancreActive ? (ancre ?? null) : null),
         gridRow: `span ${footprint}`,
         // Place réservée à la barre de poignées au survol (cf. `.rgrid-head`) :
         // 3 poignées (avec ⟲ réinitialiser) si le panneau a été redimensionné,
@@ -1215,14 +1304,16 @@ export function ResizablePanel({
         // OUVERT. Sans le premier, Tab posait le focus sur des boutons à
         // opacité nulle — un focus invisible ; sans le second, la barre
         // disparaissait sous le menu dès que le pointeur y descendait.
-        className={`rgrid-poignees absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 shadow-sm transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden ${
-          menuOuvert ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        className={`rgrid-poignees absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-[11px] border border-border p-0.5 shadow-sm transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 focus-within:[-webkit-backdrop-filter:var(--glass-blur)] focus-within:[backdrop-filter:var(--glass-blur)] group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 group-hover/panel:[-webkit-backdrop-filter:var(--glass-blur)] group-hover/panel:[backdrop-filter:var(--glass-blur)] [@media(pointer:coarse)]:hidden ${
+          menuOuvert
+            ? "pointer-events-auto opacity-100 [-webkit-backdrop-filter:var(--glass-blur)] [backdrop-filter:var(--glass-blur)]"
+            : "pointer-events-none opacity-0"
         }`}
-        style={{
-          background: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          WebkitBackdropFilter: "var(--glass-blur)",
-        }}
+        // ⚠️ Le flou du verre n'est posé QUE quand la barre est révélée (classes
+        // ci-dessus), plus en permanence : à opacité nulle, un `backdrop-filter`
+        // reste un calque que le moteur recompose à chaque image de défilement —
+        // Aujourd'hui en portait une vingtaine, tous invisibles (2026-10-11).
+        style={{ background: "var(--glass-bg)" }}
       >
         {/* Actions — le même menu qu'au clic droit, et la seule porte au CLAVIER
             vers « Avancer / Reculer d'une place » (le ⠿ ne se prend qu'à la souris). */}
@@ -1316,13 +1407,9 @@ export function ResizablePanel({
           // accidentelle. Et le module qu'elle ouvre est à une tape dans la
           // barre d'onglets — c'est un raccourci de curseur, pas une porte
           // unique.
-          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 [@media(pointer:coarse)]:hidden`}
-          style={{
-            bottom: V_SPACE + 6,
-            background: "var(--glass-bg)",
-            backdropFilter: "var(--glass-blur)",
-            WebkitBackdropFilter: "var(--glass-blur)",
-          }}
+          className={`pointer-events-none absolute left-1.5 z-20 rounded-[9px] border border-border p-1 text-text-dim opacity-0 shadow-sm transition-opacity duration-150 hover:text-text focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:[-webkit-backdrop-filter:var(--glass-blur)] focus-visible:[backdrop-filter:var(--glass-blur)] group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 group-hover/panel:[-webkit-backdrop-filter:var(--glass-blur)] group-hover/panel:[backdrop-filter:var(--glass-blur)] [@media(pointer:coarse)]:hidden`}
+          // Même règle que la barre de poignées : le flou seulement une fois révélé.
+          style={{ bottom: V_SPACE + 6, background: "var(--glass-bg)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

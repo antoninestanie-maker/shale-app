@@ -15,6 +15,8 @@ import {
   messageEcritureRefusee,
   type CorpsRafraichi,
 } from "../lib/graineEditeur";
+import { estNoteNeuve, estSansTitre, libelleDeLigne, TITRE_SI_VIDE, type LibelleDeLigne } from "../lib/notesSansTitre";
+import { plainText } from "../lib/richtext";
 import type { AppData, LinkKind, Note } from "../lib/types";
 
 import { t } from "../lib/i18n";
@@ -27,7 +29,18 @@ interface Props {
   refresh: () => Promise<void>;
 }
 
+/** Les liens `[[titre]]` d'un corps de note. */
 const WIKI_RE = /\[\[([^\]]+)\]\]/g;
+
+/**
+ * Les deux onglets de la liste. « Sans titre » (2026-10-12) est un FILTRE, pas
+ * un module ni une entrée de barre latérale, et son compte ne s'affiche nulle
+ * part ailleurs dans l'app. Il remplace « À trier » (2026-10-11, les notes
+ * reliées à rien), qu'Antonin a refusé : « toutes les notes sans titre peuvent
+ * avoir un petit onglet à part ». La règle vit dans `lib/notesSansTitre.ts`.
+ */
+type Onglet = "toutes" | "sans-titre";
+const ONGLETS: readonly Onglet[] = ["toutes", "sans-titre"];
 
 export default function NotesView({ data, refresh }: Props) {
   // ⚠️ Sur téléphone, la vue est un MAÎTRE-DÉTAIL : la liste OU l'éditeur,
@@ -49,9 +62,43 @@ export default function NotesView({ data, refresh }: Props) {
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<number | undefined>(undefined);
   const champTitre = useRef<HTMLInputElement>(null);
+  // La note qu'on vient de DEMANDER (création, ⌘⇧N, palette, raccourci de
+  // l'iPhone) : si elle est neuve, elle reçoit le curseur dans son texte.
+  // ⚠️ Un ÉTAT, pas une ref : lue pendant le rendu, une ref remise à zéro dans
+  // l'effet faisait changer sa dépendance au rendu suivant, et le nettoyage
+  // annulait le focus avant qu'il ait lieu (vu à l'écran sur le bouton « + »).
+  const [aSaisir, setASaisir] = useState<number | null>(null);
   const menu = useMenuContextuel<Note>();
 
-  const list = results ?? data.notes;
+  // ─── L'onglet « Sans titre » ───────────────────────────────────────────────
+  //
+  // Tout se lit dans `data.notes` : pas de requête, pas d'état d'attente. Une
+  // note quitte l'onglet à l'ENREGISTREMENT de son titre (700 ms après la
+  // frappe), quand `refresh()` rend la liste — elle reste ouverte dans
+  // l'éditeur, on ne la retire pas sous les doigts.
+  const [onglet, setOnglet] = useState<Onglet>("toutes");
+  const nbSansTitre = useMemo(
+    () => data.notes.filter((n) => estSansTitre(n.title)).length,
+    [data.notes],
+  );
+  /**
+   * Ce que chaque ligne montre à la place du titre — voir `libelleDeLigne`.
+   *
+   * ⚠️ Mémoïsé sur les notes, pas recalculé à chaque rendu : `plainText` monte
+   * le corps dans le DOM, et la vue se redessine à chaque lettre tapée. Seules
+   * les notes sans titre paient ce prix ; les autres montrent leur titre.
+   * Les résultats de recherche sont d'autres objets que `data.notes`, mais les
+   * mêmes notes : `libelleDe` les retrouve par leur numéro.
+   */
+  const libelles = useMemo(() => {
+    const m = new Map<number, LibelleDeLigne>();
+    for (const n of data.notes) m.set(n.id, libelleDeNote(n));
+    return m;
+  }, [data.notes]);
+  const libelleDe = (n: Note) => libelles.get(n.id) ?? libelleDeNote(n);
+
+  const base = results ?? data.notes;
+  const list = onglet === "sans-titre" ? base.filter((n) => estSansTitre(n.title)) : base;
   const selected = data.notes.find((n) => n.id === selectedId) ?? null;
   const { uid, rafraichir, enregistrerLiens } = useLiens("note", selectedId);
   /**
@@ -88,6 +135,26 @@ export default function NotesView({ data, refresh }: Props) {
     }
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ⭐ Une note NEUVE (sans titre, vide) qu'on vient de demander reçoit le
+  // curseur dans son TEXTE : une note prise à la volée s'écrit tout de suite,
+  // sans clic. Ouvrir une note existante ne prend toujours pas le clavier.
+  // La règle est dans `lib/notesSansTitre.ts` (`estNoteNeuve`).
+  const neuvePrete = aSaisir !== null && selected?.id === aSaisir && estNoteNeuve(selected.title, selected.body);
+  useEffect(() => {
+    if (!neuvePrete) return;
+    // Après la peinture : l'éditeur sème son contenu dans un effet, et au
+    // téléphone la liste doit d'abord céder la place.
+    const r = requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>("[data-corps-note]")?.focus();
+      setASaisir(null);
+    });
+    return () => cancelAnimationFrame(r);
+  }, [neuvePrete]);
+  // Une note demandée qui n'est pas neuve (ou qu'on a quittée) : plus rien à saisir.
+  useEffect(() => {
+    if (aSaisir !== null && selected && (selected.id !== aSaisir || !estNoteNeuve(selected.title, selected.body))) setASaisir(null);
+  }, [aSaisir, selected]);
+
   // recherche (FTS en natif, LIKE en démo)
   useEffect(() => {
     const t = window.setTimeout(async () => {
@@ -100,13 +167,22 @@ export default function NotesView({ data, refresh }: Props) {
   useEffect(() => {
     const onOpen = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
-      if (id) setSelectedId(id);
+      if (id) {
+        setASaisir(id);
+        setSelectedId(id);
+        // La vue était déjà là : la demande déposée est servie, on la retire,
+        // sinon elle rouvrirait cette note au prochain montage.
+        consommerDemande("note");
+      }
     };
     window.addEventListener("sb:open-note", onOpen);
     // ⚠️ Et au MONTAGE : la vue est chargée en `lazy`, elle n'existait pas
     // encore quand l'événement est parti (voir `lib/naviguer.ts`).
     const enAttente = consommerDemande("note");
-    if (enAttente) setSelectedId(enAttente);
+    if (enAttente) {
+      setASaisir(enAttente);
+      setSelectedId(enAttente);
+    }
     return () => window.removeEventListener("sb:open-note", onOpen);
   }, []);
 
@@ -163,7 +239,7 @@ export default function NotesView({ data, refresh }: Props) {
     const p = enAttente.current;
     enAttente.current = null;
     if (!p) return;
-    await updateNote(p.id, p.titre.trim() || "Sans titre", p.corps);
+    await updateNote(p.id, p.titre.trim() || TITRE_SI_VIDE, p.corps);
     // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
     // chaque lettre remplirait l'outbox de synchronisation de centaines
     // d'entrées pour une seule mention tapée.
@@ -212,6 +288,7 @@ export default function NotesView({ data, refresh }: Props) {
     const id = await createNote(t("Nouvelle note"), "");
     await refresh();
     setQuery("");
+    setASaisir(id);
     setSelectedId(id);
   };
 
@@ -227,9 +304,8 @@ export default function NotesView({ data, refresh }: Props) {
   // corps oublié en chemin viderait la note. C'est le § 6.2 de `PIEGES.md`
   // (« renommer une tâche effaçait sa date ») transposé aux notes, et la
   // parade est la même : ne pas écrire ce qu'on ne voulait pas changer.
-  const ouvrirNote = (note: Note) => setSelectedId(note.id);
-
   const renommerNote = (note: Note) => {
+    setASaisir(null); // c'est le TITRE qu'on vient chercher, pas le texte
     setSelectedId(note.id);
     // Après la peinture : le champ n'existe pas encore si la note vient d'être
     // sélectionnée, et sur téléphone la liste doit d'abord céder la place.
@@ -237,6 +313,19 @@ export default function NotesView({ data, refresh }: Props) {
       champTitre.current?.focus();
       champTitre.current?.select();
     });
+  };
+
+  /**
+   * ⭐ Le clic sur une ligne ET « Ouvrir » du menu (règle 18).
+   *
+   * Dans l'onglet « Sans titre », ouvrir une note pose le curseur dans son
+   * titre, le titre d'office sélectionné : on sort de l'onglet en donnant un
+   * titre, et taper le remplace. Ailleurs, ouvrir ne prend pas le clavier —
+   * on vient lire.
+   */
+  const ouvrirNote = (note: Note) => {
+    if (onglet === "sans-titre" && estSansTitre(note.title)) renommerNote(note);
+    else setSelectedId(note.id);
   };
 
   const dupliquerNote = async (note: Note) => {
@@ -249,8 +338,6 @@ export default function NotesView({ data, refresh }: Props) {
     setQuery("");
     setSelectedId(id);
   };
-
-
 
   /**
    * ⭐ Corbeille (migration 027) : la note part dans « Supprimés récemment »,
@@ -331,15 +418,45 @@ export default function NotesView({ data, refresh }: Props) {
             onClick={handleNew}
             data-tip={t("Nouvelle note")}
             data-tip-kbd={kbd("⌘⇧N")}
-            className="pill shrink-0 fill-primary px-3 py-2 text-sm font-bold"
+            className="pill cible-tactile shrink-0 fill-primary px-3 py-2 text-sm font-bold"
           >
             +
           </button>
         </div>
+        {/* ⭐ Le compte n'apparaît que s'il y a une note sans titre, à l'encre
+            discrète : ni pastille, ni rouge — et nulle part ailleurs dans
+            l'app. `flex-wrap` : à deux, les onglets tiennent sur une ligne
+            dans la colonne ; il ne sert que si un libellé s'allonge. */}
+        <div role="tablist" aria-label={t("Notes affichées")} className="mt-3 flex flex-wrap gap-1.5">
+          {ONGLETS.map((o) => (
+            <button
+              key={o}
+              type="button"
+              role="tab"
+              aria-selected={onglet === o}
+              onClick={() => setOnglet(o)}
+              data-tip={o === "sans-titre" ? t("Les notes que tu n'as pas nommées") : undefined}
+              data-tip-sub={o === "sans-titre" ? t("Donne-leur un titre : elles quittent l'onglet.") : undefined}
+              data-tip-attente="longue"
+              className={`pill cible-tactile inline-flex items-center justify-center gap-1.5 border px-3 py-1 text-xs font-medium transition-colors ${
+                onglet === o ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
+              }`}
+            >
+              {o === "toutes" ? t("Toutes les notes") : t("Sans titre")}
+              {o === "sans-titre" && nbSansTitre > 0 && (
+                <span className="font-mono text-[10px] text-text-dim">{nbSansTitre}</span>
+              )}
+            </button>
+          ))}
+        </div>
         <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
           {list.length === 0 && (
             <li className="py-8 text-center text-sm text-text-dim">
-              {query ? t("Aucun résultat.") : t("Aucune note. Crée la première !")}
+              {query
+                ? t("Aucun résultat.")
+                : onglet === "sans-titre"
+                  ? t("Aucune note sans titre.")
+                  : t("Aucune note. Crée la première !")}
             </li>
           )}
           {list.map((note) => (
@@ -363,14 +480,14 @@ export default function NotesView({ data, refresh }: Props) {
             >
               <button
                 type="button"
-                onClick={() => setSelectedId(note.id)}
+                onClick={() => ouvrirNote(note)}
                 className={`min-w-0 flex-1 rounded-[10px] px-3 py-2 text-left transition-colors ${
                   note.id === selectedId
                     ? "bg-surface-2 text-text"
                     : "text-text-dim hover:bg-surface-2/50 hover:text-text"
                 }`}
               >
-                <p className="truncate text-sm font-medium">{note.title}</p>
+                <TitreDeLigne libelle={libelleDe(note)} />
                 <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-text-dim">
                   {note.updated_at.slice(0, 10)}
                   {estExemple(note) && <BadgeExemple />}
@@ -392,7 +509,14 @@ export default function NotesView({ data, refresh }: Props) {
 
       {/* Éditeur */}
       {selected ? (
-        <div className="card flex min-h-0 flex-col p-4 lg:p-5">
+        // ⭐ AU TÉLÉPHONE, LA CARTE DÉFILE ET L'ÉDITEUR GARDE SA HAUTEUR
+        // (2026-10-12). La carte est une colonne de hauteur fixe : l'éditeur
+        // prend ce qui reste. Quand « Lier » ouvre son champ et ses huit
+        // résultats (352 px au doigt), il ne restait RIEN — l'éditeur tombait à
+        // zéro et le panneau recouvrait la dernière rangée de la barre
+        // d'outils. Signalé par le chantier Notes du 11 octobre. Ici l'éditeur
+        // a un plancher, et c'est la carte qui défile quand tout ne tient pas.
+        <div className="card flex min-h-0 flex-col p-4 lg:p-5 telephone:overflow-y-auto telephone:overscroll-contain telephone:[&>.editeur-riche]:min-h-[19rem] telephone:[&>.editeur-riche]:shrink-0 telephone:[&>section]:shrink-0">
           {/* Le retour, sur sa propre ligne : entassé avec le titre, l'état
               d'enregistrement et « supprimer », il ne resterait rien au titre
               sur 370 px. Sur le bureau il n'a pas lieu d'être — la liste est
@@ -401,9 +525,11 @@ export default function NotesView({ data, refresh }: Props) {
             <button
               type="button"
               onClick={() => setSelectedId(null)}
-              className="-ml-1 mb-2 self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
+              // ⚠️ `cible-tactile` : ce bouton n'existe QUE sur téléphone, et il
+              // y faisait 28 px de haut.
+              className="cible-tactile -ml-1 mb-2 inline-flex items-center self-start rounded-md px-1 py-1 text-sm text-text-dim transition-colors hover:text-text"
             >
-              ← {t("Toutes les notes")}
+              ← {onglet === "sans-titre" ? t("Sans titre") : t("Toutes les notes")}
             </button>
           )}
           <div className="flex items-center gap-3">
@@ -414,7 +540,11 @@ export default function NotesView({ data, refresh }: Props) {
                 setTitle(e.target.value);
                 if (selectedId !== null) scheduleSave(selectedId, e.target.value, body);
               }}
-              className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold text-text focus:outline-none"
+              // Un titre effacé laissait un champ invisible : rien ne disait où
+              // écrire. Le même mot que l'onglet, à l'encre discrète.
+              placeholder={t("Sans titre")}
+              aria-label={t("Titre de la note")}
+              className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold text-text placeholder:text-text-dim/60 focus:outline-none"
             />
             <span className="hud-label shrink-0">
               {saved ? t("enregistrée") : "…"}
@@ -424,7 +554,7 @@ export default function NotesView({ data, refresh }: Props) {
               onClick={handleDelete}
               data-tip={t("Supprimer la note")}
               data-tip-sub={t("Elle reste 30 jours dans Supprimés récemment.")}
-              className="shrink-0 rounded-md px-2 py-1 text-xs text-text-dim transition-colors hover:text-red"
+              className="cible-tactile-ligne shrink-0 rounded-md px-2 py-1 text-xs text-text-dim transition-colors hover:text-red"
             >
               {t("supprimer")}
             </button>
@@ -445,7 +575,13 @@ export default function NotesView({ data, refresh }: Props) {
             placeholder={t("Écris ta note. Tape @ pour citer une note, une fiche, un objectif…")}
           />
 
-          {uid && <PanneauLiens kind="note" uid={uid} onOuvrir={ouvrirMention} />}
+          {uid && (
+            <PanneauLiens
+              kind="note"
+              uid={uid}
+              onOuvrir={ouvrirMention}
+            />
+          )}
 
           {(links.out.length > 0 || links.back.length > 0) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -512,5 +648,27 @@ export default function NotesView({ data, refresh }: Props) {
         }
       />
     </div>
+  );
+}
+
+/** Le libellé d'une note, DOM compris : `plainText` ne tourne que si le titre manque. */
+function libelleDeNote(note: Note): LibelleDeLigne {
+  return libelleDeLigne(note.title, estSansTitre(note.title) ? plainText(note.body ?? "") : "", note.body);
+}
+
+/**
+ * La première ligne d'une note dans la liste.
+ *
+ * ⭐ Une note sans titre y montre le début de son texte : dix notes rapides ne
+ * sont plus dix « Nouvelle note ». Le titre garde seul le gras ; un extrait est
+ * en maigre, pour qu'on ne le prenne pas pour un titre qu'on aurait donné.
+ */
+function TitreDeLigne({ libelle }: { libelle: LibelleDeLigne }) {
+  if (libelle.genre === "titre") return <p className="truncate text-sm font-medium">{libelle.texte}</p>;
+  if (libelle.genre === "extrait") return <p className="truncate text-sm">{libelle.texte}</p>;
+  return (
+    <p className="truncate text-sm text-text-dim">
+      {libelle.genre === "vide" ? t("Note vide") : t("Sans titre")}
+    </p>
   );
 }

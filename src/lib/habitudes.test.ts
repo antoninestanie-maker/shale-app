@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { HABIT_COLORS, serieHabitude } from "./habitudes";
+import { addDays, todayStr } from "./logic";
+import { HABIT_COLORS, JOURS_LIGNE_BUREAU, JOURS_LIGNE_TELEPHONE, joursDeLigne, serieHabitude } from "./habitudes";
 import type { HabitCheck } from "./types";
 
 const coche = (habit_id: number, date: string): HabitCheck => ({ id: 0, habit_id, date }) as HabitCheck;
@@ -23,5 +24,41 @@ describe("la série d'une habitude — le calcul du Journal, sorti tel quel", ()
   });
   it("⚠️ les couleurs enregistrées en base ne bougent pas (PIEGES § 21.9)", () => {
     expect(HABIT_COLORS).toEqual(["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"]);
+  });
+});
+
+// ── Les jours d'une ligne d'habitude (2026-10-12, crible du labo, constat 8) ──
+describe("joursDeLigne — ce qu'une ligne du Journal laisse cocher", () => {
+  const today = todayStr();
+
+  it("au bureau : quatorze jours, du plus ancien à aujourd'hui", () => {
+    const jours = joursDeLigne(today, false);
+    expect(jours).toHaveLength(JOURS_LIGNE_BUREAU);
+    expect(jours[0]).toBe(addDays(today, -13));
+    expect(jours[jours.length - 1]).toBe(today);
+  });
+
+  it("⭐ au téléphone : sept jours — quatorze carrés écrasaient le nom de l'habitude", () => {
+    const jours = joursDeLigne(today, true);
+    expect(jours).toHaveLength(JOURS_LIGNE_TELEPHONE);
+    expect(jours[0]).toBe(addDays(today, -6));
+    expect(jours[jours.length - 1]).toBe(today);
+  });
+
+  it("les jours se suivent, sans trou ni doublon — même à cheval sur deux mois", () => {
+    // Le premier du mois courant : la ligne remonte alors dans le mois d'avant.
+    const premier = `${today.slice(0, 8)}01`;
+    for (const telephone of [true, false]) {
+      const jours = joursDeLigne(premier, telephone);
+      for (let i = 1; i < jours.length; i++) expect(jours[i]).toBe(addDays(jours[i - 1], 1));
+      expect(new Set(jours).size).toBe(jours.length);
+    }
+  });
+
+  it("sept cases de 44 pt tiennent dans un téléphone de 390 pt ; quatorze non", () => {
+    // 390 pt, moins 16 pt de marge de page et 16 pt de marge de carte de chaque côté.
+    const largeurUtile = 390 - 2 * 16 - 2 * 16;
+    expect(JOURS_LIGNE_TELEPHONE * 44).toBeLessThanOrEqual(largeurUtile);
+    expect(JOURS_LIGNE_BUREAU * 44).toBeGreaterThan(largeurUtile);
   });
 });

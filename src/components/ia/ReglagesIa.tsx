@@ -112,7 +112,7 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
+      className="fenetre-voile fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-6 py-10"
       onClick={onAnnuler}
       role="dialog"
       aria-modal="true"
@@ -188,7 +188,7 @@ export default function ReglagesIa() {
         <p className="mt-2 text-sm leading-relaxed text-text-dim">{t("L'intelligence artificielle fait partie de Shale Pro.")}</p>
         {COMMERCE_AUTORISE && (
           <>
-            <button type="button" onClick={() => setPro(true)} className="mt-3 text-sm font-medium text-blue hover:underline">
+            <button type="button" onClick={() => setPro(true)} className="cible-tactile-ligne mt-3 text-sm font-medium text-blue hover:underline">
               {t("Découvrir Shale Pro")}
             </button>
             {pro && <UpgradeModal offre="pro" onClose={() => setPro(false)} />}

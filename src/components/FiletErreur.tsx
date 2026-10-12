@@ -59,7 +59,7 @@ export default class FiletErreur extends Component<Props, State> {
       <div
         role="alert"
         className={`flex flex-col items-center justify-center gap-4 px-8 text-center ${
-          app ? "h-screen bg-bg" : "h-full"
+          app ? "h-[calc(100vh*var(--zoom-inv))] bg-bg" : "h-full"
         }`}
       >
         <p className="text-sm text-text">

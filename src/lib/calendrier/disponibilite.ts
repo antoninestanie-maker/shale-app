@@ -22,7 +22,9 @@ import { dureeMinutes, heureDe, minutesDe, type EntreeAgenda } from "./agenda";
  *
  * ⚠️ `screen_min_<jour>` donne un VOLUME, jamais une répartition : il sait
  * qu'on a passé 240 minutes devant l'écran, pas lesquelles. Il ne sert donc pas
- * ici, et c'est délibéré.
+ * ici, et c'est délibéré. (Depuis le 2026-10-11 ce compteur n'est plus tenu du
+ * tout : il nourrissait la jauge « Énergie restante », retirée. Les valeurs
+ * déjà écrites restent dans `settings`, sans lecteur.)
  */
 
 /** Repli quand il n'y a rien à apprendre. Décidé par Antonin : 9 h – 18 h, réglable. */

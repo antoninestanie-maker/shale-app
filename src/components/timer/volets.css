@@ -1,14 +1,29 @@
 /* ==========================================================
-   HORLOGE À VOLETS — le Timer en séance (2026-09-29)
+   HORLOGE À VOLETS — le Timer en séance (2026-09-29, refait le même soir)
    ==========================================================
    Voir `HorlogeVolets.tsx` pour le pourquoi. Ici : la géométrie,
-   les deux thèmes, et la bascule.
+   les deux thèmes, la charnière et la bascule.
 
    ⚠️ Écrit hors de `index.css` exprès : c'est l'affaire d'un seul
    composant, et `index.css` est un fichier chaud partagé par tous
    les chantiers. Les tokens (`--color-*`, `--card-shadow`…) sont
-   ceux du design system, lus tels quels : rien n'est dupliqué, donc
-   le thème clair suit sans une ligne de plus. */
+   ceux du design system, lus tels quels : le thème clair suit sans
+   une ligne de plus.
+
+   ⭐ Seconde version, après le premier essai d'Antonin (« ça manque
+   énormément de fluidité et de petits détails sur le milieu ») :
+   - UN volet d'un seul tenant, à deux faces (le haut de l'ancien
+     chiffre devant, le bas du nouveau derrière), qui tourne de 0 à
+     −180° d'un seul mouvement. La première version enchaînait deux
+     demi-volets de 90° avec deux courbes différentes : l'à-coup au
+     passage de la verticale se voyait à chaque seconde ;
+   - une chute qui accélère, un impact, un petit rebond (10°) ;
+   - des ombres qui suivent la bascule : la face qui se détourne
+     s'assombrit, le haut découvert s'éclaire, le bas reçoit l'ombre
+     portée du volet qui arrive ;
+   - une vraie charnière : une fente entre les deux moitiés, des
+     ombres de part et d'autre, un liseré de lumière sous la fente et
+     les deux pivots sur les bords. */
 
 /* L'Instrument Sans de l'app, dans sa coupe à axe de LARGEUR.
    `index.css` n'importe que l'axe `wght` (30 ko) ; le fichier `wdth`
@@ -50,140 +65,295 @@
 
 .volet {
   --r: calc(var(--volet-h) * 0.075);
-  /* Lumière venue d'en haut, comme `--card-bg` : la moitié haute prend la
-     surface, la basse glisse vers le fond. Valable dans les DEUX thèmes
-     (en clair, le fond est plus sombre que la surface blanche). */
+  /* La fente entre les deux moitiés : c'est elle, et pas un trait peint
+     par-dessus, qui fait la charnière. */
+  --fente: max(1.5px, calc(var(--volet-h) * 0.016));
   --volet-fond-haut: var(--color-surface);
-  --volet-fond-bas: color-mix(in oklab, var(--color-surface) 78%, var(--color-bg));
-  --volet-charniere: color-mix(in oklab, var(--color-bg) 70%, black);
+  --volet-fond-bas: color-mix(in oklab, var(--color-surface) 86%, var(--color-bg));
+  --volet-charniere: color-mix(in oklab, var(--color-bg) 55%, black);
+  /* L'ombre de la bascule : noire sur fond d'encre, grise sur fond clair —
+     tirée du fond du thème, donc sans sélecteur de thème de plus. Un noir pur
+     en thème clair grisait la carte entière (vu le 2026-09-30). */
+  --volet-ombre: color-mix(in oklab, var(--color-bg) 50%, black);
+  --volet-bascule: 620ms;
 
   position: relative;
   flex: none;
   height: var(--volet-h);
   width: calc(var(--volet-h) * 1.08);
   border-radius: var(--r);
+  /* Le fond de la carte n'apparaît QUE dans la fente. */
+  background: var(--volet-charniere);
   box-shadow: var(--card-shadow);
-  perspective: calc(var(--volet-h) * 4);
+  perspective: calc(var(--volet-h) * 3.6);
 
   font-family: "Instrument Sans Etroit", var(--font-display);
   font-stretch: 75%;
   font-weight: 700;
-  font-size: calc(var(--volet-h) * 0.8);
+  /* Des chiffres qui remplissent la carte, comme sur la vidéo. */
+  font-size: calc(var(--volet-h) * 0.96);
   line-height: 1;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
   user-select: none;
 }
 
-/* La charnière : le trait qui coupe la carte en deux, par-dessus tout. */
-.volet::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: max(1px, calc(var(--volet-h) * 0.014));
-  transform: translateY(-50%);
-  background: var(--volet-charniere);
-  z-index: 3;
-  pointer-events: none;
-}
+/* ── Les moitiés ─────────────────────────────────────────────────────────── */
 
-.volet-moitie {
+.volet-moitie,
+.volet-face {
   position: absolute;
   left: 0;
   right: 0;
-  height: 50%;
   overflow: hidden;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+}
+.volet-moitie {
+  height: calc(50% - var(--fente) / 2);
 }
 
 /* Chaque moitié porte le chiffre ENTIER, à la hauteur de la carte, et n'en
-   montre que sa moitié : c'est ce qui fait coïncider les deux au trait. */
-.volet-moitie > span {
+   montre que sa moitié : c'est ce qui fait coïncider les deux à la fente. */
+.volet-moitie > span,
+.volet-face > span {
   position: absolute;
   left: 0;
   right: 0;
-  height: 200%;
+  height: calc(200% + var(--fente));
   display: flex;
   align-items: center;
   justify-content: center;
   transition: opacity var(--dur-slow) var(--ease-out-quint);
 }
 
+/* Haut : la lumière vient d'en haut, la moitié s'assombrit vers la charnière. */
+.volet-haut,
+.volet-face-avant {
+  border-radius: var(--r) var(--r) 0 0;
+  background: linear-gradient(
+    to bottom,
+    var(--volet-fond-haut) 0%,
+    var(--volet-fond-haut) 52%,
+    color-mix(in oklab, var(--volet-fond-haut) 74%, var(--volet-ombre)) 100%
+  );
+}
 .volet-haut {
   top: 0;
-  border-radius: var(--r) var(--r) 0 0;
-  background: var(--volet-fond-haut);
-  transform-origin: 50% 100%;
 }
-.volet-haut > span {
+.volet-haut > span,
+.volet-face-avant > span {
   top: 0;
 }
 
+/* Bas : l'ombre de la moitié haute juste sous la fente, puis la surface ;
+   un liseré de lumière sur l'arête (la tranche du volet). */
+.volet-bas,
+.volet-face-dos {
+  border-radius: 0 0 var(--r) var(--r);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--volet-fond-bas) 62%, var(--volet-ombre)) 0%,
+    var(--volet-fond-bas) 20%,
+    var(--volet-fond-bas) 100%
+  );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text) 7%, transparent);
+}
 .volet-bas {
   bottom: 0;
-  border-radius: 0 0 var(--r) var(--r);
-  background: var(--volet-fond-bas);
-  transform-origin: 50% 0%;
 }
-.volet-bas > span {
+.volet-bas > span,
+.volet-face-dos > span {
   bottom: 0;
 }
 
-/* La bascule. La moitié haute de l'ANCIEN chiffre tombe vers l'avant
-   (0 → −90°, accélérée comme une chute), puis la moitié basse du NOUVEAU
-   se rabat (90° → 0, amortie). 240 + 300 ms : fini bien avant la seconde
-   suivante. `both` tient l'état avant le délai ET après la fin — c'est lui
-   qui remplace `animationend`. */
-.volet-tombe {
-  z-index: 2;
-  animation: volet-tombe 240ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+/* Les deux pivots, sur les bords, dans l'axe de la fente. */
+.volet-pivot {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: max(2px, calc(var(--volet-h) * 0.024));
+  height: calc(var(--volet-h) * 0.12);
+  transform: translateY(-50%);
+  background: linear-gradient(
+    to bottom,
+    var(--volet-charniere),
+    color-mix(in oklab, var(--volet-charniere) 70%, var(--color-text)) 50%,
+    var(--volet-charniere)
+  );
+  pointer-events: none;
 }
-.volet-arrive {
-  z-index: 2;
-  animation: volet-arrive 300ms var(--ease-out-quint) 240ms both;
+.volet-pivot-g {
+  left: 0;
+  border-radius: 0 2px 2px 0;
+}
+.volet-pivot-d {
+  right: 0;
+  border-radius: 2px 0 0 2px;
 }
 
-/* Le volet qui tombe s'assombrit en quittant la lumière. */
-.volet-tombe::before {
-  content: "";
+/* ── La bascule ──────────────────────────────────────────────────────────── */
+
+/* Le volet : la moitié haute, articulée sur le MILIEU de la fente. Monté à
+   chaque changement (sa clé est la nouvelle valeur), il tient sa position
+   finale par `both` — c'est ce qui remplace `animationend`. */
+.volet-clapet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(50% - var(--fente) / 2);
+  z-index: 3;
+  transform-origin: 50% calc(100% + var(--fente) / 2);
+  transform-style: preserve-3d;
+  will-change: transform;
+  animation: volet-clapet var(--volet-bascule) both;
+}
+.volet-face {
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  animation-duration: var(--volet-bascule);
+  animation-fill-mode: both;
+}
+/* ⚠️ `backface-visibility` ne suffit PAS dans WebKit (mesuré le 2026-09-30 :
+   le dos du volet, à l'envers, recouvrait le devant dès le départ, et le bas
+   restait grisé à l'arrivée — alors que Chrome rendait juste). Chaque face
+   est donc AUSSI allumée et éteinte au moment où le volet passe la verticale
+   (46 % de la bascule, voir la courbe plus bas) : à cet instant il est vu par
+   la tranche, le changement ne se voit pas, et il ne dépend plus d'aucun
+   moteur. */
+.volet-face-avant {
+  animation-name: volet-face-avant;
+}
+.volet-face-dos {
+  animation-name: volet-face-dos;
+}
+/* Le dos : retourné une première fois ici, une seconde fois par la bascule
+   du volet — une fois posé en bas, il est à l'endroit. */
+.volet-face-dos {
+  transform: rotateX(180deg);
+}
+
+/* Les ombres : une couche noire par surface, dont seule l'opacité bouge —
+   rien que le compositeur ne sache faire seul. Même durée et mêmes paliers
+   que le volet : la face passe la verticale à 46 %, touche à 60 %. */
+.volet-ombre {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: black;
-  animation: volet-ombre 240ms ease-in both;
+  background: var(--volet-ombre);
+  opacity: 0;
   pointer-events: none;
+  animation-duration: var(--volet-bascule);
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+.volet-ombre-avant {
+  animation-name: volet-ombre-avant;
+}
+.volet-ombre-dos {
+  animation-name: volet-ombre-dos;
+}
+.volet-ombre-revele {
+  animation-name: volet-ombre-revele;
+}
+.volet-ombre-portee {
+  background: linear-gradient(
+    to bottom,
+    var(--volet-ombre),
+    color-mix(in oklab, var(--volet-ombre) 35%, transparent)
+  );
+  animation-name: volet-ombre-portee;
 }
 
-@keyframes volet-tombe {
-  from {
+/* Chute qui accélère → impact à 60 % → rebond de 10° → repos. */
+@keyframes volet-clapet {
+  0% {
     transform: rotateX(0deg);
+    animation-timing-function: cubic-bezier(0.55, 0.05, 0.8, 0.45);
   }
-  to {
-    transform: rotateX(-90deg);
+  60% {
+    transform: rotateX(-180deg);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  }
+  77% {
+    transform: rotateX(-170deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.5);
+  }
+  100% {
+    transform: rotateX(-180deg);
   }
 }
-@keyframes volet-arrive {
-  from {
-    transform: rotateX(90deg);
+@keyframes volet-face-avant {
+  0%,
+  46% {
+    visibility: visible;
   }
-  to {
-    transform: rotateX(0deg);
+  46.01%,
+  100% {
+    visibility: hidden;
   }
 }
-@keyframes volet-ombre {
-  from {
+@keyframes volet-face-dos {
+  0%,
+  46% {
+    visibility: hidden;
+  }
+  46.01%,
+  100% {
+    visibility: visible;
+  }
+}
+@keyframes volet-ombre-avant {
+  0% {
     opacity: 0;
   }
-  to {
-    opacity: 0.35;
+  46%,
+  100% {
+    opacity: 0.55;
+  }
+}
+@keyframes volet-ombre-dos {
+  0%,
+  46% {
+    opacity: 0.6;
+  }
+  60% {
+    opacity: 0;
+  }
+  77% {
+    opacity: 0.08;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes volet-ombre-revele {
+  0% {
+    opacity: 0.5;
+  }
+  46% {
+    opacity: 0.12;
+  }
+  60%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes volet-ombre-portee {
+  0% {
+    opacity: 0;
+  }
+  46% {
+    opacity: 0.22;
+  }
+  60%,
+  100% {
+    opacity: 0.45;
   }
 }
 
 /* En pause, les chiffres s'effacent à moitié : le temps est suspendu, pas perdu. */
-.volets[data-pause] .volet-moitie > span {
+.volets[data-pause] .volet span {
   opacity: 0.42;
 }

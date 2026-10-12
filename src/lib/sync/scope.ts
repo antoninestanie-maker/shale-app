@@ -180,6 +180,14 @@ export const SETTINGS_EXCLUS: readonly string[] = [
   // synchroniser le temps d'écran ferait perdre celui de l'autre machine et
   // afficherait une jauge d'énergie fausse. Mieux vaut une jauge par appareil,
   // juste, qu'une jauge unique, fausse.
+  //
+  // ⚠️ 2026-10-11 — la jauge « Énergie restante » est retirée et plus rien
+  // n'écrit `screen_min_<jour>` dans cette version. L'exclusion RESTE : un
+  // appareil resté en ancienne version en écrit encore une par jour, et les
+  // bases en portent des mois. La lever les ferait toutes partir dans le cloud.
+  // (Les coefficients `energy_start`, `energy_cost_trade`, `energy_cost_hour`,
+  // eux, ont toujours été synchronisés : ils le restent, inertes — voir
+  // `outbox.test.ts`.)
   "screen_min_",
 
   // Secrets. Ils vivent au trousseau macOS depuis le 2026-08-02

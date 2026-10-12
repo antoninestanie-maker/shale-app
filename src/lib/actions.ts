@@ -1,8 +1,9 @@
 // Registre d'actions central : consommé par la palette ⌘K et la quick capture.
 // Une action = un id stable + un exécuteur.
+import { ouvrirParId } from "./naviguer";
 import type { View } from "../components/Sidebar";
 import { FINANCE_ACTIF, isFinanceView } from "./features";
-import { todayStr, todayTasks } from "./logic";
+import { tachesAFaire, todayStr } from "./logic";
 import { createNote, createTask, setMetricValue, setTaskDone } from "./repo";
 import type { AppData } from "./types";
 import type { FocusController } from "./useFocus";
@@ -153,6 +154,19 @@ export const ACTIONS: AppAction[] = [
     run: (ctx) => ctx.navigate("corbeille"),
   },
   {
+    // La barre latérale écoute cet événement (`Sidebar.tsx`, `EVT_BARRE`). Le
+    // nom est recopié ici plutôt qu'importé : `Sidebar` importe déjà ce module
+    // par ses types, et la palette n'a pas à dépendre d'un composant.
+    id: "ui.barre",
+    // L'accueil : le seul module qu'aucun profil de licence ne masque — cette
+    // action n'appartient à aucun module, elle doit rester offerte à tous.
+    module: "today",
+    title: "Réduire ou étendre la barre latérale",
+    category: "navigation",
+    keywords: ["barre", "latérale", "menu", "réduire", "étendre", "icônes", "sidebar", "collapse", "expand"],
+    run: () => emitUI("sb:barre-basculer"),
+  },
+  {
     id: "nav.journal",
     module: "journal",
     title: "Aller au Journal",
@@ -205,13 +219,9 @@ export const ACTIONS: AppAction[] = [
     keywords: ["creer", "rediger", "raccourci", "cmd shift n"],
     run: async (ctx) => {
       const id = await createNote(t("Nouvelle note"), "");
-      ctx.navigate("notes");
       await ctx.refresh();
-      setTimeout(
-        () =>
-          window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
-        60,
-      );
+      // Même porte que ⌘⇧N : la demande est déposée, la vue la trouve à son montage.
+      ouvrirParId("note", id);
     },
   },
   // — Tâches
@@ -264,7 +274,7 @@ export const ACTIONS: AppAction[] = [
   {
     id: "task.complete",
     module: "tasks",
-    title: "Cocher une tâche du jour",
+    title: "Cocher une tâche",
     category: "tâches",
     keywords: ["terminer", "fait", "done", "check"],
     input: { placeholder: "Début du nom de la tâche…" },
@@ -272,13 +282,11 @@ export const ACTIONS: AppAction[] = [
       if (!ctx.data) return t("Données non chargées");
       const q = norm(arg ?? "");
       if (!q) return t("Précise le nom de la tâche");
-      const list = todayTasks(
-        ctx.data.tasks,
-        ctx.data.completions,
-        todayStr(),
-      ).filter((t) => !t.done);
+      // Toute tâche qu'on peut cocher maintenant, datée ou non : la palette
+      // sert à cocher ce qu'on vient de faire, pas seulement ce qui était prévu.
+      const list = tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr());
       const match = list.find((t) => norm(t.label).includes(q));
-      if (!match) return t("Aucune tâche du jour ne correspond à « {q} »", { q: arg ?? "" });
+      if (!match) return t("Aucune tâche à faire ne correspond à « {q} »", { q: arg ?? "" });
       await setTaskDone(match.id, todayStr(), true);
       await ctx.refresh();
       return t("« {label} » cochée ✓", { label: match.label });
@@ -300,11 +308,9 @@ export const ACTIONS: AppAction[] = [
       let taskId: number | null = null;
       let label = arg?.trim() || "Focus";
       if (q && ctx.data) {
-        const match = todayTasks(
-          ctx.data.tasks,
-          ctx.data.completions,
-          todayStr(),
-        ).find((t) => norm(t.label).includes(q));
+        const match = tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr()).find((t) =>
+          norm(t.label).includes(q),
+        );
         if (match) {
           taskId = match.id;
           label = match.label;

@@ -23,6 +23,28 @@ export interface ToastGlobal extends ToastState {
   duree?: number;
 }
 
+/**
+ * ⭐ AU DOIGT, un toast qui porte un geste reste au moins quatorze secondes
+ * (2026-10-12, crible du labo, constat 34).
+ *
+ * Le « Annuler » d'une suppression dure huit secondes (`DUREE_ANNULER`), et
+ * s'arrête de compter tant que la souris est dessus : c'est le survol qui
+ * donne le temps de viser. Au doigt il n'y a pas de survol — le compte à
+ * rebours court pendant qu'on lit, qu'on décide et qu'on amène le pouce. Trois
+ * utilisateurs du crible ont vu le bandeau partir avant de l'avoir touché.
+ *
+ * Seuls les toasts À GESTE sont allongés (« Annuler », « Voir ») : une simple
+ * confirmation ne doit pas occuper le bas d'un téléphone quatorze secondes. La
+ * croix du toast le referme à tout moment.
+ */
+export const DUREE_GESTE_AU_DOIGT = 14_000;
+
+/** Combien de temps un toast reste affiché, en ms — la règle, hors du composant. */
+export function dureeAffichage(o: { duree: number; aUnGeste: boolean; auDoigt: boolean }): number {
+  if (!o.auDoigt || !o.aUnGeste) return o.duree;
+  return Math.max(o.duree, DUREE_GESTE_AU_DOIGT);
+}
+
 let hote: ((t: ToastGlobal) => void) | null = null;
 
 /** Réservé à `App.tsx`. Rend la fonction qui débranche l'hôte. */

@@ -1,7 +1,7 @@
-import { formatNumber, t, tp } from "../i18n";
+import { formatNumber, pick, t } from "../i18n";
 import type { Goal } from "../types";
 import type { Mesure } from "./progression";
-import type { GenreEtape } from "./structure";
+import type { NatureLigne } from "./structure";
 
 /**
  * Ce que la vue Objectifs DIT de chaque ligne — logique pure, sans DOM.
@@ -16,32 +16,53 @@ import type { GenreEtape } from "./structure";
  */
 
 /**
- * ⭐ LE MOT D'UN GENRE D'ÉTAPE — à un seul endroit.
+ * ⭐ LE MOT D'UNE LIGNE — à un seul endroit, et d'après son CONTENU.
  *
- * Le pourquoi du mot « phase » (et l'abandon de « jalon ») est écrit en entier
- * au-dessus de `GenreEtape`, dans `structure.ts`. Ici, on se contente de dire le
- * mot — et de l'expliquer à qui découvre l'écran, parce qu'une étiquette sans
- * explication ne fait que déplacer la question.
+ * « Étape », et « phase » quand elle en contient d'autres (2026-10-12, validé
+ * par Antonin : « je valide »). Le pourquoi est écrit en entier au-dessus de
+ * `natureDe`, dans `structure.ts`. « Sous-objectif » ne s'affiche plus nulle
+ * part ; en anglais, “step” et “phase”, plus de “sub-goal”.
+ *
+ * ⚠️ Chaque clé EN LITTÉRAL dans son `t()` (`i18n:check` ne lit que ça).
  */
-export function nomDeGenre(genre: GenreEtape): string {
-  return genre === "jalon" ? t("Phase") : t("Sous-objectif");
+export function nomDeNature(nature: NatureLigne): string {
+  switch (nature) {
+    case "objectif":
+      return t("Objectif");
+    case "phase":
+      return t("Phase");
+    case "etape":
+      return t("Étape");
+  }
 }
 
-/** La phrase qui dit à quoi sert ce genre-là, sous le champ de saisie. */
-export function aideDeGenre(genre: GenreEtape): string {
-  return genre === "jalon"
-    ? t("Une phase regroupe plusieurs sous-objectifs : « Préparer », « Tester », « Lancer ».")
-    : t("Un sous-objectif est une chose à atteindre, mesurée par ses tâches ou par un nombre.");
+/** Ce qu'est cette ligne, en une phrase — pour une bulle, jamais écrit à demeure. */
+export function aideDeNature(nature: NatureLigne): string {
+  switch (nature) {
+    case "objectif":
+      return t("Ce que tu veux atteindre.");
+    case "phase":
+      return t("Une phase regroupe des étapes.");
+    case "etape":
+      return t("Une étape regroupe des tâches.");
+  }
 }
 
 /**
- * « 3/7 éléments », « 12/50 séances », « saisi à la main » — ou RIEN.
+ * « 1 étape sur 3 · 2 tâches sur 5 », « 12/50 séances », « saisi à la main » —
+ * ou RIEN.
  *
- * ⭐ 2026-09-30 — UNE ÉTAPE VIDE SE TAIT. Chaque ligne vide disait « vide, non
- * comptée », « phase aux étapes vides, non comptée », et le total ajoutait
- * « · 2 vides, non comptées ». Antonin : « vide non compté, ça ne sert à rien ».
- * La barre montre déjà « — » ; le POURQUOI (`pourquoiVide`) passe dans la bulle
- * de cette barre, au survol prolongé.
+ * ⭐ 2026-10-11 — LES COMPTEURS DISENT CE QU'ON VOIT. La ligne écrivait
+ * « 1 étape » au-dessus de trois (seules les étapes garnies étaient comptées)
+ * et « 0/1 élément » pour un objectif à deux étapes et une tâche. Le labo
+ * (constat 3) : « je ne crois plus aux chiffres de l'app ». Elle dit désormais
+ * combien d'étapes il y a et combien sont FAITES, puis la même chose pour ce
+ * qui est rattaché — « tâches » quand ce ne sont que des tâches, « éléments »
+ * dès qu'un événement s'y mêle.
+ *
+ * ⭐ UNE ÉTAPE VIDE SE TAIT TOUJOURS (2026-09-30 : « vide non compté, ça ne
+ * sert à rien ») — mais ce n'est plus la même étape : elle porte une case à
+ * cocher, qui dit tout. Rien à écrire à côté.
  *
  * ⚠️ Une PANNE, elle, reste écrite : une source supprimée ou une cible à zéro
  * ne sont pas des étapes vides, ce sont des réglages cassés qu'on ne devinerait
@@ -58,13 +79,30 @@ export function origineEnClair(m: Mesure): string {
     }
     case "feuille": {
       const morceaux: string[] = [];
-      if (o.etapesComptees > 0) morceaux.push(tp(o.etapesComptees, "{n} étape", "{n} étapes"));
+      // ⚠️ Chaque clé est écrite EN LITTÉRAL dans son `t()` : `i18n:check` ne
+      // lit que les littéraux, une clé passée par une variable lui échappe.
+      if (o.etapesTotal > 0) {
+        const v = { n: nombre(o.etapesFaites), total: nombre(o.etapesTotal) };
+        morceaux.push(auSingulier(o.etapesFaites) ? t("{n} étape sur {total}", v) : t("{n} étapes sur {total}", v));
+      }
       if (o.elementsTotal > 0) {
-        morceaux.push(tp(o.elementsTotal, "{faits}/{n} élément", "{faits}/{n} éléments", { faits: o.elementsFaits }));
+        const v = { n: nombre(o.elementsFaits), total: nombre(o.elementsTotal) };
+        const un = auSingulier(o.elementsFaits);
+        morceaux.push(
+          o.elementsSontDesTaches
+            ? un
+              ? t("{n} tâche sur {total}", v)
+              : t("{n} tâches sur {total}", v)
+            : un
+              ? t("{n} élément sur {total}", v)
+              : t("{n} éléments sur {total}", v),
+        );
       }
       return morceaux.join(" · ");
     }
-    case "vide":
+    case "unite":
+      return "";
+    case "panne":
       switch (o.raison) {
         case "cible-nulle":
           return t("cible à zéro");
@@ -77,26 +115,34 @@ export function origineEnClair(m: Mesure): string {
 }
 
 /**
- * ⭐ Un état vide PARLE : il dit pourquoi l'étape ne compte pas et ce qui la
- * ferait compter. Un cadre gris n'apprend rien (audit UI du 2026-08-28).
+ * « 1 étape sur 3 » : le nom s'accorde avec ce qui est FAIT, pas avec le total.
  *
- * ⚠️ Depuis le 2026-09-30, il parle DANS UNE BULLE (celle de la barre « — »),
- * plus dans un paragraphe sous l'étape dépliée : « ça doit être expliqué dans
- * l'onboarding et pas marqué tout le temps dans l'app » (Antonin).
+ * ⚠️ Pas `tp()` : il met tout au pluriel sauf 1, ce qui est la règle anglaise
+ * (“0 steps out of 3”). En français, zéro s'accorde au singulier (« 0 étape
+ * sur 3 ») — et ce compteur-là s'affiche à zéro sur chaque objectif neuf.
  */
-export function pourquoiVide(m: Mesure, estJalon: boolean): string | null {
-  if (m.origine.type !== "vide") return null;
+function auSingulier(faits: number): boolean {
+  return faits === 1 || (faits === 0 && pick(true, false));
+}
+
+/**
+ * ⭐ Un « — » PARLE : il dit ce qui est cassé et comment le réparer.
+ *
+ * ⚠️ Depuis le 2026-10-11, seul un RÉGLAGE CASSÉ est sans mesure. Une étape
+ * vide ne l'est plus (elle se coche) : les phrases « Cette phase ne compte pas
+ * encore… », « Rien à mesurer pour l'instant… » et « Aucune de ses étapes n'a
+ * encore de quoi se mesurer » sont parties avec la règle qu'elles expliquaient.
+ * La phrase attend dans la bulle du « — », au survol prolongé (2026-09-30).
+ */
+export function pourquoiSansMesure(m: Mesure): string | null {
+  if (m.origine.type !== "panne") return null;
   switch (m.origine.raison) {
     case "cible-nulle":
       return t("Une cible de zéro ne se mesure pas. Donne-lui un nombre à atteindre.");
     case "source-introuvable":
       return t("L’élément qui comptait a été supprimé. Choisis une autre source, ou compte à la main.");
-    case "etapes-vides":
-      return t("Aucune de ses étapes n’a encore de quoi se mesurer.");
-    default:
-      return estJalon
-        ? t("Cette phase ne compte pas encore. Ajoute-lui un sous-objectif, rattache une tâche ou fixe un nombre à atteindre.")
-        : t("Rien à mesurer pour l’instant. Rattache une tâche ou fixe un nombre à atteindre.");
+    case "cycle":
+      return t("Cette étape est rangée sous elle-même. Range-la ailleurs.");
   }
 }
 
@@ -108,15 +154,20 @@ export function pourquoiVide(m: Mesure, estJalon: boolean): string | null {
  * ⭐ Une feuille de route de six phases toutes ouvertes remplit l'écran d'un
  * objectif unique. Donc : la phase EN COURS (la première, dans l'ordre, qui
  * n'est pas terminée) est dépliée ; les terminées et celles d'après sont
- * repliées et se résument en une ligne. Un sous-objectif ne déplie jamais son détail seul.
+ * repliées et se résument en une ligne. Une étape qui n'en contient pas
+ * d'autres ne déplie jamais son détail seule.
+ *
+ * ⚠️ `estPhase` lit le CONTENU (`natureDe`), plus `is_milestone` (2026-10-12) :
+ * une « phase » stockée mais vide est une étape, elle reste repliée.
  */
 export function deplieParDefaut(
-  etape: Pick<Goal, "id" | "is_milestone">,
-  freres: readonly Pick<Goal, "id" | "is_milestone">[],
+  etape: Pick<Goal, "id">,
+  freres: readonly Pick<Goal, "id">[],
   acheve: (id: number) => boolean,
+  estPhase: (id: number) => boolean,
 ): boolean {
-  if (!etape.is_milestone) return false;
-  const enCours = freres.find((f) => f.is_milestone && !acheve(f.id));
+  if (!estPhase(etape.id)) return false;
+  const enCours = freres.find((f) => estPhase(f.id) && !acheve(f.id));
   return enCours?.id === etape.id;
 }
 

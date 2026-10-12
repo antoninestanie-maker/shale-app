@@ -1,6 +1,7 @@
 import type { Carte, TypeNoeud } from "./carte";
 import { serieHabitude } from "./habitudes";
 import { estAcheve, mesurer, uidDeLigne, type SourcesProgression } from "./objectifs/progression";
+import { cleDeNature, natureDe } from "./objectifs/structure";
 import { estRecurrente } from "./taches";
 import type { Goal, Task } from "./types";
 
@@ -19,7 +20,7 @@ import type { Goal, Task } from "./types";
  */
 
 export interface EtatVivant {
-  /** Le type LU DANS LES DONNÉES — une phase redevenue sous-objectif se voit tout de suite. */
+  /** Le type LU DANS LES DONNÉES — une phase qui perd sa dernière étape redevient une étape tout de suite. */
   type: Exclude<TypeNoeud, "idee" | "citation">;
   /** Tâche ponctuelle cochée. */
   fait?: boolean;
@@ -43,9 +44,17 @@ export interface SourcesEtat extends SourcesProgression {
   today: string;
 }
 
-/** Le genre d'un objectif, lu dans l'arborescence réelle. */
-export function genreDObjectif(g: Pick<Goal, "parent_goal_id" | "is_milestone">): "objectif" | "phase" | "sous-objectif" {
-  return g.parent_goal_id == null ? "objectif" : g.is_milestone ? "phase" : "sous-objectif";
+/**
+ * Le genre d'un objectif, lu dans l'arborescence réelle — par ce qu'il
+ * CONTIENT (2026-10-12) : une étape qui en porte d'autres est une phase. La
+ * colonne `is_milestone` n'est plus lue. Rend la CLÉ de la carte, où
+ * « sous-objectif » désigne une étape (`cleDeNature`).
+ */
+export function genreDObjectif(
+  g: Pick<Goal, "id" | "parent_goal_id">,
+  goals: readonly Pick<Goal, "parent_goal_id">[],
+): "objectif" | "phase" | "sous-objectif" {
+  return cleDeNature(natureDe(g, goals));
 }
 
 /**
@@ -87,7 +96,7 @@ export function etatsVivants(carte: Carte, s: SourcesEtat): Map<string, EtatViva
       const m = mesurer(g, s);
       const acheve = estAcheve(m);
       out.set(n.id, {
-        type: genreDObjectif(g),
+        type: genreDObjectif(g, s.goals),
         pct: m.pct,
         acheve,
         echeance: g.deadline,

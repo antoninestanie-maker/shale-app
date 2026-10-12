@@ -21,11 +21,6 @@ import {
 } from "../lib/entree/reglage";
 import { getLang, setLangPref, useLangPref, type LangPref } from "../lib/i18n";
 import {
-  loadMentalLoadConfig,
-  saveMentalLoadConfig,
-  MENTAL_LOAD_DEFAULTS,
-} from "../lib/mentalLoad";
-import {
   fetchPrefs,
   fetchStatus,
   formatWhen,
@@ -44,7 +39,6 @@ import {
   type RulePrefsPatch,
 } from "../lib/notifications";
 import { IconSave } from "../components/icons";
-import { MENTAL_LOAD_CONFIG_EVENT } from "../components/MentalLoadGauge";
 import { useSession } from "../components/auth/AuthGate";
 import { useEntitlements, tierLabel } from "../lib/entitlements";
 import { ACCOUNT_PAGES, AUTH_CONFIGURED, PAGE_CONFIDENTIALITE, STRIPE_ENABLED } from "../lib/auth/config";
@@ -186,11 +180,6 @@ export default function SettingsView() {
   const langPref = useLangPref();
   // Tracker live (workflow "Trader" → dénouement)
   const [tracker, setTracker] = useState<TrackerSettings>(TRACKER_DEFAULTS);
-  // Charge mentale (jauge d'énergie) — coefficients réglables
-  const [energyStart, setEnergyStart] = useState(String(MENTAL_LOAD_DEFAULTS.startEnergy));
-  const [energyTrade, setEnergyTrade] = useState(String(MENTAL_LOAD_DEFAULTS.costPerTrade));
-  const [energyHour, setEnergyHour] = useState(String(MENTAL_LOAD_DEFAULTS.costPerHour));
-  const [energySaved, setEnergySaved] = useState(false);
   // Notifications intelligentes (moteur de règles Rust)
   const [notif, setNotif] = useState<NotifPrefs | null>(null);
   /**
@@ -282,11 +271,6 @@ export default function SettingsView() {
     loadTheme().then(setTheme);
     void chargerAnimationEntree().then(setEntree);
     fetchTrackerSettings().then(setTracker);
-    loadMentalLoadConfig().then((c) => {
-      setEnergyStart(String(c.startEnergy));
-      setEnergyTrade(String(c.costPerTrade));
-      setEnergyHour(String(c.costPerHour));
-    });
     fetchPrefs().then(setNotif).catch(() => {});
     fetchStatus().then(setNotifStatus).catch(() => {});
     planNotifications(afficheMarche).then(setPlan).catch(() => {});
@@ -374,21 +358,6 @@ export default function SettingsView() {
     window.dispatchEvent(new CustomEvent("sb:tracker-config"));
   };
 
-  const saveEnergyConfig = async () => {
-    const n = (s: string, f: number) => {
-      const v = Number(s);
-      return Number.isFinite(v) && v >= 0 ? v : f;
-    };
-    await saveMentalLoadConfig({
-      startEnergy: Math.max(1, n(energyStart, MENTAL_LOAD_DEFAULTS.startEnergy)),
-      costPerTrade: n(energyTrade, MENTAL_LOAD_DEFAULTS.costPerTrade),
-      costPerHour: n(energyHour, MENTAL_LOAD_DEFAULTS.costPerHour),
-    });
-    window.dispatchEvent(new CustomEvent(MENTAL_LOAD_CONFIG_EVENT));
-    setEnergySaved(true);
-    window.setTimeout(() => setEnergySaved(false), 2500);
-  };
-
   /**
    * Bascule de langue. En mode démo, le jeu de données factices est construit
    * au CHARGEMENT du module (`lib/demo.ts`) : ses libellés resteraient dans
@@ -424,7 +393,7 @@ export default function SettingsView() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-3xl p-8 telephone:p-4">
       <h1 className="text-3xl text-text">{t("Réglages")}</h1>
 
       <ResizableGrid gridId="settings" className="mt-6">
@@ -1146,64 +1115,6 @@ export default function SettingsView() {
             {accueilMsg ||
               t("Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.")}
           </p>
-        </div>
-      </section>
-      </ResizablePanel>
-
-      <ResizablePanel id="settings-energy" defaultW={12}>
-      <section className="card p-5">
-        <h2 className="hud-label">{t("charge mentale — énergie restante")}</h2>
-        <p className="mt-2 text-sm text-text-dim">
-          {afficheTracker
-            ? t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse selon les trades pris et le temps passé devant l'écran aujourd'hui. Ajuste l'impact de chaque facteur.")
-            : t("La jauge « énergie restante » du tableau de bord part de l'énergie de départ et baisse avec le temps passé devant l'écran aujourd'hui. Règle son point de départ et son rythme.")}
-        </p>
-        <div className="auto-tiles-lg mt-4 gap-3">
-          <label className="block">
-            <span className="hud-label">{t("énergie de départ")}</span>
-            <input
-              type="number"
-              min={1}
-              value={energyStart}
-              onChange={(e) => setEnergyStart(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
-            />
-          </label>
-          {/* Le coût d'un trade ne se règle que là où les trades se saisissent :
-              sans le module Trading, la jauge ne les compte pas (MentalLoadGauge). */}
-          {afficheTracker && (
-          <label className="block">
-            <span className="hud-label">{t("coût par trade")}</span>
-            <input
-              type="number"
-              min={0}
-              value={energyTrade}
-              onChange={(e) => setEnergyTrade(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
-            />
-          </label>
-          )}
-          <label className="block">
-            <span className="hud-label">{t("coût / heure d'écran")}</span>
-            <input
-              type="number"
-              min={0}
-              value={energyHour}
-              onChange={(e) => setEnergyHour(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
-            />
-          </label>
-        </div>
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={saveEnergyConfig}
-            data-tip={t("Enregistrer")}
-            data-tip-sub={t("Recalcule immédiatement la jauge d’énergie du tableau de bord.")}
-            className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
-          >
-            {energySaved ? t("Enregistré") : t("Enregistrer")}
-          </button>
         </div>
       </section>
       </ResizablePanel>

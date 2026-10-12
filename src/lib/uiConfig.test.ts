@@ -73,3 +73,52 @@ describe("mergeConfig — le widget `week` devient `habitudes`", () => {
     expect(c.dashLeft.find((w) => w.id === "habitudes")?.visible).toBe(false);
   });
 });
+
+// 2026-10-11 — la jauge « Énergie restante » (`energy`) est retirée pour tout
+// le monde. Une disposition enregistrée avant la porte encore dans `ui.config`.
+describe("mergeConfig — le widget `energy` n'existe plus", () => {
+  const ids = (l: { id: string }[]) => l.map((w) => w.id);
+
+  it("n'est plus dans la disposition par défaut", () => {
+    const d = defaultUiConfig();
+    expect(ids([...d.dashTop, ...d.dashLeft, ...d.dashRight])).not.toContain("energy");
+  });
+
+  it("⭐ une disposition enregistrée qui le porte se charge sans lui, où qu'il soit", () => {
+    const c = mergeConfig({
+      dashTop: [
+        { id: "energy", visible: true },
+        { id: "perf", visible: true },
+      ],
+      dashLeft: [
+        { id: "discipline", visible: true },
+        { id: "energy", visible: true },
+        { id: "timer", visible: true },
+      ],
+      dashRight: [
+        { id: "tasks", visible: true },
+        { id: "energy", visible: false },
+      ],
+    });
+    expect(ids([...c.dashTop, ...c.dashLeft, ...c.dashRight])).not.toContain("energy");
+  });
+
+  it("ses voisins gardent leur ordre et leur visibilité : pas de trou, rien de rallumé", () => {
+    const c = mergeConfig({
+      dashLeft: [
+        { id: "quicklinks", visible: true },
+        { id: "energy", visible: true },
+        { id: "timer", visible: false },
+        { id: "discipline", visible: true },
+      ],
+    });
+    expect(ids(c.dashLeft).slice(0, 3)).toEqual(["quicklinks", "timer", "discipline"]);
+    expect(c.dashLeft.find((w) => w.id === "timer")?.visible).toBe(false);
+  });
+
+  it("aucun widget n'est rendu deux fois ni perdu en route", () => {
+    const d = defaultUiConfig();
+    const c = mergeConfig({ dashLeft: [{ id: "energy", visible: true }] });
+    expect(ids(c.dashLeft).sort()).toEqual(ids(d.dashLeft).sort());
+  });
+});

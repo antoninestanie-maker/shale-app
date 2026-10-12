@@ -61,7 +61,14 @@ export default function QuickLinks({ links, refresh }: Props) {
 
   return (
     <div className="panel-col panel-grow">
-      <div className="panel-scroll flex flex-wrap content-start gap-2 pr-0.5 pt-1">
+      {/* ⚠️ PAS de `.panel-scroll` ici (2026-10-11). Cette classe dit au moteur
+          de grille « ce widget sait défiler, il peut rester plus court que son
+          contenu » : une hauteur épinglée un jour à 144 px restait donc à 144
+          quand un lien de plus faisait passer « + lien » à la ligne — bouton
+          coupé en deux, barre de défilement dans la carte (PIEGES § 35.1).
+          Des pastilles ne sont pas une liste : la carte prend toujours leur
+          hauteur, et le plancher de la grille redevient le contenu. */}
+      <div className="flex flex-wrap content-start gap-2 pr-0.5 pt-1">
         {links.map((link) => (
           <span key={link.id} className="group/link relative" onContextMenu={(e) => menu.ouvrirAuPoint(e, link.id)}>
             <button
@@ -76,7 +83,11 @@ export default function QuickLinks({ links, refresh }: Props) {
             <button
               type="button"
               onClick={() => handleDelete(link.id)}
-              className={`absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-opacity ${
+              // ⚠️ Au doigt, la croix reste un dessin de 16 px (elle déborde du
+              // coin de la pastille) mais sa ZONE de toucher en fait 44 : un
+              // pseudo-élément invisible l'élargit. Supprimer demande un second
+              // toucher (« Confirmer ») : une zone large ne coûte rien.
+              className={`absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-opacity [@media(pointer:coarse)]:before:absolute [@media(pointer:coarse)]:before:-inset-3.5 [@media(pointer:coarse)]:before:content-[''] ${
                 deletingId === link.id
                   ? "bg-red text-white opacity-100"
                   : "bg-surface-2 text-text-dim opacity-0 focus-visible:opacity-100 group-hover/link:opacity-100 [@media(pointer:coarse)]:opacity-100"
@@ -105,7 +116,9 @@ export default function QuickLinks({ links, refresh }: Props) {
           </button>
         ) : (
           <form
-            className="flex w-full items-center gap-2"
+            // Se replie : à 4 colonnes, le champ URL tombait à ~75 px à côté
+            // d'un « Nom » figé à 112. Les bases flex décident du repli.
+            className="flex w-full flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               submit();
@@ -116,13 +129,13 @@ export default function QuickLinks({ links, refresh }: Props) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={t("Nom")}
-              className="w-28 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="min-w-0 flex-1 basis-[6rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
             />
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="URL"
-              className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="min-w-0 flex-[2] basis-[9rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
             />
             <button
               type="submit"

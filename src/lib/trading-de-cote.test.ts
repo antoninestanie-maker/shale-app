@@ -5,10 +5,7 @@ import { presenceModule } from "./boutique";
 import { demo } from "./demo";
 import { entitlementsOf } from "./entitlements";
 import { TRADING_ACTIF } from "./features";
-import { computeMentalLoad, MENTAL_LOAD_DEFAULTS } from "./mentalLoad";
 import { typePropose, TYPE_LIVRE_TRADING } from "./objets";
-import { todayStr } from "./logic";
-import type { AppData, Trade } from "./types";
 
 /**
  * Le trading MIS DE CÔTÉ (décision d'Antonin, 2026-09-30) — `TRADING_ACTIF` dans
@@ -94,21 +91,10 @@ describe("typePropose — le type livré « Setup de trading » (migration 020)"
   });
 });
 
-describe("la jauge d'énergie ne compte plus les trades", () => {
-  const trade = { mode: "live", date: todayStr() } as Trade;
-  const data = { trades: [trade, trade] } as unknown as AppData;
-
-  it("sans le module Trading, deux trades du jour ne coûtent rien", () => {
-    const l = computeMentalLoad(data, 0, MENTAL_LOAD_DEFAULTS, false);
-    expect(l.trades).toBe(0);
-    expect(l.drainTrades).toBe(0);
-    expect(l.energy).toBe(100);
-  });
-
-  it("avec, ils pèsent comme avant", () => {
-    expect(computeMentalLoad(data, 0, MENTAL_LOAD_DEFAULTS, true).trades).toBe(2);
-  });
-});
+// ⚠️ 2026-10-11 — il y avait ici « la jauge d'énergie ne compte plus les
+// trades ». La jauge elle-même est retirée pour tout le monde (voir
+// `uiConfig.ts`, `mergeList`) : il n'y a plus rien à garder de ce côté, et rien
+// à rallumer avec `TRADING_ACTIF`.
 
 describe("filet : le jeu de démonstration ne parle plus de trading", () => {
   /**

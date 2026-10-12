@@ -3,8 +3,24 @@
 // vidéo d'Antonin : le genre de séance en haut à gauche, les volets au centre,
 // une pastille « Pause » dessous — et les gestes de fenêtre, discrets, en haut
 // à droite (toujours visibles : rien n'apparaît au seul survol, AMELIORATIONS-UI § B).
-import { useEffect, type ReactNode } from "react";
+//
+// ⭐ Mode ÉPURÉ (2026-09-29, demande d'Antonin après le premier essai) : « seul
+// le timer est affiché — pas de bouton pause, rien ; on sort avec Échap et
+// c'est tout, là on retrouve les boutons ». Donc ni en-tête, ni jauge, ni
+// bouton, et le curseur s'efface quand la souris ne bouge plus. Espace reste
+// une pause silencieuse (le chiffre s'efface à moitié). Sans clavier, un
+// toucher fait office d'Échap ; à la souris, un double-clic aussi.
+//
+// ⚠️ Depuis le 2026-10-12, ce mode ne sert PLUS qu'au vrai plein écran de la
+// FENÊTRE SÉPARÉE (`TimerPane`, bureau seulement : on y entre par un bouton
+// nommé, dont l'info-bulle écrit « Échap pour en sortir »). Le plein écran de
+// l'app, lui, montre ses commandes : la seconde passe du labo y a vu six
+// utilisateurs sur douze enfermés, au bureau, au téléphone et sur tablette —
+// les seules sorties (Échap, double toucher) n'étaient écrites nulle part.
+import { useEffect, useState, type ReactNode } from "react";
 import { t } from "../../lib/i18n";
+import { IS_IOS } from "../../lib/platform";
+import { gesteAuClavier, nomDeLaSeance } from "../../lib/timerEcran";
 import { afficheLesHeures } from "../../lib/timerFenetre";
 import { IconPause, IconPlay, IconStop } from "../icons";
 import HorlogeVolets from "./HorlogeVolets";
@@ -29,6 +45,38 @@ interface Props {
   onEchap?: () => void;
   /** Un fond qui sert de poignée pour déplacer la fenêtre (fenêtre séparée). */
   poignee?: boolean;
+  /** Plein écran de la fenêtre séparée : l'horloge seule. */
+  epure?: boolean;
+  /**
+   * ⭐ Le clavier APPARTIENT à cet écran tant qu'il est ouvert (le plein écran
+   * de l'app) : aucune touche ne descend vers ce qui est derrière — ni ⌘K, ni
+   * l'Échap d'une vue, ni un raccourci de page. Pas dans la fenêtre séparée,
+   * qui a ses propres touches (F, ⌘W) au-dessus de cet écran.
+   */
+  clavierExclusif?: boolean;
+}
+
+/** Vrai quand la souris n'a pas bougé depuis `delaiMs` — pour effacer le curseur. */
+function useSourisImmobile(actif: boolean, delaiMs = 2000): boolean {
+  const [immobile, setImmobile] = useState(false);
+  useEffect(() => {
+    if (!actif) {
+      setImmobile(false);
+      return;
+    }
+    let id = window.setTimeout(() => setImmobile(true), delaiMs);
+    const surMouvement = () => {
+      setImmobile(false);
+      window.clearTimeout(id);
+      id = window.setTimeout(() => setImmobile(true), delaiMs);
+    };
+    window.addEventListener("mousemove", surMouvement);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("mousemove", surMouvement);
+    };
+  }, [actif, delaiMs]);
+  return immobile;
 }
 
 /** Espace ne doit pas basculer deux fois quand un bouton a le focus. */
@@ -47,26 +95,57 @@ export default function EcranTimer({
   retraitPastilles = false,
   onEchap,
   poignee = false,
+  epure = false,
+  clavierExclusif = false,
 }: Props) {
+  const curseurCache = useSourisImmobile(epure);
   const estPause = seance.kind === "break";
   const totalSec = seance.plannedMin * 60;
   const progression = totalSec > 0 ? Math.min(1, Math.max(0, 1 - restantSec / totalSec)) : 0;
 
-  // Clavier : Espace met en pause / reprend, Échap sort.
+  // Clavier : Espace met en pause / reprend, Échap sort (`lib/timerEcran.ts`).
+  //
+  // ⚠️ En mode exclusif, l'écoute est posée sur `document` et ARRÊTE la touche
+  // là : les raccourcis de l'app écoutent `window`, un cran plus haut, et ne la
+  // voient donc jamais. Pas en capture sur `window` : l'info-bulle, qui se
+  // referme à la frappe, écoute `document` en capture et serait coupée aussi.
+  // L'effet natif de la touche (Tab, Espace sur un bouton) n'est pas touché.
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === " " && !cibleInteractive(e.target)) {
+      const geste = gesteAuClavier(e, cibleInteractive(e.target), !!onEchap);
+      if (geste === "pause") {
         e.preventDefault();
         onBasculerPause();
-      } else if (e.key === "Escape" && onEchap) {
+      } else if (geste === "sortir") {
         e.preventDefault();
-        onEchap();
+        onEchap?.();
       }
+      if (clavierExclusif) e.stopPropagation();
     };
-    window.addEventListener("keydown", surTouche);
-    return () => window.removeEventListener("keydown", surTouche);
-  }, [onBasculerPause, onEchap]);
+    const ou: Document | Window = clavierExclusif ? document : window;
+    ou.addEventListener("keydown", surTouche as EventListener);
+    return () => ou.removeEventListener("keydown", surTouche as EventListener);
+  }, [onBasculerPause, onEchap, clavierExclusif]);
+
+  const nom = nomDeLaSeance(seance, t("Session libre"));
+
+  if (epure) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center px-[4vw]"
+        style={{ cursor: curseurCache ? "none" : undefined }}
+        onDoubleClick={onEchap}
+        onClick={IS_IOS ? onEchap : undefined}
+      >
+        <HorlogeVolets
+          restantSec={restantSec}
+          avecHeures={afficheLesHeures(seance.plannedMin)}
+          enPause={enPause}
+          hauteurMax="min(calc(100vh - 6rem), 46rem)"
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -81,9 +160,8 @@ export default function EcranTimer({
             {estPause ? t("pause") : t("focus session")}
             {enPause ? ` — ${t("en pause")}` : ""}
           </p>
-          {!estPause && (
-            <p className="mt-1 max-w-[42ch] truncate text-sm text-text-dim">{seance.label}</p>
-          )}
+          {/* Sur quoi on travaille : le nom de la tâche, ou « Session libre ». */}
+          {nom && <p className="mt-1 max-w-[42ch] truncate text-sm text-text">{nom}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">{actions}</div>
       </header>
@@ -96,7 +174,7 @@ export default function EcranTimer({
           // La hauteur de fenêtre MOINS l'en-tête, la jauge et les boutons
           // (≈ 15rem) : dans une petite fenêtre séparée (560 × 360), 56vh
           // laissait passer les boutons sous le bord. Plancher à 4rem.
-          hauteurMax="max(4rem, min(calc(100vh - 15rem), 36rem))"
+          hauteurMax="max(4rem, min(calc(100vh * var(--zoom-inv) - 15rem), 36rem))"
           className="max-w-[1100px]"
         />
 
@@ -138,15 +216,17 @@ export default function EcranTimer({
               </>
             )}
           </button>
+          {/* « Terminer » en toutes lettres (2026-10-12) : un carré seul ne
+              disait pas ce qu'il arrêtait, et au doigt aucune info-bulle ne le
+              nomme. Sobre : c'est « Pause » l'action principale de cet écran. */}
           <button
             type="button"
             onClick={onTerminer}
-            aria-label={t("Terminer la session")}
             data-tip={t("Terminer la session")}
             data-tip-sub={t("Clôt et enregistre le temps concentré effectué.")}
-            className="pill inline-flex h-10 w-10 items-center justify-center border border-border text-text-dim hover:border-red/40 hover:text-red"
+            className="pill inline-flex items-center justify-center gap-2 border border-border px-5 py-2.5 text-sm font-medium text-text-dim hover:border-red/40 hover:text-red"
           >
-            <IconStop className="h-3.5 w-3.5" />
+            <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
           </button>
         </div>
       </main>

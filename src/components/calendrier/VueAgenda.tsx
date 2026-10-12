@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { dansLeBandeau, joursEntre, type EntreeAgenda } from "../../lib/calendrier/agenda";
 import { toDateStr } from "../../lib/logic";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
+import { IconSablier } from "../icons";
 
 /**
  * La vue AGENDA — le bon défaut sur téléphone.
@@ -112,7 +113,7 @@ export default function VueAgenda({
                         opacity: e.faite ? 0.5 : 1,
                       }}
                     >
-                      {e.enRetard && "⌛ "}
+                      {e.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
                       {e.titre}
                     </span>
                   </button>

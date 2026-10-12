@@ -10,6 +10,7 @@
 //   `destination-out` qui trouerait le fond ;
 // - les coordonnées sont normalisées sur une feuille logique fixe
 //   (1440 × 900) : le rendu est net quelle que soit la taille d'affichage.
+import { rendreLeResteInerte } from "../lib/calque";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconCheck, IconReset, IconX } from "./icons";
 
@@ -187,11 +188,9 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
    * La feuille est portée sur `document.body`, donc `#root` — l'application
    * entière, lecteur compris — en est bien un frère, jamais un ancêtre.
    */
-  useEffect(() => {
-    const app = document.getElementById("root");
-    app?.setAttribute("inert", "");
-    return () => app?.removeAttribute("inert");
-  }, []);
+  // Par `rendreLeResteInerte` (`lib/calque.ts`), qui COMPTE : un second calque
+  // ouvert par-dessus (l'horloge du minuteur) ne rallume pas l'app en se fermant.
+  useEffect(() => rendreLeResteInerte(), []);
 
   // Raccourcis : ⌘Z annule, Échap ferme.
   //
