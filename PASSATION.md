@@ -2489,3 +2489,7 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 ⚠️ **À savoir avant ce geste.** Vider envoie 76 pierres tombales d'objectifs et 50 de tâches. Un appareil resté sur une version D'AVANT ce correctif, et qui a ces objets, verrait sa synchronisation s'arrêter dessus (PIEGES § 42.2). L'iPhone et le simulateur doivent recevoir ce correctif avant de resynchroniser.
 
 **Ligne de base** (après recalage sur `d420ab4`) : `tsc`, `test:types`, `i18n:check` (2807), `i18n:durs` verts. vitest : 2525 verts, 3 ignorés, **1 échec** — `finance/facturation/demo.test.ts`, « jour par jour », délai de 60 s dépassé. Le même test dépasse son délai sur le tronc SANS ce chantier, rejoué dans la même minute (machine à 70 puis 110 de charge : rendus Blender et ffmpeg d'une autre session). Ce n'est pas ce chantier ; à rejouer machine calme.
+
+**Installé le 2026-10-13 à 01:16**, par le build groupé de la session [correctifs] (carnet, 01:17) : `mobile-ios` `7727898`, 01:10 → 01:16, code 0. Il porte aussi le correctif de netteté de [texte-net]. Témoin dans `dist/assets` : « n'a pas pu être supprimé » (3). Relu par cette session : sha256 du binaire installé `8ea6fc7989f8…`, base en version 30, corbeille INCHANGÉE (76 objectifs, 50 tâches, 1 habitude, 1 événement) — elle attend le geste d'Antonin, personne ne l'a vidée à sa place.
+
+⚠️ **Pas vu dans l'app installée** : ni « Vider », ni la suppression d'une ligne. Le premier essai réel sera celui d'Antonin.
