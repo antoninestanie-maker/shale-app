@@ -982,16 +982,35 @@
 
   /* Anti-superposition des poignées de grille.
      ================================================
-     Au survol d'un panneau, la barre de poignées (⠿ déplacer · ✕ masquer,
-     + ⟲ réinitialiser si redimensionné) apparaît en haut à droite. Un en-tête
-     de widget qui porte SES PROPRES contrôles à cet endroit (stepper, boutons
-     de période, formulaire, chip…) se ferait recouvrir — et le bouton le plus
-     à droite deviendrait incliquable. La classe `.rgrid-head`, posée sur la
-     rangée d'en-tête concernée, réserve alors juste la place de la barre :
-     le cluster de droite glisse vers la gauche le temps du survol.
-     Au repos : padding nul, donc AUCUN changement de mise en page ni d'aspect.
-     La largeur réservée (`--rgrid-handle-w`) est fournie par `ResizablePanel`
-     selon que le panneau montre 2 poignées ou 3 (avec réinitialiser). */
+     Au survol d'un panneau, la barre de poignées (⋯ actions · ⠿ déplacer ·
+     ✕ masquer, + ⟲ réinitialiser si redimensionné) apparaît en haut à droite.
+     Un en-tête de widget qui porte SES PROPRES contrôles à cet endroit
+     (stepper, boutons de période, formulaire, chip…) se ferait recouvrir — et
+     le bouton le plus à droite deviendrait incliquable. La classe
+     `.rgrid-head`, posée sur la rangée d'en-tête concernée, réserve alors
+     juste la place de la barre : le cluster de droite glisse vers la gauche
+     le temps du survol.
+
+     ⭐ SURVOLER UN PANNEAU NE CHANGE JAMAIS SA HAUTEUR (2026-10-12).
+     Cette réserve est un `padding`, et l'en-tête sait se replier : quand il
+     n'avait pas la place de s'écarter, il passait sur deux lignes AU SURVOL,
+     la carte grandissait et toute la grille se réagençait sous la souris
+     (Performance et Timer, vu par Antonin dans l'app installée).
+     `ResizablePanel` MESURE donc chaque en-tête (`components/grid/entetes.ts`,
+     règle dans `lib/grille.ts`) et pose sur lui :
+       • `--rgrid-reserve` — la largeur que la barre recouvre VRAIMENT, d'après
+         leurs rectangles ; 0 px quand la barre ne passe pas sur cet en-tête
+         (un second en-tête plus bas dans la carte) : rien ne bouge alors ;
+       • `data-rgrid-serre` — quand la réserve le ferait grandir. Elle devient
+         PERMANENTE : l'en-tête est replié au repos comme il l'aurait été au
+         survol, et le survol n'y change plus rien.
+     Au repos, pour un en-tête qui a la place : padding nul, donc aucun
+     changement de mise en page ni d'aspect.
+     `--rgrid-handle-w` (posée par `ResizablePanel`) n'est plus que le repli,
+     le temps de la première mesure.
+
+     ⚠️ Ne pas remettre la réserve « au survol seulement » sur un en-tête
+     serré, même pour gagner une ligne au repos : c'est exactement le défaut. */
   .rgrid-head {
     transition: padding-right var(--dur-base) var(--ease-out-quint);
     /* Fenêtre étroite / split-screen : la rangée d'en-tête doit pouvoir se
@@ -1009,15 +1028,24 @@
   /* La barre révélée au CLAVIER ou menu ouvert : même réservation, sinon elle
      recouvre les contrôles de l'en-tête sans survol pour les écarter. */
   .group\/panel:has(> .rgrid-poignees:focus-within) .rgrid-head,
-  .group\/panel[data-menu-ouvert] .rgrid-head {
-    padding-right: var(--rgrid-handle-w, 5.25rem);
+  .group\/panel[data-menu-ouvert] .rgrid-head,
+  /* L'en-tête serré : la même réserve, tout le temps. */
+  .rgrid-head[data-rgrid-serre] {
+    padding-right: var(--rgrid-reserve, var(--rgrid-handle-w, 5.25rem));
+  }
+  /* Serré : rien à animer, la réserve ne va et ne vient plus. */
+  .rgrid-head[data-rgrid-serre] {
+    transition: none;
   }
   /* ⚠️ Au doigt, les poignées sont masquées (`ResizableGrid`) : réserver leur
      place décalerait l'en-tête pour du vide. Et iOS simulant un survol collant,
      ce décalage se déclencherait à la première tape sur le panneau — une
-     mise en page qui bouge quand on touche, sans que rien n'apparaisse. */
+     mise en page qui bouge quand on touche, sans que rien n'apparaisse.
+     (La jauge y mesure une barre absente : réserve 0, jamais serré. Cette
+     règle tient le temps de la première mesure.) */
   @media (pointer: coarse) {
-    .group\/panel:hover .rgrid-head {
+    .group\/panel:hover .rgrid-head,
+    .rgrid-head[data-rgrid-serre] {
       padding-right: 0;
     }
   }

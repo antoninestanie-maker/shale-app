@@ -463,9 +463,6 @@ export const EN: Record<string, string> = {
   "## Ce qui a marché": "## What worked",
   "## À améliorer": "## What to improve",
   "## Priorités de la semaine prochaine": "## Priorities for next week",
-  "Historique des streaks": "Streak history",
-  "Pas encore de streak — vise ≥80% de tes tâches un jour donné.":
-    "No streak yet — aim for ≥80% of your tasks on a given day.",
   "L'historique se construit au fil des jours — reviens demain.":
     "History builds up day by day — come back tomorrow.",
 
@@ -567,8 +564,6 @@ export const EN: Record<string, string> = {
     "A second click deletes the metric and all its history.",
   "Ajoute 1 à la valeur du jour et l’enregistre.": "Adds 1 to today’s value and saves it.",
   "Incrémenter": "Increment",
-  "(sans tag)": "(no tag)",
-  "focus par tag — 30 jours": "focus by tag — 30 days",
   "Heures de backtesting": "Backtesting hours",
 
   // ── Discipline ────────────────────────────────────────────────────────────
@@ -1879,7 +1874,6 @@ export const EN: Record<string, string> = {
   "Jour": "Day",
   "Semaine": "Week",
   "Mois": "Month",
-  "Streak actuel": "Current streak",
   "Record": "Best",
   "Focus aujourd'hui": "Focus today",
   "discipline — 6 derniers mois": "discipline — last 6 months",
@@ -1887,8 +1881,6 @@ export const EN: Record<string, string> = {
   "plus": "more",
   "{unite} aujourd'hui": "{unite} today",
   "sur 7 jours": "over 7 days",
-  "Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.":
-    "Start your first session from the Timer or a task’s play button to see your focus by tag.",
   "Suis ce qui compte pour toi : heures de backtesting, trades pris, reels publiés…":
     "Track what matters to you: backtesting hours, trades taken, reels published…",
   "Suis ce qui compte pour toi : heures de lecture, séances de sport, pages écrites…":
@@ -3545,11 +3537,7 @@ export const EN: Record<string, string> = {
   "Période analysée": "Period analysed",
   "Tout l'onglet suit cette période, et se compare à la même durée juste avant.":
     "The whole tab follows this period, and compares it with the same length of time just before.",
-  "Tâches tenues": "Tasks done",
-  "Habitudes tenues": "Habits kept",
-  "Série en cours": "Current streak",
   "record {n} j": "best {n} d",
-  "vs période d'avant": "vs previous period",
   "stable": "steady",
   "{tenus}/{comptes} j": "{tenus}/{comptes} d",
   "{n} pt": "{n} pt",
@@ -3592,18 +3580,12 @@ export const EN: Record<string, string> = {
   "par jour de la semaine": "by day of the week",
   "Rien à comparer sur cette période.": "Nothing to compare over this period.",
   "focus — par jour": "focus — per day",
-  "focus — par semaine": "focus — per week",
   "Aucune séance de focus sur cette période.": "No focus session over this period.",
-  "focus par tag": "focus by tag",
   "Focus": "Focus",
   "focus": "focus",
   "habitudes": "habits",
 
   // ── Performance : le jour même, les périodes en dates, les légendes (2026-10-11) ──
-  "Ce que montre Performance": "What Performance shows",
-  "Vue d'ensemble": "Overview",
-  "Les heures passées sur chaque objectif": "The hours spent on each goal",
-  "Cette semaine, face aux heures que tu lui as promises.": "This week, against the hours you promised it.",
   "Le jour en cours, à part": "The current day, on its own",
   "Il n'entre dans aucune moyenne ni aucun écart : la période analysée s'arrête à hier.": "It enters no average and no difference: the analysed period ends yesterday.",
   "en cours|jour": "in progress",
@@ -3617,7 +3599,6 @@ export const EN: Record<string, string> = {
   "La période analysée : des jours finis": "The analysed period: finished days",
   "Elle s'arrête à hier. Aujourd'hui n'est pas terminé : il est montré à part, au-dessus.": "It ends yesterday. Today isn't over: it is shown on its own, above.",
   "jours finis": "finished days",
-  "à ce jour": "to date",
   "La part des tâches du jour faites, en moyenne sur les jours finis": "The share of each day's tasks done, averaged over finished days",
   "Chaque jour : les routines dues, et les tâches ponctuelles cochées ce jour-là. Une tâche en retard ou reportée ne pèse sur aucun jour.": "Each day: the routines due, and the one-off tasks checked that day. An overdue or postponed task weighs on no day.",
   "La part des habitudes cochées, en moyenne sur les jours finis": "The share of habits checked, averaged over finished days",
@@ -3625,7 +3606,6 @@ export const EN: Record<string, string> = {
   "Le temps des séances de concentration terminées, sur les jours finis": "The time of finished focus sessions, over finished days",
   "Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.": "The Timer counts differently: seven rolling days, today included ({dates}) — {total}.",
   "Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut.": "Today isn't in it: its sessions are in the row at the top.",
-  "Jours tenus d'affilée": "Days held in a row",
   "Un jour est tenu quand 80 % des tâches dues sont faites": "A day is held when 80% of the tasks due are done",
   "Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série.": "Today counts as soon as it reaches 80%. A day with no task due doesn't break the streak.",
   "C'est le seuil des séries de jours tenus.": "It's the threshold for streaks of held days.",
@@ -3635,7 +3615,6 @@ export const EN: Record<string, string> = {
   "Période d'avant : {dates}": "Previous period: {dates}",
   "Rien de mesuré sur ces jours-là : pas d'écart à donner.": "Nothing measured on those days: no difference to give.",
   "{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.": "{valeur} on those days. The difference is in percentage points.",
-  "{valeur} sur ces jours-là.": "{valeur} on those days.",
   "{n} en retard ou reportée, non comptée": "{n} overdue or postponed, not counted",
   "{n} en retard ou reportées, non comptées": "{n} overdue or postponed, not counted",
   "Rien de mesuré sur cette période.": "Nothing measured over this period.",
@@ -3649,41 +3628,7 @@ export const EN: Record<string, string> = {
   "focus — par tranche de 7 jours": "focus — per 7-day span",
   "auj.": "today",
   "Aucune séance sur les jours finis de cette période. Aujourd'hui : {duree}.": "No session on the finished days of this period. Today: {duree}.",
-  "Aucune séance sur les jours finis de cette période. Celles d'aujourd'hui y entreront demain.": "No session on the finished days of this period. Today's will enter it tomorrow.",
   "Sept jours, aujourd'hui compris": "Seven days, today included",
-
-  // ── Performance : l'onglet « Par objectif », à l'essai (2026-10-11) ──
-  "Cette semaine · {dates}": "This week · {dates}",
-  "Du lundi au dimanche, aujourd'hui compris": "Monday to Sunday, today included",
-  "lundi → dimanche, aujourd'hui compris": "Monday → Sunday, today included",
-  "Le Timer, lui, compte sept jours glissants : les deux totaux ne coïncident que le dimanche.": "The Timer counts seven rolling days: the two totals only match on Sundays.",
-  "au minuteur": "on the timer",
-  "Les heures viennent du minuteur.": "The hours come from the timer.",
-  "Ouvrir les Objectifs": "Open Goals",
-  "hors objectif": "outside any goal",
-  "Le temps du minuteur sans objectif": "Timer time with no goal",
-  "Séances sans tâche, ou dont la tâche n'est rattachée à aucun objectif. Montré, jamais réparti.": "Sessions with no task, or whose task belongs to no goal. Shown, never spread out.",
-  "promesse tenue": "promise kept",
-  "première semaine": "first week",
-  "Objectif créé cette semaine": "Goal created this week",
-  "Sa première semaine est entamée : ce qu'il reste d'ici dimanche s'affichera à partir de lundi.": "Its first week has already started: what's left before Sunday will show from Monday.",
-  "reste {duree} d'ici ce soir": "{duree} left by tonight",
-  "reste {duree} d'ici dimanche": "{duree} left by Sunday",
-  "Heures promises par semaine à « {titre} »": "Hours promised per week to “{titre}”",
-  "Heures promises par semaine": "Hours promised per week",
-  "Vide : pas de promesse, la ligne ne montre que le temps passé.": "Empty: no promise, the row only shows the time spent.",
-  "h promises par semaine": "h promised a week",
-  "Semaines précédentes": "Previous weeks",
-  "semaine en cours": "current week",
-  "{n} semaine précédente": "{n} previous week",
-  "{n} semaines précédentes": "{n} previous weeks",
-  "{duree} en moyenne": "{duree} on average",
-  "Échéance aujourd'hui.": "Due today.",
-  "{n} jour d'ici le {date}": "{n} day until {date}",
-  "{n} jours d'ici le {date}": "{n} days until {date}",
-  "{n} semaine pleine d'ici le {date}": "{n} full week until {date}",
-  "{n} semaines pleines d'ici le {date}": "{n} full weeks until {date}",
-  "à {heures} par semaine, cela fait {total}": "at {heures} a week, that makes {total}",
 
   // ── Retours du tournage en anglais (2026-10-09) ──
   // « Annuler » au sens de DÉFAIRE (le bouton d'un toast qui rend ce qui vient
@@ -3746,4 +3691,12 @@ export const EN: Record<string, string> = {
   "Focus lancé : {n} min": "Focus started: {n} min",
   "Session en cours": "Session in progress",
   "Actions sur la session": "Session actions",
+
+  // ── Performance épurée (2026-10-12) : les tuiles de période retirées, la
+  //    moyenne dans sa carte, la série dans la rangée « Aujourd'hui » ──
+  "jours tenus d'affilée": "days held in a row",
+  "en moyenne": "on average",
+  "par rapport à la période d'avant": "compared with the previous period",
+  "au total": "in total",
+  "progression": "progress",
 };

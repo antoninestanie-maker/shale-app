@@ -65,6 +65,7 @@ import {
   ordreEffectif,
   type Ancre,
 } from "../../lib/grille";
+import { jaugerEntetes } from "./entetes";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { IconPoints } from "../menu/icones";
@@ -986,8 +987,15 @@ export function ResizablePanel({
       scrollableRef.current = has;
       setScrollable((prev) => (prev === has ? prev : has));
     };
+    // ⭐ Les en-têtes d'abord (2026-10-12) : la jauge décide lesquels gardent
+    // leur réserve en permanence, ce qui change leur hauteur — donc la hauteur
+    // naturelle lue juste après. Voir `entetes.ts`.
+    const jauger = (force = false) => {
+      if (el.parentElement) jaugerEntetes(el.parentElement, force);
+    };
     const measure = () => {
       detect();
+      jauger();
       const card = el.firstElementChild as HTMLElement | null;
       let natural: number;
       if (card) {
@@ -1046,16 +1054,43 @@ export function ResizablePanel({
         (r) => r.target === el && r.type === "attributes" && r.attributeName === "class",
       );
       if (selfOnly) return;
+      // Un TEXTE qui change (un compteur, une date) ne change pas la structure :
+      // on ne re-mesure pas le panneau à chaque seconde d'un minuteur. Mais s'il
+      // est dans un en-tête, sa largeur a pu changer : la jauge repasse.
+      if (records.every((r) => r.type === "characterData")) {
+        if (records.some((r) => r.target.parentElement?.closest(".rgrid-head"))) measure();
+        return;
+      }
       attach();
       measure();
     });
-    mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    mo.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+      characterData: true,
+    });
+    // Une police qui arrive élargit les titres sans changer leur hauteur :
+    // aucun observateur ne le voit.
+    let vivant = true;
+    void document.fonts?.ready.then(() => {
+      if (vivant) measure();
+    });
     return () => {
+      vivant = false;
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener(EVT_BARRE_LACHEE, measure);
     };
   }, []);
+
+  // La barre de poignées gagne un bouton (⟲) dès que le panneau a une taille à
+  // lui : elle s'élargit, la place à lui réserver aussi.
+  const aUneTaille = !!override;
+  useLayoutEffect(() => {
+    if (wrapRef.current) jaugerEntetes(wrapRef.current, true);
+  }, [aUneTaille]);
 
   const onResizePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -1247,11 +1282,11 @@ export function ResizablePanel({
       style={{
         gridColumn: colonneCss(effW, ancreActive ? (ancre ?? null) : null),
         gridRow: `span ${footprint}`,
-        // Place réservée à la barre de poignées au survol (cf. `.rgrid-head`) :
-        // 3 poignées (avec ⟲ réinitialiser) si le panneau a été redimensionné,
-        // 2 sinon. Les en-têtes marqués `.rgrid-head` décalent alors leurs
-        // contrôles pour ne jamais passer sous la barre.
-        // 4 poignées (⋯ en plus) : 5.25rem, 6.5rem avec ⟲.
+        // Place réservée à la barre de poignées (cf. `.rgrid-head`) — ce n'est
+        // plus qu'un REPLI : la vraie valeur est mesurée par `jaugerEntetes`
+        // et posée sur chaque en-tête (`--rgrid-reserve`). Celle-ci ne sert que
+        // le temps de la première mesure.
+        // 3 poignées : 5.25rem ; 4 (avec ⟲ réinitialiser) : 6.5rem.
         ["--rgrid-handle-w" as string]: override ? "6.5rem" : "5.25rem",
         // La carte remplit TOUJOURS son empreinte (min-height via .rgrid-fill) :
         // bords alignés sur la grille 8px et gouttière verticale constante (16px),

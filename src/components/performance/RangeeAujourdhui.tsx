@@ -13,23 +13,42 @@ import { enHeures } from "../../lib/performance/durees";
  * flèche, ni écart, ni pourcentage.
  *
  * Les nombres viennent de `lib/performance/jour.ts`.
+ *
+ * ⭐ LA SÉRIE EN COURS EST ICI (2026-10-12). Antonin a fait retirer les tuiles
+ * de période (« Tâches tenues », « Habitudes tenues », « Focus ») et gardé
+ * « Jours tenus d'affilée ». Une tuile seule sur toute la largeur ne ressemble
+ * à rien, et ce chiffre n'a jamais été un chiffre DE PÉRIODE : c'est l'état
+ * d'aujourd'hui (aujourd'hui y compte dès 80 %), il ne se compare à rien. Sa
+ * place est donc dans cette rangée. `serie` vient de `computeStreak`
+ * (`lib/logic.ts`), la même série que l'anneau d'Aujourd'hui ; le record est
+ * dans l'en-tête de la carte « Séries de jours tenus ».
  */
-export function RangeeAujourdhui({ jour }: { jour: JourEnCours }) {
+export function RangeeAujourdhui({ jour, serie }: { jour: JourEnCours; serie: number }) {
   const cases = [
     {
       nom: t("tâches faites"),
       valeur: jour.taches.dues > 0 ? `${jour.taches.faites}/${jour.taches.dues}` : "—",
       bulle: jour.taches.dues > 0 ? t("Faites sur prévues aujourd'hui") : t("Aucune tâche prévue aujourd'hui"),
+      detail: undefined as string | undefined,
     },
     {
       nom: t("focus"),
       valeur: enHeures(jour.focus.minutes),
       bulle: t("Les séances de concentration terminées aujourd'hui"),
+      detail: undefined as string | undefined,
     },
     {
       nom: t("habitudes tenues"),
       valeur: jour.habitudes.actives > 0 ? `${jour.habitudes.tenues}/${jour.habitudes.actives}` : "—",
       bulle: jour.habitudes.actives > 0 ? t("Cochées aujourd'hui sur celles que tu suis") : t("Aucune habitude suivie"),
+      detail: undefined as string | undefined,
+    },
+    {
+      // « Série » de QUOI : de jours tenus (constat 28 du labo).
+      nom: t("jours tenus d'affilée"),
+      valeur: t("{n} j", { n: serie }),
+      bulle: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
+      detail: t("Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série."),
     },
   ];
 
@@ -45,11 +64,13 @@ export function RangeeAujourdhui({ jour }: { jour: JourEnCours }) {
           {jourEnClair(jour.date)} · {t("en cours|jour")}
         </p>
       </div>
-      <dl className="grid min-w-[min(100%,15rem)] flex-1 grid-cols-3 gap-4">
+      {/* Quatre chiffres : en ligne au bureau, deux par deux au téléphone (à
+          quatre de front sur 390 px, chaque nom passait sur trois lignes). */}
+      <dl className="grid min-w-[min(100%,15rem)] flex-1 grid-cols-4 gap-4 telephone:grid-cols-2">
         {cases.map((c) => (
           // Le nombre AU-DESSUS de son nom, alignés en haut : au téléphone un
           // nom sur deux lignes ne doit pas faire descendre le nombre voisin.
-          <div key={c.nom} className="flex min-w-0 flex-col" data-tip={c.bulle}>
+          <div key={c.nom} className="flex min-w-0 flex-col" data-tip={c.bulle} data-tip-sub={c.detail}>
             <dt className="hud-label truncate-souris order-2">{c.nom}</dt>
             <dd className="order-1 truncate font-display text-xl font-extrabold tabular-nums text-text">{c.valeur}</dd>
           </div>

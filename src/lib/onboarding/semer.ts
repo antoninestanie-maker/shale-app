@@ -16,7 +16,6 @@ import {
   synchroniserMentions,
   uidDe,
 } from "../repo";
-import { enregistrerPromesse } from "../performance/promessesAcces";
 import { planificationDeSaisie } from "../taches";
 import { contenuExemples } from "./exemples";
 import { planDuPremierObjectif } from "./planification";
@@ -204,40 +203,12 @@ export async function creerObjectifPlanifie(
 ): Promise<{ racineId: number; premierJalonId: number | null }> {
   const plan = planDuPremierObjectif(titre, jalons, heures, echeance);
   const racineId = await createGoal(plan.racine);
-  await promettre(racineId, heures);
   let premierJalonId: number | null = null;
   for (const jalon of plan.jalons) {
     const id = await createGoal({ ...jalon, parent_goal_id: racineId });
     if (premierJalonId === null) premierJalonId = id;
   }
   return { racineId, premierJalonId };
-}
-
-/**
- * ⭐ Les heures de l'accueil deviennent la PROMESSE de l'objectif planté
- * (2026-10-11, essai « Par objectif » de Performance).
- *
- * Jusque-là le chiffre du curseur ne vivait que dans une phrase de la
- * description (« 5 h par semaine libérées pour ça. ») : aucun écran ne pouvait
- * le relire sans deviner un nombre dans un texte, en deux langues. Il est
- * maintenant AUSSI rangé là où Performance le lit et où il se modifie
- * (`performance/promesses.ts`). La phrase reste : elle dit l'intention du
- * premier jour, la promesse dit ce qui vaut aujourd'hui.
- *
- * ⚠️ Ce n'est PAS une échéance : `calendrier/peril.ts` ne lit que `deadline`,
- * et l'objectif planté n'en a toujours aucune.
- *
- * ⚠️ Un échec ici ne doit pas faire échouer l'accueil : l'objectif existe, la
- * promesse se retape dans Performance.
- */
-async function promettre(goalId: number, heures: number): Promise<void> {
-  if (!(heures > 0)) return;
-  try {
-    const uid = await uidDe("goal", goalId);
-    if (uid) await enregistrerPromesse(uid, heures);
-  } catch {
-    /* voir ci-dessus */
-  }
 }
 
 /**
