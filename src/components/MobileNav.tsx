@@ -197,7 +197,7 @@ export default function MobileNav({
       type="button"
       onClick={() => aller(id)}
       aria-current={view === id ? "page" : undefined}
-      className={`flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 transition-colors ${
+      className={`flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-start gap-1 rounded-xl px-1 py-2 transition-colors ${
         view === id ? "bg-overlay-2 text-blue" : "text-text-dim hover:bg-overlay"
       }`}
     >

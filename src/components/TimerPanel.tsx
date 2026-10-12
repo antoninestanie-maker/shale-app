@@ -22,7 +22,9 @@ function Switch({
   hint?: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs text-text-dim">
+    // `cible-tactile-ligne` : l'interrupteur mesure 28 × 16 ; c'est sa ligne,
+    // libellé compris, qui se touche — 44 pt de haut au doigt.
+    <label className="cible-tactile-ligne flex cursor-pointer items-center gap-2 text-xs text-text-dim">
       <button
         type="button"
         role="switch"
@@ -153,7 +155,7 @@ export default function TimerPanel({ data, focus }: Props) {
           >
             {fmt(remainingSec)}
           </button>
-          <p className="mt-1 max-w-full truncate text-xs text-text-dim">
+          <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.label}
             {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
           </p>

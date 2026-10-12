@@ -83,7 +83,11 @@ export default function QuickLinks({ links, refresh }: Props) {
             <button
               type="button"
               onClick={() => handleDelete(link.id)}
-              className={`absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-opacity ${
+              // ⚠️ Au doigt, la croix reste un dessin de 16 px (elle déborde du
+              // coin de la pastille) mais sa ZONE de toucher en fait 44 : un
+              // pseudo-élément invisible l'élargit. Supprimer demande un second
+              // toucher (« Confirmer ») : une zone large ne coûte rien.
+              className={`absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-opacity [@media(pointer:coarse)]:before:absolute [@media(pointer:coarse)]:before:-inset-3.5 [@media(pointer:coarse)]:before:content-[''] ${
                 deletingId === link.id
                   ? "bg-red text-white opacity-100"
                   : "bg-surface-2 text-text-dim opacity-0 focus-visible:opacity-100 group-hover/link:opacity-100 [@media(pointer:coarse)]:opacity-100"

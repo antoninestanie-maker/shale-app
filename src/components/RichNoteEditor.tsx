@@ -334,7 +334,9 @@ export default function RichNoteEditor({
   );
 
   return (
-    <div className="mt-3 flex min-h-0 flex-1 flex-col">
+    // `editeur-riche` : un nom pour que la vue Notes puisse lui garder une
+    // hauteur au téléphone (voir `NotesView`).
+    <div className="editeur-riche mt-3 flex min-h-0 flex-1 flex-col">
       {/* Barre d'outils */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border pb-2">
         <Btn label={<b>B</b>} title={t("Gras")} kbd={kbd("⌘B")} onDo={() => exec("bold")} />

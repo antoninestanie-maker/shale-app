@@ -70,7 +70,7 @@ export default function GoalsPreview({ data, sources }: { data: AppData; sources
             className="-mx-2 block w-[calc(100%+1rem)] rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-overlay"
           >
             <span className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 truncate text-sm text-text" title={goal.title}>
+              <span className="truncate-souris min-w-0 truncate text-sm text-text" title={goal.title}>
                 {goal.title}
               </span>
               <span className="shrink-0 font-display text-sm font-bold text-text">

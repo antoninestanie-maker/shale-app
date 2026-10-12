@@ -332,7 +332,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
 
       {/* Habitudes */}
       <ResizablePanel id="journal-habits" defaultW={12} minH={280}>
-      <section className="card p-5">
+      <section className="card p-5 telephone:p-4">
         <div className="rgrid-head flex items-center justify-between">
           <h2 className="hud-label">{t("habitudes — 12 semaines")}</h2>
           <form

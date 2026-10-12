@@ -90,7 +90,7 @@ export default function TimerView({ data, focus }: Props) {
                 {session.kind === "break" ? t("pause") : t("focus session")}
                 {paused ? ` — ${t("en pause")}` : ""}
               </p>
-              <h2 className="mt-1 max-w-md truncate text-xl text-text">
+              <h2 className="truncate-souris mt-1 max-w-md truncate text-xl text-text">
                 {session.label}
               </h2>
               {/* L'horloge à volets, la même qu'en plein écran et dans la
@@ -215,7 +215,7 @@ export default function TimerView({ data, focus }: Props) {
                     >
                       {s.kind === "break" ? t("pause") : "focus"}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-text">
+                    <span className="truncate-souris min-w-0 flex-1 truncate text-sm text-text">
                       {taskLabel(s)}
                     </span>
                     <span className="shrink-0 font-mono text-xs font-semibold text-text">

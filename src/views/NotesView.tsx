@@ -561,7 +561,14 @@ export default function NotesView({ data, refresh }: Props) {
 
       {/* Éditeur */}
       {selected ? (
-        <div className="card flex min-h-0 flex-col p-4 lg:p-5">
+        // ⭐ AU TÉLÉPHONE, LA CARTE DÉFILE ET L'ÉDITEUR GARDE SA HAUTEUR
+        // (2026-10-12). La carte est une colonne de hauteur fixe : l'éditeur
+        // prend ce qui reste. Quand « Lier » ouvre son champ et ses huit
+        // résultats (352 px au doigt), il ne restait RIEN — l'éditeur tombait à
+        // zéro et le panneau recouvrait la dernière rangée de la barre
+        // d'outils. Signalé par le chantier Notes du 11 octobre. Ici l'éditeur
+        // a un plancher, et c'est la carte qui défile quand tout ne tient pas.
+        <div className="card flex min-h-0 flex-col p-4 lg:p-5 telephone:overflow-y-auto telephone:overscroll-contain telephone:[&>.editeur-riche]:min-h-[19rem] telephone:[&>.editeur-riche]:shrink-0 telephone:[&>section]:shrink-0">
           {/* Le retour, sur sa propre ligne : entassé avec le titre, l'état
               d'enregistrement et « supprimer », il ne resterait rien au titre
               sur 370 px. Sur le bureau il n'a pas lieu d'être — la liste est

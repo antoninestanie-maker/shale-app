@@ -88,7 +88,7 @@ function ArrowButton({
       aria-label={up ? t("Monter") : t("Descendre")}
       data-tip={up ? t("Monter") : t("Descendre")}
       data-tip-sub={t("Change l’ordre d’affichage.")}
-      className="shrink-0 rounded-md p-1 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-25"
+      className="cible-tactile [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center shrink-0 rounded-md p-1 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-25"
     >
       {up ? <IconChevronUp className="h-3.5 w-3.5" /> : <IconChevronDown className="h-3.5 w-3.5" />}
     </button>
@@ -112,7 +112,7 @@ function VisibilityToggle({
       aria-label={visible ? t("Masquer") : t("Afficher")}
       data-tip={visible ? t("Masquer") : t("Afficher")}
       data-tip-sub={t("Un élément masqué reste configurable ici.")}
-      className={`rounded-md p-1 transition-colors disabled:opacity-25 ${
+      className={`cible-tactile [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center rounded-md p-1 transition-colors disabled:opacity-25 ${
         visible ? "text-text hover:bg-overlay" : "text-text-dim/60 hover:bg-overlay"
       }`}
     >
