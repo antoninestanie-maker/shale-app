@@ -16,7 +16,7 @@
  * démarrage (`PASSATION.md` § 14.2).
  */
 
-import { IconCheck, IconLink, IconNote, IconPencil, IconReset, IconTrash } from "../../icons";
+import { IconNote, IconPencil, IconTrash } from "../../icons";
 import { IconCopier, IconDupliquer } from "../icones";
 import { t } from "../../../lib/i18n";
 import type { EntreePossible } from "../../../lib/menu/entrees";
@@ -25,7 +25,7 @@ import { plainText } from "../../../lib/richtext";
 import type { Note } from "../../../lib/types";
 
 export interface GestesNote {
-  /** Exactement ce que fait le clic sur la ligne. */
+  /** Exactement ce que fait le clic sur la ligne — curseur dans le titre compris, dans l'onglet « Sans titre ». */
   ouvrir: (note: Note) => void;
   /** Sélectionne la note ET pose le curseur dans le champ du titre. */
   renommer: (note: Note) => void;
@@ -34,25 +34,7 @@ export interface GestesNote {
   supprimer: (note: Note) => Promise<void>;
 }
 
-/**
- * Les gestes de l'onglet « À trier » (2026-10-11), et ce qu'on en montre.
- *
- * ⚠️ `propose` DÉCIDE DE L'ENTRÉE, et c'est la vue qui le calcule : « trier »
- * n'est proposé que DANS l'onglet (ailleurs, « Garder telle quelle » ne veut
- * rien dire, et l'app n'a pas à rappeler qu'une note attend) ; « remettre »
- * l'est partout, sur une note qu'on a gardée — c'est le seul chemin pour
- * défaire le geste une fois le toast parti.
- */
-export interface TriNote {
-  propose: "trier" | "remettre" | null;
-  /** Ouvre la note et le champ « Lier » — la MÊME fonction que le bouton de l'éditeur. */
-  rattacher: (note: Note) => void;
-  /** La MÊME fonction que le bouton « Garder telle quelle » de l'éditeur. */
-  garder: (note: Note) => Promise<void>;
-  remettre: (note: Note) => Promise<void>;
-}
-
-export function entreesNote(note: Note, gestes: GestesNote, tri?: TriNote): EntreePossible[] {
+export function entreesNote(note: Note, gestes: GestesNote): EntreePossible[] {
   return [
     {
       id: "ouvrir",
@@ -69,24 +51,6 @@ export function entreesNote(note: Note, gestes: GestesNote, tri?: TriNote): Entr
       // mensonge que rien ne rattrape.
       raccourci: "F2",
       executer: () => gestes.renommer(note),
-    },
-    tri?.propose === "trier" && {
-      id: "rattacher",
-      libelle: t("Rattacher…"),
-      icone: <IconLink />,
-      executer: () => tri.rattacher(note),
-    },
-    tri?.propose === "trier" && {
-      id: "garder",
-      libelle: t("Garder telle quelle"),
-      icone: <IconCheck />,
-      executer: () => tri.garder(note),
-    },
-    tri?.propose === "remettre" && {
-      id: "remettre-a-trier",
-      libelle: t("Remettre dans « À trier »"),
-      icone: <IconReset />,
-      executer: () => tri.remettre(note),
     },
     {
       id: "dupliquer",

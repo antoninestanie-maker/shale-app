@@ -12,7 +12,7 @@ import { CLE_PROMESSES, lirePromesses } from "./promesses";
 /**
  * ⭐ LES HEURES PROMISES — sur une vraie base, puis en démo (2026-10-11).
  *
- * Par l'API publique de `repo.ts` seulement, comme `notesATrier.api.test.ts` :
+ * Par l'API publique de `repo.ts` seulement, comme `corbeille/api.test.ts` :
  * l'onglet « Par objectif » n'a été VU qu'en démo, où l'on ne peut pas
  * recharger la page pour vérifier qu'une promesse a tenu. Ce fichier rejoue
  * donc, des deux côtés, ce que font l'onglet et l'accueil : écrire la
