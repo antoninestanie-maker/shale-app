@@ -682,7 +682,9 @@ function App() {
           key={view}
           // `overscroll-contain` : en bout de course, le geste s'arrête ici au
           // lieu de passer à la page (voir `body` dans `index.css`).
-          className="animate-fade-up flex-1 overflow-y-auto overscroll-contain"
+          // `vue-defilante` : au téléphone, une fenêtre ouverte ne glisse plus
+          // avec la page (`index.css`, tout en bas).
+          className="vue-defilante animate-fade-up flex-1 overflow-y-auto overscroll-contain"
           // Sur téléphone, la barre d'onglets est en `fixed` : sans cette
           // réserve, le bas de chaque vue passerait DESSOUS et deviendrait
           // inatteignable — la dernière tâche d'une liste, le dernier bouton

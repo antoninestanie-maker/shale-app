@@ -1771,6 +1771,39 @@
   }
 }
 
+/* ⭐ AU TÉLÉPHONE, UNE FENÊTRE OUVERTE NE GLISSE PLUS AVEC LA PAGE (2026-10-12).
+
+   Mesuré en pilotant l'app au doigt : « Nouvel événement » ouvert, un glissé
+   parti du pied de la fenêtre faisait défiler la vue DERRIÈRE — et la fenêtre
+   partait avec elle, 550 px au-dessus de l'écran. Ouvrir une fenêtre ramenait
+   aussi la vue tout en haut, et la position de lecture était perdue.
+
+   La cause est le piège du bloc conteneur (`PIEGES.md` § 9.5) : la zone qui
+   défile porte `animate-fade-up`, dont le remplissage `both` TIENT un
+   `transform` après l'animation. Un élément qui porte un `transform` devient
+   le bloc conteneur de ses descendants `position: fixed` : le voile d'une
+   fenêtre (`fixed inset-0`) n'est alors plus accroché à l'écran mais au
+   CONTENU de la vue, et défile avec lui.
+
+   Au téléphone, l'entrée ne tient donc plus son `transform` (`backwards`) :
+   le voile redevient fixe à l'écran. Et tant qu'une fenêtre est ouverte, la
+   vue derrière ne défile plus.
+
+   ⚠️ TÉLÉPHONE SEULEMENT. Au bureau, ce même piège est ce qui centre les
+   fenêtres dans la zone de contenu et laisse la barre latérale hors du voile :
+   le lever y déplacerait toutes les fenêtres. Le défaut y existe pourtant (la
+   molette sur le voile fait défiler la page et emporte la fenêtre) — voir
+   PASSATION.
+
+   Hors couche (`@layer`) : l'animation est un utilitaire, donc d'une couche
+   postérieure à `components` ; une règle hors couche passe devant toutes. */
+html[data-telephone] .vue-defilante {
+  animation-fill-mode: backwards;
+}
+html[data-telephone] .vue-defilante:has(.fenetre-voile) {
+  overflow-y: hidden;
+}
+
 /* Fond ambiant : un seul halo très doux, theme-aware. Rien d'autre. */
 .hud-bg {
   position: fixed;
