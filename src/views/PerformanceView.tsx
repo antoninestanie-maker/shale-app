@@ -32,17 +32,16 @@ import {
   focusDansLeTemps,
   lisser,
   minutesDeFocus,
-  minutesDeSeance,
   moyenne,
   parJourDeSemaine,
   pointsDAttention,
-  seancesDeFocus,
   serieHabitudes,
   serieTaches,
   tachesHorsCompte,
   tenueParHabitude,
   PLAGES,
   PLAGE_PAR_DEFAUT,
+  type Comparaison,
   type Plage,
   type PointDAttention,
   type PointJour,
@@ -51,7 +50,6 @@ import { jourEnClair, plageDeDates } from "../lib/performance/dates";
 import { jourEnCours, periodeSansMesure } from "../lib/performance/jour";
 import { enHeuresInsecable } from "../lib/performance/durees";
 import { CourbeDiscipline, GrilleCarres, LegendeCourbe, type Carre } from "../components/performance/Discipline";
-import ParObjectif from "../components/performance/ParObjectif";
 import { RangeeAujourdhui } from "../components/performance/RangeeAujourdhui";
 import { serieHabitude } from "../lib/habitudes";
 import { allerVers } from "../lib/naviguer";
@@ -85,15 +83,6 @@ const LIBELLE_PLAGE: Record<Plage, { court: string; long: string }> = {
   90: { court: "3 mois", long: "3 derniers mois" },
   180: { court: "6 mois", long: "6 derniers mois" },
 };
-
-/**
- * ⭐ LES DEUX VUES DE L'ONGLET (2026-10-11). « Par objectif » est un ESSAI :
- * tout son contenu vit dans `components/performance/ParObjectif.tsx` et
- * `lib/performance/parObjectif.ts`. Pour le retirer : ce tableau, le sélecteur
- * de l'en-tête et la branche du rendu.
- */
-const VUES = ["ensemble", "objectifs"] as const;
-type Vue = (typeof VUES)[number];
 
 /** Le réglage qui retient la période choisie (synchronisé : c'est une préférence, pas une géométrie). */
 const CLE_PLAGE = "perf.plage";
@@ -141,6 +130,63 @@ function Ecart({ n, texte }: { n: number | null; texte: (abs: number) => string 
   );
 }
 
+/**
+ * ⭐ LA MOYENNE DE LA PÉRIODE, DANS SA CARTE (2026-10-12).
+ *
+ * Antonin, après essai : « Tâches tenues, ce n'est pas nécessaire. Habitudes
+ * tenues, c'est bien de l'avoir dans la discipline, mais pas en plus. » Les
+ * tuiles sont retirées ; le chiffre, lui, ne quitte pas l'onglet : il est sous
+ * le titre de la carte qui trace sa courbe, avec son écart à la même durée
+ * juste avant (le principe du 2026-10-09 : un 72 % seul ne dit pas si on
+ * progresse).
+ *
+ * `note` : ce que la moyenne ne compte PAS (« 1 en retard ou reportée, non
+ * comptée », A07b-06). « À améliorer » se tire de la même liste.
+ */
+function MoyenneDePeriode(p: {
+  comparaison: Comparaison;
+  periode: string;
+  periodeAvant: string;
+  bulle: string;
+  detail: string;
+  note?: string | null;
+}) {
+  const { valeur, avant, ecart } = p.comparaison;
+  return (
+    <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <p
+        className="font-display text-2xl font-extrabold tabular-nums text-text"
+        data-tip={p.bulle}
+        data-tip-sub={p.detail}
+        data-tip-attente="longue"
+      >
+        {valeur === null ? "—" : `${valeur}%`}
+      </p>
+      <p className="text-xs text-text-dim">
+        {t("en moyenne")} · {p.periode}
+      </p>
+      <p
+        className="flex min-w-0 items-center gap-1.5 text-xs text-text-dim"
+        data-tip={t("Période d'avant : {dates}", { dates: p.periodeAvant })}
+        data-tip-sub={
+          avant === null
+            ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
+            : t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: `${avant} %` })
+        }
+      >
+        <Ecart n={ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
+        {ecart !== null && <span>{t("par rapport à la période d'avant")}</span>}
+      </p>
+      {p.note && (
+        <p className="flex items-baseline gap-1.5 text-xs text-text-dim">
+          <span className="h-1.5 w-1.5 shrink-0 -translate-y-px rounded-full bg-yellow" aria-hidden />
+          <span className="min-w-0">{p.note}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function frDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(localeTag(), {
@@ -171,7 +217,6 @@ export default function PerformanceView({ data, refresh }: Props) {
   const today = todayStr();
   const { tasks, completions, goals, metrics, metricEntries, goalLog } = data;
 
-  const [vue, setVue] = useState<Vue>("ensemble");
   const [plage, setPlage] = useState<Plage>(PLAGE_PAR_DEFAUT);
   useEffect(() => {
     getSetting(CLE_PLAGE).then((v) => {
@@ -263,30 +308,20 @@ export default function PerformanceView({ data, refresh }: Props) {
     const semaine = semT.map((j, i) => ({ label: nomCourtDuJour(j.jour), taches: j.pct, habitudes: semH[i].pct }));
 
     // Le focus.
-    const seances = seancesDeFocus(focusSessions, b.debut, b.fin);
     const focus = minutesDeFocus(focusSessions, b.debut, b.fin);
-    const focusAvant = minutesDeFocus(focusSessions, b.debutAvant, b.finAvant);
     // ⭐ Le jour en cours a sa barre (pas « jour »), marquée : elle n'entre
     // dans aucun total, comme le dernier point des courbes.
     const temps = focusDansLeTemps(focusSessions, b.debut, b.fin, today);
-    const parTag = new Map<string, number>();
-    for (const s of seances) {
-      const task = tasks.find((x) => x.id === s.task_id);
-      const tag = task?.tag ?? (s.label ? "(libre)" : t("(sans tag)"));
-      parTag.set(tag, (parTag.get(tag) ?? 0) + minutesDeSeance(s));
-    }
-    const tags = [...parTag.entries()].map(([tag, min]) => ({ tag, min })).sort((x, y) => y.min - x.min);
 
     return {
       // ⭐ Chaque chiffre dit sa période (2026-10-11) : ses dates, en clair.
       periode: plageDeDates(b.debut, b.fin, today),
       periodeAvant: plageDeDates(b.debutAvant, b.finAvant, today),
-      // Ce que « Tâches tenues » ne compte pas (constat 9 du labo, A07b-06).
+      // Ce que la moyenne des tâches ne compte pas (constat 9 du labo, A07b-06).
       horsCompte: tachesHorsCompte(tasks, completions, today).length,
       sansMesure: periodeSansMesure({ taches: cTaches.valeur, habitudes: cHabitudes.valeur, focus }),
-      focusAvant,
       // Le chiffre du TIMER (« cette semaine » = sept jours glissants,
-      // aujourd'hui compris) : donné dans la bulle de la tuile Focus, sur
+      // aujourd'hui compris) : donné dans la bulle du total de focus, sur
       // « 7 j » seulement, pour qu'on puisse recouper les deux écrans.
       focusGlissant:
         plage === 7
@@ -295,7 +330,6 @@ export default function PerformanceView({ data, refresh }: Props) {
               dates: plageDeDates(addDays(today, -6), today, today),
             }
           : null,
-      aDejaDesSeances: focusSessions.some((x) => x.kind === "focus" && !!x.ended_at),
       cTaches,
       cHabitudes,
       courbeTaches,
@@ -305,7 +339,6 @@ export default function PerformanceView({ data, refresh }: Props) {
       semaine,
       aDesJours: semT.some((j) => j.pct !== null) || semH.some((j) => j.pct !== null),
       focus,
-      focusEcart: focusAvant > 0 || focus > 0 ? focus - focusAvant : null,
       temps: {
         pas: temps.pas,
         tranches: temps.tranches.map((x) => ({
@@ -318,8 +351,6 @@ export default function PerformanceView({ data, refresh }: Props) {
           enCours: !!x.enCours,
         })),
       },
-      tags,
-      tagMax: tags[0]?.min ?? 1,
       habitudes: tenueParHabitude(habits, habitChecks, today, plage).map((h) => ({
         ...h,
         serie: serieHabitude(h.habit.id, habitChecks, today),
@@ -378,9 +409,6 @@ export default function PerformanceView({ data, refresh }: Props) {
     }
   };
 
-  const tagColor = (name: string) =>
-    data.tags.find((t) => t.name === name)?.color ?? "var(--color-text-dim)";
-
   // Courbe de R cumulé (30 j) live vs backtest
   const equity = useMemo(() => {
     const from = addDays(today, -29);
@@ -438,33 +466,10 @@ export default function PerformanceView({ data, refresh }: Props) {
     <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <header className="view-head">
         <h1 className="text-3xl text-text">{t("Performance")}</h1>
-        <div role="tablist" aria-label={t("Ce que montre Performance")} className="flex flex-wrap gap-1.5">
-          {VUES.map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={vue === v}
-              onClick={() => setVue(v)}
-              data-tip={v === "objectifs" ? t("Les heures passées sur chaque objectif") : undefined}
-              data-tip-sub={v === "objectifs" ? t("Cette semaine, face aux heures que tu lui as promises.") : undefined}
-              data-tip-attente="longue"
-              className={`pill cible-tactile inline-flex items-center justify-center border px-3 py-1 text-xs font-medium transition-colors ${
-                vue === v ? "border-text/30 bg-surface-2 text-text" : "border-border text-text-dim hover:text-text"
-              }`}
-            >
-              {v === "ensemble" ? t("Vue d'ensemble") : t("Par objectif")}
-            </button>
-          ))}
-        </div>
       </header>
 
-      {vue === "objectifs" ? (
-        <ParObjectif data={data} />
-      ) : (
-      <>
       {/* ⭐ Aujourd'hui se voit, à part : il n'entre dans aucun chiffre plus bas. */}
-      <RangeeAujourdhui jour={jour} />
+      <RangeeAujourdhui jour={jour} serie={derived.current} />
 
       {/* ⭐ La période se choisit UNE fois, ici, pour toutes les cartes — et elle
           écrit ses DATES : des jours finis, aujourd'hui non compris. */}
@@ -498,106 +503,6 @@ export default function PerformanceView({ data, refresh }: Props) {
       </div>
 
       <ResizableGrid gridId="performance" className="mt-3">
-      {/* ⭐ Les tuiles COMPARENT : chaque chiffre de la période, et son écart à
-          la même durée juste avant. Un 72 % seul ne dit pas si on progresse. */}
-      <ResizablePanel id="perf-tiles" defaultW={12}>
-      <div className="perf-tiles panel-stretch gap-4">
-        {[
-          {
-            label: t("Tâches tenues"),
-            valeur: analyse.cTaches.valeur === null ? "—" : `${analyse.cTaches.valeur}%`,
-            sous: <Ecart n={analyse.cTaches.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
-            ecart: analyse.cTaches.ecart,
-            compare: true,
-            // ⭐ La tuile dit EXACTEMENT ce qu'elle compte (A07b-06).
-            bulle: t("La part des tâches du jour faites, en moyenne sur les jours finis"),
-            detail: t("Chaque jour : les routines dues, et les tâches ponctuelles cochées ce jour-là. Une tâche en retard ou reportée ne pèse sur aucun jour."),
-            avant: analyse.cTaches.avant === null ? null : `${analyse.cTaches.avant} %`,
-            points: true,
-            // …et ce qu'elle laisse de côté, tant qu'il y en a : « 100 % » ne se
-            // lit plus au-dessus de « 1 tâche reportée, toujours pas faite ».
-            note:
-              analyse.horsCompte > 0
-                ? tp(analyse.horsCompte, "{n} en retard ou reportée, non comptée", "{n} en retard ou reportées, non comptées")
-                : null,
-          },
-          {
-            label: t("Habitudes tenues"),
-            valeur: analyse.cHabitudes.valeur === null ? "—" : `${analyse.cHabitudes.valeur}%`,
-            sous: <Ecart n={analyse.cHabitudes.ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />,
-            ecart: analyse.cHabitudes.ecart,
-            compare: true,
-            bulle: t("La part des habitudes cochées, en moyenne sur les jours finis"),
-            detail: t("Une habitude compte à partir du jour de sa première coche."),
-            avant: analyse.cHabitudes.avant === null ? null : `${analyse.cHabitudes.avant} %`,
-            points: true,
-            note: null,
-          },
-          {
-            label: t("Focus"),
-            valeur: fmtMinutes(analyse.focus),
-            sous: <Ecart n={analyse.focusEcart} texte={fmtMinutes} />,
-            ecart: analyse.focusEcart,
-            compare: true,
-            bulle: t("Le temps des séances de concentration terminées, sur les jours finis"),
-            // D'où vient l'écart avec la tuile « cette semaine » du Timer.
-            detail: analyse.focusGlissant
-              ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
-                  dates: analyse.focusGlissant.dates,
-                  // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
-                  total: enHeuresInsecable(analyse.focusGlissant.minutes),
-                })
-              : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut."),
-            avant: analyse.focusAvant > 0 || analyse.focus > 0 ? enHeuresInsecable(analyse.focusAvant) : null,
-            points: false,
-            note: null,
-          },
-          {
-            // « Série » de QUOI : de jours tenus (constat 28 du labo).
-            label: t("Jours tenus d'affilée"),
-            valeur: t("{n} j", { n: derived.current }),
-            sous: <span className="truncate">{t("record {n} j", { n: derived.best })}</span>,
-            ecart: null as number | null,
-            compare: false,
-            bulle: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
-            detail: t("Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série."),
-            avant: null as string | null,
-            points: false,
-            note: null,
-          },
-        ].map((tile) => (
-          <div key={tile.label} className="card min-w-0 p-5" data-tip={tile.bulle} data-tip-sub={tile.detail} data-tip-attente="longue">
-            <p className="hud-label">{tile.label}</p>
-            <p className="mt-1 truncate font-display text-3xl font-extrabold text-text">{tile.valeur}</p>
-            {/* La période, en dates, sous chaque chiffre. */}
-            <p className="mt-1 truncate text-[11px] text-text-dim">{tile.compare ? analyse.periode : t("à ce jour")}</p>
-            <p
-              className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-dim"
-              data-tip={tile.compare ? t("Période d'avant : {dates}", { dates: analyse.periodeAvant }) : undefined}
-              data-tip-sub={
-                !tile.compare
-                  ? undefined
-                  : tile.avant === null
-                    ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
-                    : tile.points
-                      ? t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: tile.avant })
-                      : t("{valeur} sur ces jours-là.", { valeur: tile.avant })
-              }
-            >
-              {tile.sous}
-              {tile.compare && tile.ecart !== null && <span className="truncate">{t("vs période d'avant")}</span>}
-            </p>
-            {tile.note && (
-              <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-text-dim">
-                <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-yellow" aria-hidden />
-                <span className="min-w-0">{tile.note}</span>
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-      </ResizablePanel>
-
       {/* ⭐ À AMÉLIORER — ce que la période fait ressortir, en trois lignes au
           plus. Des faits chiffrés, jamais des conseils (`pointsDAttention`). */}
       <ResizablePanel id="perf-analyse" defaultW={12}>
@@ -660,6 +565,23 @@ export default function PerformanceView({ data, refresh }: Props) {
             }}
           />
         </div>
+        {/* ⭐ La moyenne de la période et son écart vivent ICI (2026-10-12) :
+            la tuile « Tâches tenues » est retirée, pas le chiffre. */}
+        <MoyenneDePeriode
+          comparaison={analyse.cTaches}
+          periode={analyse.periode}
+          periodeAvant={analyse.periodeAvant}
+          bulle={t("La part des tâches du jour faites, en moyenne sur les jours finis")}
+          detail={t("Chaque jour : les routines dues, et les tâches ponctuelles cochées ce jour-là. Une tâche en retard ou reportée ne pèse sur aucun jour.")}
+          // …et ce que la moyenne laisse de côté, tant qu'il y en a : « 100 % »
+          // ne se lit pas au-dessus de « 1 tâche reportée, toujours pas faite »
+          // sans que la carte le dise (A07b-06).
+          note={
+            analyse.horsCompte > 0
+              ? tp(analyse.horsCompte, "{n} en retard ou reportée, non comptée", "{n} en retard ou reportées, non comptées")
+              : null
+          }
+        />
         <CourbeDiscipline className="mt-3" points={analyse.courbeTaches.points} lisse={analyse.courbeTaches.lisse} seuil={80} />
         <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
         <GrilleCarres semaines={analyse.carresTaches} zeroEnRouge vide={t("rien de dû")} zero={t("rien de fait")} />
@@ -680,6 +602,13 @@ export default function PerformanceView({ data, refresh }: Props) {
           </p>
         ) : (
           <>
+            <MoyenneDePeriode
+              comparaison={analyse.cHabitudes}
+              periode={analyse.periode}
+              periodeAvant={analyse.periodeAvant}
+              bulle={t("La part des habitudes cochées, en moyenne sur les jours finis")}
+              detail={t("Une habitude compte à partir du jour de sa première coche.")}
+            />
             <CourbeDiscipline className="mt-3" points={analyse.courbeHabitudes.points} lisse={analyse.courbeHabitudes.lisse} />
             <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
             <GrilleCarres semaines={analyse.carresHabitudes} vide={t("aucune tenue")} />
@@ -722,18 +651,22 @@ export default function PerformanceView({ data, refresh }: Props) {
       <section className="card p-5">
         <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
           <h2 className="hud-label shrink-0">{t("par jour de la semaine")}</h2>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
-            <span>{analyse.periode}</span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-[2px] bg-[var(--color-success-fill)]" aria-hidden />
-              {t("tâches")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-[2px] bg-blue" aria-hidden />
-              {t("habitudes")}
-            </span>
-          </p>
+          <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
         </div>
+        {/* ⚠️ La légende n'est PAS dans l'en-tête : titre + dates + légende ne
+            tenaient pas sur une ligne avec la barre de poignées, et la carte
+            grandissait au survol (2026-10-12). Sa ligne à elle, sous le titre,
+            à la même place que le total de la carte voisine. */}
+        <p className="mt-2 flex h-5 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-dim">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-[2px] bg-[var(--color-success-fill)]" aria-hidden />
+            {t("tâches")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-[2px] bg-blue" aria-hidden />
+            {t("habitudes")}
+          </span>
+        </p>
         {!analyse.aDesJours ? (
           <p className="py-6 text-center text-sm text-text-dim">{t("Rien à comparer sur cette période.")}</p>
         ) : (
@@ -768,6 +701,26 @@ export default function PerformanceView({ data, refresh }: Props) {
           </h2>
           <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
         </div>
+        {/* ⭐ Le total de la période vit ICI (2026-10-12) : la tuile « Focus »
+            est retirée. Sa bulle dit toujours d'où vient l'écart avec la tuile
+            « cette semaine » du Timer. */}
+        <p
+          className="mt-2 flex h-5 items-baseline gap-1.5 text-[11px] text-text-dim"
+          data-tip={t("Le temps des séances de concentration terminées, sur les jours finis")}
+          data-tip-sub={
+            analyse.focusGlissant
+              ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
+                  dates: analyse.focusGlissant.dates,
+                  // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
+                  total: enHeuresInsecable(analyse.focusGlissant.minutes),
+                })
+              : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut.")
+          }
+          data-tip-attente="longue"
+        >
+          <span className="font-display text-base font-extrabold tabular-nums text-text">{enHeuresInsecable(analyse.focus)}</span>
+          {t("au total")}
+        </p>
         {analyse.focus === 0 && jour.focus.minutes === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">{t("Aucune séance de focus sur cette période.")}</p>
         ) : analyse.focus === 0 && analyse.temps.pas === "semaine" ? (
@@ -809,13 +762,18 @@ export default function PerformanceView({ data, refresh }: Props) {
           titre disait « streaks », la tuile « série » ; constat 28 du labo). */}
       <ResizablePanel id="perf-streaks" defaultW={6} minH={200}>
         <section className="card p-5">
-          <h2
-            className="hud-label"
-            data-tip={t("Un jour est tenu quand 80 % des tâches dues sont faites")}
-            data-tip-sub={t("Une série, ce sont des jours tenus qui se suivent. Un jour sans tâche due ne la casse pas.")}
-          >
-            {t("Séries de jours tenus")}
-          </h2>
+          <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
+            <h2
+              className="hud-label shrink-0"
+              data-tip={t("Un jour est tenu quand 80 % des tâches dues sont faites")}
+              data-tip-sub={t("Une série, ce sont des jours tenus qui se suivent. Un jour sans tâche due ne la casse pas.")}
+            >
+              {t("Séries de jours tenus")}
+            </h2>
+            {/* Le record était sous la tuile « Jours tenus d'affilée » ; la
+                série en cours est maintenant dans la rangée « Aujourd'hui ». */}
+            {derived.best > 0 && <span className="shrink-0 text-[11px] text-text-dim">{t("record {n} j", { n: derived.best })}</span>}
+          </div>
           {derived.runs.length === 0 ? (
             <p className="py-6 text-center text-sm text-text-dim">
               {t("Pas encore de série. Elle commence le premier jour où 80 % des tâches dues sont faites.")}
@@ -896,7 +854,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    formatter={(v) => [`${v ?? 0}%`, "progression"]}
+                    formatter={(v) => [`${v ?? 0}%`, t("progression")]}
                   />
                   <Area
                     type="monotone"
@@ -996,53 +954,6 @@ export default function PerformanceView({ data, refresh }: Props) {
       </ResizablePanel>
       )}
 
-      {/* Temps de focus par tag */}
-      <ResizablePanel id="perf-focus" defaultW={12} minH={200}>
-      <section className="card p-5">
-        <div className="rgrid-head flex flex-wrap items-center justify-between gap-2">
-          <h2 className="hud-label shrink-0">{t("focus par tag")}</h2>
-          <span className="shrink-0 text-[11px] text-text-dim">{analyse.periode}</span>
-        </div>
-        {analyse.tags.length === 0 ? (
-          // ⚠️ « Lance ta première session… » s'affichait à qui venait d'en
-          // finir une (constat 2 du labo) : la carte ne lit que les jours finis.
-          <p className="py-6 text-center text-sm text-text-dim">
-            {jour.focus.seances > 0
-              ? t("Aucune séance sur les jours finis de cette période. Celles d'aujourd'hui y entreront demain.")
-              : analyse.aDejaDesSeances
-                ? t("Aucune séance de focus sur cette période.")
-                : t("Lance ta première session depuis le Timer ou le bouton lecture d'une tâche pour voir ton focus par tag.")}
-          </p>
-        ) : (
-          <ul className="panel-scroll mt-3 flex flex-col gap-2.5">
-            {analyse.tags.map((row) => (
-              <li key={row.tag} className="flex items-center gap-3">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: tagColor(row.tag) }}
-                />
-                <span className="w-28 shrink-0 truncate text-xs text-text">
-                  {row.tag}
-                </span>
-                <div className="pill h-2 flex-1 overflow-hidden bg-surface-2">
-                  <div
-                    className="pill h-full"
-                    style={{
-                      width: `${(row.min / analyse.tagMax) * 100}%`,
-                      backgroundColor: tagColor(row.tag),
-                    }}
-                  />
-                </div>
-                <span className="w-16 shrink-0 text-right font-mono text-xs font-semibold text-text">
-                  {fmtMinutes(row.min)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </ResizablePanel>
-
       {/* Métriques custom */}
       <ResizablePanel id="perf-metrics" defaultW={12}>
       <section>
@@ -1112,8 +1023,6 @@ export default function PerformanceView({ data, refresh }: Props) {
       </section>
       </ResizablePanel>
       </ResizableGrid>
-      </>
-      )}
 
       <MenuContextuel
         etat={menuMetrique}
