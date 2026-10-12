@@ -80,7 +80,7 @@ export default function PastilleSeance({ focus, enBas }: { focus: FocusControlle
         <button
           type="button"
           onClick={gestes.ouvrirTimer}
-          aria-label={`${t("Ouvrir le Timer")} — ${fmt(remainingSec)}, ${nom}`}
+          aria-label={`${t("Ouvrir le Timer")} — ${fmt(remainingSec)}, ${paused ? `${t("en pause")}, ` : ""}${nom}`}
           data-tip={t("Ouvrir le Timer")}
           className="cible-tactile-ligne flex min-w-0 items-center gap-3 rounded-[10px] px-3 py-1 text-left transition-colors hover:bg-overlay"
         >
@@ -93,9 +93,14 @@ export default function PastilleSeance({ focus, enBas }: { focus: FocusControlle
           <span className={`shrink-0 font-mono text-sm font-semibold tabular-nums ${paused ? "text-text-dim" : "text-text"}`}>
             {fmt(remainingSec)}
           </span>
-          <span className="max-w-44 min-w-0 truncate text-xs text-text-dim">
-            {paused ? `${nom} · ${t("en pause")}` : nom}
-          </span>
+          {/* ⚠️ « en pause » AVANT le nom, et jamais coupé : écrit à la suite
+              d'un nom long, il partait dans les points de suspension (vu à
+              l'écran le 2026-10-12). Une pause… mise en pause ne répète pas
+              « pause » : l'état suffit. */}
+          {paused && <span className="shrink-0 text-xs font-medium text-text">{t("en pause")}</span>}
+          {!(paused && estUnePause) && (
+            <span className="max-w-44 min-w-0 truncate text-xs text-text-dim">{nom}</span>
+          )}
         </button>
         <button
           type="button"
