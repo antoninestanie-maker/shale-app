@@ -481,7 +481,7 @@ export default function CalendarView({ data, refresh }: Props) {
   }, [mode, curseur]);
 
   return (
-    <div className="mx-auto max-w-6xl p-8">
+    <div className="mx-auto max-w-6xl p-8 telephone:p-4">
       <header className="view-head">
         <div className="flex items-center gap-3">
           <IconCalendar className="h-6 w-6 text-text-dim" />
@@ -825,7 +825,9 @@ function BandeauIntelligence({
                 {t("Une tâche qu'on reporte sans cesse n'est pas une tâche, c'est une décision à prendre.")}
               </span>
             </span>
-            <span className="ml-auto flex gap-1.5">
+            {/* `flex-wrap` : à 390 px les trois boutons ne tiennent pas sur une
+                rangée — « Supprimer » était écrasé, son texte hors de sa pastille. */}
+            <span className="ml-auto flex flex-wrap gap-1.5">
               <button type="button" onClick={() => void onFait(tache)} className="pill cible-tactile-ligne border border-border px-2.5 py-1 text-xs hover:bg-overlay">
                 {t("La faire maintenant")}
               </button>

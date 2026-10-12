@@ -603,15 +603,24 @@ export default function TasksView({ data, refresh, focus }: Props) {
             /* ⭐ Toucher la tâche l'OUVRE — sa date, son rythme, son objectif
                se règlent là. Avant, le libellé ne répondait à rien : il
                fallait trouver le crayon, qui n'apparaissait qu'au survol. */
+            // ⚠️ Deux étages : le BOUTON porte la zone de toucher (44 pt au
+            // doigt, reprise en marge négative pour ne pas écarter la ligne),
+            // l'enfant porte le texte coupé à deux lignes. Un seul élément ne
+            // peut pas faire les deux : `clamp-2` avec une hauteur minimale
+            // laisserait le titre collé en haut de sa zone.
             <button
               type="button"
               onClick={() => setEditing(task)}
               title={task.label}
-              className={`clamp-2 block w-full text-left text-sm leading-snug ${
-                task.done ? "text-text-dim line-through" : "text-text"
-              }`}
+              className="cible-tactile-ligne flex w-full items-center text-left [@media(pointer:coarse)]:-my-2.5"
             >
-              {task.label}
+              <span
+                className={`truncate-souris clamp-2 block w-full text-sm leading-snug ${
+                  task.done ? "text-text-dim line-through" : "text-text"
+                }`}
+              >
+                {task.label}
+              </span>
             </button>
           )}
           {(infos.length > 0 || estExemple(task)) && (

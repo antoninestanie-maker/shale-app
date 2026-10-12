@@ -1,7 +1,15 @@
 // La grille et un panneau qui n'existe plus — voir l'en-tête de `grille.ts`.
 import { describe, expect, it } from "vitest";
 
-import { ancreTient, colonneCss, dispositionIntacte, masquesConnus, ordreEffectif } from "./grille";
+import {
+  ancreTient,
+  colonneCss,
+  dispositionIntacte,
+  masquesConnus,
+  ordreAujourdhuiAuTelephone,
+  ordreEffectif,
+  placerApres,
+} from "./grille";
 
 // Les panneaux d'Aujourd'hui tels que le code les rend après le 2026-10-11 :
 // la jauge `energy` n'en fait plus partie.
@@ -135,5 +143,64 @@ describe("colonneCss", () => {
     expect(colonneCss(4, null)).toBe("span 4");
     expect(colonneCss(4, "debut")).toBe("1 / span 4");
     expect(colonneCss(8, "fin")).toBe("span 8 / -1");
+  });
+});
+
+// ── Aujourd'hui au téléphone (2026-10-12, crible du labo, constat 14) ─────────
+describe("ordreAujourdhuiAuTelephone — les habitudes juste sous les tâches", () => {
+  it("⭐ l'ordre du code : « habitudes » passe de la sixième place à celle qui suit « tasks »", () => {
+    expect(ordreAujourdhuiAuTelephone(PRESENTS)).toEqual([
+      "perf",
+      "discipline",
+      "tasks",
+      "habitudes",
+      "timer",
+      "calendar",
+      "goals",
+      "quicklinks",
+    ]);
+  });
+
+  it("rien d'autre ne change de place, et rien n'est perdu ni doublé", () => {
+    const rendu = ordreAujourdhuiAuTelephone(PRESENTS);
+    expect([...rendu].sort()).toEqual([...PRESENTS].sort());
+    expect(rendu.filter((id) => id !== "habitudes")).toEqual(PRESENTS.filter((id) => id !== "habitudes"));
+  });
+
+  it("vaut aussi pour un ordre enregistré en glissant les cartes au bureau", () => {
+    const glisse = ["goals", "habitudes", "perf", "calendar", "tasks", "timer", "discipline", "quicklinks"];
+    const rendu = ordreAujourdhuiAuTelephone(glisse);
+    expect(rendu.indexOf("habitudes")).toBe(rendu.indexOf("tasks") + 1);
+  });
+
+  it("déjà à sa place : l'ordre est rendu tel quel", () => {
+    const deja = ["perf", "tasks", "habitudes", "timer"];
+    expect(ordreAujourdhuiAuTelephone(deja)).toEqual(deja);
+  });
+
+  it("carte des tâches masquée dans Personnaliser : les habitudes restent où elles sont", () => {
+    const sansTaches = PRESENTS.filter((id) => id !== "tasks");
+    expect(ordreAujourdhuiAuTelephone(sansTaches)).toEqual(sansTaches);
+  });
+
+  it("carte des habitudes masquée : rien ne bouge, et rien n'est inventé", () => {
+    const sansHabitudes = PRESENTS.filter((id) => id !== "habitudes");
+    expect(ordreAujourdhuiAuTelephone(sansHabitudes)).toEqual(sansHabitudes);
+  });
+
+  it("ne modifie pas le tableau reçu (c'est l'ordre du bureau, il doit rester intact)", () => {
+    const copie = [...PRESENTS];
+    ordreAujourdhuiAuTelephone(PRESENTS);
+    expect(PRESENTS).toEqual(copie);
+  });
+});
+
+describe("placerApres", () => {
+  it("avance un élément placé plus loin, recule un élément placé avant", () => {
+    expect(placerApres(["a", "b", "c", "d"], "d", "a")).toEqual(["a", "d", "b", "c"]);
+    expect(placerApres(["a", "b", "c", "d"], "a", "c")).toEqual(["b", "c", "a", "d"]);
+  });
+  it("un élément ne se place pas après lui-même", () => {
+    expect(placerApres(["a", "b"], "a", "a")).toEqual(["a", "b"]);
   });
 });

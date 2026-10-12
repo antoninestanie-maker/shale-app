@@ -30,7 +30,8 @@ import { WIDGET_LABELS, type UiConfig, type WidgetConfig } from "../lib/uiConfig
 import { useEntitlements } from "../lib/entitlements";
 import { isTradingWidget } from "../lib/features";
 import { MODULE_DU_WIDGET } from "../lib/licence/catalogue";
-import type { Ancre } from "../lib/grille";
+import { ordreAujourdhuiAuTelephone, type Ancre } from "../lib/grille";
+import { useIsPhone } from "../lib/platform";
 
 import { formatDate, localeTag, t } from "../lib/i18n";
 import BarreExemples from "../components/onboarding/BarreExemples";
@@ -110,6 +111,7 @@ interface Props {
 
 export default function TodayView({ data, refresh, focus, navigate, config }: Props) {
   const today = todayStr();
+  const isPhone = useIsPhone();
   const { hasTrading, afficheModule } = useEntitlements();
   // L'IA de Shale Pro : la carte du brief n'existe que pour un compte Pro dont
   // l'IA et la famille « brief » sont allumées (et jamais sur iOS, V1).
@@ -290,7 +292,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         : undefined;
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
+    <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <header>
         <p className="hud-label">
           {new Date().toLocaleDateString(localeTag(), {
@@ -318,7 +320,13 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         <BarreExemples signal={data} onChange={refresh} />
       </div>
 
-      <ResizableGrid gridId="today" className="mt-4">
+      {/* Au téléphone, les habitudes remontent juste sous les tâches (crible
+          du labo, constat 14) ; l'ordre du bureau ne change pas. */}
+      <ResizableGrid
+        gridId="today"
+        className="mt-4"
+        ajusterOrdre={isPhone ? ordreAujourdhuiAuTelephone : undefined}
+      >
         {ordered.map((w) => {
           const node = widgets[w.id]?.();
           if (!node) return null;

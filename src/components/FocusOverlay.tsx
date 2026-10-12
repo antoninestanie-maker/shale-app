@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { FocusController } from "../lib/useFocus";
+import { useIsPhone } from "../lib/platform";
 import { themeAuDemarrage, FONDS } from "../lib/theme";
 import { afficherToast } from "../lib/toast";
 import {
@@ -16,6 +18,9 @@ function fmt(sec: number): string {
   const s = sec % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
+
+/** La place que la pastille de séance réserve en bas d'un téléphone : ses 44 pt et leur marge. */
+const RESERVE_SEANCE = "3.25rem";
 
 /**
  * Ouvre la séance dans sa propre fenêtre — et le dit si ça échoue, plutôt que
@@ -44,6 +49,32 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
 
   const { session, remainingSec, paused, overlayOpen, setOverlayOpen, stop, pause, resume } =
     focus;
+
+  /**
+   * ⭐ AU TÉLÉPHONE, LA PASTILLE VIT EN BAS, au-dessus de la barre d'onglets
+   * (2026-10-12, crible du labo, constat 36).
+   *
+   * En haut au centre, elle recouvrait le titre de chaque écran (« Timer »
+   * devenait « Ti… ») — et, sur un iPhone, elle se serait posée SOUS l'encoche :
+   * `top-4` ne connaît pas la zone sûre. En bas, elle est sous le pouce.
+   *
+   * Elle RÉSERVE sa place, par une variable lue à trois endroits : le bas de
+   * chaque vue (`App.tsx`), le toast (`Toast.tsx`) et le voile des fenêtres
+   * (`.fenetre-voile`, `index.css`). Sans cela elle recouvrirait la dernière
+   * ligne d'une liste, le « Annuler » d'une suppression ou le « Créer » d'une
+   * fenêtre. La réserve disparaît avec elle.
+   */
+  const isPhone = useIsPhone();
+  const pastilleEnBas = isPhone && session !== null && !overlayOpen;
+  useEffect(() => {
+    const racine = document.documentElement;
+    if (pastilleEnBas) racine.style.setProperty("--reserve-seance", RESERVE_SEANCE);
+    else racine.style.removeProperty("--reserve-seance");
+    return () => {
+      racine.style.removeProperty("--reserve-seance");
+    };
+  }, [pastilleEnBas]);
+
   if (!session) return null;
 
   const isBreak = session.kind === "break";
@@ -54,7 +85,10 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
       <button
         type="button"
         onClick={() => setOverlayOpen(true)}
-        className="card fixed left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-3 px-4 py-2"
+        className={`card cible-tactile-ligne fixed left-1/2 z-40 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-3 px-4 py-2 ${
+          isPhone ? "" : "top-4"
+        }`}
+        style={isPhone ? { bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)" } : undefined}
         data-tip={t("Agrandir la session")}
       >
         <span
@@ -65,7 +99,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
           {paused && <IconPause className="mr-1 inline h-3 w-3" />}
           {fmt(remainingSec)}
         </span>
-        <span className="max-w-44 truncate text-xs text-text-dim">
+        <span className="max-w-44 min-w-0 truncate text-xs text-text-dim">
           {session.label}
         </span>
       </button>

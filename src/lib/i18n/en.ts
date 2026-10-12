@@ -1762,20 +1762,14 @@ export const EN: Record<string, string> = {
   // du 2026-08-27 ; la refonte « grille de thèmes » l'a remplacé par son propre
   // « Revenir aux thèmes ». La clé est retirée avec le code qui l'utilisait.
   "Toutes les notes": "All notes",
-  // ── Onglet « À trier » de Notes (2026-10-11) — `lib/notesATrier.ts` ──
-  "À trier": "To sort",
+  // ── Onglet « Sans titre » de Notes (2026-10-12) — `lib/notesSansTitre.ts` ──
+  // ⚠️ « Nouvelle note », « Sans titre » et « {titre} (copie) » sont STOCKÉS
+  // comme titres : changer leur traduction oblige à garder l'ancienne dans
+  // `notesSansTitre.ts` (un test le rappelle).
   "Notes affichées": "Notes shown",
-  "Rien à trier.": "Nothing to sort.",
-  "Les notes qui ne sont reliées à rien": "Notes that aren’t linked to anything",
-  "Rattache-les, ou garde-les telles quelles.": "Link them, or keep them as they are.",
-  "Cette note n'est reliée à rien.": "This note isn’t linked to anything.",
-  "Rattacher…": "Link…",
-  "La relier à un objectif, un sujet, une autre note…": "Link it to a goal, a subject, another note…",
-  "Ou tape @ dans le texte.": "Or type @ in the text.",
-  "Garder telle quelle": "Keep as is",
-  "Elle quitte « À trier » sans être reliée.": "It leaves “To sort” without being linked.",
-  "Remettre dans « À trier »": "Put back in “To sort”",
-  "« {titre} » n'est plus à trier": "“{titre}” is out of “To sort”",
+  "Aucune note sans titre.": "No untitled notes.",
+  "Les notes que tu n'as pas nommées": "Notes you haven’t named",
+  "Donne-leur un titre : elles quittent l'onglet.": "Give them a title and they leave this tab.",
   // Libellé du filtre de date de Tâches : sans lui, un `<input type="date">`
   // vide est un rectangle muet sur iOS.
   "échéance": "due",

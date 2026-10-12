@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PorteAccueil from "./components/onboarding/PorteAccueil";
 import { useSession } from "./components/auth/AuthGate";
@@ -18,7 +18,7 @@ import { COMMERCE_AUTORISE, presenceModule } from "./lib/boutique";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
-import { deposerDemande, EVT_ALLER, EVT_OUVRIR, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import { deposerDemande, EVT_ALLER, EVT_OUVRIR, ouvrirParId, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import { installerMenuNatif } from "./lib/menu/natif";
 import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
 import Toast from "./components/Toast";
@@ -331,6 +331,14 @@ function App() {
     [ui.config, profil],
   );
   const isPhone = useIsPhone();
+  // La feuille de style lit « téléphone » ICI (`html[data-telephone]`) plutôt que
+  // de recopier la requête de `lib/platform.ts` : les fenêtres de saisie y
+  // réservent la barre d'onglets et l'encoche (`.fenetre-voile`, `index.css`).
+  // En `useLayoutEffect` : l'attribut est là AVANT la première image, sinon
+  // les marges de page du téléphone (`telephone:p-4`) sauteraient à l'ouverture.
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute("data-telephone", isPhone);
+  }, [isPhone]);
   const windowSized = useRef(false);
 
   // Badge sidebar "Trading" : des positions attendent leur dénouement dans le tracker
@@ -427,13 +435,12 @@ function App() {
   // les deux surfaces divergeraient à la première retouche.
   const ouvrirNoteRapide = useCallback(async () => {
     const id = await createNote(t("Nouvelle note"), "");
-    setView("notes");
     await refresh();
-    // laisse NotesView se monter avant de demander l'ouverture
-    setTimeout(
-      () => window.dispatchEvent(new CustomEvent("sb:open-note", { detail: id })),
-      60,
-    );
+    // Par la porte commune (2026-10-12) : la demande est DÉPOSÉE, la vue Notes
+    // la trouve à son montage. L'ancien rendez-vous à 60 ms arrivait avant une
+    // vue chargée en `lazy` : la note s'ouvrait par chance (la plus récente est
+    // en tête), sans que la vue sache qu'on venait de la créer.
+    ouvrirParId("note", id);
   }, [refresh]);
 
   // Raccourci note : ⌘⇧N (Ctrl+⇧N) → crée une note et l'ouvre dans Notes
@@ -674,7 +681,9 @@ function App() {
           key={view}
           // `overscroll-contain` : en bout de course, le geste s'arrête ici au
           // lieu de passer à la page (voir `body` dans `index.css`).
-          className="animate-fade-up flex-1 overflow-y-auto overscroll-contain"
+          // `vue-defilante` : au téléphone, une fenêtre ouverte ne glisse plus
+          // avec la page (`index.css`, tout en bas).
+          className="vue-defilante animate-fade-up flex-1 overflow-y-auto overscroll-contain"
           // Sur téléphone, la barre d'onglets est en `fixed` : sans cette
           // réserve, le bas de chaque vue passerait DESSOUS et deviendrait
           // inatteignable — la dernière tâche d'une liste, le dernier bouton
@@ -682,7 +691,9 @@ function App() {
           // barre d'accueil des iPhone sans bouton.
           style={
             isPhone
-              ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem)" }
+              ? // `--reserve-seance` : la place de la pastille du minuteur quand
+                // une séance tourne (`FocusOverlay`) ; nulle le reste du temps.
+                { paddingBottom: "calc(env(safe-area-inset-bottom) + 4.25rem + var(--reserve-seance, 0px))" }
               : IS_IOS
                 ? // iPad : pas de barre d'onglets, mais la barre d'accueil.
                   { paddingBottom: "env(safe-area-inset-bottom)" }

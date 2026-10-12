@@ -127,7 +127,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
               onClick={() => onToggle(task)}
               data-tip={task.done ? t("Marquer à faire") : t("Marquer faite")}
               data-tip-sub={t("Compte dans la discipline et le streak du jour.")}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
+              className="cible-tactile-ligne flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay"
             >
               <CocheVisuelle cochee={task.done} />
 
@@ -140,8 +140,10 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
 
               {/* min-w-0 + clamp : un libellé très long ne pousse jamais les
                   chips hors de la carte, il se coupe proprement sur 2 lignes. */}
+              {/* `truncate-souris` : au doigt, pas de bulle pour lire la suite —
+                  le titre reprend toutes ses lignes (voir `index.css`). */}
               <span
-                className={`clamp-2 min-w-0 flex-1 text-sm ${
+                className={`truncate-souris clamp-2 min-w-0 flex-1 text-sm ${
                   task.done ? "text-text-dim line-through" : "text-text"
                 }`}
                 title={task.label}

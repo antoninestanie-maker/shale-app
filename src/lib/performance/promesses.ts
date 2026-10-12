@@ -6,10 +6,10 @@ import { HEURES_MAX } from "./parObjectif";
  * Fait partie de l'essai « Par objectif » de Performance (`parObjectif.ts`).
  *
  * OÙ ELLES VIVENT. Une ligne de la table `settings` : une clé, et une carte
- * JSON `uid d'objectif → heures par semaine`. Le précédent est `notes.rangees`
- * (`lib/notesATrier.ts`) : pour un essai qu'on peut retirer, une colonne sur
- * `goals` aurait demandé une migration aux trois endroits, et serait restée
- * dans les bases après le retrait.
+ * JSON `uid d'objectif → heures par semaine`. Le précédent est
+ * `clePositionsObjectif` (`lib/objectifs/carte.ts`) : pour un essai qu'on peut
+ * retirer, une colonne sur `goals` aurait demandé une migration aux trois
+ * endroits, et serait restée dans les bases après le retrait.
  *
  *   • la clé est l'`uid` (jamais l'`id` local) : le réglage est SYNCHRONISÉ, et
  *     un numéro local ne désigne pas le même objectif sur un autre appareil ;

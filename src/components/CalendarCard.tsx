@@ -115,7 +115,7 @@ export default function CalendarCard({ data }: { data: AppData }) {
                 {dansLeBandeau(e) ? t("jour") : e.start_at ? formatHeure(e.start_at) : "—"}
               </span>
               <span
-                className="truncate text-text"
+                className="truncate-souris min-w-0 truncate text-text"
                 style={{
                   textDecoration: e.faite ? "line-through" : undefined,
                   opacity: e.faite ? 0.5 : 1,

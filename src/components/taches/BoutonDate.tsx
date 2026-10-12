@@ -37,7 +37,10 @@ export default function BoutonDate(props: {
       data-tip={t("Changer la date")}
       // Au doigt : 44 pt de cible, mais la ligne ne grandit pas d'autant — la
       // marge négative laisse la zone déborder sans écarter le libellé de ses faits.
-      className={`cible-tactile-ligne inline-flex shrink-0 items-center rounded underline decoration-dotted decoration-1 underline-offset-[3px] transition-colors hover:text-text [@media(pointer:coarse)]:-my-2 ${
+      // En LARGEUR aussi (2026-10-12) : « hier » mesurait 22 px de large. Le
+      // retrait de 12 px de chaque côté est repris en marge négative, donc le
+      // mot ne bouge pas ; `justify-center` le garde au milieu de ses 44 pt.
+      className={`cible-tactile inline-flex shrink-0 items-center justify-center rounded underline decoration-dotted decoration-1 underline-offset-[3px] transition-colors hover:text-text [@media(pointer:coarse)]:-mx-3 [@media(pointer:coarse)]:-my-2 [@media(pointer:coarse)]:px-3 ${
         props.className ?? ""
       }`}
     >

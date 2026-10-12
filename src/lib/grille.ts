@@ -42,6 +42,37 @@ export function masquesConnus(masques: readonly string[], presents: readonly str
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Aujourd'hui AU TÉLÉPHONE — les habitudes juste sous les tâches.
+//
+// ⭐ 2026-10-12, crible du labo, constat 14. Au téléphone les cartes
+// s'empilent sur une seule colonne, dans l'ordre du bureau : bandeaux, puis
+// colonne gauche et colonne droite ENTRELACÉES. « Habitudes à tenir », troisième
+// de la colonne gauche, tombait donc après Discipline, Tâches, Timer et
+// Calendrier — à plus de deux écrans de défilement, pour trois cases à cocher.
+// C'est le moment où Léa aurait fermé l'app.
+//
+// La règle ne vaut QUE pour le téléphone : au bureau, les deux colonnes se
+// voient d'un coup et l'ordre de Personnaliser reste celui d'Antonin.
+//
+// ⚠️ Elle s'applique à l'ordre RENDU par la grille, donc aussi à un ordre
+// enregistré en glissant les cartes sur le bureau (`order.today` est
+// synchronisé) : au doigt il n'y a pas de poignée pour le corriger.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Déplace `id` juste après `apres`. Rien ne bouge si l'un des deux manque. */
+export function placerApres(ordre: readonly string[], id: string, apres: string): string[] {
+  if (id === apres || !ordre.includes(id) || !ordre.includes(apres)) return [...ordre];
+  const sans = ordre.filter((x) => x !== id);
+  sans.splice(sans.indexOf(apres) + 1, 0, id);
+  return sans;
+}
+
+/** L'ordre des cartes d'Aujourd'hui sur un téléphone. */
+export function ordreAujourdhuiAuTelephone(ordre: readonly string[]): string[] {
+  return placerApres(ordre, "habitudes", "tasks");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Les deux colonnes d'Aujourd'hui — tant que personne n'a rien déplacé.
 //
 // ⭐ 2026-10-11. La grille place chaque panneau « au premier endroit où il

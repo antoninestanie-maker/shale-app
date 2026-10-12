@@ -18,6 +18,27 @@ import type { HabitCheck } from "./types";
 export const HABIT_COLORS = ["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"];
 
 /**
+ * ⭐ Les jours qu'une LIGNE d'habitude du Journal laisse cocher, du plus ancien
+ * à aujourd'hui (2026-10-12, crible du labo, constat 8).
+ *
+ * Au bureau : quatorze carrés de 14 px, à côté du nom. Au téléphone ils ne
+ * tiennent pas — ils écrasaient la colonne du nom à une largeur NULLE (trois
+ * lignes « case, flamme, carrés » sans un mot), et un carré de 14 px ne se
+ * touche pas. La ligne y montre donc SEPT jours, sur sa propre rangée, en
+ * cases de 44 pt qui portent l'initiale du jour. Les douze semaines restent
+ * lisibles dans la grille au-dessus.
+ */
+export const JOURS_LIGNE_BUREAU = 14;
+export const JOURS_LIGNE_TELEPHONE = 7;
+
+export function joursDeLigne(today: string, telephone: boolean): string[] {
+  const n = telephone ? JOURS_LIGNE_TELEPHONE : JOURS_LIGNE_BUREAU;
+  const jours: string[] = [];
+  for (let i = n - 1; i >= 0; i--) jours.push(addDays(today, -i));
+  return jours;
+}
+
+/**
  * Jours d'affilée où l'habitude a été tenue, jusqu'à aujourd'hui.
  *
  * Aujourd'hui pas encore coché ne casse pas la série : la journée n'est pas

@@ -87,11 +87,11 @@ export default function SendToTrackerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6"
+      className="fenetre-voile fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6"
       onClick={onClose}
     >
       <div
-        className="card w-full max-w-sm bg-surface p-6"
+        className="card max-h-full w-full max-w-sm overflow-y-auto bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

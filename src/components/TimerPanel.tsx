@@ -22,7 +22,9 @@ function Switch({
   hint?: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs text-text-dim">
+    // `cible-tactile-ligne` : l'interrupteur mesure 28 × 16 ; c'est sa ligne,
+    // libellé compris, qui se touche — 44 pt de haut au doigt.
+    <label className="cible-tactile-ligne flex cursor-pointer items-center gap-2 text-xs text-text-dim">
       <button
         type="button"
         role="switch"
@@ -153,7 +155,7 @@ export default function TimerPanel({ data, focus }: Props) {
           >
             {fmt(remainingSec)}
           </button>
-          <p className="mt-1 max-w-full truncate text-xs text-text-dim">
+          <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.label}
             {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
           </p>
@@ -200,7 +202,10 @@ export default function TimerPanel({ data, focus }: Props) {
             {/* auto-tiles-sm : les presets se réorganisent selon la largeur
                 réelle de la carte. En `flex`, le `min-width:auto` des items
                 faisait déborder la rangée dès que la carte devenait étroite. */}
-            <div className="auto-tiles-sm gap-1.5">
+            {/* Au téléphone, deux colonnes : à quatre de front, « POMODORO »
+                et « DEEP WORK » étaient coupés à cinq lettres, sans bulle pour
+                lire la suite. */}
+            <div className="auto-tiles-sm gap-1.5 telephone:grid-cols-2">
               {TIMER_PRESETS.map((p, i) => {
                 const on = !customMode && presetIdx === i && customWork === null;
                 return (

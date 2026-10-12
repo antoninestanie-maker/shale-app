@@ -134,7 +134,7 @@ export default function EnRetard(props: {
                   />
                 ) : (
                   <span
-                    className={`min-w-0 truncate text-sm ${props.cochee(task) ? "text-text-dim line-through" : "text-text"}`}
+                    className={`truncate-souris min-w-0 truncate text-sm ${props.cochee(task) ? "text-text-dim line-through" : "text-text"}`}
                     title={task.label}
                   >
                     {task.label}
@@ -167,7 +167,7 @@ export default function EnRetard(props: {
               >
                 <IconTarget className="h-4 w-4 shrink-0 text-text-dim" />
                 <span className="flex min-w-0 flex-1 flex-col gap-x-3 sm:flex-row sm:items-baseline">
-                  <span className="min-w-0 truncate text-sm text-text" title={objectif!.goal.title}>
+                  <span className="truncate-souris min-w-0 truncate text-sm text-text" title={objectif!.goal.title}>
                     {objectif!.goal.title}
                   </span>
                   <span className="shrink-0 text-xs text-text-dim">
