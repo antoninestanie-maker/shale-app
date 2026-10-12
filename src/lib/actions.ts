@@ -7,6 +7,8 @@ import { tachesAFaire, todayStr } from "./logic";
 import { createNote, createTask, setMetricValue, setTaskDone } from "./repo";
 import type { AppData } from "./types";
 import type { FocusController } from "./useFocus";
+import { MINUTES_FOCUS_TACHE } from "./seance/focusTache";
+import { creerGesteFocus } from "./seance/gesteFocus";
 
 import { t } from "./i18n";
 export interface ActionContext {
@@ -303,20 +305,22 @@ export const ACTIONS: AppAction[] = [
     input: { placeholder: "Tâche ou intitulé (optionnel)…" },
     run: async (ctx, arg) => {
       if (!ctx.focus) return "Focus indisponible";
-      if (ctx.focus.session) return t("Un focus est déjà en cours");
       const q = norm(arg ?? "");
-      let taskId: number | null = null;
-      let label = arg?.trim() || "Focus";
-      if (q && ctx.data) {
-        const match = tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr()).find((t) =>
-          norm(t.label).includes(q),
-        );
-        if (match) {
-          taskId = match.id;
-          label = match.label;
-        }
-      }
-      await ctx.focus.start({ minutes: 25, taskId, label });
+      const tache =
+        (q && ctx.data
+          ? tachesAFaire(ctx.data.tasks, ctx.data.completions, todayStr()).find((t) => norm(t.label).includes(q))
+          : null) ?? null;
+      // ⭐ Le MÊME geste que « Focus 25 min » du menu d'une tâche (règle 18,
+      // 2026-10-12) : il lance sans ouvrir le plein écran, coupe une pause en
+      // cours, et refuse de remplacer une séance de travail.
+      const regle = await creerGesteFocus(ctx.focus).agir(tache, false, arg);
+      if (!regle) return; // l'échec est déjà dit par le geste
+      if (regle.quoi === "reprendre") return t("Focus repris");
+      if (regle.quoi === "rien") return t("Un focus est déjà en cours");
+      // La séance part sans changer d'écran : on le dit, la pastille le montre.
+      return tache
+        ? t("Focus lancé : {n} min sur « {label} »", { n: MINUTES_FOCUS_TACHE, label: tache.label })
+        : t("Focus lancé : {n} min", { n: MINUTES_FOCUS_TACHE });
     },
   },
   {

@@ -131,7 +131,6 @@ export default function TimerPanel({ data, focus }: Props) {
       taskId: task?.id ?? null,
       label: task?.label ?? "Focus",
       breakMin: autoBreak ? breakMin : undefined,
-      openOverlay: false, // depuis le panneau, on reste dans l'app
     });
   };
 
@@ -144,17 +143,11 @@ export default function TimerPanel({ data, focus }: Props) {
           <p className="hud-label">
             {session.kind === "break" ? t("pause en cours") : t("session en cours")}
           </p>
-          <button
-            type="button"
-            onClick={() => focus.setOverlayOpen(true)}
-            data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
-            className={`mt-2 font-mono text-6xl font-semibold text-text ${
-              paused ? "opacity-50" : ""
-            }`}
-          >
+          {/* Les chiffres ne sont plus un bouton (2026-10-12) : le plein
+              écran ne s'ouvre que par son bouton, plus bas. */}
+          <p className={`mt-2 font-mono text-6xl font-semibold tabular-nums text-text ${paused ? "opacity-50" : ""}`}>
             {fmt(remainingSec)}
-          </button>
+          </p>
           <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.label}
             {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
@@ -189,6 +182,8 @@ export default function TimerPanel({ data, focus }: Props) {
             <button
               type="button"
               onClick={() => focus.setOverlayOpen(true)}
+              aria-label={t("Plein écran")}
+              data-tip={t("Plein écran")}
               className="pill inline-flex items-center border border-border px-4 py-2 text-xs text-text-dim hover:text-text"
             >
               <IconExpand className="h-3.5 w-3.5" />

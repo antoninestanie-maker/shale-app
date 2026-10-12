@@ -183,10 +183,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   // Les sources de la mesure d'un objectif — lues UNE fois pour la ligne
   // « En retard » et la carte « Objectifs en cours ».
   const progression = useSourcesProgression(data);
-  const lancerFocus =
-    focus && !focus.session
-      ? (task: { id: number; label: string }) => focus.start({ minutes: 25, taskId: task.id, label: task.label })
-      : undefined;
 
   // Registre des widgets : la page Personnaliser pilote ordre et visibilité.
   const widgets: Record<string, () => ReactNode> = {
@@ -249,7 +245,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
           onToggle={handleToggle}
           onAdd={handleAdd}
           refresh={refresh}
-          onFocus={lancerFocus}
         />
       </section>
     ),
@@ -312,7 +307,6 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         refresh={refresh}
         onToggle={handleToggle}
         cochee={(task) => etat(`t${task.id}`, false)}
-        onFocus={lancerFocus}
       />
 
       {/* ⭐ Le bouton unique « supprimer les exemples ». Il s'efface de lui-même

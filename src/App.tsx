@@ -7,6 +7,7 @@ import { ActionsIa } from "./components/ia/ActionsIa";
 import CommandPalette from "./components/CommandPalette";
 import FiletErreur from "./components/FiletErreur";
 import FocusOverlay from "./components/FocusOverlay";
+import { ContexteFocus, useGesteFocusDe } from "./lib/seance/gesteFocus";
 import { noteRapideDemandee, planNotifications } from "./lib/notifications";
 import { IS_IOS, useIsPhone } from "./lib/platform";
 import MobileNav from "./components/MobileNav";
@@ -308,6 +309,8 @@ function App() {
   }, [profil, view]);
 
   const focus = useFocus(refresh);
+  // « Focus 25 min » pour tout menu de tâche de l'app (`ContexteFocus`).
+  const gesteFocus = useGesteFocusDe(focus);
   // Le planificateur de Market Brain ne tourne que si le module est affiché :
   // sans l'offre Trade, ou trading mis de côté, aucun briefing ne se rédige.
   const market = useMarketBrain(briefingActif);
@@ -560,6 +563,7 @@ function App() {
        session) et au-dessus de tout le reste : l'indicateur vit dans la sidebar,
        les commandes dans Réglages — une vue chargée en `lazy`. */
     <SyncProvider>
+    <ContexteFocus.Provider value={gesteFocus}>
     {/* ⚠️ La hauteur de la FENÊTRE, densité déduite (2026-10-11). `h-screen`
         vaut `100vh`, que le `zoom` de la densité multiplie : à 110 % la racine
         mesurait 110 % de la fenêtre — le pied de la barre latérale passait sous
@@ -733,7 +737,7 @@ function App() {
               config={ui.config}
             />
           ) : view === "tasks" ? (
-            <TasksView data={data} refresh={refresh} focus={focus} />
+            <TasksView data={data} refresh={refresh} />
           ) : view === "calendar" ? (
             <CalendarView data={data} refresh={refresh} />
           ) : view === "timer" ? (
@@ -785,6 +789,7 @@ function App() {
           d'une ligne, l'ajout rapide) — un seul hôte, déjà dans un portail. */}
       <SelecteurDateFlottant />
     </div>
+    </ContexteFocus.Provider>
     </SyncProvider>
   );
 }

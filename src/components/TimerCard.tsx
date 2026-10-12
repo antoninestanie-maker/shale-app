@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { todayStr } from "../lib/logic";
 import type { FocusController } from "../lib/useFocus";
 import type { AppData } from "../lib/types";
-import { IconPause, IconPlay, IconStop } from "./icons";
+import { IconExpand, IconPause, IconPlay, IconStop } from "./icons";
 import { TIMER_PRESETS } from "./TimerPanel";
 
 import { t } from "../lib/i18n";
@@ -42,7 +42,6 @@ export default function TimerCard({ data, focus }: Props) {
       taskId: null,
       label: "Focus",
       breakMin: preset.brk,
-      openOverlay: false,
     });
 
   return (
@@ -60,15 +59,12 @@ export default function TimerCard({ data, focus }: Props) {
 
       {session ? (
         <div className="panel-grow mt-3 flex flex-col items-center justify-center">
-          <button
-            type="button"
-            onClick={() => focus.setOverlayOpen(true)}
-            data-tip={t("Plein écran")}
-            data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
-            className={`font-mono text-5xl font-semibold text-text ${paused ? "opacity-50" : ""}`}
-          >
+          {/* ⚠️ Les chiffres ne sont plus un bouton (2026-10-12) : un clic
+              dessus ouvrait le plein écran sans que rien ne l'annonce. Le plein
+              écran a son bouton, nommé, à côté de Pause et Terminer. */}
+          <p className={`font-mono text-5xl font-semibold tabular-nums text-text ${paused ? "opacity-50" : ""}`}>
             {fmt(remainingSec)}
-          </button>
+          </p>
           <p className="truncate-souris mt-1 max-w-full truncate text-xs text-text-dim">
             {session.kind === "break" ? t("pause") : session.label}
           </p>
@@ -95,6 +91,16 @@ export default function TimerCard({ data, focus }: Props) {
               className="pill inline-flex h-9 w-9 items-center justify-center border border-red/40 bg-red/10 text-red"
             >
               <IconStop className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => focus.setOverlayOpen(true)}
+              aria-label={t("Plein écran")}
+              data-tip={t("Plein écran")}
+              data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
+              className="pill inline-flex h-9 w-9 items-center justify-center border border-border text-text-dim hover:text-text"
+            >
+              <IconExpand className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

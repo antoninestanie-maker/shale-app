@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "./i18n";
 import { delaiAvantProchaineSeconde } from "./timerFenetre";
+import { pleinEcranApresDemarrage } from "./seance/focusTache";
 import {
   endFocus,
   fetchActiveFocus,
@@ -30,6 +31,11 @@ export interface StartOptions {
   label: string;
   kind?: "focus" | "break";
   breakMin?: number;
+  /**
+   * `true` : ouvrir le plein écran avec la séance. ⚠️ Absent, on ne l'ouvre PAS
+   * (2026-10-12) — avant, c'était l'inverse, et « Focus 25 min » depuis une
+   * tâche recouvrait toute l'app. Voir `pleinEcranApresDemarrage`.
+   */
   openOverlay?: boolean;
 }
 
@@ -68,6 +74,18 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const finishing = useRef(false);
+  /**
+   * La séance OUVERTE EN BASE, vue par `start` sans attendre un rendu.
+   *
+   * ⚠️ Lancer une séance par-dessus une autre (« Focus 25 min » pendant une
+   * pause, 2026-10-12) doit clore la première : sinon sa ligne reste sans
+   * `ended_at`, et c'est elle que `fetchActiveFocus` peut reprendre au prochain
+   * démarrage. Remise à `null` dès que la séance est close (arrêt, fin
+   * naturelle) pour ne jamais la clore deux fois.
+   */
+  const ouverte = useRef<number | null>(null);
+  /** Un démarrage est en route : un second clic ne lance pas une seconde séance. */
+  const demarrage = useRef(false);
 
   // reprise d'une session ouverte au démarrage
   useEffect(() => {
@@ -75,6 +93,7 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
       if (!row) return;
       const startedAtMs = parseLocal(row.started_at);
       if (Date.now() < endOf(startedAtMs, row.planned_min)) {
+        ouverte.current = row.id;
         setSession({
           id: row.id,
           label: row.label ?? "Focus",
@@ -123,34 +142,50 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
     : 0;
 
   const start = useCallback(async (opts: StartOptions) => {
-    const input: FocusInput = {
-      task_id: opts.taskId ?? null,
-      label: opts.taskId ? null : opts.label,
-      planned_min: opts.minutes,
-      kind: opts.kind ?? "focus",
-    };
-    const id = await startFocus(input);
-    setSession({
-      id,
-      label: opts.label,
-      taskId: opts.taskId ?? null,
-      plannedMin: opts.minutes,
-      startedAtMs: Date.now(),
-      kind: opts.kind ?? "focus",
-      breakMin: opts.breakMin,
-    });
-    setNowMs(Date.now());
-    setPausedAt(null);
-    finishing.current = false;
+    if (demarrage.current) return;
+    demarrage.current = true;
+    try {
+      // Une séance encore ouverte (une pause qu'on coupe pour se remettre au
+      // travail) est close AVANT d'écrire la suivante.
+      const precedente = ouverte.current;
+      if (precedente !== null) {
+        ouverte.current = null;
+        await endFocus(precedente, localNow());
+      }
+      const input: FocusInput = {
+        task_id: opts.taskId ?? null,
+        label: opts.taskId ? null : opts.label,
+        planned_min: opts.minutes,
+        kind: opts.kind ?? "focus",
+      };
+      const id = await startFocus(input);
+      ouverte.current = id;
+      setSession({
+        id,
+        label: opts.label,
+        taskId: opts.taskId ?? null,
+        plannedMin: opts.minutes,
+        startedAtMs: Date.now(),
+        kind: opts.kind ?? "focus",
+        breakMin: opts.breakMin,
+      });
+      setNowMs(Date.now());
+      setPausedAt(null);
+      finishing.current = false;
 
-    // Plein écran facultatif (compte à rebours sans distraction) : ouvert à la
-    // demande via le bouton « Plein écran ». Le mode concentration automatique
-    // (et l'ambiance sonore) ont été retirés le 2026-07-23.
-    if (opts.openOverlay !== false) setOverlayOpen(true);
+      // ⭐ Lancer une séance N'OUVRE PAS le plein écran (2026-10-12, Antonin :
+      // « ça, c'est seulement si l'utilisateur le décide »). Il ne s'ouvre que
+      // sur demande ; sinon il reste comme il était — c'est ce qui fait qu'une
+      // pause enchaînée garde l'état de la séance qui finit.
+      setOverlayOpen((ouvert) => pleinEcranApresDemarrage(ouvert, opts.openOverlay));
+    } finally {
+      demarrage.current = false;
+    }
   }, []);
 
   const stop = useCallback(async () => {
     if (!session) return;
+    ouverte.current = null;
     await endFocus(session.id, localNow());
     setSession(null);
     setPausedAt(null);
@@ -177,6 +212,7 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
       return;
     finishing.current = true;
     (async () => {
+      ouverte.current = null;
       await endFocus(session.id, localNow());
       const isBreak = session.kind === "break";
       if (isBreak) {
@@ -189,13 +225,9 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
           t("Focus terminé"),
           t("{work} min sur « {label} ». Pause de {pause} min.", { work: session.plannedMin, label: session.label, pause: session.breakMin }),
         );
-        const keepOverlay = overlayOpen;
-        await start({
-          minutes: session.breakMin,
-          label: "Pause",
-          kind: "break",
-          openOverlay: keepOverlay,
-        });
+        // Sans `openOverlay` : la pause garde le plein écran ouvert ou fermé,
+        // comme la séance qui finit l'avait.
+        await start({ minutes: session.breakMin, label: "Pause", kind: "break" });
       } else {
         await notify(
           t("Focus terminé"),
@@ -206,7 +238,7 @@ export function useFocus(refresh: () => Promise<void>): FocusController {
       }
       await refresh();
     })();
-  }, [session, pausedAt, remainingSec, refresh, start, overlayOpen]);
+  }, [session, pausedAt, remainingSec, refresh, start]);
 
   return {
     session,

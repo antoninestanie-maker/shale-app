@@ -7,6 +7,8 @@ import { entreesTache, gestesCommunsTache, type GestesTache } from "./menu/catal
 import { renommerTache } from "../lib/repo";
 import { useIaPossible } from "../lib/ia/useIa";
 import { ouvrirParId } from "../lib/naviguer";
+import { focusPossible } from "../lib/seance/focusTache";
+import { focusDeTache, useGesteFocus } from "../lib/seance/gesteFocus";
 
 import { t } from "../lib/i18n";
 import { todayStr } from "../lib/logic";
@@ -24,7 +26,6 @@ interface Props {
    * (`SaisieRapide`, 2026-10-11).
    */
   onAdd: (label: string, jour: string | null, heure: string | null) => void;
-  onFocus?: (task: TodayTask) => void;
   /**
    * Le rafraîchissement de l'app — il active le MENU CONTEXTUEL des tâches
    * (Renommer, Dater, Rattacher, Dupliquer, Supprimer…). Sans lui, le widget
@@ -39,8 +40,12 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: "var(--color-text-dim)",
 };
 
-export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocus, refresh }: Props) {
+export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, refresh }: Props) {
   const ia = useIaPossible();
+  // ⭐ Le minuteur vient du contexte (2026-10-12), plus d'une prop que la vue
+  // retirait dès qu'une séance existait : le ▶ et l'entrée du menu appellent le
+  // même geste (règle 18), et c'est `regleFocus` qui dit ce qu'il fait.
+  const gesteFocus = useGesteFocus();
   const [renommeId, setRenommeId] = useState<number | null>(null);
   const menu = useMenuContextuel<TodayTask>();
 
@@ -53,7 +58,7 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
         basculer: (task) => onToggle(task as TodayTask),
         renommer: (task) => setRenommeId(task.id),
         modifier: (task) => ouvrirParId("task", task.id),
-        focus: onFocus ? (task) => onFocus(task as TodayTask) : undefined,
+        focus: gesteFocus,
       }
     : null;
 
@@ -179,20 +184,27 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, onFocu
                 28 px écrasaient le libellé (« Sessio n… », mesuré à 390 px le
                 2026-09-25). Le « ⋯ », toujours visible au doigt, porte « Focus
                 25 min » — la même fonction (règle 18). */}
-            {onFocus && !task.done && renommeId !== task.id && (
-              <button
-                type="button"
-                onClick={() => onFocus(task)}
-                data-tip={t("Focus 25 min")}
-                data-tip-sub={t("Démarre un pomodoro dédié à cette tâche.")}
-                aria-label={t("Focus sur {label}", { label: task.label })}
-                className="shrink-0 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:hidden"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                  <path d="M8 5.14v13.72c0 .86.95 1.38 1.68.92l10.9-6.86a1.09 1.09 0 0 0 0-1.84L9.68 4.22A1.09 1.09 0 0 0 8 5.14Z" />
-                </svg>
-              </button>
-            )}
+            {(() => {
+              // Le ▶ ne se montre que s'il AGIT (lancer, reprendre). Grisé, il
+              // n'aurait rien dit : c'est l'entrée du « ⋯ » qui porte la raison.
+              if (!gesteFocus || renommeId === task.id) return null;
+              const { regle, libelle } = focusDeTache(gesteFocus, task, task.done);
+              if (!focusPossible(regle)) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => void gesteFocus.agir(task, task.done)}
+                  data-tip={libelle}
+                  data-tip-sub={regle.quoi === "reprendre" ? undefined : t("Démarre un pomodoro dédié à cette tâche.")}
+                  aria-label={t("Focus sur {label}", { label: task.label })}
+                  className="shrink-0 rounded-md p-1.5 text-text-dim opacity-0 transition-opacity hover:text-blue group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:hidden"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                    <path d="M8 5.14v13.72c0 .86.95 1.38 1.68.92l10.9-6.86a1.09 1.09 0 0 0 0-1.84L9.68 4.22A1.09 1.09 0 0 0 8 5.14Z" />
+                  </svg>
+                </button>
+              );
+            })()}
             {gestes && renommeId !== task.id && (
               <BoutonMenu
                 visible

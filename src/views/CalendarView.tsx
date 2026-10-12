@@ -58,6 +58,7 @@ import { useIaPossible } from "../lib/ia/useIa";
 import { demanderIa } from "../lib/ia/demande";
 import { IconeIa } from "../components/ia/IconeIa";
 import { afficherToast } from "../lib/toast";
+import { useGesteFocus } from "../lib/seance/gesteFocus";
 import type { EntreePossible } from "../lib/menu/entrees";
 
 /**
@@ -357,6 +358,8 @@ export default function CalendarView({ data, refresh }: Props) {
   }, [refresh, chargerEvents]);
   const communsEvenement = gestesCommunsEvenement(apresEvenement);
   const communsTache = gestesCommunsTache(apresEvenement);
+  // « Focus 25 min » manquait au menu d'une tâche du Calendrier (2026-10-12).
+  const gesteFocus = useGesteFocus();
 
   /**
    * ⭐ UN SEUL ÉCOUTEUR pour toute la grille, pas un par bloc : il reconnaît
@@ -412,6 +415,7 @@ export default function CalendarView({ data, refresh }: Props) {
           basculer: (x) => void basculerTache(x, c.date, !faite).then(apresEvenement),
           renommer: () => undefined, // omis : `renommable: false`
           modifier: (x) => ouvrirParId("task", x.id),
+          focus: gesteFocus,
         },
         { faite, objectifs: data.goals, renommable: false, ia },
       );

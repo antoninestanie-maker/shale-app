@@ -14,6 +14,7 @@ import { estAcheve, mesurer, type SourcesProgression } from "../lib/objectifs/pr
 import { objectifsEnRetard } from "../lib/objectifs/retard";
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
 import { renommerTache } from "../lib/repo";
+import { useGesteFocus } from "../lib/seance/gesteFocus";
 import { tachesEnRetard } from "../lib/taches";
 import type { AppData, Task, TodayTask } from "../lib/types";
 
@@ -51,13 +52,13 @@ export default function EnRetard(props: {
   onToggle: (task: TodayTask) => void;
   /** Ce que la case affiche : la coche optimiste de la vue. */
   cochee: (task: Task) => boolean;
-  /** « Focus 25 min », quand aucune séance n'est en cours. */
-  onFocus?: (task: Task) => void;
 }) {
   const { data, sources, refresh } = props;
   const today = todayStr();
   const ia = useIaPossible();
   const menu = useMenuContextuel<Task>();
+  // « Focus 25 min » : le geste de toute l'app (règle 18), lu dans le contexte.
+  const gesteFocus = useGesteFocus();
   const [renommeId, setRenommeId] = useState<number | null>(null);
   const [tout, setTout] = useState(false);
 
@@ -75,7 +76,7 @@ export default function EnRetard(props: {
     basculer: (task) => props.onToggle({ ...task, done: props.cochee(task) }),
     renommer: (task) => setRenommeId(task.id),
     modifier: (task) => ouvrirParId("task", task.id),
-    focus: props.onFocus,
+    focus: gesteFocus,
   };
 
   const validerRenommage = async (task: Task, libelle: string) => {

@@ -416,7 +416,6 @@ export const EN: Record<string, string> = {
   "Lancer la session": "Start session",
   "Terminer la session": "End session",
   "Reprendre la session": "Resume session",
-  "Agrandir la session": "Expand session",
   "Plein écran": "Full screen",
   "Démarre le compte à rebours de concentration.": "Start the focus countdown.",
   "Ne laisse que le compte à rebours à l’écran.":
@@ -1857,7 +1856,6 @@ export const EN: Record<string, string> = {
 
   // ── Tâches, journal, aujourd'hui ──────────────────────────────────────────
   "Marquer faite": "Mark done",
-  "Focus 25 min": "25 min focus",
   "effacer": "clear",
   "Tag": "Tag",
   "Moyenne": "Medium",
@@ -3710,4 +3708,20 @@ export const EN: Record<string, string> = {
   "Largeur de la barre latérale": "Sidebar width",
   "Régler la largeur": "Adjust width",
   "Glisser le bord · double-clic : largeur d’origine.": "Drag the edge · double-click: default width.",
+
+  // ── Focus depuis une tâche, pastille de séance (2026-10-12, chantier focus-ile) ──
+  "Focus {n} min": "{n} min focus",
+  "Reprendre le focus": "Resume focus",
+  "Focus en cours": "Focus running",
+  "Autre session en cours": "Another session running",
+  "Cette tâche est faite. Rouvre-la pour lancer un focus.": "This task is done. Reopen it to start a focus.",
+  "Une session tourne déjà sur cette tâche.": "A session is already running on this task.",
+  "Une session tourne sur « {label} ». Termine-la pour lancer un focus ici.":
+    "A session is running on “{label}”. End it to start a focus here.",
+  "Le focus n'a pas pu démarrer.": "The focus couldn't start.",
+  "Focus repris": "Focus resumed",
+  "Focus lancé : {n} min sur « {label} »": "Focus started: {n} min on “{label}”",
+  "Focus lancé : {n} min": "Focus started: {n} min",
+  "Session en cours": "Session in progress",
+  "Actions sur la session": "Session actions",
 };

@@ -5,6 +5,8 @@ import { addDays, todayStr } from "../../../lib/logic";
 import { demandeDeDate, fermerSelecteurDate } from "../../../lib/selecteurDate";
 import { lundiProchain } from "../../../lib/taches/dates";
 import type { Task } from "../../../lib/types";
+import { MINUTEUR_AU_REPOS, type EtatMinuteur } from "../../../lib/seance/focusTache";
+import type { GesteFocus } from "../../../lib/seance/gesteFocus";
 
 // Les gestes communs écrivent par le dépôt : on regarde ce qu'ils lui demandent.
 const depot = vi.hoisted(() => ({
@@ -39,21 +41,39 @@ const ids = (g: GestesTache, faite = false) =>
   ordonner(entreesTache(tache, g, { faite, objectifs: [] })).map((e) => e.id);
 
 describe("« Focus 25 min » dans le menu d'une tâche", () => {
-  it("vient juste après Terminer, et appelle EXACTEMENT le ▶ du widget (règle 18)", () => {
-    const focus = vi.fn();
+  const entreeFocus = (g: GestesTache, faite = false) =>
+    ordonner(entreesTache(tache, g, { faite, objectifs: [] })).find((e) => e.id === "focus");
+  const geste = (etat: EtatMinuteur = MINUTEUR_AU_REPOS): GesteFocus => ({ etat, agir: vi.fn(async () => null) });
+
+  it("vient juste après Terminer, et appelle EXACTEMENT le geste du ▶ du widget (règle 18)", () => {
+    const focus = geste();
     const g = gestes(focus);
     expect(ids(g).slice(0, 2)).toEqual(["basculer", "focus"]);
-    const entree = ordonner(entreesTache(tache, g, { faite: false, objectifs: [] })).find((e) => e.id === "focus")!;
-    entree.executer!();
-    expect(focus).toHaveBeenCalledWith(tache);
+    const entree = entreeFocus(g)!;
+    expect(entree.desactive).toBeUndefined();
+    void entree.executer!();
+    expect(focus.agir).toHaveBeenCalledWith(tache, false);
   });
 
-  it("absent d'une tâche faite — le ▶ n'y est pas non plus", () => {
-    expect(ids(gestes(vi.fn()), true)).not.toContain("focus");
+  it("⭐ reste là pendant une séance : grisée, avec sa raison (2026-10-12)", () => {
+    const ailleurs = geste({ seance: { kind: "focus", taskId: 3, label: "Relire le contrat" }, enPause: false });
+    const entree = entreeFocus(gestes(ailleurs))!;
+    expect(entree.desactive?.raison).toContain("Relire le contrat");
   });
 
-  it("absent là où aucun minuteur n'est à portée (Calendrier, feuille de route) ou pendant une séance", () => {
+  it("⭐ pendant une pause enchaînée, elle agit : on peut se remettre au travail", () => {
+    const pause = geste({ seance: { kind: "break", taskId: null, label: "Pause" }, enPause: false });
+    expect(entreeFocus(gestes(pause))!.desactive).toBeUndefined();
+  });
+
+  it("⭐ sur une tâche faite : là, grisée, et dit de la rouvrir — plus absente", () => {
+    const entree = entreeFocus(gestes(geste()), true)!;
+    expect(entree.desactive?.raison).toBeTruthy();
+  });
+
+  it("absente seulement hors de l'app, là où aucun minuteur n'existe (un test, la capture)", () => {
     expect(ids(gestes())).not.toContain("focus");
+    expect(ids(gestes(null))).not.toContain("focus");
   });
 });
 
