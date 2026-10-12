@@ -49,6 +49,7 @@ import {
 } from "../lib/performance/analyse";
 import { jourEnClair, plageDeDates } from "../lib/performance/dates";
 import { jourEnCours, periodeSansMesure } from "../lib/performance/jour";
+import { enHeuresInsecable } from "../lib/performance/parObjectif";
 import { CourbeDiscipline, GrilleCarres, LegendeCourbe, type Carre } from "../components/performance/Discipline";
 import ParObjectif from "../components/performance/ParObjectif";
 import { RangeeAujourdhui } from "../components/performance/RangeeAujourdhui";
@@ -543,10 +544,11 @@ export default function PerformanceView({ data, refresh }: Props) {
             detail: analyse.focusGlissant
               ? t("Le Timer compte autrement : sept jours glissants, aujourd'hui compris ({dates}) — {total}.", {
                   dates: analyse.focusGlissant.dates,
-                  total: fmtMinutes(analyse.focusGlissant.minutes),
+                  // Insécable : dans une bulle étroite, « 8 h 15 » se coupait en « 8 / h 15 ».
+                  total: enHeuresInsecable(analyse.focusGlissant.minutes),
                 })
               : t("Aujourd'hui n'y est pas : ses séances sont dans la rangée du haut."),
-            avant: analyse.focusAvant > 0 || analyse.focus > 0 ? fmtMinutes(analyse.focusAvant) : null,
+            avant: analyse.focusAvant > 0 || analyse.focus > 0 ? enHeuresInsecable(analyse.focusAvant) : null,
             points: false,
             note: null,
           },
@@ -772,7 +774,7 @@ export default function PerformanceView({ data, refresh }: Props) {
           // Le jour en cours n'a pas de barre parmi des tranches de sept jours :
           // on dit ce qu'il porte, plutôt qu'« aucune séance ».
           <p className="py-6 text-center text-sm text-text-dim">
-            {t("Aucune séance sur les jours finis de cette période. Aujourd'hui : {duree}.", { duree: fmtMinutes(jour.focus.minutes) })}
+            {t("Aucune séance sur les jours finis de cette période. Aujourd'hui : {duree}.", { duree: enHeuresInsecable(jour.focus.minutes) })}
           </p>
         ) : (
           <div className="panel-chart mt-3 min-h-[150px]">
