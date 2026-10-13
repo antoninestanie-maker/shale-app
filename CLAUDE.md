@@ -2967,6 +2967,11 @@ embarque `src/ios.rs` et déclare `security-framework` pour les deux cibles.
 `MobileNav.tsx` les **consomme**. Un second tableau de modules pour le mobile
 aurait rouvert la porte qu'on venait de refermer.
 
+> ⚠️ **2026-10-13 : ces quatre onglets ne sont plus imposés, ils sont le
+> défaut.** La barre se choisit dans Personnaliser (section datée en fin de
+> fichier). « Plus » reste fixe, et aucun onglet ne peut ouvrir un mur de
+> paiement : la règle tient par `ongletPossible`, plus par la liste.
+
 Barre d'onglets : **Aujourd'hui · Tâches · Notes · Journal · Plus**, identique
 dans les deux offres — un onglet permanent ouvrant un mur de paiement est le
 pire endroit pour vendre, et l'App Store le regarde (règle 3.1.1). Les modules

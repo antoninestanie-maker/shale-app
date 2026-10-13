@@ -993,3 +993,11 @@ Rien de publié sur le site ce soir. Ce que ces trois chantiers rendent faux ou 
 ## AF — Démo : les habitudes ne font plus un damier (app, 2026-10-13)
 
 Aucun texte du site ne change. Les **captures** tirées de la démo qui montrent les habitudes sont à refaire au prochain passage : la carte « habitudes — 12 semaines » du Journal (grille et lignes de quatorze jours), et dans Performance la courbe « Discipline — habitudes », ses carrés et le détail par habitude (Méditation 87 %, Sport 43 %, Lecture 60 % un mardi ; avant : 87 / 43 / 50). Non regardé : quelles pages du site portent ces captures aujourd'hui.
+
+## AG — La barre du bas se choisit (app iPhone, 2026-10-13)
+
+Rien de publié sur le site. Rien n'y devient faux : la barre d'origine (Aujourd'hui · Tâches · Notes · Journal · Plus) reste le défaut, donc toute capture ou maquette de l'app iPhone reste juste.
+
+- À dire un jour, si la page iPhone existe : la barre du bas se règle dans Personnaliser. **Ne pas l'écrire avant qu'Antonin l'ait essayée sur son téléphone.**
+- Non recensé page par page.
+

@@ -2521,3 +2521,16 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 - **Hors dépôt, à faire par la session des reels** : `~/Desktop/Shale marketing/Shale reels/shale-reels-claude/_kit/vite.film.mjs` remplaçait ces trois règles à la volée. ⚠️ Il ne les trouvera plus et S'ARRÊTE sur « règle d'habitude introuvable » : retirer son bloc `HABITUDES` / `REGLES` et la branche `demo.ts` de son `transform` (le reste — mode démo sans Supabase — sert toujours).
 - **Signalé, non corrigé** : tâches, focus, métriques, progression des objectifs et humeur de la démo sont aussi réguliers (détail dans `CLAUDE.md`). La branche `chantier/demo-captures-v3` les réécrit et n'est pas fusionnée.
 - **Ligne de base** : `tsc`, `test:types`, `i18n:check` (2807) verts. vitest : 176 fichiers, 2 535 tests (6 neufs). Deux passes complètes sous une charge de 50 à 60 (autres sessions) : 2 puis 5 fichiers en délai dépassé — `finance/facturation/demo.test.ts` (« jour par jour », 60 s), `sync/engine.test.ts` (volume), `ia/serveur*.test.ts` (crochet de 60 s). Rejoués seuls dans la minute : 108 tests verts sur ces cinq fichiers. Aucun ne lit les habitudes.
+
+## 2026-10-13 (soir) — iPhone : la barre du bas se choisit dans Personnaliser
+
+Demande d'Antonin. Décisions : `CLAUDE.md`, même date. Mode d'emploi et fichiers : `MOBILE.md` § 30.
+
+- **Fait** : Personnaliser → « barre du bas » (téléphone seulement). Retirer, ajouter, ranger les onglets ; quatre au plus, un au moins ; « Plus » fixe ; « Par défaut ». Le défaut est la barre d'avant (Aujourd'hui · Tâches · Notes · Journal) : rien ne change pour qui ne touche à rien.
+- **Fichiers** : `src/lib/onglets.ts` (neuf, la règle) et son test ; `uiConfig.ts` (champ `onglets`) ; `MobileNav.tsx` ; `AdminView.tsx` ; `en.ts` (9 clés). Aucune migration, aucun Rust, aucune dépendance.
+- **Ligne de base** (worktree `Shale-chantiers/barre-du-bas`) : `tsc` vert ; `test:types` vert ; `i18n:check` 0 manquante, 2816 entrées ; `i18n:durs` 0 chaîne sûrement française ; vitest ciblé 142/142, dont 24 nouveaux (`onglets.test.ts`).
+- **Vu à l'écran** : Chrome piloté, mode démonstration, 390 × 844 au doigt, français sombre et anglais clair — tout le parcours du § 30.4 de `MOBILE.md`. Captures : `~/Desktop/Shale-chantiers/captures-barre-du-bas/`.
+- ⚠️ **Pas vu** : WebKit ; la barre relue après une fermeture de l'app (la démo garde ses réglages en mémoire) ; un compte sous licence (module masqué) — ce cas n'est tenu que par les tests.
+- **Non fait** : glisser les onglets au doigt ; choisir les tuiles du pied de « Plus ».
+- **Remarqué en passant, non corrigé** : en anglais, à 390 pt, le sélecteur de densité de Personnaliser passe sur deux lignes (« Large » seul dessous).
+

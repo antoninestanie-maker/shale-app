@@ -974,3 +974,14 @@ cadres suffit, un fond de plus brouille les niveaux.
 - **Carte de discipline** : la légende à droite du titre ; la courbe (190 px) — moyenne 7 jours en `--color-blue` 2,5 px avec un fondu vers le bas, jour par jour en `text-dim` 1 px à 45 %, repère en tirets `border-strong` ; puis « régularité — un carré par jour » : 53 semaines, carrés de 14 px à l'encre (`--color-success-fill` à 15 / 35 / 65 / 100 %), calés à DROITE et rognés à gauche quand la carte est étroite. Pour les tâches seulement, un jour à 0 % est teinté de rouge.
 - **Ligne d'habitude** : pastille de sa couleur, nom, jauge de sa couleur, « 13/30 j · 43% » en mono, la flamme et sa série, l'écart.
 - **Barres** : à l'encre ; quand deux séries se côtoient (jours de la semaine), les tâches à l'encre et les habitudes en bleu.
+
+### Personnaliser — « barre du bas » (téléphone, 2026-10-13)
+
+- **Deux listes dans une carte**, avec le matériau des listes de Personnaliser (ligne `rounded-xl border px-3 py-2`, icône du module à 20 px, libellé tronqué) : « dans la barre · n/4 », puis « à ajouter ».
+- **L'ordre vertical est l'ordre de la barre** : la première ligne est l'onglet de gauche. Les flèches sont celles des autres listes (`ArrowButton`).
+- **Retirer = une croix, ajouter = un plus**, 44 pt au doigt (`.cible-tactile`). Pas de rouge sur la croix : rien n'est supprimé, le module reste dans « Plus ».
+- **« Plus » est une ligne de la première liste**, à 55 % d'opacité, avec un cadenas et « fixe » à la place des boutons. Même hauteur que ses voisines au doigt.
+- **Pas d'aperçu dessiné** : la vraie barre est à l'écran, en bas, et suit chaque geste.
+- **Un état qui bloque s'écrit** : barre pleine → une phrase sous « à ajouter ». Au doigt, un bouton grisé n'a pas de bulle.
+- **« Par défaut »** est une petite pastille dans l'en-tête de la carte, absente tant que la barre est celle d'origine.
+

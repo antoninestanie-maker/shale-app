@@ -555,6 +555,12 @@ conversion, et il ne doit pas disparaître sur mobile.
 
 #### ✅ Décision : 4 onglets communs aux deux offres, + « Plus »
 
+> ⚠️ **Retournée en partie le 2026-10-13 — § 30.** Les quatre onglets ci-dessous
+> sont devenus le DÉFAUT d'un réglage : Antonin a demandé à choisir la barre
+> dans Personnaliser. « Plus » reste fixe. Les trois raisons qui suivent
+> expliquent le défaut ; la première (aucun onglet ne peut afficher un cadenas)
+> est tenue autrement — un module verrouillé ou absent n'est jamais proposé.
+
 **Aujourd'hui · Tâches · Notes · Journal · Plus**
 
 Identique dans les deux offres. Les trois raisons :
@@ -3519,3 +3525,67 @@ Rust (`src-tauri/target/aarch64-apple-ios`, 1,2 Go) est **gardé** : le profil
 expire dans sept jours, la prochaine pose ne recompilera que ce qui a changé.
 
 Pièges de la séance : `PIEGES.md` § 43.
+
+---
+
+## 30. La barre du bas se choisit (2026-10-13)
+
+Antonin : « j'aimerais que tu ajoutes dans l'app iPhone la possibilité dans le
+personnalisé de personnaliser la barre en bas. Donc le plus n'est pas
+changeable. » Décisions et pourquoi : `CLAUDE.md`, section du 2026-10-13.
+
+### 30.1 Ce que l'utilisateur voit
+
+**Plus → Personnaliser → « barre du bas »** (au-dessus de « modules »).
+
+- **« dans la barre · 3/4 »** : une ligne par onglet, dans l'ordre de la barre
+  (la première ligne est l'onglet de gauche). Sur chaque ligne : monter,
+  descendre, retirer (la croix).
+- **« Plus »** : dernière ligne, grisée, marquée « fixe ». Aucun geste.
+- **« à ajouter »** : les autres modules du compte, un « + » chacun. Barre
+  pleine : les « + » sont grisés et une phrase le dit.
+- **« Par défaut »**, en haut à droite de la section : n'apparaît que si la
+  barre n'est plus celle d'origine.
+- Quatre onglets au plus, un au moins. Chaque geste est enregistré aussitôt ;
+  la barre, en bas de l'écran, change sous les yeux.
+
+### 30.2 Où c'est écrit
+
+| Quoi | Où |
+|---|---|
+| La règle (lire, afficher, ajouter, retirer, déplacer) | `src/lib/onglets.ts`, tests `onglets.test.ts` |
+| Le réglage | champ `onglets` de `ui.config` (`src/lib/uiConfig.ts`) |
+| La barre | `src/components/MobileNav.tsx` — `ongletsAffiches(config.onglets, …)` |
+| « Ce module peut-il être un onglet ? » | `ongletPossible` (`MobileNav.tsx`), lue aussi par Personnaliser |
+| La section de réglage | `BarreDuBas` dans `src/views/AdminView.tsx` |
+
+### 30.3 Ce qu'il faut savoir
+
+- **La section n'existe que là où la barre existe** : `useIsPhone()`. Sur iPad
+  en grand et sur Mac, elle n'est pas affichée. Sur un iPad en Split View
+  étroit, elle l'est (c'est la mise en page du téléphone, § 28.10).
+- **`ui.config` ne se synchronise pas** (`sync/scope.ts`). La barre est celle
+  de l'appareil. Elle survit à une mise à jour posée par-dessus (§ 29.3 : le
+  conteneur est gardé) ; supprimer l'app la remet à l'origine.
+- **Un réglage d'avant le 2026-10-13 n'a pas le champ** : il se charge avec la
+  barre d'origine. Rien ne bouge pour qui ne touche à rien.
+- **Sur iOS, un module absent n'est jamais proposé** (trading, Finance, module
+  masqué par une licence) : la règle 3.1.3(f) du § 25 tient sans rien y ajouter.
+- **« Réinitialiser »** (en haut de Personnaliser) remet aussi la barre.
+
+### 30.4 Ce qui a été vu, et où
+
+**Vu dans Chrome piloté, mode démonstration, 390 × 844 au doigt** (build du
+labo, commit `4f74f65` de la branche) : la section ; retirer « Journal » (la
+barre passe à trois onglets et « Plus ») ; ajouter « Calendrier » ; le remonter
+de deux places ; ouvrir le Calendrier par son nouvel onglet ; quitter
+Personnaliser et y revenir (la barre est gardée) ; réduire à un onglet (sa
+croix se grise) ; « Par défaut » ; la même section en anglais et en thème
+clair. Captures : `~/Desktop/Shale-chantiers/captures-barre-du-bas/`.
+
+⚠️ **Limites de cette vérification.** Chrome émule un téléphone, ce n'est pas
+WebKit. Le mode démonstration garde ses réglages en mémoire : que la barre
+choisie soit relue **après une fermeture de l'app** n'a pas été vu — c'est le
+chemin de tous les réglages de Personnaliser (`setSetting("ui.config")`), il
+n'a pas été modifié.
+
