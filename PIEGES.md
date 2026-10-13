@@ -5277,3 +5277,17 @@ C'est, aux options de couleur près, celle que lance Tauri (`cargo build --packa
 ## 43.4 Compter un témoin dans `dist` : `grep -c` sur le fichier, pas `cat | grep -o | wc -l` dans une boucle
 
 Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; done` a rendu **0** pour la pastille nette, présente dans le fichier (`grep -o -h -E` l'a montrée l'instant d'après). Cause non cherchée. Un témoin à 0 se recontrôle par une seconde commande avant de conclure que le correctif manque.
+
+## 44.1 Le worktree qu'ouvre l'app Claude (`Shale/.claude/worktrees/…`) part d'une branche d'août
+
+**Symptôme.** Une session ouverte depuis l'app Claude démarre dans `Shale/.claude/worktrees/<nom>`, sur une branche `claude/<nom>` à `4ca4080` (26 août). Son `CLAUDE.md` parle de douze modules et de `sync-chiffree`, `PASSATION.md` n'y existe pas, le dépôt y a 397 commits de retard sur `origin/mobile-ios` (36 pour le seul `demo.ts`).
+**Cause.** Non cherchée. Constat : l'outil annonce `sync-chiffree` comme branche principale, et le worktree ne part pas de `mobile-ios`.
+**Parade.** Avant toute lecture : `git worktree list` et `git log -1 origin/mobile-ios`. Travailler dans un worktree `~/Desktop/Shale-chantiers/<chantier>` créé sur `origin/mobile-ios` (carnet `COORDINATION.md`), et lire les documents de CE worktree-là.
+**Payé.** Dix minutes, le 2026-10-13 : le fichier demandé par le cadrage (`PASSATION.md`) était introuvable, ce qui a donné l'alerte. Sans cela, le correctif partait d'un `demo.ts` d'août.
+
+## 44.2 Une série « il y a N jours » validée à l'image n'est juste que le jour de la semaine où on l'a regardée
+
+**Symptôme.** Trois historiques d'habitudes de soixante caractères, validés un mardi avec « des week-ends plus faibles ». Recopiés tels quels (indice = nombre de jours avant aujourd'hui), le jour faible avance d'un cran chaque jour : « Le mercredi : 42 % ».
+**Cause.** Une donnée de démo relative à aujourd'hui n'a pas de jour de la semaine. Ce qu'on a validé, c'est son alignement du jour.
+**Parade.** Ranger la série par semaines (lundi → dimanche), la dernière étant la semaine en cours ; tester sur sept jours consécutifs, pas sur aujourd'hui (`demoHabitudes.test.ts`).
+**Payé.** Rien : vu avant d'écrire, en posant les séries en lignes de sept.

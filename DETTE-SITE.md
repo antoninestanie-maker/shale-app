@@ -989,3 +989,7 @@ Rien de publié sur le site ce soir. Ce que ces trois chantiers rendent faux ou 
 - toute capture de **Tâches** montrant la ligne d'ajout : l'icône de calendrier est devenue la pastille « sans date » ;
 - toute capture de l'**accueil**, écran « objectif » : un champ « Son échéance (facultatif) » s'est ajouté ;
 - tout texte du site qui dirait que l'accueil ne demande pas de date : je n'en connais pas.
+
+## AF — Démo : les habitudes ne font plus un damier (app, 2026-10-13)
+
+Aucun texte du site ne change. Les **captures** tirées de la démo qui montrent les habitudes sont à refaire au prochain passage : la carte « habitudes — 12 semaines » du Journal (grille et lignes de quatorze jours), et dans Performance la courbe « Discipline — habitudes », ses carrés et le détail par habitude (Méditation 87 %, Sport 43 %, Lecture 60 % un mardi ; avant : 87 / 43 / 50). Non regardé : quelles pages du site portent ces captures aujourd'hui.

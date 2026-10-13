@@ -17,6 +17,7 @@ import {
 import type { APurger, ElementCorbeille, Lot, PlanRestauration } from "./corbeille/base";
 import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
+import { historiqueHabitudesDemo } from "./demoHabitudes";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
@@ -463,15 +464,11 @@ const habits: Habit[] = [
 ];
 let nextHabitId = habits.length + 1;
 
+// Soixante jours d'historique, écrits à la main dans `demoHabitudes.ts` : trois
+// règles fixes dessinaient un damier dans le Journal (retour du 2026-10-13).
 const habitChecks: HabitCheck[] = [];
 let hcId = 1;
-for (let i = 60; i >= 1; i--) {
-  const date = addDays(today, -i);
-  const wd = weekdayOf(date);
-  if (i % 7 !== 3) habitChecks.push({ id: hcId++, habit_id: 1, date });
-  if ([1, 3, 5].includes(wd)) habitChecks.push({ id: hcId++, habit_id: 2, date });
-  if (i % 2 === 0) habitChecks.push({ id: hcId++, habit_id: 3, date });
-}
+for (const c of historiqueHabitudesDemo(today)) habitChecks.push({ id: hcId++, ...c });
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
 
 // Journal de trades des 2 dernières semaines (motif déterministe, ~60% winrate)
