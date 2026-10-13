@@ -3723,4 +3723,38 @@ export const EN: Record<string, string> = {
   "Retirer de la barre": "Remove from the bar",
   "Ajouter à la barre": "Add to the bar",
   "Maintiens une ligne pour la glisser à sa place.": "Press and hold a row to drag it into place.",
+
+  // ── Retours d'Antonin du 2026-10-13 (chantier retours-1310) ──
+  // Journal : la barre qui choisit le jour ; la coche est celle du jour choisi.
+  "Choisir le jour": "Choose the day",
+  "Semaine précédente": "Previous week",
+  "Semaine suivante": "Next week",
+  "{nom}, {date}": "{nom}, {date}",
+  "Cocher pour le {date}.": "Check for {date}.",
+  "Cocher pour le {date}": "Check for {date}",
+  "Décocher pour le {date}": "Uncheck for {date}",
+  "Rien n'est encore écrit ce jour-là.": "Nothing is written for that day yet.",
+  "Crée une note avec les chiffres de la semaine : tâches faites et temps de focus.":
+    "Creates a note with the week’s figures: tasks done and focus time.",
+  "Ce qui s'est passé dans la journée, et les habitudes à tenir.":
+    "What happened during the day, and the habits to keep.",
+  // Les grilles d'habitudes, partagées par le Journal et Aujourd'hui.
+  "Habitudes tenues, jour par jour, sur {n} semaines": "Habits kept, day by day, over {n} weeks",
+  "Tenue": "Kept",
+  "Pas tenue": "Not kept",
+  // Calendrier : le créneau proposé dit ce qu'il est.
+  "Créneau libre": "Free slot",
+  // Performance : les écarts en pour cent, plus en « pts ».
+  "{avant} sur ces jours-là, {valeur} sur cette période.": "{avant} on those days, {valeur} over this period.",
+  "Tâches tenues : {valeur} %, contre {avant} % la période d'avant.":
+    "Tasks done: {valeur}%, against {avant}% the period before.",
+  "Habitudes tenues : {valeur} %, contre {avant} % la période d'avant.":
+    "Habits kept: {valeur}%, against {avant}% the period before.",
+  // Timer : volets ou anneau.
+  "Affichage du chrono": "Clock display",
+  "Volets": "Flaps",
+  "Anneau": "Ring",
+  "Deux cartes dont les chiffres basculent, comme un afficheur à palettes.":
+    "Two cards whose digits flip, like a split-flap display.",
+  "Un cercle qui se remplit, le temps restant au centre.": "A circle that fills up, with the time left in the middle.",
 };

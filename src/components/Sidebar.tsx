@@ -248,7 +248,7 @@ const DESCRIPTIONS: Record<View, string> = {
   performance: "Courbes de progression : régularité, focus, objectifs.",
   finance: "Trésorerie : runway, patrimoine net, burn mensuel.",
   notes: "Notes riches liées entre elles, recherche plein texte.",
-  journal: "Entrée quotidienne : humeur, énergie, ressenti de la journée.",
+  journal: "Ce qui s'est passé dans la journée, et les habitudes à tenir.",
   knowledge: "Base de connaissances : notes, images, croquis et liens par thème.",
   trading: "Journal de trades en R, statistiques et tracker de positions live.",
   market: "Briefing marchés généré 2×/jour : biais, niveaux, zones no-trade.",

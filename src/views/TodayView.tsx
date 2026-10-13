@@ -74,7 +74,11 @@ const WIDGET_MIN_H: Record<string, number> = {
   calendar: 176,
   tasks: 200,
   goals: 176,
-  habitudes: 136,
+  // 216 depuis le 2026-10-13 (136 avant) : la carte porte la grille des douze
+  // semaines (116 px). C'est aussi la hauteur du Timer, son voisin de rangée —
+  // une hauteur épinglée plus basse (168 chez Antonin) est remontée AU RENDU,
+  // sans réécrire `layout.today`, et les deux cartes finissent sur la même ligne.
+  habitudes: 216,
   // `quicklinks` n'est plus ici (2026-10-11) : ses pastilles ne défilent plus,
   // son plancher est la hauteur de son contenu (voir `QuickLinks.tsx`).
 };

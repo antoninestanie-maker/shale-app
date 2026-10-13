@@ -33,8 +33,13 @@ import { allerVers, ouvrirObjet } from "../../lib/naviguer";
 import type { LinkKind } from "../../lib/types";
 import { FAMILLES } from "./familles";
 
-/** Combien de temps un « Annuler » reste à l'écran. 4,5 s ne suffisent pas à le lire ET à y aller. */
-export const DUREE_ANNULER = 8000;
+/**
+ * Combien de temps un « Annuler » reste à l'écran. 4,5 s ne suffisent pas à le
+ * lire ET à y aller ; huit se vivaient comme « il ne part pas » (Antonin,
+ * 2026-10-13) — six, avec le compte à rebours visible du toast. Rien n'est
+ * perdu quand il part : l'objet attend trente jours dans Supprimés récemment.
+ */
+export const DUREE_ANNULER = 6000;
 
 const LIABLES: readonly KindCorbeille[] = ["note", "task", "goal", "event", "knowledge", "object"];
 

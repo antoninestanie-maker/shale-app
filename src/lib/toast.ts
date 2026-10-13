@@ -36,8 +36,40 @@ export interface ToastGlobal extends ToastState {
  * Seuls les toasts À GESTE sont allongés (« Annuler », « Voir ») : une simple
  * confirmation ne doit pas occuper le bas d'un téléphone quatorze secondes. La
  * croix du toast le referme à tout moment.
+ *
+ * ⚠️ Ramené de 14 à 10 s le 2026-10-13. Antonin, à l'usage : le bandeau « doit
+ * rester allumé un certain temps, pas jusqu'à ce qu'on le ferme nous-même » —
+ * quatorze secondes en bas d'un téléphone se vivaient comme « pour toujours »,
+ * et il le fermait à la main. Dix secondes restent au-dessus des huit que le
+ * crible avait trouvées trop courtes, et le toast MONTRE désormais son compte
+ * à rebours (le filet qui se vide, `Toast.tsx`) : on voit qu'il part seul.
  */
-export const DUREE_GESTE_AU_DOIGT = 14_000;
+export const DUREE_GESTE_AU_DOIGT = 10_000;
+
+/**
+ * ⭐ UN TOAST PART TOUJOURS DE LUI-MÊME (2026-10-13).
+ *
+ * Le survol et le focus le RETIENNENT (on est en train d'y aller), mais jamais
+ * sans fin : au plus le double de sa durée depuis qu'il est apparu. Sans ce
+ * plafond, un pointeur resté par hasard là où le bandeau s'affiche — le bas
+ * droit de la fenêtre, où tombe justement le « Supprimer » d'un menu ouvert en
+ * bas de liste — le gardait à l'écran jusqu'à ce qu'on le ferme à la main.
+ */
+export function plafondAffichage(attente: number): number {
+  return attente * 2;
+}
+
+/** Ce qu'un toast garde au minimum quand le pointeur le quitte : le temps de se raviser. */
+export const SURSIS_APRES_SURVOL = 1500;
+
+/**
+ * Le temps qu'il reste à un toast après une suspension : là où il en était, PAS
+ * sa durée entière. Avant le 2026-10-13 le minuteur repartait de zéro à chaque
+ * sortie du pointeur — frôler le bandeau le prolongeait de huit secondes.
+ */
+export function resteApresSuspension(restant: number, ecoule: number): number {
+  return Math.max(SURSIS_APRES_SURVOL, restant - ecoule);
+}
 
 /** Combien de temps un toast reste affiché, en ms — la règle, hors du composant. */
 export function dureeAffichage(o: { duree: number; aUnGeste: boolean; auDoigt: boolean }): number {

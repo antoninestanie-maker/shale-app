@@ -167,12 +167,12 @@ describe.each([
   });
 
   it("⭐ réécrire le journal du jour J RÉANIME l'entrée en corbeille — jamais d'échec d'unicité", async () => {
-    await repo.upsertJournal("2026-09-22", { mood: 3, energy: 3, body: "Journal-avant" });
+    await repo.upsertJournal("2026-09-22", "Journal-avant");
     const avant = (await repo.fetchAll("2000-01-01")).journal.find((j) => j.date === "2026-09-22")!;
     await repo.mettreEnCorbeille("journal", avant.id);
     expect((await repo.fetchAll("2000-01-01")).journal.some((j) => j.date === "2026-09-22")).toBe(false);
 
-    await repo.upsertJournal("2026-09-22", { mood: 4, energy: 4, body: "Journal-après" });
+    await repo.upsertJournal("2026-09-22", "Journal-après");
     const apres = (await repo.fetchAll("2000-01-01")).journal.filter((j) => j.date === "2026-09-22");
     expect(apres).toHaveLength(1);
     expect(apres[0].body).toBe("Journal-après");

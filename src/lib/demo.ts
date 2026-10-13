@@ -1796,17 +1796,15 @@ export const demo = {
     retirerLiens("knowledge", uidDemo("knowledge", id)); // trigger `knowledge_entries_links_del`
   },
 
-  async upsertJournal(
-    date: string,
-    entry: { mood: number | null; energy: number | null; body: string },
-  ): Promise<void> {
+  async upsertJournal(date: string, body: string): Promise<void> {
     // Réanimation par la clé naturelle, comme le natif (`ON CONFLICT(date) …
     // deleted_at = NULL`) : l'entrée du jour J en corbeille revient, écrasée.
     const jetee = jetesDe("journal").find((x) => x.date === date);
     if (jetee) remettre("journal", jetee.id, null);
     const e = journal.find((x) => x.date === date);
-    if (e) Object.assign(e, entry);
-    else journal.push({ id: jId++, date, ...entry });
+    // Le texte seul : humeur et énergie d'avant restent telles quelles (natif : pareil).
+    if (e) e.body = body;
+    else journal.push({ id: jId++, date, mood: null, energy: null, body });
   },
 
   async addHabit(name: string, color: string): Promise<number> {

@@ -9,16 +9,17 @@
 // Une revue par semaine, rangée au lundi (`ia_contenus`), relue ici et
 // synchronisée. Les semaines passées restent consultables.
 //
-// ⭐ Le Journal : une case, DÉCOCHÉE par défaut. Cochée, seules les notes
-// d'humeur et d'énergie (1 à 5) partent — jamais le texte d'une entrée.
+// ⚠️ Le Journal ne part PLUS (2026-10-13). Une case, décochée par défaut,
+// proposait d'inclure les notes d'humeur et d'énergie (1 à 5) ; l'app ne les
+// saisit plus (Antonin : « on enlève l'humeur et l'énergie du jour »), donc la
+// case est retirée et rien du Journal ne quitte l'appareil. `payloadRevue`
+// garde son paramètre (`lib/ia/revue.ts`), toujours appelé à `false` ici.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDate, getLang, t } from "../../lib/i18n";
 import {
   appliquerAjustement,
-  ecrireInclureJournal,
-  lireInclureJournal,
   payloadRevue,
   POIDS_REVUE,
   revueLisible,
@@ -30,7 +31,6 @@ import { addDays, todayStr } from "../../lib/logic";
 import { ecrireContenuIa, lireContenuIa, listerContenusIa } from "../../lib/repo";
 import { afficherToast } from "../../lib/toast";
 import type { AppData } from "../../lib/types";
-import { CaseACocher } from "../CaseACocher";
 import { ApercuEnvoi } from "./ApercuEnvoi";
 import { EtatIa, type EtatAppelIa } from "./EtatIa";
 import { IconeIa } from "./IconeIa";
@@ -51,7 +51,6 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
   const [choisie, setChoisie] = useState(courante.debut);
   const [revue, setRevue] = useState<RevueStockee | null>(null);
   const [charge, setCharge] = useState(false);
-  const [journal, setJournal] = useState(false);
   const [etat, setEtat] = useState<EtatAppelIa>({ etat: "repos" });
 
   const relire = useCallback(async (debut: string) => {
@@ -61,7 +60,6 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
   }, []);
 
   useEffect(() => {
-    void lireInclureJournal().then(setJournal);
     void listerContenusIa("revue").then(setSemaines).catch(() => setSemaines([]));
   }, []);
   useEffect(() => {
@@ -71,8 +69,8 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
 
   const contexte = useMemo(() => ({ habits: data.habits, habitChecks: data.habitChecks }), [data.habits, data.habitChecks]);
   const payload = useMemo(
-    () => payloadRevue(getLang(), jour, courante, data, journal, contexte),
-    [jour, courante, data, journal, contexte],
+    () => payloadRevue(getLang(), jour, courante, data, false, contexte),
+    [jour, courante, data, contexte],
   );
 
   const generer = async () => {
@@ -180,24 +178,6 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
           <p className="text-sm leading-relaxed text-text-dim">
             {t("Shale calcule les faits de ta semaine — complétion, focus, objectifs, tâches reportées — et l'IA rédige ce qui a tenu, ce qui a glissé et trois ajustements, que tu peux transformer en tâches.")}
           </p>
-          <div className="flex items-start gap-2.5 text-sm text-text">
-            <CaseACocher
-              cochee={journal}
-              taille="sm"
-              libelle={t("Inclure l'humeur et l'énergie de mon Journal")}
-              onBascule={() => {
-                const v = !journal;
-                setJournal(v);
-                void ecrireInclureJournal(v);
-              }}
-            />
-            <span>
-              {t("Inclure l'humeur et l'énergie de mon Journal")}
-              <span className="mt-0.5 block text-xs text-text-dim">
-                {t("Seules les notes de 1 à 5 partent, jamais le texte de tes entrées. Décoché par défaut.")}
-              </span>
-            </span>
-          </div>
           <ApercuEnvoi payload={payload} />
           <EtatIa etat={etat} onReessayer={() => void generer()} />
           {etat.etat !== "chargement" && (

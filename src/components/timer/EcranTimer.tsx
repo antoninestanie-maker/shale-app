@@ -21,9 +21,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { t } from "../../lib/i18n";
 import { IS_IOS } from "../../lib/platform";
 import { gesteAuClavier, nomDeLaSeance } from "../../lib/timerEcran";
-import { afficheLesHeures } from "../../lib/timerFenetre";
+import type { StyleHorloge } from "../../lib/timerStyle";
 import { IconPause, IconPlay, IconStop } from "../icons";
-import HorlogeVolets from "./HorlogeVolets";
+import Horloge from "./Horloge";
 
 export interface SeanceAffichee {
   label: string;
@@ -33,6 +33,8 @@ export interface SeanceAffichee {
 
 interface Props {
   seance: SeanceAffichee;
+  /** Volets ou anneau (`lib/timerStyle.ts`). Volets si rien n'est dit. */
+  style?: StyleHorloge;
   restantSec: number;
   enPause: boolean;
   onBasculerPause: () => void;
@@ -87,6 +89,7 @@ function cibleInteractive(el: EventTarget | null): boolean {
 
 export default function EcranTimer({
   seance,
+  style = "volets",
   restantSec,
   enPause,
   onBasculerPause,
@@ -137,11 +140,14 @@ export default function EcranTimer({
         onDoubleClick={onEchap}
         onClick={IS_IOS ? onEchap : undefined}
       >
-        <HorlogeVolets
+        <Horloge
+          style={style}
           restantSec={restantSec}
-          avecHeures={afficheLesHeures(seance.plannedMin)}
+          plannedMin={seance.plannedMin}
+          estPause={estPause}
           enPause={enPause}
-          hauteurMax="min(calc(100vh - 6rem), 46rem)"
+          hauteurVolets="min(calc(100vh - 6rem), 46rem)"
+          diametreAnneau="min(calc(100vh * var(--zoom-inv, 1) - 6rem), 46rem)"
         />
       </div>
     );
@@ -167,20 +173,26 @@ export default function EcranTimer({
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-8">
-        <HorlogeVolets
+        <Horloge
+          style={style}
           restantSec={restantSec}
-          avecHeures={afficheLesHeures(seance.plannedMin)}
+          plannedMin={seance.plannedMin}
+          estPause={estPause}
           enPause={enPause}
           // La hauteur de fenêtre MOINS l'en-tête, la jauge et les boutons
           // (≈ 15rem) : dans une petite fenêtre séparée (560 × 360), 56vh
           // laissait passer les boutons sous le bord. Plancher à 4rem.
-          hauteurMax="max(4rem, min(calc(100vh * var(--zoom-inv) - 15rem), 36rem))"
-          className="max-w-[1100px]"
+          hauteurVolets="max(4rem, min(calc(100vh * var(--zoom-inv) - 15rem), 36rem))"
+          // L'anneau porte déjà la progression : il prend la place de la jauge.
+          diametreAnneau="max(8rem, min(calc(100vh * var(--zoom-inv, 1) - 12rem), 30rem))"
+          classeVolets="max-w-[1100px]"
         />
 
         {/* Progression de la séance : une jauge linéaire, donc le dégradé de
-            marque (DESIGN.md, l'un de ses cinq emplois) ; la pause est à l'encre. */}
+            marque (DESIGN.md, l'un de ses cinq emplois) ; la pause est à l'encre.
+            Avec l'anneau, c'est lui qui la dessine : la jauge ferait doublon. */}
         <div
+          hidden={style === "anneau"}
           className="pill mt-[clamp(1rem,4vh,2.25rem)] h-1 w-[min(22rem,60%)] overflow-hidden bg-surface-2"
           role="progressbar"
           aria-valuemin={0}

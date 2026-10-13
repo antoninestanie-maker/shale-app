@@ -42,7 +42,7 @@ import {
 import { replanifier, reportsAAppliquer, tachesADecider } from "../lib/taches";
 import type { AppData, CalendarEvent, Task } from "../lib/types";
 import { formatHeure, localeTag, t, tp } from "../lib/i18n";
-import { estTelephone, useIsPhone } from "../lib/platform";
+import { useIsPhone } from "../lib/platform";
 import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import {
@@ -126,7 +126,12 @@ const MODES: { id: Mode; label: string; aide: string; telephone: boolean }[] = [
     id: "semaine",
     label: "Semaine",
     aide: "L'horizon où la planification se décide.",
-    telephone: false,
+    // ⭐ Rendue au téléphone le 2026-10-13 (Antonin : « la vue par défaut doit
+    // être celle de semaine, pareil sur le téléphone, c'est plus lisible »).
+    // Elle en avait été retirée pour ses sept colonnes de moins de cinquante
+    // points ; la grille s'y resserre (`compact`), et l'agenda reste à un
+    // toucher pour lire les titres en entier.
+    telephone: true,
   },
   {
     id: "jour",
@@ -145,11 +150,11 @@ export default function CalendarView({ data, refresh }: Props) {
   const aujourdhui = todayStr();
   const isPhone = useIsPhone();
   /**
-   * ⚠️ Deux défauts, parce que ce sont deux usages. Sur le bureau, la SEMAINE :
-   * l'horizon où la planification se décide. Sur téléphone, l'AGENDA : on y
-   * consulte bien plus qu'on n'y planifie, et sept colonnes n'y tiennent pas.
+   * ⭐ LA SEMAINE PARTOUT (2026-10-13, Antonin). Jusque-là le téléphone
+   * s'ouvrait sur l'AGENDA (« on y consulte plus qu'on n'y planifie ») ; il a
+   * tranché : la semaine est plus lisible, au téléphone aussi.
    */
-  const [mode, setMode] = useState<Mode>(() => (estTelephone() ? "agenda" : "semaine"));
+  const [mode, setMode] = useState<Mode>("semaine");
   const [curseur, setCurseur] = useState(aujourdhui);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [modale, setModale] = useState<{ event: CalendarEvent | null; jour: string; heure: string | null } | null>(null);
@@ -290,16 +295,26 @@ export default function CalendarView({ data, refresh }: Props) {
   );
 
   const suggestions = useMemo(() => {
-    if (mode === "mois") return [];
-    return jours.flatMap((jour) =>
-      creneauxLibres(profil, parJour.get(jour) ?? [], jour, {
-        dureeMin: 60,
-        eviterMarche,
-        limite: mode === "jour" ? 3 : 1,
-        pasAvant: jour === aujourdhui ? heureCourante() : undefined,
-      }).map((c) => ({ jour, debut: c.debut, fin: c.fin })),
-    );
-  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche]);
+    // ⚠️ La grille horaire seulement — et, au téléphone, la vue Jour seulement
+    // (2026-10-13) : dans une colonne de quarante-cinq points le cadre n'a pas
+    // la place de dire « Créneau libre », et un pointillé muet est exactement
+    // ce qu'Antonin a pris pour un défaut.
+    if (mode === "mois" || mode === "agenda") return [];
+    if (isPhone && mode !== "jour") return [];
+    return jours
+      // ⚠️ Jamais dans le PASSÉ : on ne propose pas de travailler lundi dernier.
+      // Seul aujourd'hui était borné (`pasAvant`) ; les jours d'avant recevaient
+      // leur créneau comme les autres.
+      .filter((jour) => jour >= aujourdhui)
+      .flatMap((jour) =>
+        creneauxLibres(profil, parJour.get(jour) ?? [], jour, {
+          dureeMin: 60,
+          eviterMarche,
+          limite: mode === "jour" ? 3 : 1,
+          pasAvant: jour === aujourdhui ? heureCourante() : undefined,
+        }).map((c) => ({ jour, debut: c.debut, fin: c.fin })),
+      );
+  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche, isPhone]);
 
   // ─── Gestes ────────────────────────────────────────────────────────────────
 
@@ -370,21 +385,37 @@ export default function CalendarView({ data, refresh }: Props) {
    * Les échéances (objectifs, factures) n'ont pas de menu ici : elles
    * appartiennent à leur module, où le leur existe.
    */
+  /** Ce qu'un bloc désigne pour le menu — `null` : il n'en a pas ici (une échéance). */
+  const cibleDuBloc = (kind: string, id: number, date: string): CibleCalendrier | null => {
+    if (kind === "event" && events.some((x) => x.id === id)) return { type: "event", id };
+    if ((kind === "task" || kind === "recurrence") && data.tasks.some((x) => x.id === id))
+      return { type: "task", id, date };
+    return null;
+  };
+
   const surClicDroit = (e: React.MouseEvent) => {
     const cible = e.target as Element;
     const bloc = cible.closest<HTMLElement>("[data-entree]");
     if (bloc) {
       const [kind, idTexte, date] = (bloc.dataset.entree ?? "").split(":");
-      const id = Number(idTexte);
-      if (kind === "event" && events.some((x) => x.id === id)) menu.ouvrirAuPoint(e, { type: "event", id });
-      else if ((kind === "task" || kind === "recurrence") && data.tasks.some((x) => x.id === id))
-        menu.ouvrirAuPoint(e, { type: "task", id, date });
+      const c = cibleDuBloc(kind, Number(idTexte), date);
+      if (c) menu.ouvrirAuPoint(e, c);
       return;
     }
     // Le MÊME calcul que le clic sur un créneau (`creneauSous`) : l'heure sous
     // le pointeur, à la minute près. `data-heure` seul ne porte que « 14 ».
     const creneau = creneauSous(e.clientX, e.clientY);
     if (creneau) menu.ouvrirAuPoint(e, { type: "creneau", ...creneau });
+  };
+
+  /**
+   * ⭐ LE MÊME MENU, AU DOIGT : un maintien sur le bloc (2026-10-13). Le clic
+   * droit n'existe pas sur un téléphone, et `ouvrirAuPoint` y est muet exprès
+   * (`lib/menu/tactile.ts`) ; le menu s'ancre donc sur le bloc lui-même.
+   */
+  const surMaintien = (entree: EntreeAgenda, el: HTMLElement) => {
+    const c = cibleDuBloc(entree.kind, entree.id, entree.date);
+    if (c) menu.ouvrirSurElement(el, c);
   };
 
   const entreesDuMenu = (): EntreePossible[] => {
@@ -586,10 +617,10 @@ export default function CalendarView({ data, refresh }: Props) {
       />
 
       {/* ⚠️ Si la rotation fait passer en téléphone alors qu'on était en vue
-          semaine, on retombe sur l'agenda : rester sur une vue retirée du menu
+          mois, on retombe sur la semaine : rester sur une vue retirée du menu
           laisserait l'utilisateur devant un écran qu'il ne peut plus quitter. */}
       {isPhone && !MODES.find((m) => m.id === mode)?.telephone && (
-        <ModeRetombe onRetomber={() => setMode("agenda")} />
+        <ModeRetombe onRetomber={() => setMode("semaine")} />
       )}
 
       <section className="card mt-6 overflow-hidden" onContextMenu={surClicDroit}>
@@ -622,6 +653,7 @@ export default function CalendarView({ data, refresh }: Props) {
               parJour={parJour}
               aujourdhui={aujourdhui}
               onOuvrir={ouvrir}
+              onMenu={surMaintien}
               onJour={(jour) => {
                 setCurseur(jour);
                 setMode("jour");
@@ -650,6 +682,10 @@ export default function CalendarView({ data, refresh }: Props) {
               onDeposer={deplacer}
               onOuvrir={ouvrir}
               onCreer={(jour, heure) => setModale({ event: null, jour, heure })}
+              onMenu={surMaintien}
+              // Sept colonnes dans 390 pt : la grille se resserre. La vue Jour,
+              // elle, a toute la largeur pour une seule colonne.
+              compact={isPhone && mode === "semaine"}
               onJour={(jour) => {
                 setCurseur(jour);
                 setMode("jour");
@@ -1188,11 +1224,7 @@ function NoteDuJour({
           }}
           onBlur={async () => {
             if (enregistre) return;
-            await upsertJournal(jour, {
-              mood: entree?.mood ?? null,
-              energy: entree?.energy ?? null,
-              body: corps,
-            });
+            await upsertJournal(jour, corps);
             setEnregistre(true);
             await refresh();
           }}

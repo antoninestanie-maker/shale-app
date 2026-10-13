@@ -963,11 +963,17 @@ export async function deleteKnowledgeEntry(id: number): Promise<void> {
 
 // — Journal —
 
-export async function upsertJournal(
-  date: string,
-  entry: { mood: number | null; energy: number | null; body: string },
-): Promise<void> {
-  if (!isTauri) return demo.upsertJournal(date, entry);
+/**
+ * Écrit le TEXTE de l'entrée d'un jour.
+ *
+ * ⚠️ Depuis le 2026-10-13 l'app ne saisit plus ni humeur ni énergie (Antonin :
+ * « on enlève l'humeur et l'énergie du jour »). Les colonnes `mood` et
+ * `energy` RESTENT en base, et cette écriture ne les touche pas : ce qui a été
+ * noté avant garde sa valeur, sur cet appareil comme sur les autres (une
+ * version d'avant, encore installée ailleurs, continue de les synchroniser).
+ */
+export async function upsertJournal(date: string, body: string): Promise<void> {
+  if (!isTauri) return demo.upsertJournal(date, body);
   const db = await getDb();
   await db.execute(
     // ⚠️ `deleted_at = NULL` dans la mise à jour : `date` est UNIQUE. Écrire
@@ -975,8 +981,8 @@ export async function upsertJournal(
     // jamais échouer sur l'unicité — on RÉANIME la ligne et on l'écrase
     // (cahier des charges, § 5.3). Elle garde son uid (`je:<date>`), donc la
     // synchronisation voit une modification ordinaire.
-    "INSERT INTO journal_entries (date, mood, energy, body) VALUES ($1, $2, $3, $4) ON CONFLICT(date) DO UPDATE SET mood = $2, energy = $3, body = $4, deleted_at = NULL",
-    [date, entry.mood, entry.energy, entry.body],
+    "INSERT INTO journal_entries (date, body) VALUES ($1, $2) ON CONFLICT(date) DO UPDATE SET body = $2, deleted_at = NULL",
+    [date, body],
   );
 }
 

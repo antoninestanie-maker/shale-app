@@ -10,6 +10,7 @@ import {
   usePleinEcranNatif,
   usePontFenetreTimer,
 } from "../lib/timerFenetre";
+import { useStyleHorloge } from "../lib/timerStyle";
 import EcranTimer, { ActionFenetre } from "./timer/EcranTimer";
 import PastilleSeance from "./timer/PastilleSeance";
 import { IconReduire } from "./icons";
@@ -65,7 +66,9 @@ export async function detacherLeTimer(focus: FocusController): Promise<void> {
  */
 export default function FocusOverlay({ focus }: { focus: FocusController }) {
   // ⚠️ Avant tout `return` : un crochet ne se saute pas.
-  usePontFenetreTimer(focus);
+  // Volets ou anneau : le plein écran le montre, la fenêtre séparée le reçoit.
+  const [styleHorloge] = useStyleHorloge();
+  usePontFenetreTimer(focus, styleHorloge);
   usePleinEcranNatif(focus.overlayOpen && focus.session !== null);
 
   const { session, remainingSec, paused, overlayOpen, setOverlayOpen, stop, pause, resume } =
@@ -111,6 +114,7 @@ export default function FocusOverlay({ focus }: { focus: FocusController }) {
       <EcranTimer
         epure
         clavierExclusif
+        style={styleHorloge}
         seance={session}
         restantSec={remainingSec}
         enPause={paused}

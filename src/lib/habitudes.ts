@@ -18,21 +18,19 @@ import type { HabitCheck } from "./types";
 export const HABIT_COLORS = ["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"];
 
 /**
- * ⭐ Les jours qu'une LIGNE d'habitude du Journal laisse cocher, du plus ancien
- * à aujourd'hui (2026-10-12, crible du labo, constat 8).
+ * ⭐ Les derniers jours qu'une LIGNE d'habitude montre, du plus ancien à
+ * aujourd'hui : quatorze carrés de 14 px, à LIRE.
  *
- * Au bureau : quatorze carrés de 14 px, à côté du nom. Au téléphone ils ne
- * tiennent pas — ils écrasaient la colonne du nom à une largeur NULLE (trois
- * lignes « case, flamme, carrés » sans un mot), et un carré de 14 px ne se
- * touche pas. La ligne y montre donc SEPT jours, sur sa propre rangée, en
- * cases de 44 pt qui portent l'initiale du jour. Les douze semaines restent
- * lisibles dans la grille au-dessus.
+ * ⚠️ Jusqu'au 2026-10-13 ces jours se COCHAIENT, et le téléphone n'en montrait
+ * que sept, en cases de 44 pt (`joursDeLigne(today, telephone)`, crible du labo
+ * du 2026-10-12, constat 8). Antonin, le 13 : « il y a la possibilité de cocher
+ * directement un autre jour, ce n'est pas bon ». La coche est désormais celle
+ * du jour choisi dans la barre du Journal, et rien d'autre ; les carrés ne se
+ * touchent plus, donc quatorze tiennent partout (sous le nom, au téléphone).
  */
-export const JOURS_LIGNE_BUREAU = 14;
-export const JOURS_LIGNE_TELEPHONE = 7;
+export const JOURS_HISTORIQUE = 14;
 
-export function joursDeLigne(today: string, telephone: boolean): string[] {
-  const n = telephone ? JOURS_LIGNE_TELEPHONE : JOURS_LIGNE_BUREAU;
+export function derniersJours(today: string, n: number = JOURS_HISTORIQUE): string[] {
   const jours: string[] = [];
   for (let i = n - 1; i >= 0; i--) jours.push(addDays(today, -i));
   return jours;

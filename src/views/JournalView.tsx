@@ -3,11 +3,10 @@ import type { View } from "../components/Sidebar";
 import {
   addDays,
   dayStat,
-  nomCourtDuJour,
   todayStr,
   weekdayOf,
 } from "../lib/logic";
-import { HABIT_COLORS, joursDeLigne, serieHabitude } from "../lib/habitudes";
+import { HABIT_COLORS, derniersJours, serieHabitude } from "../lib/habitudes";
 import { useIsPhone } from "../lib/platform";
 import {
   addHabit,
@@ -16,13 +15,15 @@ import {
   upsertJournal,
 } from "../lib/repo";
 import type { AppData, Habit } from "../lib/types";
-import { IconBolt, IconFlame, IconMood, IconX } from "../components/icons";
+import { IconBolt, IconFlame, IconX } from "../components/icons";
+import BarreJours from "../components/BarreJours";
+import { CarresHabitude, GrilleHabitudes } from "../components/habitudes/Grilles";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { formatDate, localeTag, t } from "../lib/i18n";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
-import { estExemple, sansExemples } from "../lib/onboarding/exemples";
+import { estExemple } from "../lib/onboarding/exemples";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesHabitude, entreesJour } from "../components/menu/catalogue/journal";
@@ -33,8 +34,6 @@ interface Props {
   refresh: () => Promise<void>;
   navigate: (view: View) => void;
 }
-
-const MOOD_LEVELS = [0, 1, 2, 3, 4] as const;
 
 function fmtMin(min: number): string {
   if (min < 60) return `${min} min`;
@@ -66,11 +65,6 @@ function buildWeeklyReview(data: AppData): { title: string; body: string } {
       return a + Math.max(0, Math.round(ms / 60_000));
     }, 0);
 
-  const moods = data.journal.filter((j) => j.date >= monday && j.mood);
-  const avgMood = moods.length
-    ? (moods.reduce((a, j) => a + (j.mood ?? 0), 0) / moods.length).toFixed(1)
-    : "—";
-
   const dateLabel = new Date(monday.replace(/-/g, "/")).toLocaleDateString(localeTag(), {
     day: "numeric",
     month: "long",
@@ -82,7 +76,6 @@ function buildWeeklyReview(data: AppData): { title: string; body: string } {
       `## Stats de la semaine`,
       t("- Complétion moyenne : {avg} %", { avg }),
       t("- Temps de focus : {time}", { time: fmtMin(focusMin) }),
-      `- Humeur moyenne : ${avgMood}/5`,
       ``,
       `## Ce qui a marché`,
       `- `,
@@ -100,18 +93,34 @@ function buildWeeklyReview(data: AppData): { title: string; body: string } {
 
 export default function JournalView({ data, refresh, navigate }: Props) {
   const today = todayStr();
+  /**
+   * ⭐ LE JOUR CHOISI (2026-10-13). Tout l'écran s'y rapporte : le texte de
+   * l'entrée, et la case de chaque habitude. Aujourd'hui par défaut ; la barre
+   * du haut (`BarreJours`) le change. Les petits carrés d'une ligne ne sont
+   * plus des boutons : on cochait un autre jour sans le vouloir (Antonin).
+   */
+  const [jourChoisi, setJourChoisi] = useState(today);
+  // Minuit passé, l'app restée ouverte : un jour « choisi » dans le futur
+  // n'existe pas — et celui qui regardait aujourd'hui suit le nouveau jour.
+  const jour = jourChoisi > today ? today : jourChoisi;
+  const dernierAujourdhui = useRef(today);
+  useEffect(() => {
+    if (dernierAujourdhui.current === today) return;
+    setJourChoisi((j) => (j === dernierAujourdhui.current ? today : j));
+    dernierAujourdhui.current = today;
+  }, [today]);
   const { etat: etatCoche, basculer } = useCochesOptimistes();
   const basculerHabitude = (habitId: number, date: string, reel: boolean) =>
     basculer(`h${habitId}:${date}`, reel, async (coche) => {
       await setHabitCheck(habitId, date, coche);
       await refresh();
     });
-  const entry = data.journal.find((j) => j.date === today);
-  const [mood, setMood] = useState<number | null>(entry?.mood ?? null);
-  const [energy, setEnergy] = useState<number | null>(entry?.energy ?? null);
+  const entry = data.journal.find((j) => j.date === jour);
   const [body, setBody] = useState(entry?.body ?? "");
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<number | undefined>(undefined);
+  /** Ce qui attend d'être écrit, AVEC son jour : jamais « le jour courant ». */
+  const enAttente = useRef<{ jour: string; body: string } | null>(null);
 
   const [newHabit, setNewHabit] = useState("");
   const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
@@ -119,53 +128,50 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   /** Le menu de l'entrée du jour : une seule cible, la carte elle-même. */
   const menuJour = useMenuContextuel<"jour">();
 
-  // resynchronise si l'entrée change (autre appareil, reload…)
+  // resynchronise si l'entrée change (autre jour choisi, autre appareil, reload…)
   useEffect(() => {
-    setMood(entry?.mood ?? null);
-    setEnergy(entry?.energy ?? null);
     setBody(entry?.body ?? "");
-  }, [entry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jour, entry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const save = (m: number | null, en: number | null, b: string) => {
-    setSaved(false);
+  /**
+   * Écrit tout de suite ce qui attendait. ⚠️ Le jour est celui de la FRAPPE
+   * (`enAttente`), pas celui qu'on regarde au moment où le minuteur tombe :
+   * changer de jour dans les 600 ms aurait écrit le texte du lundi dans le
+   * mardi (la leçon du chantier H, 2026-09-06).
+   */
+  const ecrireEnAttente = async () => {
     window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
-      await upsertJournal(today, { mood: m, energy: en, body: b });
-      setSaved(true);
-      await refresh();
-    }, 600);
+    const a = enAttente.current;
+    enAttente.current = null;
+    if (!a) return;
+    await upsertJournal(a.jour, a.body);
+    setSaved(true);
+    await refresh();
   };
 
-  // Grille type GitHub : 12 semaines, intensité = part d'habitudes cochées
-  const grid = useMemo(() => {
-    // ⭐ Les habitudes d'EXEMPLE ne comptent pas — ni au dénominateur, ni au
-    // numérateur. Les laisser au dénominateur ferait baisser l'intensité de
-    // toutes les cases de douze semaines dès l'installation : la série d'un
-    // utilisateur assidu se serait affichée à 50 %, et rien ne l'aurait dit.
-    const habitudes = sansExemples(data.habits);
-    const idsComptes = new Set(habitudes.map((h) => h.id));
-    const nHabits = Math.max(habitudes.length, 1);
-    const checksByDate = new Map<string, number>();
-    for (const c of data.habitChecks) {
-      if (!idsComptes.has(c.habit_id)) continue;
-      checksByDate.set(c.date, (checksByDate.get(c.date) ?? 0) + 1);
-    }
-    const monday = addDays(today, weekdayOf(today) === 0 ? -6 : 1 - weekdayOf(today));
-    const weeks: { date: string; ratio: number; future: boolean }[][] = [];
-    for (let w = 11; w >= 0; w--) {
-      const col: { date: string; ratio: number; future: boolean }[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = addDays(monday, -7 * w + d);
-        col.push({
-          date,
-          ratio: Math.min((checksByDate.get(date) ?? 0) / nHabits, 1),
-          future: date > today,
-        });
-      }
-      weeks.push(col);
-    }
-    return weeks;
-  }, [data.habitChecks, data.habits, today]);
+  const save = (b: string) => {
+    setSaved(false);
+    enAttente.current = { jour, body: b };
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => void ecrireEnAttente(), 600);
+  };
+
+  // Quitter l'écran dans les 600 ms ne doit pas perdre la dernière phrase.
+  useEffect(
+    () => () => {
+      window.clearTimeout(saveTimer.current);
+      const a = enAttente.current;
+      enAttente.current = null;
+      if (a) void upsertJournal(a.jour, a.body);
+    },
+    [],
+  );
+
+  const choisirJour = async (j: string) => {
+    if (j === jour || j > today) return;
+    await ecrireEnAttente();
+    setJourChoisi(j);
+  };
 
   // La série se calcule dans `lib/habitudes.ts` : la carte mentale l'affiche
   // aussi (2026-09-29), et deux calculs finiraient par diverger.
@@ -189,7 +195,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   };
 
   /**
-   * Efface l'entrée du jour. ⚠️ L'écriture EN VOL part d'abord : sans elle, le
+   * Efface l'entrée du jour CHOISI. ⚠️ L'écriture EN VOL part d'abord : sans elle, le
    * minuteur de 600 ms écrirait APRÈS le jet — et l'`upsert` du journal
    * réanime une entrée en corbeille (voir `upsertJournal`), qui reviendrait
    * donc toute seule. L'entrée est capturée ici, pas relue après l'await.
@@ -197,9 +203,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   const effacerJour = async () => {
     const cible = entry;
     if (!cible) return;
-    window.clearTimeout(saveTimer.current);
-    if (!saved) await upsertJournal(today, { mood, energy, body });
-    setSaved(true);
+    await ecrireEnAttente();
     await jeter("journal", cible.id, cible.date, refresh);
   };
 
@@ -215,9 +219,11 @@ export default function JournalView({ data, refresh, navigate }: Props) {
     );
   };
 
-  // Quatorze jours au bureau, sept au téléphone (`joursDeLigne`, `lib/habitudes.ts`).
+  // Les quatorze derniers jours de chaque habitude, à lire (`lib/habitudes.ts`).
   const isPhone = useIsPhone();
-  const joursLigne = useMemo(() => joursDeLigne(today, isPhone), [today, isPhone]);
+  const joursLigne = useMemo(() => derniersJours(today), [today]);
+  const estAujourdhui = jour === today;
+  const jourEnLettres = formatDate(new Date(`${jour}T12:00:00`), { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div className="mx-auto max-w-5xl p-8 telephone:p-4">
@@ -227,15 +233,30 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           type="button"
           onClick={generateReview}
           data-tip={t("Revue de la semaine")}
-          data-tip-sub={t("Crée une note qui récapitule humeur, énergie et habitudes des 7 derniers jours.")}
+          data-tip-sub={t("Crée une note avec les chiffres de la semaine : tâches faites et temps de focus.")}
           className="pill inline-flex items-center gap-1.5 border border-border px-4 py-2 text-sm text-text-dim hover:border-blue/50 hover:text-text"
         >
           <IconBolt className="h-3.5 w-3.5" /> {t("Générer la revue de la semaine")}
         </button>
       </header>
 
-      <ResizableGrid gridId="journal" className="mt-6">
-      {/* Entrée du jour */}
+      {/* ⭐ Le jour choisi — aujourd'hui par défaut. Tout ce qui suit s'y rapporte. */}
+      <div className="mt-6">
+        <BarreJours jour={jour} aujourdhui={today} onChoisir={(j) => void choisirJour(j)} />
+        {/* Au téléphone la barre n'a pas la place du bouton « Aujourd'hui ». */}
+        {jour !== today && (
+          <button
+            type="button"
+            onClick={() => void choisirJour(today)}
+            className="cible-tactile-ligne mt-1 hidden px-2 text-xs font-medium text-blue telephone:block"
+          >
+            {t("Revenir à aujourd'hui")}
+          </button>
+        )}
+      </div>
+
+      <ResizableGrid gridId="journal" className="mt-4">
+      {/* Entrée du jour choisi */}
       <ResizablePanel id="journal-entry" defaultW={12}>
       <section
         className="card group/ligne p-5"
@@ -248,7 +269,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
       >
         <div className="rgrid-head flex items-center justify-between">
           <h2 className="hud-label">
-            {new Date().toLocaleDateString(localeTag(), {
+            {new Date(`${jour}T12:00:00`).toLocaleDateString(localeTag(), {
               weekday: "long",
               day: "numeric",
               month: "long",
@@ -264,67 +285,16 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           </span>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-8">
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Humeur")}</p>
-            <div className="flex flex-wrap gap-1">
-              {MOOD_LEVELS.map((lvl, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    const v = mood === i + 1 ? null : i + 1;
-                    setMood(v);
-                    save(v, energy, body);
-                  }}
-                  data-tip={t("Humeur {n}/5", { n: i + 1 })}
-                  data-tip-sub={mood === i + 1 ? t("Cliquer à nouveau pour effacer.") : undefined}
-                  className={`cible-tactile flex h-9 w-9 items-center justify-center rounded-[10px] border transition-all ${
-                    mood === i + 1
-                      ? "border-blue bg-blue/15 text-blue scale-110"
-                      : "border-border text-text-dim opacity-60 hover:opacity-100"
-                  }`}
-                >
-                  <IconMood level={lvl} className="h-5 w-5" />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Énergie")}</p>
-            <div className="flex flex-wrap gap-1">
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => {
-                    const nv = energy === v ? null : v;
-                    setEnergy(nv);
-                    save(mood, nv, body);
-                  }}
-                  data-tip={t("Énergie {v}/5", { v })}
-                  data-tip-sub={energy === v ? t("Cliquer à nouveau pour effacer.") : undefined}
-                  className={`cible-tactile flex h-9 w-9 items-center justify-center rounded-[10px] border font-mono text-sm transition-all ${
-                    energy !== null && v <= energy
-                      ? "border-success/50 bg-success/15 text-success"
-                      : "border-border text-text-dim hover:text-text"
-                  }`}
-                >
-                  <IconBolt className="h-4 w-4" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
+        {/* Humeur et énergie retirées le 2026-10-13 (Antonin) : l'entrée du
+            jour, c'est son texte. Les colonnes restent en base, intactes. */}
         <textarea
           value={body}
           onChange={(e) => {
             setBody(e.target.value);
-            save(mood, energy, e.target.value);
+            save(e.target.value);
           }}
           placeholder={t("Réflexion du jour — qu'est-ce qui s'est passé, qu'est-ce que tu en retires ?")}
-          rows={3}
+          rows={4}
           className="mt-4 w-full resize-none rounded-[10px] border border-border bg-surface-2/60 px-3.5 py-2.5 text-sm leading-relaxed text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
         />
       </section>
@@ -379,26 +349,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
         </div>
 
         {/* Grille combinée type GitHub */}
-        <div className="mt-4 flex gap-[3px]">
-          {grid.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
-              {week.map((cell) => (
-                <div
-                  key={cell.date}
-                  title={`${cell.date} — ${Math.round(cell.ratio * data.habits.length)}/${data.habits.length}`}
-                  className="h-3.5 w-3.5 rounded-[3px]"
-                  style={{
-                    backgroundColor: cell.future
-                      ? "transparent"
-                      : cell.ratio === 0
-                        ? "var(--color-overlay)"
-                        : `color-mix(in srgb, var(--color-success-fill) ${Math.round(25 + cell.ratio * 75)}%, transparent)`,
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+        <GrilleHabitudes habits={data.habits} habitChecks={data.habitChecks} today={today} className="mt-4" />
 
         {/* Lignes par habitude */}
         <ul className="panel-scroll mt-5 flex flex-col gap-3">
@@ -426,13 +377,18 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                 onContextMenu={(e) => menuHabitude.ouvrirAuPoint(e, habit)}
                 onKeyDown={(e) => void menuHabitude.ouvrirAuClavier(e, habit)}
               >
+                {/* ⭐ LA SEULE COCHE DE LA LIGNE : celle du jour choisi dans la barre. */}
                 <CaseACocher
-                  cochee={checks.has(today)}
+                  cochee={checks.has(jour)}
                   couleur={habit.color}
-                  onBascule={() => void basculerHabitude(habit.id, today, checks.has(today))}
-                  libelle={t("{nom} aujourd'hui", { nom: habit.name })}
+                  onBascule={() => void basculerHabitude(habit.id, jour, checks.has(jour))}
+                  libelle={
+                    estAujourdhui
+                      ? t("{nom} aujourd'hui", { nom: habit.name })
+                      : t("{nom}, {date}", { nom: habit.name, date: jourEnLettres })
+                  }
                   tip={habit.name}
-                  tipSub={t("Cocher pour aujourd’hui.")}
+                  tipSub={estAujourdhui ? t("Cocher pour aujourd’hui.") : t("Cocher pour le {date}.", { date: jourEnLettres })}
                 />
                 {/* ⭐ Le nom prend TOUTE la place libre (crible du labo, constat 8).
                     Il était figé à 128 px : « Exemple · habitud… » coupé au
@@ -455,44 +411,16 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     <IconFlame className="h-2.5 w-2.5" /> {habitStreak(habit.id)}
                   </span>
                 )}
-                <span className={isPhone ? "order-last flex w-full gap-0.5 pb-2" : "flex shrink-0 gap-[3px]"}>
-                  {joursLigne.map((date) => {
-                    const coche = checks.has(date);
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        data-tip={formatDate(new Date(`${date}T12:00:00`), { weekday: "long", day: "numeric", month: "long" })}
-                        data-tip-sub={t("Cocher ou décocher ce jour.")}
-                        role="checkbox"
-                        aria-checked={coche}
-                        aria-label={`${habit.name} · ${date}`}
-                        onClick={() => void basculerHabitude(habit.id, date, coche)}
-                        className={
-                          isPhone
-                            ? // Une case de 44 pt qui DIT son jour : au doigt il
-                              // n'y a pas de bulle pour lire la date.
-                              `flex h-11 min-w-0 flex-1 items-center justify-center rounded-[9px] border text-[11px] font-semibold uppercase transition-colors duration-150 ${
-                                coche ? "text-text" : "border-transparent bg-overlay text-text-dim"
-                              } ${date === today ? "underline decoration-2 underline-offset-4" : ""}`
-                            : "h-3.5 w-3.5 rounded-[3px] transition-[transform,background-color] duration-150 hover:scale-125"
-                        }
-                        style={
-                          isPhone
-                            ? coche
-                              ? {
-                                  borderColor: habit.color,
-                                  backgroundColor: `color-mix(in srgb, ${habit.color} 24%, transparent)`,
-                                }
-                              : undefined
-                            : { backgroundColor: coche ? habit.color : "var(--color-border)" }
-                        }
-                      >
-                        {isPhone && nomCourtDuJour(weekdayOf(date)).slice(0, 1)}
-                      </button>
-                    );
-                  })}
-                </span>
+                {/* Les quatorze derniers jours, à LIRE : plus aucun carré ne se
+                    clique (2026-10-13). Au téléphone ils passent sous le nom,
+                    alignés sur lui — à côté, ils l'écrasaient (constat 8). */}
+                <CarresHabitude
+                  jours={joursLigne}
+                  tenue={checks.has}
+                  couleur={habit.color}
+                  jourChoisi={jour}
+                  className={isPhone ? "order-last w-full pb-1.5 pl-8" : ""}
+                />
                 {/* Au doigt, pas de survol : la croix s'efface devant « ⋯ »,
                     qui porte la même suppression (règle 17). */}
                 <button
@@ -531,11 +459,12 @@ export default function JournalView({ data, refresh, navigate }: Props) {
         entrees={(() => {
           const h = menuHabitude.cible && data.habits.find((x) => x.id === menuHabitude.cible!.id);
           if (!h) return [];
-          const coche = etatCoche(`h${h.id}:${today}`, data.habitChecks.some((c) => c.habit_id === h.id && c.date === today));
+          const coche = etatCoche(`h${h.id}:${jour}`, data.habitChecks.some((c) => c.habit_id === h.id && c.date === jour));
           return entreesHabitude(h, coche, {
-            basculer: (x) => void basculerHabitude(x.id, today, coche),
+            // La case de la ligne : le jour CHOISI (règle 18).
+            basculer: (x) => void basculerHabitude(x.id, jour, coche),
             supprimer: supprimerHabitude,
-          });
+          }, estAujourdhui ? null : jourEnLettres);
         })()}
       />
     </div>

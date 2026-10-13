@@ -186,6 +186,7 @@ export default function TimerPane() {
         <EcranTimer
           // En plein écran : l'horloge seule. Échap en sort, et les boutons reviennent.
           epure={pleinEcran}
+          style={etat.style}
           seance={session}
           restantSec={restantDepuisEtat(etat, maintenant)}
           enPause={enPause}

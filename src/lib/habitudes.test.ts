@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, todayStr } from "./logic";
-import { HABIT_COLORS, JOURS_LIGNE_BUREAU, JOURS_LIGNE_TELEPHONE, joursDeLigne, serieHabitude } from "./habitudes";
+import { HABIT_COLORS, JOURS_HISTORIQUE, derniersJours, serieHabitude } from "./habitudes";
 import type { HabitCheck } from "./types";
 
 const coche = (habit_id: number, date: string): HabitCheck => ({ id: 0, habit_id, date }) as HabitCheck;
@@ -27,20 +27,24 @@ describe("la série d'une habitude — le calcul du Journal, sorti tel quel", ()
   });
 });
 
-// ── Les jours d'une ligne d'habitude (2026-10-12, crible du labo, constat 8) ──
-describe("joursDeLigne — ce qu'une ligne du Journal laisse cocher", () => {
+// ── Les jours d'une ligne d'habitude ──
+// Jusqu'au 2026-10-13 : quatorze au bureau, sept au téléphone, et ils se
+// cochaient (constat 8 du labo). Depuis : quatorze partout, à lire seulement —
+// la coche est celle du jour choisi dans la barre du Journal.
+describe("derniersJours — ce qu'une ligne d'habitude montre", () => {
   const today = todayStr();
 
-  it("au bureau : quatorze jours, du plus ancien à aujourd'hui", () => {
-    const jours = joursDeLigne(today, false);
-    expect(jours).toHaveLength(JOURS_LIGNE_BUREAU);
+  it("quatorze jours, du plus ancien à aujourd'hui", () => {
+    const jours = derniersJours(today);
+    expect(jours).toHaveLength(JOURS_HISTORIQUE);
+    expect(JOURS_HISTORIQUE).toBe(14);
     expect(jours[0]).toBe(addDays(today, -13));
     expect(jours[jours.length - 1]).toBe(today);
   });
 
-  it("⭐ au téléphone : sept jours — quatorze carrés écrasaient le nom de l'habitude", () => {
-    const jours = joursDeLigne(today, true);
-    expect(jours).toHaveLength(JOURS_LIGNE_TELEPHONE);
+  it("le nombre se demande : sept pour une carte étroite", () => {
+    const jours = derniersJours(today, 7);
+    expect(jours).toHaveLength(7);
     expect(jours[0]).toBe(addDays(today, -6));
     expect(jours[jours.length - 1]).toBe(today);
   });
@@ -48,17 +52,15 @@ describe("joursDeLigne — ce qu'une ligne du Journal laisse cocher", () => {
   it("les jours se suivent, sans trou ni doublon — même à cheval sur deux mois", () => {
     // Le premier du mois courant : la ligne remonte alors dans le mois d'avant.
     const premier = `${today.slice(0, 8)}01`;
-    for (const telephone of [true, false]) {
-      const jours = joursDeLigne(premier, telephone);
-      for (let i = 1; i < jours.length; i++) expect(jours[i]).toBe(addDays(jours[i - 1], 1));
-      expect(new Set(jours).size).toBe(jours.length);
-    }
+    const jours = derniersJours(premier);
+    for (let i = 1; i < jours.length; i++) expect(jours[i]).toBe(addDays(jours[i - 1], 1));
+    expect(new Set(jours).size).toBe(jours.length);
   });
 
-  it("sept cases de 44 pt tiennent dans un téléphone de 390 pt ; quatorze non", () => {
-    // 390 pt, moins 16 pt de marge de page et 16 pt de marge de carte de chaque côté.
-    const largeurUtile = 390 - 2 * 16 - 2 * 16;
-    expect(JOURS_LIGNE_TELEPHONE * 44).toBeLessThanOrEqual(largeurUtile);
-    expect(JOURS_LIGNE_BUREAU * 44).toBeGreaterThan(largeurUtile);
+  it("quatorze carrés de 14 px et leurs 3 px d'écart tiennent sous le nom, dans un téléphone de 390 pt", () => {
+    // 390 pt, moins 16 pt de marge de page et 16 pt de marge de carte de chaque
+    // côté, moins le retrait de 32 pt qui les aligne sur le nom.
+    const largeurUtile = 390 - 2 * 16 - 2 * 16 - 32;
+    expect(JOURS_HISTORIQUE * 14 + (JOURS_HISTORIQUE - 1) * 3).toBeLessThanOrEqual(largeurUtile);
   });
 });

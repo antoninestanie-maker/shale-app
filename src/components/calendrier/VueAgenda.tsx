@@ -3,9 +3,11 @@ import { dansLeBandeau, joursEntre, type EntreeAgenda } from "../../lib/calendri
 import { toDateStr } from "../../lib/logic";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
 import { IconSablier } from "../icons";
+import { surAppuiLong } from "./appuiLong";
 
 /**
- * La vue AGENDA — le bon défaut sur téléphone.
+ * La vue AGENDA — le défaut du téléphone jusqu'au 2026-10-13 ; depuis, la
+ * semaine s'ouvre partout (décision d'Antonin) et l'agenda reste à un toucher.
  *
  * ⚠️ POURQUOI ELLE EXISTE. La vue semaine tient sept colonnes de front : sur un
  * écran de six pouces, chaque colonne fait moins de cinquante points de large et
@@ -23,6 +25,8 @@ interface Props {
   aujourdhui: string;
   onOuvrir: (entree: EntreeAgenda) => void;
   onJour: (jour: string) => void;
+  /** Le menu d'une ligne, au doigt : un maintien (2026-10-13). */
+  onMenu?: (entree: EntreeAgenda, el: HTMLElement) => void;
 }
 
 export default function VueAgenda({
@@ -32,6 +36,7 @@ export default function VueAgenda({
   aujourdhui,
   onOuvrir,
   onJour,
+  onMenu,
 }: Props) {
   const dates = useMemo(() => {
     const fin = new Date(`${depuis}T12:00:00`);
@@ -93,8 +98,10 @@ export default function VueAgenda({
                   <button
                     type="button"
                     data-entree={`${e.kind}:${e.id}:${e.date}`}
+                    onPointerDown={(ev) => onMenu && surAppuiLong(ev, (el) => onMenu(e, el))}
                     onClick={() => onOuvrir(e)}
-                    className="cible-tactile-ligne flex w-full items-center gap-3 px-4 py-1.5 text-left"
+                    // `select-none` : sur iOS, un maintien sélectionnerait le titre.
+                    className="cible-tactile-ligne flex w-full select-none items-center gap-3 px-4 py-1.5 text-left [-webkit-touch-callout:none]"
                   >
                     <span
                       className="h-8 w-0.5 shrink-0 rounded-full"

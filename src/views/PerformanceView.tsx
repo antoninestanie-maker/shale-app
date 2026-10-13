@@ -116,7 +116,14 @@ function enSemaines(serie: readonly PointJour[], lundi: string, today: string): 
   return semaines;
 }
 
-/** L'écart à la période d'avant : une flèche, un nombre signé, et le rouge quand ça baisse. */
+/**
+ * L'écart à la période d'avant : une flèche, un nombre signé, et le rouge quand ça baisse.
+ *
+ * ⭐ EN POUR CENT, plus en « pts » (2026-10-13, Antonin : « on parle en −3 pts,
+ * personne ne comprend, on remplace par des pourcentages »). Le chiffre est le
+ * même — 72 % contre 75 % la période d'avant donne « −3 % » — c'est le mot qui
+ * change. La bulle donne les deux valeurs, pour qui veut vérifier.
+ */
 function Ecart({ n, texte }: { n: number | null; texte: (abs: number) => string }) {
   if (n === null) return <span className="text-text-dim">—</span>;
   if (n === 0) return <span className="text-text-dim">{t("stable")}</span>;
@@ -159,7 +166,10 @@ function MoyenneDePeriode(p: {
     "data-tip-sub":
       avant === null
         ? t("Rien de mesuré sur ces jours-là : pas d'écart à donner.")
-        : t("{valeur} sur ces jours-là. L'écart se compte en points de pourcentage.", { valeur: `${avant} %` }),
+        : t("{avant} sur ces jours-là, {valeur} sur cette période.", {
+            avant: `${avant} %`,
+            valeur: valeur === null ? "—" : `${valeur} %`,
+          }),
   };
   return (
     <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -179,7 +189,7 @@ function MoyenneDePeriode(p: {
       </p>
       {ecart !== null && (
         <p className="flex min-w-0 items-center gap-1.5 text-xs text-text-dim" {...bulleAvant}>
-          <Ecart n={ecart} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
+          <Ecart n={ecart} texte={(abs: number) => `${abs} %`} />
           <span>{t("par rapport à la période d'avant")}</span>
         </p>
       )}
@@ -403,8 +413,8 @@ export default function PerformanceView({ data, refresh }: Props) {
         return {
           texte:
             pt.quoi === "taches"
-              ? t("Tâches tenues : {valeur} %, soit {n} pts de moins que la période d'avant.", { valeur: pt.valeur, n: -pt.ecart })
-              : t("Habitudes tenues : {valeur} %, soit {n} pts de moins que la période d'avant.", { valeur: pt.valeur, n: -pt.ecart }),
+              ? t("Tâches tenues : {valeur} %, contre {avant} % la période d'avant.", { valeur: pt.valeur, avant: pt.valeur - pt.ecart })
+              : t("Habitudes tenues : {valeur} %, contre {avant} % la période d'avant.", { valeur: pt.valeur, avant: pt.valeur - pt.ecart }),
         };
       case "focus":
         return {
@@ -642,7 +652,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                     {h.serie}
                   </span>
                   <span className="flex w-16 shrink-0 justify-end text-xs">
-                    <Ecart n={h.pct !== null && h.avant !== null ? h.pct - h.avant : null} texte={(abs: number) => tp(abs, "{n} pt", "{n} pts")} />
+                    <Ecart n={h.pct !== null && h.avant !== null ? h.pct - h.avant : null} texte={(abs: number) => `${abs} %`} />
                   </span>
                 </li>
               ))}

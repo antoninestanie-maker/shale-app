@@ -2608,3 +2608,28 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
     text-align: left;
   }
 }
+
+/* ─── Le compte à rebours d'un toast (2026-10-13) ─────────────────────────────
+   Un filet de 2 px au bas du bandeau, qui se vide sur la durée du toast et
+   s'arrête avec lui au survol (`Toast.tsx` pose la durée et l'état en ligne).
+   Il dit ce qu'aucun texte ne disait : le bandeau s'en va tout seul.
+   `prefers-reduced-motion` : la règle globale le vide d'un coup, sans gêne. */
+@keyframes toast-compte {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.toast-compte {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--color-text-dim) 55%, transparent);
+  transform-origin: left center;
+  animation: toast-compte linear both;
+  pointer-events: none;
+}

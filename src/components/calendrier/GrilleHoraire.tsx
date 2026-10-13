@@ -8,6 +8,7 @@ import {
 } from "../../lib/calendrier/agenda";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
 import { IconSablier } from "../icons";
+import { APPUI_LONG_MS, avalerLeClicSuivant, surAppuiLong } from "./appuiLong";
 
 /**
  * La grille horaire — vues Semaine et Jour.
@@ -43,8 +44,8 @@ const SEUIL_GLISSEMENT = 6;
  * quelques heures plus bas — sans erreur, sans annulation possible.
  *
  * 400 ms : au-delà l'attente se sent, en deçà le défilement redevient dangereux.
+ * La durée vit dans `appuiLong.ts` : le même maintien ouvre le menu d'un bloc.
  */
-const APPUI_LONG_MS = 400;
 
 export interface Props {
   jours: string[];
@@ -56,6 +57,16 @@ export interface Props {
   onOuvrir: (entree: EntreeAgenda) => void;
   onCreer: (jour: string, heure: string) => void;
   onJour?: (jour: string) => void;
+  /**
+   * ⭐ Le menu d'un bloc, AU DOIGT (2026-10-13) : un maintien, relâché sur
+   * place. À la souris c'est le clic droit, que `CalendarView` écoute lui-même.
+   */
+  onMenu?: (entree: EntreeAgenda, el: HTMLElement) => void;
+  /**
+   * Téléphone : la gouttière des heures est resserrée et les blocs ne montrent
+   * que leur titre — sept colonnes tiennent dans 390 pt (2026-10-13).
+   */
+  compact?: boolean;
 }
 
 interface Glissement {
@@ -74,7 +85,10 @@ export default function GrilleHoraire({
   onOuvrir,
   onCreer,
   onJour,
+  onMenu,
+  compact = false,
 }: Props) {
+  const gouttiere = compact ? "2.25rem" : "3.5rem";
   const [glissement, setGlissement] = useState<Glissement | null>(null);
   const [cible, setCible] = useState<{ jour: string; heure: string } | null>(null);
   /** Le geste en cours, hors de React : il doit exister AVANT le prochain rendu. */
@@ -96,8 +110,19 @@ export default function GrilleHoraire({
         max = Math.max(max, Math.ceil((d + (e.dureeMin ?? 30)) / 60));
       }
     }
+    // ⚠️ Un créneau PROPOSÉ compte aussi (2026-10-13). Sans cela, une
+    // proposition à 21 h 15 ou à 23 h se dessinait SOUS la dernière heure de la
+    // grille, dans le vide : les « carrés pointillés blancs » de la capture
+    // d'Antonin.
+    for (const s of suggestions) {
+      const d = minutesDe(s.debut);
+      const f = minutesDe(s.fin);
+      if (d == null || f == null) continue;
+      min = Math.min(min, Math.floor(d / 60));
+      max = Math.max(max, Math.ceil(f / 60));
+    }
     return [Math.max(0, min), Math.min(24, Math.max(max, min + 4))];
-  }, [jours, parJour]);
+  }, [jours, parJour, suggestions]);
 
   const heures = useMemo(
     () => Array.from({ length: heureMax - heureMin }, (_, i) => heureMin + i),
@@ -135,7 +160,21 @@ export default function GrilleHoraire({
        * hebdomadaires devenus trois, sans erreur ni annulation possible.
        * `serie` dit la propriété visée par la règle, pas la famille.
        */
-      if (entree.serie || entree.kind === "deadline") return;
+      const bloc = e.currentTarget as HTMLElement;
+      /**
+       * ⚠️ LE BOUTON GAUCHE SEULEMENT (2026-10-13). Un clic droit arrivait ici
+       * comme un appui ordinaire : le menu s'ouvrait, puis le relâché — « un
+       * simple clic OUVRE » — ouvrait la fenêtre de l'événement PAR-DESSUS.
+       * Antonin : « un événement doit se supprimer d'un clic droit ». Le menu
+       * et son « Supprimer » existaient ; ils étaient recouverts. Ctrl+clic
+       * est le clic droit du Mac.
+       */
+      if (e.pointerType !== "touch" && (e.button !== 0 || e.ctrlKey)) return;
+      if (entree.serie || entree.kind === "deadline") {
+        // Pas de glissement — mais au doigt, le maintien ouvre son menu.
+        if (onMenu) surAppuiLong(e as React.PointerEvent<HTMLElement>, (el) => onMenu(entree, el));
+        return;
+      }
       const auDoigt = e.pointerType === "touch";
       geste.current = { entree, x: e.clientX, y: e.clientY, actif: false };
       const depart = { x: e.clientX, y: e.clientY };
@@ -212,6 +251,11 @@ export default function GrilleHoraire({
         // carte n'a pas bougé, il n'y a rien à écrire.
         if (!g.actif || !deplace) {
           if (!g.actif) onOuvrir(g.entree);
+          // ⭐ Maintenu puis relâché SUR PLACE : c'est le menu du bloc.
+          else if (auDoigt && onMenu && bloc.isConnected) {
+            avalerLeClicSuivant(bloc);
+            onMenu(g.entree, bloc);
+          }
           return;
         }
         const creneau = creneauSous(ev.clientX, ev.clientY);
@@ -222,7 +266,7 @@ export default function GrilleHoraire({
       window.addEventListener("pointerup", lacher);
       window.addEventListener("pointercancel", lacher);
     },
-    [onDeposer, onOuvrir],
+    [onDeposer, onOuvrir, onMenu],
   );
 
   return (
@@ -241,7 +285,7 @@ export default function GrilleHoraire({
       {/* En-tête des jours */}
       <div
         className="sticky top-0 z-10 grid border-b border-border bg-surface"
-        style={{ gridTemplateColumns: `3.5rem repeat(${jours.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `${gouttiere} repeat(${jours.length}, minmax(0, 1fr))` }}
       >
         <span />
         {jours.map((jour) => {
@@ -287,16 +331,17 @@ export default function GrilleHoraire({
       {bandes.length > 0 && (
         <div
           className="grid gap-y-0.5 border-b border-border py-1"
-          style={{ gridTemplateColumns: `3.5rem repeat(${jours.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `${gouttiere} repeat(${jours.length}, minmax(0, 1fr))` }}
         >
-          <span className="py-1 pr-2 text-right text-[0.6rem] uppercase text-text-dim">
-            {t("Journée")}
+          <span className={`py-1 text-right text-[0.6rem] uppercase text-text-dim ${compact ? "pr-1" : "pr-2"}`}>
+            {compact ? t("jour") : t("Journée")}
           </span>
           {bandes.map((b) => (
             <button
               key={`${b.entree.kind}-${b.entree.id}-${b.colonne}`}
               type="button"
               data-entree={`${b.entree.kind}:${b.entree.id}:${b.entree.date}`}
+              onPointerDown={(ev) => onMenu && surAppuiLong(ev, (el) => onMenu(b.entree, el))}
               onClick={() => onOuvrir(b.entree)}
               className="cible-tactile-ligne mx-1 truncate px-1.5 py-0.5 text-left text-[0.7rem]"
               style={{
@@ -328,33 +373,51 @@ export default function GrilleHoraire({
           vue semaine s'ouvrait sur une liste au lieu d'un calendrier. */}
       <div
         className="grid max-h-28 overflow-y-auto border-b border-border"
-        style={{ gridTemplateColumns: `3.5rem repeat(${jours.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `${gouttiere} repeat(${jours.length}, minmax(0, 1fr))` }}
       >
-        <span className="py-1 pr-2 text-right text-[0.6rem] uppercase text-text-dim">
+        <span className={`py-1 text-right text-[0.6rem] uppercase text-text-dim ${compact ? "pr-1" : "pr-2"}`}>
           {t("Sans heure")}
         </span>
-        {jours.map((jour) => (
-          <div key={jour} className="min-h-[1.75rem] space-y-1 border-l border-border p-1">
-            {(parJour.get(jour) ?? [])
-              .filter((e) => minutesDe(e.start_at) == null && !dansLeBandeau(e))
-              .map((e) => (
-                <Chip
-                  key={`${e.kind}-${e.id}`}
-                  entree={e}
-                  onPointerDown={(ev) => saisir(ev, e)}
-                  onClick={() => {
-                    if (e.serie) onOuvrir(e);
-                  }}
-                />
-              ))}
-          </div>
-        ))}
+        {jours.map((jour) => {
+          const sansHeure = (parJour.get(jour) ?? []).filter(
+            (e) => minutesDe(e.start_at) == null && !dansLeBandeau(e),
+          );
+          return (
+            <div key={jour} className="min-h-[1.75rem] space-y-1 border-l border-border p-1">
+              {compact
+                ? // ⭐ Au téléphone, un COMPTE : cinq pastilles de 44 pt par
+                  // colonne, coupées à « Pr… », repoussaient la grille sous le
+                  // pli sans rien donner à lire. Le compte ouvre la journée,
+                  // où chaque titre tient sur sa ligne.
+                  sansHeure.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onJour?.(jour)}
+                      aria-label={`${t("Sans heure")} : ${sansHeure.length}`}
+                      className="cible-tactile-ligne mx-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-overlay-2 px-1.5 text-[0.7rem] tabular-nums text-text"
+                    >
+                      {sansHeure.length}
+                    </button>
+                  )
+                : sansHeure.map((e) => (
+                    <Chip
+                      key={`${e.kind}-${e.id}`}
+                      entree={e}
+                      onPointerDown={(ev) => saisir(ev, e)}
+                      onClick={() => {
+                        if (e.serie) onOuvrir(e);
+                      }}
+                    />
+                  ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* La grille horaire */}
       <div
         className="grid"
-        style={{ gridTemplateColumns: `3.5rem repeat(${jours.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `${gouttiere} repeat(${jours.length}, minmax(0, 1fr))` }}
       >
         <div>
           {heures.map((h) => (
@@ -366,7 +429,9 @@ export default function GrilleHoraire({
               {/* ⚠️ `formatHeure` et non la chaîne stockée : en anglais, `en-US`
                   écrit « 6:00 AM », pas « 06:00 ». `heureDe` reste réservé à ce
                   qui PART EN BASE. */}
-              <span className="absolute -top-1.5 right-2">{formatHeure(heureDe(h * 60))}</span>
+              <span className={`absolute -top-1.5 ${compact ? "right-1" : "right-2"}`}>
+                {compact ? heureCompacte(h) : formatHeure(heureDe(h * 60))}
+              </span>
             </div>
           ))}
         </div>
@@ -379,6 +444,7 @@ export default function GrilleHoraire({
             heureMin={heureMin}
             entrees={parJour.get(jour) ?? []}
             suggestions={suggestions.filter((s) => s.jour === jour)}
+            compact={compact}
             cible={cible?.jour === jour ? cible.heure : null}
             onCreer={onCreer}
             onSaisir={saisir}
@@ -399,6 +465,14 @@ export default function GrilleHoraire({
       )}
     </div>
   );
+}
+
+/**
+ * L'heure de la gouttière au téléphone : « 9 h », « 9 AM » — pas « 09:00 », qui
+ * ne tient pas dans 36 pt. `Intl` connaît le format de chaque langue.
+ */
+function heureCompacte(h: number): string {
+  return new Date(2000, 0, 1, h).toLocaleTimeString(localeTag(), { hour: "numeric" });
 }
 
 /**
@@ -458,6 +532,7 @@ function ColonneJour({
   heureMin,
   entrees,
   suggestions,
+  compact,
   cible,
   onCreer,
   onSaisir,
@@ -468,6 +543,7 @@ function ColonneJour({
   heureMin: number;
   entrees: EntreeAgenda[];
   suggestions: { debut: string; fin: string }[];
+  compact: boolean;
   cible: string | null;
   onCreer: (jour: string, heure: string) => void;
   onSaisir: (e: React.PointerEvent, entree: EntreeAgenda) => void;
@@ -497,7 +573,13 @@ function ColonneJour({
       ))}
 
       {/* Créneaux proposés — un fond discret, jamais un événement déjà posé.
-          ⚠️ L'app PROPOSE, elle ne place rien elle-même. */}
+          ⚠️ L'app PROPOSE, elle ne place rien elle-même.
+          ⭐ ILS DISENT CE QU'ILS SONT (2026-10-13). Un rectangle pointillé sans
+          un mot, à l'encre — donc blanc en thème sombre — ne se lisait pas
+          comme une proposition : Antonin y a vu un défaut d'affichage (« des
+          carrés quadrillés blancs »). Le cadre est adouci et porte son nom et
+          son heure. `pointer-events-none` : cliquer dedans crée l'événement à
+          cette heure, comme partout ailleurs dans la colonne. */}
       {suggestions.map((s) => {
         const d = minutesDe(s.debut);
         const f = minutesDe(s.fin);
@@ -505,14 +587,24 @@ function ColonneJour({
         return (
           <div
             key={`${s.debut}-${s.fin}`}
-            className="pointer-events-none absolute inset-x-1 rounded-md border border-dashed"
+            data-creneau-propose=""
+            className="pointer-events-none absolute inset-x-1 overflow-hidden rounded-md border border-dashed px-1.5 py-1 text-[0.65rem] leading-tight text-text-dim"
             style={{
               top: haut(d),
-              height: ((f - d) / 60) * PX_PAR_HEURE,
-              borderColor: "var(--color-success)",
-              backgroundColor: "color-mix(in srgb, var(--color-success) 8%, transparent)",
+              height: ((f - d) / 60) * PX_PAR_HEURE - 2,
+              borderColor: "color-mix(in srgb, var(--color-text-dim) 55%, transparent)",
+              backgroundColor: "color-mix(in srgb, var(--color-text-dim) 6%, transparent)",
             }}
-          />
+          >
+            {!compact && (
+              <>
+                <span className="block truncate font-medium">{t("Créneau libre")}</span>
+                <span className="block truncate tabular-nums">
+                  {formatHeure(s.debut)} – {formatHeure(s.fin)}
+                </span>
+              </>
+            )}
+          </div>
         );
       })}
 
@@ -542,7 +634,9 @@ function ColonneJour({
               ev.stopPropagation();
               if (e.serie) onOuvrir(e);
             }}
-            className="absolute inset-x-1 overflow-hidden rounded-md px-1.5 py-1 text-left text-[0.7rem] leading-tight"
+            className={`absolute overflow-hidden rounded-md py-1 text-left leading-tight ${
+              compact ? "inset-x-0.5 px-1 text-[0.6rem]" : "inset-x-1 px-1.5 text-[0.7rem]"
+            }`}
             style={{
               top: haut(d),
               // Un rendez-vous de dix minutes doit rester lisible : plancher à
@@ -555,8 +649,8 @@ function ColonneJour({
               textDecoration: e.faite ? "line-through" : undefined,
             }}
           >
-            <span className="block truncate font-medium">{e.titre}</span>
-            {duree >= 45 && (
+            <span className={compact ? "block break-words font-medium" : "block truncate font-medium"}>{e.titre}</span>
+            {duree >= 45 && !compact && (
               <span className="block text-text-dim">{formatHeure(e.start_at)}</span>
             )}
           </button>

@@ -7,8 +7,9 @@ import type { AppData, FocusSession } from "../lib/types";
 import { IconExpand, IconExternal, IconPause, IconPlay, IconStop } from "../components/icons";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import { detacherLeTimer } from "../components/FocusOverlay";
-import HorlogeVolets from "../components/timer/HorlogeVolets";
-import { afficheLesHeures, fenetreSepareeDisponible } from "../lib/timerFenetre";
+import Horloge from "../components/timer/Horloge";
+import { fenetreSepareeDisponible } from "../lib/timerFenetre";
+import { useStyleHorloge, type StyleHorloge } from "../lib/timerStyle";
 
 import { t } from "../lib/i18n";
 interface Props {
@@ -35,6 +36,7 @@ export default function TimerView({ data, focus }: Props) {
   const today = todayStr();
   const { session, remainingSec, paused } = focus;
   const [goalMin, setGoalMin] = useState(120);
+  const [styleHorloge, choisirStyle] = useStyleHorloge();
 
   useEffect(() => {
     getSetting("focus_goal_min").then((v) => {
@@ -79,7 +81,36 @@ export default function TimerView({ data, focus }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl p-8 telephone:p-4">
-      <h1 className="text-3xl text-text">{t("Timer")}</h1>
+      <header className="view-head">
+        <h1 className="text-3xl text-text">{t("Timer")}</h1>
+        {/* ⭐ Le visage de l'horloge (2026-10-13) : les volets, ou l'anneau
+            d'avant. Vaut pour cette page, le plein écran et la fenêtre séparée. */}
+        <div role="radiogroup" aria-label={t("Affichage du chrono")} className="flex items-center gap-1.5">
+          {(
+            [
+              { id: "volets", label: t("Volets"), aide: t("Deux cartes dont les chiffres basculent, comme un afficheur à palettes.") },
+              { id: "anneau", label: t("Anneau"), aide: t("Un cercle qui se remplit, le temps restant au centre.") },
+            ] satisfies { id: StyleHorloge; label: string; aide: string }[]
+          ).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={styleHorloge === s.id}
+              onClick={() => void choisirStyle(s.id)}
+              data-tip={s.label}
+              data-tip-sub={s.aide}
+              className={`pill cible-tactile-ligne border px-3 py-1.5 text-xs font-medium transition-colors ${
+                styleHorloge === s.id
+                  ? "border-border-strong bg-overlay-2 text-text"
+                  : "border-border text-text-dim hover:text-text"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </header>
 
       <ResizableGrid gridId="timer" className="mt-6">
         {/* Session en cours (horloge à volets) ou lanceur */}
@@ -93,16 +124,23 @@ export default function TimerView({ data, focus }: Props) {
               <h2 className="truncate-souris mt-1 max-w-md truncate text-xl text-text">
                 {session.label}
               </h2>
-              {/* L'horloge à volets, la même qu'en plein écran et dans la
-                  fenêtre séparée — à la taille du panneau. */}
-              <HorlogeVolets
-                restantSec={remainingSec}
-                avecHeures={afficheLesHeures(session.plannedMin)}
-                enPause={paused}
-                hauteurMax="10rem"
-                className="mt-6 max-w-[34rem]"
-              />
+              {/* L'horloge, sous le visage choisi — la même qu'en plein écran
+                  et dans la fenêtre séparée, à la taille du panneau. */}
+              <div className="mt-6 w-full">
+                <Horloge
+                  style={styleHorloge}
+                  restantSec={remainingSec}
+                  plannedMin={session.plannedMin}
+                  estPause={session.kind === "break"}
+                  enPause={paused}
+                  hauteurVolets="10rem"
+                  diametreAnneau="15rem"
+                  classeVolets="mx-auto max-w-[34rem]"
+                />
+              </div>
+              {/* L'anneau dessine déjà la progression : pas de jauge en plus. */}
               <div
+                hidden={styleHorloge === "anneau"}
                 className="pill mt-5 h-1 w-full max-w-[16rem] overflow-hidden bg-surface-2"
                 role="progressbar"
                 aria-valuemin={0}
@@ -120,8 +158,11 @@ export default function TimerView({ data, focus }: Props) {
                 />
               </div>
               <span className="mt-2 font-mono text-xs text-text-dim">
-                / {session.plannedMin} min
-                {session.breakMin ? ` · ${t("pause {n} min ensuite", { n: session.breakMin })}` : ""}
+                {/* L'anneau écrit « / 25 min » en son centre. */}
+                {styleHorloge === "anneau" ? "" : `/ ${session.plannedMin} min`}
+                {session.breakMin
+                  ? `${styleHorloge === "anneau" ? "" : " · "}${t("pause {n} min ensuite", { n: session.breakMin })}`
+                  : ""}
               </span>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <button

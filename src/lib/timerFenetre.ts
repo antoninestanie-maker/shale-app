@@ -19,6 +19,7 @@
 import { useEffect, useRef } from "react";
 import { IS_IOS } from "./platform";
 import type { ActiveFocus, FocusController } from "./useFocus";
+import type { StyleHorloge } from "./timerStyle";
 
 /** L'étiquette de la fenêtre Tauri — la même que dans `capabilities/timer.json`. */
 export const LABEL_FENETRE_TIMER = "timer";
@@ -40,6 +41,12 @@ export interface EtatTimerPartage {
   finMs: number | null;
   /** Reste figé pendant une pause, en secondes ; `null` quand le décompte tourne. */
   restantFigeSec: number | null;
+  /**
+   * Volets ou anneau (2026-10-13). La fenêtre séparée n'ouvre pas la base :
+   * c'est l'app qui lui dit quel visage montrer. Absent = volets (une app
+   * d'avant cette date n'envoie pas le champ).
+   */
+  style?: StyleHorloge;
 }
 
 /** Ce que la fenêtre séparée peut demander à l'app. `etat` : « renvoie-moi l'état ». */
@@ -88,12 +95,17 @@ export function etatDepuisFocus(
   session: ActiveFocus | null,
   enPause: boolean,
   restantSec: number,
+  style?: StyleHorloge,
 ): EtatTimerPartage {
-  if (!session) return { session: null, finMs: null, restantFigeSec: null };
+  // Le champ n'existe que s'il est donné : l'état d'avant le 2026-10-13 reste
+  // exactement le même, à l'octet près.
+  const visage = style ? { style } : {};
+  if (!session) return { session: null, finMs: null, restantFigeSec: null, ...visage };
   return {
     session: { label: session.label, kind: session.kind, plannedMin: session.plannedMin },
     finMs: enPause ? null : session.startedAtMs + session.plannedMin * 60_000,
     restantFigeSec: enPause ? restantSec : null,
+    ...visage,
   };
 }
 
@@ -407,16 +419,17 @@ async function montrerFenetrePrincipale(): Promise<void> {
  * de quelques octets, quatre ou cinq fois par séance, et la fenêtre qui s'ouvre
  * demande de toute façon l'état en arrivant (`etat`).
  */
-export function usePontFenetreTimer(focus: FocusController): void {
+export function usePontFenetreTimer(focus: FocusController, style?: StyleHorloge): void {
   const { session, paused, remainingSec } = focus;
-  const etat = etatDepuisFocus(session, paused, remainingSec);
+  const etat = etatDepuisFocus(session, paused, remainingSec, style);
   const etatRef = useRef(etat);
   etatRef.current = etat;
   const focusRef = useRef(focus);
   focusRef.current = focus;
 
   // La clé ne bouge qu'aux changements de sens : `finMs` est stable tant que ça
-  // tourne, `restantFigeSec` stable tant que c'est en pause.
+  // tourne, `restantFigeSec` stable tant que c'est en pause — et le style ne
+  // change que quand on le choisit (la fenêtre séparée change alors de visage).
   const cle = JSON.stringify(etat);
   useEffect(() => {
     diffuserEtat(etatRef.current);
