@@ -2726,3 +2726,22 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - **Pas prouvé** : app installée, téléphone, anglais. **Pas de build natif** (à grouper).
 - ⚠️ La notification `streak_at_risk` lit toujours la série de TÂCHES (80 %) : elle peut ne plus parler de la même série que l'écran. À trancher par Antonin.
 - ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).
+
+
+## 2026-10-13 (nuit) — l'IA de Shale Pro s'exécute à Paris, où que soit l'utilisateur
+
+Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-region` (worktree `~/Desktop/Shale-chantiers/ia-region`). Suite du § 11.z du 2026-09-29.
+
+- **Le constat, remesuré** (requêtes `OPTIONS` et un `POST` sans session, corps `{}` : aucune donnée) sur `…/functions/v1/ai` : sans rien demander, `x-sb-edge-region: eu-central-2` (Zurich, hors Union européenne) depuis la France ; avec `x-region: us-east-1`, `us-east-1`. Supabase exécute donc la fonction au plus près de l'appelant, et l'app ne demandait aucune région.
+- **Fait** : `src/lib/ia/runAi.ts` — `REGION_IA = "eu-west-3"` (Paris, la région du projet) et `urlRegionale()`, qui ajoute `?forceFunctionRegion=eu-west-3` à CHAQUE envoi (le premier et la reprise sur 401). `runAi` est la seule entrée de l'app vers une fonction edge.
+- **Pourquoi le paramètre d'URL et pas l'en-tête `x-region`** : le CORS de la fonction (`coeur/traiter.ts`, dépôt du site) autorise `authorization, content-type, apikey, x-client-info`, pas `x-region` ; le webview refuserait l'appel entier au contrôle préalable. Le paramètre est prévu par la doc de Supabase pour ce cas et ne demande **aucun redéploiement**. Mesuré : `?forceFunctionRegion=eu-west-3` → `x-sb-edge-region: eu-west-3`, cinq fois sur cinq, et sur le `POST` (401 `unauthorized`).
+- **Tests** : `runAi.test.ts` (4 nouveaux : aucun envoi sans la région, région déjà présente remplacée, région dans la liste de l'Union, pas d'en-tête `x-region`) ; `region.test.ts` (neuf : balaie `src/`, échoue si une autre adresse `/functions/v1/` ou un `functions.invoke` apparaît hors de `provider.ts`, ou si `MANAGED_ENDPOINT` est lu ailleurs que par `useIa`).
+- ⚠️ **Ce que la région fixée garantit, et ce qu'elle ne garantit pas** :
+  - une région demandée qui existe est tenue ; la doc dit qu'en cas de panne de cette région l'appel n'est **pas** réacheminé ailleurs (elle ne dit pas en toutes lettres qu'il échoue ; non provoqué ici) ;
+  - une région **inconnue** n'est pas refusée : Supabase retombe en silence sur la plus proche (mesuré : `zz-nowhere-9` → `eu-central-2`). PIEGES § 53.1 ;
+  - c'est l'**app** qui demande Paris, pas le serveur : une version de l'app d'avant ce changement, ou tout autre appelant, s'exécute encore au plus près. Le seul verrou qui vaille pour tous est côté fonction (refuser si `SB_REGION` n'est pas `eu-west-3`) — proposé dans `DETTE-SITE.md` § AM, **non fait** (dépôt du site, redéploiement par Antonin) ;
+  - la région ne concerne que le relais Supabase. Où Google traite la requête Gemini ne dépend pas d'elle.
+- **Autres fonctions edge** : l'app n'en appelle aucune autre (`create-checkout` et `billing-portal` ne sont appelées que par le site, `vitrine/src/lib/compteAuth.ts`, sans région ; elles portent le jeton et le choix d'offre, pas de contenu). Le Rust n'appelle aucune fonction.
+- **Pas fait** : aucun build natif — **l'app installée (Mac 13/10 01:16, iPhone 0.8.0) ne porte pas ce changement**. Aucun appel authentifié (toutes les fonctions d'IA sont éteintes dans `ai_config`, et il ne faut pas en allumer avant la politique de confidentialité à jour). Rien modifié dans le dépôt du site.
+- **Ligne de base** (charge de la machine 45 à 60, d'autres sessions) : `tsc` vert ; `test:types` vert ; `src/lib/ia` 169 tests verts — les quatre fichiers `serveur*` (base PGlite) dépassent leur délai de 60 s sous cette charge et passent rejoués seuls (65/65), comme noté au carnet le même soir. Contre-épreuve : région retirée de `runAi.ts`, trois tests rouges. ⚠️ **Suite complète et `vite build` non rejoués** (aucun autre fichier touché ; ni `en.ts`, ni Rust).
+- **Non fusionné, non poussé** : un commit local sur `chantier/ia-region`, en attente de l'accord d'Antonin.

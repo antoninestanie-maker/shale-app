@@ -13,7 +13,9 @@
 //   · un 401 est retenté UNE fois avec un jeton renouvelé (même règle que la
 //     synchronisation : un jeton Supabase vit une heure) ;
 //   · en mode démo (hors Tauri), aucune requête : une réponse factice après un
-//     délai réaliste.
+//     délai réaliste ;
+//   · la fonction s'exécute à PARIS (`REGION_IA`), où que soit l'utilisateur :
+//     voir `urlRegionale` plus bas.
 //
 // Elle NE décide PAS si l'utilisateur a le droit ni s'il a activé l'IA : c'est
 // `useIa` qui le fait avant d'appeler — et le serveur, qui fait foi.
@@ -86,6 +88,38 @@ export interface DepsRunAi {
   maintenant?: () => Date;
 }
 
+/**
+ * La région où la fonction `ai` s'exécute : Paris, celle du projet Supabase.
+ *
+ * Sans elle, Supabase exécute une fonction edge dans le centre de données le
+ * plus proche de l'APPELANT (mesuré le 2026-10-13 : `x-sb-edge-region:
+ * eu-central-2` depuis la France, `us-east-1` sur demande). Le contenu d'un
+ * utilisateur hors d'Europe serait alors relayé en clair hors d'Europe.
+ *
+ * ⚠️ Une région INCONNUE n'est pas refusée : Supabase retombe en silence sur la
+ * plus proche (mesuré : `zz-nowhere-9` → `eu-central-2`). Une faute de frappe
+ * ici défait donc tout sans rien casser — d'où `REGIONS_UE` et son test.
+ */
+export const REGION_IA = "eu-west-3";
+
+/** Les régions de l'Union européenne où Supabase exécute des fonctions edge
+ *  (doc « Regional invocations », lue le 2026-10-13). Ni Londres ni Zurich. */
+export const REGIONS_UE: readonly string[] = ["eu-west-3", "eu-west-1", "eu-central-1"];
+
+/**
+ * Le point d'accès, épinglé sur `REGION_IA`.
+ *
+ * Par le paramètre d'URL `forceFunctionRegion`, et NON par l'en-tête
+ * `x-region` : le CORS de la fonction (`coeur/traiter.ts`, dépôt du site)
+ * n'autorise pas cet en-tête, et le webview refuserait alors l'appel entier au
+ * contrôle préalable. Le paramètre ne demande aucun redéploiement.
+ */
+export function urlRegionale(endpoint: string): string {
+  const url = new URL(endpoint);
+  url.searchParams.set("forceFunctionRegion", REGION_IA);
+  return url.toString();
+}
+
 /** Délai au-delà duquel on abandonne : la fonction coupe elle-même à 60 s. */
 const DELAI_MS = 90_000;
 
@@ -129,7 +163,7 @@ export async function runAi<F extends FonctionIa>(
   const f = deps.fetch ?? fetch;
   const envoyer = async (jeton: string): Promise<Response | null> => {
     try {
-      return await f(deps.endpoint, {
+      return await f(urlRegionale(deps.endpoint), {
         method: "POST",
         headers: { "content-type": "application/json", apikey: deps.cleAnon, authorization: `Bearer ${jeton}` },
         body: JSON.stringify({ feature, payload }),

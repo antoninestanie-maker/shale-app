@@ -5545,3 +5545,7 @@ la fonction rendait 403 au lieu de 200, sans aucun commit en cause (vert à
 `demain` et `hier` de `serveur.sql.test.ts` —, jamais depuis l'horloge injectée
 ni en dur. Diagnostic express d'un test qui rougit « tout seul » : chercher une
 date littérale proche du jour de la panne.
+
+## 53.1 Une fonction edge Supabase s'exécute au plus près de l'appelant, et une région mal écrite n'est pas refusée
+
+Mesuré le 2026-10-13 sur `…/functions/v1/ai` (en-tête de réponse `x-sb-edge-region`) : sans région demandée, `eu-central-2` depuis la France ; `x-region: us-east-1` → `us-east-1` ; une région qui n'existe pas (`zz-nowhere-9`) → `eu-central-2`, **sans erreur**. La région du PROJET (Paris) ne dit donc rien de l'endroit où tourne une fonction. `runAi.ts` la fixe par `?forceFunctionRegion=` ; l'en-tête `x-region` ferait échouer le contrôle préalable CORS tant que la fonction ne l'autorise pas. Pour vérifier : `curl -s -o /dev/null -D - -X OPTIONS '<url>?forceFunctionRegion=eu-west-3'` et lire `x-sb-edge-region`.
