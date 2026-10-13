@@ -3493,16 +3493,22 @@ gratuite, elle n'a rien à voir avec le profil de compilation, qui est bien
   session » ; contre-épreuve `fixed left-1/2 z-40` : 0.
 - `devicectl device info apps` : `Shale com.atnfx.shale 0.8.0 0.8.0`.
 
-### 29.3 ⛔ Ce qui n'est PAS prouvé
+### 29.3 Ce qu'Antonin a constaté, et ce qui reste non vu
 
-- **L'app n'a pas été vue ouverte.** Le lancement par `devicectl` a été refusé :
-  « its profile has not been explicitly trusted by the user » — le geste du
-  § 20.2, qu'Antonin seul peut faire (Réglages → Général → VPN et gestion
-  d'appareils).
-- Rien n'a été regardé à l'écran du téléphone : ni la connexion (la session
-  d'août a-t-elle survécu ?), ni la synchronisation, ni le clavier, ni la zone
-  sûre. Tout ce que les sections « pas vu sur un vrai iPhone » de
-  `PASSATION.md` listent reste dû.
+*Rapporté par Antonin le 2026-10-13, après avoir refait confiance au
+développeur (Réglages → Général → VPN et gestion de l'appareil). Aucune session
+n'a regardé l'écran du téléphone.*
+
+- ✅ **L'app s'ouvre.** Le lancement par `devicectl` avait d'abord été refusé
+  (« its profile has not been explicitly trusted by the user », § 20.2) : ce
+  geste est à refaire à chaque nouveau profil.
+- ✅ **La session d'août a survécu à la réinstallation** : aucune demande de
+  connexion. La pose par-dessus (`devicectl device install app`, sans
+  désinstaller) garde le conteneur de l'app, donc le trousseau et la base —
+  l'inverse de ce que le § 22 a mesuré sur le simulateur.
+- ✅ **« Tout est synchronisé comme il faut »**, à son œil.
+- ⛔ **Non vu** : le clavier, la zone sûre, les notifications, et tout ce que
+  les sections « pas vu sur un vrai iPhone » de `PASSATION.md` listent.
 - `[renommer-habitude]` n'est pas dedans (non fusionné), comme sur le Mac.
 
 ### 29.4 Durées, pour la prochaine fois

@@ -144,7 +144,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | Synchronisation | ✅ **elle fonctionne** — dernier envoi ET dernière lecture le **2026-09-17 à 22:37 UTC**, curseur à 554. ⭐ **Cela prouve que la fenêtre de trousseau a été autorisée** après le build du 16 : c'était le dernier geste en attente, il est fait |
 | File de sortie | ⚠️ `sync_outbox` contient **1 ligne** en attente — normal si l'app vient d'écrire ; anormal si ça ne bouge plus |
 | Sauvegardes | ✅ automatiques dans `~/Library/Application Support/com.atnfx.shale/backups/` — la dernière du 2026-09-16 21:34. Plus les sauvegardes manuelles d'avant-chantier sur le disque externe |
-| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : ⭐ **0.8.0 reposée le 2026-10-13 à 10:38** (`mobile-ios` `f91e1c4`, même code que l'app Mac de 01:16) ; **profil valable jusqu'au 2026-10-20 à 10:06**, après quoi elle ne s'ouvre plus ; jamais vue ouverte par une session (`MOBILE.md` § 29) |
+| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : ⭐ **0.8.0 reposée le 2026-10-13 à 10:38** (`mobile-ios` `f91e1c4`, même code que l'app Mac de 01:16) ; **profil valable jusqu'au 2026-10-20 à 10:06**, après quoi elle ne s'ouvre plus ; Antonin l'a ouverte, déjà connecté et synchronisé (`MOBILE.md` § 29) |
 | Windows | code sur le tronc, **jamais compilé** (§ 12) |
 
 > ⚠️ **2026-09-22 — l'interface est passée au design system V7 « Ink & Azure »**
@@ -2508,6 +2508,6 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 
 - **Installé sur l'iPhone 16 d'Antonin** : `mobile-ios` `f91e1c4`, build `release`, version 0.8.0 — le code de l'app Mac installée (`7727898`), la documentation en plus. `devicectl device info apps` rend `Shale com.atnfx.shale 0.8.0`. Procédure et preuves : `MOBILE.md` § 29 ; pièges : `PIEGES.md` § 43.
 - Xcode n'avait plus aucun compte Apple sur ce Mac : Antonin s'y est reconnecté. Profil gratuit recréé, **valable jusqu'au 2026-10-20 à 10:06**.
-- **Pas vu** : l'app ouverte. Le lancement à distance a été refusé tant qu'Antonin n'a pas refait confiance au développeur sur le téléphone (Réglages → Général → VPN et gestion d'appareils). Rien n'a été regardé à l'écran du téléphone.
+- **Constaté par Antonin** (après avoir refait confiance au développeur : Réglages → Général → VPN et gestion de l'appareil) : l'app s'ouvre, **sans demande de connexion** (la session d'août a survécu à la pose), et tout est synchronisé. **Pas vu par une session** : l'écran du téléphone ; le clavier, la zone sûre, les notifications restent dus.
 - Le Mac n'est pas touché : `/Applications/Shale.app` reste à `8ea6fc7989f8`, la base n'a pas été ouverte.
 - Gardé : `src-tauri/target/aarch64-apple-ios` (1,2 Go de cache Rust, pour la pose de la semaine prochaine). Supprimé : `gen/apple/build/arm64`, l'archive Xcode ; les deux fichiers que Tauri réécrit à chaque build (`project.pbxproj`, `Info.plist`) sont remis.
