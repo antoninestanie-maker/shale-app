@@ -3,6 +3,7 @@
 // Tout est sauvegardé immédiatement (settings "ui.config") et appliqué en direct.
 import { useState, type ReactNode } from "react";
 import { iconePlus, ongletPossible } from "../components/MobileNav";
+import { useGlisserListe } from "../components/useGlisserListe";
 import { BY_ID, MODULE_LABELS, type View } from "../components/Sidebar";
 import {
   IconChevronDown,
@@ -23,6 +24,7 @@ import {
   MAX_ONGLETS,
   ongletsAffiches,
   ongletsDisponibles,
+  placerOnglet,
   retirerOnglet,
 } from "../lib/onglets";
 import { IS_IOS, useIsPhone } from "../lib/platform";
@@ -171,6 +173,11 @@ function BoutonOnglet({
  *
  * Les gestes écrivent la liste AFFICHÉE (`ongletsAffiches`) : un onglet que la
  * licence a retiré ne revient pas occuper une place qu'on ne voit pas.
+ *
+ * Ranger se fait de deux façons, qui écrivent la même liste : les flèches, et
+ * (2026-10-13, soir) maintenir une ligne puis la glisser — `useGlisserListe`.
+ * Les flèches restent : un geste seul n'existe pas pour qui ne le devine pas,
+ * ni pour un lecteur d'écran (règle 17).
  */
 function BarreDuBas({
   onglets,
@@ -187,6 +194,7 @@ function BarreDuBas({
   const dans = ongletsAffiches(onglets, possible);
   const dispo = ongletsDisponibles(dans, MODULE_IDS, possible);
   const pleine = barrePleine(dans);
+  const glisser = useGlisserListe(dans, (id, rang) => onChange(placerOnglet(dans, id, rang)));
   const ligne = "flex items-center gap-2 rounded-xl border border-border px-3 py-2";
   const icone = (id: View) => (
     <span className="grid size-5 shrink-0 place-items-center text-text-dim [&>svg]:size-5">
@@ -214,15 +222,27 @@ function BarreDuBas({
       <p className="mt-2 text-xs text-text-dim">
         {t("Jusqu'à {n} onglets, dans l'ordre de la barre : le premier est à gauche. « Plus » reste à droite.", {
           n: MAX_ONGLETS,
-        })}
+        })}{" "}
+        {dans.length > 1 && t("Maintiens une ligne pour la glisser à sa place.")}
       </p>
 
       <p className="hud-label mb-2 mt-4">
         {t("dans la barre")} · {dans.length}/{MAX_ONGLETS}
       </p>
-      <div className="flex flex-col gap-1">
+      <div ref={glisser.refListe} className="flex flex-col gap-1">
         {dans.map((id, i) => (
-          <div key={id} className={ligne}>
+          <div
+            key={id}
+            data-ligne-glisse
+            onPointerDown={glisser.saisir(id)}
+            // Au doigt, un appui long émet aussi `contextmenu` : sans ce refus,
+            // le menu du système (ou celui du panneau) s'ouvrirait sur la ligne
+            // qu'on vient de prendre en main.
+            onContextMenu={(e) => e.preventDefault()}
+            // Ni sélection de texte ni loupe d'iOS pendant le maintien.
+            style={{ WebkitTouchCallout: "none", ...glisser.styleDe(id) }}
+            className={`${ligne} select-none ${glisser.enMain === id ? "bg-surface-2" : ""}`}
+          >
             {icone(id)}
             {nom(id)}
             <ArrowButton up onClick={() => onChange(deplacerOnglet(dans, id, -1))} disabled={i === 0} />

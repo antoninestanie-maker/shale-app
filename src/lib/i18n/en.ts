@@ -3717,4 +3717,5 @@ export const EN: Record<string, string> = {
     "The bar is full: remove a tab to add another one.",
   "Retirer de la barre": "Remove from the bar",
   "Ajouter à la barre": "Add to the bar",
+  "Maintiens une ligne pour la glisser à sa place.": "Press and hold a row to drag it into place.",
 };

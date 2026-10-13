@@ -101,3 +101,48 @@ export function estBarreParDefaut(
 ): boolean {
   return onglets.length === defaut.length && onglets.every((id, i) => id === defaut[i]);
 }
+
+// ─── Ranger en glissant (2026-10-13, soir) ──────────────────────────────────
+// Antonin : « ajoute le glisser au doigt pour ranger les onglets. Avec un
+// maintien d'abord. » Le geste vit dans `components/useGlisserListe.ts` ; ce
+// qu'il DÉCIDE est ici, pour qu'un test le tienne.
+
+/**
+ * Durée du maintien avant qu'une ligne se laisse glisser. La même que l'appui
+ * long du Calendrier (`APPUI_LONG_MS`, `GrilleHoraire.tsx`) : en deçà, faire
+ * défiler la page arracherait la ligne touchée (`PIEGES.md` § 7.4 ter) ; au-delà,
+ * l'attente se sent.
+ */
+export const MAINTIEN_MS = 400;
+
+/** Déplacement (px écran) qui, AVANT la fin du maintien, veut dire « je défile ». */
+export const JEU_DU_MAINTIEN = 8;
+
+/**
+ * Le rang où tomberait la ligne partie de `depart` et glissée de `dy` pixels,
+ * dans une liste de `n` lignes espacées de `pas`. On change de rang à
+ * mi-chemin de la ligne voisine ; on ne sort jamais de la liste.
+ */
+export function rangDArrivee(depart: number, dy: number, pas: number, n: number): number {
+  if (!(pas > 0) || n <= 0) return depart;
+  return Math.min(n - 1, Math.max(0, depart + Math.round(dy / pas)));
+}
+
+/**
+ * De combien de rangs la ligne `i` s'écarte pour faire place à celle qu'on
+ * glisse de `depart` vers `rang` : −1 (elle remonte), +1 (elle descend), 0.
+ */
+export function ecartDeLigne(i: number, depart: number, rang: number): -1 | 0 | 1 {
+  if (depart < rang && i > depart && i <= rang) return -1;
+  if (rang < depart && i >= rang && i < depart) return 1;
+  return 0;
+}
+
+/** Pose l'onglet `id` au rang `rang`, les autres gardant leur ordre. */
+export function placerOnglet<T>(onglets: readonly T[], id: T, rang: number): T[] {
+  const i = onglets.indexOf(id);
+  if (i < 0) return [...onglets];
+  const suite = onglets.filter((x) => x !== id);
+  suite.splice(Math.min(suite.length, Math.max(0, rang)), 0, id);
+  return suite;
+}

@@ -7,12 +7,16 @@ import {
   ajouterOnglet,
   barrePleine,
   deplacerOnglet,
+  ecartDeLigne,
   estBarreParDefaut,
   lireOnglets,
+  MAINTIEN_MS,
   MAX_ONGLETS,
   ONGLETS_DEFAUT,
   ongletsAffiches,
   ongletsDisponibles,
+  placerOnglet,
+  rangDArrivee,
   retirerOnglet,
 } from "./onglets";
 import { defaultUiConfig, mergeConfig, MODULE_IDS } from "./uiConfig";
@@ -123,6 +127,81 @@ describe("les gestes de Personnaliser", () => {
     expect(estBarreParDefaut([...ONGLETS_DEFAUT])).toBe(true);
     expect(estBarreParDefaut(["tasks", "today", "notes", "journal"])).toBe(false);
     expect(estBarreParDefaut(["today", "tasks", "notes"])).toBe(false);
+  });
+});
+
+// 2026-10-13 (soir) — maintenir une ligne, puis la glisser.
+describe("ranger en glissant", () => {
+  const PAS = 64;
+
+  it("la ligne change de rang à mi-chemin de sa voisine, pas avant", () => {
+    expect(rangDArrivee(1, 31, PAS, 4)).toBe(1);
+    expect(rangDArrivee(1, 33, PAS, 4)).toBe(2);
+    expect(rangDArrivee(1, -33, PAS, 4)).toBe(0);
+    expect(rangDArrivee(0, 2 * PAS, PAS, 4)).toBe(2);
+  });
+
+  it("⭐ elle ne sort jamais de la liste, si loin qu'aille le doigt", () => {
+    expect(rangDArrivee(1, 900, PAS, 4)).toBe(3);
+    expect(rangDArrivee(2, -900, PAS, 4)).toBe(0);
+  });
+
+  it("un pas illisible (liste pas encore mesurée) ne déplace rien", () => {
+    expect(rangDArrivee(2, 120, 0, 4)).toBe(2);
+    expect(rangDArrivee(2, 120, Number.NaN, 4)).toBe(2);
+  });
+
+  it("les voisines s'écartent du bon côté, et seulement celles qu'on enjambe", () => {
+    // De 0 vers 2 : les lignes 1 et 2 remontent, la 3 ne bouge pas.
+    expect([0, 1, 2, 3].map((i) => ecartDeLigne(i, 0, 2))).toEqual([0, -1, -1, 0]);
+    // De 3 vers 1 : les lignes 1 et 2 descendent.
+    expect([0, 1, 2, 3].map((i) => ecartDeLigne(i, 3, 1))).toEqual([0, 1, 1, 0]);
+    // Sur place : personne ne bouge.
+    expect([0, 1, 2, 3].map((i) => ecartDeLigne(i, 2, 2))).toEqual([0, 0, 0, 0]);
+  });
+
+  it("poser l'onglet au rang d'arrivée garde l'ordre des autres", () => {
+    const barre = ["today", "tasks", "notes", "journal"];
+    expect(placerOnglet(barre, "today", 2)).toEqual(["tasks", "notes", "today", "journal"]);
+    expect(placerOnglet(barre, "journal", 0)).toEqual(["journal", "today", "tasks", "notes"]);
+    expect(placerOnglet(barre, "notes", 2)).toEqual(barre);
+    expect(placerOnglet(barre, "notes", 99)).toEqual(["today", "tasks", "journal", "notes"]);
+    expect(placerOnglet(barre, "goals", 1)).toEqual(barre);
+  });
+
+  it("⭐ ce que le doigt voit est ce qui est écrit : écarts et ordre final concordent", () => {
+    // Pour chaque (départ, arrivée), on reconstruit l'ordre À L'ÉCRAN depuis
+    // les écarts des voisines, et on le compare à l'ordre enregistré.
+    const barre = ["a", "b", "c", "d"];
+    for (let depart = 0; depart < 4; depart++) {
+      for (let rang = 0; rang < 4; rang++) {
+        const places = barre.map((id, i) => ({
+          id,
+          place: i === depart ? rang : i + ecartDeLigne(i, depart, rang),
+        }));
+        const aLEcran = places.sort((x, y) => x.place - y.place).map((p) => p.id);
+        expect(aLEcran).toEqual(placerOnglet(barre, barre[depart], rang));
+      }
+    }
+  });
+
+  it("le maintien dure autant que l'appui long du Calendrier", () => {
+    const grille = readFileSync(
+      new URL("../components/calendrier/GrilleHoraire.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(grille).toMatch(new RegExp(`const APPUI_LONG_MS = ${MAINTIEN_MS};`));
+  });
+
+  it("les flèches restent à côté du geste (règle 17), et le geste épargne les boutons", () => {
+    const admin = readFileSync(new URL("../views/AdminView.tsx", import.meta.url), "utf8");
+    const geste = readFileSync(new URL("../components/useGlisserListe.ts", import.meta.url), "utf8");
+    expect(admin).toMatch(/onPointerDown=\{glisser\.saisir\(id\)\}/);
+    expect(admin).toMatch(/deplacerOnglet\(dans, id, -1\)/);
+    expect(geste).toMatch(/closest\(CONTROLES\)/);
+    // Le défilement n'est retenu qu'une fois la ligne en main.
+    expect(geste).toMatch(/if \(enMainRef\.current && ev\.cancelable\) ev\.preventDefault\(\)/);
+    expect(geste).toMatch(/liste\.addEventListener\("touchmove", retenir, \{ passive: false \}\)/);
   });
 });
 
