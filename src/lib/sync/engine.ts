@@ -60,7 +60,11 @@ export interface Resultat {
   envoyees: number;
   recues: number;
   appliquees: number;
-  /** Reçues mais mises de côté : leur parent n'est pas encore arrivé. */
+  /**
+   * Orphelines en attente à la fin du cycle : reçues, mais leur parent n'est
+   * pas (encore) sur cet appareil. Elles ne retiennent plus le curseur — voir
+   * « Orphelines » plus bas.
+   */
   enQuarantaine: number;
   ignorees: number;
   /**
@@ -268,19 +272,19 @@ async function appliquerReçue(ctx: Contexte, item: ARejouer): Promise<boolean> 
   return true;
 }
 
-/** Une page. `pageComplete` dit s'il vaut la peine d'en redemander une autre. */
-type Page = Omit<Resultat, "envoyees" | "resteATirer"> & { pageComplete: boolean };
+interface Tri {
+  aAppliquer: ARejouer[];
+  ignorees: number;
+  illisibles: number;
+}
 
-async function recevoirUnePage(
+/** Ouvre les lignes reçues et écarte celles qui n'ont rien à apporter. */
+async function trier(
   ctx: Contexte,
   versTable: Map<string, string>,
   entreesEnAttente: Map<string, { ts: string; device: string }>,
-): Promise<Page> {
-  const curseur = Number((await lireMeta(ctx.db, "cursor")) ?? "0");
-  const lignes = await ctx.transport.tirer(curseur, TAILLE_PAGE);
-  if (!lignes.length)
-    return { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, illisibles: 0, pageComplete: false };
-
+  lignes: LigneDistante[],
+): Promise<Tri> {
   const aAppliquer: ARejouer[] = [];
   let ignorees = 0;
   let illisibles = 0;
@@ -349,49 +353,110 @@ async function recevoirUnePage(
     aAppliquer.push({ ligne, table, uid, charge });
   }
 
+  return { aAppliquer, ignorees, illisibles };
+}
+
+/**
+ * Applique un lot, puis rejoue ce qui attendait.
+ *
+ * Un parent peut arriver après son enfant — dans la même page, ou dans une page
+ * suivante du même cycle. On rejoue donc l'attente entière tant que ça
+ * progresse ; ce qui reste attendra.
+ */
+async function appliquerLot(
+  ctx: Contexte,
+  lot: ARejouer[],
+  attente: ARejouer[],
+): Promise<{ appliquees: number; attente: ARejouer[] }> {
   let appliquees = 0;
-  let quarantaine: ARejouer[] = [];
+  let reste = attente;
 
   await enApplication(ctx.db, async () => {
-    for (const item of aAppliquer) {
+    const neuves: ARejouer[] = [];
+    for (const item of lot) {
       if (await appliquerReçue(ctx, item)) appliquees++;
-      else quarantaine.push(item);
+      else neuves.push(item);
     }
+    reste = [...reste, ...neuves];
 
-    // Un parent peut arriver dans la même page, mais après son enfant. On
-    // rejoue tant que ça progresse ; ce qui reste attend la prochaine fois.
-    let progresse = true;
-    while (quarantaine.length && progresse) {
-      const reste: ARejouer[] = [];
+    // Rien d'appliqué : aucun parent n'a pu apparaître, inutile de rejouer.
+    let progresse = appliquees > 0;
+    while (reste.length && progresse) {
+      const encore: ARejouer[] = [];
       progresse = false;
-      for (const item of quarantaine) {
+      for (const item of reste) {
         if (await appliquerReçue(ctx, item)) {
           appliquees++;
           progresse = true;
-        } else reste.push(item);
+        } else encore.push(item);
       }
-      quarantaine = reste;
+      reste = encore;
     }
   });
 
-  // ⚠️ Le curseur ne DÉPASSE PAS une ligne encore en quarantaine, sinon elle ne
-  // reviendrait jamais et l'orphelin serait perdu sans bruit.
-  const seqMax = Math.max(...lignes.map((l) => l.server_seq));
-  const seqBloquant = quarantaine.length ? Math.min(...quarantaine.map((i) => i.ligne.server_seq)) : null;
-  await ecrireMeta(ctx.db, "cursor", String(seqBloquant !== null ? seqBloquant - 1 : seqMax));
-  await ecrireMeta(ctx.db, "last_pull_at", new Date().toISOString());
+  return { appliquees, attente: reste };
+}
 
-  return {
-    recues: lignes.length,
-    appliquees,
-    enQuarantaine: quarantaine.length,
-    ignorees,
-    illisibles,
-    // ⚠️ Une quarantaine RETIENT le curseur : redemander une page renverrait
-    // exactement les mêmes lignes, indéfiniment. L'orpheline attend le cycle
-    // suivant, où son parent aura pu arriver.
-    pageComplete: lignes.length === TAILLE_PAGE && seqBloquant === null,
-  };
+// ─── Orphelines ──────────────────────────────────────────────────────────────
+
+/**
+ * Une orpheline est une ligne reçue dont le parent n'est pas sur cet appareil.
+ *
+ * ⚠️ DÉCISION RETOURNÉE le 2026-10-13. Jusque-là, le curseur ne dépassait
+ * jamais une orpheline (« sinon elle ne reviendrait plus »), et la pagination
+ * s'arrêtait sur elle. Deux cas rendaient cet arrêt DÉFINITIF, sans erreur ni
+ * alerte :
+ *
+ *   · le parent n'a jamais été envoyé (incident réel : une habitude créée avant
+ *     les triggers d'outbox, jamais modifiée depuis ; ses coches, elles,
+ *     étaient parties) ;
+ *   · le parent existe, mais à plus d'une page de son enfant (il a été modifié
+ *     depuis, donc renuméroté plus loin par le serveur).
+ *
+ * L'appareil relisait alors les 200 mêmes lignes à chaque cycle et ne voyait
+ * plus rien de ce qui suivait : six semaines de tâches manquantes sur un
+ * iPhone, sous un indicateur « synchronisé ».
+ *
+ * Désormais le curseur avance TOUJOURS. Ce qui garantit qu'une orpheline
+ * revienne, c'est son numéro de séquence, noté dans `sync_meta.orphelines` :
+ *
+ *   · dans le cycle, elle reste en mémoire et se rejoue après chaque page ;
+ *   · entre deux cycles, elle est redemandée au serveur PAR SON NUMÉRO dès
+ *     qu'une ligne a été appliquée (un parent ne peut arriver que par là).
+ *     Sans rien de reçu, elle ne coûte aucune requête ;
+ *   · si le serveur ne la rend plus sous ce numéro, c'est qu'elle a été
+ *     modifiée ou supprimée : sa nouvelle version passe par le curseur comme
+ *     n'importe quelle ligne, et l'ancien numéro est oublié.
+ *
+ * ⚠️ Le numéro est écrit AVANT que le curseur ne dépasse la ligne. Dans l'autre
+ * ordre, une app tuée entre les deux écritures perdrait l'orpheline pour de
+ * bon.
+ *
+ * ⚠️ « Il faut relire » est noté lui aussi (`orphelines_a_relire`), dès qu'une
+ * ligne est appliquée alors que des orphelines attendent. Si la relecture
+ * échoue (réseau coupé, app tuée), le cycle suivant la refait même s'il ne
+ * reçoit rien : sans cette note, le parent arrivé resterait sans son enfant
+ * jusqu'à la prochaine ligne reçue, quelle qu'elle soit.
+ */
+const CLE_ORPHELINES = "orphelines";
+const CLE_A_RELIRE = "orphelines_a_relire";
+
+async function lireOrphelines(db: BaseLocale): Promise<number[]> {
+  const brut = await lireMeta(db, CLE_ORPHELINES);
+  if (!brut) return [];
+  try {
+    const liste: unknown = JSON.parse(brut);
+    if (!Array.isArray(liste)) return [];
+    return liste.filter((n): n is number => Number.isInteger(n) && n > 0);
+  } catch {
+    // Illisible : on repart d'une liste vide plutôt que d'arrêter le cycle. Ce
+    // qu'elle retenait est perdu pour cet appareil — pas pour le serveur.
+    return [];
+  }
+}
+
+function enTexte(seqs: Iterable<number>): string {
+  return JSON.stringify([...new Set(seqs)].sort((x, y) => x - y));
 }
 
 // ─── Orchestration ───────────────────────────────────────────────────────────
@@ -426,20 +491,48 @@ export async function synchroniser(ctx: Contexte): Promise<Resultat> {
     if (c.uid) enAttente.set(`${c.table}|${c.uid}`, { ts: c.ts, device: ctx.deviceId });
   }
 
-  // On tire TANT QUE les pages sont pleines : le serveur en a alors encore, et
-  // rendre la main ici ferait attendre 90 secondes pour les 200 suivantes.
-  const total = { recues: 0, appliquees: 0, enQuarantaine: 0, ignorees: 0, illisibles: 0 };
+  const total = { recues: 0, appliquees: 0, ignorees: 0, illisibles: 0 };
   let resteATirer = false;
 
-  for (let page = 0; ; page++) {
-    const r = await recevoirUnePage(ctx, versTable, enAttente);
-    total.recues += r.recues;
-    total.appliquees += r.appliquees;
-    total.enQuarantaine += r.enQuarantaine;
-    total.ignorees += r.ignorees;
-    total.illisibles += r.illisibles;
+  // Les orphelines des cycles précédents (leurs numéros), et celles de ce
+  // cycle-ci (les lignes elles-mêmes, encore en mémoire).
+  let retenues = await lireOrphelines(ctx.db);
+  let aRelire = (await lireMeta(ctx.db, CLE_A_RELIRE)) === "1";
+  let attente: ARejouer[] = [];
+  let ecrit = enTexte(retenues);
+  const noter = async () => {
+    const texte = enTexte([...retenues, ...attente.map((i) => i.ligne.server_seq)]);
+    if (texte === ecrit) return;
+    await ecrireMeta(ctx.db, CLE_ORPHELINES, texte);
+    ecrit = texte;
+  };
 
-    if (!r.pageComplete) break;
+  // On tire TANT QUE les pages sont pleines : le serveur en a alors encore, et
+  // rendre la main ici ferait attendre 90 secondes pour les 200 suivantes.
+  for (let page = 0; ; page++) {
+    const curseur = Number((await lireMeta(ctx.db, "cursor")) ?? "0");
+    const lignes = await ctx.transport.tirer(curseur, TAILLE_PAGE);
+    if (!lignes.length) break;
+
+    const tri = await trier(ctx, versTable, enAttente, lignes);
+    const lot = await appliquerLot(ctx, tri.aAppliquer, attente);
+    attente = lot.attente;
+
+    total.recues += lignes.length;
+    total.appliquees += lot.appliquees;
+    total.ignorees += tri.ignorees;
+    total.illisibles += tri.illisibles;
+
+    // ⚠️ L'ordre compte : les orphelines d'abord, le curseur ensuite.
+    await noter();
+    if (retenues.length && lot.appliquees > 0 && !aRelire) {
+      await ecrireMeta(ctx.db, CLE_A_RELIRE, "1");
+      aRelire = true;
+    }
+    await ecrireMeta(ctx.db, "cursor", String(Math.max(...lignes.map((l) => l.server_seq))));
+    await ecrireMeta(ctx.db, "last_pull_at", new Date().toISOString());
+
+    if (lignes.length < TAILLE_PAGE) break;
     if (page + 1 >= PAGES_MAX) {
       // Le curseur a avancé : le prochain cycle reprendra exactement ici.
       resteATirer = true;
@@ -447,5 +540,22 @@ export async function synchroniser(ctx: Contexte): Promise<Resultat> {
     }
   }
 
-  return { envoyees, ...total, resteATirer };
+  // Les orphelines d'avant ce cycle : leur parent n'a pu arriver que si quelque
+  // chose a été appliqué — dans ce cycle, ou dans un cycle précédent qui n'a
+  // pas pu aller jusqu'ici. Sinon on ne demande rien.
+  if (retenues.length && aRelire) {
+    const relues = await ctx.transport.tirerParSeq(retenues);
+    const tri = await trier(ctx, versTable, enAttente, relues);
+    const lot = await appliquerLot(ctx, tri.aAppliquer, attente);
+    attente = lot.attente;
+    total.appliquees += lot.appliquees;
+    // Ce que le serveur n'a pas rendu, ou qui n'avait plus rien à apporter,
+    // n'est plus à retenir : la liste se refait depuis ce qui attend encore.
+    retenues = [];
+    await noter();
+  }
+  if (aRelire) await ecrireMeta(ctx.db, CLE_A_RELIRE, "0");
+
+  const enQuarantaine = new Set([...retenues, ...attente.map((i) => i.ligne.server_seq)]).size;
+  return { envoyees, ...total, enQuarantaine, resteATirer };
 }

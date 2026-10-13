@@ -5315,3 +5315,26 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Parade** (`useGlisserListe.ts`). Un `touchmove` `{ passive: false }` posé AU MONTAGE sur le conteneur des lignes, qui ne refuse (`preventDefault`) que si une ligne est en main et si l'événement est encore annulable. Sur la liste seule, pas sur le document.
 **Ce qui est prouvé.** Chrome en format téléphone : pendant le glissement la page ne défile pas ; sans maintien elle défile et rien n'est rangé. ⛔ Pas mesuré dans WebKit sur un iPhone : la seconde moitié de « ce qui ne suffit pas » est raisonnée, pas observée.
 **À savoir.** Le glisser du Calendrier (`GrilleHoraire.tsx`) s'appuie sur `touch-action` posé à l'armement (`data-glisse`). Non touché ; s'il laisse défiler la grille sur un vrai téléphone, c'est par là qu'il faut regarder.
+
+# 46. Synchronisation : un appareil figé sans erreur (2026-10-13)
+
+## 46.1 ⭐ « Synchronisé » à l'écran, et rien de neuf depuis des semaines : comparer les curseurs
+
+**Symptôme.** Sur l'iPhone, les tâches et les objectifs s'arrêtent au 29 septembre. L'indicateur dit « synchronisé », `last_pull_at` est d'il y a dix minutes, aucune erreur. Ce que le téléphone ÉCRIT arrive bien sur le Mac.
+**Cause.** Le curseur du téléphone valait 39, celui du Mac 1278. Une ligne orpheline (une coche d'habitude dont l'habitude n'était pas sur le serveur) retenait le curseur juste avant elle. Le moteur relisait à chaque cycle la même page de 200 lignes (séquences 40 à 1046) et s'arrêtait là. `last_pull_at` avance à chaque lecture, même quand le curseur ne bouge pas : il ne prouve rien.
+**Parade.** Le moteur est corrigé le 2026-10-13 (`engine.ts`, « Orphelines » : le curseur avance toujours). Pour diagnostiquer un appareil qui « ne reçoit pas » : lire `sync_meta` des DEUX appareils et comparer `cursor`. Un écart qui ne se referme pas d'un cycle à l'autre est le défaut. `sync_meta.orphelines` liste les numéros de séquence des lignes qui attendent leur parent.
+**Payé.** Six semaines d'un iPhone figé (curseur à 39 depuis le 3 septembre au moins), prises pour un téléphone « déjà synchronisé » à chaque réinstallation.
+
+## 46.2 Une ligne d'avant la migration 016 jamais modifiée n'a JAMAIS été envoyée
+
+**Symptôme.** Une habitude existe sur le Mac et pas sur le serveur ; ses coches, si.
+**Cause.** Les triggers d'outbox datent de la 016. Une ligne créée avant et jamais réécrite depuis n'a aucune entrée de file : rien ne l'envoie. La première activation de la synchronisation n'a pas remis l'existant en file (seule la republication le fait, `toutRemettreEnFile`). Seule la base d'Antonin a des lignes d'avant la 016 : une installation neuve journalise tout dès la première écriture.
+**Parade.** Les trouver : pour chaque table de `TABLES_SYNC`, `SELECT … FROM <table> x LEFT JOIN sync_state s ON s.table_name = '<table>' AND s.uid = x.uid WHERE s.uid IS NULL`. Les faire partir : `UPDATE <table> SET uid = uid WHERE …` (écriture sans effet, mais journalisée par le trigger), après avoir vérifié `sync_meta.applying = '0'` dans la même transaction. Si la ligne est un PARENT dont des enfants sont déjà partis, réécrire aussi ces enfants : ils reprennent un numéro de séquence APRÈS leur parent. ⚠️ Les lignes semées par une migration (catégories Finance, séries et émetteur de factures, types d'objets) sortent aussi de cette requête : elles existent sur chaque appareil sous le même uid, ne pas les renvoyer.
+**Payé.** Voir 46.1 : c'est cette habitude-là qui a figé le téléphone.
+
+## 46.3 Lire la base de l'iPhone branché, sans rien y écrire
+
+**Symptôme.** On ne sait pas ce que le téléphone a réellement reçu ; l'écran ne le dit pas.
+**Cause.** —
+**Parade.** `xcrun devicectl list devices`, puis `xcrun devicectl device copy from --device <id> --domain-type appDataContainer --domain-identifier com.atnfx.shale --source "Library/Application Support/com.atnfx.shale/shale.db" --destination <copie>` — et de même pour `shale.db-wal` : sans lui, la copie a plusieurs heures de retard (la base est en WAL). Lire la copie, jamais l'original. Ça marche parce que l'app est signée en développement ; la base du téléphone garde aussi ses sauvegardes automatiques dans `backups/`, utiles pour dater un défaut (celle de 10:44 portait déjà le curseur à 39).
+**Payé.** Rien : c'est ce qui a donné la cause en vingt minutes.

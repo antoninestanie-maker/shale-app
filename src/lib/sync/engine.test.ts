@@ -503,9 +503,11 @@ describe("volume", () => {
   });
 
   it("ne redemande pas éternellement une page retenue par la quarantaine", async () => {
-    // Le curseur ne dépasse jamais une orpheline. Si la boucle de pagination
-    // ignorait ce fait, elle retirerait la même page indéfiniment — un cycle
-    // qui ne rend jamais la main, sur une app qui doit rester réactive.
+    // ⚠️ Écrit quand le curseur ne dépassait jamais une orpheline : la boucle
+    // de pagination devait alors s'arrêter sur elle, sous peine de retirer la
+    // même page indéfiniment. Depuis le 2026-10-13 le curseur avance toujours
+    // (`orphelines.test.ts`) ; le test reste, il garde la même promesse : un
+    // cycle rend la main.
     const racine = a.ecrire("INSERT INTO goals (title, scope) VALUES ('Racine', 'long')").lastInsertRowid;
     a.ecrire("INSERT INTO goals (title, scope, parent_goal_id) VALUES ('Branche', 'short', ?)", racine);
     for (let i = 0; i < 30; i++) {

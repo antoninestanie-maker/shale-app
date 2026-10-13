@@ -464,6 +464,10 @@ export function useSync(
       // 3. Oublier ce qu'on croyait savoir du serveur — plus rien n'est vrai.
       const db = (await getDb()) as unknown as BaseLocale;
       await ecrireMeta(db, "cursor", "0");
+      // Les orphelines retenues désignaient des lignes du serveur qu'on vient
+      // d'effacer : leurs numéros ne désignent plus rien.
+      await ecrireMeta(db, "orphelines", "[]");
+      await ecrireMeta(db, "orphelines_a_relire", "0");
       await db.execute("DELETE FROM sync_state");
 
       // 4. Tout remettre en file : la base locale devient la nouvelle source.

@@ -125,6 +125,15 @@ export class ServeurSimule implements Transport {
       .slice(0, limite);
   }
 
+  async tirerParSeq(seqs: number[]): Promise<LigneDistante[]> {
+    if (this.horsLigne) throw new Error("réseau indisponible");
+    this.lectures++;
+    const voulues = new Set(seqs);
+    return [...this.lignes.values()]
+      .filter((l) => voulues.has(l.server_seq))
+      .sort((a, b) => a.server_seq - b.server_seq);
+  }
+
   /** Vue de contrôle : ce que le serveur détient réellement. */
   get contenu(): LigneDistante[] {
     return [...this.lignes.values()];

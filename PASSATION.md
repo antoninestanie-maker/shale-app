@@ -144,7 +144,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | Synchronisation | ✅ **elle fonctionne** — dernier envoi ET dernière lecture le **2026-09-17 à 22:37 UTC**, curseur à 554. ⭐ **Cela prouve que la fenêtre de trousseau a été autorisée** après le build du 16 : c'était le dernier geste en attente, il est fait |
 | File de sortie | ⚠️ `sync_outbox` contient **1 ligne** en attente — normal si l'app vient d'écrire ; anormal si ça ne bouge plus |
 | Sauvegardes | ✅ automatiques dans `~/Library/Application Support/com.atnfx.shale/backups/` — la dernière du 2026-09-16 21:34. Plus les sauvegardes manuelles d'avant-chantier sur le disque externe |
-| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : ⭐ **0.8.0 reposée le 2026-10-13 à 10:38** (`mobile-ios` `f91e1c4`, même code que l'app Mac de 01:16) ; **profil valable jusqu'au 2026-10-20 à 10:06**, après quoi elle ne s'ouvre plus ; Antonin l'a ouverte, déjà connecté et synchronisé (`MOBILE.md` § 29) |
+| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : ⭐ **0.8.0 reposée le 2026-10-13 à 10:38** (`mobile-ios` `f91e1c4`, même code que l'app Mac de 01:16) ; **profil valable jusqu'au 2026-10-20 à 10:06**, après quoi elle ne s'ouvre plus ; Antonin l'a ouverte, déjà connecté et synchronisé (`MOBILE.md` § 29). ⚠️ **Corrigé le 2026-10-13 au soir : il ne RECEVAIT plus rien depuis début septembre** (curseur figé à 39) ; réparé à 23:05, tâches et objectifs identiques au Mac (entrée « Synchronisation » du 2026-10-13, nuit) |
 | Windows | code sur le tronc, **jamais compilé** (§ 12) |
 
 > ⚠️ **2026-09-22 — l'interface est passée au design system V7 « Ink & Azure »**
@@ -2508,7 +2508,7 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 
 - **Installé sur l'iPhone 16 d'Antonin** : `mobile-ios` `f91e1c4`, build `release`, version 0.8.0 — le code de l'app Mac installée (`7727898`), la documentation en plus. `devicectl device info apps` rend `Shale com.atnfx.shale 0.8.0`. Procédure et preuves : `MOBILE.md` § 29 ; pièges : `PIEGES.md` § 43.
 - Xcode n'avait plus aucun compte Apple sur ce Mac : Antonin s'y est reconnecté. Profil gratuit recréé, **valable jusqu'au 2026-10-20 à 10:06**.
-- **Constaté par Antonin** (après avoir refait confiance au développeur : Réglages → Général → VPN et gestion de l'appareil) : l'app s'ouvre, **sans demande de connexion** (la session d'août a survécu à la pose), et tout est synchronisé. **Pas vu par une session** : l'écran du téléphone ; le clavier, la zone sûre, les notifications restent dus.
+- **Constaté par Antonin** (après avoir refait confiance au développeur : Réglages → Général → VPN et gestion de l'appareil) : l'app s'ouvre, **sans demande de connexion** (la session d'août a survécu à la pose), et tout est synchronisé. ⚠️ **Faux pour la réception**, constaté le soir même : le téléphone s'arrêtait au 29 septembre (entrée « Synchronisation » du 2026-10-13, nuit). **Pas vu par une session** : l'écran du téléphone ; le clavier, la zone sûre, les notifications restent dus.
 - Le Mac n'est pas touché : `/Applications/Shale.app` reste à `8ea6fc7989f8`, la base n'a pas été ouverte.
 - Gardé : `src-tauri/target/aarch64-apple-ios` (1,2 Go de cache Rust, pour la pose de la semaine prochaine). Supprimé : `gen/apple/build/arm64`, l'archive Xcode ; les deux fichiers que Tauri réécrit à chaque build (`project.pbxproj`, `Info.plist`) sont remis.
 
@@ -2557,3 +2557,41 @@ Suite du point précédent, après le retour d'Antonin sur les captures. Détail
 - **Rien à installer** : démo seule. Ni Rust, ni migration, ni build natif.
 - ⚠️ **Captures et reels** : tout écran de démo montrant Journal, Performance ou « Habitudes à tenir » a changé (huit habitudes). `_kit/vite.film.mjs` reste à nettoyer (point précédent).
 - **Ligne de base** : `tsc`, `i18n:check` (0 clé manquante) verts ; `demoHistorique.test.ts` 9 sur 9. Suite complète sous une charge de 35 à 70 : 2 494 verts, 9 fichiers en délai dépassé (bancs Postgres de `auth/`, `ia/`, `licence/`, `sync/` ; `finance/facturation/demo.test.ts`), tous verts rejoués à part — sauf le balayage « jour par jour » de Finance, qui dépasse ses 60 s sur le TRONC aussi ce soir. Contrôlé : la démo se charge aussi vite qu'avant (0,5 à 1 s par chargement des deux côtés, 375 chargements dans ce test), et le test passe (20 sur 20, 258 s) avec un délai élargi le temps de la mesure. À rejouer machine calme.
+
+## 2026-10-13 (nuit) — Synchronisation : l'iPhone était figé depuis septembre ; une orpheline ne retient plus le curseur
+
+Branche `chantier/sync-orpheline`. Antonin : « quand j'ai mis l'app sur mon tel ce matin je me suis rendu compte que les tâches n'étaient pas bien sync ». Décisions : `CLAUDE.md`, même date. Pièges : `PIEGES.md` § 46.
+
+**La cause, en trois lignes.** L'habitude « Leve avant 9H » existe sur le Mac depuis le 26 juillet, avant les triggers d'outbox : jamais modifiée, donc jamais envoyée. Ses coches, elles, étaient sur le serveur. L'iPhone les mettait en quarantaine, retenait son curseur devant elles (39) et relisait à chaque cycle la même page de 200 lignes : il ne voyait rien d'écrit après le 29 septembre.
+
+**Lu sur les deux bases** (Mac : lecture seule ; iPhone : copie par `devicectl`, base + `-wal`) :
+
+| | Mac | iPhone à 22:23 | iPhone à 23:06 |
+|---|---|---|---|
+| Curseur | 1278 | **39** | 1306 (Mac : 1306) |
+| Tâches (dont en corbeille) | 80 (50) | 32 (30) | 80 (50) |
+| Objectifs | 88 | 64 | 88 |
+| Habitudes | 4 | 3 | 4 |
+| Dernière tâche connue | 12 octobre | 29 septembre | 12 octobre |
+
+La sauvegarde automatique de l'iPhone de 10:44 (avant sa première synchronisation du jour) portait déjà le curseur à 39, dernière lecture le 3 septembre : le défaut date d'avant la pose de ce matin. « Déjà connecté et synchronisé » (ligne « App iOS » du tableau du § 4, et entrée de 10:38) était faux pour la réception.
+
+**Le geste sur la vraie base du Mac (22:32).** Une écriture sans effet (`UPDATE … SET uid = uid`) sur l'habitude (id 1) et ses six coches, `applying = '0'` vérifié dans la même transaction : sept entrées de file. L'app du Mac les a envoyées à 22:32:50. Sauvegarde avant : `sauvegardes-locales/avant-sync-orpheline-20261013-2231` (version 30, intégrité ok, 88 objectifs / 80 tâches / 22 notes / 4 habitudes / 10 coches). Les coches ont été réécrites exprès : elles reprennent un numéro de séquence APRÈS leur habitude, ce qui les sort de la page où l'ancien moteur butait.
+
+**Vérifié après la resynchronisation de l'iPhone (23:05:40)**, ligne à ligne, par `EXCEPT` entre les deux bases : tâches (libellé, priorité, récurrence, dates, corbeille) 0 écart dans les deux sens ; coches de tâches 28 / 28, 0 écart ; objectifs 88 / 88, 0 écart ; rattachement tâche → objectif 0 écart ; coches d'habitudes 10 / 10 ; notes 22 / 22.
+
+**Le moteur** (`src/lib/sync/`) : `engine.ts` (réception réécrite, bloc « Orphelines »), `transport.ts` (`tirerParSeq`), `engine.testutil.ts` (le serveur simulé sait relire par numéro), `useSync.ts` (la republication vide la liste). Aucune migration, aucun Rust, aucune dépendance.
+
+**Tests.**
+- `orphelines.test.ts` (10, banc à deux appareils) : le parent jamais envoyé ; le parent à plus d'une page ; le parent qui arrive un cycle plus tard ; l'orpheline modifiée ou supprimée entre-temps ; le cycle coupé entre deux pages ; la relecture qui échoue ; aucune lecture de plus tant que rien n'arrive.
+- `transport.test.ts` (+2) : la forme `in.(40,41)`, la liste vide, le découpage par 150.
+- Sur le vrai serveur, sans session (donc sans rien lire) : `server_seq=in.(40,41)` rend 200, brut comme encodé ; un opérateur faux rend 400.
+
+⚠️ **Pas fait.**
+- **Aucun build.** Le Mac et l'iPhone tournent avec l'ancien moteur. Les données sont réparées ; le correctif du moteur n'arrive qu'au prochain build de chacun. D'ici là, le défaut ne revient que si une nouvelle orpheline apparaît sur le serveur. Vu depuis le Mac ce soir, il n'y en a aucune (coches → tâches, coches → habitudes, tâches → objectifs, objectifs → parents, séances → tâches, fiches → sujets : 0).
+- **Huit lignes du Mac ne sont toujours pas sur le serveur** : un trade, deux calculs de position et une position du 2 août, quatre séances de focus du 26 juillet (dont une de 4 h 19). Rien n'en dépend. D'où l'écart restant : 19 séances sur le Mac, 15 sur l'iPhone. Les renvoyer est le même geste que pour l'habitude (`PIEGES.md` § 46.2) ; le garde-fou de la session l'a refusé, c'est à Antonin de le demander.
+- **L'indicateur** ne dit pas qu'un appareil a des orphelines en attente.
+
+⚠️ **Pas vu.** Le nouveau moteur sur un vrai appareil ; `tirerParSeq` avec une vraie session (la forme de la requête est vérifiée, pas son résultat).
+
+**Ligne de base** (machine à 40 puis 80 de charge, plusieurs sessions) : `tsc`, `test:types` verts. `vitest run src/lib/sync` : 20 fichiers, 292 verts, **1 échec** — `supabase.test.ts`, délai de 60 s dépassé au démarrage de PGlite. Rejoué seul à 80 de charge : 10 verts, 7 délais dépassés, tous au même crochet. Ce fichier n'importe que PGlite et `sync.sql` : aucun fichier de ce chantier (`PIEGES.md` § 9.11). La suite complète de l'app n'a pas été lancée : le chantier ne touche que `src/lib/sync/`. `orphelines.test.ts` vu rouge avant le correctif (7 échecs sur 9, première rédaction des tests).

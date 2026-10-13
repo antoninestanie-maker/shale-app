@@ -1581,6 +1581,9 @@ encore partie, qui serait perdue au lieu de gagner le conflit.
 - **Quarantaine** — un enfant reçu avant son parent est mis de côté et rejoué tant
   que ça progresse. Le curseur **ne dépasse jamais** une ligne encore en quarantaine,
   sinon l'orpheline ne reviendrait plus.
+  ⚠️ **Périmé depuis le 2026-10-13** : le curseur avance toujours, l'orpheline est
+  retenue par son numéro de séquence. Cette règle a figé un iPhone six semaines
+  (section datée en fin de fichier).
 - **`transport.ts`** — la seule pièce non testable ici (elle n'existe que pour parler
   à un vrai Supabase), d'où sa petitesse délibérée : aucune logique, que de la mise
   en forme. Le moteur, lui, est testé contre un serveur simulé qui applique la même
@@ -1880,6 +1883,8 @@ les pages sont pleines, plafond `PAGES_MAX = 25`.
 ⚠️ La boucle s'arrête aussi quand la **quarantaine retient le curseur** — sinon
 elle redemanderait la même page indéfiniment, et le cycle ne rendrait jamais la
 main. Deux tests couvrent les deux sorties.
+⚠️ **Périmé depuis le 2026-10-13** : la quarantaine ne retient plus le curseur,
+donc elle n'arrête plus la boucle.
 
 ### `http.ts` — quatre échecs, quatre conduites
 Le réseau échoue de quatre façons que le serveur simulé ne connaît pas, et les
@@ -8559,3 +8564,17 @@ Antonin : « ajoute le glisser au doigt pour ranger les onglets. Avec un maintie
 **Effet sur Performance, un mardi, 30 jours** : tâches 79 % en moyenne (38 % avant, dont dix-huit jours à 0 %), habitudes 60 %, « « Sport » : tenue 43 % du temps. » ; le jour faible est maintenant celui des TÂCHES — « Le vendredi : 63 % de tes tâches faites, contre 79 % en moyenne » — et plus « le samedi : 42 % de tes habitudes ». Focus : 31 h 40.
 
 **Non fait.** Les métriques (escalier, lundi-mercredi-vendredi), la progression des objectifs (une droite) et l'humeur du Journal (cinq jours) gardent leurs règles. ▶️ Le conflit annoncé avec `chantier/demo-captures-v3` s'est élargi : sa réécriture touche aussi les tâches et le focus.
+
+## 2026-10-13 (nuit) — Synchronisation : une orpheline ne retient plus le curseur
+
+Antonin : « quand j'ai mis l'app sur mon tel ce matin je me suis rendu compte que les tâches n'étaient pas bien sync ». État et preuves : `PASSATION.md`, même date. Pièges : `PIEGES.md` § 46.
+
+- **La cause, prouvée sur les deux bases** (celle du Mac, et une copie de celle de l'iPhone) : le curseur du téléphone était figé à 39 depuis début septembre. Des coches de l'habitude « Leve avant 9H » étaient sur le serveur ; l'habitude elle-même, créée avant les triggers d'outbox et jamais modifiée, n'avait jamais été envoyée. Le téléphone mettait ces coches en quarantaine, retenait son curseur devant elles, et relisait la même page de 200 lignes à chaque cycle. Il lui manquait 56 tâches et 31 objectifs.
+- ⚠️ **DÉCISION RETOURNÉE** (section « Le moteur », 2026-08-02 : « Le curseur ne dépasse jamais une ligne encore en quarantaine, sinon l'orpheline ne reviendrait plus »). La règle protégeait une ligne et pouvait coûter toutes les suivantes, sans erreur. Elle devenait définitive dans deux cas : un parent jamais envoyé, ou un parent à plus d'une page de son enfant (modifié depuis, donc renuméroté plus loin).
+- **La règle, maintenant** (`engine.ts`, bloc « Orphelines ») : le curseur avance toujours. Une orpheline est retenue par son NUMÉRO de séquence, dans `sync_meta.orphelines`. Dans le cycle, elle reste en mémoire et se rejoue après chaque page. Entre deux cycles, elle est redemandée au serveur par son numéro (`Transport.tirerParSeq`) dès qu'une ligne a été appliquée.
+- **Le numéro est écrit AVANT que le curseur ne dépasse la ligne.** Dans l'autre ordre, une app tuée entre les deux écritures perdrait l'orpheline.
+- **Une orpheline en attente ne coûte aucune requête tant que rien n'arrive** : son parent ne peut venir que d'une ligne reçue.
+- **Si le serveur ne rend plus la ligne sous ce numéro**, elle a été modifiée ou supprimée : sa nouvelle version passe par le curseur, l'ancien numéro est oublié.
+- **Aucune migration** : `sync_meta` est une table clé/valeur. La republication remet la liste à vide avec le curseur.
+- **Pas de « rattrapage » automatique des lignes jamais envoyées**, exprès. Seule la base d'Antonin a des lignes d'avant la migration 016 ; une installation neuve journalise tout. Un mécanisme général devrait distinguer les lignes semées par les migrations et attendre que l'appareil soit à jour avant de renvoyer : trop de risque pour neuf lignes. L'habitude et ses coches ont été remises en file à la main (`PIEGES.md` § 46.2). Les huit autres (un trade, deux calculs de position, une position et quatre séances de focus de juillet-août) ne sont toujours pas sur le serveur : rien n'en dépend, et les renvoyer est une décision d'Antonin.
+- **Non fait** : l'indicateur ne dit toujours pas qu'un appareil a des orphelines en attente (`Resultat.enQuarantaine` les compte, aucun écran ne le lit).

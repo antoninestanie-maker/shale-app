@@ -3513,6 +3513,7 @@ n'a regardé l'écran du téléphone.*
   désinstaller) garde le conteneur de l'app, donc le trousseau et la base —
   l'inverse de ce que le § 22 a mesuré sur le simulateur.
 - ✅ **« Tout est synchronisé comme il faut »**, à son œil.
+  ⚠️ **Corrigé le soir même** : le téléphone envoyait, mais ne recevait plus rien d'écrit après le 29 septembre (curseur figé à 39, `PIEGES.md` § 46). Réparé à 23:05 ; vérifié en comparant sa base à celle du Mac, pas à l'œil.
 - ⛔ **Non vu** : le clavier, la zone sûre, les notifications, et tout ce que
   les sections « pas vu sur un vrai iPhone » de `PASSATION.md` listent.
 - `[renommer-habitude]` n'est pas dedans (non fusionné), comme sur le Mac.

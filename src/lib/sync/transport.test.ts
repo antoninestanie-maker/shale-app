@@ -142,6 +142,34 @@ describe("réception", () => {
     expect(url.searchParams.get("limit")).toBe("200");
   });
 
+  it("relit des lignes par leur numéro de séquence, sans curseur ni limite", async () => {
+    const { appels } = espion([
+      json([{ ...LIGNE, server_seq: 41, payload: "\\x000f48ff", payload_ref: null }]),
+    ]);
+    const lignes = await new TransportSupabase(config(async () => "j")).tirerParSeq([40, 41]);
+
+    const url = new URL(appels[0].url);
+    // La forme que PostgREST attend pour une liste : `in.(a,b)`.
+    expect(url.searchParams.get("server_seq")).toBe("in.(40,41)");
+    expect(url.searchParams.get("order")).toBe("server_seq.asc");
+    expect(url.searchParams.get("limit")).toBeNull();
+    // Une ligne modifiée depuis a changé de numéro : le serveur ne la rend pas.
+    expect(lignes.map((l) => l.server_seq)).toEqual([41]);
+    expect(lignes[0].payload).toEqual(new Uint8Array([0x00, 0x0f, 0x48, 0xff]));
+  });
+
+  it("ne demande rien pour une liste vide, et découpe une longue liste", async () => {
+    const vide = espion([]);
+    await expect(new TransportSupabase(config(async () => "j")).tirerParSeq([])).resolves.toEqual([]);
+    expect(vide.appels).toHaveLength(0);
+
+    const { appels } = espion([json([]), json([]), json([])]);
+    const seqs = Array.from({ length: 320 }, (_, i) => i + 1);
+    await new TransportSupabase(config(async () => "j")).tirerParSeq(seqs);
+    expect(appels).toHaveLength(3);
+    expect(new URL(appels[2].url).searchParams.get("server_seq")).toBe("in.(301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320)");
+  });
+
   it("décode l'hexadécimal renvoyé par PostgREST", async () => {
     const { appels } = espion([
       json([{ ...LIGNE, server_seq: 7, payload: "\\x000f48ff", payload_ref: null }]),

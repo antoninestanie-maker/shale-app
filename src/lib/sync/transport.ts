@@ -29,6 +29,15 @@ export interface Transport {
   /** Lignes de `server_seq` strictement supérieur au curseur, dans l'ordre. */
   tirer(curseur: number, limite: number): Promise<LigneDistante[]>;
   /**
+   * Les lignes qui portent ENCORE ces numéros de séquence, dans l'ordre.
+   *
+   * Sert à relire une orpheline retenue (voir « Orphelines » dans `engine.ts`).
+   * Une ligne modifiée ou supprimée depuis a changé de numéro : elle n'est pas
+   * rendue, et c'est l'information attendue — sa nouvelle version passera par
+   * `tirer`.
+   */
+  tirerParSeq(seqs: number[]): Promise<LigneDistante[]>;
+  /**
    * Efface TOUT le contenu synchronisé du compte.
    *
    * ⚠️ Destructif et sans retour. Un seul appelant légitime : la republication
@@ -86,6 +95,9 @@ export interface ConfigSupabase {
 
 /** Le bucket privé des charges trop lourdes pour la table. Cf. `sync.sql`. */
 const BUCKET = "sync-blobs";
+
+/** Numéros de séquence demandés par requête à `tirerParSeq`. */
+const TRANCHE_SEQ = 150;
 
 /**
  * ⚠️ Cette classe est la seule pièce du chantier qui ne PEUT PAS être testée
@@ -164,15 +176,34 @@ export class TransportSupabase implements Transport {
   }
 
   async tirer(curseur: number, limite: number): Promise<LigneDistante[]> {
+    const url = this.lecture();
+    url.searchParams.set("server_seq", `gt.${curseur}`);
+    url.searchParams.set("limit", String(limite));
+    return this.lire(url);
+  }
+
+  async tirerParSeq(seqs: number[]): Promise<LigneDistante[]> {
+    const lignes: LigneDistante[] = [];
+    // Par tranches : la liste voyage dans l'adresse, qui a une longueur limite.
+    for (let i = 0; i < seqs.length; i += TRANCHE_SEQ) {
+      const url = this.lecture();
+      url.searchParams.set("server_seq", `in.(${seqs.slice(i, i + TRANCHE_SEQ).join(",")})`);
+      lignes.push(...(await this.lire(url)));
+    }
+    return lignes;
+  }
+
+  private lecture(): URL {
     const url = new URL(`${this.config.url}/rest/v1/sync_rows`);
     url.searchParams.set(
       "select",
       "table_tag,row_tag,server_seq,client_ts,device_id,deleted,payload,payload_ref",
     );
-    url.searchParams.set("server_seq", `gt.${curseur}`);
     url.searchParams.set("order", "server_seq.asc");
-    url.searchParams.set("limit", String(limite));
+    return url;
+  }
 
+  private async lire(url: URL): Promise<LigneDistante[]> {
     const res = await this.avecJeton((jeton) =>
       requete(url.toString(), { entetes: this.entetes(jeton) }),
     );
