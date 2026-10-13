@@ -2531,6 +2531,8 @@ Demande d'Antonin. Décisions : `CLAUDE.md`, même date. Mode d'emploi et fichie
 - **Ligne de base** (worktree `Shale-chantiers/barre-du-bas`) : `tsc` vert ; `test:types` vert ; `i18n:check` 0 manquante, 2816 entrées ; `i18n:durs` 0 chaîne sûrement française ; vitest ciblé 142/142, dont 24 nouveaux (`onglets.test.ts`).
 - **Vu à l'écran** : Chrome piloté, mode démonstration, 390 × 844 au doigt, français sombre et anglais clair — tout le parcours du § 30.4 de `MOBILE.md`. Captures : `~/Desktop/Shale-chantiers/captures-barre-du-bas/`.
 - ⚠️ **Pas vu** : WebKit ; la barre relue après une fermeture de l'app (la démo garde ses réglages en mémoire) ; un compte sous licence (module masqué) — ce cas n'est tenu que par les tests.
+- ⭐ **Posée sur l'iPhone d'Antonin à 22:03** (`mobile-ios` `138e331`, release, 0.8.0, `.ipa` `284c44007845`) : « App installed », données du téléphone intactes (base copiée avant : `sauvegardes-locales/avant-barre-du-bas-iphone-20261013-2158/`). Profil du matin réutilisé, valable jusqu'au **2026-10-20 à 10:06**. ⛔ **Pas vue ouverte** : le lancement à distance a été refusé, téléphone verrouillé. Détail : `MOBILE.md` § 30.5.
+- **Le Mac n'est pas touché** : `/Applications/Shale.app` reste au build du 13/10 à 01:16. La section n'existe que sur téléphone.
 - **Non fait** : glisser les onglets au doigt ; choisir les tuiles du pied de « Plus ».
 - **Remarqué en passant, non corrigé** : en anglais, à 390 pt, le sélecteur de densité de Personnaliser passe sur deux lignes (« Large » seul dessous).
 

@@ -5291,3 +5291,19 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Cause.** Une donnée de démo relative à aujourd'hui n'a pas de jour de la semaine. Ce qu'on a validé, c'est son alignement du jour.
 **Parade.** Ranger la série par semaines (lundi → dimanche), la dernière étant la semaine en cours ; tester sur sept jours consécutifs, pas sur aujourd'hui (`demoHabitudes.test.ts`).
 **Payé.** Rien : vu avant d'écrire, en posant les séries en lignes de sept.
+
+# 45. Vérifier la barre du bas avec le pilote du labo (2026-10-13)
+
+## 45.1 Retirer un onglet décale TOUS les numéros du pilote d'un cran
+
+**Symptôme.** Dans Personnaliser, au téléphone, je retire un onglet (`{"clic":20}`), puis j'enchaîne un second retrait sur le numéro que j'ai calculé de tête. Le second clic AJOUTE un onglet. On croit à un défaut de l'app (un toucher fantôme sur la ligne remontée sous le doigt).
+**Cause.** Le pilote numérote dans l'ordre du document, et la barre d'onglets passe en premier (« navigation »). Un onglet de moins = un bouton de moins en tête : tout ce qui suit perd un rang. Le numéro visé désignait le « + » d'une autre ligne.
+**Parade.** Un geste par `faire`, et relire les numéros dans la sortie de CE `faire` avant le suivant. Ou cliquer par le texte quand il est unique (`{"clic":"Par défaut"}`).
+**Payé.** Dix minutes, à chercher un défaut de toucher qui n'existait pas.
+
+## 45.2 `sqlite3` sans `-readonly` sur une copie avec son `-wal` la consolide
+
+**Symptôme.** Copie de la base de l'iPhone (`devicectl device copy from`, les trois fichiers). Après un `PRAGMA integrity_check`, `shale.db-wal` fait 0 octet et `shale.db` a changé de date.
+**Cause.** Ouvrir en écriture rejoue le journal dans le fichier principal à la fermeture.
+**Parade.** Sans gravité pour une sauvegarde (elle est complète, en un fichier). Pour garder la copie telle qu'elle a été prise : `sqlite3 -readonly`, ou contrôler une copie de la copie.
+**Payé.** Rien.

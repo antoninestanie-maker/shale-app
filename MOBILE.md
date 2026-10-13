@@ -3589,3 +3589,28 @@ choisie soit relue **après une fermeture de l'app** n'a pas été vu — c'est 
 chemin de tous les réglages de Personnaliser (`setSetting("ui.config")`), il
 n'a pas été modifié.
 
+### 30.5 Posée sur l'iPhone réel le 2026-10-13 à 22:03
+
+Procédure du § 29.1, sans l'étape 1 : le profil du matin sert encore (il expire
+le **2026-10-20 à 10:06**), donc aucun geste de confiance à refaire.
+
+- `mobile-ios` `138e331`, release, 0.8.0. Front 21:58 → 21:59, Rust et archive
+  → 22:02 (quatre minutes : le cache `target/aarch64-apple-ios` a été repris,
+  seule `shale_lib` a recompilé). `.ipa` `284c44007845`.
+- Témoins dans `dist/assets` : « La barre est pleine », « Retirer de la
+  barre », « Ajouter à la barre » ; contre-épreuve 0. Arbre inchangé pendant le
+  build.
+- `devicectl device install app` : « App installed ». `info apps` :
+  `Shale com.atnfx.shale 0.8.0`. ⚠️ Le numéro de version n'a pas bougé : il ne
+  prouve pas, à lui seul, que c'est le nouveau binaire.
+- **Base de l'iPhone copiée avant la pose** :
+  `Shale-projet/sauvegardes-locales/avant-barre-du-bas-iphone-20261013-2158/`
+  (version 30, `integrity_check` ok). Après la pose, `shale.db` est au même
+  poids et aux mêmes dates dans le conteneur : rien n'a été remplacé.
+- ⛔ **Pas vue ouverte.** `devicectl device process launch` a été refusé :
+  « the device was not, or could not be, unlocked ». Ce n'est pas le refus de
+  confiance du § 29.3. Aucune session n'a regardé l'écran du téléphone : la
+  section « barre du bas » n'a été vue que dans Chrome (§ 30.4).
+- Le Mac n'est pas touché : le changement ne se voit que sur téléphone, donc
+  aucun build macOS, aucune fenêtre de trousseau.
+
