@@ -5242,3 +5242,38 @@ Le défaut ne se voyait sur aucune base de test : il fallait des objectifs qui a
 3. le même test après le correctif.
 
 ⚠️ Vite écrase la variable d'environnement `MODE` (elle vaut `test`) : un test qui lit `process.env.MODE` prend toujours la même branche. Lui donner un autre nom.
+
+# 43. Reposer l'app sur l'iPhone réel (2026-10-13)
+
+## 43.1 ⭐ « No Accounts » : le certificat est dans le trousseau, mais Xcode n'a plus de compte
+
+**Symptôme.** `xcodebuild -allowProvisioningUpdates` : « No Accounts: Add a new account in Accounts settings », puis « No profiles for 'com.atnfx.shale' were found ». Pourtant `security find-identity -v -p codesigning` rend bien « Apple Development: … (3HG9D3LX2X) », valable jusqu'au 2027-08-27.
+
+**Cause.** Le certificat vit dans le trousseau ; le PROFIL d'une équipe gratuite se fabrique par la session du compte Apple dans Xcode, et ce Mac n'en avait aucune (`defaults read com.apple.dt.Xcode DVTDeveloperAccountManagerAppleIDLists` : liste vide). Un certificat présent ne dit rien du compte.
+
+**Parade.** Geste d'Antonin, et de lui seul : Xcode → Settings → Accounts → « + » → Apple Account. Le vérifier AVANT de lui annoncer un build : la commande `defaults` ci-dessus, deux secondes.
+
+**Payé.** Dix minutes : la précompilation Rust a été lancée pendant qu'il se connectait, rien n'a été perdu.
+
+## 43.2 Le téléphone verrouillé ou « en préparation » bloque `-destination id=…`, pas le profil
+
+**Symptôme.** « The developer disk image could not be mounted on this device … kAMDMobileImageMounterDeviceLocked », puis, une fois déverrouillé, « Device is busy (Preparing iPhone de Antonin) » ; `xcodebuild` attend puis abandonne (« Timed out waiting for all destinations »).
+
+**Cause.** Xcode monte une image de développement sur le téléphone à chaque premier branchement ; il faut l'écran déverrouillé, puis quelques minutes.
+
+**Parade.** Le profil n'a pas besoin du téléphone : `-destination 'generic/platform=iOS'` le crée tout de suite (l'appareil est déjà inscrit dans l'équipe depuis le 2026-08-27). Le téléphone ne sert qu'à la pose, à la fin — il a fini de se préparer d'ici là.
+
+## 43.3 Précompiler le Rust pendant qu'on attend : le cache est repris
+
+`tauri ios build` ne compile pas une ligne sans profil (§ 20.3 de `MOBILE.md`). Lancée à la main pendant l'attente, cette commande remplit le même cache :
+
+```
+cd src-tauri && IPHONEOS_DEPLOYMENT_TARGET=17.0 \
+  cargo build --release --target aarch64-apple-ios --lib --features tauri/custom-protocol
+```
+
+C'est, aux options de couleur près, celle que lance Tauri (`cargo build --package shale … --target aarch64-apple-ios --features tauri/custom-protocol --lib --release`, lue dans `ps`). Mesuré : 235 bibliothèques après la précompilation, 237 après le build de Tauri. ⚠️ Deux `cargo` sur le même dossier s'attendent l'un l'autre : le second ne démarre qu'à la fin du premier.
+
+## 43.4 Compter un témoin dans `dist` : `grep -c` sur le fichier, pas `cat | grep -o | wc -l` dans une boucle
+
+Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; done` a rendu **0** pour la pastille nette, présente dans le fichier (`grep -o -h -E` l'a montrée l'instant d'après). Cause non cherchée. Un témoin à 0 se recontrôle par une seconde commande avant de conclure que le correctif manque.

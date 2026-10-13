@@ -3445,3 +3445,71 @@ Captures : `~/Desktop/Shale-chantiers/captures-ios-20261006/` (12 à 14).
 rendait un écran blanc), l'iPad en paysage, Split View et Slide Over, les
 autres modules sur iPad (seul Aujourd'hui a été regardé). Les captures de la
 fiche App Store pour iPad (2064 × 2752) restent à faire sur un compte réel.
+
+---
+
+## 29. ⭐ L'iPhone RÉEL remis à jour — 0.8.0, le 2026-10-13 à 10:38
+
+Antonin a branché son iPhone 16 : « remets-moi Shale dessus, identique à la
+version Mac ». Fait depuis `mobile-ios` `f91e1c4` — depuis `7727898`, le commit
+de l'app Mac installée (01:16), seule la documentation a bougé.
+
+### 29.1 La procédure qui a marché, dans l'ordre
+
+```
+# 1. Le profil (7 jours). Destination GÉNÉRIQUE : pas besoin du téléphone.
+cd src-tauri/gen/apple
+xcodebuild -project shale.xcodeproj -scheme shale_iOS -configuration release \
+  -destination 'generic/platform=iOS' \
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+#    → « BUILD FAILED » sur le script Rust : attendu (§ 20.3). Le profil, lui,
+#      est écrit dans ~/Library/Developer/Xcode/UserData/Provisioning Profiles/.
+
+# 2. Le build, en RELEASE comme l'app Mac (pas de --debug), cible appareil.
+rm -rf <ABSOLU>/src-tauri/gen/apple/build/arm64 \
+       <ABSOLU>/src-tauri/gen/apple/build/shale_iOS.xcarchive
+PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH" \
+  npm run tauri ios build -- --target aarch64
+#    → src-tauri/gen/apple/build/arm64/Shale.ipa (6,8 Mo ; binaire 14,9 Mo)
+
+# 3. La pose et le lancement, par l'identifiant CoreDevice (§ 20.8).
+xcrun devicectl device install app --device <UUID> src-tauri/gen/apple/build/arm64/Shale.ipa
+xcrun devicectl device process launch --device <UUID> com.atnfx.shale
+```
+
+`ExportOptions.plist` dit `debugging` : c'est la méthode d'export d'une équipe
+gratuite, elle n'a rien à voir avec le profil de compilation, qui est bien
+`release`.
+
+### 29.2 Ce qui est prouvé
+
+- Profil `0d4d821f-…`, créé le 2026-10-13 à 10:06, **expire le 2026-10-20 à
+  10:06**, appareil `00008140-000628801A83801C`.
+- `.ipa` signé `Apple Development: … (3HG9D3LX2X)`, équipe `QXU2BNU373`,
+  version 0.8.0, iOS 17.0 minimum. Binaire `a319f4600025`.
+- Front construit à 10:15, arbre inchangé pendant le build. Témoins dans
+  `dist/assets` : la pastille nette (`inset-x-0 z-40 mx-auto flex w-fit`),
+  « n'a pas pu être supprimé », « Ajouter une échéance », « Terminer la
+  session » ; contre-épreuve `fixed left-1/2 z-40` : 0.
+- `devicectl device info apps` : `Shale com.atnfx.shale 0.8.0 0.8.0`.
+
+### 29.3 ⛔ Ce qui n'est PAS prouvé
+
+- **L'app n'a pas été vue ouverte.** Le lancement par `devicectl` a été refusé :
+  « its profile has not been explicitly trusted by the user » — le geste du
+  § 20.2, qu'Antonin seul peut faire (Réglages → Général → VPN et gestion
+  d'appareils).
+- Rien n'a été regardé à l'écran du téléphone : ni la connexion (la session
+  d'août a-t-elle survécu ?), ni la synchronisation, ni le clavier, ni la zone
+  sûre. Tout ce que les sections « pas vu sur un vrai iPhone » de
+  `PASSATION.md` listent reste dû.
+- `[renommer-habitude]` n'est pas dedans (non fusionné), comme sur le Mac.
+
+### 29.4 Durées, pour la prochaine fois
+
+Machine chargée (50 à 86) par d'autres sessions : `tsc` + Vite 8 min, Rust
+complet pour `aarch64-apple-ios` 23 min, archive et export 1 min. Le cache
+Rust (`src-tauri/target/aarch64-apple-ios`, 1,2 Go) est **gardé** : le profil
+expire dans sept jours, la prochaine pose ne recompilera que ce qui a changé.
+
+Pièges de la séance : `PIEGES.md` § 43.

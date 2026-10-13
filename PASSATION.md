@@ -144,7 +144,7 @@ phase 0 et coordination inter-sessions), `~/Desktop/Prompt en attente/prompt/`
 | Synchronisation | ✅ **elle fonctionne** — dernier envoi ET dernière lecture le **2026-09-17 à 22:37 UTC**, curseur à 554. ⭐ **Cela prouve que la fenêtre de trousseau a été autorisée** après le build du 16 : c'était le dernier geste en attente, il est fait |
 | File de sortie | ⚠️ `sync_outbox` contient **1 ligne** en attente — normal si l'app vient d'écrire ; anormal si ça ne bouge plus |
 | Sauvegardes | ✅ automatiques dans `~/Library/Application Support/com.atnfx.shale/backups/` — la dernière du 2026-09-16 21:34. Plus les sauvegardes manuelles d'avant-chantier sur le disque externe |
-| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : installée une fois le 2026-08-27, **profil expiré le 2026-09-03** — elle ne s'y lance plus (§ 10) |
+| App iOS | *(d'après la doc)* simulateur iPhone 17 / iOS 26.5. **Sur l'iPhone RÉEL** : ⭐ **0.8.0 reposée le 2026-10-13 à 10:38** (`mobile-ios` `f91e1c4`, même code que l'app Mac de 01:16) ; **profil valable jusqu'au 2026-10-20 à 10:06**, après quoi elle ne s'ouvre plus ; jamais vue ouverte par une session (`MOBILE.md` § 29) |
 | Windows | code sur le tronc, **jamais compilé** (§ 12) |
 
 > ⚠️ **2026-09-22 — l'interface est passée au design system V7 « Ink & Azure »**
@@ -759,7 +759,7 @@ attend une décision d'Antonin, un achat, ou une machine.
 | ⛔ **L'app n'est ni signée ni notarisée** | `bundle.macOS` vide dans `tauri.conf.json`. macOS met le `.dmg` en quarantaine : le visiteur doit le débloquer à la main **juste après le clic que tout le site sert à provoquer** | **compte Apple Developer, 99 $/an.** C'est le frein n° 1 sur l'objectif n° 1 |
 | ⛔ **Windows n'a jamais été compilé** | le code est sur le tronc, audité ; la compilation croisée depuis macOS est **impraticable** (essayée, tranchée, avec preuve) | une machine, une VM ou un runner CI. ⚠️ **Ne pas re-litiger ce point.** Publier = déposer `Shale_x64-setup.exe` dans `vitrine/public/telechargements/` et renseigner `config.exeWindows` |
 | **Certificat Authenticode Windows** | sans lui, SmartScreen avertit à chaque installation | ~200–400 €/an |
-| **L'iPhone réel** | profil expiré le 2026-09-03 (§ 10) | rebrancher le téléphone ; ou le compte Apple Developer, qui règle les deux |
+| **L'iPhone réel** | reposé le 2026-10-13 ; le profil gratuit expire le **2026-10-20** (`MOBILE.md` § 29) | rebrancher le téléphone tous les sept jours ; ou le compte Apple Developer, qui règle les deux |
 | ⛔ **Publier l'app iPhone** | tout ce qui se fait sans compte développeur est fait (2026-10-06, `MOBILE.md` § 28). Restent : payer, signer, TestFlight, le parcours au doigt sur le vrai iPhone, la fiche, la soumission — 19 gestes ordonnés au § 28.7 | **le même compte Apple Developer, 99 $/an** |
 | **Deux décisions restent avant l'envoi à Apple** | réponse sur le chiffrement (`MOBILE.md` § 28.8) · coordonnées publiques du statut européen « professionnel ». ✅ Tranché le 2026-10-07 : **iPhone ET iPad**, **version 0.8.0**, inscription en **individuel** (`MOBILE.md` § 28.10) | **Antonin** |
 | **Compte de démonstration pour Apple** | la relecture App Store l'exige : un compte **abonné**, adresse dédiée, créé sur le site ; e-mail et mot de passe saisis dans App Store Connect → « Sign-in information », **jamais dans le dépôt**. Le SQL qui l'abonne à la main est prêt, **jamais joué** (`administratif/App Store iPhone/`). La note de relecture a été corrigée le 2026-10-06 (`MOBILE.md` § 28.6 ; celle du § 25.4 est périmée) | quelques minutes |
@@ -2503,3 +2503,11 @@ Après le code corrigé, sur la copie : objets vivants inchangés (12 objectifs,
 - **iPhone** : rien d'installé. Le téléphone n'était pas branché et son profil gratuit a expiré le 3 septembre. Le Rust neuf compile pour iOS (`cargo check --lib --target aarch64-apple-ios-sim`, code 0). Pour le mettre à jour : brancher l'iPhone, le déverrouiller, puis procédure de `MOBILE.md` § 20.
 - **Décisions en attente d'Antonin** : listées en tête de la section du 2026-10-12 (soir) de `CLAUDE.md`.
 - Suite de tests : 2 467 verts sur `eff40f0` + trois fichiers tombés en délai sous charge (50 à 117), verts rejoués seuls ; sur `7727898`, la suite de [corbeille-definitive] (2 525 verts, le même délai dépassé de Finance) fait foi.
+
+## 2026-10-13 (10:38) — Shale 0.8.0 reposée sur l'iPhone réel
+
+- **Installé sur l'iPhone 16 d'Antonin** : `mobile-ios` `f91e1c4`, build `release`, version 0.8.0 — le code de l'app Mac installée (`7727898`), la documentation en plus. `devicectl device info apps` rend `Shale com.atnfx.shale 0.8.0`. Procédure et preuves : `MOBILE.md` § 29 ; pièges : `PIEGES.md` § 43.
+- Xcode n'avait plus aucun compte Apple sur ce Mac : Antonin s'y est reconnecté. Profil gratuit recréé, **valable jusqu'au 2026-10-20 à 10:06**.
+- **Pas vu** : l'app ouverte. Le lancement à distance a été refusé tant qu'Antonin n'a pas refait confiance au développeur sur le téléphone (Réglages → Général → VPN et gestion d'appareils). Rien n'a été regardé à l'écran du téléphone.
+- Le Mac n'est pas touché : `/Applications/Shale.app` reste à `8ea6fc7989f8`, la base n'a pas été ouverte.
+- Gardé : `src-tauri/target/aarch64-apple-ios` (1,2 Go de cache Rust, pour la pose de la semaine prochaine). Supprimé : `gen/apple/build/arm64`, l'archive Xcode ; les deux fichiers que Tauri réécrit à chaque build (`project.pbxproj`, `Info.plist`) sont remis.
