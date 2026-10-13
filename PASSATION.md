@@ -2547,3 +2547,13 @@ Demande d'Antonin, après avoir reçu la section du soir. Décisions : `CLAUDE.m
 - ⚠️ **Pas vu sur un iPhone** : la retenue du défilement dans WebKit, la loupe et la sélection de texte pendant le maintien. Si la page défile sous le doigt une fois la ligne soulevée, c'est `retenir` (`useGlisserListe.ts`) qu'il faut regarder.
 - **Non fait** : le même geste pour les autres listes de Personnaliser (modules, widgets) — non demandé ; une animation de pose au lâcher (la ligne tombe à sa place sans transition).
 
+## 2026-10-13 (nuit) — démo : huit habitudes, jours blancs, tâches sur la même période
+
+Suite du point précédent, après le retour d'Antonin sur les captures. Détail et raisons : `CLAUDE.md`, section du 2026-10-13 (soir).
+
+- **Fait** : `src/lib/demoHistorique.ts` (ex-`demoHabitudes.ts`) écrit huit semaines d'habitudes ET de routines. Huit habitudes au lieu de trois ; quatre jours blancs ; les tâches et le focus remontent au même lundi que les habitudes (17 août, vu le 13 octobre) ; cinq noms d'habitudes ajoutés à `en.ts`.
+- **Vu à l'écran**, en démo, un mardi, en français : le Journal (huit lignes, quatre cases vides dans la grille) ; Performance sur 30 jours et sur 3 mois (les deux courbes partent du même jour) ; Aujourd'hui (série de 7 jours et bande des 7 jours inchangées, « Habitudes à tenir 2/8 », huit lignes sans débordement). Aucune erreur en console.
+- **Pas vu à l'écran** : les six autres jours de la semaine (le test balaie sept jours) ; l'anglais (les cinq clés existent, `i18n:check` vert) ; le téléphone, où huit habitudes allongent la carte d'Aujourd'hui et le Journal.
+- **Rien à installer** : démo seule. Ni Rust, ni migration, ni build natif.
+- ⚠️ **Captures et reels** : tout écran de démo montrant Journal, Performance ou « Habitudes à tenir » a changé (huit habitudes). `_kit/vite.film.mjs` reste à nettoyer (point précédent).
+- **Ligne de base** : `tsc`, `i18n:check` (0 clé manquante) verts ; `demoHistorique.test.ts` 9 sur 9. Suite complète sous une charge de 35 à 70 : 2 494 verts, 9 fichiers en délai dépassé (bancs Postgres de `auth/`, `ia/`, `licence/`, `sync/` ; `finance/facturation/demo.test.ts`), tous verts rejoués à part — sauf le balayage « jour par jour » de Finance, qui dépasse ses 60 s sur le TRONC aussi ce soir. Contrôlé : la démo se charge aussi vite qu'avant (0,5 à 1 s par chargement des deux côtés, 375 chargements dans ce test), et le test passe (20 sur 20, 258 s) avec un délai élargi le temps de la mesure. À rejouer machine calme.

@@ -8532,3 +8532,30 @@ Antonin : « ajoute le glisser au doigt pour ranger les onglets. Avec un maintie
 - **Où c'est écrit** : `src/components/useGlisserListe.ts` (le geste) ; `rangDArrivee`, `ecartDeLigne`, `placerOnglet` dans `src/lib/onglets.ts` (ce qu'il décide, testé).
 - ⚠️ **Le défilement est retenu par un `touchmove` non passif posé AU MONTAGE sur la liste**, pas par `touch-action` (`PIEGES.md` § 45.3). Ne pas le déplacer dans le `pointerdown`.
 - **Le hook est général** (une courte liste verticale) mais n'a qu'un appelant. Les autres listes de Personnaliser gardent leurs flèches : non demandé.
+
+- **Non fait** : glisser les onglets au doigt pour les ranger (des flèches, comme le reste de Personnaliser) ; choisir les trois tuiles du pied de « Plus ».
+
+## 2026-10-13 (soir) — Jeu de démo : huit habitudes, des jours blancs, et des tâches qui racontent la même période
+
+**Le retour**, sur les captures du correctif précédent (même jour, section au-dessus). Antonin : la discipline des tâches « commence trop tard » alors que les habitudes ont deux mois d'historique — « il faudrait que tu fasses corréler ces deux choses-là » ; « il n'y a aucun jour où le mec n'a pas fait ses habitudes et il n'y a que trois habitudes : il m'en faudrait 7 ou 8, en rapport avec le freelance, mais que ça reste général » ; « fais en sorte qu'il loupe 2 ou 3 jours », jusqu'à 5.
+
+**Ce qui est fait.** `src/lib/demoHabitudes.ts` devient **`src/lib/demoHistorique.ts`** (renommé : il ne porte plus que les habitudes). Il écrit à la main, semaine par semaine, **huit semaines plus la semaine en cours**, pour les habitudes ET pour les quatre routines (tâches récurrentes). `demo.ts` en tire les coches d'habitudes, les complétions de tâches, la date de création des routines et les sessions de focus.
+
+- **Huit habitudes** : Méditation, Sport, Lecture (les trois d'avant), Planifier ma journée, Travail profond, Relancer un contact, Noter mes dépenses, Coucher avant 23 h. Elles ne naissent pas le même jour (de la première semaine à la cinquième) : la grille du Journal se densifie en avançant. Deux sont cochées aujourd'hui (celles du matin).
+- **Quatre jours blancs** (`JOURS_BLANCS`) : un week-end entier, un mercredi, un vendredi. Ces jours-là : aucune habitude, aucune routine, aucun focus.
+- **La même période** : habitudes et routines commencent le lundi d'il y a huit semaines. Les routines « post LinkedIn » et « certification » commencent plus tard (deuxième et quatrième semaine), par leur date de création.
+- **Un mauvais jour l'est pour tout** : le lundi de la semaine passée, une seule routine faite et une seule habitude tenue.
+
+**Choix qui ne se devinent pas.**
+
+- ⚠️ **Les séries validées à l'image ne sont plus tenues au caractère près.** Les trois premières habitudes gardent leurs séries, moins quatre coches (Méditation : un samedi, un dimanche et un mercredi ; Lecture : un vendredi) retirées pour faire les jours blancs, et moins les trois jours d'avant le premier lundi. Les jours blancs ont été placés là où ces séries avaient déjà presque tout à zéro. Le Sport n'a pas bougé : 13 jours sur 30, 43 %, un mardi.
+- **Un mardi, les douze derniers jours de tâches sont ceux que la démo a toujours montrés** (tout fait, sauf le lundi de la semaine passée) : la série en cours reste à 7 jours sur Aujourd'hui, la bande des 7 jours ne change pas. Les autres jours de la semaine, la série va de 6 (lundi) à 12 (dimanche) : la semaine en cours est entièrement faite, exprès — une série à zéro sur l'écran d'accueil de la démo ne vend rien.
+- **Les sessions de focus suivent** (non demandé, fait parce que le graphique voisin avait le même défaut : sept jours d'historique) : une session par routine faite (prospection 50 min, certification 30 min, post 25 min). Sur les sept derniers jours c'est exactement l'ancien jeu ; avant, c'est neuf. ⚠️ Les durées sont fixes : les barres n'ont que quelques hauteurs.
+- **Le Sport reste l'habitude la plus faible sur 30 jours** (43 à 47 % selon le jour), pour que la ligne « À améliorer » continue de le nommer. Les cinq nouvelles sont à 50 % ou plus un mardi ; le test tient que le Sport reste la plus faible les sept jours.
+- **Couleurs** : les trois premières gardent leurs hex d'origine ; les cinq autres prennent la suite de `HABIT_COLORS`, qui n'a que six couleurs — la 7ᵉ et la 8ᵉ reprennent le bleu et le vert, comme chez un vrai utilisateur.
+
+**Ce que le test tient** (`demoHistorique.test.ts`, neuf cas, sur sept jours consécutifs) : la période commune ; huit habitudes ; les jours blancs, et eux seuls, sans habitude ni routine (0 % de discipline) ; les tâches meilleures les jours où les habitudes le sont ; aucune habitude qui se recopie deux ou sept jours plus loin ; le week-end plus faible ; la série en cours (7 un mardi, 6 à 13 sinon) ; le Sport le plus faible et nommé par Performance.
+
+**Effet sur Performance, un mardi, 30 jours** : tâches 79 % en moyenne (38 % avant, dont dix-huit jours à 0 %), habitudes 60 %, « « Sport » : tenue 43 % du temps. » ; le jour faible est maintenant celui des TÂCHES — « Le vendredi : 63 % de tes tâches faites, contre 79 % en moyenne » — et plus « le samedi : 42 % de tes habitudes ». Focus : 31 h 40.
+
+**Non fait.** Les métriques (escalier, lundi-mercredi-vendredi), la progression des objectifs (une droite) et l'humeur du Journal (cinq jours) gardent leurs règles. ▶️ Le conflit annoncé avec `chantier/demo-captures-v3` s'est élargi : sa réécriture touche aussi les tâches et le focus.

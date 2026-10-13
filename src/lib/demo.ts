@@ -17,7 +17,7 @@ import {
 import type { APurger, ElementCorbeille, Lot, PlanRestauration } from "./corbeille/base";
 import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
-import { historiqueHabitudesDemo } from "./demoHabitudes";
+import { debutRoutineDemo, historiqueDemo } from "./demoHistorique";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
@@ -145,11 +145,13 @@ interface OpenPositionInput {
 
 const created = addDays(todayStr(), -30);
 
+// Les quatre routines commencent avec leur historique (`demoHistorique.ts`) :
+// une routine née il y a trente jours laissait dix-huit jours à 0 % dans Performance.
 const tasks: Task[] = [
-  { id: 1, label: t("Prospection 1 h"), tag: t("Clients"), priority: "high", recurrence: "daily", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 2, label: t("Production client (matin)"), tag: t("Clients"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 3, label: t("Publier un post LinkedIn"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
-  { id: 4, label: t("Réviser un module de la certification"), tag: t("Formation"), priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: created, due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 1, label: t("Prospection 1 h"), tag: t("Clients"), priority: "high", recurrence: "daily", goal_id: 1, created_at: debutRoutineDemo(1, todayStr()), due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 2, label: t("Production client (matin)"), tag: t("Clients"), priority: "high", recurrence: "weekdays", goal_id: 1, created_at: debutRoutineDemo(2, todayStr()), due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 3, label: t("Publier un post LinkedIn"), tag: t("Contenu"), priority: "medium", recurrence: "[1,3,5]", goal_id: 2, created_at: debutRoutineDemo(3, todayStr()), due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
+  { id: 4, label: t("Réviser un module de la certification"), tag: t("Formation"), priority: "medium", recurrence: "weekdays", goal_id: 3, created_at: debutRoutineDemo(4, todayStr()), due_date: null, start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
   { id: 5, label: t("Présenter les maquettes au client"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: null, created_at: created, due_date: todayStr(), start_at: "14:00", end_at: "15:30", postponed_count: 0, postponed_from: null, is_example: 0 },
   { id: 6, label: t("Envoyer le devis à Studio Hélice"), tag: t("Clients"), priority: "high", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), 2), start_at: null, end_at: null, postponed_count: 0, postponed_from: null, is_example: 0 },
   { id: 7, label: t("Mettre à jour le portfolio"), tag: t("Clients"), priority: "medium", recurrence: "none", goal_id: 4, created_at: created, due_date: addDays(todayStr(), -1), start_at: null, end_at: null, postponed_count: 2, postponed_from: addDays(todayStr(), -3), is_example: 0 },
@@ -188,17 +190,17 @@ const tags: Tag[] = [
   { id: 3, name: t("Formation"), color: "#f2b13d" },
 ];
 
-// Historique : 12 derniers jours plutôt disciplinés (streak en cours),
-// avec un trou à J-8 pour rendre le graphique réaliste.
+// Huit semaines d'historique, écrites à la main dans `demoHistorique.ts` : les
+// routines et les habitudes y racontent la même période, mauvais jours compris.
+// (Un mardi, les douze derniers jours sont ceux d'avant : série de sept jours.)
 const completions: Completion[] = [];
 let compId = 1;
 const today = todayStr();
-for (let i = 12; i >= 1; i--) {
-  const date = addDays(today, -i);
+const historique = historiqueDemo(today);
+for (const jour of historique) {
   for (const t of tasks) {
-    if (!isDueOn(t, date)) continue;
-    const done = i === 8 ? (t.id === 1 ? 1 : 0) : 1;
-    completions.push({ id: compId++, task_id: t.id, date, done });
+    if (!isDueOn(t, jour.date)) continue;
+    completions.push({ id: compId++, task_id: t.id, date: jour.date, done: jour.routines.includes(t.id) ? 1 : 0 });
   }
 }
 // Aujourd'hui : une partie déjà faite
@@ -260,22 +262,25 @@ let nextLinkId = quickLinks.length + 1;
 
 const settings = new Map<string, string>();
 
-// Sessions de focus des 7 derniers jours (motif régulier, prospection le matin)
+// Sessions de focus : une par routine faite, sur tout l'historique — prospection
+// le matin, certification en fin de journée, post LinkedIn le soir. Un jour sans
+// routine faite n'a pas de focus.
 const focusSessions: FocusSession[] = [];
 let fsId = 1;
-for (let i = 7; i >= 1; i--) {
-  const date = addDays(today, -i);
-  const wd = weekdayOf(date);
-  focusSessions.push({
-    id: fsId++, task_id: 1, label: null, kind: "focus",
-    started_at: `${date} 09:00:00`, ended_at: `${date} 09:50:00`, planned_min: 50,
-  });
-  if (wd >= 1 && wd <= 5)
+for (const jour of historique) {
+  const { date } = jour;
+  const faite = (id: number) => jour.routines.includes(id) && isDueOn(tasks[id - 1], date);
+  if (faite(1))
+    focusSessions.push({
+      id: fsId++, task_id: 1, label: null, kind: "focus",
+      started_at: `${date} 09:00:00`, ended_at: `${date} 09:50:00`, planned_min: 50,
+    });
+  if (faite(4))
     focusSessions.push({
       id: fsId++, task_id: 4, label: null, kind: "focus",
       started_at: `${date} 17:00:00`, ended_at: `${date} 17:30:00`, planned_min: 30,
     });
-  if ([1, 3, 5].includes(wd))
+  if (faite(3))
     focusSessions.push({
       id: fsId++, task_id: 3, label: null, kind: "focus",
       started_at: `${date} 20:00:00`, ended_at: `${date} 20:25:00`, planned_min: 25,
@@ -461,15 +466,24 @@ const habits: Habit[] = [
   { id: 1, name: t("Méditation"), color: "#33d17a", archived: 0, is_example: 0 },
   { id: 2, name: t("Sport"), color: "#2e7ff2", archived: 0, is_example: 0 },
   { id: 3, name: t("Lecture"), color: "#f2b13d", archived: 0, is_example: 0 },
+  { id: 4, name: t("Planifier ma journée"), color: "#a78bfa", archived: 0, is_example: 0 },
+  { id: 5, name: t("Travail profond"), color: "#fb923c", archived: 0, is_example: 0 },
+  { id: 6, name: t("Relancer un contact"), color: "#f472b6", archived: 0, is_example: 0 },
+  { id: 7, name: t("Noter mes dépenses"), color: "var(--color-blue)", archived: 0, is_example: 0 },
+  { id: 8, name: t("Coucher avant 23 h"), color: "var(--color-green)", archived: 0, is_example: 0 },
 ];
 let nextHabitId = habits.length + 1;
 
-// Soixante jours d'historique, écrits à la main dans `demoHabitudes.ts` : trois
-// règles fixes dessinaient un damier dans le Journal (retour du 2026-10-13).
+// Même historique que les routines (`demoHistorique.ts`) : des règles fixes
+// dessinaient un damier dans le Journal (retour du 2026-10-13).
 const habitChecks: HabitCheck[] = [];
 let hcId = 1;
-for (const c of historiqueHabitudesDemo(today)) habitChecks.push({ id: hcId++, ...c });
+for (const jour of historique) {
+  for (const habit_id of jour.habitudes) habitChecks.push({ id: hcId++, habit_id, date: jour.date });
+}
+// Aujourd'hui : les deux du matin sont faites.
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
+habitChecks.push({ id: hcId++, habit_id: 4, date: today });
 
 // Journal de trades des 2 dernières semaines (motif déterministe, ~60% winrate)
 const trades: Trade[] = [];
