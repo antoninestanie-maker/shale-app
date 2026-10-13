@@ -8495,3 +8495,21 @@ Antonin : « des fois certains items ne se suppriment pas dans Supprimés récem
 **Aucun test existant ne dépendait des anciens motifs** : `habitudes.test.ts` et les tests de Performance ont leurs propres coches. Rien à mettre à jour.
 
 **Non fait, signalé.** Le reste du jeu de démo est aussi régulier, et ça se voit dans Performance (30 jours) : les tâches (0 % pendant dix-huit jours puis un plateau à 100 % avec un seul creux — douze jours d'historique seulement), le focus (sept jours seulement : 50 min à 9 h tous les jours, 30 min à 17 h en semaine, 25 min à 20 h les lundi-mercredi-vendredi — des barres presque égales), les métriques (« Heures facturées » en escalier de trois marches, « Posts publiés » lundi-mercredi-vendredi — la règle que le Sport vient de quitter), la progression des objectifs (une droite), l'humeur du Journal (cinq jours : 3-5-4-3-5). ▶️ La branche `chantier/demo-captures-v3`, NON fusionnée, réécrit tout cela autour d'une « forme du jour » tirée d'un hasard semé (commit `dda7fd7`), habitudes comprises : à sa fusion, sa boucle d'habitudes et celle-ci entrent en conflit, et il faudra en garder UNE. Celle d'ici est celle qu'Antonin a validée à l'image.
+
+## 2026-10-13 — iPhone : la barre du bas se choisit dans Personnaliser
+
+Demande d'Antonin : « j'aimerais que tu ajoutes dans l'app iPhone la possibilité dans le personnalisé de personnaliser la barre en bas. Donc le plus n'est pas changeable, mais actuellement on a aujourd'hui, tâches, notes, journal. Et j'aimerais qu'on puisse personnaliser cela. » État et preuves : `PASSATION.md`, même date. Mobile : `MOBILE.md` § 30.
+
+- ⚠️ **Décision du 2026-08-27 retournée en partie** (`MOBILE.md` § 5.4 : « 4 onglets communs aux deux offres, + Plus », fixes). Les quatre d'origine — Aujourd'hui · Tâches · Notes · Journal — restent le **défaut**. Ils ne sont plus imposés.
+- **Où** : Personnaliser → « barre du bas », au-dessus de « modules ». La section n'existe **que là où la barre existe** (`useIsPhone()`) : ni sur Mac, ni sur iPad en grand.
+- **Ce qu'on y fait** : retirer un onglet, en ajouter un parmi les modules de son compte, changer l'ordre, revenir à la barre d'origine (« Par défaut », affiché seulement si elle a changé). Chaque geste est enregistré tout de suite ; la vraie barre, juste dessous, suit.
+- **Quatre onglets au plus, un au moins.** « Plus » est toujours le dernier ; il est montré dans la liste, grisé, avec « fixe », pour qu'on ne le cherche pas.
+- **Barre pleine : c'est écrit**, pas seulement grisé (« La barre est pleine : retire un onglet pour en ajouter un autre. »). Au doigt, un bouton grisé n'a pas de bulle.
+- **La règle est hors du JSX** : `src/lib/onglets.ts` (lire, afficher, ajouter, retirer, déplacer), testée. `MobileNav.tsx` affiche, `AdminView.tsx` règle.
+- **Le réglage** : un champ `onglets` dans `ui.config` (`uiConfig.ts`). Un réglage d'avant ce jour n'a pas le champ : il garde la barre d'origine (`lireOnglets`). Aucune migration.
+- ⚠️ **`ui.config` ne se synchronise pas** (`sync/scope.ts`, depuis toujours). La barre réglée sur l'iPhone reste celle de l'iPhone ; réinstaller l'app en gardant ses données la garde, la supprimer la remet à l'origine.
+- **Les deux garde-fous de l'origine tiennent, par la règle et plus par la liste** : un module verrouillé ou absent pour le compte (trading, Finance, module masqué par une licence) n'est ni proposé ni affiché en onglet. Une seule fonction le décide pour la barre ET pour Personnaliser : `ongletPossible` (`MobileNav.tsx`). Un test de source tient les deux.
+- **Un onglet dont le module disparaît** (licence) quitte la barre ; rien ne vient prendre sa place. Dès qu'on touche à la barre ensuite, c'est la liste AFFICHÉE qui est enregistrée : l'onglet retiré ne revient pas seul.
+- **La pastille de « Plus »** ne signale plus que ce qui est derrière lui : un module à pastille monté en onglet porte la sienne.
+- **Non changé, à savoir** : masquer un module (l'œil, dans « modules ») le retire de la feuille « Plus », pas de la barre. C'était déjà vrai des quatre onglets fixes. La barre est un choix à part.
+- **Non fait** : glisser les onglets au doigt pour les ranger (des flèches, comme le reste de Personnaliser) ; choisir les trois tuiles du pied de « Plus ».

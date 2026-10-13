@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { View } from "../components/Sidebar";
 import { TRADING_ACTIF } from "./features";
+import { lireOnglets, ONGLETS_DEFAUT } from "./onglets";
 import { IS_IOS } from "./platform";
 import { getSetting, setSetting } from "./repo";
 
@@ -23,6 +24,13 @@ export interface WidgetConfig {
 export interface UiConfig {
   /** Modules de la sidebar, dans l'ordre d'affichage (hors Personnaliser/Réglages). */
   modules: ModuleConfig[];
+  /**
+   * Onglets de la barre du bas (téléphone), de gauche à droite, quatre au plus.
+   * « Plus » n'y figure pas : il est toujours posé après eux. Règles dans
+   * `lib/onglets.ts`. ⚠️ `ui.config` ne se synchronise pas (`sync/scope.ts`) :
+   * la barre réglée sur l'iPhone reste celle de l'iPhone.
+   */
+  onglets: View[];
   /** Dashboard t("Aujourd'hui") : bandeaux pleine largeur, colonne gauche, colonne droite. */
   dashTop: WidgetConfig[];
   dashLeft: WidgetConfig[];
@@ -68,6 +76,7 @@ export const WIDGET_LABELS: Record<string, string> = {
 
 const DEFAULTS: UiConfig = {
   modules: MODULE_IDS.map((id) => ({ id, visible: true })),
+  onglets: [...ONGLETS_DEFAUT],
   dashTop: [
     { id: "perf", visible: true },
     // L'IA de Shale Pro (chantier `ia-pro`). Visible par défaut, mais TodayView
@@ -143,6 +152,9 @@ export function mergeConfig(raw: unknown): UiConfig {
   const c = raw as Partial<UiConfig>;
   return {
     modules: mergeList(c.modules as ModuleConfig[], d.modules),
+    // Un réglage d'avant le 2026-10-13 n'a pas ce champ : il garde la barre
+    // d'origine (Aujourd'hui · Tâches · Notes · Journal).
+    onglets: lireOnglets(c.onglets, MODULE_IDS, d.onglets),
     dashTop: mergeList(sansGraphiqueSemaine(c.dashTop), d.dashTop),
     dashLeft: mergeList(sansGraphiqueSemaine(c.dashLeft), d.dashLeft),
     dashRight: mergeList(sansGraphiqueSemaine(c.dashRight), d.dashRight),

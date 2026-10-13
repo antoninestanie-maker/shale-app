@@ -1,17 +1,31 @@
 // Page "Personnaliser" : l'utilisateur pilote l'app — identité, fenêtre, densité,
 // ordre/visibilité/libellés des modules de la sidebar, widgets du dashboard.
 // Tout est sauvegardé immédiatement (settings "ui.config") et appliqué en direct.
-import { useState } from "react";
-import { MODULE_LABELS } from "../components/Sidebar";
+import { useState, type ReactNode } from "react";
+import { iconePlus, ongletPossible } from "../components/MobileNav";
+import { BY_ID, MODULE_LABELS, type View } from "../components/Sidebar";
 import {
   IconChevronDown,
   IconChevronUp,
   IconEye,
   IconEyeOff,
+  IconLock,
   IconMonitor,
+  IconPlus,
   IconReset,
+  IconX,
 } from "../components/icons";
-import { IS_IOS } from "../lib/platform";
+import {
+  ajouterOnglet,
+  barrePleine,
+  deplacerOnglet,
+  estBarreParDefaut,
+  MAX_ONGLETS,
+  ongletsAffiches,
+  ongletsDisponibles,
+  retirerOnglet,
+} from "../lib/onglets";
+import { IS_IOS, useIsPhone } from "../lib/platform";
 import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { widgetListable } from "../lib/features";
 import { useIaPossible } from "../lib/ia/useIa";
@@ -20,6 +34,7 @@ import {
   applyZoom,
   defaultUiConfig,
   facteurDynamicType,
+  MODULE_IDS,
   tailleTexteSysteme,
   WIDGET_LABELS,
   type UiConfig,
@@ -121,6 +136,153 @@ function VisibilityToggle({
   );
 }
 
+/** Bouton rond d'une ligne de « barre du bas » : ajouter ou retirer un onglet. */
+function BoutonOnglet({
+  onClick,
+  disabled,
+  label,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      data-tip={label}
+      className="cible-tactile [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center shrink-0 rounded-md p-1 text-text-dim transition-colors hover:bg-overlay hover:text-text disabled:opacity-25"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * La barre du bas (téléphone) : quels onglets, dans quel ordre.
+ *
+ * 2026-10-13, demande d'Antonin. Deux listes : ce qui EST dans la barre (avec
+ * « Plus », fixe, en dernière ligne) et ce qu'on peut y ajouter. Pas d'aperçu
+ * dessiné : la vraie barre est à l'écran, juste dessous, et suit chaque geste.
+ *
+ * Les gestes écrivent la liste AFFICHÉE (`ongletsAffiches`) : un onglet que la
+ * licence a retiré ne revient pas occuper une place qu'on ne voit pas.
+ */
+function BarreDuBas({
+  onglets,
+  onChange,
+  possible,
+  libelle,
+}: {
+  onglets: View[];
+  onChange: (next: View[]) => void;
+  /** Le module peut-il être un onglet pour ce compte ? */
+  possible: (id: View) => boolean;
+  libelle: (id: View) => string;
+}) {
+  const dans = ongletsAffiches(onglets, possible);
+  const dispo = ongletsDisponibles(dans, MODULE_IDS, possible);
+  const pleine = barrePleine(dans);
+  const ligne = "flex items-center gap-2 rounded-xl border border-border px-3 py-2";
+  const icone = (id: View) => (
+    <span className="grid size-5 shrink-0 place-items-center text-text-dim [&>svg]:size-5">
+      {BY_ID.get(id)?.icon}
+    </span>
+  );
+  const nom = (id: View) => (
+    <span className="min-w-0 flex-1 truncate text-sm text-text">{libelle(id)}</span>
+  );
+
+  return (
+    <section className="card p-5">
+      <div className="rgrid-head flex items-center justify-between gap-3">
+        <h2 className="hud-label">{t("barre du bas")}</h2>
+        {!estBarreParDefaut(dans) && (
+          <button
+            type="button"
+            onClick={() => onChange(defaultUiConfig().onglets)}
+            className="pill inline-flex items-center gap-1.5 border border-border bg-surface-2 px-3 py-1 text-xs text-text-dim hover:text-text"
+          >
+            <IconReset className="h-3.5 w-3.5" /> {t("Par défaut")}
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-text-dim">
+        {t("Jusqu'à {n} onglets, dans l'ordre de la barre : le premier est à gauche. « Plus » reste à droite.", {
+          n: MAX_ONGLETS,
+        })}
+      </p>
+
+      <p className="hud-label mb-2 mt-4">
+        {t("dans la barre")} · {dans.length}/{MAX_ONGLETS}
+      </p>
+      <div className="flex flex-col gap-1">
+        {dans.map((id, i) => (
+          <div key={id} className={ligne}>
+            {icone(id)}
+            {nom(id)}
+            <ArrowButton up onClick={() => onChange(deplacerOnglet(dans, id, -1))} disabled={i === 0} />
+            <ArrowButton
+              up={false}
+              onClick={() => onChange(deplacerOnglet(dans, id, 1))}
+              disabled={i === dans.length - 1}
+            />
+            <BoutonOnglet
+              label={t("Retirer de la barre")}
+              onClick={() => onChange(retirerOnglet(dans, id))}
+              disabled={dans.length <= 1}
+            >
+              <IconX className="h-4 w-4" />
+            </BoutonOnglet>
+          </div>
+        ))}
+        {/* « Plus » : montré parce qu'il occupe une place de la barre, et pour
+            qu'on ne le cherche pas dans l'autre liste. Aucun geste. */}
+        <div className={`${ligne} opacity-55`}>
+          <span className="grid size-5 shrink-0 place-items-center text-text-dim [&>svg]:size-5">
+            {iconePlus}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm text-text">{t("Plus")}</span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-text-dim">
+            <IconLock className="h-3.5 w-3.5" /> {t("fixe")}
+          </span>
+        </div>
+      </div>
+
+      {dispo.length > 0 && (
+        <>
+          <p className="hud-label mb-2 mt-5">{t("à ajouter")}</p>
+          {/* Dit en toutes lettres : au doigt, un bouton grisé n'a pas de bulle. */}
+          {pleine && (
+            <p className="mb-2 text-xs text-text-dim">
+              {t("La barre est pleine : retire un onglet pour en ajouter un autre.")}
+            </p>
+          )}
+          <div className="flex flex-col gap-1">
+            {dispo.map((id) => (
+              <div key={id} className={ligne}>
+                {icone(id)}
+                {nom(id)}
+                <BoutonOnglet
+                  label={t("Ajouter à la barre")}
+                  onClick={() => onChange(ajouterOnglet(dans, id))}
+                  disabled={pleine}
+                >
+                  <IconPlus className="h-4 w-4" />
+                </BoutonOnglet>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** Liste réordonnable de widgets du dashboard. */
 function WidgetList({
   title,
@@ -188,6 +350,15 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
   const iaPossible = useIaPossible();
   const widgetListe = (w: WidgetConfig) => widgetListable(w.id, { hasTrading, iaPossible });
   const [premierModule, dernierModule] = bornes(config.modules, moduleListe);
+  // La barre d'onglets n'existe que sur téléphone (`App.tsx` : elle OU la barre
+  // latérale). Sur Mac et sur iPad en grand, la régler ne changerait rien à
+  // l'écran, et `ui.config` ne voyage pas d'un appareil à l'autre.
+  const telephone = useIsPhone();
+  /** Le nom que la barre affichera : licence, puis libellé choisi, puis défaut. */
+  const libelleModule = (id: View) =>
+    (profil && libelleProfil(profil, MODULE_LABELS[id], getLang())) ||
+    config.modules.find((m) => m.id === id)?.label ||
+    t(MODULE_LABELS[id]);
   const setText = (patch: Partial<AppTexts>) => {
     setTexts((t) => ({ ...t, ...patch }));
     saveTexts(patch); // persiste + notifie les écrans (login, onboarding…) en direct
@@ -447,6 +618,17 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
       </section>
 
       </ResizablePanel>
+      {/* Barre du bas — téléphone seulement */}
+      {telephone && (
+      <ResizablePanel id="admin-onglets" defaultW={12}>
+        <BarreDuBas
+          onglets={config.onglets}
+          onChange={(onglets) => set({ onglets })}
+          possible={(id) => ongletPossible(id, hasTrading, profil)}
+          libelle={libelleModule}
+        />
+      </ResizablePanel>
+      )}
       {/* Modules */}
       <ResizablePanel id="admin-modules" defaultW={12}>
       <section className="card p-5">

@@ -3704,4 +3704,17 @@ export const EN: Record<string, string> = {
   "« {titre} » n'a pas pu être supprimé.": "“{titre}” could not be deleted.",
   "1 élément n'a pas pu être supprimé. Il reste ici.": "1 item could not be deleted. It is still here.",
   "{n} éléments n'ont pas pu être supprimés. Ils restent ici.": "{n} items could not be deleted. They are still here.",
+
+  // ── Barre du bas : les onglets se choisissent (2026-10-13, chantier barre-du-bas) ──
+  "barre du bas": "bottom bar",
+  "Par défaut": "Default",
+  "Jusqu'à {n} onglets, dans l'ordre de la barre : le premier est à gauche. « Plus » reste à droite.":
+    "Up to {n} tabs, in bar order: the first one is on the left. “More” stays on the right.",
+  "dans la barre": "in the bar",
+  "fixe": "fixed",
+  "à ajouter": "available",
+  "La barre est pleine : retire un onglet pour en ajouter un autre.":
+    "The bar is full: remove a tab to add another one.",
+  "Retirer de la barre": "Remove from the bar",
+  "Ajouter à la barre": "Add to the bar",
 };

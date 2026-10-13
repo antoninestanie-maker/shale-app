@@ -21,17 +21,38 @@
 // ⚠️ Les modules trading restent VISIBLES dans « Plus », verrouillés, avec leur
 // cadenas — exactement comme dans la barre latérale. Les masquer supprimerait
 // le levier de conversion vers Shale Trade.
+//
+// ─── 2026-10-13 : LES ONGLETS SE CHOISISSENT ────────────────────────────────
+// Antonin : « j'aimerais […] dans le personnalisé personnaliser la barre en
+// bas. Donc le plus n'est pas changeable. » Les quatre ci-dessus restent le
+// DÉFAUT (`ONGLETS_DEFAUT`, `lib/onglets.ts`) ; la barre lit `config.onglets`,
+// réglé dans Personnaliser → « barre du bas ». Les deux garde-fous d'origine
+// tiennent toujours, mais par la règle et plus par la liste : un module
+// verrouillé ou absent pour ce compte n'est NI proposé NI affiché en onglet —
+// aucun onglet permanent ne peut ouvrir un mur de paiement.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 
 import { COMMERCE_AUTORISE, presenceModule } from "../lib/boutique";
 import { libelleProfil, moduleVisible, type ProfilEffectif } from "../lib/licence/resoudre";
 import { getLang, t } from "../lib/i18n";
+import { ongletsAffiches } from "../lib/onglets";
 import type { UiConfig } from "../lib/uiConfig";
 import { BY_ID, CATEGORIES, CATEGORY_OF, ITEMS_PIED, type View } from "./Sidebar";
 
-/** Les quatre onglets fixes. Le cinquième, « Plus », ouvre la liste complète. */
-const ONGLETS: View[] = ["today", "tasks", "notes", "journal"];
+/**
+ * Le module peut-il être un onglet pour ce compte ? Ni absent, ni verrouillé,
+ * ni masqué par la licence. La MÊME question décide de ce que la barre affiche
+ * (ici) et de ce que Personnaliser propose (`AdminView`) : deux réponses
+ * feraient choisir un onglet qui n'apparaît jamais.
+ */
+export function ongletPossible(id: View, hasTrading: boolean, profil?: ProfilEffectif): boolean {
+  return (
+    BY_ID.has(id) &&
+    presenceModule(id, hasTrading) === "ouvert" &&
+    (!profil || moduleVisible(profil, id))
+  );
+}
 
 interface Props {
   view: View;
@@ -45,7 +66,8 @@ interface Props {
   onLocked: (v: View) => void;
 }
 
-const iconePlus = (
+/** L'icône de « Plus ». Exportée : Personnaliser montre l'onglet fixe avec elle. */
+export const iconePlus = (
   <svg
     viewBox="0 0 24 24"
     fill="none"
@@ -135,6 +157,15 @@ export default function MobileNav({
   const badgeDe = (id: View) =>
     (id === "market" && badges.market) || (id === "trading" && badges.trading);
 
+  // Les onglets choisis dans Personnaliser, moins ceux qui n'existent pas pour
+  // ce compte : la barre garde ses autres onglets et « Plus ».
+  const onglets = ongletsAffiches(config.onglets, (id) => ongletPossible(id, hasTrading, profil));
+  // « Plus » ne signale que ce qui se trouve DERRIÈRE lui : un module à
+  // pastille monté en onglet porte la sienne.
+  const badgeDansPlus =
+    (!!badges.market && !onglets.includes("market")) ||
+    (!!badges.trading && !onglets.includes("trading"));
+
   // — La barre d'onglets —
   const onglet = (id: View | "plus") => {
     const actif =
@@ -152,7 +183,7 @@ export default function MobileNav({
       >
         <span className="relative grid size-6 place-items-center [&>svg]:size-6">
           {id === "plus" ? iconePlus : item?.icon}
-          {id === "plus" && !plusOuvert && (badges.market || badges.trading) && (
+          {(id === "plus" ? !plusOuvert && badgeDansPlus : badgeDe(id)) && (
             <span className="bg-blue absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
           )}
         </span>
@@ -302,9 +333,7 @@ export default function MobileNav({
           paddingRight: "calc(env(safe-area-inset-right) + 0.25rem)",
         }}
       >
-        {/* Un onglet dont le module est masqué par le profil de licence
-            disparaît : la barre garde ses autres onglets et « Plus ». */}
-        {ONGLETS.filter((id) => !profil || moduleVisible(profil, id)).map(onglet)}
+        {onglets.map(onglet)}
         {onglet("plus")}
       </nav>
     </>
