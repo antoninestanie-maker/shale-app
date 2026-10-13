@@ -5307,3 +5307,11 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Cause.** Ouvrir en écriture rejoue le journal dans le fichier principal à la fermeture.
 **Parade.** Sans gravité pour une sauvegarde (elle est complète, en un fichier). Pour garder la copie telle qu'elle a été prise : `sqlite3 -readonly`, ou contrôler une copie de la copie.
 **Payé.** Rien.
+
+## 45.3 ⚠️ Retenir le défilement après un maintien : ni `touch-action` posé à l'armement, ni un écouteur ajouté pendant le geste
+
+**Le besoin.** Au doigt, une ligne ne se prend qu'après un maintien (§ 7.4 ter). Une fois prise, le doigt ne doit plus faire défiler la page.
+**Ce qui ne suffit pas, par construction.** `touch-action` est lu au début du toucher : le changer 400 ms plus tard ne vaut que pour le toucher SUIVANT. Et un `touchmove` non passif ajouté dans le `pointerdown` arrive après que le moteur a décidé s'il devait attendre le JavaScript avant de défiler.
+**Parade** (`useGlisserListe.ts`). Un `touchmove` `{ passive: false }` posé AU MONTAGE sur le conteneur des lignes, qui ne refuse (`preventDefault`) que si une ligne est en main et si l'événement est encore annulable. Sur la liste seule, pas sur le document.
+**Ce qui est prouvé.** Chrome en format téléphone : pendant le glissement la page ne défile pas ; sans maintien elle défile et rien n'est rangé. ⛔ Pas mesuré dans WebKit sur un iPhone : la seconde moitié de « ce qui ne suffit pas » est raisonnée, pas observée.
+**À savoir.** Le glisser du Calendrier (`GrilleHoraire.tsx`) s'appuie sur `touch-action` posé à l'armement (`data-glisse`). Non touché ; s'il laisse défiler la grille sur un vrai téléphone, c'est par là qu'il faut regarder.

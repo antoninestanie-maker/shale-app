@@ -2533,6 +2533,17 @@ Demande d'Antonin. Décisions : `CLAUDE.md`, même date. Mode d'emploi et fichie
 - ⚠️ **Pas vu** : WebKit ; la barre relue après une fermeture de l'app (la démo garde ses réglages en mémoire) ; un compte sous licence (module masqué) — ce cas n'est tenu que par les tests.
 - ⭐ **Posée sur l'iPhone d'Antonin à 22:03** (`mobile-ios` `138e331`, release, 0.8.0, `.ipa` `284c44007845`) : « App installed », données du téléphone intactes (base copiée avant : `sauvegardes-locales/avant-barre-du-bas-iphone-20261013-2158/`). Profil du matin réutilisé, valable jusqu'au **2026-10-20 à 10:06**. ⛔ **Pas vue ouverte** : le lancement à distance a été refusé, téléphone verrouillé. Détail : `MOBILE.md` § 30.5.
 - **Le Mac n'est pas touché** : `/Applications/Shale.app` reste au build du 13/10 à 01:16. La section n'existe que sur téléphone.
-- **Non fait** : glisser les onglets au doigt ; choisir les tuiles du pied de « Plus ».
+- **Non fait** : choisir les tuiles du pied de « Plus ». (Glisser les onglets au doigt : fait le soir même, ci-dessous.)
 - **Remarqué en passant, non corrigé** : en anglais, à 390 pt, le sélecteur de densité de Personnaliser passe sur deux lignes (« Large » seul dessous).
+
+## 2026-10-13 (nuit) — barre du bas : ranger les onglets en glissant, après un maintien
+
+Demande d'Antonin, après avoir reçu la section du soir. Décisions : `CLAUDE.md`, même date. Détail : `MOBILE.md` § 30.6. Piège : `PIEGES.md` § 45.3.
+
+- **Fait** : dans Personnaliser → « barre du bas », une ligne maintenue 0,4 s se soulève et se glisse à sa place ; ses voisines s'écartent ; lâcher écrit l'ordre. Les flèches restent. Une phrase de la section dit le geste.
+- **Fichiers** : `src/components/useGlisserListe.ts` (neuf) ; `src/lib/onglets.ts` (trois fonctions) et son test (32 tests, dont 8 nouveaux) ; `AdminView.tsx` ; `en.ts` (une clé). Aucune migration, aucun Rust.
+- **Ligne de base** : `tsc` vert ; `test:types` vert ; `i18n:check` 0 manquante, 2817 entrées ; `onglets.test.ts` 32/32.
+- **Vu au doigt** dans Chrome sans fenêtre (390 × 844, démo), à 100 % et à 110 % : 33 vérifications sur 33 — liste dans `MOBILE.md` § 30.6. Capture : `~/Desktop/Shale-chantiers/captures-barre-du-bas/04-ligne-en-main.jpg`.
+- ⚠️ **Pas vu sur un iPhone** : la retenue du défilement dans WebKit, la loupe et la sélection de texte pendant le maintien. Si la page défile sous le doigt une fois la ligne soulevée, c'est `retenir` (`useGlisserListe.ts`) qu'il faut regarder.
+- **Non fait** : le même geste pour les autres listes de Personnaliser (modules, widgets) — non demandé ; une animation de pose au lâcher (la ligne tombe à sa place sans transition).
 

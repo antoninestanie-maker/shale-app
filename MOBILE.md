@@ -3540,7 +3540,8 @@ changeable. » Décisions et pourquoi : `CLAUDE.md`, section du 2026-10-13.
 
 - **« dans la barre · 3/4 »** : une ligne par onglet, dans l'ordre de la barre
   (la première ligne est l'onglet de gauche). Sur chaque ligne : monter,
-  descendre, retirer (la croix).
+  descendre, retirer (la croix). Depuis le soir du 13/10 : maintenir la ligne
+  puis la glisser (§ 30.6).
 - **« Plus »** : dernière ligne, grisée, marquée « fixe ». Aucun geste.
 - **« à ajouter »** : les autres modules du compte, un « + » chacun. Barre
   pleine : les « + » sont grisés et une phrase le dit.
@@ -3614,3 +3615,32 @@ le **2026-10-20 à 10:06**), donc aucun geste de confiance à refaire.
 - Le Mac n'est pas touché : le changement ne se voit que sur téléphone, donc
   aucun build macOS, aucune fenêtre de trousseau.
 
+### 30.6 Ranger en glissant, après un maintien (2026-10-13, soir)
+
+Antonin : « ajoute le glisser au doigt pour ranger les onglets. Avec un
+maintien d'abord. » Décisions : `CLAUDE.md`, même date.
+
+- Le geste : doigt posé 0,4 s sans bouger → la ligne se soulève → elle suit le
+  doigt, les voisines s'écartent → lâcher écrit l'ordre.
+- Fichiers : `src/components/useGlisserListe.ts` ; la règle dans
+  `src/lib/onglets.ts`.
+- Trois précautions propres au téléphone, toutes dans le fichier du geste :
+  le défilement retenu par un `touchmove` non passif posé au montage
+  (`PIEGES.md` § 45.3) ; ni sélection de texte ni loupe pendant le maintien
+  (`select-none`, `-webkit-touch-callout: none`) ; le `contextmenu` que
+  l'appui long émet est refusé sur ces lignes.
+- La position du doigt se lit en pixels écran, le déplacement s'écrit en
+  pixels locaux (`zoomFactor()`) : sur iPhone la taille de texte du système
+  change ce rapport (`CLAUDE.md`, Dynamic Type).
+
+**Vu dans Chrome sans fenêtre, 390 × 844 au doigt, mode démonstration** (build du labo, commit `8639391`), à 100 % puis à 110 % de densité — 33 vérifications sur 33, script gardé dans `~/Desktop/Shale-chantiers/captures-barre-du-bas/essai-glisser.mjs` :
+
+- à 250 ms la ligne n'est pas encore en main ; après le maintien elle est soulevée ;
+- elle suit le doigt (écart mesuré : 0 px à 100 %, 0,3 px à 110 %) ; les voisines enjambées remontent d'un rang ;
+- la page ne défile pas pendant le geste ; au lâcher l'ordre est écrit, la barre du bas suit, plus aucun déplacement ne reste sur les lignes ;
+- un glissé SANS maintien fait défiler la page et ne range rien ;
+- un maintien lâché sur place n'écrit rien ;
+- glissée plus loin que la liste, la ligne s'arrête au premier rang ;
+- maintenir une flèche ne prend pas la ligne ; un toucher bref sur la flèche range toujours.
+
+⛔ **Pas vu sur un iPhone.** Ce que Chrome ne dit pas : si WebKit retient bien le défilement une fois la ligne en main, si la loupe ou la sélection de texte d'iOS restent muettes pendant le maintien, et le ressenti des 0,4 s.

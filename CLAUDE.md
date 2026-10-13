@@ -8517,4 +8517,18 @@ Demande d'Antonin : « j'aimerais que tu ajoutes dans l'app iPhone la possibilit
 - **Un onglet dont le module disparaît** (licence) quitte la barre ; rien ne vient prendre sa place. Dès qu'on touche à la barre ensuite, c'est la liste AFFICHÉE qui est enregistrée : l'onglet retiré ne revient pas seul.
 - **La pastille de « Plus »** ne signale plus que ce qui est derrière lui : un module à pastille monté en onglet porte la sienne.
 - **Non changé, à savoir** : masquer un module (l'œil, dans « modules ») le retire de la feuille « Plus », pas de la barre. C'était déjà vrai des quatre onglets fixes. La barre est un choix à part.
-- **Non fait** : glisser les onglets au doigt pour les ranger (des flèches, comme le reste de Personnaliser) ; choisir les trois tuiles du pied de « Plus ».
+- **Non fait** : choisir les trois tuiles du pied de « Plus ». ~~Glisser les onglets au doigt~~ : fait le soir même, bloc suivant.
+
+### 2026-10-13 (soir) — ranger les onglets en glissant, après un maintien
+
+Antonin : « ajoute le glisser au doigt pour ranger les onglets. Avec un maintien d'abord. »
+
+- **Où** : les lignes de « dans la barre », dans Personnaliser. Pas sur la barre elle-même : un maintien sur un onglet, n'importe où dans l'app, serait un geste caché de plus.
+- **Le geste** : on pose le doigt sur une ligne sans bouger (0,4 s) ; elle se soulève ; elle suit le doigt, ses voisines s'écartent ; on lâche, l'ordre est écrit. Lâcher sur place n'écrit rien.
+- **Bouger avant la fin du maintien, c'est défiler** : la main est rendue à la page (`PIEGES.md` § 7.4 ter). Le maintien dure autant que l'appui long du Calendrier ; un test tient les deux d'accord.
+- **Les flèches restent** (règle 17) : un geste seul n'existe pas pour qui ne le devine pas, ni pour un lecteur d'écran. Une phrase de la section dit le geste.
+- **Les boutons d'une ligne ne prennent pas la ligne** : maintenir une flèche ou la croix ne soulève rien.
+- **La ligne ne sort pas de la liste** : « Plus », dessous, ne bouge jamais.
+- **Où c'est écrit** : `src/components/useGlisserListe.ts` (le geste) ; `rangDArrivee`, `ecartDeLigne`, `placerOnglet` dans `src/lib/onglets.ts` (ce qu'il décide, testé).
+- ⚠️ **Le défilement est retenu par un `touchmove` non passif posé AU MONTAGE sur la liste**, pas par `touch-action` (`PIEGES.md` § 45.3). Ne pas le déplacer dans le `pointerdown`.
+- **Le hook est général** (une courte liste verticale) mais n'a qu'un appelant. Les autres listes de Personnaliser gardent leurs flèches : non demandé.

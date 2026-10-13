@@ -984,4 +984,4 @@ cadres suffit, un fond de plus brouille les niveaux.
 - **Pas d'aperçu dessiné** : la vraie barre est à l'écran, en bas, et suit chaque geste.
 - **Un état qui bloque s'écrit** : barre pleine → une phrase sous « à ajouter ». Au doigt, un bouton grisé n'a pas de bulle.
 - **« Par défaut »** est une petite pastille dans l'en-tête de la carte, absente tant que la barre est celle d'origine.
-
+- **Ranger en glissant (soir du 13/10)** : la ligne en main prend `bg-surface-2`, `--lift-shadow` et `scale(1.02)` ; elle suit le doigt sans transition. Ses voisines glissent d'un rang en `--dur-fast` / `--ease-out-quint`. Au lâcher, rien ne s'anime : l'ordre écrit est celui qu'on voyait. Hors geste, aucune ligne ne porte ni `transform` ni transition.
