@@ -247,7 +247,9 @@ function BarreDuBas({
             {iconePlus}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm text-text">{t("Plus")}</span>
-          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-text-dim">
+          {/* Au doigt les lignes voisines font 44 pt (leurs boutons) : celle-ci
+              garde la même hauteur, sinon elle a l'air d'un autre composant. */}
+          <span className="inline-flex shrink-0 items-center gap-1 pr-1 text-xs text-text-dim [@media(pointer:coarse)]:min-h-11">
             <IconLock className="h-3.5 w-3.5" /> {t("fixe")}
           </span>
         </div>
