@@ -3645,3 +3645,21 @@ maintien d'abord. » Décisions : `CLAUDE.md`, même date.
 - maintenir une flèche ne prend pas la ligne ; un toucher bref sur la flèche range toujours.
 
 ⛔ **Pas vu sur un iPhone.** Ce que Chrome ne dit pas : si WebKit retient bien le défilement une fois la ligne en main, si la loupe ou la sélection de texte d'iOS restent muettes pendant le maintien, et le ressenti des 0,4 s.
+
+### 30.7 Le glisser, posé sur l'iPhone réel le 2026-10-14 à 00:08
+
+- `mobile-ios` `c88e372`, release, 0.8.0, `.ipa` `8e36fb5a69d4`. Profil du
+  13/10 réutilisé (jusqu'au **2026-10-20 à 10:06**).
+- Témoins dans `dist/assets` : « Maintiens une ligne », « La barre est
+  pleine ». Arbre inchangé pendant le build.
+- `devicectl` : « App installed », `Shale com.atnfx.shale 0.8.0`. Base du
+  téléphone copiée avant (`sauvegardes-locales/avant-glisser-onglets-iphone-20261013-2241/`,
+  version 30, `integrity_check` ok) ; conteneur gardé après la pose.
+- ⛔ **Pas vue ouverte** : lancement refusé, téléphone verrouillé (« Locked »).
+- ⚠️ **Ce build ne porte que jusqu'à `c88e372`** : ni le jeu de démo de
+  `f7af91d`, ni `a2e36a0` (synchronisation : une orpheline ne retient plus le
+  curseur), fusionnés pendant qu'il tournait. Le second concerne l'app du
+  téléphone : il lui faudra sa propre pose.
+- **86 minutes** (22:41 → 00:07) au lieu de 4 : mémoire saturée
+  (`PIEGES.md` § 45.4).
+

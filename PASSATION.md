@@ -2544,6 +2544,7 @@ Demande d'Antonin, après avoir reçu la section du soir. Décisions : `CLAUDE.m
 - **Fichiers** : `src/components/useGlisserListe.ts` (neuf) ; `src/lib/onglets.ts` (trois fonctions) et son test (32 tests, dont 8 nouveaux) ; `AdminView.tsx` ; `en.ts` (une clé). Aucune migration, aucun Rust.
 - **Ligne de base** : `tsc` vert ; `test:types` vert ; `i18n:check` 0 manquante, 2817 entrées ; `onglets.test.ts` 32/32.
 - **Vu au doigt** dans Chrome sans fenêtre (390 × 844, démo), à 100 % et à 110 % : 33 vérifications sur 33 — liste dans `MOBILE.md` § 30.6. Capture : `~/Desktop/Shale-chantiers/captures-barre-du-bas/04-ligne-en-main.jpg`.
+- ⭐ **Posé sur l'iPhone d'Antonin le 14/10 à 00:08** (`mobile-ios` `c88e372`, release, 0.8.0, `.ipa` `8e36fb5a69d4`) : « App installed », conteneur gardé. ⛔ Pas vue ouverte (téléphone verrouillé). ⚠️ Ce build s'arrête à `c88e372` : le correctif de synchronisation `a2e36a0`, fusionné pendant qu'il tournait, n'est PAS sur le téléphone. `MOBILE.md` § 30.7.
 - ⚠️ **Pas vu sur un iPhone** : la retenue du défilement dans WebKit, la loupe et la sélection de texte pendant le maintien. Si la page défile sous le doigt une fois la ligne soulevée, c'est `retenir` (`useGlisserListe.ts`) qu'il faut regarder.
 - **Non fait** : le même geste pour les autres listes de Personnaliser (modules, widgets) — non demandé ; une animation de pose au lâcher (la ligne tombe à sa place sans transition).
 

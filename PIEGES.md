@@ -5338,3 +5338,11 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Cause.** —
 **Parade.** `xcrun devicectl list devices`, puis `xcrun devicectl device copy from --device <id> --domain-type appDataContainer --domain-identifier com.atnfx.shale --source "Library/Application Support/com.atnfx.shale/shale.db" --destination <copie>` — et de même pour `shale.db-wal` : sans lui, la copie a plusieurs heures de retard (la base est en WAL). Lire la copie, jamais l'original. Ça marche parce que l'app est signée en développement ; la base du téléphone garde aussi ses sauvegardes automatiques dans `backups/`, utiles pour dater un défaut (celle de 10:44 portait déjà le curseur à 39).
 **Payé.** Rien : c'est ce qui a donné la cause en vingt minutes.
+
+## 45.4 Un build iOS de 4 minutes en a pris 86 : la mémoire, pas le processeur
+
+**Symptôme.** `tauri ios build` lancé à 22:41, fini à 00:07. Le même build, trois heures plus tôt : 4 minutes. `tsc` 20 min, `vite build` 10 min, `rustc` sur `shale_lib` 25 puis 17 min (deux passes).
+**Cause.** Plusieurs sessions compilaient et testaient en même temps : `sysctl -n vm.swapusage` rendait 9 Go d'échange utilisés sur 10, et `ps` montrait `tsc` avec 42 Mo en mémoire vive — presque tout son tas était sur le disque. La charge (40 à 80) ne disait pas ça : à 21:58 elle était comparable et le build filait.
+**Parade.** Avant de prendre le verrou BUILD NATIF : `sysctl -n vm.swapusage`. Au-delà de quelques Go utilisés, attendre que les suites des autres sessions finissent — le verrou tenu 86 minutes bloque tout le monde, et un checkout principal figé pendant ce temps prend du retard (deux fusions ont eu lieu pendant celui-ci, donc le binaire posé était déjà en retard de deux commits).
+**À savoir.** `tauri ios build` compile `shale_lib` DEUX fois (un `xcodebuild` puis un `xcodebuild -quiet` pour l'archive) : à vide c'est invisible, sous échange c'est le double.
+
