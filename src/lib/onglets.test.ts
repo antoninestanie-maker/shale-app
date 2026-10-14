@@ -2,6 +2,7 @@
 // tient ; ce que l'écran en fait se vérifie à l'écran (`PASSATION.md`).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { APPUI_LONG_MS } from "../components/calendrier/appuiLong";
 
 import {
   ajouterOnglet,
@@ -186,11 +187,16 @@ describe("ranger en glissant", () => {
   });
 
   it("le maintien dure autant que l'appui long du Calendrier", () => {
+    // Depuis le 2026-10-13 la durée vit dans `calendrier/appuiLong.ts` (le même
+    // maintien ouvre aussi le menu d'un bloc) : on compare la VALEUR, plus le
+    // texte de `GrilleHoraire.tsx` — qui doit, lui, s'en servir.
+    expect(APPUI_LONG_MS).toBe(MAINTIEN_MS);
     const grille = readFileSync(
       new URL("../components/calendrier/GrilleHoraire.tsx", import.meta.url),
       "utf8",
     );
-    expect(grille).toMatch(new RegExp(`const APPUI_LONG_MS = ${MAINTIEN_MS};`));
+    expect(grille).toMatch(/import \{ APPUI_LONG_MS[^}]*\} from "\.\/appuiLong"/);
+    expect(grille).not.toMatch(/const APPUI_LONG_MS = /);
   });
 
   it("les flèches restent à côté du geste (règle 17), et le geste épargne les boutons", () => {
