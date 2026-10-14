@@ -2595,6 +2595,8 @@ La sauvegarde automatique de l'iPhone de 10:44 (avant sa première synchronisati
 
 ⚠️ **Pas vu.** Le nouveau moteur sur un vrai appareil ; `tirerParSeq` avec une vraie session (la forme de la requête est vérifiée, pas son résultat).
 
+**Installé sur le Mac le 2026-10-14 à 08:54** (build groupé, `mobile-ios` `d54fc8f` : ce moteur + les retours du 13/10 de [retours-1310]). sha256 installée = source `a17bcfd9cf29…` (ancienne `8ea6fc7989f8…`). Base relue après relance : version 30, intégrité ok, 88 / 80 / 22 / 4 / 19, identique à la sauvegarde `sauvegardes-locales/avant-build-sync-20261014-0847`. ⚠️ La synchronisation du Mac attend le clic « Toujours autoriser » d'Antonin dans la fenêtre du trousseau (dernière lecture : 13/10 à 21:15 UTC). **L'iPhone n'a pas ce moteur** : il n'était pas branché ; [retours-1310] fait le build iOS ensuite.
+
 **Ligne de base** (machine à 40 puis 80 de charge, plusieurs sessions) : `tsc`, `test:types` verts. `vitest run src/lib/sync` : 20 fichiers, 292 verts, **1 échec** — `supabase.test.ts`, délai de 60 s dépassé au démarrage de PGlite. Rejoué seul à 80 de charge : 10 verts, 7 délais dépassés, tous au même crochet. Ce fichier n'importe que PGlite et `sync.sql` : aucun fichier de ce chantier (`PIEGES.md` § 9.11). La suite complète de l'app n'a pas été lancée : le chantier ne touche que `src/lib/sync/`. `orphelines.test.ts` vu rouge avant le correctif (7 échecs sur 9, première rédaction des tests).
 ## 2026-10-14 — retours d'Antonin du 13/10 : dix points, FUSIONNÉS dans `mobile-ios` (4727415)
 
