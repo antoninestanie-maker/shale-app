@@ -5361,28 +5361,21 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Parade.** Une phrase de documentation qui affirme un geste sur une donnée réelle s'écrit APRÈS le geste et sa vérification. Avant, l'écrire au futur ou ne pas l'écrire. Corrigé avant le commit.
 **Payé.** Rien, vu à temps. Sans relecture, la doc aurait annoncé une sauvegarde cloud complète qui ne l'était pas.
 
-## 46.6 J'ai demandé à Antonin de trancher sur des données qu'il ne voit pas
-
-**Symptôme.** « Huit lignes ne sont pas sur le serveur : un trade, deux calculs de position… Dites-moi si vous voulez que je les renvoie. » Réponse : « il n'y a même plus de trading dans l'app, de quoi me parles-tu ».
-**Cause.** J'ai présenté un reste technique (des lignes d'une table dont le module est mis de côté depuis le 30/09) comme une décision à prendre. Pour lui, ces lignes n'existent pas : aucun écran ne les montre.
-**Parade.** Avant de soumettre une question à Antonin, la traduire en ce qu'il VOIT. Si la réponse ne change rien à l'écran, ne pas la poser : trancher, et le dire en une ligne. Ici : les données d'un module retiré restent en base, invisibles, et ne se synchronisent pas — sans conséquence.
-**Payé.** Un message de confusion, à un moment où il voulait savoir si sa synchronisation marchait.
-
-## 46.7 Un `Monitor` en `tail -f` sur un journal de build réécrit par le build suivant rapporte l'ANCIEN résultat
+## 46.6 Un `Monitor` en `tail -f` sur un journal de build réécrit par le build suivant rapporte l'ANCIEN résultat
 
 **Symptôme.** Build arrêté pour être relancé sur une tête plus récente (demande d'une session voisine). Le moniteur, toujours armé, annonce « code 143 », puis des étapes du NOUVEAU build mêlées.
 **Cause.** `npm run tauri build > build.txt` tronque le fichier ; `tail -f` continue de lire au même descripteur et rend ce qui reste de l'ancien contenu, puis la suite.
 **Parade.** Un moniteur par build, sur un fichier de journal par build (nom horodaté), ou une boucle `until grep -q "^code " fichier` lancée APRÈS le démarrage du build. Arrêter l'ancien moniteur avant de relancer.
 **Payé.** Une alerte « code 143 » à interpréter : c'était le build arrêté exprès, pas un échec.
 
-## 46.8 Deux sessions ont numéroté leur section du carnet « § 46 » le même soir
+## 46.7 Deux sessions ont numéroté leur section du carnet « § 46 » le même soir
 
 **Symptôme.** Après la fusion de [retours-1310], `PIEGES.md` avait deux « # 46. », et leurs renvois (« PIEGES § 46.4 ») devenaient ambigus.
 **Cause.** Chaque session choisit son numéro en lisant la fin de SON worktree. La mienne, fusionnée à 23:59, avait pris le 46 ; l'autre l'avait choisi plus tôt sur une branche partie avant.
 **Parade.** Au moment de rebaser (pas au moment d'écrire), relire `grep -n "^# [0-9]" PIEGES.md` sur `origin/mobile-ios` et renuméroter sa propre section si le numéro est pris — renvois compris (`grep -rn "§ NN"`). Ici, la section arrivée seconde est passée au § 47 (64db5f4), et la session concernée prévenue.
 **Payé.** Dix minutes.
 
-## 46.9 J'ai lancé un build sans demander au carnet si une fusion était imminente
+## 46.8 J'ai lancé un build sans demander au carnet si une fusion était imminente
 
 **Symptôme.** Build macOS lancé à 08:47 sur 6f70fc4. À 08:50, [retours-1310] pousse 4727415 et demande un build groupé : le mien est arrêté en pleine compilation Rust et relancé.
 **Cause.** Le carnet montrait [retours-1310] « en PAUSE » depuis 00:36 ; j'en ai déduit qu'il ne fusionnerait pas. Une session en pause peut reprendre à tout moment.
