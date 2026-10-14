@@ -2619,3 +2619,8 @@ Branche `chantier/retours-1310` (worktree `~/Desktop/Shale-chantiers/retours-131
 **Vérifié.** `tsc`, `test:types`, `i18n:check` (0 manquante, 2844 entrées), `i18n:durs` (0 sûrement française) ; 30 fichiers de tests des zones touchées verts (506 tests). Suite complète lancée sous charge 37 : voir le message de commit.
 
 **Reste à faire.** Relire le carnet, fusionner dans `mobile-ios`, build groupé macOS + pose iOS. Sections datées de `CLAUDE.md`, `PIEGES.md` (le clic droit sans test du bouton ; le pointillé hors grille), `MOBILE.md` (semaine et maintien au téléphone), `DETTE-SITE.md` (Journal sans humeur ni énergie, Timer à deux visages) : NON écrites. Rien de tout cela n'a été vu dans WKWebView ni sur l'iPhone réel.
+
+### Suite du 2026-10-14 au matin — Mac installé, iPhone construit
+
+- **Mac : installé à 08:54** par le build groupé de [sync-orpheline] (relancé à ma demande pour porter les deux chantiers, une seule fenêtre de trousseau). `mobile-ios` `d54fc8f`, sha256 installée `a17bcfd9cf29`. Contrôlé de mon côté : « Créneau libre » et `timer_style` présents dans le front du build. ⛔ Rien de ce chantier n'a encore été vu DANS l'app installée.
+- **iPhone : build release fait** (`8988663`, 08:55 → 09:00, cache Rust repris). `.ipa` copié hors du dépôt : `Shale-chantiers/retours-1310-ipa/Shale-8988663.ipa` (sha256 `87fdd39ae023`). Il porte aussi le moteur de synchronisation (`a2e36a0`) que le téléphone n'avait pas. **Pas encore posé** : l'iPhone était « unavailable » (non branché). Pose : `xcrun devicectl device install app --device 9A784CC4-9486-5B91-A82B-B75DA758035D <ipa>`, après une copie de la base du téléphone (MOBILE § 30.5). Profil valable jusqu'au 2026-10-20 10:06.
