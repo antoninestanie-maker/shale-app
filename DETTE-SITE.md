@@ -1003,3 +1003,10 @@ Rien de publié sur le site. Rien n'y devient faux : la barre d'origine (Aujourd
 - À dire un jour, si la page iPhone existe : la barre du bas se règle dans Personnaliser. **Ne pas l'écrire avant qu'Antonin l'ait essayée sur son téléphone.**
 - Non recensé page par page.
 
+
+## AH — Journal sans humeur ni énergie, Timer à deux visages, Calendrier en semaine au téléphone (app, 2026-10-14)
+
+- **Journal** : l'app ne saisit PLUS l'humeur ni l'énergie du jour. Toute page du site qui promet « humeur, énergie » dans le Journal ment désormais — le Journal, c'est le texte du jour et les habitudes, avec une barre pour choisir le jour. Chercher « humeur », « énergie », « mood », « energy » dans `vitrine/` (pages modules, dictionnaire i18n, captures).
+- **Timer** : deux affichages au choix, les volets ou l'anneau. Une fiche qui ne montre que les volets n'est pas fausse, mais incomplète.
+- **Calendrier** : la vue Semaine existe et s'ouvre par défaut sur iPhone ; un clic droit (ou un maintien au doigt) ouvre le menu d'un événement. Les captures iPhone qui montrent l'agenda par défaut sont datées.
+- **Performance** : les écarts s'écrivent en « % », plus en « pts » — une capture avec « pts » est périmée.

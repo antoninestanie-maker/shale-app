@@ -3663,3 +3663,15 @@ maintien d'abord. » Décisions : `CLAUDE.md`, même date.
 - **86 minutes** (22:41 → 00:07) au lieu de 4 : mémoire saturée
   (`PIEGES.md` § 45.4).
 
+
+## 31. Retours du 13/10 au soir, côté iPhone (chantier `retours-1310`, 2026-10-14)
+
+Le détail et le pourquoi : `CLAUDE.md`, section du 2026-10-14. Ce qui change AU TÉLÉPHONE :
+
+- **Journal.** Une barre de sept jours en haut (cases de ~38 × 48 pt, flèches de semaine) ; « Revenir à aujourd'hui » passe sous la barre, en lien. La case d'une habitude coche le jour choisi ; ses quatorze derniers jours passent SOUS le nom, en carrés de 14 px à lire (les sept cases de 44 pt du 12/10 sont retirées : elles cochaient un autre jour).
+- **Calendrier.** S'ouvre sur la SEMAINE (l'agenda n'est plus le défaut). Grille `compact` : gouttière de 36 pt, heures « 9 h », titres sur deux lignes, « sans heure » réduit à un compte par jour (qui ouvre la journée). Pas de créneau proposé dans la semaine ; la vue Jour les garde.
+- **Maintien sur un bloc = son menu** (Modifier · Dupliquer · Supprimer), relâché sur place ; maintien puis mouvement = glisser, inchangé. Dans l'agenda aussi. Le clic qui suit le maintien est avalé (sinon la fenêtre de l'événement s'ouvrait en plus).
+- **Toast de corbeille** : 10 s au doigt (14 avant), filet de compte à rebours.
+- **Timer** : le choix Volets / Anneau vaut au téléphone (réglage synchronisé).
+
+**Vu** dans Chrome en format téléphone (390 × 844, toucher émulé par CDP : `Input.dispatchTouchEvent`) : semaine, maintien → menu → Supprimer → toast, simple toucher → fenêtre. ⛔ **Pas vu dans WebKit iOS** : le maintien sur un `<button>` peut y déclencher une sélection ou une loupe ; `select-none` et `-webkit-touch-callout: none` sont posés (agenda, grille), non mesurés sur l'appareil.

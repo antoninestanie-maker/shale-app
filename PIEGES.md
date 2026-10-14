@@ -5346,3 +5346,46 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Parade.** Avant de prendre le verrou BUILD NATIF : `sysctl -n vm.swapusage`. Au-delà de quelques Go utilisés, attendre que les suites des autres sessions finissent — le verrou tenu 86 minutes bloque tout le monde, et un checkout principal figé pendant ce temps prend du retard (deux fusions ont eu lieu pendant celui-ci, donc le binaire posé était déjà en retard de deux commits).
 **À savoir.** `tauri ios build` compile `shale_lib` DEUX fois (un `xcodebuild` puis un `xcodebuild -quiet` pour l'archive) : à vide c'est invisible, sous échange c'est le double.
 
+
+# 46. Retours d'Antonin du 13/10 (chantier `retours-1310`, 2026-10-14)
+
+## 46.1 Un `pointerdown` qui arme un geste doit tester le BOUTON
+
+**Symptôme.** Clic droit sur un événement horaire du Calendrier : le menu s'ouvre… et la fenêtre de l'événement s'ouvre par-dessus. « Supprimer » est sous la fenêtre ; Antonin conclut qu'on ne peut pas supprimer d'un clic droit.
+**Cause.** `GrilleHoraire.saisir` (posé en `onPointerDown`) prenait tout appui comme le début d'un glisser ; au relâché, « un simple clic OUVRE ». Le `contextmenu` arrive entre les deux et ne l'empêche pas.
+**Parade.** `if (pointerType !== "touch" && (button !== 0 || ctrlKey)) return;` en tête de tout `pointerdown` qui arme un geste. Ctrl+clic est le clic droit du Mac.
+**Payé.** Le défaut a vécu depuis les menus contextuels (26/09) : aucune vérification ne faisait un VRAI clic droit (`mouse.down({button:"right"})`) sur un bloc horaire — les bandeaux « journée » n'ont pas ce `pointerdown`, et c'est sur eux qu'on testait.
+
+## 46.2 Un calque positionné en absolu se dessine hors de la plage qu'on a calculée sans lui
+
+**Symptôme.** « Des carrés quadrillés blancs » sous la dernière heure de la grille, dans le vide.
+**Cause.** La plage d'heures (6 h – 22 h, élargie pour les événements) ignorait les créneaux proposés ; ceux-ci sont posés en `top` absolu depuis `heureMin` et sortent donc de la grille dès qu'ils tombent après 22 h.
+**Parade.** Tout ce qui est posé en absolu dans la grille entre dans le calcul de la plage. Contrôle : `getBoundingClientRect().bottom` de chaque calque ≤ celui de la dernière cellule.
+**Payé.** Un retour d'Antonin, capture à l'appui.
+
+## 46.3 Un minuteur suspendu au survol doit REPRENDRE, et avoir un plafond
+
+**Symptôme.** Antonin : le bandeau de corbeille « reste jusqu'à ce qu'on le ferme ». Non reproduit (Chrome, WebKit piloté).
+**Cause probable, non prouvée.** Le minuteur s'arrêtait au survol et REPARTAIT DE ZÉRO à la sortie : frôler le bandeau le prolongeait de huit secondes ; au doigt, quatorze secondes en bas d'écran se vivent comme « toujours ».
+**Parade.** Reprendre le reste (`resteApresSuspension`), plafonner (`plafondAffichage`), montrer le compte à rebours. Tenu par `lib/toast.test.ts`.
+**Payé.** Une demi-heure à chercher une cause unique dans trois moteurs.
+
+## 46.4 Un test de source qui cherche une constante par son TEXTE casse quand elle déménage
+
+**Symptôme.** `onglets.test.ts` rouge : « expected … to match /const APPUI_LONG_MS = 400;/ » après le chantier.
+**Cause.** La constante est passée dans `calendrier/appuiLong.ts` ; le test lisait `GrilleHoraire.tsx`.
+**Parade.** Importer la valeur et la comparer ; ne garder en lecture de source que ce qui ne s'importe pas (« la grille l'importe, ne la redéclare pas »).
+**Payé.** Une suite complète de 3 minutes relancée pour retrouver le nom du test : la première ne gardait que `tail -60`. Lancer la suite avec `--reporter=dot` et filtrer `FAIL`.
+
+## 46.5 Le pilote du labo refuse `localhost`, et Vite n'écoute pas `127.0.0.1` par défaut
+
+**Symptôme.** `pilote.mjs demarrer --url http://127.0.0.1:5199/` : `ERR_CONNECTION_REFUSED` ; avec `localhost` : « --url doit viser http://127.0.0.1 ».
+**Parade.** `server.host: "127.0.0.1"` dans la configuration enveloppe de la démo. Et `demarrer` détaché meurt parfois avec la commande : lancer `pilote.mjs _gardien '<json>'` en tâche de fond. Pour une fenêtre de 1470 × 895 (celle d'Antonin), un petit script puppeteer à soi : le pilote n'a que quatre écrans fixes.
+**Payé.** Dix minutes.
+
+## 46.6 La grille d'Aujourd'hui ne relit pas `layout.today` quand on l'écrit à chaud
+
+**Symptôme.** En démo, `setSetting("layout.today", …)` puis capture : rien n'a bougé.
+**Cause.** `ResizableGrid` lit ses tailles au MONTAGE ; et recharger la page vide la mémoire de la démo.
+**Parade.** Écrire le réglage, puis aller sur une autre vue et revenir (`allerVers("tasks")`, `allerVers("today")`).
+**Payé.** Une capture fausse, vue avant d'en tirer quoi que ce soit.
