@@ -1580,11 +1580,19 @@
      Couleurs : la règle des jauges de DESIGN.md — bleu de marque tant que
      l'étape est en cours, ENCRE une fois atteinte. Rien que `transform` et
      `opacity` dans les animations. `prefers-reduced-motion` : règle globale. */
+  /* ⚠️ AUCUN ORNEMENT NE SORT DE SON ITEM (2026-10-14). Le halo de l'orbe
+     (`--fil-halo`, son rayon) débordait de 8 px à gauche quand le fil était à
+     11 px : la zone qui défile de la page d'un objectif (`overflow-y-auto`)
+     le coupait net — un carré de lumière tranché. La position du fil est donc
+     DÉRIVÉE du halo, jamais écrite à côté : agrandir le halo pousse le fil, et
+     aucun conteneur, quel qu'il soit, ne peut plus rien rogner. Le texte garde
+     le même écart au nœud qu'avant (23 px). */
   .fil-item {
     position: relative;
     display: flow-root;
-    padding-left: 34px;
-    --fil-x: 11px;
+    --fil-halo: 19px;
+    --fil-x: calc(var(--fil-halo) + 1px);
+    padding-left: calc(var(--fil-x) + 23px);
     --fil-y: 25px;
     --fil-suite: 25px;
     --fil-e: 0;
@@ -1689,7 +1697,7 @@
     border-radius: 50%;
   }
   .fil-orbe::before {
-    inset: -19px;
+    inset: calc(-1 * var(--fil-halo));
     background: radial-gradient(circle, color-mix(in srgb, var(--color-blue) 38%, transparent) 0%, transparent 68%);
     animation: fil-souffle 2.8s ease-in-out infinite;
   }
@@ -1701,9 +1709,13 @@
 
   /* Le même fil, COUCHÉ : sur une ligne de la liste et en tête de la page.
      Un seul tronçon, rempli de l'avancement de l'objectif entier. */
+  /* Même règle que le fil debout : la tête porte un halo de `--fil-halo`
+     (son rayon 4 px + l'anneau de 5 px), et le fil lui laisse cette place à
+     gauche, en haut et en bas. Rien ne déborde de la boîte (2026-10-14). */
   .fil-h {
     position: relative;
-    height: 12px;
+    --fil-halo: 9px;
+    height: calc(2 * var(--fil-halo));
     min-width: 0;
     --fil-e: 0;
     --fil-point: color-mix(in srgb, var(--color-text-dim) 50%, transparent);
@@ -1713,9 +1725,9 @@
   .fil-h-plein {
     content: "";
     position: absolute;
-    left: 3px;
+    left: var(--fil-halo);
     right: 14px;
-    top: 5px;
+    top: calc(var(--fil-halo) - 1px);
     height: 2px;
     pointer-events: none;
   }
@@ -1738,8 +1750,8 @@
     pointer-events: none;
   }
   .fil-h-depart {
-    left: 0;
-    top: 3px;
+    left: calc(var(--fil-halo) - 3px);
+    top: calc(var(--fil-halo) - 3px);
     width: 6px;
     height: 6px;
     background: var(--fil-point);
@@ -1748,8 +1760,8 @@
     background: var(--gradient-brand-from);
   }
   .fil-h-tete {
-    left: calc(3px + var(--fil-e) * (100% - 17px));
-    top: 2px;
+    left: calc(var(--fil-halo) + var(--fil-e) * (100% - 14px - var(--fil-halo)));
+    top: calc(var(--fil-halo) - 4px);
     width: 8px;
     height: 8px;
     margin-left: -4px;
@@ -1762,7 +1774,7 @@
   }
   .fil-h-fin {
     right: 0;
-    top: 0;
+    top: calc(var(--fil-halo) - 6px);
     width: 12px;
     height: 12px;
     border: 2px solid var(--fil-point);

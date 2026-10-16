@@ -5424,3 +5424,11 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Cause.** `ResizableGrid` lit ses tailles au MONTAGE ; et recharger la page vide la mémoire de la démo.
 **Parade.** Écrire le réglage, puis aller sur une autre vue et revenir (`allerVers("tasks")`, `allerVers("today")`).
 **Payé.** Une capture fausse, vue avant d'en tirer quoi que ce soit.
+
+# 48. Un ornement qui déborde de sa boîte finit toujours rogné (2026-10-14)
+
+**Symptôme.** Sur la page d'un objectif, le halo bleu de l'orbe du fil était coupé net à gauche : un carré de lumière tranché. Signalé par Antonin, capture à l'appui.
+**Cause.** Le halo (`.fil-orbe::before`, rayon 19 px) était centré sur un fil posé à 11 px du bord de son item : 8 px dehors. La zone qui défile (`section.overflow-y-auto` de `GoalsView`) rogne aussi en largeur — `overflow-y: auto` force `overflow-x` à `auto`. La tête du fil couché (`.fil-h-tete`, anneau de 5 px) débordait de même, de 6 px à gauche et 3 px en haut.
+**Parade.** Ne pas « dégager » le conteneur (le prochain qui rogne recommencera) : la position d'un ornement se DÉDUIT de sa taille. `--fil-halo` est le rayon ; `--fil-x`, les marges du fil couché et sa hauteur sont des `calc()` de cette variable. `src/lib/objectifs/fil.css.test.ts` lit le CSS et tombe si l'un redevient un nombre écrit à côté de l'autre.
+**Règle générale.** Tout halo, anneau ou ombre qui doit rester entier tient dans la boîte de son élément : jamais `inset` négatif ni `box-shadow` qui sort, sans que la boîte lui ait fait la place. Une ombre de carte qui peut être rognée sans dommage n'est pas concernée.
+**Vérifié.** Chrome sans fenêtre, 1470 × 923, mode démo : bord gauche du halo à 436 px, section à 435 px.
