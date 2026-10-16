@@ -5425,7 +5425,7 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Parade.** Écrire le réglage, puis aller sur une autre vue et revenir (`allerVers("tasks")`, `allerVers("today")`).
 **Payé.** Une capture fausse, vue avant d'en tirer quoi que ce soit.
 
-# 48. Un ornement qui déborde de sa boîte finit toujours rogné (2026-10-14)
+# 48. Un ornement qui déborde de sa boîte finit toujours rogné (2026-10-16)
 
 **Symptôme.** Sur la page d'un objectif, le halo bleu de l'orbe du fil était coupé net à gauche : un carré de lumière tranché. Signalé par Antonin, capture à l'appui.
 **Cause.** Le halo (`.fil-orbe::before`, rayon 19 px) était centré sur un fil posé à 11 px du bord de son item : 8 px dehors. La zone qui défile (`section.overflow-y-auto` de `GoalsView`) rogne aussi en largeur — `overflow-y: auto` force `overflow-x` à `auto`. La tête du fil couché (`.fil-h-tete`, anneau de 5 px) débordait de même, de 6 px à gauche et 3 px en haut.

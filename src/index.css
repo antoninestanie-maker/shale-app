@@ -1580,7 +1580,7 @@
      Couleurs : la règle des jauges de DESIGN.md — bleu de marque tant que
      l'étape est en cours, ENCRE une fois atteinte. Rien que `transform` et
      `opacity` dans les animations. `prefers-reduced-motion` : règle globale. */
-  /* ⚠️ AUCUN ORNEMENT NE SORT DE SON ITEM (2026-10-14). Le halo de l'orbe
+  /* ⚠️ AUCUN ORNEMENT NE SORT DE SON ITEM (2026-10-16). Le halo de l'orbe
      (`--fil-halo`, son rayon) débordait de 8 px à gauche quand le fil était à
      11 px : la zone qui défile de la page d'un objectif (`overflow-y-auto`)
      le coupait net — un carré de lumière tranché. La position du fil est donc
@@ -1711,7 +1711,7 @@
      Un seul tronçon, rempli de l'avancement de l'objectif entier. */
   /* Même règle que le fil debout : la tête porte un halo de `--fil-halo`
      (son rayon 4 px + l'anneau de 5 px), et le fil lui laisse cette place à
-     gauche, en haut et en bas. Rien ne déborde de la boîte (2026-10-14). */
+     gauche, en haut et en bas. Rien ne déborde de la boîte (2026-10-16). */
   .fil-h {
     position: relative;
     --fil-halo: 9px;

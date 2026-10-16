@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 // Le halo de l'orbe débordait de son item et la zone qui défile le coupait
-// (2026-10-14). La règle : la position du fil se DÉDUIT du halo, elle ne
+// (2026-10-16). La règle : la position du fil se DÉDUIT du halo, elle ne
 // s'écrit pas à côté. Ce test lit le CSS et tombe si l'un redevient un nombre
 // sans l'autre.
 const css = readFileSync(new URL("../../index.css", import.meta.url), "utf8");
