@@ -2640,3 +2640,10 @@ Demande d'Antonin : l'app est jugée peu intuitive et trop chargée ; alléger t
 
 **Prouvé** : `tsc`, `i18n:check` verts ; `grille.test.ts`, `onglets.test.ts`, `barre*.test.ts`, `admin.test.ts` verts (assertion de `barre.source.test.ts` passée de 6 à 5 libellés coupés). Suite complète sur `f0c96f1` : 179 fichiers, 2 584 verts, 3 ignorés, 0 échec.
 **Pas prouvé** : rien vu dans WKWebView ni sur l'iPhone réel. **Reste** : pousser, puis build groupé Mac + pose iPhone (aucun build lancé, à la demande d'Antonin).
+
+## 2026-10-19 — Accents V8 « Encre & Braise » (accent sobre tiré du logo), sur `chantier/da-sobre`
+
+Demande d'Antonin : accents « vraiment très légers, bien moins visibles qu'avec le bleu d'avant ». Nouveau token `--color-accent` (`#cfa5a7` sombre / `#774e51` clair) et `--color-accent-solid` (`#73474a`) ; classes `*-blue` d'interface → `*-accent` (73 fichiers) ; bouton primaire à l'encre ; dégradé de marque réduit à deux tons d'accent ; halo cramoisi à 4,5 / 2,5 %. `--color-blue` reste (couleur choisie, données). Détail : `DESIGN.md` (tête), `CLAUDE.md` même date, site : `DETTE-SITE.md` § AI.
+
+**Prouvé** : `tsc`, `test:types`, `theme.accent.test.ts` (contrastes AA recalculés, bleu inchangé, aucune classe bleue d'interface), suite complète et `i18n:check` (voir le commit de fusion). Vu à l'écran en mode démo (build labo `857248e`, Chrome sans fenêtre, 1470×923 à 110 % et 390×844), clair et sombre : Aujourd'hui, Tâches, Objectifs, Calendrier, Notes, Réglages. Planches avant/après : `Shale-chantiers/DOC-da-sobre-*.jpg`.
+**Pas prouvé** : rien vu dans WKWebView, ni sur l'iPhone. **Reste** : build groupé avec `logo-entree` (aucun build lancé). Les règles `.entree-*` lisent encore `--gradient-brand-*` (rose cendré tant que `logo-entree` ne les a pas remplacées).

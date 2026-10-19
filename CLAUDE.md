@@ -8610,3 +8610,14 @@ Retours répétés à Antonin : « pas très intuitif », « beaucoup d'informat
 - ⚠️ **Revient sur une décision d'origine de la barre latérale** (« défaut premier lancement = seule la catégorie de la vue active ouverte », plus haut dans ce fichier) : désormais **toutes ouvertes**. Raison : un compte neuf voyait 3 modules sur 9 ; la découverte prime sur la compacité, et neuf entrées tiennent. L'état enregistré (`sidebar.collapsed`) reste respecté.
 - **« systèmes actifs » retiré** : décoratif, toujours vert, ne mesurait rien. Ne pas le remettre ; un indicateur d'état doit refléter un état réel (la pastille de synchro le fait).
 - Au téléphone, l'action principale d'une vue est un **« + » rond à droite du titre**, pas un bouton large sur sa propre rangée (Tâches ; Notes l'avait déjà).
+
+## 2026-10-19 — Design system V8 « Encre & Braise » : l'accent devient presque invisible
+
+Demande d'Antonin, le jour du nouveau logo (S blanc sur plaque cramoisie) : « des accents de couleur vraiment très légers et bien moins visibles qu'avec le bleu d'avant, plus sobre ». Valeurs et règles : `DESIGN.md` (tête de fichier). État : `PASSATION.md`, même date.
+
+- **L'interface est presque monochrome.** Un seul accent, tiré du cramoisi du logo mais presque éteint : rose cendré `#cfa5a7` en sombre, bordeaux grisé `#774e51` en clair (teinte ≈ 15°, chroma ≈ 0,05). Sélection, focus, progression, liens — rien d'autre.
+- **Pourquoi pas un rouge** : le rouge sémantique (erreur, perte, suppression) est quatre fois plus saturé. L'accent doit pouvoir s'asseoir à côté d'une alerte sans s'y confondre.
+- **Le bouton primaire est à l'encre** (`.fill-primary`), sans dégradé ni ombre teintée. Le « dégradé de marque » n'est plus que deux tons d'accent voisins.
+- ⚠️ **`--color-blue` n'est plus l'accent, et garde sa valeur V7** : c'est une couleur que l'utilisateur CHOISIT (étiquettes, événements, habitudes, texte de note, types, branches de carte), même raisonnement que le vert le 2026-09-23. L'accent est un token neuf, `--color-accent` (+ `-solid`, `on-accent`) ; toutes les classes d'interface `*-blue` sont devenues `*-accent`. `--color-blue-solid` et `--color-on-blue` n'existent plus. `theme.accent.test.ts` refuse le retour d'une classe `text-blue`/`bg-blue…` dans `src/` et recalcule les contrastes AA.
+- **Le logo garde son cramoisi plein** : une marque n'est pas un accent. `ShaleMark`, icônes et transition d'entrée sont au chantier `logo-entree`, pas ici. ⚠️ Les règles `.entree-*` lisent encore `--gradient-brand-from/-to` : tant que `logo-entree` ne les a pas remplacées, l'ancien liseré d'entrée est en rose cendré.
+- **Le site doit recopier** les valeurs : `DETTE-SITE.md` § AI.

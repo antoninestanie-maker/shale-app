@@ -1010,3 +1010,19 @@ Rien de publié sur le site. Rien n'y devient faux : la barre d'origine (Aujourd
 - **Timer** : deux affichages au choix, les volets ou l'anneau. Une fiche qui ne montre que les volets n'est pas fausse, mais incomplète.
 - **Calendrier** : la vue Semaine existe et s'ouvre par défaut sur iPhone ; un clic droit (ou un maintien au doigt) ouvre le menu d'un événement. Les captures iPhone qui montrent l'agenda par défaut sont datées.
 - **Performance** : les écarts s'écrivent en « % », plus en « pts » — une capture avec « pts » est périmée.
+
+## AI — Accent V8 « Encre & Braise » (app, 2026-10-19)
+
+L'app quitte le bleu Shazam (`#0088ff` / dégradé vers `#00c2ff`). Règle « l'app et le site ne divergent jamais » : `styles/global.css` doit recopier ces valeurs.
+
+| Rôle | Sombre | Clair |
+|---|---|---|
+| accent (texte d'action, focus, sélection en 10–20 %, progression) | `#cfa5a7` | `#774e51` |
+| accent en aplat portant du blanc | `#73474a` | `#73474a` |
+| dégradé de jauge (deux tons voisins, se lit comme un aplat) | `#cfa5a7 → #b09798` | `#774e51 → #8e7274` |
+| bouton primaire | fond `#f4f6fa` (encre), texte `#07080b` ; survol encre 86 % vers le fond | fond `#0a0c12`, texte `#ffffff` |
+| ombre du bouton primaire | `0 1px 2px rgb(0 0 0/.35)` + reflet interne blanc 25 % | `0 1px 2px rgb(10 12 18/.18)` |
+| halo ambiant (haut de fenêtre) | `rgb(220 38 38 / .045)` | `rgb(220 38 38 / .025)` |
+| onglet actif / élément choisi | fond accent 10 %, liseré accent 30 % | idem |
+
+Neutres, rouge, ambre, violet, encre du « réussi » : **inchangés**. Le logo garde son cramoisi plein (`#dc2626 → #7f1d1d`). Contrastes : `DESIGN.md`, « Contrastes V8 ».

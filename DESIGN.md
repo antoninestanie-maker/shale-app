@@ -1,8 +1,84 @@
-# Design system V7 — « Ink & Azure »
+# Design system V8 — « Encre & Braise »
 
 Source de vérité : les tokens CSS de `src/index.css` (`@theme` = sombre par défaut,
 surcharges `:root[data-theme="light"]` + media query pour le mode système).
 Ce fichier documente les valeurs, les règles d'usage et les justifications.
+
+**V8 (2026-10-19) ne remplace que l'ACCENT de la V7 « Ink & Azure ».** Neutres,
+élévation, réussi à l'encre, typographie, mouvement : tout ce qui suit sous
+« V7 » reste valable, SAUF ce qui parle du bleu Shazam, des deux bleus, du
+dégradé bleu → cyan et de l'ombre teintée du bouton — remplacés ci-dessous.
+
+## V8 — l'accent (2026-10-19)
+
+Demande d'Antonin, le jour du nouveau logo (S blanc sur plaque cramoisie,
+`Shale-projet/marque/MARQUE.md`) : « des accents de couleur vraiment très légers
+et bien moins visibles qu'avec le bleu d'avant, plus sobre ».
+
+- **L'interface est presque monochrome** : encre et gris. La couleur ne signale
+  plus tout ; elle reste à quatre emplois : **sélection, focus, progression,
+  liens / actions secondaires**.
+- **Un seul accent, tiré du cramoisi du logo, presque éteint** : même teinte
+  (≈ 15° en OKLCH), chroma ≈ 0,05 au lieu des 0,2 du logo et du rouge d'erreur.
+  En sombre c'est un **rose cendré** clair, en clair un **bordeaux grisé**.
+- **Il ne se prend jamais pour une erreur** : le rouge sémantique reste quatre
+  fois plus saturé (`#ff4d5e` / `#c8122b`) et, en sombre, nettement plus vif.
+  Une erreur crie, l'accent murmure.
+- **Le bouton primaire est à l'ENCRE** (`.fill-primary` : `--color-text` en
+  aplat, `--color-bg` en écriture, 18:1), sans dégradé ni ombre teintée. Survol :
+  l'encre s'adoucit vers le fond (86 %, 13:1).
+- **Le « dégradé de marque » n'en est plus un** : deux tons d'accent si voisins
+  qu'il se lit comme un aplat. Mêmes emplois qu'en V7 (jauges en cours, anneau
+  de discipline, courbe du patrimoine, filet de survol), plus aucun autre.
+- **Halo ambiant** : le cramoisi du logo à 4,5 % (sombre) / 2,5 % (clair), au
+  lieu du bleu à 12 / 7 %. On le devine, on ne le voit pas.
+- **Onglet actif de la barre latérale** : fond d'accent 10 % + liseré 30 %
+  (V7 : 18 % + 55 %).
+
+### ⭐ `--color-blue` n'est plus l'accent, et ne doit pas changer de valeur
+
+Exactement le cas du vert le 2026-09-23 : les données enregistrent
+`var(--color-blue)` ou `"blue"` (étiquettes, événements, habitudes, texte de
+note, types d'objets, branches de carte, palette d'export). Repeindre le token
+aurait repeint les choix de l'utilisateur. Donc **un token neuf**,
+`--color-accent`, et toutes les classes d'interface `*-blue` sont devenues
+`*-accent`. `--color-blue` garde ses valeurs V7 (`#0088ff` / `#0060dc`) ; il ne
+sert plus qu'aux couleurs qu'on CHOISIT. `theme.accent.test.ts` échoue si une
+classe `text-blue`, `bg-blue/10`… revient dans `src/`.
+
+| Token | Sombre | Clair | Usage |
+|---|---|---|---|
+| `--color-accent` | `#cfa5a7` (oklch .76 .05 15) | `#774e51` (oklch .47 .055 15) | texte d'action, icône active, focus, sélection (en `/10`–`/20`), progression |
+| `--color-accent-solid` | `#73474a` | `#73474a` | aplat qui porte du blanc : jour choisi, compteur de la cloche |
+| `--color-on-accent` | `#ffffff` | `#ffffff` | texte sur `--color-accent-solid` |
+| `--gradient-brand` | `#cfa5a7 → #b09798` | `#774e51 → #8e7274` | jauges en cours, filet de survol (arrêts bruts : `--gradient-brand-from/-to`) |
+| `--gradient-primary` | encre (`--color-text`) | encre | fond du bouton primaire, via `.fill-primary` seulement |
+| `--btn-primary-shadow` | ombre noire courte + reflet interne | ombre encre 18 % | bouton primaire seulement — plus aucune ombre teintée |
+| `--ambient` | `rgb(220 38 38 / .045)` | `rgb(220 38 38 / .025)` | halo unique en haut de fenêtre |
+| `--color-blue` | `#0088ff` | `#0060dc` | **plus un signal** : couleur choisie (données) |
+
+### Contrastes V8 (WCAG 2.1, calculés sur les valeurs écrites)
+
+| | fond | surface | surface-2 |
+|---|---|---|---|
+| accent sombre `#cfa5a7` | 9,15 | 8,49 | 7,70 |
+| accent clair `#774e51` | 6,49 | 7,02 | 5,99 |
+| fin de jauge claire `#8e7274` (non textuel) | 4,04 | 4,37 | 3,73 |
+| fin de jauge sombre `#b09798` (non textuel) | 7,37 | 6,84 | 6,20 |
+
+Blanc sur `--color-accent-solid` **7,69**. Bouton primaire : `--color-bg` sur
+encre 18,5 (sombre) / 18,1 (clair), survol ≈ 13. Tout est au-dessus de 4,5 pour
+le texte et de 3 pour les éléments non textuels — `theme.accent.test.ts` le
+recalcule à chaque passage.
+
+⚠️ **Le logo garde son cramoisi plein** (`#dc2626 → #7f1d1d`) : c'est une
+marque, pas un accent d'interface. `ShaleMark.tsx`, les icônes et la transition
+d'entrée ne lisent PAS `--color-accent` (chantier `logo-entree`).
+
+---
+
+# Design system V7 — « Ink & Azure » (2026-09-22) — l'accent est remplacé par la V8
+
 (V7 remplace V6 « Obsidian & Jade » le 2026-09-22 — décidée par Antonin le
 2026-09-20 sur maquette interactive : « même famille, en plus claquant ». La V6
 avait remplacé la V5 le 2026-07-21 ; son détail est dans *Historique*.)
@@ -14,7 +90,8 @@ App mixte **productivité + trading** utilisée plusieurs heures d'affilée :
 - **le fond reste une encre presque neutre** (`#07080b`, teinte ~220°). La force
   vient de ce qu'on pose dessus, pas d'un fond coloré. Trois variantes plus
   douces ont été comparées côte à côte sur maquette et écartées ;
-- **un accent qui claque : `#0088ff`, le bleu de Shazam exact**, pour le texte,
+- ~~**un accent qui claque : `#0088ff`, le bleu de Shazam exact**~~ *(remplacé
+  par l'accent V8 le 2026-10-19)*, pour le texte,
   les icônes, le focus, les états actifs et les liserés de sélection ;
 - **un dégradé de marque bleu → cyan, avec une seule règle : il signale une
   FONCTION, il ne décore jamais un contenant au repos.** Cinq emplois, pas un
@@ -71,7 +148,7 @@ c'est voulu. Le gain vient de l'accent, des dégradés et des signaux.
 | `--color-border-strong` | ardoise 20 % | encre 16 % | séparateurs appuyés |
 | `--color-overlay` / `-2` | ardoise 6/12 % | encre 4.5/8.5 % | hover / sélection |
 
-### ⭐ Pourquoi deux bleus
+### ⭐ Pourquoi deux bleus *(V7 — sans objet depuis la V8 : `--color-blue-solid` n'existe plus)*
 
 `#0088ff` se lit en texte sur fond sombre (5,3:1 sur la surface) mais **du blanc
 posé dessus ne donne que 3,5:1**, sous le seuil AA de 4,5. `#0070f0`, à peine plus
@@ -81,7 +158,7 @@ prennent le bleu Shazam exact ; tout aplat bleu qui porte du texte prend
 arrêts portent le blanc (4,6 et 5,6). **Ne pas remplacer `#0088ff` « pour le
 contraste »** : le compromis est déjà fait par ces deux tokens.
 
-### Dégradés et ombre du bouton (hors Tailwind)
+### Dégradés et ombre du bouton (hors Tailwind) *(V7 — valeurs remplacées par la V8, voir en tête)*
 
 | Token | Sombre | Clair | Emploi — et AUCUN autre |
 |---|---|---|---|
