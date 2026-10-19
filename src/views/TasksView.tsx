@@ -792,9 +792,14 @@ export default function TasksView({ data, refresh }: Props) {
           onClick={() => setCreating(true)}
           data-tip={t("Nouvelle tâche")}
           data-tip-sub={t("Libellé, tag, priorité, récurrence et objectif lié.")}
-          className="pill fill-primary shrink-0 px-4 py-2 text-sm font-semibold"
+          aria-label={t("Nouvelle tâche")}
+          className="pill fill-primary shrink-0 px-4 py-2 text-sm font-semibold telephone:grid telephone:size-11 telephone:place-items-center telephone:p-0 telephone:text-xl telephone:leading-none"
         >
-          {t("+ Nouvelle tâche")}
+          {/* ⭐ 2026-10-19, audit « alléger » : au téléphone, un « + » rond à
+              droite du titre, à la place d'un bouton large qui prenait une
+              rangée à lui seul au-dessus de l'ajout rapide. */}
+          <span className="telephone:hidden">{t("+ Nouvelle tâche")}</span>
+          <span className="hidden telephone:inline" aria-hidden>+</span>
         </button>
         </div>
       </header>
@@ -869,7 +874,7 @@ export default function TasksView({ data, refresh }: Props) {
         </div>
 
         {/* ⭐ Le rangement : par moment (défaut) ou par objectif — retenu. */}
-        <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto" role="radiogroup" aria-label={t("Rangement des tâches")}>
+        <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto telephone:w-auto" role="radiogroup" aria-label={t("Rangement des tâches")}>
           {(["moment", "objectif"] as const).map((r) => (
             <button
               key={r}
@@ -890,7 +895,9 @@ export default function TasksView({ data, refresh }: Props) {
           ))}
         </div>
 
-        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:ml-auto sm:w-56">
+        {/* Au téléphone, la recherche partage la rangée du rangement (une
+            rangée de commandes de moins avant la première tâche). */}
+        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:ml-auto sm:w-56 telephone:w-auto telephone:min-w-0 telephone:flex-1">
           <IconSearch className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           <input
             type="search"

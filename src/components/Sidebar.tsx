@@ -629,8 +629,8 @@ export default function Sidebar({
   }, [basculerBarre]);
 
   // — État replié/déplié des catégories (persisté) —
-  // Défaut au premier lancement : seule la catégorie de la vue active est ouverte
-  // (à défaut, la première).
+  // Défaut au premier lancement : toutes les catégories ouvertes (2026-10-19 ;
+  // avant, seule celle de la vue active).
   // ⚠️ L'état initial vient d'un MIROIR local (2026-10-11). Avant, il valait
   // `null` le temps de lire la base : toutes les catégories s'ouvraient, puis se
   // refermaient en 240 ms — à chaque remontage, donc à chaque changement de
@@ -660,11 +660,13 @@ export default function Sidebar({
             return;
           }
         }
-        setCollapsed((prev) => {
-          if (prev) return prev;
-          const active = CATEGORY_OF[view] ?? CATEGORIES[0].id;
-          return Object.fromEntries(CATEGORIES.map((c) => [c.id, c.id !== active]));
-        });
+        // ⭐ 2026-10-19, audit « alléger » : au premier lancement, TOUTES les
+        // catégories sont ouvertes. Avant, seule celle de la vue active l'était :
+        // un compte neuf arrivait sur Aujourd'hui avec Notes, Objectifs, Timer,
+        // Journal, Performance et Savoir cachés derrière deux titres repliés —
+        // six modules sur neuf invisibles, pour une barre qui a la place de les
+        // montrer tous. Replier reste possible, et reste retenu.
+        setCollapsed((prev) => prev ?? {});
       })
       .catch(() => {
         if (alive && !loadedRef.current) {

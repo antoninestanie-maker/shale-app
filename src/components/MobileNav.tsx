@@ -194,9 +194,13 @@ export default function MobileNav({
     );
   };
 
-  // — La feuille « Plus » : tous les modules, groupés par catégorie —
+  // — La feuille « Plus » : les modules qui ne sont PAS déjà en onglet —
+  // ⭐ 2026-10-19, audit « alléger » : la feuille relistait les quatre onglets
+  // de la barre juste en dessous d'elle (treize lignes au lieu de neuf). Comme
+  // dans les apps iOS de référence, « Plus » ne montre que ce qui est derrière
+  // lui. Un module retiré de la barre dans Personnaliser y revient de lui-même.
   const visibles = config.modules.filter(
-    (m) => m.visible && BY_ID.has(m.id) && existe(m.id),
+    (m) => m.visible && BY_ID.has(m.id) && existe(m.id) && !onglets.includes(m.id),
   );
   const horsCategorie = visibles.filter((m) => !CATEGORY_OF[m.id]);
 

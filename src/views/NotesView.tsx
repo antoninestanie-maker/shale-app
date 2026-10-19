@@ -19,7 +19,7 @@ import { estNoteNeuve, estSansTitre, libelleDeLigne, TITRE_SI_VIDE, type Libelle
 import { plainText } from "../lib/richtext";
 import type { AppData, LinkKind, Note } from "../lib/types";
 
-import { t } from "../lib/i18n";
+import { formatDate, t } from "../lib/i18n";
 import { kbd, useIsPhone } from "../lib/platform";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
@@ -27,6 +27,19 @@ import { estExemple } from "../lib/onboarding/exemples";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
+}
+
+/**
+ * La date d'une ligne de la liste : « 18 oct. », et l'année seulement si ce
+ * n'est pas celle en cours. ⭐ 2026-10-19, audit « alléger » : la liste
+ * affichait « 2026-10-18 » en chasse fixe, une date de machine.
+ */
+function dateDeLigne(horodatage: string): string {
+  const jour = horodatage.slice(0, 10);
+  const d = new Date(`${jour}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return jour;
+  const memeAnnee = d.getFullYear() === new Date().getFullYear();
+  return formatDate(d, memeAnnee ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** Les liens `[[titre]]` d'un corps de note. */
@@ -488,8 +501,8 @@ export default function NotesView({ data, refresh }: Props) {
                 }`}
               >
                 <TitreDeLigne libelle={libelleDe(note)} />
-                <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-text-dim">
-                  {note.updated_at.slice(0, 10)}
+                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-text-dim">
+                  {dateDeLigne(note.updated_at)}
                   {estExemple(note) && <BadgeExemple />}
                 </p>
               </button>

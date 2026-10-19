@@ -150,46 +150,43 @@ describe("colonneCss", () => {
   });
 });
 
-// ── Aujourd'hui au téléphone (2026-10-12, crible du labo, constat 14) ─────────
-describe("ordreAujourdhuiAuTelephone — les habitudes juste sous les tâches", () => {
-  it("⭐ l'ordre du code : « habitudes » passe de la sixième place à celle qui suit « tasks »", () => {
+// ── Aujourd'hui au téléphone (12/10 : habitudes sous les tâches ; 19/10 : l'action d'abord) ──
+describe("ordreAujourdhuiAuTelephone — l'action d'abord, la mesure ensuite", () => {
+  it("⭐ l'ordre du code : tâches, habitudes, agenda, timer, puis les chiffres", () => {
     expect(ordreAujourdhuiAuTelephone(PRESENTS)).toEqual([
-      "perf",
-      "discipline",
       "tasks",
       "habitudes",
-      "timer",
       "calendar",
+      "timer",
+      "perf",
+      "discipline",
       "goals",
       "quicklinks",
     ]);
   });
 
-  it("rien d'autre ne change de place, et rien n'est perdu ni doublé", () => {
+  it("rien n'est perdu ni doublé, et les autres cartes gardent leur ordre relatif", () => {
     const rendu = ordreAujourdhuiAuTelephone(PRESENTS);
     expect([...rendu].sort()).toEqual([...PRESENTS].sort());
-    expect(rendu.filter((id) => id !== "habitudes")).toEqual(PRESENTS.filter((id) => id !== "habitudes"));
+    const tete = ["tasks", "habitudes", "calendar", "timer"];
+    expect(rendu.filter((id) => !tete.includes(id))).toEqual(PRESENTS.filter((id) => !tete.includes(id)));
   });
 
   it("vaut aussi pour un ordre enregistré en glissant les cartes au bureau", () => {
     const glisse = ["goals", "habitudes", "perf", "calendar", "tasks", "timer", "discipline", "quicklinks"];
     const rendu = ordreAujourdhuiAuTelephone(glisse);
+    expect(rendu.slice(0, 4)).toEqual(["tasks", "habitudes", "calendar", "timer"]);
     expect(rendu.indexOf("habitudes")).toBe(rendu.indexOf("tasks") + 1);
   });
 
-  it("déjà à sa place : l'ordre est rendu tel quel", () => {
-    const deja = ["perf", "tasks", "habitudes", "timer"];
-    expect(ordreAujourdhuiAuTelephone(deja)).toEqual(deja);
-  });
-
-  it("carte des tâches masquée dans Personnaliser : les habitudes restent où elles sont", () => {
+  it("carte des tâches masquée dans Personnaliser : les autres cartes d'action restent en tête", () => {
     const sansTaches = PRESENTS.filter((id) => id !== "tasks");
-    expect(ordreAujourdhuiAuTelephone(sansTaches)).toEqual(sansTaches);
+    expect(ordreAujourdhuiAuTelephone(sansTaches).slice(0, 3)).toEqual(["habitudes", "calendar", "timer"]);
   });
 
-  it("carte des habitudes masquée : rien ne bouge, et rien n'est inventé", () => {
+  it("carte des habitudes masquée : rien n'est inventé", () => {
     const sansHabitudes = PRESENTS.filter((id) => id !== "habitudes");
-    expect(ordreAujourdhuiAuTelephone(sansHabitudes)).toEqual(sansHabitudes);
+    expect(ordreAujourdhuiAuTelephone(sansHabitudes)).not.toContain("habitudes");
   });
 
   it("ne modifie pas le tableau reçu (c'est l'ordre du bureau, il doit rester intact)", () => {

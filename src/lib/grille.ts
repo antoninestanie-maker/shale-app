@@ -42,7 +42,8 @@ export function masquesConnus(masques: readonly string[], presents: readonly str
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Aujourd'hui AU TÉLÉPHONE — les habitudes juste sous les tâches.
+// Aujourd'hui AU TÉLÉPHONE — les habitudes juste sous les tâches (12/10), puis
+// toutes les cartes d'action en tête (19/10, plus bas).
 //
 // ⭐ 2026-10-12, crible du labo, constat 14. Au téléphone les cartes
 // s'empilent sur une seule colonne, dans l'ordre du bureau : bandeaux, puis
@@ -67,9 +68,20 @@ export function placerApres(ordre: readonly string[], id: string, apres: string)
   return sans;
 }
 
+// ⭐ 2026-10-19, audit « alléger » : au téléphone, Aujourd'hui commence par
+// ce qu'on FAIT (tâches, habitudes, agenda, timer), et finit par ce qu'on
+// MESURE (série, discipline, objectifs). Avant, quatre cartes de chiffres
+// (série, 7 jours, focus, anneau de discipline) passaient devant la liste des
+// tâches : elle commençait à plus d'un écran et demi de défilement. Les cartes
+// qui ne sont pas dans la liste gardent leur ordre relatif, après.
+
+/** Les cartes d'action, dans l'ordre où elles s'affichent en tête au téléphone. */
+export const EN_TETE_AU_TELEPHONE = ["tasks", "habitudes", "calendar", "timer"] as const;
+
 /** L'ordre des cartes d'Aujourd'hui sur un téléphone. */
 export function ordreAujourdhuiAuTelephone(ordre: readonly string[]): string[] {
-  return placerApres(ordre, "habitudes", "tasks");
+  const tete: string[] = EN_TETE_AU_TELEPHONE.filter((id) => ordre.includes(id));
+  return [...tete, ...ordre.filter((id) => !tete.includes(id))];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
