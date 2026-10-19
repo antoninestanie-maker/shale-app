@@ -5489,3 +5489,30 @@ Les coins du trou sont réduits de `s / 19` : à l'inspiration, ≈ 0,045. Arron
 à trois décimales, l'échelle perdait 0,6 % et le coin ne tombait plus sur le
 bord du pan. Vu par un test, pas à l'écran. ▶️ Six décimales dans les
 transformations qu'on calcule (`trou.ts`).
+
+## 50.1 L'`easing` global d'un `element.animate()` déforme le temps de TOUTES ses images clés
+
+Une image clé placée à `offset: 0.85` d'une animation dont l'`easing` est un
+ressort (`cubic-bezier(0.32, 0.72, 0, 1)`) n'arrive pas à 85 % du temps : le
+ressort atteint 85 % de sa progression vers le premier tiers. Un fondu « à la
+fin » du retour d'un objectif tombait donc au premier tiers : une carte
+fantôme, vue au ralenti (×10, `Animation.setPlaybackRate` par CDP) le
+2026-10-20. ▶️ Une animation qui mêle un mouvement et un fondu : `easing:
+"linear"` au niveau de l'animation, et l'`easing` du ressort posé sur l'image
+clé qui ouvre le segment du mouvement (`lib/objectifs/transition.ts`).
+
+## 50.2 La règle `prefers-reduced-motion` d'`index.css` n'atteint pas `element.animate()`
+
+Elle écrase la durée des `@keyframes` et des transitions CSS ; une animation
+Web Animations garde la sienne. ▶️ Tout film en `element.animate()` teste
+`mouvementReduit()` (`lib/defilement.ts`) et se saute (la page s'ouvre sans
+film). Même famille que le défilement lissé, déjà rangé là.
+
+## 50.3 Une découpe ou un déplacement calculés depuis `getBoundingClientRect` sont faux de 10 % à la densité 110 %
+
+`getBoundingClientRect` rend des pixels écran ; un `clip-path: inset(…)` ou un
+`translate(…)` s'écrivent en pixels LOCAUX sous le `zoom` de `<html>`
+(`applyZoom`). La carte d'objectif s'ouvrait depuis un rectangle décalé, de plus
+en plus loin vers le bas de la liste. ▶️ Diviser toute distance mesurée par
+`zoomFactor()` (`lib/uiConfig.ts`) ; une échelle (rapport de deux mesures) n'en
+a pas besoin. Tenu par `transition.test.ts`.

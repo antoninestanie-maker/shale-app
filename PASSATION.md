@@ -2673,3 +2673,13 @@ Commit `3471e7d` (front seul, aucune migration, aucun Rust) : le filet d'1 px en
 ## 2026-10-20 — L'entrée « dans le logo » façon X (`chantier/entree-x`)
 
 Demande d'Antonin : l'entrée de X sur téléphone, sur Mac et iPhone. **Fait** : la lueur reste, puis l'icône se contracte et grossit jusqu'à sortir de l'écran ; l'app apparaît à travers la forme de sa plaque (`lib/entree/trou.ts`, `useEntreeDansLeLogo`). **Vu** au ralenti (×10) dans Chrome sans fenêtre, mode démo : ouverture à froid, connexion, densité 110 %, téléphone 390 pt. Décision : `CLAUDE.md` ; dessin : `DESIGN.md` ; pièges § 49.5–49.6. Build et vérification au vrai lancement : voir le carnet.
+
+## 2026-10-20 — Objectifs : la carte s'ouvre en sa page (`chantier/objectif-ouverture`)
+
+Demande d'Antonin : cliquer un objectif fait grandir sa carte grise jusqu'à la page, « on rentre dans le rectangle » ; le retour la referme. Variante A retenue sur maquette, « travaillée un peu plus ». Décision : `CLAUDE.md` (même date) ; mouvement : `DESIGN.md` (Physique du mouvement) ; pièges : `PIEGES.md` § 50.
+
+**Fait** : `src/lib/objectifs/transition.ts` (+ `transition.test.ts`, 6 tests) ; `GoalsView.tsx` (état `film`, voile de page, `fermer()` pour le bouton et Échap, marqueurs `data-partage` sur titre et pourcentage). Ni `index.css`, ni Rust, ni migration, ni `en.ts`.
+
+**Prouvé** : PREUVES_A_ECRIRE
+
+**Pas prouvé** : rien vu dans WKWebView (Mac) ni sur l'iPhone. **Reste** : fusion, puis le prochain build groupé.

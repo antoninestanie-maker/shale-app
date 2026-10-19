@@ -265,6 +265,18 @@ l'animation ne tient plus rien. La classe `.rgrid-entree` ne vit qu'une seconde
 (un minuteur la retire, il ne calcule rien) : React **déplace** les nœuds quand on
 réordonne, et une animation se rejoue sur un nœud réinséré.
 
+**La carte d'objectif qui s'ouvre en sa page** *(2026-10-20, demande
+d'Antonin : « on rentre dans le rectangle »)* — troisième exception, la seule
+transition de NAVIGATION du système. Le rectangle de la carte (`--card-bg`)
+grandit jusqu'à la colonne sur `--ease-spring` (620 ms), le titre et le
+pourcentage voyagent de leur place dans la carte à leur place dans la page
+(FLIP, échelle des corps de texte), le reste de la page monte de 12 px en
+cascade (34 ms d'écart), les autres cartes s'écartent (au-dessus vers le haut,
+en dessous vers le bas, d'autant plus tard qu'elles sont loin). Le retour joue
+le même film à l'envers, en 480 ms, et rentre dans SA carte. Web Animations,
+pas de CSS : `lib/objectifs/transition.ts`. Rien d'autre ne navigue ainsi —
+la reprendre ailleurs serait une décision de système, pas un détail de vue.
+
 ### Contrastes (WCAG 2.1) — mesurés le 2026-09-22 sur les valeurs écrites
 
 | | fond | surface | surface-2 |

@@ -8673,3 +8673,14 @@ Demande d'Antonin : « ajoute dans le journal, que tu vas aussi renommer habitud
 - **La palette passe de six à douze** (`PALETTE_HABITUDES`, `lib/habitudes.ts`), rangée par teinte, avec un nom traduit par couleur (info-bulle et lecteur d'écran, qui lisaient jusqu'ici « var(--color-green) »). ⭐ **Les six d'avant y sont toutes, à la même valeur** : ce sont des couleurs de DONNÉES (PIEGES § 21.9), une habitude existante ne change pas. Le rouge est le cramoisi de la plaque du logo (`#dc2626`), pas le rouge sémantique `--color-red` (erreur, suppression). Une habitude créée sans choix reste verte (`COULEUR_HABITUDE_PAR_DEFAUT`) : le rouge en premier de la palette ne doit pas devenir le défaut.
 - **Vu à l'écran** (build démo du labo, Chrome piloté, 1440×900) : le menu, le sous-menu des douze couleurs, recolorer en cramoisi, renommer « Sport » en « Course à pied ». **Non vu** : l'app native, le téléphone, l'anglais.
 - **Site** : `DETTE-SITE.md` § AJ.
+
+## 2026-10-20 — Objectifs : la carte s'ouvre en sa page, et s'y referme
+
+Demande d'Antonin : « quand je clique sur un objectif, ce rectangle gris s'agrandit pour afficher la page de l'objectif ; on rentre dans le rectangle ». Trois variantes lui ont été montrées en maquette animée (A « la carte s'ouvre », B « plongée », C « les autres s'écartent ») ; il a pris **A**, en demandant de « travailler l'animation un peu plus ». Le détail du mouvement est dans `DESIGN.md` (Physique du mouvement, troisième exception).
+
+- **Web Animations, pas les View Transitions.** Ces dernières étirent une capture de la carte jusqu'à la page (le texte se déforme) et ne savent pas faire voyager le titre à la taille de son corps ; elles dépendent aussi de la version de WKWebView. Ici, tout est mesuré et écrit à la main : `lib/objectifs/transition.ts` (fonctions pures testées : `decoupe`, `flip`, `blocsDeCascade`).
+- **Le temps du film, la liste ET la page sont montées** : la page dans un voile posé par-dessus (`absolute inset-0`, la racine de la vue est `relative`), la liste dessous. ⚠️ Le voile est **toujours** l'enveloppe de la page, film ou pas — seule sa classe change. En sortir la page à la fin du film la remonterait (champ ouvert perdu, défilement perdu, fondu d'entrée rejoué).
+- **Ce qui voyage porte `data-partage`** (`titre`, `pct`) dans la carte ET dans la page. Un nouvel élément à faire voyager : le marquer des deux côtés, rien d'autre.
+- **Le retour passe par `fermer()`** (bouton et Échap) : c'est lui qui lance le film. Un objectif supprimé referme sa page sans film (sa carte n'existe plus) : `choisi` redevient `null` de lui-même.
+- **Sans film** : `prefers-reduced-motion` (PIEGES § 50.2), une carte introuvable (l'effet abandonne et la page s'ouvre sèche), et l'ouverture depuis ailleurs (mention, « En faire un objectif ») qui garde son fondu d'entrée.
+- **Densité** : toute distance mesurée est divisée par `zoomFactor()` (PIEGES § 50.3).
