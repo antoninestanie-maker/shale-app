@@ -5461,3 +5461,15 @@ Un script puppeteer qui ouvre `http://127.0.0.1:<port>/` sur un `npx vite`
 sans `--host` reçoit `ERR_CONNECTION_REFUSED` et prend des captures de la page
 d'erreur de Chrome — 26 captures « vides » avant de regarder l'image. Même
 cause que le § 47.5. ▶️ `localhost`, ou `--host 127.0.0.1`.
+
+## 49.4 La taille de fenêtre mémorisée tombait pendant la transition d'entrée
+
+Personnaliser enregistre une taille de fenêtre (`ui.config.window`). Le front
+l'appliquait (`App.tsx`, `setSize`) au premier chargement de la config, donc
+APRÈS la connexion, au milieu de la lueur : la fenêtre passait de 1120 × 780
+(`tauri.conf.json`) à 1470 × 923, et l'icône, centrée par le CSS, sautait vers
+le nouveau centre. Vu au vrai lancement, en rafale de captures (2026-10-20) ;
+invisible en mode démo, où il n'y a pas de fenêtre native.
+▶️ Tout ce qui change la géométrie de la fenêtre au lancement se fait dans le
+`setup` du Rust, avant que la page ne charge (`fenetre_lancement.rs`). Le
+`setSize` du front reste en filet : à taille égale il ne fait rien.

@@ -8636,3 +8636,12 @@ Antonin a choisi le logo le 19/10 après une longue exploration (canevas « Shal
 - **Outil** : `node tools/icones-marque.mjs` (Chrome sans fenêtre ; remplace `tools/icone-ios.mjs` et `sips`, qui ne rendait pas le flou), puis `npm run tauri icon src-tauri/icons/source-bureau-1024.png` pour le bureau — ⚠️ et ensuite retirer ce qu'il a glissé dans le catalogue iOS (§ 49.1).
 - ⚠️ La note de `da-sobre` ci-dessus (« les règles `.entree-*` lisent encore `--gradient-brand-from/-to` ») est **périmée par ce chantier** : la transition n'a plus de liseré ni de barre d'accent, elle ne lit plus aucun token d'accent.
 - **Non fait** : `src-tauri/icons/ios/` garde les PNG « Strates » (inutilisés : iOS lit le catalogue) ; l'Android aussi a été régénéré par `tauri icon`, sans usage. Le blanc de WKWebView avant le premier paint (MOBILE § 21.5) n'est pas traité. **Aucun build natif** : il sera groupé avec `da-sobre`.
+
+## 2026-10-20 — La taille de fenêtre mémorisée est posée par le Rust, avant la première image
+
+Vu au vrai lancement après le build du logo : la fenêtre s'ouvrait en 1120 × 780, l'icône s'allumait au centre, puis la fenêtre passait à la taille mémorisée d'Antonin (1470 × 923) et l'icône sautait. Antonin veut un seul logo immobile du lancement à l'app. Piège : `PIEGES.md` § 49.4.
+
+- **`src-tauri/src/fenetre_lancement.rs`** lit `ui.config` dans `setup` (connexion RW, SELECT seul, comme les notifications) et redimensionne la fenêtre `main` avant que la page ne charge. Bureau seulement (`cfg(desktop)`).
+- **Le `setSize` du front (`App.tsx`) reste**, en filet si la lecture côté Rust échoue ; à taille égale il ne fait rien.
+- **La règle de lecture recopie `mergeConfig`** (deux nombres, sinon rien) : la changer aux deux endroits. `lancement.test.ts` tient le branchement.
+- **Écarté** : créer la fenêtre cachée et la montrer après (`visible: false`) — un échec du setup laisserait une app invisible ; et rien n'a changé pour la densité, déjà compensée (`--zoom-inv`, § 49.2).

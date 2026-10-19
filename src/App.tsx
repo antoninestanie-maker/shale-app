@@ -424,6 +424,10 @@ function App() {
   }, [ui.config.zoom]);
 
   // Taille de fenêtre par défaut : appliquée une fois, au premier chargement de la config.
+  // ⚠️ 2026-10-20 : c'est le Rust qui la pose, avant la première image
+  // (`src-tauri/src/fenetre_lancement.rs`). Posée ici, elle tombait pendant la
+  // transition d'entrée et l'icône sautait. Cet appel ne fait plus rien (même
+  // taille) ; il reste en filet si la lecture côté Rust a échoué.
   useEffect(() => {
     if (!ui.ready || windowSized.current || !isTauri || !ui.config.window) return;
     windowSized.current = true;

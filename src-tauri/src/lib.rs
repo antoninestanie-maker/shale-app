@@ -1,5 +1,6 @@
 
 pub mod crypto;
+pub mod fenetre_lancement;
 pub mod note_rapide;
 pub mod pieces_jointes;
 pub mod notifications;
@@ -511,6 +512,20 @@ pub fn run() {
             // quoi que ce soit n'ouvre la base. Écraser un fichier SQLite sous une
             // connexion vivante corromprait le WAL.
             sauvegardes::appliquer_restauration(app.handle());
+
+            // La taille de fenêtre mémorisée, posée AVANT la première image :
+            // appliquée par le front, elle tombait pendant la transition
+            // d'entrée et l'icône sautait (cf. `fenetre_lancement.rs`).
+            #[cfg(desktop)]
+            if let Ok(db) = notifications::db_path(app.handle()) {
+                if let Some((largeur, hauteur)) =
+                    tauri::async_runtime::block_on(fenetre_lancement::lire(&db))
+                {
+                    if let Some(fenetre) = app.get_webview_window("main") {
+                        let _ = fenetre.set_size(tauri::LogicalSize::new(largeur, hauteur));
+                    }
+                }
+            }
 
             // Journal + préférences de notification (n'échoue jamais, cf. son doc).
             notifications::init(app.handle());

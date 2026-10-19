@@ -69,3 +69,28 @@ describe("la première image de Shale", () => {
     expect(sans).not.toContain("--");
   });
 });
+
+/**
+ * 2026-10-20 — la fenêtre ne change pas de taille pendant l'entrée. La taille
+ * mémorisée (Personnaliser) est posée par le Rust dans `setup`, avant que la
+ * page ne soit chargée ; posée par le front, elle tombait pendant la lueur et
+ * l'icône sautait vers le nouveau centre (vu au vrai lancement sur Mac).
+ */
+describe("la taille de la fenêtre au lancement", () => {
+  const lib = lire("src-tauri/src/lib.rs");
+  const rust = lire("src-tauri/src/fenetre_lancement.rs");
+
+  it("est posée dans le setup du Rust, avant la première image", () => {
+    const setup = lib.slice(lib.indexOf(".setup(|app|"));
+    expect(setup).toContain("fenetre_lancement::lire");
+    expect(setup).toContain("set_size(tauri::LogicalSize::new(largeur, hauteur))");
+    // avant le tray et tout le reste du setup
+    expect(setup.indexOf("fenetre_lancement::lire")).toBeLessThan(setup.indexOf("TrayIconBuilder"));
+  });
+
+  it("lit le même champ que le front (`ui.config` → window.width / height)", () => {
+    expect(rust).toContain("key = 'ui.config'");
+    expect(rust).toContain('get("window")');
+    expect(lire("src/lib/uiConfig.ts")).toContain("c.window.width");
+  });
+});
