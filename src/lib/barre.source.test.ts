@@ -104,7 +104,8 @@ describe("barre latérale — une seule mise en page, pilotée par sa largeur", 
   });
 
   it("les libellés se coupent en fondu, sans points de suspension", () => {
-    expect(barre.match(/barre-coupe/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
+    // 5 depuis le 2026-10-19 : « systèmes actifs » a quitté le pied (audit « alléger »).
+    expect(barre.match(/barre-coupe/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
     expect(barre).not.toMatch(/barre-texte[^"`]*\btruncate\b/);
     const css = sansCommentaires(lire("src/index.css"));
     const coupe = css.match(/\.barre \.barre-coupe \{[^}]*\}/)?.[0] ?? "";

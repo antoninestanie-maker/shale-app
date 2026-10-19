@@ -1050,7 +1050,6 @@ export const EN: Record<string, string> = {
   "useSession doit être utilisé dans <AuthGate>":
     "useSession must be used inside <AuthGate>",
   "initialisation des systèmes": "initialising systems",
-  "systèmes actifs": "systems online",
 
   // ── Notifications ─────────────────────────────────────────────────────────
   "Centre de notifications": "Notification centre",

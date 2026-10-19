@@ -1080,14 +1080,11 @@ export default function Sidebar({
                 </div>
               </div>
             )}
-            {!basse && (
-              <div className="barre-repli">
-                <div className="flex items-center gap-2 pt-3">
-                  <span className="animate-pulse-dot h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
-                  <span className="barre-texte barre-coupe hud-label flex-1">{t("systèmes actifs")}</span>
-                </div>
-              </div>
-            )}
+            {/* ⭐ 2026-10-19, audit « alléger » : « systèmes actifs » est retiré.
+                Un point vert qui clignotait toujours, sans rien mesurer, et qui
+                prenait une ligne au pied de la barre — la catégorie « Penser et
+                retenir » passait sous le pli à 800 px de haut. L'état réel est
+                celui de la pastille de synchronisation, juste au-dessus. */}
           </div>
         </div>
         {/* ⭐ Le bord qui se tire. Une bande de 9 px à cheval sur le filet droit
