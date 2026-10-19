@@ -7,6 +7,9 @@ import type { AppData, Goal, Priority, Tag, Task } from "../lib/types";
 import { IconChevronDown, IconSearch, IconSliders, IconTarget, IconTrash, IconX } from "../components/icons";
 
 import { pick, t, tp } from "../lib/i18n";
+import PointAction from "../components/PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import { cleTache } from "../lib/pointAction/regle";
 import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
@@ -512,6 +515,7 @@ export default function TasksView({ data, refresh }: Props) {
    * séparateur : un morceau masqué sur bureau (le tag) ne doit pas laisser son
    * « · » traîner en fin de ligne — vu à l'écran le 2026-09-30.
    */
+  const { requise } = useActions();
   const meta = (
     task: LigneVue,
     section: CleSection,
@@ -575,6 +579,10 @@ export default function TasksView({ data, refresh }: Props) {
           {tp(task.postponed_count, "reportée une fois", "reportée {n} fois")}
         </span>,
       );
+    }
+    // ⭐ Le point d'action (2026-10-20) : au bout de ce qui dit pourquoi.
+    if (!task.done && requise(cleTache(task.id))) {
+      push(<PointAction key="action" libelle={t("Action requise")} />);
     }
     if (task.tag) {
       // Au doigt, le tag passe dans la méta : la pastille de droite mangerait le libellé.

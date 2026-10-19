@@ -236,7 +236,7 @@ export default function EcranTimer({
             onClick={onTerminer}
             data-tip={t("Terminer la session")}
             data-tip-sub={t("Clôt et enregistre le temps concentré effectué.")}
-            className="pill inline-flex items-center justify-center gap-2 border border-border px-5 py-2.5 text-sm font-medium text-text-dim hover:border-red/40 hover:text-red"
+            className="pill inline-flex items-center justify-center gap-2 border border-border px-5 py-2.5 text-sm font-medium text-text-dim hover:border-border-strong hover:text-text"
           >
             <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
           </button>

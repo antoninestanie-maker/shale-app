@@ -38,7 +38,10 @@ import { libelleProfil, moduleVisible, type ProfilEffectif } from "../lib/licenc
 import { getLang, t } from "../lib/i18n";
 import { ongletsAffiches } from "../lib/onglets";
 import type { UiConfig } from "../lib/uiConfig";
-import { BY_ID, CATEGORIES, CATEGORY_OF, ITEMS_PIED, type View } from "./Sidebar";
+import { BY_ID, CATEGORIES, CATEGORY_OF, ITEMS_PIED, libelleActions, type View } from "./Sidebar";
+import PointAction from "./PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import type { ModuleAction } from "../lib/pointAction/regle";
 
 /**
  * Le module peut-il être un onglet pour ce compte ? Ni absent, ni verrouillé,
@@ -58,7 +61,6 @@ interface Props {
   view: View;
   onNavigate: (v: View) => void;
   isAdmin: boolean;
-  badges: { market?: boolean; trading?: boolean };
   config: UiConfig;
   /** Profil de licence résolu — `config` arrive déjà borné par lui (cf. `Sidebar`). */
   profil?: ProfilEffectif;
@@ -90,7 +92,6 @@ export default function MobileNav({
   view,
   onNavigate,
   isAdmin,
-  badges,
   config,
   profil,
   hasTrading = true,
@@ -154,17 +155,20 @@ export default function MobileNav({
     return (cle && profil && libelleProfil(profil, cle, getLang())) || t(cle ?? id);
   };
 
-  const badgeDe = (id: View) =>
-    (id === "market" && badges.market) || (id === "trading" && badges.trading);
+  // ⭐ Le point d'action (2026-10-20) : un point sur l'onglet d'un module qui
+  // attend une action requise. LU dans le contexte, jamais recalculé.
+  const { parModule } = useActions();
+  const aAgir = (id: View) => parModule[id as ModuleAction] ?? 0;
 
   // Les onglets choisis dans Personnaliser, moins ceux qui n'existent pas pour
   // ce compte : la barre garde ses autres onglets et « Plus ».
   const onglets = ongletsAffiches(config.onglets, (id) => ongletPossible(id, hasTrading, profil));
   // « Plus » ne signale que ce qui se trouve DERRIÈRE lui : un module à
   // pastille monté en onglet porte la sienne.
-  const badgeDansPlus =
-    (!!badges.market && !onglets.includes("market")) ||
-    (!!badges.trading && !onglets.includes("trading"));
+  const badgeDansPlus = (Object.keys(parModule) as View[]).some(
+    (id) =>
+      aAgir(id) > 0 && !onglets.includes(id) && existe(id) && config.modules.some((m) => m.id === id && m.visible),
+  );
 
   // — La barre d'onglets —
   const onglet = (id: View | "plus") => {
@@ -183,8 +187,11 @@ export default function MobileNav({
       >
         <span className="relative grid size-6 place-items-center [&>svg]:size-6">
           {id === "plus" ? iconePlus : item?.icon}
-          {(id === "plus" ? !plusOuvert && badgeDansPlus : badgeDe(id)) && (
-            <span className="bg-accent absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
+          {(id === "plus" ? !plusOuvert && badgeDansPlus : aAgir(id as View) > 0) && (
+            <PointAction
+              className="absolute -right-1 -top-0.5"
+              libelle={id === "plus" ? t("Action requise") : libelleActions(aAgir(id as View))}
+            />
           )}
         </span>
         <span className="w-full truncate text-[11px] font-semibold leading-none">
@@ -219,7 +226,7 @@ export default function MobileNav({
           {dansLeCatalogue(id)?.icon}
         </span>
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{libelle(id)}</span>
-        {badgeDe(id) && <span className="bg-accent size-2 shrink-0 rounded-full" />}
+        {aAgir(id) > 0 && <PointAction nombre={aAgir(id)} libelle={libelleActions(aAgir(id))} />}
         {verrou && <span className="shrink-0">{cadenas}</span>}
       </button>
     );

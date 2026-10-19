@@ -36,9 +36,9 @@ function token(debut: string, nom: string): string {
 }
 
 const BLOCS = {
-  sombre: { debut: "@theme {", surfaces: ["#07080b", "#111318", "#1a1d24"] },
-  clair: { debut: ':root[data-theme="light"] {', surfaces: ["#f5f6f8", "#ffffff", "#ebedf1"] },
-  systeme: { debut: "@media (prefers-color-scheme: light)", surfaces: ["#f5f6f8", "#ffffff", "#ebedf1"] },
+  sombre: { debut: "@theme {", surfaces: ["#030304", "#111215", "#1d1e22"] },
+  clair: { debut: ':root[data-theme="light"] {', surfaces: ["#ffffff", "#ffffff", "#eceef1"] },
+  systeme: { debut: "@media (prefers-color-scheme: light)", surfaces: ["#ffffff", "#ffffff", "#eceef1"] },
 };
 
 describe("accent V8", () => {

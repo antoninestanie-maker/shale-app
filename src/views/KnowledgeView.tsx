@@ -1150,7 +1150,7 @@ function PageSujet({
             <div key={champ.id}>
               <dt className="text-xs font-medium uppercase tracking-wide text-text-dim">
                 {t(champ.name)}
-                {champ.required === 1 && <span className="text-red"> *</span>}
+                {champ.required === 1 && <span className="text-text-dim"> *</span>}
               </dt>
               <dd className="mt-1">
                 <ChampSaisie

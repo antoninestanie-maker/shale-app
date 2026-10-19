@@ -18,6 +18,9 @@ import { renommerTache } from "../lib/repo";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
 import { tachesEnRetard } from "../lib/taches";
 import type { AppData, Task, TodayTask } from "../lib/types";
+import PointAction from "./PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import { cleObjectif, cleTache } from "../lib/pointAction/regle";
 
 /** Combien de lignes on montre avant « Afficher les autres ». */
 const VISIBLES = 3;
@@ -41,8 +44,9 @@ const VISIBLES = 3;
  * ⚠️ En tête de l'ÉCRAN, pas dans la carte des tâches : cette carte peut être
  * masquée par Personnaliser, et un objectif en retard n'est pas une tâche.
  *
- * ⚠️ Pas de rouge : c'est un fait, pas une alarme. Le sablier et le mot
- * suffisent.
+ * ⚠️ Pas de rouge sur le TEXTE : c'est un fait, pas une alarme. Le sablier et
+ * le mot le disent ; depuis le 2026-10-20 le point d'action (rouge vif, 8 px)
+ * s'ajoute au bout du mot — c'est LUI, et lui seul, qui signale l'action.
  */
 export default function EnRetard(props: {
   data: AppData;
@@ -62,6 +66,7 @@ export default function EnRetard(props: {
   const gesteFocus = useGesteFocus();
   const [renommeId, setRenommeId] = useState<number | null>(null);
   const [tout, setTout] = useState(false);
+  const { requise } = useActions();
 
   const taches = useMemo(() => tachesEnRetard(data.tasks, data.completions, today), [data.tasks, data.completions, today]);
   const objectifs = useMemo(
@@ -150,6 +155,8 @@ export default function EnRetard(props: {
                       <span>{tp(task.postponed_count, "reportée une fois", "reportée {n} fois")}</span>
                     </>
                   )}
+                  {/* Le point d'action, à côté du mot qui dit pourquoi (2026-10-20). */}
+                  {requise(cleTache(task.id)) && <PointAction libelle={t("Action requise")} />}
                 </span>
               </div>
               <BoutonMenu
@@ -185,8 +192,9 @@ export default function EnRetard(props: {
                         {" · "}
                       </>
                     )}
-                    <span className="whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {tp(objectif!.jours, "dépassée d'un jour", "dépassée de {n} jours")}
+                      {requise(cleObjectif(objectif!.goal.id)) && <PointAction libelle={t("Action requise")} />}
                     </span>
                   </span>
                 </span>

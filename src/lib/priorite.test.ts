@@ -38,9 +38,10 @@ describe("PRIORITES — l'ordre d'un sélecteur : une échelle, de gauche à dro
 });
 
 describe("couleurPriorite — la couleur du repère, la même partout", () => {
-  it("rouge pour l'élevée, jaune pour la moyenne, rien pour la faible", () => {
-    expect(couleurPriorite("high")).toBe("var(--color-red)");
-    expect(couleurPriorite("medium")).toBe("var(--color-yellow)");
+  it("ambre pour l'élevée, gris pour la moyenne, rien pour la faible", () => {
+    // Grammaire des couleurs (2026-10-20) : élevée = ambre (attention), jamais rouge (problème).
+    expect(couleurPriorite("high")).toBe("var(--color-yellow)");
+    expect(couleurPriorite("medium")).toBe("var(--color-text-dim)");
     expect(couleurPriorite("low")).toBeUndefined();
   });
 });

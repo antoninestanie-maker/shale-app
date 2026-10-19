@@ -61,7 +61,7 @@ function Fait({ fait }: { fait: FaitEcheance }) {
     const restant = p.etapesRestantes + p.tachesRestantes;
     return (
       <p className="min-w-0 text-xs text-text-dim">
-        <span className="inline-block font-medium text-red first-letter:uppercase">
+        <span className={`inline-block font-medium first-letter:uppercase ${p.joursRestants < 0 ? "text-red" : "text-yellow"}`}>
           {p.joursRestants < 0
             ? tp(-p.joursRestants, "dépassée d'un jour.", "dépassée de {n} jours.")
             : // Les mots du bandeau du Calendrier, tels quels.

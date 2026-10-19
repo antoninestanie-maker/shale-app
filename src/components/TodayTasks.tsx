@@ -35,8 +35,8 @@ interface Props {
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
-  high: "var(--color-red)",
-  medium: "var(--color-yellow)",
+  high: "var(--color-yellow)",
+  medium: "var(--color-text-dim)",
   low: "var(--color-text-dim)",
 };
 

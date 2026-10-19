@@ -55,10 +55,15 @@ export function phrasePriorite(p: string | null | undefined): string {
 
 /**
  * La couleur du repère — le contour de la case d'une tâche, l'icône d'une
- * étape. UNE règle pour toute l'app : rouge, jaune, rien. `undefined` = la
- * couleur par défaut de l'élément.
+ * étape. UNE règle pour toute l'app. `undefined` = la couleur par défaut de
+ * l'élément.
+ *
+ * ⚠️ Grammaire des couleurs (2026-10-20, `marque/COULEURS.md`) : le rouge dit
+ * « ce qui ne va pas » (retard, erreur). Une priorité élevée n'est pas un
+ * problème, elle demande l'attention : AMBRE. La moyenne est grise, la faible
+ * garde la couleur par défaut. Avant : rouge, jaune, rien.
  */
 export function couleurPriorite(p: string | null | undefined): string | undefined {
   const q = prioriteDe({ priority: p });
-  return q === "high" ? "var(--color-red)" : q === "medium" ? "var(--color-yellow)" : undefined;
+  return q === "high" ? "var(--color-yellow)" : q === "medium" ? "var(--color-text-dim)" : undefined;
 }

@@ -60,6 +60,9 @@ import { IconeIa } from "../components/ia/IconeIa";
 import { afficherToast } from "../lib/toast";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
 import type { EntreePossible } from "../lib/menu/entrees";
+import PointAction from "../components/PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import { cleObjectif, cleTache } from "../lib/pointAction/regle";
 
 /**
  * Ce sur quoi le menu du Calendrier est ouvert. Des IDENTIFIANTS, jamais des
@@ -767,6 +770,7 @@ function BandeauIntelligence({
   /** « Pourquoi, et que faire ? » (IA, #13) — absent sans Shale Pro. */
   onExpliquerPeril?: (goalId: number) => void;
 }) {
+  const { requise } = useActions();
   const charge = chargeDuJour(entreesDuJourCourant, profil, aujourdhui);
   const rien = !charge.surchargee && peril.length === 0 && aDecider.length === 0;
   if (rien) return null;
@@ -804,7 +808,12 @@ function BandeauIntelligence({
       )}
 
       {peril.slice(0, MAX_ALERTES).map((p) => (
-        <Alerte key={p.goal.id} couleur="red">
+        <Alerte
+          key={p.goal.id}
+          // Grammaire (2026-10-20) : dépassée = rouge (retard), en péril = ambre (attention).
+          couleur={p.joursRestants < 0 ? "red" : "yellow"}
+          action={requise(cleObjectif(p.goal.id))}
+        >
           <strong>{p.goal.title}</strong>{" "}
           {p.racine && (
             <span className="text-text-dim">{t("(étape de « {titre} »)", { titre: p.racine.title })} </span>
@@ -849,7 +858,7 @@ function BandeauIntelligence({
       )}
 
       {aDecider.slice(0, MAX_ALERTES).map((tache) => (
-        <Alerte key={tache.id} couleur="violet">
+        <Alerte key={tache.id} couleur="yellow" action={requise(cleTache(tache.id))}>
           <div className="flex flex-wrap items-center gap-2">
             <span>
               <strong>{tache.label}</strong>{" "}
@@ -898,7 +907,16 @@ function BandeauIntelligence({
   );
 }
 
-function Alerte({ couleur, children }: { couleur: string; children: React.ReactNode }) {
+function Alerte({
+  couleur,
+  action = false,
+  children,
+}: {
+  couleur: string;
+  /** Une action est requise (`lib/pointAction`) : le point en haut à droite. */
+  action?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div
       className="flex items-start gap-2 rounded-lg border p-3 text-sm text-text"
@@ -908,7 +926,8 @@ function Alerte({ couleur, children }: { couleur: string; children: React.ReactN
       }}
     >
       <IconAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: `var(--color-${couleur})` }} />
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
+      {action && <PointAction className="mt-1.5" libelle={t("Action requise")} />}
     </div>
   );
 }

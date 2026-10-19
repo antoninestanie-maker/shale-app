@@ -8,6 +8,7 @@ import CommandPalette from "./components/CommandPalette";
 import FiletErreur from "./components/FiletErreur";
 import FocusOverlay from "./components/FocusOverlay";
 import { ContexteFocus, useGesteFocusDe } from "./lib/seance/gesteFocus";
+import { FournisseurActions, useCalculActions } from "./lib/pointAction/contexte";
 import { noteRapideDemandee, planNotifications } from "./lib/notifications";
 import { IS_IOS, useIsPhone } from "./lib/platform";
 import MobileNav from "./components/MobileNav";
@@ -35,7 +36,6 @@ import { addDays, effectiveProgress, todayStr } from "./lib/logic";
 import {
   createNote,
   fetchAll,
-  fetchLivePositions,
   isTauri,
   purgerCorbeille,
   snapshotGoals,
@@ -344,17 +344,13 @@ function App() {
   }, [isPhone]);
   const windowSized = useRef(false);
 
-  // Badge sidebar "Trading" : des positions attendent leur dénouement dans le tracker
-  const [liveOpenCount, setLiveOpenCount] = useState(0);
-  useEffect(() => {
-    const sync = () =>
-      fetchLivePositions()
-        .then((l) => setLiveOpenCount(l.length))
-        .catch(() => {});
-    sync();
-    window.addEventListener("sb:live-positions", sync);
-    return () => window.removeEventListener("sb:live-positions", sync);
-  }, []);
+  // ⭐ Le point d'action (2026-10-20) : UN calcul pour toute l'app, lu par la
+  // barre latérale, la barre d'onglets, le centre de notifications et chaque
+  // ligne concernée (`lib/pointAction/`). Il remplace les anciens badges
+  // « briefing nouveau » et « positions ouvertes » (deux INFORMATIONS, en
+  // braise) : la grammaire des couleurs réserve désormais la marque de la
+  // barre aux actions requises.
+  const actions = useCalculActions(data);
 
   // ── Rappels : (re)programmation à chaque passage en arrière-plan ─────────
   // Sur le bureau, `scheduler.rs` tourne et cet appel ne fait que rendre un
@@ -568,6 +564,7 @@ function App() {
        les commandes dans Réglages — une vue chargée en `lazy`. */
     <SyncProvider>
     <ContexteFocus.Provider value={gesteFocus}>
+    <FournisseurActions valeur={actions}>
     {/* ⚠️ La hauteur de la FENÊTRE, densité déduite (2026-10-11). `h-screen`
         vaut `100vh`, que le `zoom` de la densité multiplie : à 110 % la racine
         mesurait 110 % de la fenêtre — le pied de la barre latérale passait sous
@@ -610,7 +607,6 @@ function App() {
           view={view}
           onNavigate={navigate}
           isAdmin={isAdmin}
-          badges={{ market: briefingActif && market.badge, trading: afficheModule("trading") && liveOpenCount > 0 }}
           config={configAffichee}
           profil={profil}
           hasTrading={hasTrading}
@@ -622,7 +618,6 @@ function App() {
           onNavigate={navigate}
           demoMode={!isTauri}
           isAdmin={isAdmin}
-          badges={{ market: briefingActif && market.badge, trading: afficheModule("trading") && liveOpenCount > 0 }}
           config={configAffichee}
           profil={profil}
           hasTrading={hasTrading}
@@ -793,6 +788,7 @@ function App() {
           d'une ligne, l'ajout rapide) — un seul hôte, déjà dans un portail. */}
       <SelecteurDateFlottant />
     </div>
+    </FournisseurActions>
     </ContexteFocus.Provider>
     </SyncProvider>
   );

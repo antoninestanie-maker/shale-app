@@ -160,7 +160,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
 
       {/* Chip de streak : positionnée en % → suit l'échelle du conteneur */}
       <div className="pointer-events-none absolute inset-x-0 top-[64%] flex justify-center">
-        <span className="pill inline-flex max-w-full items-center gap-1 border border-success/30 bg-success/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-success">
+        <span className="pill inline-flex max-w-full items-center gap-1 border border-accent/30 bg-accent/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-accent">
           <IconFlame className="h-3 w-3 shrink-0" /> {t("{n} j", { n: streak })}
         </span>
       </div>

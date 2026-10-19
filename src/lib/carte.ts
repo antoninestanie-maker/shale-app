@@ -1073,9 +1073,9 @@ export function agencer(carte: Carte): Agencement {
 export const PALETTE_EXPORT = {
   fond: "#ffffff",
   surface: "#ffffff",
-  texte: "#0a0c12",
-  dim: "#5a6272",
-  bord: "#cfd3da",
+  texte: "#000000",
+  dim: "#4a4f59",
+  bord: "#c4c5c6",
   blue: "#0060dc",
   violet: "#4b40e0",
   yellow: "#8f5300",

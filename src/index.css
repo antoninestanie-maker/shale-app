@@ -39,17 +39,17 @@
   --color-*: initial;
 
   /* — Thème sombre "Ink" (défaut) — */
-  --color-bg: #07080b;
-  --color-surface: #111318;
-  --color-surface-2: #1a1d24;
-  --color-text: #f4f6fa;
-  --color-text-dim: #9aa1b2;
+  --color-bg: #030304;
+  --color-surface: #111215;
+  --color-surface-2: #1d1e22;
+  --color-text: #ffffff;
+  --color-text-dim: #a9aeb8;
   /* ⭐ V8 « Encre & Braise » (2026-10-19) : l'ACCENT de l'interface n'est plus
      le bleu. C'est un rose cendré tiré du cramoisi du logo, très peu saturé
      (oklch .76 .05 15) : sélection, focus, progression, liens. Il ne porte
      PAS de texte blanc — c'est le rôle de `--color-accent-solid`. Le bouton
      primaire, lui, est à l'ENCRE (`.fill-primary`). */
-  --color-accent: #cfa5a7;
+  --color-accent: #e6a2a6;
   /* Le bleu n'est plus un signal : une couleur qu'on CHOISIT (étiquette,
      événement, habitude, texte de note, type, branche de carte). Les données
      enregistrent `var(--color-blue)` ou `blue` : valeur inchangée depuis la V7. */
@@ -57,7 +57,7 @@
   /* Encre (2026-09-23) : le « réussi » n'a pas de couleur, il prend celle du
      texte — case cochée, gain, habitude tenue, jauge terminée, en direct.
      Seuls le bleu (agir) et les alertes (ambre, rouge) restent colorés. */
-  --color-success: #f4f6fa;
+  --color-success: #ffffff;
   /* Les grandes surfaces du réussi (barres de graphique) : une encre adoucie,
      sinon le blanc pur écrase la barre bleue « aujourd'hui ». */
   --color-success-fill: #c7ccd6;
@@ -66,20 +66,26 @@
      enregistrent `var(--color-green)` ou `green` — le token doit rester. */
   --color-green: #4ade80;
   --color-red: #ff4d5e;
+  /* ⭐ Point d'action (2026-10-20, COULEURS.md § 4) : le SEUL rouge vif de
+     l'interface, réservé au point qui dit « une action est requise ». Jamais
+     pour du texte (3,5:1 en clair) : c'est une forme, pas un mot. */
+  --color-action: #ff3b4a;
+  /* Le même rouge quand il écrit un chiffre (compte de la barre latérale). */
+  --color-action-texte: #ff3b4a;
   --color-yellow: #ffc23a;
   --color-violet: #9a8cff;
 
   /* Hairlines & voiles neutres, teintés ardoise (jamais de blanc pur) */
-  --color-border: rgb(160 170 190 / 0.13);
-  --color-border-strong: rgb(160 170 190 / 0.2);
+  --color-border: rgb(160 170 190 / 0.17);
+  --color-border-strong: rgb(160 170 190 / 0.26);
   --color-overlay: rgb(160 170 190 / 0.06);
   --color-overlay-2: rgb(160 170 190 / 0.12);
 
   /* Texte posé sur un aplat d'encre (bouton « Lancer », case cochée) */
-  --color-on-success: #07080b;
+  --color-on-success: #030304;
   /* L'accent en APLAT qui porte du texte blanc (7,7:1) : un bordeaux grisé.
      Pastille sélectionnée, compteur, numéro du jour. */
-  --color-accent-solid: #73474a;
+  --color-accent-solid: #742f33;
   --color-on-accent: #ffffff;
   --color-white: #ffffff;
   --color-black: #000000;
@@ -107,7 +113,7 @@
 
   /* La carte n'est pas un aplat : un dégradé vertical très court
      simule une source de lumière haute (rendu "matériau"). */
-  --card-bg: linear-gradient(180deg, #161920 0%, #111318 100%);
+  --card-bg: linear-gradient(180deg, #16171b 0%, #111215 100%);
   --card-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 1px 2px rgba(0, 0, 0, 0.4),
@@ -125,16 +131,16 @@
     0 28px 64px -18px rgba(0, 0, 0, 0.75);
 
   /* Verre : sidebar, barres d'outils flottantes, poignées */
-  --glass-bg: rgb(17 19 24 / 0.72);
+  --glass-bg: rgb(17 18 21 / 0.72);
   --glass-blur: saturate(160%) blur(22px);
   /* Barre latérale : la teinte du verre, posée sur le fond — mais OPAQUE.
      Rien ne défile derrière la barre, et ses titres de catégorie collants
      ont besoin d'un fond plein (2026-10-11). */
-  --barre-bg: color-mix(in srgb, rgb(17 19 24) 72%, var(--color-bg));
+  --barre-bg: color-mix(in srgb, rgb(17 18 21) 72%, var(--color-bg));
 
   /* Info-bulle : verre plus dense que les panneaux (elle flotte au-dessus
      de TOUT, y compris d'une carte claire) + ombre portée courte */
-  --tip-bg: rgb(17 19 24 / 0.9);
+  --tip-bg: rgb(17 18 21 / 0.9);
   --tip-border: rgb(160 170 190 / 0.16);
   --tip-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -155,11 +161,11 @@
      deux tons d'accent si proches qu'il se lit comme un aplat. Mêmes emplois,
      et aucun autre : jauges linéaires en cours, anneau de discipline, courbe
      du patrimoine, filet de survol d'une carte. */
-  --gradient-brand: linear-gradient(90deg, #cfa5a7, #b09798);
+  --gradient-brand: linear-gradient(90deg, #e6a2a6, #c98d91);
   /* Les deux arrêts en couleur brute : un <linearGradient> SVG prend des
      `stop-color`, pas un raccourci `background`. */
-  --gradient-brand-from: #cfa5a7;
-  --gradient-brand-to: #b09798;
+  --gradient-brand-from: #e6a2a6;
+  --gradient-brand-to: #c98d91;
   /* Bouton primaire (V8) : à l'ENCRE, sans dégradé ni ombre teintée. */
   --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
   --btn-primary-shadow:
@@ -186,25 +192,27 @@
 /* — Thème clair "Alabaster" (choix explicite) — */
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-bg: #f5f6f8;
+  --color-bg: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #ebedf1;
-  --color-text: #0a0c12;
-  --color-text-dim: #5a6272;
-  --color-accent: #774e51;
+  --color-surface-2: #eceef1;
+  --color-text: #000000;
+  --color-text-dim: #4a4f59;
+  --color-accent: #742f33;
   --color-blue: #0060dc;
-  --color-success: #0a0c12;
+  --color-success: #000000;
   --color-success-fill: #323741;
   --color-green: #287845;
   --color-red: #c8122b;
+  --color-action: #d7192b;
+  --color-action-texte: #b0121f;
   --color-yellow: #8f5300;
   --color-violet: #4b40e0;
-  --color-border: rgb(10 12 18 / 0.09);
-  --color-border-strong: rgb(10 12 18 / 0.16);
+  --color-border: rgb(10 12 18 / 0.16);
+  --color-border-strong: rgb(10 12 18 / 0.24);
   --color-overlay: rgb(10 12 18 / 0.045);
   --color-overlay-2: rgb(10 12 18 / 0.085);
   --color-on-success: #ffffff;
-  --color-accent-solid: #73474a;
+  --color-accent-solid: #742f33;
   --color-on-accent: #ffffff;
 
   --card-bg: #ffffff;
@@ -238,9 +246,9 @@
   --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
 
   --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
-  --gradient-brand: linear-gradient(90deg, #774e51, #8e7274);
-  --gradient-brand-from: #774e51;
-  --gradient-brand-to: #8e7274;
+  --gradient-brand: linear-gradient(90deg, #742f33, #93484d);
+  --gradient-brand-from: #742f33;
+  --gradient-brand-to: #93484d;
   --btn-primary-shadow: 0 1px 2px rgb(10 12 18 / 0.18);
 }
 
@@ -248,25 +256,27 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]):not([data-theme="light"]) {
     color-scheme: light;
-    --color-bg: #f5f6f8;
+    --color-bg: #ffffff;
     --color-surface: #ffffff;
-    --color-surface-2: #ebedf1;
-    --color-text: #0a0c12;
-    --color-text-dim: #5a6272;
-    --color-accent: #774e51;
+    --color-surface-2: #eceef1;
+    --color-text: #000000;
+    --color-text-dim: #4a4f59;
+    --color-accent: #742f33;
     --color-blue: #0060dc;
-    --color-success: #0a0c12;
+    --color-success: #000000;
     --color-success-fill: #323741;
     --color-green: #287845;
     --color-red: #c8122b;
+    --color-action: #d7192b;
+    --color-action-texte: #b0121f;
     --color-yellow: #8f5300;
     --color-violet: #4b40e0;
-    --color-border: rgb(10 12 18 / 0.09);
-    --color-border-strong: rgb(10 12 18 / 0.16);
+    --color-border: rgb(10 12 18 / 0.16);
+    --color-border-strong: rgb(10 12 18 / 0.24);
     --color-overlay: rgb(10 12 18 / 0.045);
     --color-overlay-2: rgb(10 12 18 / 0.085);
     --color-on-success: #ffffff;
-    --color-accent-solid: #73474a;
+    --color-accent-solid: #742f33;
     --color-on-accent: #ffffff;
 
     --card-bg: #ffffff;
@@ -300,9 +310,9 @@
     --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
 
     --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
-    --gradient-brand: linear-gradient(90deg, #774e51, #8e7274);
-    --gradient-brand-from: #774e51;
-    --gradient-brand-to: #8e7274;
+    --gradient-brand: linear-gradient(90deg, #742f33, #93484d);
+    --gradient-brand-from: #742f33;
+    --gradient-brand-to: #93484d;
     --btn-primary-shadow: 0 1px 2px rgb(10 12 18 / 0.18);
   }
 }
@@ -438,6 +448,50 @@
 }
 
 @layer components {
+  /* ⭐ POINT D'ACTION (2026-10-20, `marque/COULEURS.md` § 4). Le seul rouge vif
+     de l'interface : « une action est requise ». 8 px, un anneau de la couleur
+     du fond (`--point-anneau`, à reposer quand il est sur une carte), un léger
+     halo. Composant : `PointAction.tsx` ; règle : `lib/pointAction/regle.ts`. */
+  .point-action {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--color-action);
+    box-shadow:
+      0 0 0 2px var(--point-anneau, var(--color-bg)),
+      0 0 7px 1px color-mix(in srgb, var(--color-action) 45%, transparent);
+  }
+  /* L'anneau prend la couleur de ce qui est DESSOUS. */
+  .card .point-action,
+  .card-solid .point-action {
+    --point-anneau: var(--color-surface);
+  }
+  .barre .point-action {
+    --point-anneau: var(--barre-bg);
+  }
+  /* Le compte d'un module (barre latérale) : le même rouge, en chiffre. Texte
+     à la couleur d'action sur un voile d'elle-même — le blanc sur ce rouge vif
+     ne tiendrait pas 4,5:1 (3,5 en sombre). */
+  .point-action-compte {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-action-texte);
+    background: color-mix(in srgb, var(--color-action) 16%, transparent);
+    box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-action) 40%, transparent);
+  }
+
   /* Panneau : matériau (dégradé court), hairline, ombre à deux étages */
   .card {
     position: relative;

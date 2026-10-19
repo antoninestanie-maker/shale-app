@@ -15,6 +15,12 @@ import { IconBell, IconTrash, IconX } from "./icons";
 import type { View } from "./Sidebar";
 import { formatWhen, useNotifications, type NotifEntry } from "../lib/notifications";
 import { zoomFactor } from "../lib/uiConfig";
+import PointAction from "./PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import type { ActionRequise } from "../lib/pointAction/regle";
+import { ouvrirParId } from "../lib/naviguer";
+import { joursDeRetard } from "../lib/objectifs/retard";
+import { todayStr } from "../lib/logic";
 
 import { t, tp } from "../lib/i18n";
 /** Vues qu'une notification a le droit d'ouvrir (le `target` vient du Rust). */
@@ -27,8 +33,29 @@ interface Props {
   onNavigate: (view: View) => void;
 }
 
+/**
+ * Ce que dit une action requise, en quelques mots — le même vocabulaire que
+ * l'écran qui la porte (« en retard de 3 j », « repoussée 2 fois »…).
+ */
+function motDAction(a: ActionRequise): string {
+  switch (a.genre) {
+    case "tache-a-decider":
+      return tp(a.reports ?? 0, "repoussée {n} fois", "repoussée {n} fois");
+    case "tache-en-retard":
+      return t("en retard de {n} j", { n: joursDeRetard(a.echeance, todayStr()) });
+    case "objectif-depasse":
+      return tp(-(a.joursRestants ?? 0), "échéance dépassée d'{n} jour", "échéance dépassée de {n} jours");
+    case "objectif-en-peril":
+      return t("en péril");
+  }
+}
+
 export default function NotificationBell({ onNavigate }: Props) {
   const notifs = useNotifications();
+  // ⭐ Les actions requises (2026-10-20) : LUES, jamais recalculées. Elles ne
+  // sont pas des entrées du journal : elles disparaissent d'ici dès qu'on a
+  // agi sur l'élément, comme le point de la ligne et le nombre du module.
+  const { liste: actions } = useActions();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -91,6 +118,12 @@ export default function NotificationBell({ onNavigate }: Props) {
 
   const badge = notifs.unread > 9 ? "9+" : String(notifs.unread);
 
+  const ouvrirAction = (a: ActionRequise) => {
+    onNavigate(a.module);
+    ouvrirParId(a.kind, a.id);
+    setOpen(false);
+  };
+
   return (
     <>
       <button
@@ -99,11 +132,14 @@ export default function NotificationBell({ onNavigate }: Props) {
         onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={
+        aria-label={[
           notifs.unread > 0
             ? tp(notifs.unread, "Notifications, {n} non lue", "Notifications, {n} non lues")
-            : "Notifications"
-        }
+            : "Notifications",
+          actions.length > 0 ? tp(actions.length, "{n} action requise", "{n} actions requises") : "",
+        ]
+          .filter(Boolean)
+          .join(", ")}
         data-tip="Notifications"
         data-tip-sub={t("Rappels d'habitudes, savoir délaissé, série en danger")}
         data-tip-side="right"
@@ -112,10 +148,17 @@ export default function NotificationBell({ onNavigate }: Props) {
         }`}
       >
         <IconBell className="h-[17px] w-[17px]" />
-        {notifs.unread > 0 && (
-          <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] bg-accent-solid px-1 text-[10px] font-semibold leading-[15px] text-on-accent">
-            {badge}
-          </span>
+        {/* Grammaire des couleurs (2026-10-20) : une action requise allume le
+            point rouge ; une notification non lue n'est qu'une INFORMATION,
+            son compte est neutre (gris), et il cède la place au point. */}
+        {actions.length > 0 ? (
+          <PointAction className="absolute right-0.5 top-0.5" />
+        ) : (
+          notifs.unread > 0 && (
+            <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] border border-border-strong bg-surface-2 px-1 text-[10px] font-semibold leading-[14px] text-text">
+              {badge}
+            </span>
+          )
         )}
       </button>
 
@@ -153,7 +196,32 @@ export default function NotificationBell({ onNavigate }: Props) {
               )}
             </div>
 
-            {notifs.list.length === 0 ? (
+            {actions.length > 0 && (
+              <div className="border-b border-border">
+                <p className="hud-label px-4 pb-1 pt-3">{t("À faire")}</p>
+                <ul className="panel-scroll overflow-y-auto pb-1.5" style={{ maxHeight: "min(calc(30vh * var(--zoom-inv, 1)), 200px)" }}>
+                  {actions.map((a) => (
+                    <li key={a.cle}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirAction(a)}
+                        className="flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-overlay"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-text">{a.titre}</span>
+                          <span className="block truncate text-[11px] text-text-dim">
+                            {t(a.module === "tasks" ? "Tâches" : "Objectifs")} · {motDAction(a)}
+                          </span>
+                        </span>
+                        <PointAction />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {notifs.list.length === 0 && actions.length > 0 ? null : notifs.list.length === 0 ? (
               <p className="px-4 py-8 text-center text-[13px] text-text-dim">
                 {t("Aucune notification.")}
                 <br />
@@ -174,7 +242,7 @@ export default function NotificationBell({ onNavigate }: Props) {
                       <span
                         aria-hidden
                         className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                          n.read ? "bg-transparent" : "bg-accent"
+                          n.read ? "bg-transparent" : "bg-text-dim"
                         }`}
                       />
                       <span className="min-w-0 flex-1">

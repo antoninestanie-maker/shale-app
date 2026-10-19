@@ -177,7 +177,7 @@ export default function TimerView({ data, focus }: Props) {
                   className={`pill inline-flex items-center gap-1.5 border px-5 py-2 text-sm font-semibold ${
                     paused
                       ? "border-success/40 bg-success/10 text-success"
-                      : "border-yellow/40 bg-yellow/10 text-yellow"
+                      : "border-border bg-surface-2 text-text"
                   }`}
                 >
                   {paused ? (
@@ -195,7 +195,7 @@ export default function TimerView({ data, focus }: Props) {
                   onClick={focus.stop}
                   data-tip={t("Terminer la session")}
                   data-tip-sub={t("Clôt et enregistre le temps concentré effectué.")}
-                  className="pill inline-flex items-center gap-1.5 border border-red/40 bg-red/10 px-5 py-2 text-sm font-semibold text-red"
+                  className="pill inline-flex items-center gap-1.5 border border-border bg-surface-2 px-5 py-2 text-sm font-semibold text-text"
                 >
                   <IconStop className="h-3.5 w-3.5" /> {t("Terminer")}
                 </button>

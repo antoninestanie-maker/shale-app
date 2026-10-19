@@ -33,7 +33,10 @@ import SessionIndicator from "./SessionIndicator";
 import SyncIndicator from "./SyncIndicator";
 import { IconBarre, IconLock, IconSliders, IconTrash } from "./icons";
 
-import { getLang, t } from "../lib/i18n";
+import { getLang, t, tp } from "../lib/i18n";
+import PointAction from "./PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import type { ModuleAction } from "../lib/pointAction/regle";
 export type View =
   | "today"
   | "tasks"
@@ -61,7 +64,6 @@ interface Props {
   onNavigate: (view: View) => void;
   demoMode: boolean;
   isAdmin?: boolean;
-  badges?: Partial<Record<View, boolean>>;
   config: UiConfig;
   /**
    * Profil de licence résolu. `config` arrive DÉJÀ borné par lui (modules,
@@ -391,13 +393,15 @@ export default function Sidebar({
   onNavigate,
   demoMode,
   isAdmin,
-  badges,
   config,
   profil,
   hasTrading = true,
   sessionsMarche = false,
   onLocked,
 }: Props) {
+  // Le compte des actions requises par module : LU, jamais recalculé ici.
+  const { parModule } = useActions();
+  const aAgir = (id: View) => parModule[id as ModuleAction] ?? 0;
   /** Libellé d'une clé i18n : celui du profil de licence s'il en impose un. */
   const libelle = (cle: string) => (profil && libelleProfil(profil, cle, getLang())) || t(cle);
   /**
@@ -810,11 +814,14 @@ export default function Sidebar({
             }
           />
         ) : (
-          badges?.[id] && (
-            <span
-              className={`h-1.5 w-1.5 shrink-0 rounded-full bg-accent ${reduite ? "absolute right-1.5 top-1.5" : "ml-auto"}`}
-            />
-          )
+          // ⭐ Le point d'action (2026-10-20) : le NOMBRE d'actions requises
+          // dans ce module ; réduit, le point seul sur le coin de l'icône.
+          aAgir(id) > 0 &&
+            (reduite ? (
+              <PointAction className="absolute right-1.5 top-1.5" libelle={libelleActions(aAgir(id))} />
+            ) : (
+              <PointAction nombre={aAgir(id)} className="ml-auto" libelle={libelleActions(aAgir(id))} />
+            ))
         )}
       </button>
     );
@@ -941,7 +948,7 @@ export default function Sidebar({
                   // une activité sur un module auquel l'utilisateur n'a pas accès).
                   const allLocked = members.every((m) => isLocked(m.id));
                   const hasBadge =
-                    !isOpen && !allLocked && members.some((m) => !isLocked(m.id) && badges?.[m.id]);
+                    !isOpen && !allLocked && members.some((m) => !isLocked(m.id) && aAgir(m.id) > 0);
                   return (
                     <div key={cat.id} data-cat={cat.id} className="mt-2 first:mt-0">
                       {/* ⭐ Le titre de la catégorie RESTE EN HAUT tant qu'on
@@ -979,7 +986,7 @@ export default function Sidebar({
                             {libelle(cat.label)}
                           </span>
                           {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
-                          {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+                          {hasBadge && <PointAction />}
                           <svg
                             viewBox="0 0 12 12"
                             className="h-2.5 w-2.5 shrink-0 text-text-dim transition-transform duration-200"
@@ -1122,4 +1129,9 @@ export default function Sidebar({
       <div className="barre-voile" style={voileCss} aria-hidden />
     </>
   );
+}
+
+/** Ce que lit un lecteur d'écran du point d'action d'un module. */
+export function libelleActions(n: number): string {
+  return tp(n, "{n} action requise", "{n} actions requises");
 }

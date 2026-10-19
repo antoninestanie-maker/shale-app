@@ -3769,4 +3769,13 @@ export const EN: Record<string, string> = {
   "Indigo": "Indigo",
   "Rose": "Pink",
   "Ardoise": "Slate",
+  // ─── Point d'action (2026-10-20, couleurs-net) ───
+  "Action requise": "Action needed",
+  "{n} action requise": "{n} action needed",
+  "{n} actions requises": "{n} actions needed",
+  "À faire": "To do",
+  "en péril": "at risk",
+  "repoussée {n} fois": "pushed back {n} times",
+  "échéance dépassée d'{n} jour": "deadline missed by {n} day",
+  "échéance dépassée de {n} jours": "deadline missed by {n} days",
 };

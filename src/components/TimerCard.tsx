@@ -77,7 +77,7 @@ export default function TimerCard({ data, focus }: Props) {
               className={`pill inline-flex h-9 w-9 items-center justify-center border ${
                 paused
                   ? "border-success/40 bg-success/10 text-success"
-                  : "border-yellow/40 bg-yellow/10 text-yellow"
+                  : "border-border bg-surface-2 text-text"
               }`}
             >
               {paused ? <IconPlay className="h-3.5 w-3.5" /> : <IconPause className="h-3.5 w-3.5" />}
@@ -88,7 +88,7 @@ export default function TimerCard({ data, focus }: Props) {
               aria-label={t("Terminer")}
               data-tip={t("Terminer la session")}
               data-tip-sub={t("Enregistre le temps concentré déjà effectué.")}
-              className="pill inline-flex h-9 w-9 items-center justify-center border border-red/40 bg-red/10 text-red"
+              className="pill inline-flex h-9 w-9 items-center justify-center border border-border bg-surface-2 text-text"
             >
               <IconStop className="h-3.5 w-3.5" />
             </button>

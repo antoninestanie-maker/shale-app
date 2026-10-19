@@ -63,7 +63,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
     <div className="perf-tiles panel-stretch gap-3">
       {/* 1 — Streak : chiffre */}
       <div className="card flex min-w-0 items-center gap-3 p-4">
-        <IconFlame className="h-6 w-6 shrink-0 text-yellow" />
+        <IconFlame className="h-6 w-6 shrink-0 text-accent" />
         <div className="min-w-0">
           <p className="font-display text-2xl font-extrabold leading-none text-success">
             {t("{n} j", { n: streak })}

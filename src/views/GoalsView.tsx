@@ -31,6 +31,9 @@ import { IconeIa } from "../components/ia/IconeIa";
 import type { AppData, Goal } from "../lib/types";
 
 import { pick, t } from "../lib/i18n";
+import PointAction from "../components/PointAction";
+import { useActions } from "../lib/pointAction/contexte";
+import { racineDe } from "../lib/objectifs/structure";
 interface Props {
   data: AppData;
   refresh: () => Promise<void>;
@@ -135,7 +138,10 @@ function echeanceDeLigne(dl: NonNullable<ReturnType<typeof deadlineInfo>>) {
     <>
       {dl.date && <span className="shrink-0">{dl.date}</span>}
       {dl.date && dl.label && <span className="shrink-0" aria-hidden>·</span>}
-      {dl.label && <span className={`shrink-0 ${dl.urgent ? "font-medium text-red" : ""}`}>{dl.label}</span>}
+      {/* Grammaire (2026-10-20) : le retard est rouge, l'échéance proche est ambre. */}
+      {dl.label && (
+        <span className={`shrink-0 ${dl.depassee ? "font-medium text-red" : dl.urgent ? "font-medium text-yellow" : ""}`}>{dl.label}</span>
+      )}
     </>
   );
 }
@@ -405,6 +411,19 @@ export default function GoalsView({ data, refresh }: Props) {
     );
 
   /** La prochaine action de chaque objectif racine — une lecture, jamais écrite. */
+  // ⭐ Le point d'action (2026-10-20) : LU dans le contexte. Une étape en péril
+  // allume le point de son objectif RACINE — c'est la ligne de la liste.
+  const { liste: actions } = useActions();
+  const racinesAAgir = useMemo(() => {
+    const ids = new Set<number>();
+    for (const a of actions) {
+      if (a.kind !== "goal") continue;
+      const g = data.goals.find((x) => x.id === a.id);
+      if (g) ids.add(racineDe(g, data.goals).id);
+    }
+    return ids;
+  }, [actions, data.goals]);
+
   const suites = useMemo(() => {
     const m = new Map<number, ProchaineAction | null>();
     const acheve = (id: number) => {
@@ -630,6 +649,7 @@ export default function GoalsView({ data, refresh }: Props) {
           </span>
           <span className="flex min-w-0 flex-[2_1_14rem] items-center gap-3">
             <FilCouche pct={m.pct} acheve={acheve} />
+            {racinesAAgir.has(goal.id) && <PointAction libelle={t("Action requise")} />}
             <span data-partage="pct" className="w-11 shrink-0 text-right font-display text-base font-bold text-text">
               {m.pct == null ? "—" : `${m.pct}%`}
             </span>
