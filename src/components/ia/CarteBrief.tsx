@@ -71,7 +71,7 @@ export function CarteBrief({ data, refresh }: { data: AppData; refresh: () => Pr
           {t("Brief du jour")}
         </h2>
         {b.brief && (
-          <button type="button" onClick={ouvrir} className="text-xs font-medium text-blue hover:underline">
+          <button type="button" onClick={ouvrir} className="text-xs font-medium text-accent hover:underline">
             {b.lu ? t("Relire") : t("Lire en entier")}
           </button>
         )}
@@ -97,7 +97,7 @@ export function CarteBrief({ data, refresh }: { data: AppData; refresh: () => Pr
           type="button"
           onClick={() => setCloture(true)}
           className={`pill px-4 py-1.5 text-sm ${
-            b.heureDeCloture ? "fill-primary font-semibold" : "border border-border bg-surface-2 text-text hover:border-blue/50"
+            b.heureDeCloture ? "fill-primary font-semibold" : "border border-border bg-surface-2 text-text hover:border-accent/50"
           }`}
         >
           {t("Clôturer la journée")}

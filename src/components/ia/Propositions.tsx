@@ -49,7 +49,7 @@ export function Propositions<T>({
     return (
       <div className="text-sm text-text-dim">
         <p>{vide ?? t("L'IA n'a rien trouvé à proposer.")}</p>
-        <button type="button" onClick={onAnnuler} className="mt-3 text-sm font-medium text-blue hover:underline">
+        <button type="button" onClick={onAnnuler} className="mt-3 text-sm font-medium text-accent hover:underline">
           {t("Fermer")}
         </button>
       </div>
@@ -72,7 +72,7 @@ export function Propositions<T>({
         <button
           type="button"
           onClick={() => setEtat((e) => toutes(e, !tout))}
-          className="text-xs font-medium text-blue hover:underline"
+          className="text-xs font-medium text-accent hover:underline"
         >
           {tout ? t("Tout décocher") : t("Tout cocher")}
         </button>
@@ -114,7 +114,7 @@ export function Propositions<T>({
         <button
           type="button"
           onClick={onAnnuler}
-          className="pill border border-border bg-surface-2 px-5 py-2 text-sm text-text transition-colors hover:border-blue/50"
+          className="pill border border-border bg-surface-2 px-5 py-2 text-sm text-text transition-colors hover:border-accent/50"
         >
           {t("Tout rejeter")}
         </button>

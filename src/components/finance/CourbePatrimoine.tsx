@@ -77,7 +77,7 @@ export default function CourbePatrimoine({
         <h2 className="hud-label">{t("patrimoine — 12 derniers mois")}</h2>
         <div className="flex items-center gap-3 text-xs text-text-dim">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue" />
+            <span className="h-2 w-2 rounded-full bg-accent" />
             {t("total")}
           </span>
           <span className="flex items-center gap-1.5">

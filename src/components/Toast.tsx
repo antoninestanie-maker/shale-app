@@ -152,7 +152,7 @@ export default function Toast({
               toast.onAction?.();
               onClose();
             }}
-            className="pill cible-tactile shrink-0 border border-blue/40 bg-blue/10 px-3 py-1 text-xs font-semibold text-blue transition-colors hover:bg-blue/20"
+            className="pill cible-tactile shrink-0 border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
           >
             {toast.actionLabel}
           </button>

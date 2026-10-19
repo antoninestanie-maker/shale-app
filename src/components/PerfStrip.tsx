@@ -87,7 +87,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
                 height: `${Math.max(d.pct ?? 0, 6)}%`,
                 backgroundColor:
                   i === week.length - 1
-                    ? "var(--color-blue)"
+                    ? "var(--color-accent)"
                     : (d.pct ?? 0) >= 80
                       ? "var(--color-success-fill)"
                       : "color-mix(in srgb, var(--color-success-fill) 35%, transparent)",
@@ -108,7 +108,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
               cy="24"
               r={R}
               fill="none"
-              stroke="var(--color-blue)"
+              stroke="var(--color-accent)"
               strokeWidth="5"
               strokeLinecap="round"
               strokeDasharray={CIRC}

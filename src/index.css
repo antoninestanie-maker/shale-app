@@ -15,29 +15,24 @@
 @custom-variant telephone (html[data-telephone] &);
 
 /* ============================================================
-   Design system V7 "Ink & Azure"                (voir DESIGN.md)
-   Repeint la V6 "Obsidian & Jade" (2026-07-21 → 2026-09-20), jugée
-   « un peu fade », sans toucher à sa structure.
+   Design system V8 "Encre & Braise"             (voir DESIGN.md)
+   Remplace l'ACCENT de la V7 "Ink & Azure" (2026-09-22 → 2026-10-19).
+   Demande d'Antonin, le jour du nouveau logo (S blanc sur plaque
+   cramoisie) : « des accents de couleur vraiment très légers et bien
+   moins visibles qu'avec le bleu d'avant, plus sobre ».
 
-   Ce qui change, et pourquoi :
-   - L'accent devient le bleu de Shazam exact (#0088ff) : c'est lui
-     qui fait « claquer » l'interface, pas le fond. Le fond reste une
-     encre presque neutre (#07080b), testée contre trois variantes
-     plus douces et gardée.
-   - DEUX bleus : #0088ff se lit en texte (5,3:1 sur la surface) mais
-     ne porte pas de blanc (3,5:1). `--color-blue-solid` (#0070f0),
-     un cran plus profond, porte le blanc à 4,6:1.
-   - Un dégradé de marque bleu → cyan, qui signale une FONCTION
-     (action, progression, sélection, interaction) et ne décore jamais
-     un contenant au repos. Pas de liseré coloré permanent sur une
-     carte : c'est le tic visuel des interfaces « IA ».
-   - Signaux de trading plus saturés, restés lisibles en session
-     longue. Vert = achat/win/long, rouge = vente/loss/short,
-     ambre = alerte, indigo = sessions/segments. Un seul accent.
-   - Ce qui ne change pas : les trois plans d'élévation (bg → surface
-     → surface-2), les rayons, la typographie, la physique du
-     mouvement. Zéro glow décoratif — sauf l'ombre teintée du bouton
-     primaire (`--btn-primary-shadow`).
+   - L'interface devient presque monochrome : encre et gris. Les neutres,
+     les ombres, les rayons, la typo, le mouvement ne bougent pas.
+   - UN accent, tiré du cramoisi du logo mais presque éteint : un rose
+     cendré (oklch .76 .05 15 → #cfa5a7) en sombre, un bordeaux grisé
+     (oklch .47 .055 15 → #774e51) en clair. Sélection, focus,
+     progression, liens. Chroma ≈ 0,05 contre 0,2 pour le rouge
+     sémantique : il ne se lit jamais comme une erreur.
+   - Le bouton primaire est à l'ENCRE (`.fill-primary`), sans dégradé ni
+     ombre teintée. Le « dégradé de marque » n'est plus que deux tons
+     d'accent voisins.
+   - `--color-blue` RESTE, valeur inchangée : c'est une couleur qu'on
+     choisit (étiquettes, événements…) — des données, comme le vert.
    ============================================================ */
 
 @theme {
@@ -49,8 +44,15 @@
   --color-surface-2: #1a1d24;
   --color-text: #f4f6fa;
   --color-text-dim: #9aa1b2;
-  /* Le bleu de Shazam, exact : texte, icônes, focus, états actifs. Il ne porte
-     PAS de texte blanc (3,5:1) — c'est le rôle de `--color-blue-solid`. */
+  /* ⭐ V8 « Encre & Braise » (2026-10-19) : l'ACCENT de l'interface n'est plus
+     le bleu. C'est un rose cendré tiré du cramoisi du logo, très peu saturé
+     (oklch .76 .05 15) : sélection, focus, progression, liens. Il ne porte
+     PAS de texte blanc — c'est le rôle de `--color-accent-solid`. Le bouton
+     primaire, lui, est à l'ENCRE (`.fill-primary`). */
+  --color-accent: #cfa5a7;
+  /* Le bleu n'est plus un signal : une couleur qu'on CHOISIT (étiquette,
+     événement, habitude, texte de note, type, branche de carte). Les données
+     enregistrent `var(--color-blue)` ou `blue` : valeur inchangée depuis la V7. */
   --color-blue: #0088ff;
   /* Encre (2026-09-23) : le « réussi » n'a pas de couleur, il prend celle du
      texte — case cochée, gain, habitude tenue, jauge terminée, en direct.
@@ -75,10 +77,10 @@
 
   /* Texte posé sur un aplat d'encre (bouton « Lancer », case cochée) */
   --color-on-success: #07080b;
-  /* Le même bleu, un cran plus profond : le seul qui PORTE du blanc (4,6:1).
-     Pastille sélectionnée, compteur, numéro du jour — tout aplat bleu écrit. */
-  --color-blue-solid: #0070f0;
-  --color-on-blue: #ffffff;
+  /* L'accent en APLAT qui porte du texte blanc (7,7:1) : un bordeaux grisé.
+     Pastille sélectionnée, compteur, numéro du jour. */
+  --color-accent-solid: #73474a;
+  --color-on-accent: #ffffff;
   --color-white: #ffffff;
   --color-black: #000000;
   --color-transparent: transparent;
@@ -142,28 +144,27 @@
   /* Halo ambiant unique, très doux, en haut de fenêtre */
   --ambient: radial-gradient(
     1200px 620px at 74% -14%,
-    rgb(0 136 255 / 0.12),
+    rgb(220 38 38 / 0.045),
     transparent 64%
   );
 
   --scrollbar-thumb: rgb(160 170 190 / 0.18);
   --scrollbar-thumb-hover: rgb(160 170 190 / 0.34);
 
-  /* ⭐ Dégradé de marque bleu → cyan. UNE règle : il signale une FONCTION
-     (l'action, la progression, la sélection, l'interaction), il ne décore
-     jamais un contenant au repos. Emplois autorisés, et aucun autre : bouton
-     primaire (`--gradient-primary`), jauges linéaires, anneau de discipline,
-     courbe du patrimoine (Finance), filet de survol d'une carte. */
-  --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
-  --gradient-brand: linear-gradient(90deg, #0088ff, #00c2ff);
+  /* Le « dégradé de marque » de la V7 (bleu → cyan) n'en est plus un (V8) :
+     deux tons d'accent si proches qu'il se lit comme un aplat. Mêmes emplois,
+     et aucun autre : jauges linéaires en cours, anneau de discipline, courbe
+     du patrimoine, filet de survol d'une carte. */
+  --gradient-brand: linear-gradient(90deg, #cfa5a7, #b09798);
   /* Les deux arrêts en couleur brute : un <linearGradient> SVG prend des
      `stop-color`, pas un raccourci `background`. */
-  --gradient-brand-from: #0088ff;
-  --gradient-brand-to: #00c2ff;
-  /* Seule ombre teintée du système : le bouton primaire, rien d'autre. */
+  --gradient-brand-from: #cfa5a7;
+  --gradient-brand-to: #b09798;
+  /* Bouton primaire (V8) : à l'ENCRE, sans dégradé ni ombre teintée. */
+  --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
   --btn-primary-shadow:
-    0 6px 18px -8px color-mix(in srgb, var(--color-blue) 55%, transparent),
-    inset 0 1px 0 rgb(255 255 255 / 0.16);
+    0 1px 2px rgb(0 0 0 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.25);
 
   /* Physique partagée par toutes les micro-interactions */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -190,6 +191,7 @@
   --color-surface-2: #ebedf1;
   --color-text: #0a0c12;
   --color-text-dim: #5a6272;
+  --color-accent: #774e51;
   --color-blue: #0060dc;
   --color-success: #0a0c12;
   --color-success-fill: #323741;
@@ -202,8 +204,8 @@
   --color-overlay: rgb(10 12 18 / 0.045);
   --color-overlay-2: rgb(10 12 18 / 0.085);
   --color-on-success: #ffffff;
-  --color-blue-solid: #0070f0;
-  --color-on-blue: #ffffff;
+  --color-accent-solid: #73474a;
+  --color-on-accent: #ffffff;
 
   --card-bg: #ffffff;
   --card-shadow:
@@ -229,17 +231,17 @@
 
   --ambient: radial-gradient(
     1200px 620px at 74% -14%,
-    rgb(0 136 255 / 0.07),
+    rgb(220 38 38 / 0.025),
     transparent 64%
   );
   --scrollbar-thumb: rgb(10 12 18 / 0.16);
   --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
 
-  --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
-  --gradient-brand: linear-gradient(90deg, #0060dc, #0082e6);
-  --gradient-brand-from: #0060dc;
-  --gradient-brand-to: #0082e6;
-  --btn-primary-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-blue-solid) 50%, transparent);
+  --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
+  --gradient-brand: linear-gradient(90deg, #774e51, #8e7274);
+  --gradient-brand-from: #774e51;
+  --gradient-brand-to: #8e7274;
+  --btn-primary-shadow: 0 1px 2px rgb(10 12 18 / 0.18);
 }
 
 /* — Thème système : suit macOS quand aucun choix explicite — */
@@ -251,6 +253,7 @@
     --color-surface-2: #ebedf1;
     --color-text: #0a0c12;
     --color-text-dim: #5a6272;
+    --color-accent: #774e51;
     --color-blue: #0060dc;
     --color-success: #0a0c12;
     --color-success-fill: #323741;
@@ -263,8 +266,8 @@
     --color-overlay: rgb(10 12 18 / 0.045);
     --color-overlay-2: rgb(10 12 18 / 0.085);
     --color-on-success: #ffffff;
-    --color-blue-solid: #0070f0;
-    --color-on-blue: #ffffff;
+    --color-accent-solid: #73474a;
+    --color-on-accent: #ffffff;
 
     --card-bg: #ffffff;
     --card-shadow:
@@ -290,17 +293,17 @@
 
     --ambient: radial-gradient(
       1200px 620px at 74% -14%,
-      rgb(0 136 255 / 0.07),
+      rgb(220 38 38 / 0.025),
       transparent 64%
     );
     --scrollbar-thumb: rgb(10 12 18 / 0.16);
     --scrollbar-thumb-hover: rgb(10 12 18 / 0.3);
 
-    --gradient-primary: linear-gradient(180deg, #0070f0, #0062dc);
-    --gradient-brand: linear-gradient(90deg, #0060dc, #0082e6);
-    --gradient-brand-from: #0060dc;
-    --gradient-brand-to: #0082e6;
-    --btn-primary-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-blue-solid) 50%, transparent);
+    --gradient-primary: linear-gradient(180deg, var(--color-text), var(--color-text));
+    --gradient-brand: linear-gradient(90deg, #774e51, #8e7274);
+    --gradient-brand-from: #774e51;
+    --gradient-brand-to: #8e7274;
+    --btn-primary-shadow: 0 1px 2px rgb(10 12 18 / 0.18);
   }
 }
 
@@ -362,7 +365,7 @@
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--color-blue) 30%, transparent);
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
   }
   /* V7 : un anneau plein de 2 px, et un halo de 4 px AUTOUR de lui (l'ombre
      part du bord de l'élément : 2 px de décalage + 2 px d'anneau + 4 px de
@@ -370,12 +373,12 @@
      `:focus-visible` s'allume aussi au clic, et un champ qui a choisi
      `focus:outline-none` recevrait un halo sans anneau. */
   :focus-visible {
-    outline: 2px solid var(--color-blue);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
     border-radius: 8px;
   }
   :is(button, a, summary, [role="button"], [role="tab"], [role="option"]):focus-visible {
-    box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-blue) 25%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   /* Feedback de pression sur tous les boutons */
@@ -689,7 +692,7 @@
     bottom: 0;
     left: 3px;
     width: 2px;
-    background: var(--color-blue);
+    background: var(--color-accent);
     opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-out-quint);
   }
@@ -711,14 +714,15 @@
     }
   }
 
-  /* Bouton primaire : le SEUL endroit où le dégradé d'action est écrit.
-     Au survol il s'ASSOMBRIT, jamais il ne s'éclaircit : éclaircir ferait
-     retomber le blanc sous 4,5:1 (`brightness(.92)` le porte à 5,3:1).
-     La transition reprend `transform` : sans cela, cette règle écraserait
-     celle de `button` en couche base et l'appui (`scale(.975)`) sauterait. */
+  /* Bouton primaire (V8, 2026-10-19) : à l'ENCRE — la couleur du texte en
+     aplat, le fond de fenêtre comme écriture (18:1 dans les deux thèmes).
+     Plus de dégradé bleu, plus d'ombre teintée. Au survol il s'adoucit vers
+     le fond (encre à 86 %, encore 13:1). La transition reprend `transform` :
+     sans cela, cette règle écraserait celle de `button` en couche base et
+     l'appui (`scale(.975)`) sauterait. */
   .fill-primary {
     background: var(--gradient-primary);
-    color: var(--color-on-blue);
+    color: var(--color-bg);
     box-shadow: var(--btn-primary-shadow);
     transition:
       filter var(--dur-fast) var(--ease-out-quint),
@@ -726,7 +730,7 @@
       transform var(--dur-fast) var(--ease-out-quint);
   }
   .fill-primary:hover:not(:disabled) {
-    filter: brightness(0.92);
+    background: color-mix(in srgb, var(--color-text) 86%, var(--color-bg));
   }
 
   /* ==========================================================
@@ -1281,8 +1285,8 @@
     display: inline;
     border-radius: var(--radius-pill);
     padding: 0.05em 0.4em;
-    background: color-mix(in srgb, var(--color-blue) 14%, transparent);
-    color: var(--color-blue);
+    background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+    color: var(--color-accent);
     font-weight: 500;
     cursor: pointer;
     /* Une mention ne se coupe jamais en deux en bout de ligne : la moitié
@@ -1290,7 +1294,7 @@
     white-space: nowrap;
   }
   .mention:hover {
-    background: color-mix(in srgb, var(--color-blue) 24%, transparent);
+    background: color-mix(in srgb, var(--color-accent) 24%, transparent);
   }
 
   /* Cible supprimée. Le jeton RESTE — le retirer réécrirait la phrase de
@@ -1332,7 +1336,7 @@
     transition: border-color var(--dur-fast) var(--ease-out-quint);
   }
   .piece-jointe:hover {
-    border-color: var(--color-blue);
+    border-color: var(--color-accent);
   }
   .piece-jointe .pj-picto {
     font-size: 0.72em;
@@ -1411,7 +1415,7 @@
     list-style: decimal;
   }
   .note-rich a {
-    color: var(--color-blue);
+    color: var(--color-accent);
     text-decoration: underline;
   }
   .note-rich blockquote {
@@ -1450,7 +1454,7 @@
     transition: border-color var(--dur-base) var(--ease-out-quint);
   }
   .note-rich img[data-sketch]:hover {
-    border-color: var(--color-blue);
+    border-color: var(--color-accent);
   }
 
   /* ─── Cartes mentales ────────────────────────────────────────────────────
@@ -1470,7 +1474,7 @@
     transition: border-color var(--dur-base) var(--ease-out-quint);
   }
   .note-rich figure.carte-bloc:hover {
-    border-color: var(--color-blue);
+    border-color: var(--color-accent);
   }
   /* ⚠️ `max-width` et `height: auto` : le SVG porte des dimensions explicites
      (c'est ce qui le rend déterministe), et sans cette règle une carte de
@@ -1547,7 +1551,7 @@
   /* Zone d'édition : de l'air en bas pour pouvoir cliquer sous le
      dernier bloc, et un curseur à l'accent de l'app. */
   .note-rich[contenteditable="true"] {
-    caret-color: var(--color-blue);
+    caret-color: var(--color-accent);
     padding-bottom: 2rem;
   }
 
@@ -1613,7 +1617,7 @@
   }
   .fil-plein {
     border-radius: 1px;
-    background: var(--color-blue);
+    background: var(--color-accent);
     transform-origin: top;
     transform: scaleY(var(--fil-e));
     transition:
@@ -1644,8 +1648,8 @@
       box-shadow 350ms ease;
   }
   .fil-item[data-etat="cours"] > .fil-noeud {
-    border-color: var(--color-blue);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-blue) 16%, transparent);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 16%, transparent);
   }
   .fil-item[data-etat="atteint"] > .fil-noeud {
     border-color: var(--color-success);
@@ -1698,12 +1702,12 @@
   }
   .fil-orbe::before {
     inset: calc(-1 * var(--fil-halo));
-    background: radial-gradient(circle, color-mix(in srgb, var(--color-blue) 38%, transparent) 0%, transparent 68%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 38%, transparent) 0%, transparent 68%);
     animation: fil-souffle 2.8s ease-in-out infinite;
   }
   .fil-orbe::after {
     inset: -4px;
-    background: var(--color-blue);
+    background: var(--color-accent);
     box-shadow: 0 0 0 2px var(--color-bg);
   }
 
@@ -1768,7 +1772,7 @@
     background: var(--gradient-brand-to);
     box-shadow:
       0 0 0 2px var(--fil-fond),
-      0 0 0 5px color-mix(in srgb, var(--color-blue) 22%, transparent);
+      0 0 0 5px color-mix(in srgb, var(--color-accent) 22%, transparent);
     transition: left 700ms var(--ease-out-quint);
     animation: fil-apparaitre 300ms ease 620ms backwards;
   }

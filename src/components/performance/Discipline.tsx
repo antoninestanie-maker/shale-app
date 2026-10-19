@@ -69,8 +69,8 @@ export function CourbeDiscipline(props: {
         <ComposedChart data={donnees} margin={{ top: 6, right: 4, bottom: 0, left: -24 }}>
           <defs>
             <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-blue)" stopOpacity={0.28} />
-              <stop offset="100%" stopColor="var(--color-blue)" stopOpacity={0} />
+              <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.28} />
+              <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
@@ -112,10 +112,10 @@ export function CourbeDiscipline(props: {
           <Area
             type="monotone"
             dataKey="lisse"
-            stroke="var(--color-blue)"
+            stroke="var(--color-accent)"
             strokeWidth={2.5}
             fill={`url(#${id})`}
-            activeDot={{ r: 4, fill: "var(--color-blue)" }}
+            activeDot={{ r: 4, fill: "var(--color-accent)" }}
             connectNulls
           />
         </ComposedChart>
@@ -133,7 +133,7 @@ export function LegendeCourbe({ seuil, seuilAide }: { seuil?: string; seuilAide?
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-dim">
       <span className="flex items-center gap-1.5">
-        <span className="h-0.5 w-4 rounded bg-blue" aria-hidden />
+        <span className="h-0.5 w-4 rounded bg-accent" aria-hidden />
         {t("moyenne 7 jours")}
       </span>
       <span className="flex items-center gap-1.5">

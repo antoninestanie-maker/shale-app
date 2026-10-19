@@ -45,7 +45,7 @@ export default function EcheanceObjectif(props: { goal: Goal; fait: FaitEcheance
         }}
         aria={t("Échéance de « {titre} »", { titre: goal.title })}
         placeholder={t("Ajouter une échéance")}
-        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
+        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-accent focus:outline-none"
       />
       <Fait fait={fait} />
     </div>

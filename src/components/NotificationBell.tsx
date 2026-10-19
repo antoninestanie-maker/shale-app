@@ -113,7 +113,7 @@ export default function NotificationBell({ onNavigate }: Props) {
       >
         <IconBell className="h-[17px] w-[17px]" />
         {notifs.unread > 0 && (
-          <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] bg-blue-solid px-1 text-[10px] font-semibold leading-[15px] text-on-blue">
+          <span className="pill absolute -right-0.5 -top-0.5 min-w-[15px] bg-accent-solid px-1 text-[10px] font-semibold leading-[15px] text-on-accent">
             {badge}
           </span>
         )}
@@ -134,7 +134,7 @@ export default function NotificationBell({ onNavigate }: Props) {
                 <button
                   type="button"
                   onClick={() => notifs.markAllRead()}
-                  className="shrink-0 text-[11px] font-medium text-blue hover:underline"
+                  className="shrink-0 text-[11px] font-medium text-accent hover:underline"
                 >
                   {t("Tout marquer lu")}
                 </button>
@@ -174,7 +174,7 @@ export default function NotificationBell({ onNavigate }: Props) {
                       <span
                         aria-hidden
                         className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                          n.read ? "bg-transparent" : "bg-blue"
+                          n.read ? "bg-transparent" : "bg-accent"
                         }`}
                       />
                       <span className="min-w-0 flex-1">

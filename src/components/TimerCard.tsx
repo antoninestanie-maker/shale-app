@@ -120,7 +120,7 @@ export default function TimerCard({ data, focus }: Props) {
                   data-tip-sub={t(p.hint)}
                   className={`cible-tactile-ligne min-w-0 overflow-hidden rounded-[10px] border px-1 py-2 text-center font-mono text-sm font-semibold transition-colors ${
                     on
-                      ? "border-blue/50 bg-blue/15 text-blue"
+                      ? "border-accent/50 bg-accent/15 text-accent"
                       : "border-border text-text hover:border-text-dim/40"
                   }`}
                 >

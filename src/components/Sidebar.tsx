@@ -774,21 +774,21 @@ export default function Sidebar({
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
-              ? // V7 : fond bleu 18 % + liseré intérieur 55 %. Pas de halo.
-                "bg-[color-mix(in_srgb,var(--color-blue)_18%,transparent)] text-text shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-blue)_55%,transparent)]"
+              ? // V8 : fond d'accent 10 % + liseré intérieur 30 % — presque neutre. Pas de halo.
+                "bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] text-text shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-accent)_30%,transparent)]"
               : "text-text-dim hover:bg-overlay hover:text-text"
         }`}
       >
         {/* Repère d'onglet actif : petit bâton d'accent à gauche (macOS/Linear) */}
         <span
           aria-hidden
-          className={`pill absolute inset-y-0 left-0 my-auto h-4 w-[3px] bg-blue transition-all duration-200 ${
+          className={`pill absolute inset-y-0 left-0 my-auto h-4 w-[3px] bg-accent transition-all duration-200 ${
             active ? "opacity-100" : "scale-y-0 opacity-0"
           }`}
         />
         <span
           className={`h-[17px] w-[17px] shrink-0 transition-colors ${
-            locked ? "text-text-dim/45" : active ? "text-blue" : "text-text-dim/80"
+            locked ? "text-text-dim/45" : active ? "text-accent" : "text-text-dim/80"
           }`}
         >
           {icon}
@@ -812,7 +812,7 @@ export default function Sidebar({
         ) : (
           badges?.[id] && (
             <span
-              className={`h-1.5 w-1.5 shrink-0 rounded-full bg-blue ${reduite ? "absolute right-1.5 top-1.5" : "ml-auto"}`}
+              className={`h-1.5 w-1.5 shrink-0 rounded-full bg-accent ${reduite ? "absolute right-1.5 top-1.5" : "ml-auto"}`}
             />
           )
         )}
@@ -979,7 +979,7 @@ export default function Sidebar({
                             {libelle(cat.label)}
                           </span>
                           {allLocked && <IconLock className="h-3 w-3 text-text-dim/45" />}
-                          {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-blue" />}
+                          {hasBadge && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
                           <svg
                             viewBox="0 0 12 12"
                             className="h-2.5 w-2.5 shrink-0 text-text-dim transition-transform duration-200"

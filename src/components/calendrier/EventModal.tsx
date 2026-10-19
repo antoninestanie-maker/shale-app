@@ -399,7 +399,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
                     }
                     className={`cible-tactile h-8 w-9 rounded-[8px] border text-xs font-medium transition-colors ${
                       jours.includes(d)
-                        ? "border-blue bg-blue/20 text-text"
+                        ? "border-accent bg-accent/20 text-text"
                         : "border-border text-text-dim hover:text-text"
                     }`}
                   >

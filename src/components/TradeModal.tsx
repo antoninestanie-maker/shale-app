@@ -139,7 +139,7 @@ export default function TradeModal({
                 className={`pill border px-3 py-1 text-[11px] font-semibold uppercase transition-colors ${
                   mode === m
                     ? m === "live"
-                      ? "border-blue/50 bg-blue/15 text-blue"
+                      ? "border-accent/50 bg-accent/15 text-accent"
                       : "border-yellow/50 bg-yellow/15 text-yellow"
                     : "border-border text-text-dim hover:text-text"
                 }`}
@@ -173,7 +173,7 @@ export default function TradeModal({
                 value={instrument}
                 onChange={(e) => setInstrument(e.target.value)}
                 placeholder="NQ, EURUSD…"
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-dim focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-dim focus:border-accent focus:outline-none"
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function TradeModal({
                 onChange={(e) => setResultR(e.target.value)}
                 placeholder="+2.5 / -1 / 0"
                 inputMode="decimal"
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-accent focus:outline-none"
               />
             </div>
           </div>
@@ -223,7 +223,7 @@ export default function TradeModal({
               onChange={(e) => setSetup(e.target.value)}
               placeholder="Silver Bullet, OB, FVG…"
               list="setups"
-              className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <datalist id="setups">
               {knownSetups.map((s) => (
@@ -237,7 +237,7 @@ export default function TradeModal({
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t("Notes d'exécution (optionnel)")}
             rows={2}
-            className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 
           <div className="flex items-center gap-2">

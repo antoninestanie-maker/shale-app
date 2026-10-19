@@ -90,7 +90,7 @@ export default function SubscriptionRequired({
           </div>
           <button
             onClick={onSignOut}
-            className="pill mt-5 w-full border border-border bg-surface-2 py-2.5 text-sm text-text transition-colors hover:border-blue/50"
+            className="pill mt-5 w-full border border-border bg-surface-2 py-2.5 text-sm text-text transition-colors hover:border-accent/50"
           >
             {t("Se déconnecter")}
           </button>
@@ -138,7 +138,7 @@ export default function SubscriptionRequired({
           <button
             onClick={recheck}
             disabled={busy}
-            className="pill mt-3 w-full border border-border bg-surface-2 py-2.5 text-sm text-text transition-colors hover:border-blue/50 disabled:opacity-60"
+            className="pill mt-3 w-full border border-border bg-surface-2 py-2.5 text-sm text-text transition-colors hover:border-accent/50 disabled:opacity-60"
           >
             {busy ? t("Vérification…") : t("J'ai souscrit — revérifier")}
           </button>

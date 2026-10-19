@@ -354,7 +354,7 @@ function ListeEtapes(p: PropsListe) {
             </>
           )}
           {glisse && glisse.id !== etape.id && glisse.vers === indexParmiAutres(etapes, glisse.id, etape.id) && (
-            <div className="pointer-events-none absolute inset-x-2 -top-px h-0.5 rounded bg-blue" aria-hidden />
+            <div className="pointer-events-none absolute inset-x-2 -top-px h-0.5 rounded bg-accent" aria-hidden />
           )}
           <LigneEtape
             {...p}
@@ -369,7 +369,7 @@ function ListeEtapes(p: PropsListe) {
         );
       })}
       {glisse && glisse.vers >= etapes.length - 1 && (
-        <div className="pointer-events-none mx-2 h-0.5 rounded bg-blue" aria-hidden />
+        <div className="pointer-events-none mx-2 h-0.5 rounded bg-accent" aria-hidden />
       )}
     </div>
   );
@@ -632,7 +632,7 @@ function LigneEtape(p: PropsLigne) {
               type="button"
               onClick={demanderConversion}
               disabled={conversion}
-              className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-blue hover:bg-surface disabled:opacity-40"
+              className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-surface disabled:opacity-40"
               data-tip={t("Une étape sans rien dedans est une chose à faire")}
               data-tip-sub={t("Elle devient une tâche de « {parent} » : dans Tâches, le Calendrier, Aujourd’hui et le minuteur.", {
                 parent: data.goals.find((g) => g.id === etape.parent_goal_id)?.title ?? "",
@@ -1076,7 +1076,7 @@ function ChampLigne(props: {
         else props.onAnnuler();
       }}
       placeholder={props.placeholder}
-      className="min-w-0 flex-1 basis-[14rem] rounded-[8px] border border-blue bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:outline-none"
+      className="min-w-0 flex-1 basis-[14rem] rounded-[8px] border border-accent bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:outline-none"
     />
   );
 }
@@ -1113,7 +1113,7 @@ function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => 
         }}
         aria={t("Échéance de « {titre} »", { titre: etape.title })}
         placeholder={t("Sans échéance")}
-        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
+        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-accent focus:outline-none"
       />
       {enRetard && <span className="shrink-0 font-medium text-red">{t("En retard")}</span>}
     </div>
@@ -1134,7 +1134,7 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal }) {
         {t("Cette étape est suivie à la main.")}{" "}
         <button
           type="button"
-          className="font-medium text-blue hover:underline"
+          className="font-medium text-accent hover:underline"
           onClick={async () => {
             await majFeuilleDeRoute(goal.id, { manual_progress: 0 });
             await refresh();
@@ -1166,7 +1166,7 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal }) {
                   await refresh();
                 }
               }}
-              className={`cible-tactile px-2.5 py-1 font-medium ${mode === x ? "bg-blue/15 text-blue" : "text-text-dim hover:text-text"}`}
+              className={`cible-tactile px-2.5 py-1 font-medium ${mode === x ? "bg-accent/15 text-accent" : "text-text-dim hover:text-text"}`}
               data-tip={x === "elements" ? t("Compter des éléments") : t("Atteindre un nombre")}
               data-tip-sub={
                 x === "elements"

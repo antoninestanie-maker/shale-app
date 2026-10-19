@@ -132,7 +132,7 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
             value={sujet}
             onChange={(e) => setSujet(e.target.value)}
             placeholder={t("Ce que tu veux planifier (facultatif)")}
-            className="min-w-0 basis-[12rem] flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="min-w-0 basis-[12rem] flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
           <button type="button" onClick={copier} className="pill cible-tactile-ligne border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium text-text">
             {copie ? t("Consigne copiée") : t("Copier la consigne")}
@@ -180,7 +180,7 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
           rows={8}
           spellCheck={false}
           placeholder={t("# Mon objectif\n## Une étape\n- [ ] Une tâche @2026-12-01 !haute")}
-          className={`mt-1.5 w-full resize-y rounded-[10px] border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none ${survol ? "border-blue" : "border-border"}`}
+          className={`mt-1.5 w-full resize-y rounded-[10px] border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none ${survol ? "border-accent" : "border-border"}`}
         />
 
         {plan && !vide && comptes && (
@@ -193,7 +193,7 @@ export default function ImporterChecklist(props: { onFermer: () => void }) {
                   setTitre(e.target.value);
                   setTitreTouche(true);
                 }}
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
               />
             </label>
             <div className="mt-3 flex flex-wrap gap-1.5">

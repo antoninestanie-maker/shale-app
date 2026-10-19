@@ -858,9 +858,9 @@ export function ResizableGrid({
                 onClick={() => restorePanel(id)}
                 data-tip={t("Réafficher ce panneau")}
                 data-tip-sub={t("Le panneau reprend sa place et sa taille dans la grille.")}
-                className="pill inline-flex items-center gap-1 border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-text-dim transition-colors hover:border-blue/50 hover:text-text"
+                className="pill inline-flex items-center gap-1 border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-text-dim transition-colors hover:border-accent/50 hover:text-text"
               >
-                <span className="text-blue">+</span> {label}
+                <span className="text-accent">+</span> {label}
               </button>
             );
           })}

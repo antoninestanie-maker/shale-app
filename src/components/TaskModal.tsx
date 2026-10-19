@@ -144,7 +144,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder={t("Nom de la tâche")}
-            className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 
           <div>
@@ -183,7 +183,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                     onClick={() => toggleDay(d)}
                     className={`h-8 w-9 rounded-[8px] border text-xs font-medium transition-colors ${
                       days.includes(d)
-                        ? "border-blue bg-blue/20 text-text"
+                        ? "border-accent bg-accent/20 text-text"
                         : "border-border text-text-dim hover:text-text"
                     }`}
                   >
@@ -224,7 +224,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                       type="time"
                       value={debut}
                       onChange={(e) => changerDebut(e.target.value)}
-                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
                     />
                   </div>
                   <div className="flex-1">
@@ -233,7 +233,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                       type="time"
                       value={fin}
                       onChange={(e) => setFin(e.target.value)}
-                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                      className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
                     />
                   </div>
                 </div>
@@ -312,7 +312,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                 onChange={(e) =>
                   setGoalId(e.target.value ? Number(e.target.value) : null)
                 }
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
               >
                 <option value="">{t("Aucun")}</option>
                 {goals.map((g) => (

@@ -222,7 +222,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
             <span
               key={e}
               className={`h-1.5 rounded-full transition-all ${
-                k === index ? "w-6 bg-blue" : "w-1.5 bg-border-strong"
+                k === index ? "w-6 bg-accent" : "w-1.5 bg-border-strong"
               }`}
             />
           ))}
@@ -324,7 +324,7 @@ function EtapeTravail({
             aria-pressed={reglages.travail.jours.includes(j)}
             className={`cible-tactile h-9 w-10 rounded-[8px] border text-xs font-medium transition-colors ${
               reglages.travail.jours.includes(j)
-                ? "border-blue bg-blue/20 text-text"
+                ? "border-accent bg-accent/20 text-text"
                 : "border-border text-text-dim hover:text-text"
             }`}
           >
@@ -428,7 +428,7 @@ function EtapeContraints({
                 aria-pressed={brouillon.jours.includes(j)}
                 className={`cible-tactile h-9 w-10 rounded-[8px] border text-xs font-medium transition-colors ${
                   brouillon.jours.includes(j)
-                    ? "border-blue bg-blue/20 text-text"
+                    ? "border-accent bg-accent/20 text-text"
                     : "border-border text-text-dim hover:text-text"
                 }`}
               >
@@ -508,7 +508,7 @@ function EtapeGrille({
                 onClick={() => onCurseur(n)}
                 className={`cible-tactile h-9 min-w-10 rounded-[8px] border px-2 text-xs font-medium tabular-nums transition-colors ${
                   n === curseur
-                    ? "border-blue bg-blue/20 text-text"
+                    ? "border-accent bg-accent/20 text-text"
                     : "border-border bg-overlay text-text-dim hover:text-text"
                 }`}
               >

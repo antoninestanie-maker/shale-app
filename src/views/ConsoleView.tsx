@@ -31,7 +31,7 @@ const DEMO_USERS: Row[] = [
 
 const statusMeta = (): Record<Status, { label: string; color: string }> => ({
   active: { label: "Actif", color: "var(--color-success)" },
-  trialing: { label: "Essai", color: "var(--color-blue)" },
+  trialing: { label: "Essai", color: "var(--color-accent)" },
   past_due: { label: t("Impayé"), color: "var(--color-red)" },
   canceled: { label: t("Résilié"), color: "var(--color-text-dim)" },
 });
@@ -68,9 +68,9 @@ function Sparkline() {
     <svg viewBox={`0 0 ${W} ${H}`} className="h-11 w-full" preserveAspectRatio="none">
       <path
         d={`${d} L${W} ${H} L0 ${H} Z`}
-        fill="color-mix(in srgb, var(--color-blue) 18%, transparent)"
+        fill="color-mix(in srgb, var(--color-accent) 18%, transparent)"
       />
-      <path d={d} fill="none" stroke="var(--color-blue)" strokeWidth="2" strokeLinejoin="round" />
+      <path d={d} fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -147,7 +147,7 @@ export default function ConsoleView() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("Rechercher un e-mail…")}
-          className="w-full max-w-xs rounded-[var(--radius-field)] border border-border bg-surface-2 px-3.5 py-2 text-sm text-text outline-none focus:border-blue/60"
+          className="w-full max-w-xs rounded-[var(--radius-field)] border border-border bg-surface-2 px-3.5 py-2 text-sm text-text outline-none focus:border-accent/60"
         />
       </div>
 

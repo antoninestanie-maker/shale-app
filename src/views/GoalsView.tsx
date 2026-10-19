@@ -691,7 +691,7 @@ export default function GoalsView({ data, refresh }: Props) {
                     await majFeuilleDeRoute(goal.id, { manual_progress: 1 });
                     await refresh();
                   }}
-                  className="cible-tactile-ligne text-xs font-medium text-blue hover:underline"
+                  className="cible-tactile-ligne text-xs font-medium text-accent hover:underline"
                   data-tip={t("Pour un objectif qui ne se découpe pas : tu règles toi-même son avancement.")}
                 >
                   {t("Suivre à la main")}
@@ -713,7 +713,7 @@ export default function GoalsView({ data, refresh }: Props) {
                       await majFeuilleDeRoute(goal.id, { manual_progress: 0 });
                       await refresh();
                     }}
-                    className="cible-tactile-ligne font-medium text-blue hover:underline"
+                    className="cible-tactile-ligne font-medium text-accent hover:underline"
                   >
                     {t("La faire compter")}
                   </button>

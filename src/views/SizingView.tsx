@@ -41,7 +41,7 @@ const tabHints = (): Record<"calc" | "settings", string> => ({
 });
 
 const inputCls =
-  "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
+  "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-accent focus:outline-none";
 const labelCls = "mb-1.5 text-xs font-medium text-text-dim";
 
 function Field({
@@ -293,7 +293,7 @@ export default function SizingView({
                 data-tip-sub={tabHints()[id]}
                 className={`pill border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
                   tab === id
-                    ? "border-blue/50 bg-blue/15 text-blue"
+                    ? "border-accent/50 bg-accent/15 text-accent"
                     : "border-border text-text-dim hover:text-text"
                 }`}
               >
@@ -419,7 +419,7 @@ export default function SizingView({
                     onClick={() => setIncludeSpread((v) => !v)}
                     className={`pill border px-3 py-2 text-xs font-medium transition-colors ${
                       includeSpread
-                        ? "border-blue/40 bg-blue/10 text-blue"
+                        ? "border-accent/40 bg-accent/10 text-accent"
                         : "border-border text-text-dim hover:text-text"
                     }`}
                     data-tip={t("Ajoute le spread à la distance du stop pour un risque conservateur")}
@@ -492,7 +492,7 @@ export default function SizingView({
                           <p className="hud-label">{t("r:r théorique")}</p>
                           <p
                             className={`mt-0.5 font-mono text-sm font-semibold ${
-                              rr != null ? "text-blue" : "text-yellow"
+                              rr != null ? "text-accent" : "text-yellow"
                             }`}
                           >
                             {rr != null ? fmtRR(rr) : t("TP incohérent")}

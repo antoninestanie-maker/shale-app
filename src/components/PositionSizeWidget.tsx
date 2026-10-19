@@ -11,7 +11,7 @@ import { usePositionSizeCalculation } from "../lib/useSizing";
 
 import { t } from "../lib/i18n";
 const inputCls =
-  "w-full rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
+  "w-full rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-accent focus:outline-none";
 
 /**
  * Widget Dashboard : calcul de sizing ultra-rapide (paire, risque, entrée, SL).

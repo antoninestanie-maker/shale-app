@@ -622,7 +622,7 @@ export default function KnowledgeView() {
               }
               data-tip={t("Recherche")}
               data-tip-sub={t("Titre, tags et contenu — tous les mots doivent correspondre.")}
-              className="w-full rounded-[var(--radius-field)] border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-full rounded-[var(--radius-field)] border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
           </label>
 
@@ -672,7 +672,7 @@ export default function KnowledgeView() {
                 }
                 className={`pill px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   tagFilter === tag
-                    ? "bg-blue/15 text-blue"
+                    ? "bg-accent/15 text-accent"
                     : "bg-overlay text-text-dim hover:text-text"
                 }`}
               >
@@ -780,7 +780,7 @@ export default function KnowledgeView() {
               `--card-bg` laisse transparaître la vue floutée (DESIGN.md,
               § Matériaux & élévation). */}
           <div className="card card-solid flex flex-col items-center gap-2 px-8 py-6">
-            <IconNote className="h-7 w-7 text-blue" />
+            <IconNote className="h-7 w-7 text-accent" />
             <p className="font-display text-lg font-bold text-text">
               {t("Déposez pour créer une note")}
             </p>
@@ -1525,7 +1525,7 @@ function TopicForm({
         }}
         placeholder={t("Nom du sujet")}
         aria-label={t("Nom du sujet")}
-        className="mt-2 w-full rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+        className="mt-2 w-full rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
       />
       {doublon && (
         <p className="mt-1.5 text-[11px] text-red">{t("Ce sujet existe déjà.")}</p>
@@ -1541,7 +1541,7 @@ function TopicForm({
               aria-label={t("Teinte du sujet")}
               aria-pressed={color === c}
               className={`h-4 w-4 rounded-full transition-transform ${
-                color === c ? "scale-110 ring-2 ring-blue" : "hover:scale-110"
+                color === c ? "scale-110 ring-2 ring-accent" : "hover:scale-110"
               }`}
               style={{ backgroundColor: c }}
             />
@@ -1701,7 +1701,7 @@ function ThemesEmptyState({
           <button
             type="button"
             onClick={onSeeUnfiled}
-            className="font-medium text-blue underline-offset-2 hover:underline"
+            className="font-medium text-accent underline-offset-2 hover:underline"
           >
             {t("Les voir")}
           </button>
@@ -1820,7 +1820,7 @@ function EntryCard({
           data-tip={entry.pinned === 1 ? t("Désépingler") : t("Épingler")}
           data-tip-sub={t("Les notes épinglées remontent en tête de liste.")}
           className={`rounded-lg p-1.5 transition-colors [@media(pointer:coarse)]:hidden ${
-            entry.pinned === 1 ? "text-blue" : "text-text-dim hover:bg-overlay hover:text-text"
+            entry.pinned === 1 ? "text-accent" : "text-text-dim hover:bg-overlay hover:text-text"
           }`}
         >
           <IconPin className="h-3.5 w-3.5" />
@@ -1846,7 +1846,7 @@ function EntryCard({
       </span>
 
       {entry.pinned === 1 && (
-        <span className="absolute left-0 top-0 h-full w-[3px] bg-blue" aria-hidden />
+        <span className="absolute left-0 top-0 h-full w-[3px] bg-accent" aria-hidden />
       )}
     </div>
   );
@@ -2094,7 +2094,7 @@ function Reader({
             }
             data-tip={t("Sujet de classement")}
             data-tip-sub={t("Déplace la note dans un autre sujet.")}
-            className="min-w-0 max-w-[200px] truncate rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-xs text-text focus:border-blue focus:outline-none"
+            className="min-w-0 max-w-[200px] truncate rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-xs text-text focus:border-accent focus:outline-none"
           >
             <option value="">{t("Non classée")}</option>
             {topics.map((t) => (
@@ -2122,7 +2122,7 @@ function Reader({
                   : t("Masque les outils : plus que le texte, dans une mesure de lecture confortable.")
               }
               className={`rounded-lg p-1.5 transition-colors ${
-                reading ? "text-blue" : "text-text-dim hover:bg-overlay hover:text-text"
+                reading ? "text-accent" : "text-text-dim hover:bg-overlay hover:text-text"
               }`}
             >
               {reading ? <IconPencil className="h-4 w-4" /> : <IconExpand className="h-4 w-4" />}
@@ -2132,7 +2132,7 @@ function Reader({
               onClick={() => patch({ pinned: entry.pinned === 1 ? 0 : 1 })}
               data-tip={entry.pinned === 1 ? t("Désépingler") : t("Épingler")}
               className={`rounded-lg p-1.5 transition-colors ${
-                entry.pinned === 1 ? "text-blue" : "text-text-dim hover:bg-overlay hover:text-text"
+                entry.pinned === 1 ? "text-accent" : "text-text-dim hover:bg-overlay hover:text-text"
               }`}
             >
               <IconPin className="h-4 w-4" />
@@ -2228,7 +2228,7 @@ function Reader({
             placeholder={t("+ tag")}
             data-tip={t("Ajouter un tag")}
             data-tip-sub={t("Entrée pour valider. Les tags filtrent les notes, tous sujets confondus.")}
-            className="w-24 rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="w-24 rounded-[var(--radius-field)] border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 
           {/* Bloc d'actions : solidaire, jamais coupé, toujours à droite —

@@ -234,7 +234,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           onClick={generateReview}
           data-tip={t("Revue de la semaine")}
           data-tip-sub={t("Crée une note avec les chiffres de la semaine : tâches faites et temps de focus.")}
-          className="pill inline-flex items-center gap-1.5 border border-border px-4 py-2 text-sm text-text-dim hover:border-blue/50 hover:text-text"
+          className="pill inline-flex items-center gap-1.5 border border-border px-4 py-2 text-sm text-text-dim hover:border-accent/50 hover:text-text"
         >
           <IconBolt className="h-3.5 w-3.5" /> {t("Générer la revue de la semaine")}
         </button>
@@ -248,7 +248,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           <button
             type="button"
             onClick={() => void choisirJour(today)}
-            className="cible-tactile-ligne mt-1 hidden px-2 text-xs font-medium text-blue telephone:block"
+            className="cible-tactile-ligne mt-1 hidden px-2 text-xs font-medium text-accent telephone:block"
           >
             {t("Revenir à aujourd'hui")}
           </button>
@@ -295,7 +295,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           }}
           placeholder={t("Réflexion du jour — qu'est-ce qui s'est passé, qu'est-ce que tu en retires ?")}
           rows={4}
-          className="mt-4 w-full resize-none rounded-[10px] border border-border bg-surface-2/60 px-3.5 py-2.5 text-sm leading-relaxed text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+          className="mt-4 w-full resize-none rounded-[10px] border border-border bg-surface-2/60 px-3.5 py-2.5 text-sm leading-relaxed text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
         />
       </section>
       </ResizablePanel>
@@ -316,7 +316,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
               value={newHabit}
               onChange={(e) => setNewHabit(e.target.value)}
               placeholder={t("Nouvelle habitude…")}
-              className="w-40 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-40 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <span className="flex flex-wrap gap-1">
               {HABIT_COLORS.map((c) => (
@@ -332,7 +332,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   data-tip={t("Couleur de l’habitude")}
                 >
                   <span
-                    className={`block h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-blue" : ""}`}
+                    className={`block h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-accent" : ""}`}
                     style={{ backgroundColor: c }}
                   />
                 </button>

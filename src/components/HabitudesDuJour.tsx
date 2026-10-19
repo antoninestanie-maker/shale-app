@@ -50,7 +50,7 @@ export default function HabitudesDuJour({
           <button
             type="button"
             onClick={ouvrirJournal}
-            className="cible-tactile-ligne text-xs text-blue hover:underline focus-visible:outline-2 focus-visible:outline-blue"
+            className="cible-tactile-ligne text-xs text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
           >
             {t("Crée la première dans le Journal")}
           </button>

@@ -77,7 +77,7 @@ export default function VueAgenda({
             >
               <span
                 className={`text-sm font-semibold ${
-                  jour === aujourdhui ? "text-blue" : "text-text"
+                  jour === aujourdhui ? "text-accent" : "text-text"
                 }`}
               >
                 {d.toLocaleDateString(localeTag(), { weekday: "long", day: "numeric" })}
@@ -86,7 +86,7 @@ export default function VueAgenda({
                 {d.toLocaleDateString(localeTag(), { month: "long" })}
               </span>
               {jour === aujourdhui && (
-                <span className="ml-auto text-[0.65rem] uppercase tracking-wide text-blue">
+                <span className="ml-auto text-[0.65rem] uppercase tracking-wide text-accent">
                   {t("Aujourd'hui")}
                 </span>
               )}

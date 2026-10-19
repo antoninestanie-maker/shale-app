@@ -456,7 +456,7 @@ function Liens({ photo, editeur, source, fermer }: PropsFenetre) {
         restants.length === 0 ? (
           <div className="text-sm text-text">
             <p>{sortie && sortie.liens.length === 0 ? t("L'IA n'a trouvé aucun lien pertinent.") : t("Plus de suggestion.")}</p>
-            <button type="button" onClick={fermer} className="mt-3 text-sm font-medium text-blue hover:underline">
+            <button type="button" onClick={fermer} className="mt-3 text-sm font-medium text-accent hover:underline">
               {t("Fermer")}
             </button>
           </div>

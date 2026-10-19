@@ -259,7 +259,7 @@ export default function SketchPad({ title, initial, onCancel, onSave }: Props) {
                 aria-label={t("Encre {name}", { name: t(c.name) })}
                 className={`h-6 w-6 rounded-full border transition-transform ${
                   ink === c.value && !erasing
-                    ? "scale-110 border-transparent ring-2 ring-blue"
+                    ? "scale-110 border-transparent ring-2 ring-accent"
                     : "border-border hover:scale-110"
                 }`}
                 style={{ backgroundColor: c.value }}

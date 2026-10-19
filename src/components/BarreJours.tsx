@@ -92,7 +92,7 @@ export default function BarreJours({
               </span>
               <span
                 className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm tabular-nums ${
-                  estAujourdhui ? "bg-blue-solid font-semibold text-on-blue" : "text-text"
+                  estAujourdhui ? "bg-accent-solid font-semibold text-on-accent" : "text-text"
                 }`}
               >
                 {Number(d.slice(8))}

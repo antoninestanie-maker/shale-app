@@ -151,7 +151,7 @@ export default function RattacherElement(props: {
         placeholder={t("Chercher une tâche, une note, une fiche…")}
         aria-label={t("Rattacher un élément à « {titre} »", { titre: goal.title })}
         aria-autocomplete="list"
-        className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+        className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
       />
       {options.length > 0 && (
         // ⚠️ DANS le flux, pas en `absolute` : sous la dernière étape, une liste
@@ -170,7 +170,7 @@ export default function RattacherElement(props: {
               >
                 {o.type === "creer" ? (
                   <>
-                    <IconPlus className="h-3.5 w-3.5 shrink-0 text-blue" />
+                    <IconPlus className="h-3.5 w-3.5 shrink-0 text-accent" />
                     <span className="min-w-0 truncate text-text">{t("Créer la tâche « {titre} »", { titre: q })}</span>
                   </>
                 ) : (
@@ -378,14 +378,14 @@ function ComposerTache(props: { goal: Goal; surObjectif?: boolean; refresh: () =
         }}
         placeholder={props.surObjectif ? t("À faire pour cet objectif…") : t("À faire pour cette étape…")}
         aria-label={t("Nouvelle tâche pour « {titre} »", { titre: props.goal.title })}
-        className="min-w-0 flex-1 basis-[11rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+        className="min-w-0 flex-1 basis-[11rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
       />
       <ChampDate
         valeur={echeance}
         onChange={setEcheance}
         aria={t("Échéance")}
         placeholder={t("Sans échéance")}
-        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
+        className="cible-tactile-ligne flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-accent focus:outline-none"
       />
       <PastillePriorite valeur={priorite} onChange={setPriorite} />
       {/* ⚠️ LES DEUX BOUTONS DANS UN SEUL BLOC. Séparés, la croix se retrouvait

@@ -1013,7 +1013,7 @@ function RangeeSemaine({
               <span className="flex items-center gap-1">
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full text-[0.7rem] ${
-                    jour === aujourdhui ? "bg-blue-solid font-semibold text-on-blue" : "text-text-dim"
+                    jour === aujourdhui ? "bg-accent-solid font-semibold text-on-accent" : "text-text-dim"
                   }`}
                 >
                   {Number(jour.slice(8))}

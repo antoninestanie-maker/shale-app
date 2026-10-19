@@ -74,7 +74,7 @@ export default function QuickLinks({ links, refresh }: Props) {
             <button
               type="button"
               onClick={() => openLink(link.url)}
-              className="pill block max-w-[220px] truncate border border-border bg-surface-2 px-3.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-blue/50 hover:bg-overlay-2 hover:text-blue"
+              className="pill block max-w-[220px] truncate border border-border bg-surface-2 px-3.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent/50 hover:bg-overlay-2 hover:text-accent"
               data-tip={link.label}
               data-tip-sub={link.url}
             >
@@ -129,13 +129,13 @@ export default function QuickLinks({ links, refresh }: Props) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={t("Nom")}
-              className="min-w-0 flex-1 basis-[6rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="min-w-0 flex-1 basis-[6rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="URL"
-              className="min-w-0 flex-[2] basis-[9rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="min-w-0 flex-[2] basis-[9rem] rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <button
               type="submit"

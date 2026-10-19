@@ -235,7 +235,7 @@ function Estimer({ task, data, fermer }: { task: Task; data: AppData; fermer: ()
             ))}
           </ul>
         )}
-        <button type="button" onClick={fermer} className="self-start text-sm font-medium text-blue hover:underline">
+        <button type="button" onClick={fermer} className="self-start text-sm font-medium text-accent hover:underline">
           {t("Fermer")}
         </button>
       </div>

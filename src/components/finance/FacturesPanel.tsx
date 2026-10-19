@@ -232,7 +232,7 @@ export default function FacturesPanel({
             onClick={() => setFiltre(f.id)}
             className={`cible-tactile-ligne rounded-pill border px-2.5 py-1 text-xs transition-colors ${
               filtre === f.id
-                ? "border-blue bg-overlay-2 text-text"
+                ? "border-accent bg-overlay-2 text-text"
                 : "border-border text-text-dim hover:bg-overlay hover:text-text"
             }`}
           >

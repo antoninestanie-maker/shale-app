@@ -111,7 +111,7 @@ export function CaseACocher({
         e.stopPropagation();
         onBascule();
       }}
-      className="cible-tactile group -m-1.5 flex shrink-0 items-center justify-center rounded-lg p-1.5 focus-visible:outline-2 focus-visible:outline-blue"
+      className="cible-tactile group -m-1.5 flex shrink-0 items-center justify-center rounded-lg p-1.5 focus-visible:outline-2 focus-visible:outline-accent"
     >
       <CocheVisuelle cochee={cochee} couleur={couleur} anneau={anneau} taille={taille} />
     </button>

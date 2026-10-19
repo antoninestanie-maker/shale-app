@@ -600,7 +600,7 @@ export default function TasksView({ data, refresh }: Props) {
         key={task.id}
         data-tache={task.id}
         className={`group/ligne flex items-start gap-3 rounded-[10px] px-3 py-2 transition-colors duration-500 hover:bg-surface-2 ${
-          nouvelle === task.id ? "bg-blue/10" : ""
+          nouvelle === task.id ? "bg-accent/10" : ""
         }`}
         onContextMenu={(e) => menu.ouvrirAuPoint(e, task)}
         onKeyDown={(e) => {
@@ -781,7 +781,7 @@ export default function TasksView({ data, refresh }: Props) {
             onClick={() => setCapture(true)}
             data-tip={t("Capturer avec l'IA")}
             data-tip-sub={t("Un e-mail, un PDF, une photo de reçu ou du vrac : l'IA propose des tâches, rendez-vous et achats à valider.")}
-            className="pill flex shrink-0 items-center gap-2 border border-border bg-surface-2 px-4 py-2 text-sm text-text hover:border-blue/50"
+            className="pill flex shrink-0 items-center gap-2 border border-border bg-surface-2 px-4 py-2 text-sm text-text hover:border-accent/50"
           >
             <IconeIa className="h-4 w-4" />
             {t("Capturer")}
@@ -897,7 +897,7 @@ export default function TasksView({ data, refresh }: Props) {
 
         {/* Au téléphone, la recherche partage la rangée du rangement (une
             rangée de commandes de moins avant la première tâche). */}
-        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-blue sm:ml-auto sm:w-56 telephone:w-auto telephone:min-w-0 telephone:flex-1">
+        <label className="flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 transition-colors focus-within:border-accent sm:ml-auto sm:w-56 telephone:w-auto telephone:min-w-0 telephone:flex-1">
           <IconSearch className="h-3.5 w-3.5 shrink-0 text-text-dim" />
           <input
             type="search"
@@ -981,7 +981,7 @@ export default function TasksView({ data, refresh }: Props) {
               onChange={(e) => setNewTagName(e.target.value)}
               placeholder={t("Nouveau tag…")}
               aria-label={t("Nom du nouveau tag")}
-              className="w-40 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-40 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <span className="flex flex-wrap gap-1">
               {TAG_COLORS.map((c) => (
@@ -989,7 +989,7 @@ export default function TasksView({ data, refresh }: Props) {
                   key={c}
                   type="button"
                   onClick={() => setNewTagColor(c)}
-                  className={`cible-tactile h-5 w-5 rounded-full transition-transform ${newTagColor === c ? "scale-110 ring-2 ring-blue" : ""}`}
+                  className={`cible-tactile h-5 w-5 rounded-full transition-transform ${newTagColor === c ? "scale-110 ring-2 ring-accent" : ""}`}
                   style={{ backgroundColor: c }}
                   aria-label={t("Couleur {name}", { name: c })}
                   aria-pressed={newTagColor === c}
@@ -1025,7 +1025,7 @@ export default function TasksView({ data, refresh }: Props) {
                   setTagFilter(null);
                   setRecherche("");
                 }}
-                className="cible-tactile-ligne mt-2 text-xs font-medium text-blue hover:underline"
+                className="cible-tactile-ligne mt-2 text-xs font-medium text-accent hover:underline"
               >
                 {t("Effacer les filtres")}
               </button>

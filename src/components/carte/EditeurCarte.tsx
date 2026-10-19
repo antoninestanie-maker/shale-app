@@ -2104,7 +2104,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
                     }
                   }
                 }}
-                className="absolute rounded-[9px] border-2 border-blue bg-surface px-3 text-[14px] text-text focus:outline-none"
+                className="absolute rounded-[9px] border-2 border-accent bg-surface px-3 text-[14px] text-text focus:outline-none"
                 style={{
                   left: boiteEnEdition.x,
                   top: boiteEnEdition.y,
@@ -2130,7 +2130,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
             </div>
           )}
           {rattache && (
-            <div className="glass pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-blue px-3 py-1.5 text-[11px] text-text">
+            <div className="glass pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-accent px-3 py-1.5 text-[11px] text-text">
               {t("Choisis le nœud qui accueillera « {titre} »", {
                 titre: noeudDe(courante, rattache)?.texte || t("sans titre"),
               })}

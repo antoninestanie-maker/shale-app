@@ -47,18 +47,18 @@ export function EtatIa({
     <div role="alert" className="rounded-[10px] border border-border bg-surface-2 px-3.5 py-3 text-sm text-text">
       <p className="leading-relaxed">{m.texte}</p>
       {m.geste === "reessayer" && onReessayer && (
-        <button type="button" onClick={onReessayer} className="cible-tactile-ligne mt-2 text-sm font-medium text-blue hover:underline">
+        <button type="button" onClick={onReessayer} className="cible-tactile-ligne mt-2 text-sm font-medium text-accent hover:underline">
           {t("Réessayer")}
         </button>
       )}
       {m.geste === "reglages" && onOuvrirReglages && (
-        <button type="button" onClick={onOuvrirReglages} className="cible-tactile-ligne mt-2 text-sm font-medium text-blue hover:underline">
+        <button type="button" onClick={onOuvrirReglages} className="cible-tactile-ligne mt-2 text-sm font-medium text-accent hover:underline">
           {t("Ouvrir les Réglages")}
         </button>
       )}
       {m.geste === "pro" && (
         <>
-          <button type="button" onClick={() => setPro(true)} className="cible-tactile-ligne mt-2 text-sm font-medium text-blue hover:underline">
+          <button type="button" onClick={() => setPro(true)} className="cible-tactile-ligne mt-2 text-sm font-medium text-accent hover:underline">
             {t("Découvrir Shale Pro")}
           </button>
           {pro && <UpgradeModal offre="pro" onClose={() => setPro(false)} />}

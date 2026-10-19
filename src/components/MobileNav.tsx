@@ -178,13 +178,13 @@ export default function MobileNav({
         onClick={() => (id === "plus" ? setPlusOuvert((v) => !v) : aller(id as View))}
         aria-current={actif ? "page" : undefined}
         className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition-colors ${
-          actif ? "text-blue" : "text-text-dim"
+          actif ? "text-accent" : "text-text-dim"
         }`}
       >
         <span className="relative grid size-6 place-items-center [&>svg]:size-6">
           {id === "plus" ? iconePlus : item?.icon}
           {(id === "plus" ? !plusOuvert && badgeDansPlus : badgeDe(id)) && (
-            <span className="bg-blue absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
+            <span className="bg-accent absolute -right-0.5 -top-0.5 size-1.5 rounded-full" />
           )}
         </span>
         <span className="w-full truncate text-[11px] font-semibold leading-none">
@@ -212,14 +212,14 @@ export default function MobileNav({
         type="button"
         onClick={() => aller(id)}
         className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
-          view === id ? "bg-overlay-2 text-blue" : "hover:bg-overlay"
+          view === id ? "bg-overlay-2 text-accent" : "hover:bg-overlay"
         } ${verrou ? "text-text-dim" : ""}`}
       >
         <span className="grid size-6 shrink-0 place-items-center [&>svg]:size-[22px]">
           {dansLeCatalogue(id)?.icon}
         </span>
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{libelle(id)}</span>
-        {badgeDe(id) && <span className="bg-blue size-2 shrink-0 rounded-full" />}
+        {badgeDe(id) && <span className="bg-accent size-2 shrink-0 rounded-full" />}
         {verrou && <span className="shrink-0">{cadenas}</span>}
       </button>
     );
@@ -233,7 +233,7 @@ export default function MobileNav({
       onClick={() => aller(id)}
       aria-current={view === id ? "page" : undefined}
       className={`flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-start gap-1 rounded-xl px-1 py-2 transition-colors ${
-        view === id ? "bg-overlay-2 text-blue" : "text-text-dim hover:bg-overlay"
+        view === id ? "bg-overlay-2 text-accent" : "text-text-dim hover:bg-overlay"
       }`}
     >
       <span className="grid size-6 shrink-0 place-items-center [&>svg]:size-[22px]">

@@ -55,7 +55,7 @@ type Expanded =
   | { id: number; kind: "win" };
 
 const fieldCls =
-  "w-28 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
+  "w-28 rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-text placeholder:font-body placeholder:text-text-dim focus:border-accent focus:outline-none";
 
 export default function LiveTracker({ data, refresh, onToast }: Props) {
   const [positions, setPositions] = useState<LivePosition[]>([]);
@@ -172,7 +172,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
           {t("Aucune position en attente. Depuis")}{" "}
           <span className="font-semibold text-text">{t("Position")}</span>
           {t(", clique sur")}{" "}
-          <span className="font-semibold text-blue">{t("Trader")}</span>
+          <span className="font-semibold text-accent">{t("Trader")}</span>
           {" "}
           {t(": la position arrive ici avec son heure d'entrée, son R:R et sa taille.")}
         </p>
@@ -244,7 +244,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                                 : { id: pos.id, kind: "tp" },
                             )
                           }
-                          className="mt-0.5 text-text-dim underline decoration-dotted hover:text-blue"
+                          className="mt-0.5 text-text-dim underline decoration-dotted hover:text-accent"
                         >
                           {t("définir")}
                         </button>
@@ -259,7 +259,7 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                   </div>
 
                   {/* R:R théorique (calculé automatiquement à la réception) */}
-                  <span className="pill shrink-0 border border-blue/40 bg-blue/10 px-2.5 py-1 font-mono text-xs font-semibold text-blue">
+                  <span className="pill shrink-0 border border-accent/40 bg-accent/10 px-2.5 py-1 font-mono text-xs font-semibold text-accent">
                     R:R {fmtRR(pos.rr_theoretical)}
                   </span>
 
@@ -288,8 +288,8 @@ export default function LiveTracker({ data, refresh, onToast }: Props) {
                         data-tip-sub={t("Sécuriser une part de la position (ex. 50 %) à un prix donné — le R final en tient compte.")}
                         className={`pill inline-flex items-center gap-1 border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
                           isExp?.kind === "partial"
-                            ? "border-blue/50 bg-blue/15 text-blue"
-                            : "border-border text-text-dim hover:border-blue/40 hover:text-blue"
+                            ? "border-accent/50 bg-accent/15 text-accent"
+                            : "border-border text-text-dim hover:border-accent/40 hover:text-accent"
                         }`}
                       >
                         <IconPlus className="h-3 w-3" /> {t("partielle")}

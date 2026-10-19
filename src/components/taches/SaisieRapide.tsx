@@ -105,7 +105,7 @@ export default function SaisieRapide(props: {
       {/* Un <div>, pas un <label> : la pastille de priorité en est un, et un
           <label> dans un <label> n'est pas du HTML. `flex-wrap` : à 390 px, les
           pastilles passent sous le champ au lieu de l'écraser. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[12px] border border-border bg-surface py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-blue">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[12px] border border-border bg-surface py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-accent">
         {props.plus && <IconPlus className="h-4 w-4 shrink-0 text-text-dim" />}
         <input
           ref={champ}
@@ -135,7 +135,7 @@ export default function SaisieRapide(props: {
             {resolue.jour ? (
               <span
                 className={`pill inline-flex items-center border text-[11px] font-medium ${
-                  retirable ? "border-blue/40 bg-blue/10 text-text" : "border-border text-text-dim"
+                  retirable ? "border-accent/40 bg-accent/10 text-text" : "border-border text-text-dim"
                 }`}
               >
                 <button

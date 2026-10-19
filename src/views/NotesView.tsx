@@ -424,7 +424,7 @@ export default function NotesView({ data, refresh }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("Rechercher…")}
-            className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
           <button
             type="button"
@@ -606,7 +606,7 @@ export default function NotesView({ data, refresh }: Props) {
                   onClick={() => l.note && setSelectedId(l.note.id)}
                   className={`pill border px-2.5 py-1 text-[11px] font-medium ${
                     l.note
-                      ? "border-blue/40 bg-blue/10 text-blue hover:bg-blue/20"
+                      ? "border-accent/40 bg-accent/10 text-accent hover:bg-accent/20"
                       : "border-border text-text-dim opacity-60"
                   }`}
                   data-tip={l.note ? t("Ouvrir « {label} »", { label: l.label }) : t("Note inexistante")}

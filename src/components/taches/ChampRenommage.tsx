@@ -38,7 +38,7 @@ export default function ChampRenommage(props: {
       onBlur={(e) => props.onValider(e.currentTarget.value)}
       className={
         props.className ??
-        "w-full rounded-md border border-blue bg-surface px-2 py-0.5 text-sm text-text focus:outline-none"
+        "w-full rounded-md border border-accent bg-surface px-2 py-0.5 text-sm text-text focus:outline-none"
       }
     />
   );

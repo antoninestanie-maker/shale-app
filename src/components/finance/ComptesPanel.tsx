@@ -368,7 +368,7 @@ function LigneCompte({
             data-tip={t("Saisir le solde d'aujourd'hui")}
             className={`flex items-center gap-2 rounded-[10px] border px-2.5 py-1.5 text-sm transition-colors ${
               montantCents === null
-                ? "border-dashed border-blue/50 text-blue hover:bg-blue/10"
+                ? "border-dashed border-accent/50 text-accent hover:bg-accent/10"
                 : "border-border text-text hover:border-border-strong hover:bg-overlay"
             }`}
           >
@@ -571,7 +571,7 @@ export function FormulaireCompte({
         <label className="flex items-start gap-2.5 rounded-[10px] border border-border p-3">
           <input
             type="checkbox"
-            className="mt-0.5 accent-[var(--color-blue)]"
+            className="mt-0.5 accent-[var(--color-accent)]"
             checked={form.is_liquid}
             onChange={(e) => setForm((f) => ({ ...f, is_liquid: e.target.checked }))}
           />

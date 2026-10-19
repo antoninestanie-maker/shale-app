@@ -177,7 +177,7 @@ export function SujetsBrief() {
         <button
           type="button"
           onClick={() => setSujets([...sujets, { nom: "", flux: [] }])}
-          className="mt-2 text-sm font-medium text-blue hover:underline"
+          className="mt-2 text-sm font-medium text-accent hover:underline"
         >
           {t("Ajouter un sujet")}
         </button>

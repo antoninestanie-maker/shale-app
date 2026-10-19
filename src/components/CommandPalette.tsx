@@ -164,7 +164,7 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
             {!argAction ? (
               <>
                 <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-                  <span className="font-mono text-sm text-blue">{kbd("⌘")}</span>
+                  <span className="font-mono text-sm text-accent">{kbd("⌘")}</span>
                   <input
                     ref={inputRef}
                     value={query}

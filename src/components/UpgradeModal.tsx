@@ -72,7 +72,7 @@ export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: 
           <IconX className="h-4 w-4" />
         </button>
 
-        <span className="inline-flex items-center gap-2 rounded-full border border-blue/30 bg-blue/10 px-3 py-1 text-[11px] font-semibold text-blue">
+        <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-semibold text-accent">
           <IconLock className="h-3.5 w-3.5" />
           {pro ? t("Inclus dans Shale Pro") : t("Inclus dans Shale Trade")}
         </span>
@@ -100,7 +100,7 @@ export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: 
           <ul className="mt-6 flex flex-col gap-4">
             {TRADING_PITCH.map((item) => (
               <li key={item.title} className="grid grid-cols-[auto_1fr] gap-3">
-                <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
+                <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                 <div className="min-w-0">
                   <p className="text-[13.5px] font-semibold text-text">{t(item.title)}</p>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-text-dim">{t(item.body)}</p>
@@ -122,7 +122,7 @@ export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: 
           <button
             type="button"
             onClick={onClose}
-            className="pill border border-border bg-surface-2 px-5 py-2.5 text-sm text-text transition-colors hover:border-blue/50"
+            className="pill border border-border bg-surface-2 px-5 py-2.5 text-sm text-text transition-colors hover:border-accent/50"
           >
             {t("Plus tard")}
           </button>

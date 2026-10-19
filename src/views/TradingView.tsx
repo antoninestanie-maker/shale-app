@@ -61,7 +61,7 @@ function WinrateGauge({ stats }: { stats: TradeStats }) {
 /** Compteurs W / BE / L colorés. */
 function CountPills({ stats }: { stats: TradeStats }) {
   const items = [
-    { n: stats.count, color: "var(--color-blue)", title: t("trades") },
+    { n: stats.count, color: "var(--color-accent)", title: t("trades") },
     { n: stats.wins, color: "var(--color-success)", title: t("gagnants") },
     { n: stats.be, color: "var(--color-yellow)", title: "break-even" },
     { n: stats.losses, color: "var(--color-red)", title: t("perdants") },
@@ -219,7 +219,7 @@ export default function TradingView({ data, refresh }: Props) {
                 className={`pill border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
                   tab === m
                     ? m === "live"
-                      ? "border-blue/50 bg-blue/15 text-blue"
+                      ? "border-accent/50 bg-accent/15 text-accent"
                       : "border-yellow/50 bg-yellow/15 text-yellow"
                     : "border-border text-text-dim hover:text-text"
                 }`}
@@ -332,8 +332,8 @@ export default function TradingView({ data, refresh }: Props) {
             <ComposedChart data={equity} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
               <defs>
                 <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={tab === "live" ? "var(--color-blue)" : "var(--color-yellow)"} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={tab === "live" ? "var(--color-blue)" : "var(--color-yellow)"} stopOpacity={0} />
+                  <stop offset="0%" stopColor={tab === "live" ? "var(--color-accent)" : "var(--color-yellow)"} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={tab === "live" ? "var(--color-accent)" : "var(--color-yellow)"} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
@@ -358,7 +358,7 @@ export default function TradingView({ data, refresh }: Props) {
               <Area
                 type="monotone"
                 dataKey="r"
-                stroke={tab === "live" ? "var(--color-blue)" : "var(--color-yellow)"}
+                stroke={tab === "live" ? "var(--color-accent)" : "var(--color-yellow)"}
                 strokeWidth={2.5}
                 fill="url(#equityFill)"
               />

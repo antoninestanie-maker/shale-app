@@ -135,8 +135,8 @@ export default function PositionSizeHistory({
                       }
                       className={`pill inline-flex items-center gap-1 border px-2 py-0.5 text-[10px] font-semibold uppercase transition-colors ${
                         c.used_for_trade
-                          ? "border-blue/50 bg-blue/15 text-blue"
-                          : "border-border text-text-dim hover:border-blue/40 hover:text-blue"
+                          ? "border-accent/50 bg-accent/15 text-accent"
+                          : "border-border text-text-dim hover:border-accent/40 hover:text-accent"
                       }`}
                     >
                       <span

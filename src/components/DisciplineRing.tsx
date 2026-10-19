@@ -84,7 +84,7 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
             cy="110"
             r="92"
             fill="none"
-            stroke="color-mix(in srgb, var(--color-blue) 28%, transparent)"
+            stroke="color-mix(in srgb, var(--color-accent) 28%, transparent)"
             strokeWidth="1"
             strokeDasharray="2 14"
           />

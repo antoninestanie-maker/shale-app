@@ -97,7 +97,7 @@ export default function ChampDate(props: {
         data-tip={props.tip}
         className={
           props.className ??
-          "cible-tactile flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none disabled:opacity-40"
+          "cible-tactile flex w-full items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-accent focus:outline-none disabled:opacity-40"
         }
       >
         <IconCalendar className="h-3.5 w-3.5 shrink-0 text-text-dim" />
@@ -453,9 +453,9 @@ export function PanneauDate(props: {
               onClick={() => choisir(jour)}
               className={`${cellulePleine} disabled:cursor-not-allowed disabled:text-text-dim/30 disabled:hover:bg-transparent ${
                 choisi
-                  ? "bg-blue-solid font-semibold text-on-blue"
+                  ? "bg-accent-solid font-semibold text-on-accent"
                   : cejour
-                    ? "font-semibold text-blue hover:bg-overlay"
+                    ? "font-semibold text-accent hover:bg-overlay"
                     : dehors
                       ? "text-text-dim/55 hover:bg-overlay"
                       : "text-text hover:bg-overlay"
@@ -477,7 +477,7 @@ export function PanneauDate(props: {
             onClick={() => choisir(r.jour)}
             className={`pill cible-tactile-ligne border px-2.5 py-1 text-[11px] font-medium transition-colors ${
               valeur === r.jour
-                ? "border-blue/40 bg-blue/15 text-text"
+                ? "border-accent/40 bg-accent/15 text-text"
                 : "border-border text-text-dim hover:text-text"
             }`}
           >
@@ -518,7 +518,7 @@ export function PanneauDate(props: {
           placeholder={gabaritDeSaisie()}
           aria-label={t("Taper une date")}
           aria-invalid={saisie.trim() !== "" && parserSaisie(saisie, curseur) === null}
-          className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-center text-[13px] tabular-nums text-text placeholder:text-text-dim focus:border-blue focus:outline-none aria-[invalid=true]:border-red/60"
+          className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-center text-[13px] tabular-nums text-text placeholder:text-text-dim focus:border-accent focus:outline-none aria-[invalid=true]:border-red/60"
         />
         {/* Ce qui a été lu, AVANT de valider : « 24/09 » est ambigu pour
             qui doute de l'ordre des champs, et la réponse lève le doute

@@ -47,7 +47,7 @@ function Champ({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-[--radius-field] border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-blue"
+        className="mt-1.5 w-full rounded-[--radius-field] border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
       />
     </label>
   );
@@ -86,7 +86,7 @@ export default function SyncSettings() {
 
   const bouton = "pill fill-primary px-4 py-2 text-sm font-semibold disabled:opacity-40";
   const boutonSecondaire =
-    "pill border border-border bg-surface-2 px-4 py-2 text-sm text-text transition-colors hover:border-blue/50 disabled:opacity-40";
+    "pill border border-border bg-surface-2 px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 disabled:opacity-40";
 
   return (
     <section className="card p-5">
@@ -197,7 +197,7 @@ export default function SyncSettings() {
               type="checkbox"
               checked={confirmeRepublication}
               onChange={(e) => setConfirmeRepublication(e.target.checked)}
-              className="h-4 w-4 accent-[var(--color-blue)]"
+              className="h-4 w-4 accent-[var(--color-accent)]"
             />
             {t("j'ai compris que le contenu du cloud sera remplacé")}
           </label>
@@ -228,8 +228,8 @@ export default function SyncSettings() {
                 }}
                 className={`pill border px-3 py-1.5 text-xs transition-colors ${
                   statutDemo() === s
-                    ? "border-blue/50 bg-blue/10 text-blue"
-                    : "border-border bg-surface-2 text-text-dim hover:border-blue/30"
+                    ? "border-accent/50 bg-accent/10 text-accent"
+                    : "border-border bg-surface-2 text-text-dim hover:border-accent/30"
                 }`}
               >
                 {s}

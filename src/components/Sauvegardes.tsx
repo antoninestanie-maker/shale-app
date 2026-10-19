@@ -41,7 +41,7 @@ export default function Sauvegardes() {
   };
 
   const boutonSecondaire =
-    "pill border border-border bg-surface-2 px-4 py-2 text-sm text-text transition-colors hover:border-blue/50 disabled:opacity-40";
+    "pill border border-border bg-surface-2 px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 disabled:opacity-40";
 
   return (
     <section className="card p-5">
@@ -80,7 +80,7 @@ export default function Sauvegardes() {
       </div>
 
       {aRedemarrer && (
-        <p className="mt-3 rounded-[10px] border border-blue/30 bg-blue/10 px-3 py-2 text-xs leading-relaxed text-blue">
+        <p className="mt-3 rounded-[10px] border border-accent/30 bg-accent/10 px-3 py-2 text-xs leading-relaxed text-accent">
           {t(
             "Restauration prête. Elle sera appliquée au prochain démarrage de Shale — quitte et relance l'app. L'état actuel sera mis de côté au passage, rien n'est définitif.",
           )}
@@ -106,7 +106,7 @@ export default function Sauvegardes() {
                 type="button"
                 disabled={occupe}
                 onClick={() => setARestaurer(s)}
-                className="pill shrink-0 border border-border bg-surface-2 px-3 py-1.5 text-xs text-text transition-colors hover:border-blue/50"
+                className="pill shrink-0 border border-border bg-surface-2 px-3 py-1.5 text-xs text-text transition-colors hover:border-accent/50"
               >
                 {t("Restaurer")}
               </button>

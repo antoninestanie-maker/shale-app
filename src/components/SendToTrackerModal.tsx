@@ -28,7 +28,7 @@ interface Props {
 }
 
 const fieldCls =
-  "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-blue focus:outline-none";
+  "w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder:font-body placeholder:text-text-dim focus:border-accent focus:outline-none";
 
 export default function SendToTrackerModal({
   draft,
@@ -119,7 +119,7 @@ export default function SendToTrackerModal({
           >
             {draft.direction}
           </span>
-          <span className="ml-auto pill border border-blue/40 bg-blue/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue">
+          <span className="ml-auto pill border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-accent">
             R:R {fmtRR(rr)}
           </span>
         </div>
@@ -167,7 +167,7 @@ export default function SendToTrackerModal({
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="accent-[var(--color-blue)]"
+            className="accent-[var(--color-accent)]"
           />
           {t("Ne plus demander — envoyer directement (mode fast-track)")}
         </label>

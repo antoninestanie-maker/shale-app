@@ -51,7 +51,7 @@ export default function HorlogeAnneau({
             cy="140"
             r={R}
             fill="none"
-            stroke={estPause ? "var(--color-success-fill)" : "var(--color-blue)"}
+            stroke={estPause ? "var(--color-success-fill)" : "var(--color-accent)"}
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={CIRC}

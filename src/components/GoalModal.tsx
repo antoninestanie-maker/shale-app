@@ -219,7 +219,7 @@ export default function GoalModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("Titre de l'objectif")}
-            className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 
           <textarea
@@ -227,7 +227,7 @@ export default function GoalModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("Description (optionnel)")}
             rows={2}
-            className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+            className="w-full resize-none rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 
           {estEtape && (
@@ -264,7 +264,7 @@ export default function GoalModal({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder={t("ex. Formation, Santé, Finances… (optionnel)")}
-              className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <datalist id="goal-categories">
               {knownCategories.map((c) => (
@@ -280,7 +280,7 @@ export default function GoalModal({
                     onClick={() => setCategory(category === c ? "" : c)}
                     className={`pill border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                       category.trim() === c
-                        ? "border-blue bg-blue/15 text-blue"
+                        ? "border-accent bg-accent/15 text-accent"
                         : "border-border text-text-dim hover:text-text"
                     }`}
                   >
@@ -301,7 +301,7 @@ export default function GoalModal({
                 onChange={(e) =>
                   setParentId(e.target.value ? Number(e.target.value) : null)
                 }
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
               >
                 <option value="">{t("Aucun")}</option>
                 {parentOptions.map((g) => (
@@ -335,7 +335,7 @@ export default function GoalModal({
                 className={`pill border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   manual
                     ? "border-border text-text-dim"
-                    : "border-blue bg-blue/15 text-blue"
+                    : "border-accent bg-accent/15 text-accent"
                 }`}
               >
                 {manual ? t("saisie à la main") : t("mesurée")}
@@ -350,7 +350,7 @@ export default function GoalModal({
                   step={5}
                   value={progress}
                   onChange={(e) => setProgress(Number(e.target.value))}
-                  className="flex-1 accent-[var(--color-blue)]"
+                  className="flex-1 accent-[var(--color-accent)]"
                 />
                 <span className="w-12 text-right font-display text-sm font-bold text-text">
                   {progress}%
@@ -406,7 +406,7 @@ export default function GoalModal({
                       onKeyDown={ligneSuivante(i)}
                       placeholder={i === 0 ? t("ex. Réviser 1 h") : t("Tâche suivante…")}
                       aria-label={t("Tâche {n}", { n: i + 1 })}
-                      className="min-w-0 flex-1 basis-[9rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+                      className="min-w-0 flex-1 basis-[9rem] rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
                     />
                     <ChampDate
                       valeur={ligne.echeance}
@@ -421,7 +421,7 @@ export default function GoalModal({
                          largeur posée chaque rangée de tâche décalait son nom
                          d'une dizaine de pixels par rapport à la précédente.
                          Le libellé tronque déjà (`truncate` dans `ChampDate`). */
-                      className="cible-tactile-ligne flex w-[10.5rem] shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-blue focus:outline-none"
+                      className="cible-tactile-ligne flex w-[10.5rem] shrink-0 items-center gap-1.5 rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-left text-sm text-text transition-colors hover:border-border-strong focus:border-accent focus:outline-none"
                     />
                   </div>
                 ))}
@@ -442,7 +442,7 @@ export default function GoalModal({
                     onKeyDown={ligneSuivante(i)}
                     placeholder={i === 0 ? t("ex. Préparation") : t("Étape suivante…")}
                     aria-label={t("Étape {n}", { n: i + 1 })}
-                    className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+                    className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
                   />
                 ))}
               </div>

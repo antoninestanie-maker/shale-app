@@ -200,7 +200,7 @@ export default function DepuisCarte(props: {
                   }
                 }}
                 placeholder={t("Titre de l'objectif")}
-                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+                className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
               />
             </label>
 

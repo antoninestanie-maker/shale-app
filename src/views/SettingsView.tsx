@@ -82,7 +82,7 @@ function ToggleRow({
       </span>
       <span
         className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
-          value ? "bg-blue" : "bg-surface-2"
+          value ? "bg-accent" : "bg-surface-2"
         }`}
       >
         <span
@@ -145,7 +145,7 @@ function NumberField({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="w-full min-w-0 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
+          className="w-full min-w-0 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-accent/50"
         />
         {suffix && <span className="shrink-0 text-xs text-text-dim">{suffix}</span>}
       </span>
@@ -435,7 +435,7 @@ export default function SettingsView() {
               <button
                 type="button"
                 onClick={() => openExternal(ACCOUNT_PAGES.home)}
-                className="mt-1 text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+                className="mt-1 text-xs text-accent underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
               >
                 {t("Passer à Shale Trade")}
               </button>
@@ -469,7 +469,7 @@ export default function SettingsView() {
               <button
                 type="button"
                 onClick={() => setPwOpen(true)}
-                className="text-xs text-blue underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
+                className="text-xs text-accent underline decoration-dotted underline-offset-2 transition-opacity hover:opacity-80"
               >
                 {t("Changer mon mot de passe")}
               </button>
@@ -482,7 +482,7 @@ export default function SettingsView() {
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim"
+                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-accent/60 placeholder:text-text-dim"
                 />
                 <input
                   type="password"
@@ -490,7 +490,7 @@ export default function SettingsView() {
                   value={newPw2}
                   onChange={(e) => setNewPw2(e.target.value)}
                   placeholder={t("Confirme le mot de passe")}
-                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim"
+                  className="w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none transition-colors focus:border-accent/60 placeholder:text-text-dim"
                 />
                 {pwMsg && (
                   <p className={`text-xs ${pwMsg.ok ? "text-success" : "text-red"}`}>{pwMsg.text}</p>
@@ -547,7 +547,7 @@ export default function SettingsView() {
                   }}
                   className={`pill border px-4 py-1.5 text-sm transition-colors ${
                     demoTier() === value
-                      ? "border-blue/50 bg-blue/10 text-blue"
+                      ? "border-accent/50 bg-accent/10 text-accent"
                       : "border-border text-text-dim hover:text-text"
                   }`}
                 >
@@ -582,7 +582,7 @@ export default function SettingsView() {
                   }}
                   className={`pill border px-4 py-1.5 text-sm transition-colors ${
                     profilDemoChoisi() === value
-                      ? "border-blue/50 bg-blue/10 text-blue"
+                      ? "border-accent/50 bg-accent/10 text-accent"
                       : "border-border text-text-dim hover:text-text"
                   }`}
                 >
@@ -845,7 +845,7 @@ export default function SettingsView() {
                 disabled={!isTauri}
                 data-tip={t("Envoyer une notification de test")}
                 data-tip-sub={t("Emprunte exactement le même chemin qu'un vrai rappel.")}
-                className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50 disabled:opacity-40"
+                className="pill border border-border px-4 py-2 text-sm text-text hover:border-accent/50 disabled:opacity-40"
               >
                 {t("Envoyer un test")}
               </button>
@@ -855,7 +855,7 @@ export default function SettingsView() {
                 disabled={!isTauri}
                 data-tip={t("Évaluer les règles maintenant")}
                 data-tip-sub={t("Sans attendre le prochain passage du planificateur.")}
-                className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50 disabled:opacity-40"
+                className="pill border border-border px-4 py-2 text-sm text-text hover:border-accent/50 disabled:opacity-40"
               >
                 {t("Évaluer maintenant")}
               </button>
@@ -962,7 +962,7 @@ export default function SettingsView() {
               value={geminiKey}
               onChange={(e) => setGeminiKey(e.target.value)}
               placeholder="AIza…"
-              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
+              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-accent/50"
             />
           </div>
           <div>
@@ -972,7 +972,7 @@ export default function SettingsView() {
               value={groqKey}
               onChange={(e) => setGroqKey(e.target.value)}
               placeholder="gsk_…"
-              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/50"
+              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-accent/50"
             />
           </div>
         </div>
@@ -995,7 +995,7 @@ export default function SettingsView() {
                 }
                 className={`pill border px-4 py-1.5 text-sm capitalize transition-colors ${
                   provider === p
-                    ? "border-blue/50 bg-blue/10 text-blue"
+                    ? "border-accent/50 bg-accent/10 text-accent"
                     : "border-border text-text-dim hover:text-text"
                 }`}
               >
@@ -1011,7 +1011,7 @@ export default function SettingsView() {
             onClick={saveMarketKeys}
             data-tip={t("Enregistrer les clés")}
             data-tip-sub={t("Stockées en local dans la base de l’app, jamais envoyées ailleurs.")}
-            className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
+            className="pill border border-border px-4 py-2 text-sm text-text hover:border-accent/50"
           >
             {keySaved ? t("Enregistré") : t("Enregistrer")}
           </button>
@@ -1025,7 +1025,7 @@ export default function SettingsView() {
       <section className="card p-5">
         <h2 className="hud-label">{t("tracker live trading — workflow « trader »")}</h2>
         <p className="mt-2 text-sm text-text-dim">
-          {t("Le bouton")} <span className="font-semibold text-blue">{t("Trader")}</span>{" "}
+          {t("Le bouton")} <span className="font-semibold text-accent">{t("Trader")}</span>{" "}
           {t("(vue Position) envoie instantanément la position vers le tracker de la vue Trading : heure d'entrée, paire, prix, SL/TP et R:R sont capturés automatiquement. Il ne reste qu'à cliquer")}{" "}
           <span className="font-semibold text-success">{t("Gagnante")}</span> {t("ou")}{" "}
           <span className="font-semibold text-red">{t("Perdante")}</span> {t("au dénouement.")}
@@ -1081,7 +1081,7 @@ export default function SettingsView() {
             data-tip-sub={afficheTracker
               ? t("Copie propre et complète de la base (tâches, notes, trades…) dans un fichier unique.")
               : t("Copie propre et complète de la base (tâches, notes, objectifs…) dans un fichier unique.")}
-              className="pill border border-border px-4 py-2 text-sm text-text hover:border-blue/50"
+              className="pill border border-border px-4 py-2 text-sm text-text hover:border-accent/50"
             >
               <IconSave className="mr-1.5 inline h-4 w-4 align-[-3px]" /> {t("Exporter une sauvegarde…")}
             </button>

@@ -71,7 +71,7 @@ export default class FiletErreur extends Component<Props, State> {
         <button
           type="button"
           onClick={app ? () => location.reload() : this.reessayer}
-          className="pill border border-blue/40 bg-blue/10 px-4 py-1.5 text-xs font-semibold text-blue transition-colors hover:bg-blue/20"
+          className="pill border border-accent/40 bg-accent/10 px-4 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
         >
           {app ? t("Recharger Shale") : t("Réessayer")}
         </button>

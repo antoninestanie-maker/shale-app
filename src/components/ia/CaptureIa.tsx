@@ -295,7 +295,7 @@ export function CaptureIa({
               aria-selected={mode === m}
               onClick={() => setMode(m)}
               className={`pill border px-4 py-1.5 text-sm transition-colors ${
-                mode === m ? "border-blue/50 bg-blue/10 text-blue" : "border-border text-text-dim hover:text-text"
+                mode === m ? "border-accent/50 bg-accent/10 text-accent" : "border-border text-text-dim hover:text-text"
               }`}
             >
               {m === "document" ? t("Coller ou déposer") : t("Vide ta tête")}
@@ -321,7 +321,7 @@ export function CaptureIa({
               <button
                 type="button"
                 onClick={() => entree.current?.click()}
-                className="pill border border-border bg-surface-2 px-4 py-1.5 text-sm text-text hover:border-blue/50"
+                className="pill border border-border bg-surface-2 px-4 py-1.5 text-sm text-text hover:border-accent/50"
               >
                 {t("Choisir un fichier…")}
               </button>
@@ -370,7 +370,7 @@ export function CaptureIa({
           <button
             type="button"
             onClick={onFermer}
-            className="pill border border-border bg-surface-2 px-5 py-2 text-sm text-text hover:border-blue/50"
+            className="pill border border-border bg-surface-2 px-5 py-2 text-sm text-text hover:border-accent/50"
           >
             {t("Annuler")}
           </button>

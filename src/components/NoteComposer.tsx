@@ -377,7 +377,7 @@ export default function NoteComposer({
             data-tip-sub={t("Image, croquis, lien, titre, liste, citation…")}
             className={`pill inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors ${
               menuOpen
-                ? "border-blue/50 bg-blue/10 text-blue"
+                ? "border-accent/50 bg-accent/10 text-accent"
                 : "border-border bg-surface-2 text-text-dim hover:text-text"
             } disabled:opacity-50`}
           >
@@ -623,7 +623,7 @@ export default function NoteComposer({
                     setLinkDraft(null);
                   }}
                   placeholder="https://…"
-                  className="w-52 rounded-lg border border-border bg-surface-2 px-2.5 py-1 font-mono text-[11px] text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+                  className="w-52 rounded-lg border border-border bg-surface-2 px-2.5 py-1 font-mono text-[11px] text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
                 />
                 <button
                   type="submit"

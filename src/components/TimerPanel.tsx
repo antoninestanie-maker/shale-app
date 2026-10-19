@@ -33,7 +33,7 @@ function Switch({
         data-tip={label}
         data-tip-sub={hint ?? (checked ? t("Activé") : t("Désactivé"))}
         className={`pill h-4 w-7 shrink-0 border transition-colors ${
-          checked ? "border-blue/50 bg-blue/30" : "border-border bg-surface-2"
+          checked ? "border-accent/50 bg-accent/30" : "border-border bg-surface-2"
         }`}
       >
         <span
@@ -215,12 +215,12 @@ export default function TimerPanel({ data, focus }: Props) {
                     data-tip={`${p.label} minutes`}
                     data-tip-sub={t(p.hint)}
                     className={`min-w-0 rounded-[var(--radius-field)] border px-2 py-2 text-center transition-colors ${
-                      on ? "border-blue/50 bg-blue/15" : "border-border hover:border-text-dim/40"
+                      on ? "border-accent/50 bg-accent/15" : "border-border hover:border-text-dim/40"
                     }`}
                   >
                     <span
                       className={`block font-mono text-sm font-semibold ${
-                        on ? "text-blue" : "text-text"
+                        on ? "text-accent" : "text-text"
                       }`}
                     >
                       {p.label}
@@ -237,12 +237,12 @@ export default function TimerPanel({ data, focus }: Props) {
                 data-tip={t("Durées sur mesure")}
                 data-tip-sub={t("Travail et pause libres (1 à 240 min), mémorisés pour les prochaines sessions.")}
                 className={`min-w-0 rounded-[var(--radius-field)] border px-2 py-2 text-center transition-colors ${
-                  customMode ? "border-blue/50 bg-blue/15" : "border-border hover:border-text-dim/40"
+                  customMode ? "border-accent/50 bg-accent/15" : "border-border hover:border-text-dim/40"
                 }`}
               >
                 <span
                   className={`block font-mono text-sm font-semibold ${
-                    customMode ? "text-blue" : "text-text"
+                    customMode ? "text-accent" : "text-text"
                   }`}
                 >
                   {customWorkMin}·{customBreakMin}
@@ -267,7 +267,7 @@ export default function TimerPanel({ data, focus }: Props) {
                     setCustomWorkStr(e.target.value);
                     setSetting("timer_custom_work", e.target.value);
                   }}
-                  className="mt-1 w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text focus:border-blue focus:outline-none"
+                  className="mt-1 w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text focus:border-accent focus:outline-none"
                 />
               </label>
               <label className="block">
@@ -281,7 +281,7 @@ export default function TimerPanel({ data, focus }: Props) {
                     setCustomBreakStr(e.target.value);
                     setSetting("timer_custom_break", e.target.value);
                   }}
-                  className="mt-1 w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text focus:border-blue focus:outline-none"
+                  className="mt-1 w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text focus:border-accent focus:outline-none"
                 />
               </label>
             </div>
@@ -323,7 +323,7 @@ export default function TimerPanel({ data, focus }: Props) {
               // Le libellé au-dessus n'est pas un <label> : sans ce nom, un
               // lecteur d'écran annonçait une liste anonyme.
               aria-label={t("tâche liée")}
-              className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-xs text-text focus:border-blue focus:outline-none"
+              className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2.5 text-xs text-text focus:border-accent focus:outline-none"
             >
               <option value="">{t("Sans tâche liée")}</option>
               {/* Deux groupes seulement quand il y a de quoi : un seul groupe

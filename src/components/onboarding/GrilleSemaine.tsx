@@ -36,7 +36,7 @@ const LEGENDE = (): { cle: Categorie; libelle: string }[] => [
  */
 const FOND: Record<Categorie, string> = {
   sommeil: "color-mix(in srgb, var(--color-violet) 55%, transparent)",
-  travail: "color-mix(in srgb, var(--color-blue) 55%, transparent)",
+  travail: "color-mix(in srgb, var(--color-accent) 55%, transparent)",
   trajet: "color-mix(in srgb, var(--color-yellow) 55%, transparent)",
   libre: "var(--color-overlay)",
 };

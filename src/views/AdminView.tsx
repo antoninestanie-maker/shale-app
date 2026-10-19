@@ -448,7 +448,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
             <input
               value={config.brandTitle}
               onChange={(e) => set({ brandTitle: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
           <label className="block">
@@ -456,7 +456,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
             <input
               value={config.brandSubtitle}
               onChange={(e) => set({ brandSubtitle: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
         </div>
@@ -479,7 +479,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
             <input
               value={texts.onboardingTitle}
               onChange={(e) => setText({ onboardingTitle: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
           <label className="block">
@@ -488,7 +488,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
               rows={2}
               value={texts.onboardingBody}
               onChange={(e) => setText({ onboardingBody: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
           <label className="block">
@@ -496,7 +496,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
             <input
               value={texts.loginSubtitle}
               onChange={(e) => setText({ loginSubtitle: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
           <label className="block">
@@ -505,7 +505,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
               rows={2}
               value={texts.subRequiredBody}
               onChange={(e) => setText({ subRequiredBody: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-blue/60"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-accent/60"
             />
           </label>
         </div>
@@ -541,7 +541,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
                 onChange={(e) =>
                   set({ window: { ...win, width: parseInt(e.target.value || "0", 10) || win.width } })
                 }
-                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
+                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-accent/60"
               />
             </label>
             <label className="block">
@@ -554,7 +554,7 @@ export default function AdminView({ config, save, profil, hasTrading = true }: P
                 onChange={(e) =>
                   set({ window: { ...win, height: parseInt(e.target.value || "0", 10) || win.height } })
                 }
-                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-blue/60"
+                className="mt-1 w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-accent/60"
               />
             </label>
             <button

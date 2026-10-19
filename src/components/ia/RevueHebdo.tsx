@@ -167,7 +167,7 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
               {t("Générée le {d}.", { d: formatDate(new Date(revue.genereLe), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) })}
             </span>
             {surLaCourante && etat.etat !== "chargement" && (
-              <button type="button" onClick={() => void generer()} className="font-medium text-blue hover:underline">
+              <button type="button" onClick={() => void generer()} className="font-medium text-accent hover:underline">
                 {t("Régénérer ({n} actions)", { n: POIDS_REVUE })}
               </button>
             )}

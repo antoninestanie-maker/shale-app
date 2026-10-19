@@ -251,7 +251,7 @@ export default function TimerView({ data, focus }: Props) {
                       className={`pill w-14 shrink-0 border px-2 py-0.5 text-center text-[10px] font-semibold uppercase ${
                         s.kind === "break"
                           ? "border-success/40 text-success"
-                          : "border-blue/40 text-blue"
+                          : "border-accent/40 text-accent"
                       }`}
                     >
                       {s.kind === "break" ? t("pause") : "focus"}
@@ -300,7 +300,7 @@ export default function TimerView({ data, focus }: Props) {
                 </button>
               </span>
             </div>
-            <p className="mt-2 font-display text-2xl font-extrabold text-blue">
+            <p className="mt-2 font-display text-2xl font-extrabold text-accent">
               {fmtMin(stats.todayMin)}
               <span className="text-sm font-normal text-text-dim">
                 {" "}

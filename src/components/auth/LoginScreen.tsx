@@ -147,7 +147,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
 
   const field =
     "w-full rounded-[12px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text " +
-    "outline-none transition-colors focus:border-blue/60 placeholder:text-text-dim";
+    "outline-none transition-colors focus:border-accent/60 placeholder:text-text-dim";
 
   return (
     // Pas de `bg-bg` ici : le fond appartient au parent (`Mur`, dans AuthGate),
@@ -197,7 +197,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
               <button
                 type="button"
                 onClick={forgot}
-                className="text-xs text-blue transition-opacity hover:opacity-80"
+                className="text-xs text-accent transition-opacity hover:opacity-80"
               >
                 {t("Mot de passe oublié ?")}
               </button>
@@ -244,7 +244,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="h-4 w-4 accent-[var(--color-blue)]"
+              className="h-4 w-4 accent-[var(--color-accent)]"
             />
             {t("Rester connecté")}
           </label>
@@ -280,7 +280,7 @@ export default function LoginScreen({ onSignIn, onSignUp, erreurInitiale }: Prop
           {signingUp ? t("Déjà un compte ?") : t("Pas encore de compte ?")}{" "}
           <button
             onClick={switchMode}
-            className="font-medium text-blue transition-opacity hover:opacity-80"
+            className="font-medium text-accent transition-opacity hover:opacity-80"
           >
             {signingUp ? t("Se connecter") : t("Créer un compte")}
           </button>

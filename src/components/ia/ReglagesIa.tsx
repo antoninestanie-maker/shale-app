@@ -77,7 +77,7 @@ function Interrupteur({
         <span className="block text-sm font-medium text-text">{titre}</span>
         <span className="mt-0.5 block text-xs leading-relaxed text-text-dim">{desc}</span>
       </span>
-      <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${valeur ? "bg-blue" : "bg-surface-2"}`}>
+      <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${valeur ? "bg-accent" : "bg-surface-2"}`}>
         <span
           className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
             valeur ? "translate-x-[18px]" : "translate-x-0.5"
@@ -129,7 +129,7 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
         <ul className="mt-5 flex flex-col gap-3">
           {points.map((p) => (
             <li key={p} className="grid grid-cols-[auto_1fr] gap-3 text-[13.5px] leading-relaxed text-text">
-              <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
               <span>{p}</span>
             </li>
           ))}
@@ -141,7 +141,7 @@ function Consentement({ onAccepter, onAnnuler }: { onAccepter: () => void; onAnn
           <button
             type="button"
             onClick={onAnnuler}
-            className="pill border border-border bg-surface-2 px-5 py-2.5 text-sm text-text transition-colors hover:border-blue/50"
+            className="pill border border-border bg-surface-2 px-5 py-2.5 text-sm text-text transition-colors hover:border-accent/50"
           >
             {t("Annuler")}
           </button>
@@ -188,7 +188,7 @@ export default function ReglagesIa() {
         <p className="mt-2 text-sm leading-relaxed text-text-dim">{t("L'intelligence artificielle fait partie de Shale Pro.")}</p>
         {COMMERCE_AUTORISE && (
           <>
-            <button type="button" onClick={() => setPro(true)} className="cible-tactile-ligne mt-3 text-sm font-medium text-blue hover:underline">
+            <button type="button" onClick={() => setPro(true)} className="cible-tactile-ligne mt-3 text-sm font-medium text-accent hover:underline">
               {t("Découvrir Shale Pro")}
             </button>
             {pro && <UpgradeModal offre="pro" onClose={() => setPro(false)} />}

@@ -545,7 +545,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                     <button
                       type="button"
                       onClick={() => allerVers(l.vue!)}
-                      className="cible-tactile-ligne shrink-0 rounded-md px-2 py-1 text-xs font-medium text-blue hover:underline"
+                      className="cible-tactile-ligne shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:underline"
                     >
                       {l.action}
                     </button>
@@ -679,7 +679,7 @@ export default function PerformanceView({ data, refresh }: Props) {
             {t("tâches")}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-[2px] bg-blue" aria-hidden />
+            <span className="h-2 w-2 rounded-[2px] bg-accent" aria-hidden />
             {t("habitudes")}
           </span>
         </p>
@@ -698,7 +698,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                   formatter={(v, nom) => [v == null ? "—" : `${v}%`, nom === "taches" ? t("tâches") : t("habitudes")]}
                 />
                 <Bar dataKey="taches" fill="var(--color-success-fill)" radius={[3, 3, 3, 3]} maxBarSize={14} />
-                <Bar dataKey="habitudes" fill="var(--color-blue)" radius={[3, 3, 3, 3]} maxBarSize={14} />
+                <Bar dataKey="habitudes" fill="var(--color-accent)" radius={[3, 3, 3, 3]} maxBarSize={14} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -838,7 +838,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               <select
                 value={goalId ?? ""}
                 onChange={(e) => setSelGoalId(Number(e.target.value))}
-                className="min-w-0 flex-1 truncate rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text focus:border-blue focus:outline-none"
+                className="min-w-0 flex-1 truncate rounded-[10px] border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
               >
                 {goals.map((g) => (
                   <option key={g.id} value={g.id}>
@@ -858,8 +858,8 @@ export default function PerformanceView({ data, refresh }: Props) {
                 <ComposedChart data={goalSeries} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
                   <defs>
                     <linearGradient id="goalFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-blue)" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="var(--color-blue)" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
@@ -883,10 +883,10 @@ export default function PerformanceView({ data, refresh }: Props) {
                   <Area
                     type="monotone"
                     dataKey="pct"
-                    stroke="var(--color-blue)"
+                    stroke="var(--color-accent)"
                     strokeWidth={2.5}
                     fill="url(#goalFill)"
-                    activeDot={{ r: 4, fill: "var(--color-blue)" }}
+                    activeDot={{ r: 4, fill: "var(--color-accent)" }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -905,7 +905,7 @@ export default function PerformanceView({ data, refresh }: Props) {
           <h2 className="hud-label">{t("trading — r cumulé 30 jours")}</h2>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-xs text-text-dim">
-              <span className="h-2 w-2 rounded-full bg-blue" /> live{" "}
+              <span className="h-2 w-2 rounded-full bg-accent" /> live{" "}
               <span className="font-mono font-semibold text-text">
                 {fmtR(equity.liveStats.totalR)}
               </span>
@@ -931,8 +931,8 @@ export default function PerformanceView({ data, refresh }: Props) {
               >
                 <defs>
                   <linearGradient id="perfLiveFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-blue)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-blue)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="var(--color-overlay)" vertical={false} />
@@ -958,7 +958,7 @@ export default function PerformanceView({ data, refresh }: Props) {
                 <Area
                   type="monotone"
                   dataKey="live"
-                  stroke="var(--color-blue)"
+                  stroke="var(--color-accent)"
                   strokeWidth={2.5}
                   fill="url(#perfLiveFill)"
                 />
@@ -1000,13 +1000,13 @@ export default function PerformanceView({ data, refresh }: Props) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t("Nouvelle métrique…")}
-              className="w-44 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-44 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <input
               value={newUnit}
               onChange={(e) => setNewUnit(e.target.value)}
               placeholder={t("unité")}
-              className="w-20 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-blue focus:outline-none"
+              className="w-20 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <button
               type="submit"
@@ -1163,7 +1163,7 @@ function MetricCard({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           inputMode="decimal"
-          className="w-full min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text focus:border-blue focus:outline-none"
+          className="w-full min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text focus:border-accent focus:outline-none"
           aria-label={t("Valeur du jour pour {name}", { name: metric.name })}
         />
         <button

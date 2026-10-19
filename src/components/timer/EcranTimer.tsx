@@ -270,7 +270,7 @@ export function ActionFenetre({
       data-tip-sub={tipSub}
       className={`pill inline-flex h-9 items-center gap-1.5 border px-3 text-xs font-medium transition-colors ${
         actif
-          ? "border-blue/40 bg-blue/10 text-blue"
+          ? "border-accent/40 bg-accent/10 text-accent"
           : "border-border text-text-dim hover:text-text"
       }`}
     >

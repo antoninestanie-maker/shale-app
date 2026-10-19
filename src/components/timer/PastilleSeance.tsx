@@ -59,7 +59,7 @@ export default function PastilleSeance({ focus, enBas }: { focus: FocusControlle
   };
 
   const estUnePause = session.kind === "break";
-  const accent = estUnePause ? "var(--color-success)" : "var(--color-blue)";
+  const accent = estUnePause ? "var(--color-success)" : "var(--color-accent)";
   // « Pause » est écrit tel quel par `useFocus` : une valeur, pas un texte affiché.
   const nom = estUnePause ? t("pause") : session.label;
   const actions = t("Actions sur la session");

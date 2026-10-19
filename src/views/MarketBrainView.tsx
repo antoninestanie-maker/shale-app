@@ -219,7 +219,7 @@ function BriefingPanel({
       ))}
 
       <ResizablePanel id="summary" title={t("Synthèse")} defaultW={12}>
-        <div className="card border-l-2 border-l-blue p-5">
+        <div className="card border-l-2 border-l-accent p-5">
           <p className="hud-label mb-1.5">{t("synthèse")}</p>
           <p className="text-sm leading-relaxed text-text">{output.summary}</p>
         </div>
@@ -407,7 +407,7 @@ export default function MarketBrainView({ market }: { market: MarketBrainState }
           {!hasKey && !isDemo ? (
             <p className="text-sm text-text">
               {t("Ajoute une clé Gemini ou Groq dans")}{" "}
-              <span className="text-blue">{t("Réglages → market-brain")}</span>{" "}
+              <span className="text-accent">{t("Réglages → market-brain")}</span>{" "}
               {t("pour générer le briefing automatiquement à {h}h.", { h: triggerHour })}
             </p>
           ) : (

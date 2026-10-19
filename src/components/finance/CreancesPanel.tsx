@@ -144,7 +144,7 @@ function CarteRunway({
   return (
     <div
       className={`rounded-[10px] border px-3 py-2.5 ${
-        accent ? "border-blue/40 bg-overlay" : "border-border"
+        accent ? "border-accent/40 bg-overlay" : "border-border"
       }`}
     >
       <p className="hud-label truncate">{titre}</p>
@@ -266,7 +266,7 @@ function ComparaisonDeclare({
               onClick={() => onFenetre(f)}
               className={`cible-tactile-ligne rounded-pill border px-2 py-0.5 text-[11px] transition-colors ${
                 fenetre === f
-                  ? "border-blue bg-overlay-2 text-text"
+                  ? "border-accent bg-overlay-2 text-text"
                   : "border-border text-text-dim hover:bg-overlay hover:text-text"
               }`}
             >
