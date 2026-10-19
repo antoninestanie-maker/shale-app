@@ -2666,3 +2666,7 @@ Demande d'Antonin (relayée par la session de coordination) : le logo choisi le 
 ## 2026-10-20 — La fenêtre ne change plus de taille pendant l'entrée (`chantier/fenetre-lancement`)
 
 Défaut vu au vrai lancement du build de 00:48 : la taille de fenêtre mémorisée (1470 × 923) était posée par le front pendant la lueur, l'icône sautait. **Fait** : le Rust la pose dans `setup` (`fenetre_lancement.rs`, 2 tests Rust) ; test de branchement dans `lib/entree/lancement.test.ts`. Décision : `CLAUDE.md` (même date) ; piège : `PIEGES.md` § 49.4. Build et vérification : voir le carnet `COORDINATION.md`.
+
+## 2026-10-20 — En attente du prochain build natif : le survol sans filet
+
+Commit `3471e7d` (front seul, aucune migration, aucun Rust) : le filet d'1 px en haut des cartes au survol est retiré, la remontée reste. Antonin a demandé de le **grouper avec le prochain build natif** : il n'est pas dans l'app installée tant que ce build n'a pas eu lieu.
