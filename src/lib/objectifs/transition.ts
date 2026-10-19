@@ -73,9 +73,19 @@ export function decoupe(cadre: Rect, r: Rect, rayon: string, zoom = 1): string {
  * carte et long dans la page n'ont pas la même largeur, mais leur ligne a la
  * même proportion que leur corps de texte.
  */
-export function flip(depuis: Rect, vers: Rect, corpsDepuis: number, corpsVers: number, zoom = 1): string {
+export function flip(
+  depuis: Rect,
+  vers: Rect,
+  corpsDepuis: number,
+  corpsVers: number,
+  zoom = 1,
+  aDroite = false,
+): string {
   const k = corpsVers > 0 ? corpsDepuis / corpsVers : 1;
-  const dx = (depuis.left - vers.left) / zoom;
+  // Un texte calé à droite dans une case plus large que lui (le pourcentage de
+  // la carte, `w-11 text-right`) se pose par son bord DROIT : par la gauche, il
+  // atterrissait à côté du vrai, et le fondu final montrait les deux.
+  const dx = (aDroite ? depuis.right - vers.right : depuis.left - vers.left) / zoom;
   const dy = (depuis.top - vers.top) / zoom;
   return `translate(${Math.round(dx * 10) / 10}px, ${Math.round(dy * 10) / 10}px) scale(${Math.round(k * 1000) / 1000})`;
 }
@@ -158,12 +168,16 @@ export function jouerTransition(s: Scene): Animation[] {
 
   // 3 — ce qui voyage. Toutes les mesures AVANT toute animation : une
   // transformation posée fausserait la boîte de la suivante.
-  const voyages = paires(s.carte, s.voile).map(([source, cible]) => ({
-    cible,
-    depuis: flip(source.getBoundingClientRect(), cible.getBoundingClientRect(), corps(source), corps(cible), z),
-  }));
-  for (const { cible, depuis } of voyages) {
-    cible.style.transformOrigin = "0 0";
+  const voyages = paires(s.carte, s.voile).map(([source, cible]) => {
+    const aDroite = /right|end/.test(getComputedStyle(source).textAlign);
+    return {
+      cible,
+      aDroite,
+      depuis: flip(source.getBoundingClientRect(), cible.getBoundingClientRect(), corps(source), corps(cible), z, aDroite),
+    };
+  });
+  for (const { cible, depuis, aDroite } of voyages) {
+    cible.style.transformOrigin = aDroite ? "100% 0" : "0 0";
     jouer(
       cible,
       ouvre

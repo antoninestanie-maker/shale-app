@@ -30,6 +30,10 @@ describe("flip — poser le titre de la page sur celui de la carte", () => {
     // Titre de carte en 15 px à (150, 140) ; titre de page en 30 px à (132, 110).
     expect(flip(rect(150, 140, 200, 20), rect(132, 110, 400, 40), 15, 30)).toBe("translate(18px, 30px) scale(0.5)");
   });
+  it("un texte calé à droite se pose par son bord droit", () => {
+    // Case de carte 44 px finissant à 900 ; pourcentage de page finissant à 880.
+    expect(flip(rect(856, 140, 44, 20), rect(800, 110, 80, 40), 16, 36, 1, true)).toBe("translate(20px, 30px) scale(0.444)");
+  });
   it("un corps illisible ne casse rien : échelle 1", () => {
     expect(flip(rect(0, 0, 1, 1), rect(0, 0, 1, 1), 15, 0)).toBe("translate(0px, 0px) scale(1)");
   });
