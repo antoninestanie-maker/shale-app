@@ -8600,3 +8600,13 @@ Chantier `retours-1310`. Onze points dictés d'un trait ; ce qui suit est ce qui
 **Les « carrés quadrillés blancs » étaient les créneaux libres PROPOSÉS.** Trois défauts en un : aucun libellé (un pointillé à l'encre se lit comme un bogue), proposés aussi les jours PASSÉS (seul aujourd'hui était borné), et dessinés sous la dernière heure de la grille (la plage d'heures ignorait les propositions). Ils portent « Créneau libre » et leur heure, en gris adouci ; la plage d'heures les inclut ; plus rien avant aujourd'hui ; aucun dans la semaine du téléphone (pas la place d'un mot), seulement dans sa vue Jour, où le panneau du dessous les explique.
 
 **Aujourd'hui — les habitudes emportent leurs grilles.** La carte montre la grille des douze semaines et les derniers jours de chaque habitude, rangés selon SA largeur (requêtes de conteneur : 7 ou 14 jours, grille au-dessus ou à côté). Plancher de hauteur 216 (136 avant) : c'est celle du Timer, son voisin de rangée chez Antonin (8 colonnes, hauteur épinglée 168, remontée au rendu sans réécrire `layout.today`) — c'était le « souci d'échelle ».
+
+## 2026-10-19 — Alléger : l'action d'abord au téléphone, rien de caché au premier lancement
+
+Retours répétés à Antonin : « pas très intuitif », « beaucoup d'informations ». Décisions prises dans l'audit court du 19/10 (rapport : `Shale-projet/audit-2026-10/ALLEGEMENT-2026-10-19.md`) :
+
+- **Au téléphone, Aujourd'hui commence par ce qu'on fait, pas par ce qu'on mesure.** `ordreAujourdhuiAuTelephone` met `tasks`, `habitudes`, `calendar`, `timer` en tête, le reste garde son ordre relatif. Généralise la règle du 12/10 (habitudes sous les tâches). Le bureau ne change pas.
+- **« Plus » ne relist pas les onglets.** Convention iOS : la feuille montre ce qui est derrière le bouton, rien d'autre.
+- ⚠️ **Revient sur une décision d'origine de la barre latérale** (« défaut premier lancement = seule la catégorie de la vue active ouverte », plus haut dans ce fichier) : désormais **toutes ouvertes**. Raison : un compte neuf voyait 3 modules sur 9 ; la découverte prime sur la compacité, et neuf entrées tiennent. L'état enregistré (`sidebar.collapsed`) reste respecté.
+- **« systèmes actifs » retiré** : décoratif, toujours vert, ne mesurait rien. Ne pas le remettre ; un indicateur d'état doit refléter un état réel (la pastille de synchro le fait).
+- Au téléphone, l'action principale d'une vue est un **« + » rond à droite du titre**, pas un bouton large sur sa propre rangée (Tâches ; Notes l'avait déjà).

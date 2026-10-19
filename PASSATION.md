@@ -2625,3 +2625,18 @@ Branche `chantier/retours-1310` (worktree `~/Desktop/Shale-chantiers/retours-131
 - **Mac : installé à 08:54** par le build groupé de [sync-orpheline] (relancé à ma demande pour porter les deux chantiers, une seule fenêtre de trousseau). `mobile-ios` `d54fc8f`, sha256 installée `a17bcfd9cf29`. Contrôlé de mon côté : « Créneau libre » et `timer_style` présents dans le front du build. ⛔ Rien de ce chantier n'a encore été vu DANS l'app installée.
 - **iPhone : build release fait** (`8988663`, 08:55 → 09:00, cache Rust repris). `.ipa` copié hors du dépôt : `Shale-chantiers/retours-1310-ipa/Shale-8988663.ipa` (sha256 `87fdd39ae023`). Il porte aussi le moteur de synchronisation (`a2e36a0`) que le téléphone n'avait pas. **Pas encore posé** : l'iPhone était « unavailable » (non branché). Pose : `xcrun devicectl device install app --device 9A784CC4-9486-5B91-A82B-B75DA758035D <ipa>`, après une copie de la base du téléphone (MOBILE § 30.5). Profil valable jusqu'au 2026-10-20 10:06.
 - ⭐ **iPhone : posé et lancé à 09:02** (Antonin a branché le téléphone). `.ipa` `87fdd39ae023`, `mobile-ios` `8988663`. Base du téléphone copiée avant : `sauvegardes-locales/avant-retours-1310-iphone-20261014-0902` (integrity ok ; tâches 80, objectifs 88, habitudes 4), relue après le lancement : identique. ⛔ Pas encore vu à l'écran du téléphone.
+
+## 2026-10-19 — Audit « alléger » : six allègements sur `chantier/allegement`, NI fusionnés NI installés
+
+Demande d'Antonin : l'app est jugée peu intuitive et trop chargée ; alléger textes et design, placer onglets et actions aux endroits habituels, surtout au téléphone. Audit court (≈ 1 h), en mode démo dans Chrome (labo, téléphone 390×844 et portable 1280×800). Rapport complet, avec les 13 pistes NON faites : `Shale-projet/audit-2026-10/ALLEGEMENT-2026-10-19.md`.
+
+**Fait, sur `chantier/allegement`** (worktree `Shale-chantiers/allegement`, depuis `mobile-ios` `1e4b16d`), vu à l'écran sur le build de démo `f0c96f1` :
+1. Téléphone, Aujourd'hui : tâches, habitudes, calendrier, timer en tête ; les cartes de chiffres après (`ordreAujourdhuiAuTelephone`, `lib/grille.ts`).
+2. Téléphone, « Plus » : n'affiche plus les modules déjà en onglet (`MobileNav.tsx`).
+3. Téléphone, Tâches : « + » rond à droite du titre ; rangement et recherche sur une rangée (`TasksView.tsx`).
+4. Notes : « 18 oct. » au lieu de « 2026-10-18 » (`dateDeLigne`, `NotesView.tsx`).
+5. Bureau : toutes les catégories de la barre latérale ouvertes au premier lancement (`Sidebar.tsx`). Un état replié déjà enregistré est gardé.
+6. Bureau : « systèmes actifs » retiré du pied de la barre (clé `en.ts` retirée).
+
+**Prouvé** : `tsc`, `i18n:check` verts ; `grille.test.ts`, `onglets.test.ts`, `barre*.test.ts`, `admin.test.ts` verts (assertion de `barre.source.test.ts` passée de 6 à 5 libellés coupés). Suite complète : voir la ligne suivante.
+**Pas prouvé** : rien vu dans WKWebView ni sur l'iPhone réel. **Reste** : relire le carnet, fusionner dans `mobile-ios`, build groupé Mac + pose iPhone.
