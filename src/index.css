@@ -457,31 +457,15 @@
     box-shadow: var(--card-shadow-hover);
   }
 
-  /* ⭐ V7 — le filet de survol. INVISIBLE AU REPOS : c'est une réponse au
-     geste, jamais un liseré permanent (écarté : le tic des interfaces « IA »).
-     Un filet d'1 px en haut, dans le rayon, et rien d'autre — pas de contour,
-     pas de halo. Écrit ICI seulement, jamais recopié par composant. */
-  .card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 14px;
-    right: 14px;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      var(--gradient-brand-from),
-      var(--gradient-brand-to),
-      transparent
-    );
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease-out-quint);
-  }
-  /* Souris seulement : iOS simule un survol collant, qui allumerait le filet
-     à la première tape. Les panneaux flottants (`.card-solid` : modales,
-     lecteur) sont exclus — toujours sous la souris, ils le garderaient allumé.
+  /* ⚠️ (2026-10-20) Le filet de survol de la V7 (1 px dégradé en haut de la
+     carte, `.card::before`) est RETIRÉ, à la demande d'Antonin : joli avec
+     l'accent bleu, il ne l'est plus avec les accents sobres de la V8. Le
+     survol garde la remontée de 2 px et l'ombre. Ne pas le remettre —
+     `theme.survol.test.ts` l'interdit.
+
+     Souris seulement : iOS simule un survol collant, qui soulèverait la
+     carte à la première tape. Les panneaux flottants (`.card-solid` :
+     modales, lecteur) sont exclus — toujours sous la souris.
 
      ⚠️ Le soulèvement est un `translate`, donc il fait de la carte le bloc
      conteneur de ses descendants `position: fixed` (PIEGES § 9.5). Une
@@ -490,7 +474,7 @@
 
      ⚠️ DANS LA GRILLE, c'est le panneau (`[data-pid]`) qui se soulève, pas
      la carte : le panneau porte `overflow: clip`, qui rognerait les 2 px du
-     haut — et le filet avec. Par `translate`, indépendant du `transform` que
+     haut de la carte. Par `translate`, indépendant du `transform` que
      pose le FLIP de `ResizableGrid`. */
   /* ⚠️⚠️ (2026-09-23) La carte d'une grille est EXCLUE du sélecteur, pas
      « annulée » après coup. L'annulation `.rgrid-content .card:hover
@@ -506,10 +490,6 @@
   @media (hover: hover) and (pointer: fine) {
     .card:not(.card-solid):not(.rgrid-content .card):not(.overflow-hidden > .card):hover:not(:has(.fixed)) {
       translate: 0 -2px;
-    }
-    .card:not(.card-solid):hover::before,
-    .group\/panel:hover > .rgrid-content > .card:not(.card-solid)::before {
-      opacity: 1;
     }
     .rgrid > .group\/panel:hover:not(:has(.fixed)) {
       translate: 0 -2px;

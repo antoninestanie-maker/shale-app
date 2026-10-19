@@ -29,7 +29,8 @@ et bien moins visibles qu'avec le bleu d'avant, plus sobre ».
   l'encre s'adoucit vers le fond (86 %, 13:1).
 - **Le « dégradé de marque » n'en est plus un** : deux tons d'accent si voisins
   qu'il se lit comme un aplat. Mêmes emplois qu'en V7 (jauges en cours, anneau
-  de discipline, courbe du patrimoine, filet de survol), plus aucun autre.
+  de discipline, courbe du patrimoine), plus aucun autre. *(Le filet de survol
+  est retiré le 2026-10-20 : voir « Le survol d'une carte ».)*
 - **Halo ambiant** : le cramoisi du logo à 4,5 % (sombre) / 2,5 % (clair), au
   lieu du bleu à 12 / 7 %. On le devine, on ne le voit pas.
 - **Onglet actif de la barre latérale** : fond d'accent 10 % + liseré 30 %
@@ -51,7 +52,7 @@ classe `text-blue`, `bg-blue/10`… revient dans `src/`.
 | `--color-accent` | `#cfa5a7` (oklch .76 .05 15) | `#774e51` (oklch .47 .055 15) | texte d'action, icône active, focus, sélection (en `/10`–`/20`), progression |
 | `--color-accent-solid` | `#73474a` | `#73474a` | aplat qui porte du blanc : jour choisi, compteur de la cloche |
 | `--color-on-accent` | `#ffffff` | `#ffffff` | texte sur `--color-accent-solid` |
-| `--gradient-brand` | `#cfa5a7 → #b09798` | `#774e51 → #8e7274` | jauges en cours, filet de survol (arrêts bruts : `--gradient-brand-from/-to`) |
+| `--gradient-brand` | `#cfa5a7 → #b09798` | `#774e51 → #8e7274` | jauges en cours (arrêts bruts : `--gradient-brand-from/-to`) |
 | `--gradient-primary` | encre (`--color-text`) | encre | fond du bouton primaire, via `.fill-primary` seulement |
 | `--btn-primary-shadow` | ombre noire courte + reflet interne | ombre encre 18 % | bouton primaire seulement — plus aucune ombre teintée |
 | `--ambient` | `rgb(220 38 38 / .045)` | `rgb(220 38 38 / .025)` | halo unique en haut de fenêtre |
@@ -223,6 +224,13 @@ la V7, délai des animations** (sans quoi un élément à délai restait invisib
 temps de son délai, puis surgissait).
 
 Le mouvement est **gelé**, à deux exceptions nommées (V7) :
+
+> ⚠️ **2026-10-20 — le filet est RETIRÉ** (Antonin : « c'était joli avec
+> l'ancienne DA, là ça ne l'est plus »). Au survol, la carte se soulève de
+> 2 px et prend son ombre de survol ; **plus aucun filet d'1 px en haut**.
+> Le paragraphe ci-dessous décrit la V7 : le soulèvement et ses trois
+> exclusions restent vrais, le filet non. `theme.survol.test.ts` interdit
+> son retour.
 
 **Le filet de survol d'une carte.** Invisible au repos. Au survol à la souris
 (`@media (hover: hover) and (pointer: fine)` — iOS simule un survol collant), la

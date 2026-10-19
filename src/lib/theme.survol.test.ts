@@ -46,3 +46,9 @@ describe("Survol : une carte ne se soulève jamais là où elle serait rognée",
     expect(css).not.toMatch(/\.rgrid-content \.card:hover\s*\{\s*translate:\s*none/);
   });
 });
+
+describe("Survol : plus de filet en haut des cartes (2026-10-20)", () => {
+  it("aucune règle ne dessine dans le ::before d'une carte", () => {
+    expect(css).not.toMatch(/\.card[^{]*::before/);
+  });
+});

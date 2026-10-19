@@ -8645,3 +8645,12 @@ Vu au vrai lancement après le build du logo : la fenêtre s'ouvrait en 1120 × 
 - **Le `setSize` du front (`App.tsx`) reste**, en filet si la lecture côté Rust échoue ; à taille égale il ne fait rien.
 - **La règle de lecture recopie `mergeConfig`** (deux nombres, sinon rien) : la changer aux deux endroits. `lancement.test.ts` tient le branchement.
 - **Écarté** : créer la fenêtre cachée et la montrer après (`visible: false`) — un échec du setup laisserait une app invisible ; et rien n'a changé pour la densité, déjà compensée (`--zoom-inv`, § 49.2).
+
+## 2026-10-20 — Le survol d'une carte : plus de filet, la remontée reste
+
+Antonin : « il faudrait enlever l'espèce de liseré […] quand on passe la souris dessus. C'était joli avec l'ancienne DA, là ça ne l'est plus. Il faut garder cette animation de léger mouvement ».
+
+- **Retiré** : le filet dégradé d'1 px en haut des cartes (`.card::before`, V7 du 2026-09-22), allumé au survol d'une carte ou d'un panneau de grille. Avec l'accent bleu il se lisait comme une lumière ; avec les accents sobres de la V8, comme un trait rosé.
+- **Gardé** : la remontée de 2 px (carte, ou panneau de grille), l'ombre et le bord un peu plus marqués au survol. Les exclusions du soulèvement (`.card-solid`, carte contenant un `.fixed`, carte de grille ou dans un `overflow-hidden`) ne changent pas.
+- `--gradient-brand` ne sert plus qu'aux jauges, à l'anneau et au fil des objectifs.
+- `theme.survol.test.ts` refuse toute règle sur le `::before` d'une `.card`.
