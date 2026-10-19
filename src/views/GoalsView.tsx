@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GoalModal from "../components/GoalModal";
 import ImporterChecklist from "../components/objectifs/ImporterChecklist";
 import FeuilleDeRoute from "../components/objectifs/FeuilleDeRoute";
@@ -19,6 +19,8 @@ import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
 import { consommerDemande } from "../lib/naviguer";
+import { mouvementReduit } from "../lib/defilement";
+import { jouerTransition, type Sens } from "../lib/objectifs/transition";
 import { menuContextuelOuvert } from "../lib/menu/tactile";
 import type { EntreePossible } from "../lib/menu/entrees";
 import { useIaPossible } from "../lib/ia/useIa";
@@ -190,10 +192,77 @@ export default function GoalsView({ data, refresh }: Props) {
   /** Où en était la liste quand on l'a quittée : on y revient au même endroit. */
   const retour = useRef<{ defilement: number; objectif: number | null }>({ defilement: 0, objectif: null });
   const listeRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * ⭐ LA CARTE S'OUVRE EN SA PAGE (2026-10-20) — `lib/objectifs/transition.ts`.
+   * Le temps du film, la liste ET la page sont montées : la page dans un voile
+   * posé par-dessus (`absolute inset-0`), la liste dessous, qui s'écarte (à
+   * l'ouverture) ou revient (au retour). Le film fini, l'une des deux part.
+   * ⚠️ Le voile est TOUJOURS l'enveloppe de la page, film ou pas : seule sa
+   * classe change. Sortir la page de son enveloppe à la fin du film la
+   * remonterait (champ d'ajout fermé, défilement perdu, entrée rejouée).
+   */
+  const [film, setFilm] = useState<{ sens: Sens; id: number } | null>(null);
+  /** La page arrivée par la carte n'a pas, en plus, son fondu d'entrée. */
+  const [parLaCarte, setParLaCarte] = useState<number | null>(null);
+  const racineRef = useRef<HTMLDivElement | null>(null);
+  const voileRef = useRef<HTMLDivElement | null>(null);
+  const fondRef = useRef<HTMLDivElement | null>(null);
+  const enteteRef = useRef<HTMLElement | null>(null);
+
   const ouvrir = (id: number) => {
+    if (film) return;
     retour.current = { defilement: listeRef.current?.scrollTop ?? 0, objectif: id };
+    if (!mouvementReduit()) {
+      setParLaCarte(id);
+      setFilm({ sens: "ouvre", id });
+    }
     setChoisiId(id);
   };
+  /** Revenir à la liste — le bouton, Échap : la page rentre dans sa carte. */
+  const fermer = () => {
+    if (film || choisiId == null) return;
+    if (!mouvementReduit()) setFilm({ sens: "ferme", id: choisiId });
+    setChoisiId(null);
+  };
+  const fermerRef = useRef(fermer);
+  fermerRef.current = fermer;
+
+  useLayoutEffect(() => {
+    if (!film) return;
+    const racine = racineRef.current;
+    const voile = voileRef.current;
+    const fond = fondRef.current;
+    const liste = listeRef.current;
+    const carte = liste?.querySelector<HTMLElement>(`[data-objectif="${film.id}"]`);
+    // Pas de carte (objectif effacé entre-temps, liste absente) : pas de film.
+    if (!racine || !voile || !fond || !liste || !carte) {
+      setFilm(null);
+      return;
+    }
+    const voisins = [
+      ...Array.from(liste.querySelectorAll<HTMLElement>("[data-objectif], h2")).filter((el) => el !== carte),
+      ...(enteteRef.current ? [enteteRef.current] : []),
+    ];
+    const anims = jouerTransition({ sens: film.sens, racine, voile, fond, carte, voisins });
+    let vivant = true;
+    Promise.all(anims.map((a) => a.finished))
+      .then(() => {
+        if (!vivant) return;
+        if (film.sens === "ferme") setParLaCarte(null);
+        setFilm(null);
+      })
+      .catch(() => {});
+    // ⚠️ Annuler au démontage seulement en apparence : ce nettoyage tourne dans
+    // le MÊME rendu que la fin du film (`film` repasse à `null`), où la liste
+    // ou le voile disparaissent ; ce qui reste revient à son état de repos,
+    // qui est celui de la dernière image. Aucun saut à l'écran.
+    return () => {
+      vivant = false;
+      for (const a of anims) a.cancel();
+      for (const el of voile.querySelectorAll<HTMLElement>("[data-partage]")) el.style.transformOrigin = "";
+    };
+  }, [film]);
 
   /**
    * ⭐ Le repliement a une MÉMOIRE : seuls les choix explicites sont rangés,
@@ -365,6 +434,8 @@ export default function GoalsView({ data, refresh }: Props) {
   // Un objectif supprimé (ici ou par la synchronisation) referme sa page : on
   // retombe sur la liste, jamais sur le premier objectif venu.
   const choisi = roots.find((g) => g.id === choisiId) ?? null;
+  /** La page montrée — celle qu'on quitte, le temps qu'elle rentre dans sa carte. */
+  const enPage = choisi ?? (film?.sens === "ferme" ? (roots.find((g) => g.id === film.id) ?? null) : null);
 
   /**
    * ⭐ Échap ramène à la liste — la convention du Savoir (2026-08-26) : remonter
@@ -385,7 +456,7 @@ export default function GoalsView({ data, refresh }: Props) {
       if (e.key !== "Escape" || dansUnChamp(e.target)) return;
       if (occupeRef.current || menuContextuelOuvert() || document.querySelector('[role="dialog"], [role="menu"]')) return;
       window.setTimeout(() => {
-        if (!e.defaultPrevented) setChoisiId(null);
+        if (!e.defaultPrevented) fermerRef.current();
       }, 0);
     };
     window.addEventListener("keydown", touche);
@@ -515,7 +586,10 @@ export default function GoalsView({ data, refresh }: Props) {
           className="card flex w-full flex-wrap items-center gap-x-8 gap-y-2.5 px-4 py-3.5 text-left lg:px-5"
         >
           <span className="min-w-0 flex-[3_1_14rem]">
-            <span className={`block truncate text-[15px] font-semibold ${acheve ? "text-text-dim line-through" : "text-text"}`}>
+            <span
+              data-partage="titre"
+              className={`block truncate text-[15px] font-semibold ${acheve ? "text-text-dim line-through" : "text-text"}`}
+            >
               {goal.title}
             </span>
           {/* UNE ligne, jamais deux : la prochaine action si elle existe (le
@@ -556,7 +630,7 @@ export default function GoalsView({ data, refresh }: Props) {
           </span>
           <span className="flex min-w-0 flex-[2_1_14rem] items-center gap-3">
             <FilCouche pct={m.pct} acheve={acheve} />
-            <span className="w-11 shrink-0 text-right font-display text-base font-bold text-text">
+            <span data-partage="pct" className="w-11 shrink-0 text-right font-display text-base font-bold text-text">
               {m.pct == null ? "—" : `${m.pct}%`}
             </span>
             <IconChevronRight className="h-4 w-4 shrink-0 text-text-dim" aria-hidden />
@@ -583,14 +657,17 @@ export default function GoalsView({ data, refresh }: Props) {
     return (
       // `key` : changer d'objectif repart d'une page neuve — sinon un champ
       // « ajouter une étape » ouvert sur l'un resterait ouvert sur l'autre.
-      <div key={goal.id} className="objectif-entree flex min-h-0 flex-1 flex-col">
+      <div
+        key={goal.id}
+        className={`${parLaCarte === goal.id ? "" : "objectif-entree "}relative flex min-h-0 flex-1 flex-col`}
+      >
         {/* ⚠️ Le retour et les actions vivent HORS de la zone qui défile : posés
             dans la page, ils partaient avec le contenu dès qu'on descendait
             dans la feuille de route — vu à l'écran à 390 pt le 2026-09-29. */}
         <div className="flex shrink-0 items-center gap-1 pb-3">
           <button
             type="button"
-            onClick={() => setChoisiId(null)}
+            onClick={fermer}
             className="cible-tactile-ligne -ml-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-dim transition-colors hover:bg-surface-2 hover:text-text"
             data-tip={t("Revenir à la liste")}
             data-tip-kbd={t("Échap")}
@@ -637,7 +714,7 @@ export default function GoalsView({ data, refresh }: Props) {
             {t(SCOPE_LABEL[goal.scope])}
             {goal.category?.trim() && <> · {goal.category.trim()}</>}
           </p>
-          <h1 className="mt-1.5 font-display text-3xl font-extrabold text-text [overflow-wrap:anywhere]">
+          <h1 data-partage="titre" className="mt-1.5 font-display text-3xl font-extrabold text-text [overflow-wrap:anywhere]">
             {goal.title}
           </h1>
           {goal.description && <p className="mt-2 max-w-[68ch] text-sm text-text-dim">{goal.description}</p>}
@@ -656,7 +733,7 @@ export default function GoalsView({ data, refresh }: Props) {
           <div className="mt-5 flex items-center gap-4">
             <FilCouche pct={pct} acheve={acheve} />
             {/* « — » : un réglage cassé seulement (cible à zéro, source supprimée). */}
-            <span className="shrink-0 font-display text-4xl font-extrabold text-text">
+            <span data-partage="pct" className="shrink-0 font-display text-4xl font-extrabold text-text">
               {pct == null ? "—" : `${pct}%`}
             </span>
           </div>
@@ -747,11 +824,12 @@ export default function GoalsView({ data, refresh }: Props) {
     // Colonne unique `max-w-4xl`, comme la vue Tâches : une liste et une page
     // se lisent en une colonne, et la liste ne change pas de largeur en
     // devenant page.
-    <div className="mx-auto flex h-full max-w-4xl flex-col p-4 lg:p-8">
+    // `relative` : le voile de la page s'y pose, le temps du film.
+    <div ref={racineRef} className="relative mx-auto flex h-full max-w-4xl flex-col p-4 lg:p-8">
       {/* La page prend l'écran : l'en-tête du module laisse la place au retour,
           comme la barre de navigation d'iOS — sur le bureau aussi désormais. */}
-      {!choisi && (
-        <header className="view-head shrink-0">
+      {(!choisi || film) && (
+        <header ref={enteteRef} className="view-head shrink-0">
           <h1 className="text-3xl text-text">{t("Objectifs")}</h1>
           <div className="flex flex-wrap items-center gap-2">
           <button
@@ -776,9 +854,7 @@ export default function GoalsView({ data, refresh }: Props) {
         </header>
       )}
 
-      {choisi ? (
-        page(choisi)
-      ) : roots.length === 0 ? (
+      {choisi && !film ? null : roots.length === 0 ? (
         <section className="card mt-6 p-3">
           <p className="py-10 text-center text-sm text-text-dim">
             {t(
@@ -818,6 +894,27 @@ export default function GoalsView({ data, refresh }: Props) {
               </div>
             ))}
           </nav>
+        </div>
+      )}
+
+      {/* La page, dans son voile : par-dessus la liste le temps du film, puis
+          à sa place. Au retour, `choisi` vaut déjà `null` : le voile garde la
+          page qu'on quitte jusqu'à ce qu'elle soit rentrée dans sa carte. */}
+      {enPage && (
+        <div
+          ref={voileRef}
+          className={film ? "absolute inset-0 z-10 flex flex-col p-4 lg:p-8" : "flex min-h-0 flex-1 flex-col"}
+          style={film?.sens === "ferme" ? { pointerEvents: "none" } : undefined}
+        >
+          {film && (
+            <div
+              ref={fondRef}
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "var(--card-bg)" }}
+            />
+          )}
+          {page(enPage)}
         </div>
       )}
 
