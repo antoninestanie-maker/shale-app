@@ -2680,6 +2680,6 @@ Demande d'Antonin : cliquer un objectif fait grandir sa carte grise jusqu'à la 
 
 **Fait** : `src/lib/objectifs/transition.ts` (+ `transition.test.ts`, 6 tests) ; `GoalsView.tsx` (état `film`, voile de page, `fermer()` pour le bouton et Échap, marqueurs `data-partage` sur titre et pourcentage). Ni `index.css`, ni Rust, ni migration, ni `en.ts`.
 
-**Prouvé** : PREUVES_A_ECRIRE
+**Prouvé** : `tsc` vert ; suite complète verte (182 fichiers, 2 607 tests, 3 ignorés) ; `transition.test.ts` 7 tests (découpe, FLIP, bord droit, densité 110 %, cascade). **Vu à l'écran** en mode démo (build labo, Chrome sans fenêtre, animations ralenties ×10 par CDP, une image tous les ~70 ms d'animation) : bureau 1470 × 923 à densité 110 % et téléphone 390 × 844, ouverture puis retour par le bouton, et Échap à vitesse réelle. Le rectangle part de la carte et y revient au pixel, titre et pourcentage voyagent, la cascade arrive, les voisines s'écartent ; à la fin, ni style posé ni animation restante, plus de fondu d'entrée sur la page, focus revenu sur la carte. Deux défauts trouvés à l'image et corrigés : fondus avalés par le ressort (PIEGES § 50.1), pourcentage posé à gauche du vrai (aligné par le bord droit).
 
 **Pas prouvé** : rien vu dans WKWebView (Mac) ni sur l'iPhone. **Reste** : fusion, puis le prochain build groupé.
