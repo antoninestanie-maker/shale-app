@@ -1011,7 +1011,7 @@ Rien de publié sur le site. Rien n'y devient faux : la barre d'origine (Aujourd
 - **Calendrier** : la vue Semaine existe et s'ouvre par défaut sur iPhone ; un clic droit (ou un maintien au doigt) ouvre le menu d'un événement. Les captures iPhone qui montrent l'agenda par défaut sont datées.
 - **Performance** : les écarts s'écrivent en « % », plus en « pts » — une capture avec « pts » est périmée.
 
-## AI — Accent V8 « Encre & Braise » (app, 2026-10-19)
+## AI ✅ REPORTÉ SUR LE SITE le 2026-10-20 — Accent V8 « Encre & Braise » (app, 2026-10-19)
 
 L'app quitte le bleu Shazam (`#0088ff` / dégradé vers `#00c2ff`). Règle « l'app et le site ne divergent jamais » : `styles/global.css` doit recopier ces valeurs.
 
@@ -1026,3 +1026,14 @@ L'app quitte le bleu Shazam (`#0088ff` / dégradé vers `#00c2ff`). Règle « l'
 | onglet actif / élément choisi | fond accent 10 %, liseré accent 30 % | idem |
 
 Neutres, rouge, ambre, violet, encre du « réussi » : **inchangés**. Le logo garde son cramoisi plein (`#dc2626 → #7f1d1d`). Contrastes : `DESIGN.md`, « Contrastes V8 ».
+
+> ✅ **Recopié dans le site le 2026-10-20**, branche `chantier/logo-shale` du
+> dépôt `shale-site` (commit 43e1bc6, avec le nouveau logo) — **pas encore
+> fusionnée ni déployée**, en attente de l'accord d'Antonin. Dans
+> `vitrine/src/styles/global.css` : `--accent` / `--accent-hi` (le site n'a
+> qu'un accent de texte), `--accent-solid`, `--jauge-a` / `--jauge-b`,
+> `--cta-bg` / `--cta-fg` / `--cta-hover` / `--cta-shadow`, halos rouges,
+> `--active` (10 %) et `--active-line` (30 %). Les neutres du site, propres à
+> lui, ne bougent pas. Plus aucun bleu dans le code du site ; il n'en reste que
+> dans les captures `shots/v2`, qui montrent l'app d'avant. `npm run check`
+> vert sur la branche.
