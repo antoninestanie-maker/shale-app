@@ -720,7 +720,33 @@ barres, bleu). **La référence fait foi : `~/Desktop/Shale-projet/marque/`**
   dans Réglages → compte d'un abonné Pro (jamais sur iOS). L'icône de l'app
   reste la standard.
 
+## Entrer dans Shale — on entre dans le logo (2026-10-20)
+
+⭐ **Remplace le temps 3 de la section juste en dessous** (la lueur, elle,
+reste). Demande d'Antonin : « inspire-toi de l'animation d'entrée de X sur
+téléphone […] c'est de ça que je parle quand je dis qu'on rentre dans le
+logo ». Même dessin sur Mac et iPhone.
+
+| Temps (état de la machine) | Durée | Ce qui bouge |
+|---|---|---|
+| **1. La lueur s'allume** (`poser`) | 500 ms, ease-out | L'opacité de la lueur, 0 → 1. |
+| **2. L'inspiration** (`approche`) | 220 ms, ease-in-out | L'icône se contracte (1 → 0,86). Autour d'elle, la nuit se pose : à froid le halo s'éteint ; après connexion, le mur s'efface. |
+| **3. On entre** (`traversee`) | 600 ms | L'icône grossit jusqu'à sortir de l'écran (×19 environ, selon la fenêtre). Sa **plaque** s'efface d'abord (12 → 42 % du temps), ses **traits** filent ensuite (40 → 72 %). L'app, derrière, se voit **à travers la forme de la plaque**, et se pose de 1,1 à 1. |
+
+- **La courbe du zoom est exponentielle** (`cubic-bezier(0.45, 0.02, 0.8,
+  0.15)`) : un zoom se perçoit en rapports, il semble ainsi aller à vitesse
+  constante. Une courbe « ease-in » ordinaire laissait l'icône petite 60 % du
+  temps puis l'explosait.
+- **Le trou est fait de pièces qui ne bougent que par `transform`** (quatre
+  pans translatés, quatre coins réduits — `lib/entree/trou.ts`). Pas de
+  `mask` ni de `clip-path` animés : ils se recalculent sur le fil principal,
+  occupé à monter l'app (§ « fluidité » du 2026-10-06).
+- « Courte » : 250 / 150 / 450 ms. Mouvement réduit : pas de trou, un fondu de
+  150 ms de l'app, comme avant.
+
 ## Entrer dans Shale — la lueur s'allume (2026-10-19)
+
+*(⚠️ temps 2 et 3 PÉRIMÉS depuis le 2026-10-20, voir juste au-dessus)*
 
 ⭐ **Remplace la traversée de la marque décrite plus bas** (animation n° 1 de
 `MARQUE.md`, choisie par Antonin). **Un seul logo du premier pixel à l'app** :

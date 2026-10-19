@@ -38,8 +38,10 @@ export default function ShaleMark({
    * `lueur-seule` : uniquement le halo flouté, SANS plaque ni traits nets —
    * c'est la couche que la transition d'entrée fait s'allumer par-dessus la
    * plaque (une opacité, rien d'autre).
+   * `plaque-seule` : la plaque et son filet, sans les traits — l'entrée « dans
+   * le logo » efface la plaque avant les traits (2026-10-20).
    */
-  variante?: "plaque" | "trait" | "lueur-seule";
+  variante?: "plaque" | "plaque-seule" | "trait" | "lueur-seule";
   /** La lueur blanche derrière les traits. Éteinte : la première image de l'entrée. */
   lueur?: boolean;
   /** Shale Pro : « PRO » blanc à 70 %, en bas à droite (icone-shale-pro.svg). */
@@ -79,7 +81,7 @@ export default function ShaleMark({
           <feGaussianBlur stdDeviation="2.5" />
         </filter>
       </defs>
-      {variante === "plaque" && (
+      {(variante === "plaque" || variante === "plaque-seule") && (
         <>
           <rect width="100" height="100" rx="22.5" fill={`url(#${plaque})`} />
           {/* Le filet blanc à 20 % : la plaque reste détachée sur un fond sombre. */}
@@ -96,6 +98,7 @@ export default function ShaleMark({
           />
         </>
       )}
+      {variante !== "plaque-seule" && (
       <g transform={INCLINAISON}>
         {avecLueur &&
           TRAITS.map((d) => (
@@ -113,6 +116,7 @@ export default function ShaleMark({
             <path key={d} d={d} stroke={encre} strokeWidth="10" strokeLinecap="butt" />
           ))}
       </g>
+      )}
       {pro && variante === "plaque" && (
         <g
           opacity="0.7"

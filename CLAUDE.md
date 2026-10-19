@@ -8654,3 +8654,11 @@ Antonin : « il faudrait enlever l'espèce de liseré […] quand on passe la so
 - **Gardé** : la remontée de 2 px (carte, ou panneau de grille), l'ombre et le bord un peu plus marqués au survol. Les exclusions du soulèvement (`.card-solid`, carte contenant un `.fixed`, carte de grille ou dans un `overflow-hidden`) ne changent pas.
 - `--gradient-brand` ne sert plus qu'aux jauges, à l'anneau et au fil des objectifs.
 - `theme.survol.test.ts` refuse toute règle sur le `::before` d'une `.card`.
+## 2026-10-20 — L'entrée : on ENTRE dans le logo, comme X
+
+Antonin : « inspire-toi de l'animation d'entrée de X sur téléphone. Et applique ça pour téléphone et desktop. C'est de ça que je parle quand je dis qu'on rentre dans le logo. » Dessin : `DESIGN.md` (« on entre dans le logo ») ; pièges : `PIEGES.md` § 49.5–49.6.
+
+- ⚠️ **Le temps 3 du 2026-10-19 est remplacé** (l'icône reculait en s'effaçant, l'app arrivait en fondu). La lueur reste : c'est la marque. Ensuite l'icône se contracte (l'inspiration de X), puis grossit jusqu'à sortir de l'écran, et l'app apparaît à travers la forme de sa plaque.
+- **La forme du trou est la plaque**, pas le S : le S est fait de deux traits fins séparés d'un vide, un zoom sur son centre ouvrirait sur le vide. La plaque est ce que les gens reconnaissent de l'icône.
+- **Les mouvements sont lancés par l'API Web Animations** (`useEntreeDansLeLogo`, `EntryTransition.tsx`), tous à la même heure, parce qu'ils dépendent de la fenêtre et de la place de l'icône. Les horloges de la machine restent des animations CSS vides : la machine et ses tests n'ont pas bougé.
+- **Le trou ne bouge que par `transform`** (`lib/entree/trou.ts`, testé : affine en l'échelle, couvre la fenêtre à la fin). La règle « rien que `transform` et `opacity` » de la transition tient.

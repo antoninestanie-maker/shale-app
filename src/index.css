@@ -2262,23 +2262,24 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   }
 }
 
-/* L'icône recule en s'effaçant. */
+/* La fin de la traversée. Une HORLOGE, comme `entree-tenir` : le mouvement
+   de l'entrée dans le logo est lancé par le composant (Web Animations), parce
+   qu'il dépend de la taille de la fenêtre (2026-10-20). */
 @keyframes entree-sortie {
   from {
     opacity: 1;
-    transform: scale(1);
   }
   to {
-    opacity: 0;
-    transform: scale(0.88);
+    opacity: 1;
   }
 }
 
-/* L'app arrive, en même temps : de 0,97 à 1, en fondu. */
+/* L'app, vue par le trou : elle se pose de 1,1 à 1 pendant qu'on entre. Elle
+   n'a pas de fondu — c'est le trou qui la révèle. */
 @keyframes entree-ouvrir {
   from {
-    opacity: 0;
-    transform: scale(0.97);
+    opacity: 1;
+    transform: scale(1.1);
   }
   to {
     opacity: 1;
@@ -2298,13 +2299,17 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
 
 /* Les durées, en un seul endroit. « Courte » divise les deux premières. */
 :root {
-  --entree-t-lueur: 600ms;
-  --entree-t-maintien: 150ms;
-  --entree-t-sortie: 450ms;
+  --entree-t-lueur: 500ms;
+  --entree-t-maintien: 220ms;
+  --entree-t-sortie: 600ms;
+  /* La nuit de la première image (`index.html`, `tauri.conf.json`) : le trou
+     s'ouvre dans elle. */
+  --entree-nuit: #070506;
 }
 .entree-copie[data-mode="courte"] {
-  --entree-t-lueur: 300ms;
-  --entree-t-maintien: 75ms;
+  --entree-t-lueur: 250ms;
+  --entree-t-maintien: 150ms;
+  --entree-t-sortie: 450ms;
 }
 
 /* ── Le mur pendant la transition ──────────────────────────────────────────
@@ -2375,10 +2380,44 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   width: calc(96px * var(--zoom-inv, 1));
   height: calc(96px * var(--zoom-inv, 1));
 }
-.entree-lueur {
+.entree-calque {
   position: absolute;
   inset: 0;
+}
+.entree-traits {
+  color: #fff;
+}
+.entree-lueur {
   will-change: opacity;
+}
+
+/* ── Le trou : la nuit autour de l'icône, pendant qu'on entre ─────────────
+   Entre l'app (300) et la copie (400). Huit pièces qui ne bougent que par
+   `transform` : quatre pans unis translatés, quatre coins réduits
+   (`lib/entree/trou.ts` dit pourquoi). Le composant les place et les anime.
+   ⚠️ `zoom: var(--zoom-inv)` : le trou raisonne en pixels d'ÉCRAN (la copie
+   est mesurée en pixels d'écran) ; sans lui, la densité de 110 % décalerait le
+   trou de la plaque. */
+.entree-masque {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  pointer-events: none;
+  overflow: hidden;
+  zoom: var(--zoom-inv, 1);
+  will-change: opacity;
+}
+.entree-piece {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.entree-piece-pan {
+  width: 100%;
+  height: 100%;
+  background: var(--entree-nuit);
 }
 .entree-copie[data-phase="poser"] {
   animation: entree-tenir var(--entree-t-lueur) linear both;
@@ -2425,7 +2464,7 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   opacity: 0;
 }
 .entree-app[data-phase="traversee"] {
-  animation: entree-ouvrir var(--entree-t-sortie) var(--ease-out-quint) both;
+  animation: entree-ouvrir var(--entree-t-sortie) cubic-bezier(0.45, 0, 0.25, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2447,6 +2486,9 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   }
   .entree-copie[data-phase="traversee"] {
     opacity: 0;
+  }
+  .entree-masque {
+    display: none;
   }
 }
 

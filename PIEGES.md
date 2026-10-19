@@ -5473,3 +5473,19 @@ invisible en mode démo, où il n'y a pas de fenêtre native.
 ▶️ Tout ce qui change la géométrie de la fenêtre au lancement se fait dans le
 `setup` du Rust, avant que la page ne charge (`fenetre_lancement.rs`). Le
 `setSize` du front reste en filet : à taille égale il ne fait rien.
+
+## 49.5 Agrandir un calque de ×20 par `transform` le rend flou
+
+Le navigateur peint un calque une fois, puis l'étire : une image de 96 px
+agrandie vingt fois devient une tache. C'est pourquoi le trou de l'entrée
+(2026-10-20) n'est PAS un calque qu'on agrandit. ▶️ Ce qui doit rester net en
+grossissant se dessine à sa taille FINALE et se RÉDUIT (les coins du trou),
+ou ne s'agrandit pas du tout et se TRANSLATE (les pans unis). Les traits de
+l'icône, eux, sont agrandis, et c'est pour ça qu'ils s'effacent à ×5.
+
+## 49.6 Une échelle arrondie au millième décolle des pièces jointives
+
+Les coins du trou sont réduits de `s / 19` : à l'inspiration, ≈ 0,045. Arrondie
+à trois décimales, l'échelle perdait 0,6 % et le coin ne tombait plus sur le
+bord du pan. Vu par un test, pas à l'écran. ▶️ Six décimales dans les
+transformations qu'on calcule (`trou.ts`).

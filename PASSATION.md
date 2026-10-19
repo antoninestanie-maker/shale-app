@@ -2670,3 +2670,6 @@ Défaut vu au vrai lancement du build de 00:48 : la taille de fenêtre mémoris�
 ## 2026-10-20 — En attente du prochain build natif : le survol sans filet
 
 Commit `3471e7d` (front seul, aucune migration, aucun Rust) : le filet d'1 px en haut des cartes au survol est retiré, la remontée reste. Antonin a demandé de le **grouper avec le prochain build natif** : il n'est pas dans l'app installée tant que ce build n'a pas eu lieu.
+## 2026-10-20 — L'entrée « dans le logo » façon X (`chantier/entree-x`)
+
+Demande d'Antonin : l'entrée de X sur téléphone, sur Mac et iPhone. **Fait** : la lueur reste, puis l'icône se contracte et grossit jusqu'à sortir de l'écran ; l'app apparaît à travers la forme de sa plaque (`lib/entree/trou.ts`, `useEntreeDansLeLogo`). **Vu** au ralenti (×10) dans Chrome sans fenêtre, mode démo : ouverture à froid, connexion, densité 110 %, téléphone 390 pt. Décision : `CLAUDE.md` ; dessin : `DESIGN.md` ; pièges § 49.5–49.6. Build et vérification au vrai lancement : voir le carnet.

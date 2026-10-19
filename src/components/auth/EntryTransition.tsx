@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useReducer, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type CSSProperties,
+} from "react";
 import ShaleMark from "./ShaleMark";
 import {
   modeleInitial,
@@ -9,21 +17,43 @@ import {
 import { reperesEntree, variablesEntree } from "../../lib/entree/geometrie";
 import { animationEntreeAuDemarrage } from "../../lib/entree/reglage";
 import { appEstPrete, rectMarque, rectParDefaut, surAppPrete } from "../../lib/entree/signal";
+import {
+  ANCRE_COIN,
+  CONTRACTION,
+  PIECES,
+  coteCoin,
+  rayonCoin,
+  transformation,
+  trou,
+  type Piece,
+  type Trou,
+} from "../../lib/entree/trou";
 
 /**
- * L'entrée dans Shale : la lueur s'allume (animation n° 1, choisie par Antonin
- * le 2026-10-19, `~/Desktop/Shale-projet/marque/MARQUE.md`).
+ * L'entrée dans Shale : la lueur s'allume, puis on ENTRE dans le logo.
+ *
+ * ⭐ 2026-10-20, demande d'Antonin : « inspire-toi de l'animation d'entrée de X
+ * sur téléphone […] c'est de ça que je parle quand je dis qu'on rentre dans
+ * le logo ». L'icône se contracte, puis grossit jusqu'à sortir de l'écran, et
+ * l'app apparaît À TRAVERS sa plaque — une fenêtre qui s'ouvre.
  *
  * Un seul logo du premier pixel à l'app : l'écran de lancement (iOS) et la
  * couche `#lancement` d'`index.html` (Mac) montrent l'icône au centre, lueur
  * éteinte ; la transition repart EXACTEMENT de cette image.
  *
- *   poser      la lueur s'allume (≈ 600 ms)
- *   approche   court maintien (≈ 150 ms)
- *   traversee  l'icône recule (1 → 0,88) en s'effaçant, l'app arrive (0,97 → 1)
+ *   poser      la lueur s'allume (≈ 500 ms)
+ *   approche   l'inspiration : l'icône se contracte à 86 % (≈ 220 ms), la
+ *              nuit autour d'elle se pose (à froid elle l'est déjà ; après
+ *              connexion, c'est le mur qui s'efface)
+ *   traversee  on entre : l'icône grossit jusqu'à sortir de l'écran ; sa
+ *              plaque s'efface d'abord, ses traits ensuite, et l'app,
+ *              derrière, se voit par le trou (≈ 650 ms)
  *
- * Les noms des états viennent de l'animation d'avant (la traversée de la
- * marque) ; ils sont gardés pour ne pas toucher la machine ni ses tests.
+ * Le trou est fait de pièces qui ne bougent que par `transform` (pourquoi :
+ * `lib/entree/trou.ts`). Ces mouvements sont lancés ici, par l'API Web
+ * Animations, tous à la MÊME heure de départ : leurs positions dépendent de la
+ * fenêtre et de l'icône, qu'une image clé CSS ne connaît pas. Les HORLOGES de
+ * la machine, elles, restent des animations CSS vides sur la copie.
  *
  * Le POURQUOI et l'empilement sont dans `src/index.css`, § « L'entrée dans
  * Shale ». Ici, la mécanique.
@@ -216,6 +246,9 @@ export function VoileEntree({
   enfants: React.ReactNode;
 }) {
   const actif = phase !== "idle" && phase !== "done";
+  const copie = useRef<HTMLDivElement>(null);
+  const masque = useRef<HTMLDivElement>(null);
+  useEntreeDansLeLogo(phase, copie, masque);
   // ⚠️ `will-change` posé au démarrage et retiré à la fin, jamais en permanence :
   // laissé là, il garde une couche de compositing pour rien, sur toutes les
   // vues, pour le restant de la session.
@@ -235,12 +268,20 @@ export function VoileEntree({
       >
         {enfants}
       </div>
+      {actif && phase !== "poser" && !prefereMoinsDeMouvement() && (
+        <div className="entree-masque" ref={masque} aria-hidden>
+          {PIECES.map((p) => (
+            <div key={p} className={`entree-piece entree-piece-${p.length > 2 ? "pan" : "coin"}`} data-piece={p} />
+          ))}
+        </div>
+      )}
       {actif && (
         <div
+          ref={copie}
           className="entree-copie"
           data-phase={phase}
           data-origine={origine}
-          // « Courte » : la lueur et le maintien durent moitié moins (CSS).
+          // « Courte » : chaque temps dure moins longtemps (CSS).
           data-mode={mode}
           style={style}
           // ⚠️ SON PROPRE `onAnimationEnd`, et ce n'est pas une redondance.
@@ -254,13 +295,20 @@ export function VoileEntree({
           onAnimationEnd={gererAnimation}
           aria-hidden
         >
-          {/* L'icône, lueur éteinte : la première image, au pixel près. */}
-          <ShaleMark size="100%" lueur={false} />
+          {/* L'icône, lueur éteinte : la première image, au pixel près. En
+              deux calques, parce qu'en entrant la plaque s'efface AVANT les
+              traits : on passe à travers elle, puis les traits filent. */}
+          <span className="entree-calque entree-plaque">
+            <ShaleMark size="100%" variante="plaque-seule" />
+          </span>
+          <span className="entree-calque entree-traits">
+            <ShaleMark size="100%" variante="trait" />
+          </span>
           {/* La lueur, dans son propre calque : elle s'allume par l'opacité
               seule — le flou est peint UNE fois, jamais pendant l'animation.
               Posée par-dessus les traits : blanc sur blanc, ils ne changent
               pas ; autour d'eux, c'est la lueur de l'icône de référence. */}
-          <span className="entree-lueur" aria-hidden>
+          <span className="entree-calque entree-lueur" aria-hidden>
             <ShaleMark size="100%" variante="lueur-seule" />
           </span>
         </div>
@@ -269,4 +317,125 @@ export function VoileEntree({
   );
 }
 
+/** Une durée CSS (`450ms`, `0.3s`) lue sur un élément, en millisecondes. */
+function dureeCss(el: Element, nom: string, repli: number): number {
+  const v = getComputedStyle(el).getPropertyValue(nom).trim();
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return repli;
+  return v.endsWith("ms") ? n : n * 1000;
+}
+
+/**
+ * La courbe de l'entrée dans le logo. Un zoom se perçoit en RAPPORTS : pour
+ * qu'il semble aller à vitesse constante, l'échelle doit croître de façon
+ * exponentielle. Cette courbe en est l'ajustement (×22 en 600 ms), à peine
+ * accéléré au départ. La première version (0.7, 0, 0.84, 0) laissait l'icône
+ * petite 60 % du temps puis explosait d'un coup (vu au ralenti, 2026-10-20).
+ */
+const COURBE_ENTREE = "cubic-bezier(0.45, 0.02, 0.8, 0.15)";
+/** L'inspiration : une contraction douce. */
+const COURBE_INSPIRATION = "cubic-bezier(0.45, 0, 0.55, 1)";
+
+/**
+ * Lance les mouvements de l'approche et de la traversée (Web Animations).
+ * Tous partent à la même heure (`startTime`), sinon une image de décalage
+ * entre la plaque et le trou laisserait voir l'app sur un liseré.
+ */
+function useEntreeDansLeLogo(
+  phase: EtatEntree,
+  copie: React.RefObject<HTMLDivElement | null>,
+  masque: React.RefObject<HTMLDivElement | null>,
+) {
+  const geo = useRef<Trou | null>(null);
+  useLayoutEffect(() => {
+    if (phase !== "approche" && phase !== "traversee") return;
+    const c = copie.current;
+    const m = masque.current;
+    if (!c || !m) return;
+    if (!geo.current) {
+      // Mesuré AVANT tout mouvement (à l'approche, la copie est encore à 1).
+      const r = c.getBoundingClientRect();
+      geo.current = trou(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+        r.width,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      const t = geo.current;
+      for (const el of Array.from(m.children) as HTMLElement[]) {
+        const p = el.dataset.piece as Piece;
+        if (p.length === 2) {
+          const cote = coteCoin(t);
+          el.style.width = el.style.height = `${cote}px`;
+          const ray = rayonCoin(t);
+          const ancre = ANCRE_COIN[p as "hg" | "hd" | "bg" | "bd"];
+          el.style.background = `radial-gradient(circle ${ray}px at ${ancre}, transparent ${ray - 0.75}px, var(--entree-nuit) ${ray + 0.75}px)`;
+        }
+      }
+    }
+    const t = geo.current;
+    const debut = document.timeline.currentTime ?? undefined;
+    const anims: Animation[] = [];
+    const lancer = (el: Element, images: Keyframe[], options: KeyframeAnimationOptions) => {
+      const a = el.animate(images, { fill: "both", ...options });
+      if (debut !== undefined && debut !== null) a.startTime = debut;
+      anims.push(a);
+    };
+    const pieces = Array.from(m.children) as HTMLElement[];
+
+    if (phase === "approche") {
+      const duree = dureeCss(c, "--entree-t-maintien", 220);
+      const options = { duration: duree, easing: COURBE_INSPIRATION };
+      lancer(c, [{ transform: "scale(1)" }, { transform: `scale(${CONTRACTION})` }], options);
+      for (const el of pieces) {
+        const p = el.dataset.piece as Piece;
+        lancer(
+          el,
+          [{ transform: transformation(t, p, 1) }, { transform: transformation(t, p, CONTRACTION) }],
+          options,
+        );
+      }
+      // La nuit se pose autour de l'icône. À froid, elle y est déjà (le
+      // lancement) : seul le halo s'éteint. Après connexion, le mur s'efface.
+      lancer(m, [{ opacity: 0 }, { opacity: 1 }], { duration: duree, easing: "linear" });
+    } else {
+      const duree = dureeCss(c, "--entree-t-sortie", 650);
+      const options = { duration: duree, easing: COURBE_ENTREE };
+      const fin = t.echelleFinale;
+      lancer(c, [{ transform: `scale(${CONTRACTION})` }, { transform: `scale(${fin})` }], options);
+      for (const el of pieces) {
+        const p = el.dataset.piece as Piece;
+        lancer(
+          el,
+          [{ transform: transformation(t, p, CONTRACTION) }, { transform: transformation(t, p, fin) }],
+          options,
+        );
+      }
+      lancer(m, [{ opacity: 1 }, { opacity: 1 }], { duration: duree });
+      // On passe à travers la plaque d'abord, puis les traits filent.
+      const plaque = c.querySelector(".entree-plaque");
+      const traits = c.querySelectorAll(".entree-traits, .entree-lueur");
+      if (plaque)
+        lancer(plaque, [{ opacity: 1 }, { opacity: 1, offset: 0.12 }, { opacity: 0, offset: 0.42 }, { opacity: 0 }], {
+          duration: duree,
+          easing: "linear",
+        });
+      traits.forEach((el) =>
+        lancer(el, [{ opacity: 1 }, { opacity: 1, offset: 0.4 }, { opacity: 0, offset: 0.72 }, { opacity: 0 }], {
+          duration: duree,
+          easing: "linear",
+        }),
+      );
+    }
+    // ⚠️ Pas d'annulation au changement de temps : `fill: both` tient la
+    // dernière image, et la suivante part de la même valeur. On annule tout
+    // au démontage (fin de la transition) seulement.
+    return () => {
+      if (phase === "traversee") for (const a of anims) a.cancel();
+    };
+  }, [phase, copie, masque]);
+}
+
 export type { EtatEntree };
+
