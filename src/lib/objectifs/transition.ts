@@ -113,9 +113,19 @@ export function jouerTransition(s: Scene): Animation[] {
   const jouer = (el: Element, images: Keyframe[], o: KeyframeAnimationOptions) =>
     anims.push(el.animate(images, { fill: "both", ...o }));
 
+  // Au retour, tout se lit sur UNE horloge de `fin` ms : le rectangle est
+  // rentré à ~`pose`, puis le voile se fond dans la vraie carte.
+  // ⚠️ Les fondus sont minutés image par image (`easing` par image clé), jamais
+  // par l'`easing` global d'un ressort : il déforme le TEMPS de toutes les
+  // images clés, et un fondu placé « à 85 % » tombait au premier tiers — une
+  // carte fantôme, vue au ralenti le 2026-10-20.
+  const fin = duree + 100;
+  const pose = duree - 60;
+  const t = (ms: number) => Math.min(Math.max(ms / fin, 0), 1);
+
   // 1 — le rectangle s'agrandit (ou rentre dans sa carte).
   jouer(s.voile, ouvre ? [{ clipPath: petit }, { clipPath: grand }] : [{ clipPath: grand }, { clipPath: petit }], {
-    duration: duree,
+    duration: ouvre ? duree : pose - 60,
     easing: RESSORT,
     delay: ouvre ? 0 : 60,
   });
@@ -126,14 +136,14 @@ export function jouerTransition(s: Scene): Animation[] {
     s.fond,
     ouvre
       ? [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }]
-      : [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1, offset: 0.82 }, { opacity: 0 }],
-    { duration: duree + (ouvre ? 140 : 60), easing: "linear" },
+      : [{ opacity: 0 }, { opacity: 1, offset: t(140) }, { opacity: 1, offset: t(pose) }, { opacity: 0 }],
+    { duration: ouvre ? duree + 140 : fin, easing: "linear" },
   );
 
   // La vraie carte cède la place au voile (son ombre dépasse de la découpe),
-  // et la reprend au retour.
-  jouer(s.carte, ouvre ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 0, offset: 0.7 }, { opacity: 1 }], {
-    duration: ouvre ? 140 : duree + 60,
+  // et la reprend au retour, pendant que le voile s'efface.
+  jouer(s.carte, ouvre ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 0, offset: t(pose - 40) }, { opacity: 1 }], {
+    duration: ouvre ? 140 : fin,
     easing: "linear",
   });
 
@@ -148,9 +158,18 @@ export function jouerTransition(s: Scene): Animation[] {
     jouer(
       cible,
       ouvre
-        ? [{ transform: depuis, opacity: 0 }, { transform: depuis, opacity: 1, offset: 0.1 }, { transform: "none", opacity: 1 }]
-        : [{ transform: "none", opacity: 1 }, { transform: depuis, opacity: 1, offset: 0.85 }, { transform: depuis, opacity: 0 }],
-      { duration: duree, easing: RESSORT, delay: ouvre ? 0 : 60 },
+        ? [
+            { transform: depuis, opacity: 0, easing: "linear" },
+            { transform: depuis, opacity: 1, offset: 0.08, easing: RESSORT },
+            { transform: "none", opacity: 1 },
+          ]
+        : [
+            { transform: "none", opacity: 1, offset: 0, easing: "linear" },
+            { transform: "none", opacity: 1, offset: t(60), easing: RESSORT },
+            { transform: depuis, opacity: 1, offset: t(pose), easing: "linear" },
+            { transform: depuis, opacity: 0 },
+          ],
+      { duration: ouvre ? duree : fin, easing: "linear" },
     );
   }
 
@@ -164,7 +183,7 @@ export function jouerTransition(s: Scene): Animation[] {
         ? [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }]
         : [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(6px)" }],
       ouvre
-        ? { duration: 420, easing: DOUX, delay: 170 + Math.min(i, 8) * 32 }
+        ? { duration: 440, easing: DOUX, delay: 130 + Math.min(i, 8) * 34 }
         : { duration: 150, easing: "linear" },
     );
   });
