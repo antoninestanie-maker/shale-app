@@ -2638,5 +2638,5 @@ Demande d'Antonin : l'app est jugée peu intuitive et trop chargée ; alléger t
 5. Bureau : toutes les catégories de la barre latérale ouvertes au premier lancement (`Sidebar.tsx`). Un état replié déjà enregistré est gardé.
 6. Bureau : « systèmes actifs » retiré du pied de la barre (clé `en.ts` retirée).
 
-**Prouvé** : `tsc`, `i18n:check` verts ; `grille.test.ts`, `onglets.test.ts`, `barre*.test.ts`, `admin.test.ts` verts (assertion de `barre.source.test.ts` passée de 6 à 5 libellés coupés). Suite complète : voir la ligne suivante.
+**Prouvé** : `tsc`, `i18n:check` verts ; `grille.test.ts`, `onglets.test.ts`, `barre*.test.ts`, `admin.test.ts` verts (assertion de `barre.source.test.ts` passée de 6 à 5 libellés coupés). Suite complète sur `f0c96f1` : 179 fichiers, 2 584 verts, 3 ignorés, 0 échec.
 **Pas prouvé** : rien vu dans WKWebView ni sur l'iPhone réel. **Reste** : relire le carnet, fusionner dans `mobile-ios`, build groupé Mac + pose iPhone.
