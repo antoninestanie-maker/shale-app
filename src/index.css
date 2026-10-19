@@ -2190,28 +2190,36 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
 }
 
 
-/* ─── L'entrée dans Shale : la traversée de la marque ───────────────────────
-   Voir `src/components/auth/EntryTransition.tsx` et `DESIGN.md`.
+/* ─── L'entrée dans Shale : la lueur s'allume ──────────────────────────────
+   Voir `src/components/auth/EntryTransition.tsx`, `DESIGN.md` et
+   `~/Desktop/Shale-projet/marque/MARQUE.md` (animation n° 1, choisie par
+   Antonin le 2026-10-19). Elle remplace la traversée de la marque « Strates »
+   (vol vers nous, liseré bleu, barres « Nuit »).
 
-   ⭐ CE N'EST PAS UN ÉCRAN DE CHARGEMENT. C'est une transition d'ÉLÉMENT
-   PARTAGÉ : la marque déjà affichée au-dessus du formulaire ne disparaît pas,
-   c'est elle qui grandit et qu'on traverse. Une copie en `position: fixed` est
-   posée à la position RÉELLE de l'originale (FLIP), l'originale est cachée,
-   et c'est la copie qui joue. Aucun saut.
+   ⭐ UN SEUL LOGO DU PREMIER PIXEL À L'APP. L'écran de lancement d'iOS, la
+   couche `#lancement` d'`index.html` (Mac) et le `Splash` de React montrent la
+   MÊME image : fond nuit, halo rouge, l'icône au centre, lueur ÉTEINTE. La
+   copie animée est posée exactement là, puis :
 
-   ⭐ L'EMPILEMENT, qui est tout le truc du temps 3 :
+       poser      la lueur s'allume           ≈ 600 ms, ease-out
+       approche   court maintien              ≈ 150 ms
+       traversee  l'icône recule (1 → 0,88) en s'effaçant, et l'app arrive
+                  (opacité 0 → 1, échelle 0,97 → 1)          ≈ 450 ms
 
-       voile (z 200)  le mur de connexion, opaque, INCHANGÉ jusqu'à la fin
-       app   (z 300)  l'app, DÉCOUPÉE par un cercle qui s'agrandit
-       copie (z 400)  la marque, qui grossit et s'efface
+   « Courte » : lueur et maintien moitié moins longs. Mouvement réduit : un
+   fondu simple de l'app. Après CONNEXION, il n'y a rien à allumer : l'icône
+   du mur porte déjà sa lueur ; le formulaire s'efface, l'icône reste, puis sort.
 
-   L'app est AU-DESSUS du mur et découpée, au lieu d'un trou percé dans le mur.
-   Percer un trou demanderait un masque ou un `path()` pair-impair ; découper
-   un cercle qui grandit est une seule propriété, et le résultat à l'écran est
-   le même — on passe au travers de la plaque.
+   L'EMPILEMENT :
 
-   ⚠️ `transform`, `opacity` et `clip-path`, rien d'autre. Aucun `filter`,
-   aucun `backdrop-filter` animé, aucune animation de `width`/`height`/`box-shadow`.
+       voile (z 200)  le mur de connexion, ou à froid la première image
+       app   (z 300)  l'app, qui arrive en fondu par-dessus
+       copie (z 400)  l'icône, qui s'allume puis s'efface
+
+   ⚠️ `transform` et `opacity`, RIEN D'AUTRE (règle du 2026-10-06 : ce que la
+   carte graphique anime seule quand le fil principal est occupé à monter
+   l'app). Le flou de la lueur est peint une fois, dans son propre calque ;
+   seule son opacité bouge. `src/lib/entree/temps.test.ts` le vérifie.
 
    ⚠️ DES ANIMATIONS, PAS DES TRANSITIONS, exprès et partout. Une transition sur
    une propriété qui ne change pas n'émet jamais `transitionend`, et la machine
@@ -2220,14 +2228,8 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
    `prefers-reduced-motion`, où la règle globale du § « préférences système »
    écrase `animation-duration` sur `*`.
 
-   ⚠️ Pas de jeux de keyframes alternés `-a`/`-b` ici, contrairement à
-   `cal-glisse`. Le piège ne s'applique pas : chaque temps porte un nom
-   d'animation DIFFÉRENT, et le composant entier est démonté à la fin — une
-   nouvelle entrée repart donc d'un montage neuf, jamais d'un même nom réappliqué.
-
-   Les variables sont posées par le composant sur `<html>` : `--entree-x/y/taille`
-   (le rectangle mesuré), `--entree-cx/cy` (son centre), `--entree-r0/r1` (le
-   cercle d'ouverture), `--entree-echelle` (le grossissement du temps 2). */
+   Variables posées par le composant sur `<html>` : `--entree-x/y/taille` (le
+   rectangle de l'icône du mur de connexion, en pixels d'ÉCRAN). */
 
 /* ⭐ LE TEMPS 1 EST PORTÉ PAR LA COPIE, PAS PAR LE FORMULAIRE.
    ⚠️ Et c'est un défaut RÉEL, mesuré dans l'app iOS le 2026-09-12, pas une
@@ -2235,15 +2237,11 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
    sur le formulaire de connexion. À l'ouverture À FROID il n'y a pas de
    formulaire — donc aucun élément ne portait l'animation, donc `animationend`
    n'arrivait jamais, et la machine restait dans `poser` jusqu'au minuteur de
-   sécurité. Relevé dans l'app : `2936 poser` puis `5451 done`, soit 2515 ms
-   d'attente pour une animation de 200 ms.
+   sécurité. Relevé dans l'app : `2936 poser` puis `5451 done`.
 
-   La copie de la marque, elle, existe TOUJOURS. C'est donc elle qui porte
-   l'horloge du temps 1, dans les deux cas.
-
-   `entree-tenir` ne change rien À DESSEIN : après connexion, la marque ne doit
-   pas bouger, c'est ce qui vend la continuité. Son seul travail est de FINIR,
-   pour que la machine avance. Une animation vide qui a une raison d'être.
+   La copie de l'icône, elle, existe TOUJOURS. C'est donc elle qui porte
+   l'horloge de chaque temps. `entree-tenir` et `entree-maintien` ne changent
+   rien À DESSEIN : leur seul travail est de FINIR, pour que la machine avance.
    `src/lib/entree/temps.test.ts` échoue si un temps perd son horloge. */
 @keyframes entree-tenir {
   from {
@@ -2254,8 +2252,17 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   }
 }
 
-/* À froid, il n'y a rien à effacer : la marque apparaît, brièvement. */
-@keyframes entree-apparaitre {
+@keyframes entree-maintien {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* La lueur s'allume : opacité seule. */
+@keyframes entree-lueur-allume {
   from {
     opacity: 0;
   }
@@ -2275,46 +2282,23 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   }
 }
 
-@keyframes entree-approche {
+/* L'icône recule en s'effaçant. */
+@keyframes entree-sortie {
   from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(var(--entree-echelle, 4.5));
-  }
-}
-
-/* Les quatre strates se décollent : même centre, facteurs différents. C'est
-   cette parallaxe qui porte le spectacle, pas la durée. */
-@keyframes entree-strate {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(var(--strate, 1));
-  }
-}
-
-@keyframes entree-traversee-marque {
-  from {
-    transform: scale(var(--entree-echelle, 4.5));
     opacity: 1;
+    transform: scale(1);
   }
   to {
-    transform: scale(calc(var(--entree-echelle, 4.5) * 2.4));
     opacity: 0;
+    transform: scale(0.88);
   }
 }
 
+/* L'app arrive, en même temps : de 0,97 à 1, en fondu. */
 @keyframes entree-ouvrir {
-  /* ⚠️ 2026-10-06 : l'ouverture en cercle (`clip-path` animé sur TOUTE l'app)
-     est retirée. Elle obligeait à repeindre l'app entière à chaque image, au
-     moment précis où la marque part vers nous : c'est elle qui saccadait. L'app
-     arrive maintenant par l'opacité et un léger recul — deux propriétés que la
-     carte graphique anime sans rien repeindre. */
   from {
     opacity: 0;
-    transform: scale(1.06);
+    transform: scale(0.97);
   }
   to {
     opacity: 1;
@@ -2332,6 +2316,17 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   }
 }
 
+/* Les durées, en un seul endroit. « Courte » divise les deux premières. */
+:root {
+  --entree-t-lueur: 600ms;
+  --entree-t-maintien: 150ms;
+  --entree-t-sortie: 450ms;
+}
+.entree-copie[data-mode="courte"] {
+  --entree-t-lueur: 300ms;
+  --entree-t-maintien: 75ms;
+}
+
 /* ── Le mur pendant la transition ──────────────────────────────────────────
    Il est figé et plein cadre. `inert` côté composant : ni clavier, ni souris,
    ni lecteur d'écran n'y entrent pendant qu'il s'efface. */
@@ -2339,13 +2334,12 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   position: fixed;
   inset: 0;
   z-index: 200;
-  /* À froid il n'y a pas de mur de connexion à l'intérieur : c'est le voile
-     lui-même qui porte le fond. Après connexion, `Mur` peint la même couleur
-     par-dessus — même valeur, aucun effet. */
+  /* Après connexion, `Mur` peint ce fond ; à froid, c'est `Lancement` (la nuit
+     et son halo) qui le recouvre. */
   background: var(--color-bg);
 }
 
-/* Le formulaire, le titre et le sous-titre s'effacent. La marque, elle, NE
+/* Le formulaire, le titre et le sous-titre s'effacent. L'icône, elle, NE
    BOUGE PAS : c'est ce qui vend la continuité. */
 [data-entree="poser"] .entree-part {
   animation: entree-effacer var(--dur-base) var(--ease-out-quint) both;
@@ -2361,200 +2355,70 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   visibility: hidden;
 }
 
-/* ── La copie animée de la marque ──────────────────────────────────────────*/
+/* « Chargement… », sous l'icône de la première image — seulement si l'attente
+   dure. À l'ouverture ordinaire, l'image reste celle du lancement, au pixel. */
+.lancement-attente {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 48px * var(--zoom-inv, 1) + 20px);
+  text-align: center;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.55);
+  opacity: 0;
+  animation: entree-fondu 400ms ease-out 1500ms both;
+}
+
+/* ── La copie animée de l'icône ─────────────────────────────────────────────
+   ⚠️ Positions et tailles multipliées par `--zoom-inv` : la densité (et
+   Dynamic Type) posent un `zoom` sur `<html>` quand l'app se monte, c'est-à-
+   dire PENDANT la transition. Sans cette correction, l'icône sauterait de 10 %
+   à cet instant. Le rectangle mesuré est en pixels d'écran ; la copie, en
+   `position: fixed` sous `<html>` zoomé, raisonne en pixels locaux. */
 .entree-copie {
   position: fixed;
-  /* ⭐ 2026-10-06 : la copie est dessinée à sa taille d'ARRÊT (3,4 × la marque
-     de l'écran de connexion), centrée sur elle, et le vol la RÉDUIT pour partir
-     de la marque d'origine. Dessinée petite puis grossie, elle était floue
-     pendant l'arrêt — et c'est à l'arrêt qu'on la regarde. */
-  left: calc(var(--entree-x, 0px) - var(--entree-taille, 52px) * 1.2);
-  top: calc(var(--entree-y, 0px) - var(--entree-taille, 52px) * 1.2);
-  width: calc(var(--entree-taille, 52px) * 3.4);
-  height: calc(var(--entree-taille, 52px) * 3.4);
+  left: calc(var(--entree-x, 0px) * var(--zoom-inv, 1));
+  top: calc(var(--entree-y, 0px) * var(--zoom-inv, 1));
+  width: calc(var(--entree-taille, 52px) * var(--zoom-inv, 1));
+  height: calc(var(--entree-taille, 52px) * var(--zoom-inv, 1));
   z-index: 400;
   pointer-events: none;
   transform-origin: center;
   will-change: transform, opacity;
 }
-
-/* ── LE VOL : un seul mouvement, d'un bout à l'autre ────────────────────────
-   ⚠️ Avant, trois animations se relayaient (une par temps de la machine), et
-   chaque relais passait par un rendu React : la marque s'arrêtait net entre
-   deux temps, puis repartait de vitesse nulle. C'est ce qui manquait de
-   fluidité (Antonin, 2026-10-06).
-
-   Désormais UNE animation porte tout le mouvement, sur sa propre horloge. Les
-   animations de chaque temps (`entree-tenir`, `entree-approche`…) restent en
-   TÊTE de liste — ce sont les horloges de la machine, `temps.test.ts` les
-   lit — mais elles ne dessinent plus rien : le vol, déclaré après elles,
-   l'emporte sur `transform` et `opacity`. Une animation dont le nom reste dans
-   la liste n'est pas relancée quand le temps change : le vol ne voit pas les
-   relais.
-
-   Arrivée (ease-out) → arrêt, avec une dérive imperceptible pour que rien ne
-   se fige → départ vers nous (ease-in), qui s'efface en nous traversant. */
-@keyframes entree-vol {
-  0% {
-    transform: scale(var(--entree-depart, 0.294));
-    opacity: var(--entree-depart-opacite, 1);
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  20% {
-    transform: scale(1);
-    opacity: 1;
-    animation-timing-function: linear;
-  }
-  58% {
-    transform: scale(1.05);
-    opacity: 1;
-    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
-  }
-  88% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(9);
-    opacity: 0;
-  }
-}
+/* À froid : au centre, à la taille de la première image (`.lancement-icone`,
+   `index.html`) — par le CSS, pas par une mesure, pour tomber exactement sur
+   l'écran de lancement d'iOS. */
 .entree-copie[data-origine="froid"] {
-  /* À froid, pas de marque d'origine à quitter : elle arrive de moins loin,
-     en apparaissant. */
-  --entree-depart: 0.72;
-  --entree-depart-opacite: 0;
+  inset: 0;
+  margin: auto;
+  width: calc(96px * var(--zoom-inv, 1));
+  height: calc(96px * var(--zoom-inv, 1));
+}
+.entree-lueur {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
 }
 .entree-copie[data-phase="poser"] {
-  animation: entree-tenir var(--entree-poser, 1000ms) linear both, entree-vol var(--entree-vol, 1750ms) both;
+  animation: entree-tenir var(--entree-t-lueur) linear both;
 }
 .entree-copie[data-origine="froid"][data-phase="poser"] {
-  animation: entree-apparaitre var(--entree-poser, 1000ms) linear both, entree-vol var(--entree-vol, 1750ms) both;
+  animation: entree-tenir var(--entree-t-lueur) linear both;
 }
-
-/* ── Le liseré bleu (reel 014) ──────────────────────────────────────────────
-   Le temps 1 dure une seconde : la marque arrive (ou reste), marque un arrêt,
-   puis un liseré bleu fait un tour de sa plaque — avant que l'approche ne la
-   lance vers nous.
-
-   Un anneau fixe (masque : plaque pleine moins son intérieur) dans lequel
-   tourne un dégradé conique. Seul le dégradé bouge, et par `transform` : rien
-   d'autre n'est animé (règle de la transition). Les 22 % d'arrondi suivent le
-   `rx` de la plaque (5,3 sur 24). */
-.entree-lisere {
-  position: absolute;
-  /* ⚠️ 2026-10-06 : plus de `mask` ni de `clip-path` ici. Un masque se redessine
-     sur le fil principal à chaque image, et ce fil est occupé à monter l'app
-     pendant la transition : le liseré saccadait. Un cadre arrondi qui coupe
-     (`overflow`) et un enfant qui tourne, c'est tout ce que la carte graphique
-     sait animer seule. */
-  inset: -1px;
-  border-radius: 22%;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateZ(0);
-  will-change: opacity;
-}
-/* La plaque passe DEVANT les cadres du liseré (des éléments positionnés
-   peindraient sinon par-dessus un SVG qui ne l'est pas). */
-.entree-copie > svg {
-  position: relative;
-  z-index: 1;
-}
-.entree-lisere[data-couche="lueur"] {
-  inset: -6px;
-  border-radius: 24%;
-  --lisere-force: 0.4;
-}
-.entree-lisere[data-couche="halo"] {
-  inset: -14px;
-  border-radius: 27%;
-  --lisere-force: 0.17;
-}
-.entree-lisere-comete {
-  position: absolute;
-  inset: -50%;
-  opacity: var(--lisere-force, 1);
-  will-change: transform;
-  /* La queue s'allonge sur un demi-tour ; la tête est presque blanche. */
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 150deg,
-    color-mix(in srgb, var(--gradient-brand-from) 22%, transparent) 235deg,
-    var(--gradient-brand-from) 318deg,
-    var(--gradient-brand-to) 348deg,
-    color-mix(in srgb, var(--gradient-brand-to) 35%, white) 352deg,
-    transparent 360deg
-  );
-}
-/* Variante « Nuit » (choix d'Antonin, 2026-10-06) : plaque noire, ombre
-   profonde, pas de souffle bleu — la seule lumière vient de la barre d'accent
-   et du liseré. Statique : rien n'est recalculé pendant le vol. */
-.entree-copie::before {
-  content: "";
-  position: absolute;
-  inset: 2%;
-  border-radius: 22%;
-  box-shadow: 0 30px 80px rgb(0 0 0 / 0.85);
-}
-/* Les strates : des éléments HTML par-dessus la plaque, un calque chacun,
-   pour que leur allumage ne soit que de l'`opacity`. Géométrie de `ShaleMark`
-   (x 4, y 3·8·13·18, largeurs 16 · 10,88 · 16 · 7,36, épaisseur 3, sur 24). */
-.entree-barre {
-  position: absolute;
-  z-index: 2;
-  left: 16.667%;
-  height: 12.5%;
-  border-radius: 999px;
-  background: white;
-  will-change: opacity;
-}
-.entree-barre[data-i="0"] { top: 12.5%; width: 66.667%; }
-.entree-barre[data-i="1"] { top: 33.333%; width: 45.333%; }
-.entree-barre[data-i="2"] {
-  top: 54.167%;
-  width: 66.667%;
-  background: linear-gradient(90deg, var(--gradient-brand-from), var(--gradient-brand-to));
-  box-shadow:
-    0 0 22px color-mix(in srgb, var(--gradient-brand-to) 80%, transparent),
-    0 0 60px color-mix(in srgb, var(--gradient-brand-from) 50%, transparent);
-}
-.entree-barre[data-i="3"] { top: 75%; width: 30.667%; }
-.entree-copie[data-phase="poser"] .entree-barre:not([data-i="2"]) {
-  animation: entree-allumage var(--entree-poser, 1000ms) linear both;
-}
-.entree-copie[data-phase="poser"] .entree-barre[data-i="1"] { animation-delay: 50ms; }
-.entree-copie[data-phase="poser"] .entree-barre[data-i="3"] { animation-delay: 100ms; }
-/* Éteintes à l'arrivée, allumées quand le liseré passe (il naît à 26 %). */
-@keyframes entree-allumage {
-  0%, 30% { opacity: 0.22; }
-  52%, 100% { opacity: 1; }
-}
-.entree-copie[data-phase="poser"] .entree-lisere {
-  animation: entree-lisere-vie var(--entree-poser, 1000ms) linear both;
-}
-.entree-copie[data-phase="poser"] .entree-lisere-comete {
-  animation: entree-lisere-tour var(--entree-poser, 1000ms) cubic-bezier(0.45, 0, 0.2, 1) both;
-}
-/* L'arrêt (les 18 premiers %), le tour (jusqu'à 92 %), puis le liseré s'éteint. */
-@keyframes entree-lisere-vie {
-  0%, 26% { opacity: 0; }
-  36% { opacity: 1; }
-  86% { opacity: 1; }
-  100% { opacity: 0; }
-}
-@keyframes entree-lisere-tour {
-  0%, 26% { transform: rotate(-120deg); }
-  100% { transform: rotate(240deg); }
+/* La lueur ne s'allume qu'à froid : après connexion, l'icône du mur la porte
+   déjà, l'éteindre puis la rallumer ferait un clignotement. */
+.entree-copie[data-origine="froid"][data-phase="poser"] .entree-lueur {
+  animation: entree-lueur-allume var(--entree-t-lueur) ease-out both;
 }
 .entree-copie[data-phase="approche"] {
-  animation: entree-approche 400ms linear both, entree-vol var(--entree-vol, 1750ms) both;
+  animation: entree-maintien var(--entree-t-maintien) linear both;
 }
 .entree-copie[data-phase="traversee"] {
-  animation: entree-traversee-marque 300ms linear both, entree-vol var(--entree-vol, 1750ms) both;
+  animation: entree-sortie var(--entree-t-sortie) cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* ── L'app, découpée puis rendue à elle-même ───────────────────────────────
+/* ── L'app, qui arrive par-dessus ──────────────────────────────────────────
    ⚠️ `display: contents` au repos, et c'est important : sans boîte, l'enveloppe
    n'existe pas pour la mise en page, donc `App` se comporte EXACTEMENT comme
    sans elle. On ne peut pas la retirer du DOM à la fin — React démonterait
@@ -2571,10 +2435,8 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   z-index: 300;
   overflow: hidden;
   transform-origin: center;
-  /* ⭐ 2026-10-05 (lenteur au démarrage) : toute l'app est découpée et grossie
-     pendant la traversée. Sans promotion en couche, le navigateur la repeint à
-     chaque image — et elle porte des flous d'arrière-plan. `will-change` ne vit
-     que pendant la transition : ces règles disparaissent avec `data-phase`. */
+  /* `will-change` ne vit que pendant la transition : ces règles disparaissent
+     avec `data-phase`. */
   will-change: transform, opacity;
 }
 .entree-app[data-phase="poser"],
@@ -2583,24 +2445,23 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   opacity: 0;
 }
 .entree-app[data-phase="traversee"] {
-  animation: entree-ouvrir 420ms var(--ease-out-quint) both;
+  animation: entree-ouvrir var(--entree-t-sortie) var(--ease-out-quint) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* ⚠️ `animation-duration` est ici en `!important` pour battre la règle
      globale du § « préférences système », qui met tout à 0,001 ms.
      Ce n'est pas un contournement de l'accessibilité : il ne reste AUCUN
-     mouvement — ni `transform`, ni `clip-path`, juste 150 ms d'`opacity`.
+     mouvement — ni `transform`, juste 150 ms d'`opacity`.
      Un fondu court se lit mieux qu'un saut, et ne déclenche pas de vertige. */
   .entree-app[data-phase="traversee"] {
     animation: entree-fondu 150ms linear both !important;
-    clip-path: none;
     transform: none;
   }
   .entree-copie[data-phase="poser"],
   .entree-copie[data-phase="approche"],
   .entree-copie[data-phase="traversee"],
-  .entree-copie .entree-barre,
+  .entree-copie .entree-lueur,
   [data-entree="poser"] .entree-part {
     animation: none !important;
   }

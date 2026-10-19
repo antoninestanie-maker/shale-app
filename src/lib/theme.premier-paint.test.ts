@@ -49,14 +49,16 @@ describe("thème du premier paint", () => {
     expect(fondDeclare(ts, "dark")).toBe(reference);
   });
 
-  it("la fenêtre native (tauri.conf.json) s'ouvre sur le fond sombre d'index.css", () => {
-    // Quatrième copie, ajoutée à la V7 (2026-09-22) : c'est la couleur que
-    // macOS peint AVANT que la webview existe. Oubliée, elle ferait un éclair
-    // de l'ancien fond à chaque ouverture.
+  it("la fenêtre native (tauri.conf.json) s'ouvre sur la nuit de la première image", () => {
+    // ⚠️ 2026-10-19 : ce n'est plus le fond sombre de l'interface. La fenêtre
+    // s'ouvre sur la première image de Shale (fond nuit, l'icône au centre :
+    // `#lancement`, index.html), qui est la même dans les deux thèmes. La
+    // concordance avec les autres copies est tenue par
+    // `src/lib/entree/lancement.test.ts`.
     const conf = readFileSync(resolve(RACINE, "src-tauri/tauri.conf.json"), "utf-8");
     const m = /"backgroundColor":\s*"(#[0-9a-f]{6})"/i.exec(conf);
     expect(m, "backgroundColor introuvable dans tauri.conf.json").not.toBeNull();
-    expect(m![1].toLowerCase()).toBe(fondDuBloc("@theme {"));
+    expect(m![1].toLowerCase()).toBe("#070506");
   });
 
   it("le fond clair est le même dans index.css, index.html et theme.ts", () => {

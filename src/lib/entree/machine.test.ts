@@ -169,12 +169,14 @@ describe("machine de la transition d'entrée", () => {
     expect(m.etat).toBe("done");
   });
 
-  it("« Courte » garde la traversée et laisse tomber les deux temps qui bougent", () => {
+  it("« Courte » joue les trois temps — c'est le CSS qui les raccourcit (2026-10-19)", () => {
+    // Avant la nouvelle marque, « Courte » sautait l'approche. Avec la lueur
+    // qui s'allume, elle allume quand même la lueur, moitié moins longtemps.
     let m = reduire(modeleInitial({ reduit: false, mode: "courte" }), {
       type: "demarrer",
     });
-    expect(m.etat).toBe("traversee");
-    m = jouer(m, { type: "appPrete" }, fin("traversee"));
+    expect(m.etat).toBe("poser");
+    m = jouer(m, { type: "appPrete" }, fin("poser"), fin("approche"), fin("traversee"));
     expect(m.etat).toBe("done");
   });
 

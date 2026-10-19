@@ -2647,3 +2647,18 @@ Demande d'Antonin : accents « vraiment très légers, bien moins visibles qu'av
 
 **Prouvé** : `tsc`, `test:types`, `theme.accent.test.ts` (contrastes AA recalculés, bleu inchangé, aucune classe bleue d'interface), suite complète et `i18n:check` (voir le commit de fusion). Vu à l'écran en mode démo (build labo `857248e`, Chrome sans fenêtre, 1470×923 à 110 % et 390×844), clair et sombre : Aujourd'hui, Tâches, Objectifs, Calendrier, Notes, Réglages. Planches avant/après : `Shale-chantiers/DOC-da-sobre-*.jpg`.
 **Pas prouvé** : rien vu dans WKWebView, ni sur l'iPhone. **Reste** : build groupé avec `logo-entree` (aucun build lancé). Les règles `.entree-*` lisent encore `--gradient-brand-*` (rose cendré tant que `logo-entree` ne les a pas remplacées).
+
+## 2026-10-19/20 — Nouvelle marque et animation d'entrée (`chantier/logo-entree`), NON installée
+
+Demande d'Antonin (relayée par la session de coordination) : le logo choisi le 19/10 (S de deux traits blancs, lueur, plaque cramoisie) partout, et **un seul logo du clic sur l'icône jusqu'à l'app**, Mac et iPhone ; animation n° 1 « la lueur s'allume ». Référence : `~/Desktop/Shale-projet/marque/MARQUE.md`. Décisions : `CLAUDE.md` (section du 2026-10-19), `DESIGN.md`, `MOBILE.md` § 21.6, `PIEGES.md` § 49.
+
+**Fait** (worktree `Shale-chantiers/logo-entree`, depuis `mobile-ios` `f49a7ac`) :
+1. Icônes : bureau (`npm run tauri icon` sur `src-tauri/icons/source-bureau-1024.png`, plaque arrondie 824/1024), iOS clair = sombre (même fichier) + teintée, barre des menus macOS en image gabarit (`icons/tray-gabarit.png`, `lib.rs`). Outil : `node tools/icones-marque.mjs` (Chrome sans fenêtre), qui remplace `tools/icone-ios.mjs`.
+2. Écran de lancement iOS : fond `#070506` dans les deux apparences, halo et icône 96 pt centrés (`LaunchHalo`, `LaunchIcon`). Storyboard compilé seul par `ibtool` : OK. Fenêtre Tauri : `backgroundColor` `#070506`.
+3. `index.html` peint la même première image avant le CSS (`#lancement`) ; `Splash` la reprend ; `AuthGate` retire celle d'`index.html`.
+4. `ShaleMark.tsx` réécrit (plaque / trait / lueur seule / pro) ; connexion, abonnement, accueil le reprennent sans changement d'appel. Icône Pro dans la fenêtre d'offre Pro et Réglages → compte d'un abonné Pro.
+5. Animation : `EntryTransition.tsx` + section CSS réécrites (lueur 600 ms ease-out, maintien 150, sortie 450). Machine : « Courte » joue les trois temps, raccourcis (test mis à jour, daté).
+
+**Vu à l'écran** (Chrome sans fenêtre piloté, mode démo, animations figées temps par temps) : ouverture à froid en sombre et en clair (densité 110 % simulée : l'icône garde 96 px au même pixel, 672 × 402), connexion (l'icône du mur reste, le formulaire s'efface, sortie), téléphone 390 px (icône au centre, 147 × 374). Défaut trouvé et corrigé à l'écran : le halo, plus large qu'un téléphone, était décalé à droite (`margin: auto`).
+**Pas vu** : WKWebView, l'app native, le simulateur, l'iPhone ; l'icône dans le Dock et dans la barre des menus ; la fenêtre d'offre Pro et le compte Pro (rendu par le même SVG que la référence, tenu par un test, mais pas regardé) ; le blanc de WKWebView avant le premier paint (MOBILE § 21.5) peut-être devenu nuit grâce à `backgroundColor`.
+**Reste** : build natif GROUPÉ avec `da-sobre` (macOS + pose iPhone), une seule fenêtre de trousseau pour Antonin. Après `tauri icon`, toujours `git clean` sur `AppIcon.appiconset/` (§ 49.1). `src-tauri/icons/ios/` garde les PNG « Strates », inutilisés.

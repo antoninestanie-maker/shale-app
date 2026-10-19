@@ -1,8 +1,7 @@
 import {
   createContext,
   useContext,
-  useEffect,
-  useLayoutEffect,
+    useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -11,9 +10,8 @@ import { useAuth, type AuthState } from "../../lib/auth/useAuth";
 import LoginScreen from "./LoginScreen";
 import ChassisFactice from "./ChassisFactice";
 import SubscriptionRequired from "./SubscriptionRequired";
-import ShaleMark from "./ShaleMark";
-import { useEntree, VoileEntree } from "./EntryTransition";
-import { mesurerMarque } from "../../lib/entree/signal";
+import { Lancement, useEntree, VoileEntree } from "./EntryTransition";
+import { retirerLancement } from "../../lib/entree/lancement";
 import { openExternal } from "../../lib/auth/external";
 import { ACCOUNT_PAGES, STRIPE_ENABLED } from "../../lib/auth/config";
 import { joursEssaiAffiches } from "../../lib/boutique";
@@ -32,26 +30,19 @@ export function useSession(): AuthState {
 
 function Splash() {
   /**
-   * ⭐ La marque du Splash EST le point de départ de l'ouverture à froid.
+   * ⭐ Le chargement EST la première image : fond nuit, halo, l'icône au centre
+   * sans lueur — celle de l'écran de lancement d'iOS et de `#lancement` dans
+   * `index.html`. Rien ne pulse : l'ouverture à froid repart de cette image
+   * exacte, au même centre (`.entree-copie[data-origine="froid"]`).
    *
-   * Sans session à ouvrir, il n'y a pas d'écran de connexion pour donner sa
-   * position à la transition. On relève donc celle-ci, tant qu'elle est à
-   * l'écran : la traversée repart exactement d'où la marque pulsait, au lieu
-   * de sauter au centre géométrique.
+   * Plus de mesure de la marque ici (2026-10-19) : à froid, l'icône et sa copie
+   * sont toutes deux CENTRÉES par le CSS, à la même taille. Une mesure en
+   * pixels se tromperait dès que la densité (`zoom`) change pendant l'entrée.
+   *
+   * « Chargement… » n'apparaît que si l'attente dure (voir `.lancement-attente`) :
+   * à l'ouverture ordinaire, l'image reste exactement celle du lancement.
    */
-  const marque = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    mesurerMarque(marque.current);
-  });
-
-  return (
-    <div className="flex h-[calc(100vh*var(--zoom-inv))] flex-col items-center justify-center gap-4 bg-bg">
-      <div ref={marque} className="animate-pulse">
-        <ShaleMark size={48} />
-      </div>
-      <p className="text-sm text-text-dim">{t("Chargement…")}</p>
-    </div>
-  );
+  return <Lancement enfants={<p className="lancement-attente">{t("Chargement…")}</p>} />;
 }
 
 /**
@@ -144,6 +135,11 @@ function Mur({ auth }: { auth: AuthState }) {
 export default function AuthGate({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const entree = useEntree();
+
+  // React a rendu sa propre première image (`Splash`, ou déjà le mur) : celle
+  // d'`index.html` peut partir. `useLayoutEffect` : avant que le navigateur
+  // peigne, pour qu'aucune image ne montre les deux, ni aucune.
+  useLayoutEffect(() => retirerLancement(), []);
 
   /**
    * La transition démarre quand la porte s'OUVRE, jamais au montage.
@@ -283,9 +279,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           origine={origine}
           mode={entree.mode}
           gererAnimation={entree.gererAnimation}
-          // À froid, aucun formulaire : le voile n'est que le fond de l'app,
-          // et la copie de la marque joue par-dessus.
-          enfants={origine === "connexion" ? <Mur auth={auth} /> : null}
+          // À froid, aucun formulaire : le voile est la première image (sans
+          // son icône — c'est la copie animée qui la tient, au même endroit).
+          enfants={origine === "connexion" ? <Mur auth={auth} /> : <Lancement sansIcone />}
         />
       ) : null}
       {deverrouille ? (

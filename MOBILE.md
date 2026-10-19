@@ -2663,6 +2663,12 @@ déconnecté depuis le 2026-09-02 et seul Antonin peut le rouvrir.
 
 # 21. L'icône iOS et ses trois variantes (2026-09-12)
 
+> ⭐ **2026-10-19 — NOUVELLE MARQUE (§ 21.6 ci-dessous).** Les § 21.1 à 21.5
+> décrivent la marque « Strates » et restent justes sur le RAISONNEMENT (plein
+> cadre, pas de marge, catalogue écrit directement, l'icône ne suit pas
+> l'apparence). Leurs couleurs, leur outil (`tools/icone-ios.mjs`, supprimé) et
+> leur écran de lancement sont périmés.
+
 ## 21.1 Le halo blanc était DANS la source
 
 `logos/shale-appicon-1024.png` portait une **marge entièrement transparente de
@@ -2773,6 +2779,48 @@ il précède le chargement du document. Le corriger demande de toucher au natif
 (`gen/apple`). **Non fait, et non décidé.**
 
 ---
+
+## 21.6 La marque du 2026-10-19 : le S cramoisi, et un seul logo jusqu'à l'app
+
+**Les icônes.** `node tools/icones-marque.mjs` rend, depuis
+`src-tauri/icons/marque/*.svg` (copies de `~/Desktop/Shale-projet/marque/`) :
+
+| Fichier | Source | Note |
+|---|---|---|
+| `AppIcon-1024-any.png` | `icone-shale-plein-cadre.svg` | opaque, sans canal alpha |
+| `AppIcon-1024-dark.png` | le MÊME rendu | identique à l'octet : décision d'Antonin (fond rouge, traits blancs dans les deux apparences) — un test le tient |
+| `AppIcon-1024-tinted.png` | `icone-teintee-plein-cadre.svg` | gris sur noir, opaque ; iOS applique la teinte |
+| `LaunchIcon@1/2/3x` | `icone-shale.svg` SANS ses deux traits floutés | 96 pt, coins arrondis, fond transparent |
+| `LaunchHalo@1/2/3x` | le dégradé `HALO` du script | 560 pt — le même dégradé qu'`index.html` |
+
+Rendu par **Chrome sans fenêtre** (`--disable-features=MacAppCodeSignClone`
+obligatoire), plus par `sips` : la lueur est un `feGaussianBlur`, qu'ImageIO ne
+rend pas fidèlement.
+
+⚠️ **`npm run tauri icon` ÉCRIT MAINTENANT dans le catalogue iOS** — constaté le
+2026-10-19 (CLI de ce jour) : il y a déposé treize `AppIcon-20x20@1x.png`…
+`AppIcon-512@2x.png` non déclarés, rendus depuis la source de BUREAU (avec sa
+marge : le halo blanc du § 21.1). Le § 21.3 disait le contraire le 2026-09-10.
+Après `tauri icon`, **retirer ces fichiers** (`git clean` sur
+`AppIcon.appiconset/`) et **relancer `node tools/icones-marque.mjs`**.
+
+**L'écran de lancement** (`LaunchScreen.storyboard`) : fond `LaunchBackground`
+= `#070506` dans les DEUX apparences (il ne suit plus le système : la marque se
+montre sur la nuit), `LaunchHalo` et `LaunchIcon` centrés sur la vue entière
+(pas la zone sûre), 560 et 96 pt. C'est la **première image de l'animation
+d'entrée** : `index.html` peint la même (`#lancement`, même fond, même halo,
+même icône au même centre), React la reprend (`Splash`), puis la lueur
+s'allume (`DESIGN.md`, « Entrer dans Shale — la lueur s'allume »).
+`src/lib/entree/lancement.test.ts` tient la concordance des six copies.
+
+⚠️ Le storyboard a été compilé seul (`xcrun ibtool --compile`) : **pas de double
+tiret**, et il passe. Il n'a PAS été vu sur un simulateur ni un iPhone.
+
+⚠️ **Le blanc du § 21.5 reste** : entre le LaunchScreen et le premier paint
+d'`index.html`, WKWebView peint son propre fond. `backgroundColor` de
+`tauri.conf.json` vaut maintenant `#070506` ; s'il s'applique aussi à la
+webview iOS, ce blanc devient nuit. **Non vérifié** — à regarder au premier
+build iOS.
 
 # 22. La feuille de route des objectifs sur iPhone (2026-09-15)
 

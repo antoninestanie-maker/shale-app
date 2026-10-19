@@ -687,9 +687,61 @@ Dynamic Type. Détail et chiffrage : `AMELIORATIONS-UI.md` § 1 bis.
 
 ---
 
+## La marque Shale (2026-10-19)
+
+**Un S fait de deux traits blancs, coupés net, penchés de 14°, avec une lueur
+blanche, sur une plaque cramoisie** (`#dc2626 → #7f1d1d`, filet blanc à 20 %).
+Choisie par Antonin le 2026-10-19 ; elle remplace la marque « Strates » (quatre
+barres, bleu). **La référence fait foi : `~/Desktop/Shale-projet/marque/`**
+(`MARQUE.md` et ses SVG), recopiée telle quelle dans
+`src-tauri/icons/marque/`.
+
+- Dans l'app : `src/components/auth/ShaleMark.tsx`, qui redessine les mêmes
+  chemins. `variante="plaque"` (l'icône), `"trait"` (le S seul, `currentColor`),
+  `pro` (« PRO » en bas à droite). `src/lib/icone-ios.test.ts` échoue si un
+  chemin dérive des SVG.
+- ⚠️ **Ses couleurs sont des HEX, et c'est voulu** : ce sont celles de la
+  MARQUE, pas de l'interface. Elles ne suivent ni le thème ni les accents
+  (`--color-*`), comme l'icône du Dock. La règle « jamais d'hex » vaut pour
+  l'interface.
+- Les icônes (Mac, Windows, iOS, barre des menus) se rendent par
+  `node tools/icones-marque.mjs` (Chrome sans fenêtre : la lueur est un flou
+  gaussien que `sips` ne rend pas) puis `npm run tauri icon
+  src-tauri/icons/source-bureau-1024.png` pour le bureau. Voir `MOBILE.md` § 21.
+- Shale Pro : la même icône avec « PRO ». Montrée dans la fenêtre d'offre Pro et
+  dans Réglages → compte d'un abonné Pro (jamais sur iOS). L'icône de l'app
+  reste la standard.
+
+## Entrer dans Shale — la lueur s'allume (2026-10-19)
+
+⭐ **Remplace la traversée de la marque décrite plus bas** (animation n° 1 de
+`MARQUE.md`, choisie par Antonin). **Un seul logo du premier pixel à l'app** :
+l'écran de lancement d'iOS, la couche `#lancement` d'`index.html` (Mac, avant
+le CSS) et le chargement (`Splash`) montrent la MÊME image — fond nuit
+`#070506`, halo rouge, l'icône au centre (96 px), **lueur éteinte**. La copie
+animée est posée exactement là.
+
+| Temps (état de la machine) | Durée | Ce qui bouge |
+|---|---|---|
+| **1. La lueur s'allume** (`poser`) | 600 ms, ease-out | L'opacité de la lueur, 0 → 1. Rien d'autre. |
+| **2. Maintien** (`approche`) | 150 ms | Rien. |
+| **3. Sortie** (`traversee`) | 450 ms | L'icône recule (1 → 0,88) en s'effaçant ; l'app arrive par-dessus (opacité 0 → 1, échelle 0,97 → 1). |
+
+« Courte » : 300 ms et 75 ms pour les deux premiers temps (elle ne les saute
+plus). Mouvement réduit : un fondu de 150 ms de l'app. Après **connexion** :
+l'icône du mur porte déjà sa lueur, rien ne s'allume — le formulaire s'efface,
+l'icône reste, puis sort. ⚠️ Le fond de lancement est la nuit **dans les deux
+thèmes** : en thème clair, l'app claire arrive en fondu sur la nuit.
+
+Les noms d'états (`poser`, `approche`, `traversee`) viennent de l'animation
+d'avant ; ils sont gardés pour ne toucher ni la machine ni ses tests. Le reste
+de la section ci-dessous (la règle « elle habille du travail réel », le filet,
+les portes, le réglage) vaut toujours ; ses durées et son dessin, non.
+
 ## Entrer dans Shale — la traversée de la marque
 
-*(ajouté le 2026-09-12)*
+*(ajouté le 2026-09-12 — ⚠️ dessin et durées PÉRIMÉS depuis le 2026-10-19,
+voir juste au-dessus)*
 
 Ce n'est **pas** un écran de chargement avec un logo. C'est une **transition
 d'élément partagé** : la marque déjà affichée au-dessus du formulaire de

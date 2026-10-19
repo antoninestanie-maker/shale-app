@@ -14,8 +14,30 @@
                     <view key="view" contentMode="scaleToFill" id="5EZ-qb-Rvc">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="center" image="LaunchHalo" translatesAutoresizingMaskIntoConstraints="NO" id="hLo-sh-al1">
+                                <rect key="frame" x="-73" y="168" width="560" height="560"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="560" id="hLo-w-0001"/>
+                                    <constraint firstAttribute="height" constant="560" id="hLo-h-0001"/>
+                                </constraints>
+                            </imageView>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="iCn-sh-al1">
+                                <rect key="frame" x="159" y="400" width="96" height="96"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="96" id="iCn-w-0001"/>
+                                    <constraint firstAttribute="height" constant="96" id="iCn-h-0001"/>
+                                </constraints>
+                            </imageView>
+                        </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                         <color key="backgroundColor" name="LaunchBackground"/>
+                        <constraints>
+                            <constraint firstItem="hLo-sh-al1" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="hLo-cx-001"/>
+                            <constraint firstItem="hLo-sh-al1" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="hLo-cy-001"/>
+                            <constraint firstItem="iCn-sh-al1" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="iCn-cx-001"/>
+                            <constraint firstItem="iCn-sh-al1" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="iCn-cy-001"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Ief-a0-LHa" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
@@ -23,28 +45,23 @@
         </scene>
     </scenes>
     <resources>
-        <!-- ⚠️ Le fond du LaunchScreen est la PREMIÈRE chose qu'iOS peint, bien
-             avant la webview. Il valait `systemBackgroundColor` : blanc pur en
-             apparence claire, noir pur en sombre. Donc deux frames qui ne sont ni
-             #f4f5f7 ni #07090d, et un ressaut visible au moment où la webview
-             prend le relais.
+        <!-- ⭐ 2026-10-19, nouvelle marque : l'écran de lancement EST la première
+             image de l'animation d'entrée. Fond nuit (#070506) dans les DEUX
+             apparences, halo rouge, l'icône centrée SANS lueur. L'app repart
+             exactement de là (src/index.css, section « lancement ») : même
+             fond, même halo (LaunchHalo est rendu depuis le même dégradé CSS
+             par tools/icones-marque.mjs), même icône au même centre, 96 points.
 
-             `LaunchBackground` est un colorset du catalogue d'assets, avec ses
-             deux apparences. Il porte exactement les deux valeurs du token de
-             fond du design system (`color-bg`, dans src/index.css).
-
-             ⚠️ Dire ce qui est vrai : ce colorset suit l'APPARENCE DU SYSTÈME,
-             pas le réglage `ui.theme` de Shale. Téléphone en sombre et Shale
-             forcée en clair, la frame de lancement reste sombre. C'est une
-             limite d'iOS : le LaunchScreen est peint par SpringBoard, avant que
-             la moindre ligne de Shale ait tourné.
+             Le fond ne suit plus l'apparence du système : c'est voulu, la
+             marque se montre sur la nuit dans les deux cas.
 
              ⚠️ Aucun double tiret dans ce commentaire. XML l'interdit et
-             `ibtool` casse le build dessus, sans que rien d'autre ne le signale :
-             constaté le 2026-09-11 en écrivant le nom du token avec ses deux
-             tirets. -->
+             ibtool casse le build dessus, sans que rien d'autre ne le
+             signale (constaté le 2026-09-11). -->
         <namedColor name="LaunchBackground">
-            <color red="0.95686274509803926" green="0.96078431372549022" blue="0.96862745098039216" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.027450980392156862" green="0.019607843137254902" blue="0.023529411764705882" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
+        <image name="LaunchHalo" width="560" height="560"/>
+        <image name="LaunchIcon" width="96" height="96"/>
     </resources>
 </document>

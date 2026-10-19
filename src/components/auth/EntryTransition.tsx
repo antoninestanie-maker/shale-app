@@ -11,10 +11,22 @@ import { animationEntreeAuDemarrage } from "../../lib/entree/reglage";
 import { appEstPrete, rectMarque, rectParDefaut, surAppPrete } from "../../lib/entree/signal";
 
 /**
- * L'entrée dans Shale : on traverse la marque.
+ * L'entrée dans Shale : la lueur s'allume (animation n° 1, choisie par Antonin
+ * le 2026-10-19, `~/Desktop/Shale-projet/marque/MARQUE.md`).
  *
- * Le POURQUOI et l'empilement des trois couches sont dans `src/index.css`,
- * § « L'entrée dans Shale ». Ici, la mécanique.
+ * Un seul logo du premier pixel à l'app : l'écran de lancement (iOS) et la
+ * couche `#lancement` d'`index.html` (Mac) montrent l'icône au centre, lueur
+ * éteinte ; la transition repart EXACTEMENT de cette image.
+ *
+ *   poser      la lueur s'allume (≈ 600 ms)
+ *   approche   court maintien (≈ 150 ms)
+ *   traversee  l'icône recule (1 → 0,88) en s'effaçant, l'app arrive (0,97 → 1)
+ *
+ * Les noms des états viennent de l'animation d'avant (la traversée de la
+ * marque) ; ils sont gardés pour ne pas toucher la machine ni ses tests.
+ *
+ * Le POURQUOI et l'empilement sont dans `src/index.css`, § « L'entrée dans
+ * Shale ». Ici, la mécanique.
  *
  * ⭐ Ce fichier ne contient AUCUNE logique d'états — elle est dans
  * `lib/entree/machine.ts`, pure et testée. Ici on ne fait que brancher des
@@ -25,38 +37,35 @@ import { appEstPrete, rectMarque, rectParDefaut, surAppPrete } from "../../lib/e
 
 /** Le nom de l'animation qui clôt chaque temps. */
 const ANIMATION_DE: Record<string, EtatEntree> = {
-  // Le temps 1 a DEUX horloges possibles, et une seule est garantie.
-  // `entree-effacer` vit sur le formulaire, qui n'existe qu'après connexion ;
-  // `entree-tenir` / `entree-apparaitre` vivent sur la copie de la marque, qui
-  // existe toujours. C'est cette dernière qui fait foi. (Voir le § « LE TEMPS 1
-  // EST PORTÉ PAR LA COPIE » de `src/index.css` : sans elle, l'ouverture à
-  // froid restait bloquée 2,5 s.)
-  // ⚠️ `entree-effacer` n'est PLUS une horloge (2026-10-05) : le temps 1 dure
-  // maintenant ~1 s (arrivée, arrêt, liseré bleu) et le formulaire s'efface en
-  // 200 ms — s'il faisait avancer la machine, le liseré serait coupé net.
+  // ⭐ Chaque temps a son horloge sur la COPIE de l'icône, qui existe toujours
+  // (après connexion comme à froid). Ce sont des animations VIDES : elles ne
+  // dessinent rien, leur seul travail est de FINIR pour que la machine avance.
+  // Le dessin est porté par des animations voisines (la lueur, la sortie),
+  // dont la fin est ignorée ici. Voir le § « LE TEMPS 1 EST PORTÉ PAR LA
+  // COPIE » de `src/index.css` : sans horloge sur la copie, l'ouverture à
+  // froid restait bloquée 2,5 s (2026-09-12).
   "entree-tenir": "poser",
-  "entree-apparaitre": "poser",
-  "entree-approche": "approche",
+  "entree-maintien": "approche",
+  // Deux horloges pour la sortie, comme avant : la copie et l'enveloppe de
+  // l'app. La première qui finit fait avancer la machine ; la seconde est
+  // ignorée (la machine rejette un `animationend` qui ne vient pas du temps
+  // en cours).
+  "entree-sortie": "traversee",
   "entree-ouvrir": "traversee",
-  // Même leçon qu'au temps 1 : deux horloges valent mieux qu'une. Celle-ci vit
-  // sur la copie, celle du dessus sur l'enveloppe de l'app. La première qui
-  // finit fait avancer la machine ; la seconde est ignorée (la machine rejette
-  // un `animationend` qui ne vient pas du temps en cours).
-  "entree-traversee-marque": "traversee",
   // Le repli sans mouvement : c'est l'app qui porte le fondu, et c'est lui qui
   // fait avancer la machine. Sans cette ligne, `prefers-reduced-motion`
   // laisserait l'utilisateur derrière le voile jusqu'au minuteur de sécurité.
   "entree-fondu": "traversee",
 };
 
-/** Le grossissement du temps 2. Le temps 3 le prolonge (voir les keyframes). */
-const ECHELLE = 4.5;
+/** Plus de grossissement depuis 2026-10-19 : gardé à 1 pour `reperesEntree`. */
+const ECHELLE = 1;
 
 /**
  * Le filet. Un chargement bloqué ne doit JAMAIS piéger quelqu'un derrière un
  * logo : au pire, on saute à l'état final et l'app apparaît telle qu'elle est.
  */
-const EXPIRATION_MS = 4500;
+const EXPIRATION_MS = 3500;
 
 function prefereMoinsDeMouvement(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -161,7 +170,32 @@ export function useEntree(): Entree {
 }
 
 /**
- * Le voile : le mur de connexion figé, plus la copie animée de la marque.
+ * La première image : fond nuit, halo rouge, l'icône au centre sans lueur.
+ *
+ * Le même balisage que `#lancement` dans `index.html` (même classes, même
+ * style en ligne là-bas) : React le reprend sans qu'un pixel bouge, puis la
+ * transition d'entrée repart de lui. `sansIcone` : le voile de l'entrée à
+ * froid, dont l'icône est la copie animée, posée exactement au même endroit.
+ */
+export function Lancement({
+  sansIcone = false,
+  enfants,
+}: {
+  sansIcone?: boolean;
+  enfants?: React.ReactNode;
+}) {
+  return (
+    <div className="lancement" aria-hidden={!enfants}>
+      <div className="lancement-halo" />
+      {!sansIcone && <ShaleMark size="100%" lueur={false} className="lancement-icone" />}
+      {enfants}
+    </div>
+  );
+}
+
+/**
+ * Le voile : le mur de connexion (ou, à froid, la première image), plus la
+ * copie animée de l'icône.
  *
  * `enfants` est le mur lui-même (`ChassisFactice` + `LoginScreen`), rendu tel
  * quel : c'est ce qui garantit la continuité, l'utilisateur ne voit rien
@@ -192,6 +226,7 @@ export function VoileEntree({
       <div
         className={actif ? "entree-voile" : undefined}
         data-entree={actif ? phase : undefined}
+        data-origine={actif ? origine : undefined}
         onAnimationEnd={gererAnimation}
         // Pendant qu'il s'efface, le mur ne doit plus rien recevoir : ni la
         // tabulation, ni un lecteur d'écran, ni un clic qui repartirait dans
@@ -200,17 +235,13 @@ export function VoileEntree({
       >
         {enfants}
       </div>
-      {/* ⚠️ En mode « Courte », la marque n'est PAS rendue. On entre dans
-          `traversee` sans être passé par l'approche : la copie surgirait à
-          l'échelle 4,5, d'un coup, ce qui est un à-coup et non une entrée.
-          L'ouverture circulaire part quand même du centre de la marque —
-          c'est elle qui reste la signature. Son horloge, elle, est portée par
-          l'enveloppe de l'app (`entree-ouvrir`). */}
-      {actif && mode !== "courte" && (
+      {actif && (
         <div
           className="entree-copie"
           data-phase={phase}
           data-origine={origine}
+          // « Courte » : la lueur et le maintien durent moitié moins (CSS).
+          data-mode={mode}
           style={style}
           // ⚠️ SON PROPRE `onAnimationEnd`, et ce n'est pas une redondance.
           // La copie est la SŒUR du voile, pas son enfant — il le faut, sinon
@@ -223,24 +254,15 @@ export function VoileEntree({
           onAnimationEnd={gererAnimation}
           aria-hidden
         >
-          {/* Le liseré : trois cadres arrondis DERRIÈRE la plaque, dans lesquels
-              tourne un dégradé. La plaque, opaque, cache leur centre : seul ce qui
-              dépasse se voit — le trait au ras du bord, deux halos plus larges
-              et plus pâles autour. Aucun masque, aucun flou : rien que des
-              `transform` et de l'`opacity`, que la carte graphique anime seule
-              même quand l'app est en train de se monter derrière. */}
-          {(["halo", "lueur", "trait"] as const).map((couche) => (
-            <span key={couche} className="entree-lisere" data-couche={couche} aria-hidden>
-              <span className="entree-lisere-comete" />
-            </span>
-          ))}
-          <ShaleMark size="100%" relief />
-          {/* Les quatre strates, éteintes puis allumées au passage du liseré ;
-              la troisième (l'accent) brille dès le début. Géométrie de
-              `ShaleMark`, en pourcentages de la plaque. */}
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="entree-barre" data-i={i} aria-hidden />
-          ))}
+          {/* L'icône, lueur éteinte : la première image, au pixel près. */}
+          <ShaleMark size="100%" lueur={false} />
+          {/* La lueur, dans son propre calque : elle s'allume par l'opacité
+              seule — le flou est peint UNE fois, jamais pendant l'animation.
+              Posée par-dessus les traits : blanc sur blanc, ils ne changent
+              pas ; autour d'eux, c'est la lueur de l'icône de référence. */}
+          <span className="entree-lueur" aria-hidden>
+            <ShaleMark size="100%" variante="lueur-seule" />
+          </span>
         </div>
       )}
     </>

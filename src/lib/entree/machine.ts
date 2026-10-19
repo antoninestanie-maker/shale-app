@@ -22,9 +22,12 @@
 /**
  * Les quatre temps, plus les deux bords.
  *
- * `poser` — le formulaire s'efface, la marque ne bouge pas.
- * `approche` — la marque grossit, les strates se décollent.
- * `traversee` — l'ouverture s'agrandit au-delà de l'écran, l'app apparaît.
+ * Depuis le 2026-10-19 (animation n° 1, « la lueur s'allume ») :
+ * `poser` — la lueur de l'icône s'allume (et le formulaire s'efface).
+ * `approche` — court maintien.
+ * `traversee` — l'icône recule en s'effaçant, l'app apparaît.
+ * Les noms viennent de l'animation d'avant ; les garder évite de toucher aux
+ * tests de la machine et de concordance.
  */
 export type EtatEntree = "idle" | "poser" | "approche" | "traversee" | "done";
 
@@ -91,11 +94,12 @@ export function reduire(m: ModeleEntree, e: EvenementEntree): ModeleEntree {
       // « Aucune » veut dire AUCUNE : on ne monte même pas le voile. Sortir
       // directement en `done` est ce qui rend le réglage honnête.
       if (m.mode === "aucune") return { ...m, etat: "done", animationFinie: true };
-      // ⚠️ Sous `prefers-reduced-motion` — ou en mode « Courte » — on ne joue
-      // NI `poser` NI `approche` : ce sont les deux temps qui bougent. On entre
-      // directement dans la traversée. Sous `reduced-motion` elle se réduit à
-      // un fondu ; en « Courte » elle garde son ouverture, sans l'approche.
-      const court = m.reduit || m.mode === "courte";
+      // ⚠️ Sous `prefers-reduced-motion`, on ne joue NI `poser` NI `approche` :
+      // on entre directement dans la traversée, qui se réduit à un fondu.
+      // ⚠️ 2026-10-19 : « Courte » NE saute PLUS ces deux temps. Avec la lueur
+      // qui s'allume (animation n° 1), elle les joue moitié moins longs — c'est
+      // le CSS qui raccourcit (`.entree-copie[data-mode="courte"]`).
+      const court = m.reduit;
       return { ...m, etat: court ? "traversee" : "poser" };
     }
 

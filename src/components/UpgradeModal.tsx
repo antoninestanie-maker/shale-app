@@ -13,6 +13,7 @@ import { TRADING_PITCH } from "../lib/features";
 import { t } from "../lib/i18n";
 import { COMMERCE_AUTORISE } from "../lib/boutique";
 import { IconExternal, IconLock, IconX } from "./icons";
+import ShaleMark from "./auth/ShaleMark";
 
 interface Props {
   /** Module qui a déclenché le paywall (titre de l'accroche). */
@@ -72,6 +73,8 @@ export default function UpgradeModal({ moduleLabel, offre = "trade", onClose }: 
           <IconX className="h-4 w-4" />
         </button>
 
+        {/* L'icône Shale Pro (marque du 2026-10-19), au-dessus de l'accroche. */}
+        {pro && <ShaleMark size={56} pro className="mb-4" />}
         <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-semibold text-accent">
           <IconLock className="h-3.5 w-3.5" />
           {pro ? t("Inclus dans Shale Pro") : t("Inclus dans Shale Trade")}

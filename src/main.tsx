@@ -9,6 +9,7 @@ import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
 import { peindreLaFenetre, suivreLApparenceDuSysteme, themeAuDemarrage } from "./lib/theme";
 import { estFenetreTimer } from "./lib/timerFenetre";
+import { retirerLancement } from "./lib/entree/lancement";
 import "./index.css";
 
 /** La fenêtre Tauri "capture" (et /?pane=capture en navigateur) rend la barre de capture. */
@@ -93,6 +94,11 @@ applyLangAttribute();
 // (`lib/timerFenetre.ts`), et la fenêtre principale, qui tourne forcément à
 // côté, a déjà fait ce geste.
 if (!estFenetreTimer()) void sauvegardeQuotidienne();
+
+// La première image (`#lancement`, `index.html`) n'appartient qu'à la fenêtre
+// principale, où `AuthGate` la reprend puis la retire. La barre de capture est
+// transparente et la fenêtre du Timer a son propre fond : on l'ôte tout de suite.
+if (isCapturePane() || estFenetreTimer()) retirerLancement();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

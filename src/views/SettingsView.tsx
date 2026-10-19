@@ -41,6 +41,7 @@ import {
 import { IconSave } from "../components/icons";
 import { useSession } from "../components/auth/AuthGate";
 import { useEntitlements, tierLabel } from "../lib/entitlements";
+import ShaleMark from "../components/auth/ShaleMark";
 import { ACCOUNT_PAGES, AUTH_CONFIGURED, PAGE_CONFIDENTIALITE, STRIPE_ENABLED } from "../lib/auth/config";
 import { openExternal } from "../lib/auth/external";
 import { getApiKey, setApiKey } from "../lib/llm/provider";
@@ -403,7 +404,13 @@ export default function SettingsView() {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 basis-[15rem]">
             <p className="truncate text-sm text-text">{session?.user.email}</p>
-            <p className="text-xs text-text-dim">
+            <p className="mt-0.5 flex items-center gap-2 text-xs text-text-dim">
+              {/* L'icône Shale Pro pour un abonné Pro (marque du 2026-10-19).
+                  Jamais sur iOS : l'app iPhone ne nomme pas les offres. */}
+              {COMMERCE_AUTORISE && STRIPE_ENABLED && subscription && tier === "shale_pro" && (
+                <ShaleMark size={28} pro />
+              )}
+              <span>
               {/* Sans mur de paiement, l'état d'abonnement brut de la base
                   ('trialing', 'none'…) ne veut rien dire pour l'utilisateur :
                   il n'a rien souscrit et n'a rien à souscrire. On annonce ce
@@ -428,6 +435,7 @@ export default function SettingsView() {
                             : subscription.status,
                     ].join(" · ")
                   : t("Session locale")}
+              </span>
             </p>
             {/* Proposé seulement là où le module Trading serait VENDU (cadenas) :
                 ni sur iOS, ni tant que le trading est mis de côté (2026-09-30). */}
@@ -689,9 +697,9 @@ export default function SettingsView() {
               data-tip={it.label}
               data-tip-sub={
                 it.id === "complete"
-                  ? t("La marque grandit, ses strates se décollent, et on la traverse.")
+                  ? t("La lueur du logo s'allume, puis l'app apparaît.")
                   : it.id === "courte"
-                    ? t("L'ouverture seule, sans l'approche. Environ trois fois plus court.")
+                    ? t("La même, deux fois plus vite.")
                     : t("Rien du tout : l'app apparaît dès qu'elle est prête.")
               }
               className={`pill px-4 py-1.5 text-xs font-medium transition-colors ${

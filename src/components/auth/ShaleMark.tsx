@@ -1,87 +1,136 @@
-import type { CSSProperties } from "react";
+import { useId } from "react";
 
-// Monogramme Shale — marque « Strates ».
+// La marque Shale — décidée par Antonin le 2026-10-19.
 //
-// Quatre couches empilées de largeurs inégales (100 · 68 · 100 · 46 %), la
-// troisième en accent : la coupe géologique du shale et la liste du jour dans
-// la même forme. Géométrie IDENTIQUE au site vitrine
-// (`shale-site/vitrine/src/components/Logo.astro`) et à l'espace compte
-// (les deux ont fusionné le 2026-08-11) : grille 24×24, plaque rx 5.3,
-// barres de 3 d'épaisseur, gouttière de 2, marge de 4.
-// ⚠️ Les couches courtes s'alignent à GAUCHE — ne jamais les recentrer.
+// Un S fait de deux traits blancs, coupés net, penchés de 14° vers l'avant, sur
+// une plaque cramoisie (#dc2626 → #7f1d1d), avec une lueur blanche derrière les
+// traits. Elle remplace la marque « Strates » (quatre barres, bleu).
 //
-// Couleurs : tokens du thème, jamais d'hex (règle du design system). La marque
-// prend donc l'accent de sa surface — bleu dans l'app, cyan sur le site et sur
-// l'icône du bundle.
-const BARS = [
-  { y: 3, w: 16, accent: false },
-  { y: 8, w: 10.88, accent: false },
-  { y: 13, w: 16, accent: true },
-  { y: 18, w: 7.36, accent: false },
-];
+// ⭐ LA RÉFÉRENCE, CE SONT LES SVG de `src-tauri/icons/marque/` (copies exactes
+// de `~/Desktop/Shale-projet/marque/`, qui fait foi ; voir son MARQUE.md).
+// Ce composant les redessine à l'identique — grille 100 × 100, mêmes chemins,
+// même dégradé, même flou — et `src/lib/icone-ios.test.ts` échoue si un chemin
+// dérive.
+//
+// ⚠️ Des HEX ici, contre la règle « jamais d'hex » du design system : ce sont
+// les couleurs de la MARQUE, pas de l'interface. Elles ne changent ni avec le
+// thème ni avec les accents (`--color-*`), exactement comme l'icône du Dock.
+
+/** Les deux traits du S, dans la grille 100 × 100, avant l'inclinaison. */
+export const TRAITS = ["M86 38 H54 Q42 38 42 53", "M14 62 H46 Q58 62 58 47"] as const;
+/** L'inclinaison de 14° vers l'avant, recentrée. */
+export const INCLINAISON = "translate(12.47 0) skewX(-14)";
+export const PLAQUE_HAUT = "#dc2626";
+export const PLAQUE_BAS = "#7f1d1d";
 
 export default function ShaleMark({
   size = 40,
-  parallaxe,
-  relief = false,
+  variante = "plaque",
+  lueur = true,
+  pro = false,
+  className,
 }: {
-  /**
-   * La plaque « Nuit » de la transition d'entrée (choix d'Antonin, 2026-10-06,
-   * parmi six pistes) : noire, un filet à peine visible, SANS barres — la
-   * transition les dessine elle-même pour les allumer (`.entree-barre`).
-   * Partout ailleurs la marque reste plate — c'est une marque, pas une icône.
-   */
-  relief?: boolean;
   /** Nombre de pixels, ou une longueur CSS (« 100% » pour la copie animée). */
   size?: number | string;
   /**
-   * Facteurs d'échelle par strate, dans l'ordre de `BARS`.
-   *
-   * Sert UNIQUEMENT à la transition d'entrée : chaque couche prend son propre
-   * facteur pour que les strates se décollent (`src/index.css`, § « L'entrée
-   * dans Shale »). Absent partout ailleurs, donc la marque reste une marque.
+   * `plaque` : l'icône (plaque cramoisie, S blanc).
+   * `trait` : le S seul, à la couleur du texte (`currentColor`).
+   * `lueur-seule` : uniquement le halo flouté, SANS plaque ni traits nets —
+   * c'est la couche que la transition d'entrée fait s'allumer par-dessus la
+   * plaque (une opacité, rien d'autre).
    */
-  parallaxe?: readonly number[];
+  variante?: "plaque" | "trait" | "lueur-seule";
+  /** La lueur blanche derrière les traits. Éteinte : la première image de l'entrée. */
+  lueur?: boolean;
+  /** Shale Pro : « PRO » blanc à 70 %, en bas à droite (icone-shale-pro.svg). */
+  pro?: boolean;
+  className?: string;
 }) {
+  // Plusieurs marques peuvent vivre sur la même page : des identifiants
+  // propres à chaque instance, sans caractère qu'`url(#…)` refuserait.
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const plaque = `shale-plaque-${id}`;
+  const flou = `shale-lueur-${id}`;
+  const flouPro = `shale-lueur-pro-${id}`;
+
+  const trait = variante === "trait";
+  const encre = trait ? "currentColor" : "#ffffff";
+  const avecLueur = !trait && (lueur || variante === "lueur-seule");
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 100 100"
       fill="none"
       aria-hidden
-      style={{ display: "block" }}
+      className={className}
+      style={{ display: "block", overflow: "visible" }}
     >
-      {/* Plaque + filet : la marque doit rester lisible sur la surface de
-          l'app, dans les deux thèmes. Le rect est rentré d'un demi-pixel pour
-          que le trait de 1 tombe net. */}
-      <rect
-        x="0.5"
-        y="0.5"
-        width="23"
-        height="23"
-        rx="5"
-        fill={relief ? "black" : "var(--color-surface-2)"}
-        stroke={relief ? "rgb(255 255 255 / 0.12)" : "var(--color-border)"}
-        strokeWidth={relief ? "0.2" : "1"}
-      />
-      {/* En relief, les barres sont dessinées par la transition (des éléments
-          HTML, un calque chacun) : elles s'allument sans redessiner le SVG. */}
-      {!relief && BARS.map((b, i) => (
-        <rect
-          key={b.y}
-          className={parallaxe ? "entree-strate" : undefined}
-          style={
-            parallaxe ? ({ "--strate": parallaxe[i] ?? 1 } as CSSProperties) : undefined
-          }
-          x="4"
-          y={b.y}
-          width={b.w}
-          height="3"
-          rx="1.5"
-          fill={b.accent ? "var(--color-blue)" : "var(--color-text)"}
-        />
-      ))}
+      <defs>
+        <linearGradient id={plaque} x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor={PLAQUE_HAUT} />
+          <stop offset="1" stopColor={PLAQUE_BAS} />
+        </linearGradient>
+        <filter id={flou} x="-90%" y="-150%" width="280%" height="400%">
+          <feGaussianBlur stdDeviation="8" />
+        </filter>
+        <filter id={flouPro} x="-50%" y="-100%" width="200%" height="300%">
+          <feGaussianBlur stdDeviation="2.5" />
+        </filter>
+      </defs>
+      {variante === "plaque" && (
+        <>
+          <rect width="100" height="100" rx="22.5" fill={`url(#${plaque})`} />
+          {/* Le filet blanc à 20 % : la plaque reste détachée sur un fond sombre. */}
+          <rect
+            x="0.6"
+            y="0.6"
+            width="98.8"
+            height="98.8"
+            rx="22"
+            fill="none"
+            stroke="#ffffff"
+            strokeOpacity="0.2"
+            strokeWidth="1.2"
+          />
+        </>
+      )}
+      <g transform={INCLINAISON}>
+        {avecLueur &&
+          TRAITS.map((d) => (
+            <path
+              key={`l${d}`}
+              d={d}
+              stroke="#ffffff"
+              strokeWidth="10"
+              strokeLinecap="butt"
+              filter={`url(#${flou})`}
+            />
+          ))}
+        {variante !== "lueur-seule" &&
+          TRAITS.map((d) => (
+            <path key={d} d={d} stroke={encre} strokeWidth="10" strokeLinecap="butt" />
+          ))}
+      </g>
+      {pro && variante === "plaque" && (
+        <g
+          opacity="0.7"
+          fontFamily="Instrument Sans, Helvetica Neue, sans-serif"
+          fontWeight="700"
+          fontSize="10"
+          letterSpacing="1.6"
+          textAnchor="end"
+          fill="#ffffff"
+        >
+          <text x="86" y="87" filter={`url(#${flouPro})`}>
+            PRO
+          </text>
+          <text x="86" y="87">
+            PRO
+          </text>
+        </g>
+      )}
     </svg>
   );
 }

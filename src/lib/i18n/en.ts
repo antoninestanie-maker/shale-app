@@ -2639,10 +2639,10 @@ export const EN: Record<string, string> = {
   "Complète": "Full",
   "Courte": "Short",
   "Aucune": "None",
-  "La marque grandit, ses strates se décollent, et on la traverse.":
-    "The mark grows, its strata pull apart, and you pass through it.",
-  "L'ouverture seule, sans l'approche. Environ trois fois plus court.":
-    "The opening alone, without the approach. About three times shorter.",
+  // 2026-10-19 — nouvelle marque, animation n° 1 « la lueur s'allume ».
+  "La lueur du logo s'allume, puis l'app apparaît.":
+    "The logo's glow lights up, then the app appears.",
+  "La même, deux fois plus vite.": "The same, twice as fast.",
   "Rien du tout : l'app apparaît dès qu'elle est prête.":
     "Nothing at all: the app appears as soon as it is ready.",
 

@@ -5432,3 +5432,32 @@ Ma boucle `for s in "…"; do cat dist/assets/*.js | grep -o -F "$s" | wc -l; do
 **Parade.** Ne pas « dégager » le conteneur (le prochain qui rogne recommencera) : la position d'un ornement se DÉDUIT de sa taille. `--fil-halo` est le rayon ; `--fil-x`, les marges du fil couché et sa hauteur sont des `calc()` de cette variable. `src/lib/objectifs/fil.css.test.ts` lit le CSS et tombe si l'un redevient un nombre écrit à côté de l'autre.
 **Règle générale.** Tout halo, anneau ou ombre qui doit rester entier tient dans la boîte de son élément : jamais `inset` négatif ni `box-shadow` qui sort, sans que la boîte lui ait fait la place. Une ombre de carte qui peut être rognée sans dommage n'est pas concernée.
 **Vérifié.** Chrome sans fenêtre, 1470 × 923, mode démo : bord gauche du halo à 436 px, section à 435 px.
+
+# 49. La nouvelle marque et l'entrée (2026-10-19, chantier `logo-entree`)
+
+## 49.1 `npm run tauri icon` écrit DANS le catalogue iOS, maintenant
+
+Le 2026-09-10 (`MOBILE.md` § 21.3), la commande ne touchait pas
+`gen/apple/Assets.xcassets/`. Le 2026-10-19 elle y a déposé treize PNG
+(`AppIcon-20x20@1x.png` … `AppIcon-512@2x.png`), non déclarés dans
+`Contents.json`, rendus depuis la source de BUREAU — avec sa marge
+transparente, donc le halo blanc du § 21.1 si jamais un `Contents.json` les
+citait. ▶️ Parade : après `tauri icon`, `git clean` sur `AppIcon.appiconset/`,
+puis `node tools/icones-marque.mjs`. Lire `git status` après tout outil qui
+« ne touche qu'à » un dossier.
+
+## 49.2 Une animation d'entrée posée en pixels mesurés saute quand la densité arrive
+
+`applyZoom()` (densité, Dynamic Type) pose `zoom` et `--zoom-inv` sur `<html>`
+au montage d'`App` — c'est-à-dire PENDANT la transition d'entrée, derrière le
+voile. Une copie en `position: fixed` posée en pixels mesurés, ou à une taille
+en `px`, change alors de taille à l'écran (+10 % à 110 %). ▶️ Toute position
+ou taille de la transition se multiplie par `var(--zoom-inv, 1)` ; à froid,
+l'icône est CENTRÉE par le CSS, pas mesurée.
+
+## 49.3 Vite écoute `localhost` (IPv6), pas `127.0.0.1`
+
+Un script puppeteer qui ouvre `http://127.0.0.1:<port>/` sur un `npx vite`
+sans `--host` reçoit `ERR_CONNECTION_REFUSED` et prend des captures de la page
+d'erreur de Chrome — 26 captures « vides » avant de regarder l'image. Même
+cause que le § 47.5. ▶️ `localhost`, ou `--host 127.0.0.1`.

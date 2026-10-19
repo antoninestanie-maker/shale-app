@@ -59,12 +59,19 @@ describe("les portes d'entrée dans Shale", () => {
   it.each([
     ["l'écran de connexion", "src/components/auth/LoginScreen.tsx"],
     ["le mur de l'abonnement", "src/components/auth/SubscriptionRequired.tsx"],
-    ["le Splash de chargement", "src/components/auth/AuthGate.tsx"],
   ])("%s relève la position de sa marque", (_nom, chemin) => {
     const source = lire(chemin);
     expect(source).toContain("mesurerMarque(");
     // Une mesure sans marque à mesurer ne sert à rien.
     expect(source).toContain("ShaleMark");
+  });
+
+  it("le chargement (Splash) est la première image : l'icône au centre, sans mesure", () => {
+    // ⭐ 2026-10-19 : à froid, l'icône et sa copie animée sont CENTRÉES par le
+    // CSS (`.entree-copie[data-origine="froid"]`), à la taille du lancement.
+    // Le Splash ne mesure donc plus rien ; il doit rendre `Lancement`.
+    const splash = authGate.slice(authGate.indexOf("function Splash()"), authGate.indexOf("Bandeau d'essai"));
+    expect(splash).toContain("<Lancement");
   });
 
   it("⚠️ la création de compte mesure AVANT de partir, comme la connexion", () => {

@@ -527,8 +527,21 @@ pub fn run() {
 
                 // Un identifiant CONNU : `seance_tray` retrouve l'icône par lui
                 // pour écrire le temps restant à côté d'elle pendant une séance.
-                let tray = TrayIconBuilder::with_id(seance_tray::TRAY_ID)
-                    .icon(app.default_window_icon().unwrap().clone())
+                let tray = TrayIconBuilder::with_id(seance_tray::TRAY_ID);
+                // ⭐ 2026-10-19, nouvelle marque : sur macOS, le S seul en image
+                // « gabarit » (`icons/tray-gabarit.png`, rendu depuis
+                // `icons/marque/marque-gabarit.svg`) — macOS le peint en noir ou
+                // en blanc selon la barre des menus, comme toutes les icônes du
+                // système. L'icône de l'app (plaque cramoisie) y était un carré
+                // rouge. Sur Windows, la zone de notification n'a pas de
+                // gabarit : on garde l'icône de l'app.
+                #[cfg(target_os = "macos")]
+                let tray = tray
+                    .icon(tauri::include_image!("icons/tray-gabarit.png"))
+                    .icon_as_template(true);
+                #[cfg(not(target_os = "macos"))]
+                let tray = tray.icon(app.default_window_icon().unwrap().clone());
+                let tray = tray
                     .menu(&menu)
                     // Conventions opposées, d'où le `cfg` plutôt qu'un réglage unique :
                     //   - macOS, barre de menus : un clic (gauche) déroule le menu ;
