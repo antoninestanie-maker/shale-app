@@ -527,15 +527,23 @@ export default function TasksView({ data, refresh }: Props) {
     // ⭐ La date est un BOUTON : il ouvre le calendrier sur place (`BoutonDate`).
     // Rangée par moment, « Aujourd'hui » ne répète pas sa date ; rangée par
     // objectif, la section ne dit plus quand — la ligne le dit donc toujours.
+    // ⭐ Le point d'action (2026-10-20) : collé au mot qui dit pourquoi — « reportée
+    // 2 fois » s'il est là, sinon la date (« hier »). Jamais seul derrière un « · ».
+    const aAgir = !task.done && requise(cleTache(task.id));
+    const point = <PointAction className="ml-1.5" libelle={t("Action requise")} />;
+    const pointSurLeReport = aAgir && task.postponed_count > 0;
     if (task.due_date && (section === "retard" || section === "avenir" || (parObjectif && section === "aujourdhui"))) {
       push(
+        <span key="date" className="inline-flex items-center">
         <BoutonDate
           key="date"
           task={task}
           aujourdHui={today}
           dater={gestes.dater}
           className={section === "retard" ? "font-medium text-red" : undefined}
-        />,
+        />
+        {aAgir && !pointSurLeReport && point}
+        </span>,
       );
     }
     if (task.start_at && task.due_date) {
@@ -575,14 +583,11 @@ export default function TasksView({ data, refresh }: Props) {
     }
     if (task.postponed_count > 0 && !task.done) {
       push(
-        <span key="report" className="text-yellow">
+        <span key="report" className="inline-flex items-center text-yellow">
           {tp(task.postponed_count, "reportée une fois", "reportée {n} fois")}
+          {pointSurLeReport && point}
         </span>,
       );
-    }
-    // ⭐ Le point d'action (2026-10-20) : au bout de ce qui dit pourquoi.
-    if (!task.done && requise(cleTache(task.id))) {
-      push(<PointAction key="action" libelle={t("Action requise")} />);
     }
     if (task.tag) {
       // Au doigt, le tag passe dans la méta : la pastille de droite mangerait le libellé.

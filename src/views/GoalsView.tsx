@@ -649,10 +649,11 @@ export default function GoalsView({ data, refresh }: Props) {
           </span>
           <span className="flex min-w-0 flex-[2_1_14rem] items-center gap-3">
             <FilCouche pct={m.pct} acheve={acheve} />
-            {racinesAAgir.has(goal.id) && <PointAction libelle={t("Action requise")} />}
             <span data-partage="pct" className="w-11 shrink-0 text-right font-display text-base font-bold text-text">
               {m.pct == null ? "—" : `${m.pct}%`}
             </span>
+            {/* Le point d'action, à droite (une étape en péril allume sa racine). */}
+            {racinesAAgir.has(goal.id) && <PointAction libelle={t("Action requise")} />}
             <IconChevronRight className="h-4 w-4 shrink-0 text-text-dim" aria-hidden />
           </span>
         </button>

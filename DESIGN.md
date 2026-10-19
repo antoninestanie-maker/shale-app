@@ -1,4 +1,127 @@
-# Design system V8 — « Encre & Braise »
+# Design system V9 — « Net & Braise » (2026-10-20)
+
+Source de vérité : les tokens CSS de `src/index.css`. **Décision d'Antonin du
+2026-10-20** sur le canevas « Shale — pistes de logo » (écrans « Niveaux de
+contraste », « Braise saturée », « Grammaire des couleurs ») ; la spécification
+qui fait foi est `~/Desktop/Shale-projet/marque/COULEURS.md`.
+
+**V9 remplace le FOND et l'ACCENT de la V8**, et ajoute deux choses : une
+grammaire des couleurs et le point d'action. Tout le reste de la V8 (bouton à
+l'encre, halo cramoisi, `--color-blue` couleur choisie) et de la V7 (élévation,
+réussi à l'encre, typographie, mouvement) reste valable.
+
+## Le fond « Net » (niveau 04 du canevas)
+
+| Token | Sombre | Clair |
+|---|---|---|
+| `--color-bg` | `#030304` | `#ffffff` |
+| `--color-surface` (carte) | `#111215` | `#ffffff` |
+| `--color-surface-2` (carte 2, piste) | `#1d1e22` | `#eceef1` |
+| `--color-text` | `#ffffff` | `#000000` |
+| `--color-text-dim` | `#a9aeb8` | `#4a4f59` |
+| `--color-border` (filet) | `rgb(160 170 190 / .17)` | `rgb(10 12 18 / .16)` |
+| `--color-border-strong` | `rgb(160 170 190 / .26)` | `rgb(10 12 18 / .24)` |
+| `--color-success` = encre | `#ffffff` | `#000000` |
+| `--card-bg` | `#16171b → #111215` | `#ffffff` |
+
+En clair, **les cartes sont blanches sur fond blanc : c'est le filet qui les
+sépare** (et l'ombre courte). Les copies du fond suivent (`FONDS` de
+`lib/theme.ts`, script en ligne d'`index.html`, `PALETTE_EXPORT` des cartes
+mentales) — trois tests échouent si l'une dérive.
+
+## L'accent « braise +2 »
+
+Teinte 357°, la famille de la braise V8, un peu plus saturée. **Un seul accent
+pour toute l'app : pas de couleur par module.**
+
+| Token | Sombre | Clair | Usage |
+|---|---|---|---|
+| `--color-accent` | `#e6a2a6` | `#742f33` | progression, série, sélection, onglet actif, focus clavier, lien |
+| `--color-accent-solid` | `#742f33` | `#742f33` | aplat qui porte du blanc (jour choisi) |
+| `--gradient-brand` | `#e6a2a6 → #c98d91` | `#742f33 → #93484d` | jauges en cours, anneau, filet de survol |
+| sélection | accent 10–20 % | idem | onglet actif : fond 10 %, liseré 30 % |
+
+### Contrastes V9 (WCAG 2.1, recalculés par `theme.accent.test.ts`)
+
+| | fond | surface | surface-2 |
+|---|---|---|---|
+| accent sombre `#e6a2a6` | 9,90 | 8,99 | 8,00 |
+| accent clair `#742f33` | 9,56 | 9,56 | 8,22 |
+| fin de jauge sombre `#c98d91` (non textuel) | 7,56 | 6,87 | 6,11 |
+| fin de jauge claire `#93484d` (non textuel) | 6,41 | 6,41 | 5,52 |
+| texte secondaire `#a9aeb8` / `#4a4f59` | 9,26 / 8,22 | — | 7,48 / 7,07 |
+
+Blanc sur `--color-accent-solid` : **9,56**. Le rouge (`#ff4d5e` / `#c8122b`) et
+l'ambre (`#ffc23a` / `#8f5300`) ne bougent pas : 6,36 / 5,87 et 12,79 / 6,17.
+
+## ⭐ La grammaire : une couleur, un sens
+
+| Couleur | Sens | Où | Jamais |
+|---|---|---|---|
+| **Encre** | ce que tu fais | texte, titres, bouton principal, tâche faite | pour signaler un état |
+| **Braise** | ce qui avance, ce qui est à toi | progression, série, sélection, onglet actif, focus clavier, lien | erreur, retard, alerte |
+| **Rouge** | ce qui ne va pas | retard, erreur, suppression définitive, point d'action | décorer, progrès |
+| **Ambre** | ce qui demande ton attention | échéance proche, avertissement, objectif en péril, priorité élevée, décision à prendre | réussite |
+| **Gris** | secondaire, inactif | dates, compteurs, aides, non-lus | information principale |
+| **Tes couleurs** | ce que tu as nommé | étiquettes, habitudes, sujets, événements | réemployées par l'interface |
+
+Six règles : une couleur dit une seule chose, partout ; toujours au même
+endroit ; deux ou trois touches de braise par écran au plus ; jamais la couleur
+seule (un état a aussi une forme ou un mot) ; le rouge du logo reste dans le
+logo ; les couleurs de l'utilisateur ne sont jamais reprises par l'app.
+
+**Appliqué le 2026-10-20** (crible de `src/` + écrans réels) :
+- priorité : élevée = **ambre**, moyenne = **gris**, faible = rien (était rouge / jaune / rien) ;
+- objectif **en péril** = ambre, **dépassé** = rouge (Calendrier, page d'un objectif, liste : « J−3 » ambre, « en retard de 49 j » rouge) ;
+- bandeau « tâche à décider » du Calendrier : ambre (était violet, qui n'a aucun sens) ;
+- boutons Pause / Terminer du minuteur : neutres (étaient ambre / rouge — ni attention ni problème) ;
+- série : braise (flamme du bandeau, chip de l'anneau de discipline ; était ambre / encre) ;
+- astérisque « obligatoire » du Savoir : gris (était rouge décoratif) ;
+- non-lus du centre de notifications : gris (était braise) ;
+- anciens points d'accent de la barre latérale et de la barre d'onglets
+  (« briefing nouveau », « positions ouvertes ») : **remplacés** par le point d'action.
+
+**Laissé, avec la raison** : les rouges de suppression, d'erreur, de perte et de
+retard (c'est leur sens) ; « reportée N fois » en ambre (attention) ; « journée
+surchargée » en ambre (avertissement) ; les modules Trading / Market-Brain /
+Finance, de côté (non relus) ; les couleurs choisies (`TAG_COLORS`,
+`HABIT_COLORS`, palettes de note, branches de carte) ; la grille de l'accueil
+(trajet en ambre : une catégorie de la grille, pas un signal) ; « Réessayer »
+du filet d'erreur en braise (c'est une action, pas l'erreur).
+
+## ⭐ Le point d'action
+
+`--color-action` : **`#ff3b4a`** (sombre) / **`#d7192b`** (clair). La seule
+couleur forte de l'interface. Composant unique `src/components/PointAction.tsx`,
+classes `.point-action` / `.point-action-compte` (`index.css`).
+
+- un point de **8 px**, un **anneau de 2 px** de la couleur de ce qui est
+  dessous (`--point-anneau` : fond, surface d'une carte, fond de la barre), un
+  **halo** de 7 px à 45 % ;
+- forme « compte » dans la barre latérale : le nombre en `--color-action-texte`
+  (`#ff3b4a` / `#b0121f`, 4,7 / 5,5:1 sur son voile) sur un voile du même rouge
+  à 16 %. ⚠️ Le blanc sur ce rouge vif ne tient pas 4,5:1 (3,5 en sombre) :
+  pas de pastille pleine à chiffre blanc ;
+- **il ne dit qu'une chose : une action est requise** — tâche en retard, tâche
+  à décider, objectif ou étape en péril / dépassé. Jamais une information.
+  ⚠️ **Une seule règle** le décide : `lib/pointAction/regle.ts`
+  (`actionsRequises`), calculée UNE fois dans `App.tsx` et lue par contexte
+  (`useActions()`). Un test interdit tout autre appelant ;
+- **où** : au bout du mot qui dit pourquoi (« hier », « reportée 2 fois »,
+  « dépassée de 49 jours ») dans Aujourd'hui et Tâches ; à droite du pourcentage
+  dans la liste des Objectifs (une étape en péril allume sa racine) ; en haut à
+  droite des alertes du Calendrier ; un **nombre** dans la barre latérale (un
+  point au coin de l'icône quand elle est réduite, sur le titre d'une catégorie
+  repliée) ; un **point** sur l'icône de l'onglet iPhone et sur « Plus » quand
+  un module rangé dedans attend ; un nombre dans la feuille « Plus » ;
+- **le centre de notifications** : la cloche porte le point dès qu'une action
+  est requise ; son panneau ouvre sur « À faire », la liste des actions, chacune
+  renvoyant à son module ET à son élément (`ouvrirParId`). Agir sur l'élément
+  (cocher, redater, avancer l'objectif) l'éteint partout à la fois.
+
+---
+
+# Design system V8 — « Encre & Braise » (2026-10-19) — fond et accent remplacés par la V9
 
 Source de vérité : les tokens CSS de `src/index.css` (`@theme` = sombre par défaut,
 surcharges `:root[data-theme="light"]` + media query pour le mode système).

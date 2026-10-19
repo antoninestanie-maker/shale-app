@@ -2683,3 +2683,12 @@ Demande d'Antonin : cliquer un objectif fait grandir sa carte grise jusqu'à la 
 **Prouvé** : `tsc` vert ; suite complète verte (182 fichiers, 2 607 tests, 3 ignorés) ; `transition.test.ts` 7 tests (découpe, FLIP, bord droit, densité 110 %, cascade). **Vu à l'écran** en mode démo (build labo, Chrome sans fenêtre, animations ralenties ×10 par CDP, une image tous les ~70 ms d'animation) : bureau 1470 × 923 à densité 110 % et téléphone 390 × 844, ouverture puis retour par le bouton, et Échap à vitesse réelle. Le rectangle part de la carte et y revient au pixel, titre et pourcentage voyagent, la cascade arrive, les voisines s'écartent ; à la fin, ni style posé ni animation restante, plus de fondu d'entrée sur la page, focus revenu sur la carte. Deux défauts trouvés à l'image et corrigés : fondus avalés par le ressort (PIEGES § 50.1), pourcentage posé à gauche du vrai (aligné par le bord droit).
 
 **Pas prouvé** : rien vu dans WKWebView (Mac) ni sur l'iPhone. **Reste** : fusion, puis le prochain build groupé.
+## 2026-10-20 — Fond Net, braise +2, grammaire des couleurs, point d'action (`chantier/couleurs-net`)
+
+Demande d'Antonin : « installe dans l'app le fond Net, la braise +2, la grammaire des couleurs et le point d'action lié aux notifications » (`Shale-projet/marque/COULEURS.md`). Décisions : `CLAUDE.md` (section du 2026-10-20), `DESIGN.md` (V9), `PIEGES.md` § 51, `DETTE-SITE.md` § AK.
+
+- Tokens Net + braise +2 dans les trois blocs d'`index.css` ; copies du fond (`theme.ts`, `index.html`, `PALETTE_EXPORT`) suivies.
+- Grammaire appliquée (liste dans `DESIGN.md`) : priorité ambre / gris, péril ambre et dépassé rouge, minuteur neutre, série braise, non-lus gris.
+- Point d'action : règle `lib/pointAction/regle.ts` (9 tests, dont un qui interdit tout second calcul), contexte `lib/pointAction/contexte.tsx`, composant `PointAction.tsx` ; branché sur la barre latérale, `MobileNav` (onglets, « Plus », feuille), `NotificationBell` (section « À faire »), Aujourd'hui (« En retard »), Tâches, Objectifs, bandeau du Calendrier.
+- Vu dans Chrome, mode démo (labo, build habité) : bureau 1470×923 à 110 %, téléphone 390×844, sombre et clair. Captures : `Shale-chantiers/DOC-couleurs-net-*.jpg`.
+- ⛔ **Non vu** : l'app native (WKWebView), la vraie base, l'iPhone réel avant la pose ; le point d'action après un geste réel dans l'app installée (en démo : cocher la tâche en retard éteint ses points, prouvé par test, pas filmé).

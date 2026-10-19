@@ -1044,3 +1044,23 @@ Neutres, rouge, ambre, violet, encre du « réussi » : **inchangés**. Le logo 
 - **Clic droit sur une habitude** : Cocher, **Renommer**, **Couleur ▸**, Supprimer. Une fiche qui décrit les habitudes peut le dire.
 - **Douze couleurs d'habitude** au lieu de six, dont le cramoisi du logo (`#dc2626`). Les captures qui montrent la rangée de six pastilles sont datées.
 - Le site est sur une refonte (plus de `Demo.astro`) : rien n'a été modifié de ce côté ce jour-là.
+## AK — Fond « Net », braise +2, grammaire des couleurs, point d'action (app, 2026-10-20)
+
+Règle « l'app et le site ne divergent jamais » : `vitrine/src/styles/global.css` doit recopier ces valeurs (spécification : `~/Desktop/Shale-projet/marque/COULEURS.md`).
+
+| Rôle | Sombre | Clair |
+|---|---|---|
+| fond | `#030304` | `#ffffff` |
+| carte | `#111215` | `#ffffff` (séparée par le filet) |
+| carte 2 / piste | `#1d1e22` | `#eceef1` |
+| texte | `#ffffff` | `#000000` |
+| texte secondaire | `#a9aeb8` | `#4a4f59` |
+| filet | `rgb(160 170 190 / .17)` | `rgb(10 12 18 / .16)` |
+| filet appuyé | `rgb(160 170 190 / .26)` | `rgb(10 12 18 / .24)` |
+| accent (braise +2) | `#e6a2a6` | `#742f33` |
+| accent en aplat portant du blanc | `#742f33` | `#742f33` |
+| dégradé de jauge | `#e6a2a6 → #c98d91` | `#742f33 → #93484d` |
+| bouton primaire (encre) | fond `#ffffff`, texte `#030304` | fond `#000000`, texte `#ffffff` |
+| point d'action | `#ff3b4a` | `#d7192b` |
+
+Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 %. La grammaire (une couleur, un sens) vaut aussi pour le site : la braise ne marque jamais une erreur. Le point d'action n'a pas d'usage sur le site (rien n'y attend une action), sauf dans les captures de l'app, à refaire après le build. ⛔ **Pas encore recopié.**

@@ -5516,3 +5516,16 @@ film). Même famille que le défilement lissé, déjà rangé là.
 en plus loin vers le bas de la liste. ▶️ Diviser toute distance mesurée par
 `zoomFactor()` (`lib/uiConfig.ts`) ; une échelle (rapport de deux mesures) n'en
 a pas besoin. Tenu par `transition.test.ts`.
+## 51. Couleurs V9 et point d'action (2026-10-20)
+
+### 51.1 `src/lib/actions.ts` existe déjà : c'est la palette ⌘K
+Le nom vient tout seul pour « les actions requises ». Écrit par-dessus le 2026-10-20, rattrapé avant le commit (`git status` disait `M`, pas `??`). La règle du point d'action vit dans `src/lib/pointAction/`. **Avant de créer un fichier, `ls` le chemin** — un Write sur un fichier existant ne prévient pas.
+
+### 51.2 Un chiffre blanc sur le rouge vif ne tient pas l'AA
+`#ffffff` sur `#ff3b4a` = 3,5:1 (texte de 10 px). La forme « compte » écrit le chiffre DANS la couleur d'action sur un voile d'elle-même ; en clair il faut un rouge plus sombre pour le chiffre (`--color-action-texte: #b0121f`, 5,5:1), sinon 3,96.
+
+### 51.3 L'export des cartes mentales a ses empreintes figées
+`carte.positions.test.ts` garde au caractère près le SVG d'export d'une carte d'avant le 2026-09-29. Comme `PALETTE_EXPORT` recopie le thème clair, **tout changement des neutres clairs fait tomber les quatre empreintes d'export** (et elles seules). Vérifier que thème, rendu armé et JSON restent identiques, puis remplacer les empreintes d'export avec une note datée.
+
+### 51.4 Un point qui suit un « · » orphelin
+Dans la méta d'une ligne de Tâches, chaque morceau poussé reçoit son séparateur. Un point d'action poussé comme morceau à part s'affichait « hier · reportée 2 fois · ● ». Le point se colle au morceau qui dit pourquoi (le report, sinon la date).
