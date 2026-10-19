@@ -16,6 +16,10 @@ describe("decoupe — le rectangle de la carte, dans la colonne", () => {
   it("laisse voir exactement la carte, arrondie comme elle", () => {
     expect(decoupe(colonne, rect(132, 120, 836, 62), "12px")).toBe("inset(120px 32px 618px 32px round 12px)");
   });
+  it("densité 110 % : les pixels écran mesurés redeviennent locaux", () => {
+    expect(decoupe(colonne, rect(133, 121, 834, 63), "12px", 1.1)).toBe("inset(110px 30px 560px 30px round 12px)");
+    expect(flip(rect(150, 140, 200, 20), rect(128, 107, 400, 40), 15, 30, 1.1)).toBe("translate(20px, 30px) scale(0.5)");
+  });
   it("la colonne entière : aucune découpe", () => {
     expect(decoupe(colonne, colonne, "12px")).toBe("inset(0px 0px 0px 0px round 12px)");
   });

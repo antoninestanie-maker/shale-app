@@ -22,7 +22,12 @@
  * ⚠️ Web Animations, pas des `@keyframes` : la règle globale
  * `prefers-reduced-motion` d'`index.css` n'atteint pas `element.animate()`.
  * L'appelant teste `mouvementReduit()` et saute le film (PIEGES § 50).
+ *
+ * ⚠️ DENSITÉ : `getBoundingClientRect` rend des pixels ÉCRAN, la découpe et
+ * les déplacements s'écrivent en pixels LOCAUX sous le `zoom` de `<html>`
+ * (110 % chez Antonin). Toute distance mesurée est divisée par `zoomFactor()`.
  */
+import { zoomFactor } from "../uiConfig";
 
 export type Sens = "ouvre" | "ferme";
 
@@ -53,9 +58,12 @@ export const PARTAGE = "data-partage";
 
 type Rect = { top: number; left: number; right: number; bottom: number; width: number; height: number };
 
-/** La découpe qui laisse voir, dans `cadre`, le rectangle `r` arrondi de `rayon`. */
-export function decoupe(cadre: Rect, r: Rect, rayon: string): string {
-  const px = (n: number) => `${Math.round(n * 10) / 10}px`;
+/**
+ * La découpe qui laisse voir, dans `cadre`, le rectangle `r` arrondi de `rayon`.
+ * `zoom` : le facteur de densité (mesures en pixels écran → pixels locaux).
+ */
+export function decoupe(cadre: Rect, r: Rect, rayon: string, zoom = 1): string {
+  const px = (n: number) => `${Math.round((n / zoom) * 10) / 10}px`;
   return `inset(${px(r.top - cadre.top)} ${px(cadre.right - r.right)} ${px(cadre.bottom - r.bottom)} ${px(r.left - cadre.left)} round ${rayon})`;
 }
 
@@ -65,10 +73,10 @@ export function decoupe(cadre: Rect, r: Rect, rayon: string): string {
  * carte et long dans la page n'ont pas la même largeur, mais leur ligne a la
  * même proportion que leur corps de texte.
  */
-export function flip(depuis: Rect, vers: Rect, corpsDepuis: number, corpsVers: number): string {
+export function flip(depuis: Rect, vers: Rect, corpsDepuis: number, corpsVers: number, zoom = 1): string {
   const k = corpsVers > 0 ? corpsDepuis / corpsVers : 1;
-  const dx = depuis.left - vers.left;
-  const dy = depuis.top - vers.top;
+  const dx = (depuis.left - vers.left) / zoom;
+  const dy = (depuis.top - vers.top) / zoom;
   return `translate(${Math.round(dx * 10) / 10}px, ${Math.round(dy * 10) / 10}px) scale(${Math.round(k * 1000) / 1000})`;
 }
 
@@ -107,8 +115,9 @@ export function jouerTransition(s: Scene): Animation[] {
   const cadre = s.racine.getBoundingClientRect();
   const c = s.carte.getBoundingClientRect();
   const rayon = getComputedStyle(s.carte).borderTopLeftRadius || "12px";
-  const petit = decoupe(cadre, c, rayon);
-  const grand = decoupe(cadre, cadre, rayon);
+  const z = zoomFactor();
+  const petit = decoupe(cadre, c, rayon, z);
+  const grand = decoupe(cadre, cadre, rayon, z);
   const anims: Animation[] = [];
   const jouer = (el: Element, images: Keyframe[], o: KeyframeAnimationOptions) =>
     anims.push(el.animate(images, { fill: "both", ...o }));
@@ -151,7 +160,7 @@ export function jouerTransition(s: Scene): Animation[] {
   // transformation posée fausserait la boîte de la suivante.
   const voyages = paires(s.carte, s.voile).map(([source, cible]) => ({
     cible,
-    depuis: flip(source.getBoundingClientRect(), cible.getBoundingClientRect(), corps(source), corps(cible)),
+    depuis: flip(source.getBoundingClientRect(), cible.getBoundingClientRect(), corps(source), corps(cible), z),
   }));
   for (const { cible, depuis } of voyages) {
     cible.style.transformOrigin = "0 0";
@@ -195,7 +204,7 @@ export function jouerTransition(s: Scene): Animation[] {
     const r = v.getBoundingClientRect();
     const dessus = r.top + r.height / 2 < centre;
     const loin = Math.min(Math.abs(r.top + r.height / 2 - centre) / Math.max(c.height, 1), 6);
-    const ecart = `translateY(${dessus ? -18 : 18}px) scale(0.97)`;
+    const ecart = `translateY(${dessus ? -18 : 18}px) scale(0.97)`; // pixels locaux : pas de zoom
     jouer(
       v,
       ouvre ? [{ opacity: 1, transform: "none" }, { opacity: 0, transform: ecart }] : [{ opacity: 0, transform: ecart }, { opacity: 1, transform: "none" }],
