@@ -2626,7 +2626,7 @@ Branche `chantier/retours-1310` (worktree `~/Desktop/Shale-chantiers/retours-131
 - **iPhone : build release fait** (`8988663`, 08:55 → 09:00, cache Rust repris). `.ipa` copié hors du dépôt : `Shale-chantiers/retours-1310-ipa/Shale-8988663.ipa` (sha256 `87fdd39ae023`). Il porte aussi le moteur de synchronisation (`a2e36a0`) que le téléphone n'avait pas. **Pas encore posé** : l'iPhone était « unavailable » (non branché). Pose : `xcrun devicectl device install app --device 9A784CC4-9486-5B91-A82B-B75DA758035D <ipa>`, après une copie de la base du téléphone (MOBILE § 30.5). Profil valable jusqu'au 2026-10-20 10:06.
 - ⭐ **iPhone : posé et lancé à 09:02** (Antonin a branché le téléphone). `.ipa` `87fdd39ae023`, `mobile-ios` `8988663`. Base du téléphone copiée avant : `sauvegardes-locales/avant-retours-1310-iphone-20261014-0902` (integrity ok ; tâches 80, objectifs 88, habitudes 4), relue après le lancement : identique. ⛔ Pas encore vu à l'écran du téléphone.
 
-## 2026-10-19 — Audit « alléger » : six allègements sur `chantier/allegement`, NI fusionnés NI installés
+## 2026-10-19 — Audit « alléger » : six allègements, FUSIONNÉS dans `mobile-ios` (dfcb929, local, non poussé), NON installés
 
 Demande d'Antonin : l'app est jugée peu intuitive et trop chargée ; alléger textes et design, placer onglets et actions aux endroits habituels, surtout au téléphone. Audit court (≈ 1 h), en mode démo dans Chrome (labo, téléphone 390×844 et portable 1280×800). Rapport complet, avec les 13 pistes NON faites : `Shale-projet/audit-2026-10/ALLEGEMENT-2026-10-19.md`.
 
@@ -2639,4 +2639,4 @@ Demande d'Antonin : l'app est jugée peu intuitive et trop chargée ; alléger t
 6. Bureau : « systèmes actifs » retiré du pied de la barre (clé `en.ts` retirée).
 
 **Prouvé** : `tsc`, `i18n:check` verts ; `grille.test.ts`, `onglets.test.ts`, `barre*.test.ts`, `admin.test.ts` verts (assertion de `barre.source.test.ts` passée de 6 à 5 libellés coupés). Suite complète sur `f0c96f1` : 179 fichiers, 2 584 verts, 3 ignorés, 0 échec.
-**Pas prouvé** : rien vu dans WKWebView ni sur l'iPhone réel. **Reste** : relire le carnet, fusionner dans `mobile-ios`, build groupé Mac + pose iPhone.
+**Pas prouvé** : rien vu dans WKWebView ni sur l'iPhone réel. **Reste** : pousser, puis build groupé Mac + pose iPhone (aucun build lancé, à la demande d'Antonin).
