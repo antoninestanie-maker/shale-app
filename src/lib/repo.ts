@@ -1061,9 +1061,11 @@ export async function deleteJournalEntry(id: number): Promise<void> {
 export async function addHabit(name: string, color: string): Promise<number> {
   if (!isTauri) return demo.addHabit(name, color);
   const db = await getDb();
-  const res = await db.execute("INSERT INTO habits (name, color) VALUES ($1, $2)", [
+  // `created_at` (migration 033) : le jour à partir duquel elle compte.
+  const res = await db.execute("INSERT INTO habits (name, color, created_at) VALUES ($1, $2, $3)", [
     name,
     color,
+    localNow(),
   ]);
   return res.lastInsertId ?? 0;
 }

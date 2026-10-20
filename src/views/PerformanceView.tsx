@@ -629,7 +629,7 @@ export default function PerformanceView({ data, refresh }: Props) {
               periode={analyse.periode}
               periodeAvant={analyse.periodeAvant}
               bulle={t("La part des habitudes cochées, en moyenne sur les jours finis")}
-              detail={t("Une habitude compte à partir du jour de sa première coche.")}
+              detail={t("Une habitude compte à partir du jour de sa création. Cocher un jour d'avant le fait monter, jamais baisser.")}
             />
             <CourbeDiscipline className="mt-3" points={analyse.courbeHabitudes.points} lisse={analyse.courbeHabitudes.lisse} />
             <p

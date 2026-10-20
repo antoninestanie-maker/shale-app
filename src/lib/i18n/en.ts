@@ -3845,4 +3845,6 @@ export const EN: Record<string, string> = {
   "régularité — un carré par jour · 12 derniers mois": "regularity — one square per day · last 12 months",
   "C'est le seuil de la série de tâches.": "It’s the threshold for the task streak.",
   "Étape de « {objectif} »": "Step of “{objectif}”",
+  "Une habitude compte à partir du jour de sa création. Cocher un jour d'avant le fait monter, jamais baisser.":
+    "A habit counts from the day it was created. Checking an earlier day can raise it, never lower it.",
 };

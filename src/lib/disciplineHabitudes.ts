@@ -12,7 +12,8 @@ import type { Habit, HabitCheck } from "./types";
  * « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
  *
  * La règle est celle de Performance, pas une seconde : une habitude compte à
- * partir de sa première coche (`debutsDesHabitudes`), les exemples ne comptent
+ * partir de sa création (`debutsDesHabitudes`, migration 033 — avant : sa
+ * première coche), une coche d'avant compte en plus, les exemples ne comptent
  * pas.
  *
  * ⭐ Un jour est « tenu » à 75 %, pas à 80 % comme les tâches (Antonin,

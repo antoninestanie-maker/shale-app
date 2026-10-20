@@ -248,6 +248,10 @@ pub struct Habit {
     /// série (`discipline_habitudes`), comme à l'écran. `false` sur une base
     /// d'avant la 024.
     pub is_example: bool,
+    /// L'instant de création (migration 033), `YYYY-MM-DD HH:MM:SS` local.
+    /// `None` sur une base d'avant la 033 ou une ligne venue sans lui : la
+    /// série retombe alors sur la première coche (`discipline_habitudes`).
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -64,12 +64,19 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     // aveugle sur une base pas encore migrée, la requête échouerait et il n'y
     // aurait plus aucune habitude.
     let col_ex = if colonne_existe(&mut conn, "habits", "is_example").await { "is_example" } else { "0" };
-    let habits = sqlx::query_as::<_, (i64, String, i64)>(&format!(
-        "SELECT id, name, {col_ex} FROM habits WHERE archived = 0{f_hab}"
+    // `created_at` (migration 033) : même garde. Absente, la série retombe sur
+    // la première coche — la règle d'avant, jamais une liste vide.
+    let col_nee = if colonne_existe(&mut conn, "habits", "created_at").await { "created_at" } else { "CAST(NULL AS TEXT)" };
+    let habits = sqlx::query_as::<_, (i64, String, i64, Option<String>)>(&format!(
+        "SELECT id, name, {col_ex}, {col_nee} FROM habits WHERE archived = 0{f_hab}"
     ))
         .fetch_all(&mut conn)
         .await
-        .map(|rows| rows.into_iter().map(|(id, name, ex)| Habit { id, name, is_example: ex != 0 }).collect())
+        .map(|rows| {
+            rows.into_iter()
+                .map(|(id, name, ex, created_at)| Habit { id, name, is_example: ex != 0, created_at })
+                .collect()
+        })
         .unwrap_or_else(|e| {
             eprintln!("notifications : lecture des habitudes ({e})");
             Vec::new()
@@ -249,9 +256,20 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
     } else {
         ""
     };
+    // ⭐ Une tâche ponctuelle déjà COCHÉE (une coche suffit, quel que soit son
+    // jour — `ponctuellesFaites`, `lib/taches.ts`) ne sonne plus « dans une
+    // heure » ni la veille, et un exemple de l'app non plus (audit du
+    // 2026-10-20, donnees-8). Gardes de table et de colonne, comme plus haut :
+    // nommées en aveugle sur une base incomplète, elles videraient la liste.
+    let f_faite = if colonne_existe(conn, "task_completions", "done").await {
+        " AND NOT EXISTS (SELECT 1 FROM task_completions c WHERE c.task_id = tasks.id AND c.done = 1)"
+    } else {
+        ""
+    };
+    let f_exemple = if colonne_existe(conn, "tasks", "is_example").await { " AND is_example = 0" } else { "" };
     let dated = sqlx::query_as::<_, (String, String, Option<String>)>(&format!(
         "SELECT label, due_date, start_at FROM tasks \
-         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none'){f_tache}{f_etat}"
+         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none'){f_tache}{f_etat}{f_faite}{f_exemple}"
     ))
     .bind(today)
     .fetch_all(&mut *conn)
@@ -462,6 +480,26 @@ mod tests {
         assert_eq!(ex, vec![("Sport", false), ("Exemple", true)]);
     }
 
+    /// La date de création d'une habitude (migration 033) est lue : la série de
+    /// la notification compte une habitude depuis ce jour, comme l'écran.
+    #[tokio::test]
+    async fn lit_la_naissance_des_habitudes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE habits ADD COLUMN created_at TEXT;
+            INSERT INTO habits (id, name, created_at) VALUES (1, 'Sport', '2026-07-20 08:00:00'), (2, 'Lecture', NULL);
+            "#,
+        )
+        .await;
+
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        let nees: Vec<_> = snap.habits.iter().map(|h| (h.name.as_str(), h.created_at.as_deref())).collect();
+        assert_eq!(nees, vec![("Sport", Some("2026-07-20 08:00:00")), ("Lecture", None)]);
+    }
+
     #[tokio::test]
     async fn lit_la_derniere_consultation_du_savoir() {
         let dir = tempfile::tempdir().unwrap();
@@ -617,7 +655,7 @@ mod tests {
             INSERT INTO tasks (id, label, recurrence, due_date, start_at, deleted_at) VALUES
               (1, 'vivante', 'none', '2026-07-28', '10:00', NULL),
               (2, 'jetée',   'none', '2026-07-28', '10:00', '2026-07-27T08:00:00.000Z');
-            INSERT INTO task_completions (task_id, date, done) VALUES (1, '2026-07-26', 1), (2, '2026-07-26', 1);
+            INSERT INTO task_completions (task_id, date, done) VALUES (1, '2026-07-26', 0), (2, '2026-07-26', 1);
             INSERT INTO calendar_events (title, date, start_at, deleted_at) VALUES
               ('vivant', '2026-07-28', '09:00', NULL),
               ('jeté',   '2026-07-28', '09:00', '2026-07-27T08:00:00.000Z');
@@ -638,6 +676,35 @@ mod tests {
         let titres: Vec<_> = snap.calendar.iter().map(|c| format!("{}:{}", c.kind, c.title)).collect();
         assert!(titres.iter().all(|t| !t.contains("jet")), "rien de jeté dans le calendrier : {titres:?}");
         assert_eq!(titres.len(), 3, "l'événement, la tâche datée et l'échéance vivants : {titres:?}");
+    }
+
+    /// ⭐ Le rappel d'une tâche datée ne part pas pour une tâche déjà cochée, ni
+    /// pour un exemple de l'app (audit du 2026-10-20, donnees-8).
+    #[tokio::test]
+    async fn une_tache_cochee_ou_d_exemple_ne_sonne_pas() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE tasks ADD COLUMN due_date TEXT;
+            ALTER TABLE tasks ADD COLUMN start_at TEXT;
+            ALTER TABLE tasks ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+            INSERT INTO tasks (id, label, recurrence, due_date, start_at, is_example) VALUES
+              (1, 'à faire',  'none', '2026-07-27', '15:00', 0),
+              (2, 'cochée',   'none', '2026-07-27', '15:00', 0),
+              (3, 'exemple',  'none', '2026-07-28', NULL,    1),
+              (4, 'décochée', 'none', '2026-07-28', '09:00', 0);
+            INSERT INTO task_completions (task_id, date, done) VALUES
+              (2, '2026-07-27', 1),
+              (4, '2026-07-26', 0);
+            "#,
+        )
+        .await;
+
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        let titres: Vec<_> = snap.calendar.iter().filter(|c| c.kind == "task").map(|c| c.title.as_str()).collect();
+        assert_eq!(titres, vec!["à faire", "décochée"]);
     }
 
     /// ⭐ Migration 032 : les pauses et la conversion sont LUES — sans elles, la

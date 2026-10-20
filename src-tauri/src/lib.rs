@@ -477,6 +477,12 @@ pub fn run() {
             sql: include_str!("../migrations/032_pauses_taches.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 33,
+            description: "naissance_habitudes",
+            sql: include_str!("../migrations/033_naissance_habitudes.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

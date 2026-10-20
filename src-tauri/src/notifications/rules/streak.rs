@@ -109,7 +109,7 @@ mod tests {
     fn habitudes(coches: &[&[&str]]) -> Snapshot {
         Snapshot {
             habits: (0..coches.len())
-                .map(|i| Habit { id: i as i64 + 1, name: format!("h{i}"), is_example: false })
+                .map(|i| Habit { id: i as i64 + 1, name: format!("h{i}"), is_example: false, created_at: None })
                 .collect(),
             habit_checks: coches
                 .iter()
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn un_exemple_ne_menace_aucune_serie() {
         let mut snap = habitudes(&[TROIS_JOURS]);
-        snap.habits.push(Habit { id: 9, name: "Exemple".into(), is_example: true });
+        snap.habits.push(Habit { id: 9, name: "Exemple".into(), is_example: true, created_at: None });
         snap.habit_checks.push(HabitCheck { habit_id: 9, date: "2026-07-27".into() });
         let p = prefs(21, 3);
         let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);

@@ -1823,7 +1823,7 @@ export const demo = {
 
   async addHabit(name: string, color: string): Promise<number> {
     const id = nextHabitId++;
-    habits.push({ id, name, color, archived: 0, is_example: 0 });
+    habits.push({ id, name, color, archived: 0, is_example: 0, created_at: `${todayStr()} 00:00:00` });
     return id;
   },
 
