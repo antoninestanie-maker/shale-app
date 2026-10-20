@@ -38,6 +38,7 @@ import { estExemple } from "../lib/onboarding/exemples";
 import { consommerDemande, ouvrirParId } from "../lib/naviguer";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { IconeNature, ouvrirNature } from "../components/objectifs/IconeNature";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 import {
   ORDRE_SECTIONS,
@@ -647,11 +648,12 @@ export default function TasksView({ data, refresh }: Props) {
           key="objectif"
           type="button"
           onClick={() => ouvrirParId("goal", objectif.id)}
-          data-tip={t("Ouvrir l'objectif")}
+          data-tip={ouvrirNature(objectif)}
           data-tip-sub={objectif.title}
           className="cible-tactile-ligne inline-flex min-w-0 max-w-full items-center gap-1 rounded transition-colors hover:text-text"
         >
-          <IconTarget className="h-3 w-3 shrink-0" />
+          {/* Une ÉTAPE porte le losange, pas la cible d'un objectif (rang 22 du 12/10). */}
+          <IconeNature goal={objectif} goals={data.goals} className="h-3 w-3 shrink-0" />
           <span className="truncate">{objectif.title}</span>
         </button>,
       );

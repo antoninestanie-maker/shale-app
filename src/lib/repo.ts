@@ -2670,13 +2670,14 @@ async function corpusPour(
       docs.push({ kind: "object", id: r.id, uid: r.uid, titre: r.name, contexte: r.nom ?? undefined });
   }
   if (veut("goal")) {
-    const rows = await db.select<{ id: number; uid: string; title: string }[]>(
+    const rows = await db.select<{ id: number; uid: string; title: string; parent_goal_id: number | null }[]>(
       q
-        ? `SELECT id, uid, title FROM goals WHERE title LIKE $1 AND ${VIVANT} LIMIT 40`
-        : `SELECT id, uid, title FROM goals WHERE ${VIVANT} LIMIT 40`,
+        ? `SELECT id, uid, title, parent_goal_id FROM goals WHERE title LIKE $1 AND ${VIVANT} LIMIT 40`
+        : `SELECT id, uid, title, parent_goal_id FROM goals WHERE ${VIVANT} LIMIT 40`,
       q ? [like] : [],
     );
-    for (const r of rows) docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title });
+    for (const r of rows)
+      docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title, ...(r.parent_goal_id != null ? { etape: true } : {}) });
   }
   if (veut("task")) {
     const rows = await db.select<{ id: number; uid: string; label: string }[]>(
