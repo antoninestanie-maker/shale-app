@@ -1088,3 +1088,10 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 **Pas nécessaire** : ajouter `x-region` au CORS de la fonction. L'app passe par le paramètre d'URL, qui n'en a pas besoin.
 
 **À savoir pour le site** : `create-checkout` et `billing-portal`, appelées par `vitrine/src/lib/compteAuth.ts`, s'exécutent aussi au plus près du visiteur. Elles ne portent pas de contenu (jeton, offre choisie) ; si la politique situe « Supabase à Paris » sans nuance pour le paiement, ajouter `?forceFunctionRegion=eu-west-3` aux trois `fetch`. Non regardé : ce que la politique dit aujourd'hui de ces deux fonctions.
+
+## AN — Les deux séries se nomment ; le focus compte le temps travaillé ; une habitude compte depuis sa création (app, 2026-10-21, lot 3 de l'audit)
+
+- **Libellés d'Aujourd'hui** : la tuile du bandeau dit « série d'habitudes » (plus « série en cours ») et les mini-barres « tâches, 7 jours » ; dans Performance, la série s'appelle « série de tâches ». Toute capture, maquette ou phrase du site qui recopie le bandeau d'Aujourd'hui (« série en cours », « 7 jours ») est datée. Fichiers à vérifier : les captures d'Aujourd'hui et de Performance de la vitrine (`vitrine/public/` et les composants qui les montrent) — rien trouvé en texte dans `vitrine/src` le 2026-10-21.
+- **Si le site promet que le minuteur « mesure ton temps de concentration »** : c'est désormais vrai au sens strict — les pauses, la veille du Mac et l'iPhone en arrière-plan ne comptent plus.
+- **Si le site décrit la série d'habitudes** : une habitude compte depuis le jour de sa création (plus depuis sa première coche) ; cocher un jour passé ne fait jamais baisser la série.
+- Rien n'a été modifié côté site.
