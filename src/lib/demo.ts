@@ -485,6 +485,13 @@ for (const jour of historique) {
 // Aujourd'hui : les deux du matin sont faites.
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
 habitChecks.push({ id: hcId++, habit_id: 4, date: today });
+// ⭐ Le jour de création, comme la migration 033 le remplit sur une vraie base :
+// la première coche, sinon aujourd'hui. Sans lui, la démo gardait l'ancienne
+// règle (une coche antidatée reculait le début, audit rythme-1) que l'app n'a plus.
+for (const h of habits) {
+  const premiere = habitChecks.filter((c) => c.habit_id === h.id).reduce<string | null>((m, c) => (m === null || c.date < m ? c.date : m), null);
+  h.created_at = `${premiere ?? today} 00:00:00`;
+}
 
 // Journal de trades des 2 dernières semaines (motif déterministe, ~60% winrate)
 const trades: Trade[] = [];
