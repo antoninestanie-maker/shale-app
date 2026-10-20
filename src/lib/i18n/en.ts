@@ -3818,4 +3818,8 @@ export const EN: Record<string, string> = {
     "It leaves the lists and no longer counts anywhere. “To do” brings it back.",
   "En retard et à relancer": "Overdue and to follow up",
   "À relancer : {quoi}": "Follow up: {quoi}",
+  // Lot 1 de l'audit du 2026-10-20 — les données qui s'abîment.
+  "{nom} : la note a changé pendant la copie": "{nom}: the note changed during the copy",
+  "Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.":
+    "This note no longer exists: it was deleted, perhaps on another device.",
 };

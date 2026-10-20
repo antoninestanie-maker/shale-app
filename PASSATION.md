@@ -2725,7 +2725,7 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - **Prouvé** : `tsc` ; `vitest` complet 2 655 verts ; `disciplineHabitudes.test.ts` (8, dont 3/4 tenu et 2/3 non) ; `logic.jour.test.ts` (le 0/0 reste 0/0) ; `cargo test task_streak` 25 verts. **Vu à l'écran** (build démo du labo sur `bddc00f`, Chrome sans fenêtre, 1440×900) : anneau « 25 % · 2/8 habitudes » ; tâche en retard cochée → quitte « En retard », n'entre pas dans « Tâches du jour » ; 4 habitudes cochées → « 75 % · 6/8 », série 2 j sur l'anneau et sur la tuile.
 - **Pas prouvé** : app installée, téléphone, anglais. **Pas de build natif** (à grouper).
 - ⚠️ La notification `streak_at_risk` lit toujours la série de TÂCHES (80 %) : elle peut ne plus parler de la même série que l'écran. À trancher par Antonin.
-- ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).
+- ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches). **→ Réparé le 2026-10-20 au soir par le lot 2** (`chantier/lot2-etats`).
 
 
 ## 2026-10-13 (nuit) — l'IA de Shale Pro s'exécute à Paris, où que soit l'utilisateur
@@ -2751,10 +2751,35 @@ Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-re
 Antonin : « on passe sur les habitudes ». `streak_at_risk` lit désormais la série de l'anneau d'Aujourd'hui (portage Rust `notifications/discipline_habitudes.rs` de `disciplineHabitudes.ts`, jour tenu à 75 %, exemples exclus) ; la série de tâches n'est plus notifiée. Détail et pourquoi : `CLAUDE.md`, même date.
 - **Prouvé** : `cargo test --lib notifications` vert (7 tests neufs pour la série, règle réécrite avec 9 tests, lecture du drapeau d'exemple) ; `tsc`, `i18n:check`.
 - **Pas prouvé** : aucune notification réelle reçue ; **pas de build natif** (Rust : il faut un build pour que l'app installée change) — à grouper avec le prochain.
+## 2026-10-20 — Lot 1 de l'audit : les données qui s'abîment sans prévenir (`chantier/lot1-donnees`)
+
+Antonin a choisi ce lot dans l'audit complet du 20/10 (`labo/passes/2026-10-20-audit/`, détail de chaque défaut par `id` dans `chasse-code.json`). Lancé en parallèle du lot 2 (états de tâche), dans une autre session : seuls `repo.ts` et `demo.ts` sont touchés des deux côtés, dans des fonctions différentes. Décisions : `CLAUDE.md` (même date) ; pièges : `PIEGES.md` § 54.
+
+**Les onze défauts, tous vérifiés présents sur `mobile-ios` `5624eb5` avant correction :**
+
+| Défaut | Correctif | Tenu par |
+|---|---|---|
+| savoir-1 (critique) image collée après ←/→ écrase une autre fiche | `NoteComposer` : `emit` lit le dernier `onChange` et envoie `idDuDom` ; le lecteur range ses écritures **par fiche** (`KnowledgeView`, `patchPour`) ; une image recompressée après un changement de fiche n'est posée nulle part | `components/NoteComposer.ecriture.test.ts` (échoue sur l'ancien code) |
+| savoir-2 « Annuler » pose le bloc dans l'autre note | `retirerBloc(bloc, toujoursLa)` + compteur de semis (`identite`) dans les deux éditeurs ; même garde pour une pièce jointe copiée pendant un changement de note (`useDepotPieceJointe`) | `blocsNote.test.ts` |
+| savoir-3 ré-indexation à chaque visite, renvoyée au cloud | `reindexationDe` (`knowledge.ts`) n'écrit que ce qui change ; fiches déjà vues gardées au niveau du module | `knowledge.reindexation.test.ts` |
+| savoir-4 Notes : la note en attente remplacée par la suivante | changer de note écrit la précédente ; `scheduleSave` écrit celle d'une autre note avant de la remplacer ; `useLiens` ne rend plus l'uid de l'objet précédent | `views/NotesView.ecriture.test.ts` (échoue sur l'ancien code) |
+| savoir-5 supprimer la copie d'une note à carte jette les objets de l'original | `sansNoeudsPortesAilleurs` (`objectifs/emportes.ts`) + `corpsAvecCartes` (`repo.ts`, démo) : branché dans `jeterAvecSesCartes`, le retrait d'une carte (`useMenuBlocs`) et la suppression d'un nœud (`EditeurCarte`) | `objectifs/emportes.test.ts`, `corbeille/donnees.repo.test.ts` |
+| savoir-6 fiche suivante introuvable | le lecteur se ferme avec un message (« Cette note n'existe plus… ») ; `updateKnowledgeEntry` filtre `deleted_at` | `corbeille/donnees.repo.test.ts` |
+| objectifs-2 au bout de 400 jours, tâches cochées « à faire » | `fetchAll` lit toute coche de ponctuelle et de source de compte (tâche ou habitude) | `corbeille/donnees.repo.test.ts` |
+| donnees-2 écritures perdues pendant une application distante ; drapeau collé | porte d'écriture `sync/verrou.ts` (`getDb` gardé, `getDbBrute` pour le moteur) ; `remettreEnOrdre` au démarrage de la fenêtre principale (`sync/demarrage.ts`, `main.tsx`) ; le moteur attend la file avant chaque cycle | `sync/verrou.test.ts` |
+| donnees-3 restauration défaite par la synchro | le Rust marque la base restaurée (`sync_meta.restauree`, `applying` baissé) ; au démarrage le front republie (curseur 0, `sync_state` vidé, tout en file) | `sync/restauration.test.ts` (banc à deux appareils, avec témoin) ; `cargo test` (marque) |
+| donnees-4 copie « avant restauration » sans `-wal` | `copier_coherente` (`VACUUM INTO`) ; repli : base ET `-wal` copiés | `cargo test --lib sauvegardes` (crash simulé) |
+| Constat 2 (bloquant) note d'une ligne ré-échappée en `&amp;amp;` | `estTexteBrut` + `reparerEchappements` (`richtext.ts`) : un corps est toujours du HTML ; notes déjà abîmées réparées au chargement (nœuds texte seulement) | `richtext.test.ts` (échoue sur l'ancien code) |
+
+**Prouvé.** `tsc` vert ; `i18n:check` 0 manquante, `i18n:durs` 0. Suite complète : **2 692 verts** ; deux délais dépassés sous une charge machine de 37 (mon test Notes, corrigé ensuite en sortant l'import du délai ; `finance/facturation/demo.test.ts`, déjà connu pour ça) — les trois fichiers relancés seuls : verts. `test:types` : seule erreur `catalogue/tache.test.ts` (`etat` manquant), antérieure et dans les fichiers du lot 2. `cargo test --lib sauvegardes` : 3 verts (cache du dossier principal, PIEGES § 26.7). **Vu à l'écran** (build démo du labo `lot1-dc12fc4-habite`, Chrome sans fenêtre, 1440×900) : une note neuve « Dupont & fils <3 ! » tapée, quittée et rouverte plusieurs fois reste intacte ; une note portant une carte qui cite une tâche, dupliquée, puis la copie supprimée → toast « est dans Supprimés récemment » seul ; l'original supprimé ensuite → « et 1 élément » (le témoin).
+
+**Pas prouvé.** Rien vu dans l'app native (WKWebView), ni sur la vraie base, ni sur l'iPhone ; la restauration réelle (Rust + premier cycle de synchro avec Supabase) n'a été jouée que sur le banc ; le collage d'une image dans le lecteur du Savoir n'a pas été fait à la main (test de composant seulement) ; la fiche suivante supprimée ailleurs (savoir-6) non reproduite en démo. **Pas de build natif** (à grouper). **Fusionné** dans `mobile-ios` le 2026-10-20 (avance rapide, après recalage sur `91ad68e` : `tsc` et 57 fichiers de tests des zones touchées verts) ; **non poussé** (consigne de la session qui a lancé le lot).
+
+**Ce qui reste exposé.** Les fenêtres capture et Timer ont leur propre contexte : une écriture faite là pendant une application distante reste hors de la porte. Les notes abîmées en base ne sont réparées qu'à leur prochaine écriture (l'affichage, lui, est réparé tout de suite).
 
 ## 2026-10-20 (soir) — Lot 2 de l'audit : les états des tâches corrigés (`chantier/lot2-etats`)
 
-Antonin a choisi le lot 2 de l'audit du 20/10 (`labo/passes/2026-10-20-audit/`, `chasse-code.json`). Décisions : `CLAUDE.md` (« Lot 2 de l'audit », même date). Piège : `PIEGES.md` § 54.
+Antonin a choisi le lot 2 de l'audit du 20/10 (`labo/passes/2026-10-20-audit/`, `chasse-code.json`). Décisions : `CLAUDE.md` (« Lot 2 de l'audit », même date). Piège : `PIEGES.md` § 55.
 
 > ### ⚠️ MIGRATION 032 À JOUER — au prochain build natif groupé
 > `src-tauri/migrations/032_pauses_taches.sql` ajoute **deux colonnes** à `tasks` : `pauses` (TEXT, JSON) et `ponctuelle_depuis` (TEXT). Enregistrée dans `lib.rs` (version 32) et `sync/schema.testutil.ts`. Elle se joue au premier lancement de l'app reconstruite : **copier la base avant** (mémoire « Copier la base avant tout remplacement »), puis vérifier `PRAGMA user_version`/`_sqlx_migrations` = 32 et `integrity_check`. Synchronisation : rien à changer (la ligne voyage entière ; un appareil sans la 032 ignore les colonnes et retombe sur la règle de la 031). Le Rust lit les colonnes sous garde (`colonne_existe`), donc une base non migrée ne casse rien.
