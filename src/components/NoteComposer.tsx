@@ -9,7 +9,7 @@
 //     un mode `reading` retire simplement l'édition pour une lecture immersive ;
 //   - tout média est inséré en **bloc de premier niveau** (jamais imbriqué
 //     dans un paragraphe) : le HTML enregistré reste valide et prévisible.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SketchPad, { parseSketch, type SketchData } from "./SketchPad";
 import {
@@ -31,6 +31,7 @@ import { ouvrirPieceJointeOuDire } from "../lib/piecesJointesOuvrir";
 import { encodeImage, imageFilesOf, normalizeUrl, openExternal } from "../lib/knowledge";
 import type { LinkKind } from "../lib/types";
 import { toEditorHtml } from "../lib/richtext";
+import type { PageCartes } from "../lib/repo";
 import { zoomFactor } from "../lib/uiConfig";
 
 import { t } from "../lib/i18n";
@@ -39,7 +40,11 @@ interface Props {
   /** Change d'identité → recharge le contenu (sinon on ne touche pas au DOM). */
   noteId: number;
   initialHtml: string;
-  onChange: (html: string) => void;
+  /**
+   * Le corps a changé. `noteIdDuDom` dit à quelle note appartient le HTML
+   * envoyé — celle que le DOM affiche, pas celle qu'on croit ouverte.
+   */
+  onChange: (html: string, noteIdDuDom: number) => void;
   placeholder?: string;
   /** Lecture immersive : édition désactivée, barre d'insertion masquée. */
   reading?: boolean;
@@ -52,6 +57,11 @@ interface Props {
    * se proposer soi-même dans le sélecteur `@`.
    */
   source?: { kind: LinkKind; uid: string };
+  /**
+   * La famille de la page éditée — note, fiche, sujet. Retirer une carte la
+   * relit pour ne pas jeter ce qu'une AUTRE page porte encore (savoir-5).
+   */
+  genrePage?: PageCartes["kind"];
   /** Clic sur un nœud-référence d'une carte. Sans elle, le nœud n'ouvre rien. */
   onOuvrirRef?: (kind: LinkKind, uid: string) => void;
 }
@@ -74,6 +84,7 @@ export default function NoteComposer({
   reading = false,
   autoFocus = false,
   source,
+  genrePage,
   onOuvrirRef,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -92,8 +103,36 @@ export default function NoteComposer({
   const blocCarte = useRef<HTMLElement | null>(null);
 
 
-  // (re)charge le contenu quand on change de note, jamais pendant la frappe
-  useEffect(() => {
+  /**
+   * ⭐ À QUI APPARTIENT LE DOM — corrigé le 2026-10-20 (audit, savoir-1).
+   *
+   * Le lecteur du Savoir garde CET éditeur monté quand on feuillette (← / →) :
+   * seul `noteId` change, et le contenu est resemé. Or plusieurs gestes
+   * finissent APRÈS coup — une image se recompresse, une pièce jointe se copie,
+   * un « Annuler » arrive six secondes plus tard — avec les fonctions du rendu
+   * où ils ont commencé. `emit` y appelait l'`onChange` de ce rendu-là, donc
+   * l'enregistrement de la fiche PRÉCÉDENTE : coller une capture dans B
+   * écrasait A avec le corps de B.
+   *
+   * `emit` lit donc toujours le DERNIER `onChange`, et dit à qui appartient le
+   * HTML qu'il envoie (`idDuDom`, posé au moment où le DOM est semé). Le
+   * `chargement` compte les semis : un geste commencé avant un changement de
+   * note le reconnaît, et renonce (`identite`, lu par le menu des blocs et le
+   * dépôt de pièces jointes).
+   */
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const idDuDom = useRef<number | null>(null);
+  const chargement = useRef(0);
+  const identite = useCallback(() => chargement.current, []);
+
+  // (re)charge le contenu quand on change de note, jamais pendant la frappe.
+  // ⚠️ `useLayoutEffect` : semé dans le même commit que le changement de
+  // `noteId`, il ne laisse aucun instant où le DOM montre une note sous
+  // l'identité d'une autre.
+  useLayoutEffect(() => {
+    chargement.current++;
+    idDuDom.current = noteId;
     if (ref.current) ref.current.innerHTML = toEditorHtml(initialHtml);
     savedRange.current = null;
     setBubble(null);
@@ -105,8 +144,8 @@ export default function NoteComposer({
   }, [noteId]);
 
   const emit = useCallback(() => {
-    if (ref.current) onChange(ref.current.innerHTML);
-  }, [onChange]);
+    if (ref.current && idDuDom.current !== null) onChangeRef.current(ref.current.innerHTML, idDuDom.current);
+  }, []);
 
   // ─── Pièces jointes ────────────────────────────────────────────────────────
   //
@@ -118,6 +157,7 @@ export default function NoteComposer({
   const depot = useDepotPieceJointe({
     racine: () => ref.current,
     marquerModifie: emit,
+    identite,
   });
 
   const placeCaretAtEnd = () => {
@@ -213,9 +253,14 @@ export default function NoteComposer({
     async (files: File[]) => {
       if (files.length === 0) return;
       setBusy(true);
+      // La recompression prend du temps : si l'on a changé de fiche pendant
+      // ce temps, l'image n'a plus d'endroit où aller — surtout pas dans
+      // la fiche qu'on regarde maintenant.
+      const pour = identite();
       try {
         for (const file of files) {
           const { media } = await encodeImage(file);
+          if (identite() !== pour) return;
           insertFigure(media, file.name.replace(/\.[^.]+$/, ""));
         }
       } finally {
@@ -310,6 +355,8 @@ export default function NoteComposer({
   const blocs = useMenuBlocs({
     racine: () => ref.current,
     enregistrer: emit,
+    identite,
+    page: () => (genrePage && idDuDom.current !== null ? { kind: genrePage, id: idDuDom.current } : null),
     lectureSeule: reading,
     modifierCarte: (figure, c) => ouvrirCarte(figure, c),
     modifierCroquis: (img) => openSketch(img),
@@ -682,6 +729,7 @@ export default function NoteComposer({
             carte={carteOuverte}
             source={source}
             onEnregistrer={enregistrerCarte}
+            page={genrePage && idDuDom.current !== null ? { kind: genrePage, id: idDuDom.current } : null}
             onFermer={() => setCarteOuverte(null)}
             onOuvrirRef={onOuvrirRef}
           />,

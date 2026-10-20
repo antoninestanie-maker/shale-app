@@ -34,6 +34,13 @@ export interface DepotOptions {
    * documente pour les cartes mentales, et la famille du § 6.5 de `PIEGES.md`.
    */
   marquerModifie: () => void;
+  /**
+   * Ce que l'éditeur affiche — une valeur qui change dès qu'il resème son DOM
+   * (autre note, autre fiche). Une copie de gros fichier dure : si l'on a
+   * changé de note entre-temps, le jeton n'est PAS posé dans la nouvelle
+   * (audit du 2026-10-20, savoir-2) et l'échec est dit.
+   */
+  identite: () => unknown;
 }
 
 export interface EtatDepot {
@@ -43,7 +50,7 @@ export interface EtatDepot {
   erreur: string | null;
 }
 
-export function useDepotPieceJointe({ racine, marquerModifie }: DepotOptions) {
+export function useDepotPieceJointe({ racine, marquerModifie, identite }: DepotOptions) {
   const [etat, setEtat] = useState<EtatDepot>({ enCours: false, erreur: null });
 
   const effacerErreur = useCallback(() => setEtat((e) => ({ ...e, erreur: null })), []);
@@ -65,11 +72,16 @@ export function useDepotPieceJointe({ racine, marquerModifie }: DepotOptions) {
 
     setEtat({ enCours: true, erreur: null });
     const refuses: string[] = [];
+    const pour = identite();
 
     for (const { src, taille } of choisis) {
       try {
         const ligne = await deposerPieceJointe(src, taille);
         if (!ligne) continue;
+        if (identite() !== pour) {
+          refuses.push(t("{nom} : la note a changé pendant la copie", { nom: ligne.name }));
+          continue;
+        }
         insererPieceJointe(
           zone,
           { uid: ligne.uid, nom: ligne.name, taille: ligne.size },
@@ -100,7 +112,7 @@ export function useDepotPieceJointe({ racine, marquerModifie }: DepotOptions) {
       // ce qu'il voit dans la note pour deviner lesquels.
       erreur: refuses.length ? refuses.join(" · ") : null,
     });
-  }, [racine, marquerModifie]);
+  }, [racine, marquerModifie, identite]);
 
   // ⚠️ IL N'Y A PAS DE `rafraichir` ICI, et c'est délibéré. Une première
   // version en portait un — puis `useLiens` a reçu le même besoin pour les

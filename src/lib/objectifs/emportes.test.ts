@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ajouterEnfant, carteVide, poserReference, type Carte } from "../carte";
-import { compteEmportable, objetsDesCartes, objetsEmportes, resoudreEmportes } from "./emportes";
+import { compteEmportable, objetsDesCartes, objetsEmportes, resoudreEmportes, sansNoeudsPortesAilleurs } from "./emportes";
 import { habitude, objectif, tache } from "./objectif.testutil";
 
 /**
@@ -151,5 +151,42 @@ describe("resoudreEmportes — des uid aux lignes que la corbeille attend", () =
       { kind: "goal", id: 2, titre: "Phase" },
       { kind: "habit", id: 3, titre: "Méditer" },
     ]);
+  });
+});
+
+describe("sansNoeudsPortesAilleurs — un nœud que porte une autre page reste (audit du 2026-10-20, savoir-5)", () => {
+  it("⭐ la COPIE d'une note (Dupliquer) n'emporte rien que l'original porte encore", () => {
+    const copie = carte();
+    const original = carte();
+    expect(objetsDesCartes(sansNoeudsPortesAilleurs([copie], [original]), goals)).toEqual([]);
+  });
+
+  it("sans autre page, la règle d'avant tient : tout part", () => {
+    expect(objetsDesCartes(sansNoeudsPortesAilleurs([carte()], []), goals)).toEqual(objetsDesCartes([carte()], goals));
+  });
+
+  it("seul ce qui est porté ailleurs reste — le reste part toujours", () => {
+    let ailleurs = carteVide("Autre");
+    ailleurs = poserReference(ailleurs, "r", { kind: "task", uid: "t-1" }, "Tâche");
+    const uids = objetsDesCartes(sansNoeudsPortesAilleurs([carte()], [ailleurs]), goals).map((o) => o.uid);
+    expect(uids).not.toContain("t-1");
+    expect(uids).toContain("g-3"); // l'étape sous la tâche n'est portée qu'ici
+    expect(uids).toContain("h-1");
+  });
+
+  it("une habitude portée ailleurs garde aussi l'étape qui la compte", () => {
+    let ailleurs = carteVide("Autre");
+    ailleurs = poserReference(ailleurs, "r", { kind: "habit", uid: "h-1" }, "Méditer");
+    const uids = objetsDesCartes(sansNoeudsPortesAilleurs([carte()], [ailleurs]), goals).map((o) => o.uid);
+    expect(uids).not.toContain("h-1");
+    expect(uids).not.toContain("g-5");
+  });
+
+  it("un nœud MORT ailleurs ne porte rien", () => {
+    let ailleurs = carteVide("Autre");
+    ailleurs = poserReference(ailleurs, "r", { kind: "task", uid: "t-1" }, "Tâche");
+    ailleurs = { ...ailleurs, noeuds: ailleurs.noeuds.map((n) => ({ ...n, mort: true })) };
+    const uids = objetsDesCartes(sansNoeudsPortesAilleurs([carte()], [ailleurs]), goals).map((o) => o.uid);
+    expect(uids).toContain("t-1");
   });
 });

@@ -93,10 +93,71 @@ export function normalizeNoteColors(html: string): string {
   return tpl.innerHTML;
 }
 
-/** Échappe le texte brut (notes historiques en markdown/texte) pour l'injecter en HTML. */
+/**
+ * Un corps SANS balise est-il du texte brut d'avant l'éditeur riche ?
+ *
+ * ⚠️ PAS « sans balise, donc texte brut » — c'était la règle jusqu'au
+ * 2026-10-20 (audit, constat 2), et elle abîmait les notes. L'éditeur
+ * enregistre toujours `innerHTML` : une note d'une seule ligne sans mise en
+ * forme s'enregistre SANS balise, mais déjà échappée (« Dupont &amp; fils »).
+ * Prise pour du texte brut, elle était ré-échappée au rechargement, et chaque
+ * aller-retour ajoutait un `amp;` visible.
+ *
+ * Ce que `innerHTML` ne produit JAMAIS dans du texte : un `<` ou un `>` nu, un
+ * `&` qui n'ouvre pas une entité, un saut de ligne (une ligne neuve de
+ * l'éditeur est un `<div>` ou un `<br>`). Un seul de ces signes, et le corps
+ * vient d'ailleurs : c'est un ancien texte brut (markdown, import).
+ */
+export function estTexteBrut(body: string): boolean {
+  if (/[<>\n]/.test(body)) return true;
+  return /&(?!(?:[a-z][a-z0-9]*|#\d+|#x[0-9a-f]+);)/i.test(body);
+}
+
+/** Une entité restée visible à l'écran — la trace d'un échappement en trop. */
+const ENTITE_VISIBLE = /&(amp|lt|gt|quot|nbsp|#39);/g;
+const DECODE: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', nbsp: "\u00a0", "#39": "'",
+};
+
+/**
+ * Répare un corps déjà abîmé par l'ancienne règle : un texte qui AFFICHE
+ * « &amp; », « &lt; »… Ce sont des échappements en trop, pas des mots : on les
+ * ramène, autant de fois qu'il y a eu d'allers-retours.
+ *
+ * Seuls les NŒUDS TEXTE sont touchés, jamais un attribut : une URL ou le JSON
+ * d'une carte (`data-mindmap`) portent leurs propres `&amp;`, et ceux-là sont
+ * justes.
+ *
+ * ⚠️ Assumé : quelqu'un qui aurait VRAIMENT tapé « &amp; » en toutes lettres le
+ * verra devenir « & ». Personne n'écrit ça dans une note ; des notes abîmées,
+ * il y en a dans la vraie base.
+ */
+export function reparerEchappements(html: string): string {
+  // Chemin rapide : une entité visible s'écrit `&amp;xxx;` dans le HTML.
+  if (!/&amp;(?:amp|lt|gt|quot|nbsp|#39);/.test(html)) return html;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const marche = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+  for (let n = marche.nextNode(); n; n = marche.nextNode()) {
+    let texte = n.nodeValue ?? "";
+    while (/&(?:amp|lt|gt|quot|nbsp|#39);/.test(texte)) {
+      texte = texte.replace(ENTITE_VISIBLE, (_, e: string) => DECODE[e]);
+    }
+    n.nodeValue = texte;
+  }
+  return tpl.innerHTML;
+}
+
+/**
+ * Le corps tel que l'éditeur doit le recevoir : du HTML, toujours.
+ *
+ * Seuls les anciens corps en texte brut (voir `estTexteBrut`) sont échappés,
+ * et leurs sauts de ligne deviennent des `<br>`.
+ */
 export function toEditorHtml(body: string): string {
   const looksHtml = /<[a-z][\s\S]*>/i.test(body);
-  if (looksHtml) return normalizeNoteColors(body);
+  if (looksHtml) return normalizeNoteColors(reparerEchappements(body));
+  if (!estTexteBrut(body)) return reparerEchappements(body);
   const esc = body
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -112,7 +173,9 @@ export function toEditorHtml(body: string): string {
 export function plainText(html: string): string {
   if (!html) return "";
   const el = document.createElement("div");
-  el.innerHTML = html.replace(
+  // La même réparation que l'éditeur : une note abîmée se cherche et
+  // s'affiche en extrait comme elle s'affichera ouverte.
+  el.innerHTML = reparerEchappements(html).replace(
     /<\/(p|div|li|ul|ol|h[1-6]|blockquote|tr|section|figure)>|<br\s*\/?>/gi,
     "$& ",
   );

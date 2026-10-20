@@ -1690,6 +1690,19 @@ export const demo = {
     return { topics, entries: sansSujetJete(entries, topics) };
   },
 
+  async corpsAvecCartes(horsDe: { kind: "note" | "knowledge" | "object"; id: number }): Promise<string[]> {
+    const pages: [typeof horsDe.kind, { id: number; body?: string | null }[]][] = [
+      ["note", notes],
+      ["knowledge", knowledgeEntries],
+      ["object", sujets],
+    ];
+    return pages.flatMap(([kind, liste]) =>
+      liste
+        .filter((p) => !(kind === horsDe.kind && p.id === horsDe.id) && (p.body ?? "").includes("data-mindmap"))
+        .map((p) => p.body ?? ""),
+    );
+  },
+
   async fetchKnowledgeEntry(id: number): Promise<KnowledgeEntry | null> {
     const e = knowledgeEntries.find((k) => k.id === id);
     return e ? { ...e } : null;
