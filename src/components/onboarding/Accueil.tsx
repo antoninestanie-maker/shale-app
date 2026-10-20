@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 
 import { useAppTexts } from "../../lib/appTexts";
-import { t } from "../../lib/i18n";
-import { nomCourtDuJour, ORDRE_SEMAINE, todayStr } from "../../lib/logic";
+import { formatHeure, t } from "../../lib/i18n";
+import { nomCourtDuJour, ORDRE_SEMAINE, recurrenceLabel, todayStr } from "../../lib/logic";
 import { bornesDuCurseur, choixHeures, grilleSemaine, heuresLibres, valeurProposee } from "../../lib/onboarding/grille";
 import {
   REGLAGES_PAR_DEFAUT,
@@ -21,7 +21,10 @@ import {
   semerExemples,
 } from "../../lib/onboarding/semer";
 import ChampDate from "../ChampDate";
-import { IconCheckCircle, IconPlus, IconTrash } from "../icons";
+import { IconCheckCircle, IconPlus, IconTrash, IconX } from "../icons";
+import { dateAuFil } from "../../lib/calendrier/champDate";
+import { nomDePriorite } from "../../lib/priorite";
+import { resoudreSaisie, type Ecartes, type SaisieResolue } from "../../lib/taches/saisieRapide";
 import ShaleMark from "../auth/ShaleMark";
 import GrilleSemaine from "./GrilleSemaine";
 
@@ -106,6 +109,19 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
    * d'objectif — même si un titre avait été tapé avant.
    */
   const [objectifPasse, setObjectifPasse] = useState(false);
+  /** Les pastilles retirées sous la première tâche (2026-10-20, constat 18). */
+  const [ecartesAction, setEcartesAction] = useState<Ecartes>({});
+  /** La première tâche, lue comme l'ajout rapide : date, heure, répétition, priorité. */
+  const actionLue = resoudreSaisie(
+    {
+      texte: premiereTache,
+      choisie: null,
+      ecartee: ecartesAction.date ?? null,
+      ecarteeRecurrence: ecartesAction.recurrence ?? null,
+      ecarteePriorite: ecartesAction.priorite ?? null,
+    },
+    todayStr(),
+  );
 
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
   const bornes = bornesDuCurseur(grille);
@@ -159,7 +175,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
       }
       // Rattachée au premier jalon : la feuille de route affiche « 0/1 élément »
       // dès le premier jour, ce qui est la seule façon de montrer à quoi elle sert.
-      if (options.avecTache) await creerPremiereTache(premiereTache, jalonPourLaTache);
+      if (options.avecTache) await creerPremiereTache(actionLue.titre, jalonPourLaTache, actionLue);
       await semerExemples();
       await marquerAccueilFait();
       onDone(options.avecTache && premiereTache.trim().length > 0);
@@ -280,7 +296,17 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
         {etape === "action" && (
           <EtapeAction
             valeur={premiereTache}
-            onChange={setPremiereTache}
+            onChange={(v) => {
+              setPremiereTache(v);
+              if (!v.trim()) setEcartesAction({});
+            }}
+            lue={actionLue}
+            onEcarter={(quoi) =>
+              setEcartesAction((e) => ({
+                ...e,
+                [quoi]: quoi === "date" ? actionLue.mots : quoi === "recurrence" ? actionLue.motsRecurrence : actionLue.motsPriorite,
+              }))
+            }
             pourObjectif={planRempli(titreObjectif) ? titreObjectif.trim() : null}
           />
         )}
@@ -765,12 +791,26 @@ function EtapeObjectif({
 function EtapeAction({
   valeur,
   onChange,
+  lue,
+  onEcarter,
   pourObjectif,
 }: {
   valeur: string;
   onChange: (v: string) => void;
+  /** Ce que la phrase dit, lu comme l'ajout rapide de Tâches. */
+  lue: SaisieResolue;
+  onEcarter: (quoi: keyof Ecartes) => void;
   pourObjectif: string | null;
 }) {
+  const aujourdHui = todayStr();
+  const pastilles: { cle: keyof Ecartes; texte: string }[] = [];
+  if (lue.recurrence) pastilles.push({ cle: "recurrence", texte: `↻ ${recurrenceLabel(lue.recurrence) ?? ""}` });
+  if (lue.origine === "lue" && lue.jour)
+    pastilles.push({
+      cle: "date",
+      texte: lue.heure ? `${dateAuFil(lue.jour, aujourdHui)} · ${formatHeure(lue.heure)}` : dateAuFil(lue.jour, aujourdHui),
+    });
+  if (lue.priorite) pastilles.push({ cle: "priorite", texte: nomDePriorite(lue.priorite) });
   return (
     <Bloc
       titre={
@@ -789,8 +829,32 @@ function EtapeAction({
         value={valeur}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t("Ce que je fais en premier…")}
+        autoComplete="off"
         className="w-full rounded-lg border border-border bg-overlay px-3 py-2.5 text-sm text-text outline-none placeholder:text-text-dim focus:border-border-strong"
       />
+      {/* ⭐ CE QUI A ÉTÉ LU, avant de valider (2026-10-20, audit, constat 18) —
+          les mêmes pastilles que l'ajout rapide, retirables d'une croix. */}
+      {pastilles.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-text-dim">{t("Lu dans la phrase :")}</span>
+          {pastilles.map((p) => (
+            <span
+              key={p.cle}
+              className="pill inline-flex items-center border border-accent/40 bg-accent/10 text-[11px] font-medium text-text"
+            >
+              <span className="py-1 pl-2 pr-1 whitespace-nowrap">{p.texte}</span>
+              <button
+                type="button"
+                onClick={() => onEcarter(p.cle)}
+                aria-label={t("Retirer : {quoi}", { quoi: p.texte })}
+                className="cible-tactile -ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-text-dim hover:text-text"
+              >
+                <IconX className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </Bloc>
   );
 }

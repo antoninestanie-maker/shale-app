@@ -2,9 +2,10 @@ import { useRef, useState, type ReactNode } from "react";
 import { IconCalendar, IconPlus, IconX } from "../icons";
 import { dateAuFil, formaterComplet } from "../../lib/calendrier/champDate";
 import { formatHeure, t } from "../../lib/i18n";
-import { todayStr } from "../../lib/logic";
+import { recurrenceLabel, todayStr } from "../../lib/logic";
+import { nomDePriorite } from "../../lib/priorite";
 import { ancreSurElement, ouvrirSelecteurDate } from "../../lib/selecteurDate";
-import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
+import { resoudreSaisie, type AjoutRapide, type Saisie } from "../../lib/taches/saisieRapide";
 
 /**
  * ⭐ LA LIGNE D'AJOUT RAPIDE D'UNE TÂCHE — celle de Tâches et celle de la carte
@@ -38,12 +39,19 @@ import { resoudreSaisie, type Saisie } from "../../lib/taches/saisieRapide";
  * calendrier de l'app, sur place) et devient la pastille de date dès qu'une
  * date est lue ou choisie. Il n'y a donc plus d'état où la ligne ne dit rien.
  *
- * Ce composant ne crée rien : il rend un titre, un jour et une heure à
- * `onAjouter`, qui écrit par `planificationRapide` (`lib/taches/saisieRapide.ts`).
+ * ⭐ 2026-10-20 (audit, constat 18) — LA PHRASE ENTIÈRE. « tous les lundis »,
+ * « chaque vendredi » donnent une ROUTINE (pastille ↻), « fin du mois », « ce
+ * week-end », « hier » une date, « urgent », « pas urgent » une priorité
+ * (pastille de priorité). Chaque pastille se retire d'une croix, ou d'Échap
+ * (la date d'abord, puis la répétition, puis la priorité) : ses mots restent
+ * alors dans le titre.
+ *
+ * Ce composant ne crée rien : il rend un `AjoutRapide` à `onAjouter`, qui
+ * écrit par `ecrituresRapides` (`lib/taches/saisieRapide.ts`).
  */
 export default function SaisieRapide(props: {
-  /** `heure` : 'HH:MM', lue dans la phrase avec la date — ou `null`. */
-  onAjouter: (titre: string, jour: string | null, heure: string | null) => void | Promise<void>;
+  /** Le titre, la date et l'heure, la répétition et la priorité lues. */
+  onAjouter: (ajout: AjoutRapide) => void | Promise<void>;
   /** 'YYYY-MM-DD' : la date posée quand on n'en donne aucune. */
   parDefaut?: string | null;
   placeholder: string;
@@ -55,7 +63,8 @@ export default function SaisieRapide(props: {
   plus?: boolean;
   className?: string;
 }) {
-  const [saisie, setSaisie] = useState<Saisie>({ texte: "", choisie: null, ecartee: null });
+  const vierge: Saisie = { texte: "", choisie: null, ecartee: null, ecarteeRecurrence: null, ecarteePriorite: null };
+  const [saisie, setSaisie] = useState<Saisie>(vierge);
   const champ = useRef<HTMLInputElement>(null);
   const zoneDate = useRef<HTMLSpanElement>(null);
   const aujourdHui = todayStr();
@@ -63,9 +72,20 @@ export default function SaisieRapide(props: {
 
   const valider = () => {
     if (!resolue.titre) return;
-    setSaisie({ texte: "", choisie: null, ecartee: null });
-    void props.onAjouter(resolue.titre, resolue.jour, resolue.heure);
+    setSaisie(vierge);
+    void props.onAjouter({
+      titre: resolue.titre,
+      jour: resolue.jour,
+      heure: resolue.heure,
+      recurrence: resolue.recurrence,
+      priorite: resolue.priorite,
+    });
   };
+
+  /** Retirer la répétition lue : ses mots restent dans le titre. */
+  const ecarterRecurrence = () => setSaisie((s) => ({ ...s, ecarteeRecurrence: resolue.motsRecurrence }));
+  /** Retirer la priorité lue : le mot reste dans le titre. */
+  const ecarterPriorite = () => setSaisie((s) => ({ ...s, ecarteePriorite: resolue.motsPriorite }));
 
   /** Retirer la date montrée — d'un geste, sans toucher au texte. */
   const ecarter = () =>
@@ -113,14 +133,22 @@ export default function SaisieRapide(props: {
           onChange={(e) => {
             const texte = e.target.value;
             // Une ligne vidée repart de zéro : l'écart ne vaut que pour la phrase en cours.
-            setSaisie((s) => (texte.trim() ? { ...s, texte } : { ...s, texte, ecartee: null }));
+            setSaisie((s) =>
+              texte.trim() ? { ...s, texte } : { ...s, texte, ecartee: null, ecarteeRecurrence: null, ecarteePriorite: null },
+            );
           }}
           onKeyDown={(e) => {
-            // Échap écarte la date LUE — et marque la touche : rien d'autre ne se ferme.
-            if (e.key !== "Escape" || e.defaultPrevented || resolue.origine !== "lue") return;
+            // Échap écarte ce qui a été LU — la date, puis la répétition, puis la
+            // priorité — et marque la touche : rien d'autre ne se ferme. Il ne
+            // vide JAMAIS la ligne (audit du 2026-10-20, constat 39).
+            if (e.key !== "Escape" || e.defaultPrevented) return;
+            const lu = resolue.origine === "lue" || resolue.recurrence != null || resolue.priorite != null;
+            if (!lu) return;
             e.preventDefault();
             e.stopPropagation();
-            ecarter();
+            if (resolue.origine === "lue") ecarter();
+            else if (resolue.recurrence) ecarterRecurrence();
+            else ecarterPriorite();
           }}
           placeholder={props.placeholder}
           aria-label={props.aria}
@@ -132,7 +160,40 @@ export default function SaisieRapide(props: {
         />
         <span className="flex shrink-0 items-center gap-1.5">
           <span ref={zoneDate} className="inline-flex shrink-0 items-center">
-            {resolue.jour ? (
+            {resolue.recurrence ? (
+              /* ⭐ ↻ LA RÉPÉTITION LUE (2026-10-20, constat 18). Une routine n'a
+                 pas de date : la pastille remplace celle de la date. */
+              <span className="pill inline-flex items-center border border-accent/40 bg-accent/10 text-[11px] font-medium text-text">
+                <button
+                  type="button"
+                  onClick={ouvrirCalendrier}
+                  aria-label={t("Se répète : {rythme}. Choisir une date à la place", {
+                    rythme: recurrenceLabel(resolue.recurrence) ?? "",
+                  })}
+                  data-tip={t("Répétition lue dans la phrase")}
+                  data-tip-sub={t("« {mots} » quittera le titre. La tâche rejoindra tes routines. La croix garde le titre entier.", {
+                    mots: resolue.motsRecurrence ?? "",
+                  })}
+                  className="cible-tactile-ligne inline-flex items-center gap-1 py-1 pl-2 pr-1"
+                >
+                  <span aria-hidden>↻</span>
+                  <span className="whitespace-nowrap">{recurrenceLabel(resolue.recurrence)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    ecarterRecurrence();
+                    champ.current?.focus();
+                  }}
+                  aria-label={t("Retirer la répétition")}
+                  data-tip={t("Retirer la répétition")}
+                  data-tip-sub={t("Le titre reste entier.")}
+                  className="cible-tactile -ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-text-dim hover:text-text"
+                >
+                  <IconX className="h-3 w-3" />
+                </button>
+              </span>
+            ) : resolue.jour ? (
               <span
                 className={`pill inline-flex items-center border text-[11px] font-medium ${
                   retirable ? "border-accent/40 bg-accent/10 text-text" : "border-border text-text-dim"
@@ -187,7 +248,7 @@ export default function SaisieRapide(props: {
                   aria-haspopup="dialog"
                   aria-label={t("Sans date. Choisir une date")}
                   data-tip={t("Choisir une date")}
-                  data-tip-sub={t("Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».")}
+                  data-tip-sub={t("Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris-le dans la phrase : « jeudi 14h30 », « demain », « fin du mois », « chaque lundi ».")}
                   className="cible-tactile-ligne inline-flex items-center gap-1 py-1 pl-2 pr-2 transition-colors hover:text-text"
                 >
                   <IconCalendar className="h-3 w-3 shrink-0" />
@@ -196,6 +257,32 @@ export default function SaisieRapide(props: {
               </span>
             )}
           </span>
+          {resolue.priorite && (
+            /* ⭐ LA PRIORITÉ LUE (2026-10-20, constat 18) : « urgent » ne reste
+               plus dans le titre. Elle l'emporte sur la pastille de l'écran. */
+            <span className="pill inline-flex shrink-0 items-center border border-accent/40 bg-accent/10 text-[11px] font-medium text-text">
+              <span
+                className="inline-flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap"
+                data-tip={t("Priorité lue dans la phrase")}
+                data-tip-sub={t("« {mots} » quittera le titre. La croix garde le titre entier.", { mots: resolue.motsPriorite ?? "" })}
+              >
+                {nomDePriorite(resolue.priorite)}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  ecarterPriorite();
+                  champ.current?.focus();
+                }}
+                aria-label={t("Retirer la priorité lue")}
+                data-tip={t("Retirer la priorité lue")}
+                data-tip-sub={t("Le titre reste entier.")}
+                className="cible-tactile -ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-text-dim hover:text-text"
+              >
+                <IconX className="h-3 w-3" />
+              </button>
+            </span>
+          )}
           {props.children}
         </span>
       </div>

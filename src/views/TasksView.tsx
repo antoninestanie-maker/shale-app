@@ -50,7 +50,7 @@ import {
   type LigneVue,
   type Rangement,
 } from "../lib/tachesVue";
-import { planificationRapide } from "../lib/taches/saisieRapide";
+import { ecrituresRapides, type AjoutRapide } from "../lib/taches/saisieRapide";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
 import BoutonDate from "../components/taches/BoutonDate";
 import ChampRenommage from "../components/taches/ChampRenommage";
@@ -451,16 +451,17 @@ export default function TasksView({ data, refresh }: Props) {
    * calendrier (`SaisieRapide`) ; sans date, elle naît SANS DATE (décision du
    * 2026-09-30). Le reste (rythme, objectif) se règle ensuite.
    */
-  const ajouter = async (label: string, jour: string | null, heure: string | null) => {
+  const ajouter = async ({ titre: label, jour, heure, recurrence, priorite }: AjoutRapide) => {
     const id = await createTask({
       label,
       tag: tagFilter,
-      priority: prioriteNouvelle,
-      recurrence: "none",
+      // « urgent » lu dans la phrase l'emporte sur la pastille (2026-10-20).
+      priority: priorite ?? prioriteNouvelle,
       goal_id: null,
       // Jamais d'écriture directe de `due_date` (`lib/taches.ts`) ; une heure lue
-      // dans la phrase donne un créneau d'une heure.
-      ...planificationRapide(jour, heure),
+      // dans la phrase donne un créneau d'une heure ; une répétition lue fait
+      // une routine (2026-10-20, audit, constat 18).
+      ...ecrituresRapides({ jour, heure, recurrence }),
     });
     // Chaque tâche repart « moyenne » : une priorité restée collée d'un ajout à
     // l'autre en ferait passer cinq en élevée sans qu'on l'ait voulu.

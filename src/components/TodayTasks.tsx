@@ -17,6 +17,7 @@ import BadgeEtat from "./taches/BadgeEtat";
 import ChampRenommage from "./taches/ChampRenommage";
 import { badgeEtat } from "../lib/taches/etat";
 import SaisieRapide from "./taches/SaisieRapide";
+import type { AjoutRapide } from "../lib/taches/saisieRapide";
 interface Props {
   tasks: TodayTask[];
   tags: Tag[];
@@ -27,7 +28,7 @@ interface Props {
    * calendrier — à défaut AUJOURD'HUI, puisque c'est la liste du jour
    * (`SaisieRapide`, 2026-10-11).
    */
-  onAdd: (label: string, jour: string | null, heure: string | null) => void;
+  onAdd: (ajout: AjoutRapide) => void;
   /**
    * Le rafraîchissement de l'app — il active le MENU CONTEXTUEL des tâches
    * (Renommer, Dater, Rattacher, Dupliquer, Supprimer…). Sans lui, le widget

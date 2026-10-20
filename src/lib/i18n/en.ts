@@ -3679,8 +3679,22 @@ export const EN: Record<string, string> = {
   // L'ajout rapide de Tâches annonce sa règle, comme celui d'Aujourd'hui.
   "sans date": "no date",
   "Sans date. Choisir une date": "No date. Pick a date",
-  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
-    "Added like this, the task isn't due on any day. Or write the day in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
+  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris-le dans la phrase : « jeudi 14h30 », « demain », « fin du mois », « chaque lundi ».":
+    "Added like this, the task isn't due on any day. Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “end of the month”, “every Monday”.",
+  // La phrase entière : répétition, priorité (2026-10-20, audit, constat 18).
+  "Se répète : {rythme}. Choisir une date à la place": "Repeats: {rythme}. Pick a date instead",
+  "Répétition lue dans la phrase": "Repeat read from your sentence",
+  "« {mots} » quittera le titre. La tâche rejoindra tes routines. La croix garde le titre entier.":
+    "“{mots}” will leave the title. The task will join your routines. The cross keeps the title whole.",
+  "Retirer la répétition": "Remove the repeat",
+  "Priorité lue dans la phrase": "Priority read from your sentence",
+  "Retirer la priorité lue": "Remove the priority read",
+  "« {titre} » rejoint tes routines : {rythme}": "“{titre}” joins your routines: {rythme}",
+  "Lu dans la phrase :": "Read from your sentence:",
+  "Retirer : {quoi}": "Remove: {quoi}",
+  // Échap dans « Nouvelle tâche » demande avant de jeter (constat 39).
+  "Abandonner la saisie ?": "Discard your changes?",
+  "Ne pas garder": "Discard",
   "Ajoutée dans « {section} »": "Added to “{section}”",
   // L'échéance d'un objectif au fil d'une ligne (liste, cartes d'Aujourd'hui).
   // `{date}` porte l'année dès que ce n'est pas l'année en cours.
