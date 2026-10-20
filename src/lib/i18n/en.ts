@@ -3812,4 +3812,26 @@ export const EN: Record<string, string> = {
     "It leaves the lists and no longer counts anywhere. “To do” brings it back.",
   "En retard et à relancer": "Overdue and to follow up",
   "À relancer : {quoi}": "Follow up: {quoi}",
+
+  // ─── lot3-chiffres (audit du 2026-10-20) : les deux séries se nomment, Performance dit ce qu'elle trace ───
+  "Jours d'affilée où au moins 75 % de tes habitudes sont cochées": "Days in a row with at least 75% of your habits checked",
+  "La série de tâches (80 % des tâches prévues faites) est dans Performance.":
+    "The task streak (80% of planned tasks done) is in Performance.",
+  "série d'habitudes": "habit streak",
+  "tâches, 7 jours": "tasks, 7 days",
+  "Jours d'affilée où 80 % des tâches prévues sont faites": "Days in a row with 80% of planned tasks done",
+  "Série d'habitudes : {n} j": "Habit streak: {n} d",
+  "Série de tâches : {n} j": "Task streak: {n} d",
+  "série de tâches": "task streak",
+  "Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série. La série d'Aujourd'hui, elle, compte les habitudes.":
+    "Today counts as soon as it reaches 80%. A day with no task due doesn’t break the streak. The streak on Today counts habits instead.",
+  "Compte dans la série de tâches, dans Performance.": "Counts toward the task streak, in Performance.",
+  "Chaque point : la moyenne des 7 jours qui finissent ce jour-là": "Each point: the average of the 7 days ending that day",
+  "Au début de la courbe, elle compte des jours d'avant la période : elle peut différer de la moyenne affichée.":
+    "At the start of the curve it includes days before the period, so it can differ from the average shown.",
+  "La grille montre toujours les 12 derniers mois": "The grid always shows the last 12 months",
+  "La régularité se lit sur la durée : elle ne suit pas la période choisie.":
+    "Regularity reads over time: it doesn’t follow the selected period.",
+  "régularité — un carré par jour · 12 derniers mois": "regularity — one square per day · last 12 months",
+  "C'est le seuil de la série de tâches.": "It’s the threshold for the task streak.",
 };

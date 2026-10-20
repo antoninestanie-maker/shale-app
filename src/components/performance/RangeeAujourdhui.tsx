@@ -20,8 +20,12 @@ import { enHeures } from "../../lib/performance/durees";
  * à rien, et ce chiffre n'a jamais été un chiffre DE PÉRIODE : c'est l'état
  * d'aujourd'hui (aujourd'hui y compte dès 80 %), il ne se compare à rien. Sa
  * place est donc dans cette rangée. `serie` vient de `computeStreak`
- * (`lib/logic.ts`), la même série que l'anneau d'Aujourd'hui ; le record est
- * dans l'en-tête de la carte « Séries de jours tenus ».
+ * (`lib/logic.ts`) : la série des TÂCHES.
+ *
+ * ⚠️ Ce n'est PLUS la série de l'accueil : depuis le 2026-10-20 l'anneau et la
+ * tuile d'Aujourd'hui comptent les HABITUDES (75 %). L'écart est voulu ; son
+ * nom le dit (« série de tâches », constat 3 de l'audit du 20/10) et la bulle
+ * renvoie à l'autre.
  */
 export function RangeeAujourdhui({ jour, serie }: { jour: JourEnCours; serie: number }) {
   const cases = [
@@ -44,11 +48,13 @@ export function RangeeAujourdhui({ jour, serie }: { jour: JourEnCours; serie: nu
       detail: undefined as string | undefined,
     },
     {
-      // « Série » de QUOI : de jours tenus (constat 28 du labo).
-      nom: t("jours tenus d'affilée"),
+      // « Série » de QUOI : de jours où les TÂCHES sont tenues (constat 28 du
+      // labo, puis constat 3 de l'audit du 2026-10-20 : l'accueil montre une
+      // autre série, d'habitudes, le même jour).
+      nom: t("série de tâches"),
       valeur: t("{n} j", { n: serie }),
-      bulle: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
-      detail: t("Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série."),
+      bulle: t("Jours d'affilée où 80 % des tâches prévues sont faites"),
+      detail: t("Aujourd'hui compte dès qu'il atteint 80 %. Un jour sans tâche due ne casse pas la série. La série d'Aujourd'hui, elle, compte les habitudes."),
     },
   ];
 

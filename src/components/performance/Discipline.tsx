@@ -132,7 +132,14 @@ export function CourbeDiscipline(props: {
 export function LegendeCourbe({ seuil, seuilAide }: { seuil?: string; seuilAide?: { titre: string; detail: string } }) {
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-dim">
-      <span className="flex items-center gap-1.5">
+      {/* Ce que porte le trait (constat 25 de l'audit du 2026-10-20) : au début
+          de la courbe, il compte des jours d'AVANT la période — d'où un trait
+          vers 89 % sous « 100 % en moyenne ». */}
+      <span
+        className="flex items-center gap-1.5"
+        data-tip={t("Chaque point : la moyenne des 7 jours qui finissent ce jour-là")}
+        data-tip-sub={t("Au début de la courbe, elle compte des jours d'avant la période : elle peut différer de la moyenne affichée.")}
+      >
         <span className="h-0.5 w-4 rounded bg-accent" aria-hidden />
         {t("moyenne 7 jours")}
       </span>

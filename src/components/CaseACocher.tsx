@@ -134,6 +134,8 @@ export function CaseACocher({
  * Si l'écriture échoue, la surcharge tombe quand même : la case revient à ce
  * que dit la base. Mieux vaut une coche qui se défait qu'une coche qui ment.
  */
+export type CochesOptimistes = ReturnType<typeof useCochesOptimistes>;
+
 export function useCochesOptimistes() {
   const [surcharges, setSurcharges] = useState<ReadonlyMap<string, boolean>>(new Map());
   const courant = useRef(new Map<string, boolean>());

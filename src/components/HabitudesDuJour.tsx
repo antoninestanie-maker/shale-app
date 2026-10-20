@@ -1,4 +1,4 @@
-import { CaseACocher, useCochesOptimistes } from "./CaseACocher";
+import { CaseACocher, useCochesOptimistes, type CochesOptimistes } from "./CaseACocher";
 import BadgeExemple from "./onboarding/BadgeExemple";
 import { IconFlame } from "./icons";
 import { CarresHabitude, GrilleHabitudes } from "./habitudes/Grilles";
@@ -35,13 +35,22 @@ export default function HabitudesDuJour({
   data,
   refresh,
   ouvrirJournal,
+  coches,
 }: {
   data: AppData;
   refresh: () => Promise<void>;
   ouvrirJournal?: () => void;
+  /**
+   * Les coches optimistes de l'écran qui l'accueille (Aujourd'hui) : l'anneau
+   * et le compteur de la carte lisent ALORS la même coche au clic (rythme-7,
+   * 2026-10-20). Chaque appel de `useCochesOptimistes` a son propre état :
+   * avec deux instances, l'anneau n'avançait qu'après la relecture de la base.
+   */
+  coches?: CochesOptimistes;
 }) {
   const today = todayStr();
-  const { etat, basculer } = useCochesOptimistes();
+  const propres = useCochesOptimistes();
+  const { etat, basculer } = coches ?? propres;
 
   if (data.habits.length === 0) {
     return (

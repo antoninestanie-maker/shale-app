@@ -164,7 +164,21 @@ export default function DisciplineRing({ pct, streak, done, total, unite = "tach
 
       {/* Chip de streak : positionnée en % → suit l'échelle du conteneur */}
       <div className="pointer-events-none absolute inset-x-0 top-[64%] flex justify-center">
-        <span className="pill inline-flex max-w-full items-center gap-1 border border-accent/30 bg-accent/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-accent">
+        <span
+          className="pill pointer-events-auto inline-flex max-w-full items-center gap-1 border border-accent/30 bg-accent/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-accent"
+          // Quelle série (constat 3, 2026-10-20) : celle de l'anneau, donc des
+          // habitudes ou des tâches selon `unite`.
+          data-tip={
+            unite === "habitudes"
+              ? t("Jours d'affilée où au moins 75 % de tes habitudes sont cochées")
+              : t("Jours d'affilée où 80 % des tâches prévues sont faites")
+          }
+          aria-label={
+            unite === "habitudes"
+              ? t("Série d'habitudes : {n} j", { n: streak })
+              : t("Série de tâches : {n} j", { n: streak })
+          }
+        >
           <IconFlame className="h-3 w-3 shrink-0" /> {t("{n} j", { n: streak })}
         </span>
       </div>
