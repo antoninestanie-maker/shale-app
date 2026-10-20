@@ -28,11 +28,11 @@ describe("le pont de la fenêtre du minuteur", () => {
     const racine = createRoot(div);
     await act(async () => racine.render(createElement(Pont)));
     await act(async () => void (await new Promise((r) => setTimeout(r, 30))));
-    expect(recus.at(-1)?.session?.label).toBe("Backtest");
+    expect(recus[recus.length - 1]?.session?.label).toBe("Backtest");
 
     act(() => racine.unmount());
     await act(async () => void (await new Promise((r) => setTimeout(r, 30))));
-    expect(recus.at(-1)?.session).toBeNull();
+    expect(recus[recus.length - 1]?.session).toBeNull();
     arreter();
   });
 });
