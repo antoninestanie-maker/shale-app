@@ -120,6 +120,7 @@ import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
 import { estSansTitre } from "../lib/notesSansTitre";
+import { ouvrirPalette } from "../lib/palette";
 
 /**
  * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
@@ -735,7 +736,10 @@ export default function KnowledgeView() {
                       ? { label: t("Écrire une note"), onClick: () => void addNote() }
                       : elsewhere > 0
                         ? { label: t("Chercher partout"), onClick: chercherPartout }
-                        : undefined
+                        : // ⭐ Rien dans le Savoir : peut-être dans une note, une
+                          // tâche… (2026-10-20, rang 25 du 12/10 : les deux
+                          // recherches ne se voyaient pas). La palette cherche partout.
+                          { label: t("Chercher dans tout Shale"), onClick: () => ouvrirPalette(query) }
                   }
                 />
               ) : (

@@ -1,6 +1,6 @@
 // Registre d'actions central : consommé par la palette ⌘K et la quick capture.
 // Une action = un id stable + un exécuteur.
-import { ouvrirParId } from "./naviguer";
+import { demanderGeste, ouvrirParId } from "./naviguer";
 import type { View } from "../components/Sidebar";
 import { FINANCE_ACTIF, isFinanceView } from "./features";
 import { tachesAFaire, todayStr } from "./logic";
@@ -185,7 +185,8 @@ export const ACTIONS: AppAction[] = [
     keywords: ["trade", "journal", "winrate"],
     run: (ctx) => {
       ctx.navigate("trading");
-      setTimeout(() => emitUI("sb:new-trade"), 50);
+      // Déposé, pas chronométré : la vue peut ne pas être montée (`naviguer.ts`).
+      demanderGeste("sb:new-trade");
     },
   },
   {
@@ -256,8 +257,9 @@ export const ACTIONS: AppAction[] = [
     keywords: ["recurrence", "priorite", "tag"],
     run: (ctx) => {
       ctx.navigate("tasks");
-      // laisser la vue se monter avant d'ouvrir le modal
-      setTimeout(() => emitUI("sb:new-task"), 50);
+      // ⚠️ Déposé, plus chronométré (2026-10-20) : à 50 ms, la vue chargée en
+      // `lazy` n'était pas encore montée au premier appel (`naviguer.ts`).
+      demanderGeste("sb:new-task");
     },
   },  {
     // L'IA de Shale Pro (#5, #6) : réservée à Pro, absente sans le droit.
@@ -269,7 +271,7 @@ export const ACTIONS: AppAction[] = [
     requires: "pro",
     run: (ctx) => {
       ctx.navigate("tasks");
-      setTimeout(() => emitUI("sb:capture-ia"), 50);
+      demanderGeste("sb:capture-ia");
     },
   },
 
@@ -345,7 +347,9 @@ export const ACTIONS: AppAction[] = [
     keywords: ["goal", "creer"],
     run: (ctx) => {
       ctx.navigate("goals");
-      setTimeout(() => emitUI("sb:new-goal"), 50);
+      // ⚠️ Déposé (2026-10-20, constat 22) : le délai de 50 ms ratait la vue au
+      // premier appel de la session — page Objectifs sans formulaire.
+      demanderGeste("sb:new-goal");
     },
   },
 

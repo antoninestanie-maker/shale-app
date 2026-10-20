@@ -10,6 +10,7 @@ import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { selectionApresJet } from "../lib/selectionApresJet";
+import { ouvrirPalette } from "../lib/palette";
 import {
   ecritureAcceptable,
   graineDeNote,
@@ -532,6 +533,22 @@ export default function NotesView({ data, refresh }: Props) {
               />
             </li>
           ))}
+          {/* ⭐ La recherche de Notes ne voit que les notes (2026-10-20, rang 25
+              du 12/10 : « jurandes » était dans une fiche du Savoir, et Notes
+              disait « Aucun résultat »). Le renvoi vers la palette, qui
+              cherche partout, est là dès qu'on cherche. */}
+          {query.trim() && (
+            <li className="pt-1">
+              <button
+                type="button"
+                onClick={() => ouvrirPalette(query)}
+                data-tip-kbd={kbd("⌘K")}
+                className="cible-tactile-ligne w-full rounded-[10px] px-3 py-2 text-left text-xs text-text-dim transition-colors hover:bg-surface-2/50 hover:text-text"
+              >
+                {t("Chercher « {q} » dans tout Shale", { q: query.trim() })}
+              </button>
+            </li>
+          )}
         </ul>
       </div>
       )}
@@ -571,6 +588,17 @@ export default function NotesView({ data, refresh }: Props) {
               }}
               // Un titre effacé laissait un champ invisible : rien ne disait où
               // écrire. Le même mot que l'onglet, à l'encre discrète.
+              // ⭐ Du titre, Tab et Entrée vont au TEXTE de la note (2026-10-20,
+              // audit complet, constat 22). Tab tombait sur « supprimer », et
+              // Entrée par réflexe y jetait la note.
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return;
+                if (e.key !== "Tab" && e.key !== "Enter") return;
+                const corps = document.querySelector<HTMLElement>("[data-corps-note]");
+                if (!corps) return;
+                e.preventDefault();
+                corps.focus();
+              }}
               placeholder={t("Sans titre")}
               aria-label={t("Titre de la note")}
               className="min-w-0 flex-1 bg-transparent font-display text-xl font-extrabold text-text placeholder:text-text-dim/60 focus:outline-none"

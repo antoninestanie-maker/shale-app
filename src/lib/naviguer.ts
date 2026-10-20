@@ -182,3 +182,33 @@ export function allerVers(vue: View): void {
 export function ouvrirParId(kind: KindAvecVue, id: number): void {
   window.dispatchEvent(new CustomEvent<DemandeOuverture>(EVT_OUVRIR, { detail: { kind, id } }));
 }
+
+// ─── ⭐ Les gestes en attente (2026-10-20) ───────────────────────────────────
+
+/**
+ * « Nouvel objectif » de la palette n'ouvrait AUCUN formulaire au premier appel
+ * de la session (audit complet, constat 22 ; A11-09) : l'action changeait de
+ * module puis émettait `sb:new-goal` 50 ms plus tard — avant que la vue,
+ * chargée en `lazy`, soit montée. Au second appel, le chunk était là. Même
+ * défaut, même parade que pour les objets (`deposerDemande`) : le geste est
+ * DÉPOSÉ, émis tout de suite pour une vue déjà montée, et la vue le reprend à
+ * son montage.
+ *
+ * Un geste déposé vieillit : passé `VIE_GESTE`, il n'est plus repris — une
+ * navigation suspendue (une saisie à garder) ne doit pas ouvrir un formulaire
+ * dix minutes plus tard.
+ */
+const gestesEnAttente = new Map<string, number>();
+export const VIE_GESTE = 10_000;
+
+export function demanderGeste(nom: string): void {
+  gestesEnAttente.set(nom, Date.now());
+  window.dispatchEvent(new CustomEvent(nom));
+}
+
+/** Retire le geste s'il attend (et n'a pas vieilli). Rend vrai s'il y en avait un. */
+export function consommerGeste(nom: string, maintenant = Date.now()): boolean {
+  const quand = gestesEnAttente.get(nom);
+  gestesEnAttente.delete(nom);
+  return quand != null && maintenant - quand <= VIE_GESTE;
+}

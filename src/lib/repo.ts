@@ -2697,6 +2697,30 @@ async function corpusPour(
     for (const r of rows) docs.push({ kind: "event", id: r.id, uid: r.uid, titre: r.title, contexte: r.date });
   }
 
+  // ⭐ LES CANDIDATS « À UNE FAUTE PRÈS » (2026-10-20, audit complet, constat
+  // 36). Le `LIKE` et le FTS ne rendent que ce qui contient la requête telle
+  // quelle : « linkdin » n'amenait aucun candidat, et le classement n'avait rien
+  // à pardonner. On ajoute les TITRES récents de chaque famille ; c'est
+  // `rechercher` (`titreApproche`) qui décide, comme en démo, où le corpus est
+  // déjà complet. Titres seulement : la tolérance ne porte jamais sur le corps.
+  if (q.length >= 4) {
+    const deja = new Set(docs.map((d) => `${d.kind}:${d.id}`));
+    const ajouter = (kind: LinkKind, rows: { id: number; uid: string; titre: string }[]) => {
+      for (const r of rows) if (!deja.has(`${kind}:${r.id}`)) docs.push({ kind, id: r.id, uid: r.uid, titre: r.titre });
+    };
+    const titres: [LinkKind, string][] = [
+      ["note", `SELECT id, uid, title AS titre FROM notes WHERE ${VIVANT} ORDER BY id DESC LIMIT 400`],
+      ["knowledge", `SELECT id, uid, title AS titre FROM knowledge_entries WHERE ${VIVANT} ORDER BY updated_at DESC LIMIT 400`],
+      ["object", `SELECT id, uid, name AS titre FROM knowledge_topics WHERE ${VIVANT} LIMIT 200`],
+      ["goal", `SELECT id, uid, title AS titre FROM goals WHERE ${VIVANT} LIMIT 400`],
+      ["task", `SELECT id, uid, label AS titre FROM tasks WHERE ${VIVANT} ORDER BY id DESC LIMIT 400`],
+      ["event", `SELECT id, uid, title AS titre FROM calendar_events WHERE ${VIVANT} ORDER BY date DESC LIMIT 400`],
+    ];
+    for (const [kind, sql] of titres) {
+      if (veut(kind)) ajouter(kind, await db.select<{ id: number; uid: string; titre: string }[]>(sql));
+    }
+  }
+
   // ⚠️ Les notes n'ont pas d'`uid` dans le résultat de `searchNotes` (le SELECT
   // du FTS ne le ramène pas toujours). On les complète ici, en une requête :
   // sans `uid`, aucune mention ne peut pointer vers une note.

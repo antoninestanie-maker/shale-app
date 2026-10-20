@@ -1,4 +1,6 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { consommerGeste } from "../../lib/naviguer";
+import { GESTE_SAISIE_RAPIDE } from "../../lib/toucheSaisie";
 import { IconCalendar, IconPlus, IconX } from "../icons";
 import { dateAuFil, formaterComplet } from "../../lib/calendrier/champDate";
 import { formatHeure, t } from "../../lib/i18n";
@@ -57,6 +59,11 @@ export default function SaisieRapide(props: {
 }) {
   const [saisie, setSaisie] = useState<Saisie>({ texte: "", choisie: null, ecartee: null });
   const champ = useRef<HTMLInputElement>(null);
+  // ⭐ « N » ailleurs dans l'app ouvre les Tâches sur cette ligne (2026-10-20,
+  // `lib/toucheSaisie.ts`) : le geste est déposé avant le montage.
+  useEffect(() => {
+    if (consommerGeste(GESTE_SAISIE_RAPIDE)) champ.current?.focus();
+  }, []);
   const zoneDate = useRef<HTMLSpanElement>(null);
   const aujourdHui = todayStr();
   const resolue = resoudreSaisie(saisie, aujourdHui, props.parDefaut ?? null);
@@ -109,6 +116,8 @@ export default function SaisieRapide(props: {
         {props.plus && <IconPlus className="h-4 w-4 shrink-0 text-text-dim" />}
         <input
           ref={champ}
+          data-saisie-rapide=""
+          aria-keyshortcuts="N"
           value={saisie.texte}
           onChange={(e) => {
             const texte = e.target.value;

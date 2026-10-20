@@ -126,6 +126,14 @@ export const IconX = (p: IconProps) => (
   </Icon>
 );
 
+/** La loupe — le bouton « Rechercher » de la barre latérale (2026-10-20). */
+export const IconLoupe = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-4.2-4.2" />
+  </Icon>
+);
+
 export const IconPlus = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 5v14" />

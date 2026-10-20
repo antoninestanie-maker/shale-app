@@ -20,11 +20,12 @@ import { COMMERCE_AUTORISE, presenceModule } from "./lib/boutique";
 import { useEntitlements } from "./lib/entitlements";
 import { isTradingView } from "./lib/features";
 import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence/resoudre";
-import { deposerDemande, EVT_ALLER, EVT_OUVRIR, ouvrirParId, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
+import { demanderGeste, deposerDemande, EVT_ALLER, EVT_OUVRIR, ouvrirParId, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import { installerMenuNatif } from "./lib/menu/natif";
 import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
 import { aUneSuppressionARendre, cibleDeSaisie, estToucheDefaire } from "./lib/annulerSuppression";
 import { gesteSuspendu } from "./lib/saisieGardee";
+import { estToucheSaisie, GESTE_SAISIE_RAPIDE } from "./lib/toucheSaisie";
 import { defaireDerniereSuppression } from "./components/corbeille/geste";
 import Toast from "./components/Toast";
 import SelecteurDateFlottant from "./components/SelecteurDateFlottant";
@@ -487,6 +488,29 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // ⭐ « N » hors de tout champ : la ligne d'ajout rapide (2026-10-20, audit
+  // complet, constat 22). Celle de l'écran s'il y en a une, sinon celle des
+  // Tâches. Rien quand une fenêtre ou un éditeur plein écran a la main.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!estToucheSaisie(e) || cibleDeSaisie(document.activeElement)) return;
+      if (document.getElementById("root")?.hasAttribute("inert")) return;
+      if (document.querySelector(".fenetre-voile, [role=dialog], [role=menu]")) return;
+      const ici = [...document.querySelectorAll<HTMLInputElement>("[data-saisie-rapide]")].find(
+        (el) => el.getClientRects().length > 0,
+      );
+      e.preventDefault();
+      if (ici) {
+        ici.focus();
+        return;
+      }
+      navigate("tasks");
+      demanderGeste(GESTE_SAISIE_RAPIDE);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navigate]);
 
   // ── Le bouton Action (et Siri, et Spotlight) ────────────────────────────
   // L'`AppIntent` Swift n'a aucun moyen d'appeler la webview : il pose un

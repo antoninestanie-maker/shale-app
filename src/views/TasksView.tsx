@@ -35,7 +35,7 @@ import { cleTache } from "../lib/pointAction/regle";
 import ConfirmationEnLigne from "../components/ConfirmationEnLigne";
 import BadgeExemple from "../components/onboarding/BadgeExemple";
 import { estExemple } from "../lib/onboarding/exemples";
-import { consommerDemande, ouvrirParId } from "../lib/naviguer";
+import { consommerDemande, consommerGeste, ouvrirParId } from "../lib/naviguer";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
@@ -294,15 +294,26 @@ export default function TasksView({ data, refresh }: Props) {
   const ia = useIa();
   const [capture, setCapture] = useState(false);
   useEffect(() => {
-    const onCapture = () => setCapture(true);
+    const onCapture = () => {
+      consommerGeste("sb:capture-ia");
+      setCapture(true);
+    };
     window.addEventListener("sb:capture-ia", onCapture);
+    // Déposé par la palette avant que la vue soit montée (`naviguer.ts`).
+    if (consommerGeste("sb:capture-ia")) setCapture(true);
     return () => window.removeEventListener("sb:capture-ia", onCapture);
   }, []);
 
   // action palette "Nouvelle tâche" → ouvre le formulaire
   useEffect(() => {
-    const onNew = () => setCreating(true);
+    const onNew = () => {
+      consommerGeste("sb:new-task");
+      setCreating(true);
+    };
     window.addEventListener("sb:new-task", onNew);
+    // ⭐ Déposé par la palette avant que la vue soit montée (2026-10-20,
+    // constat 22 : au premier appel, aucun formulaire).
+    if (consommerGeste("sb:new-task")) setCreating(true);
     return () => window.removeEventListener("sb:new-task", onNew);
   }, []);
 

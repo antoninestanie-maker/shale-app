@@ -8,6 +8,7 @@ import {
 } from "../lib/actions";
 import { rechercherPartout } from "../lib/repo";
 import { ouvrirObjet } from "../lib/naviguer";
+import { EVT_PALETTE } from "../lib/palette";
 import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./liens/libelles";
 import { useIa } from "../lib/ia/useIa";
 import type { Trouvaille } from "../lib/recherche";
@@ -104,12 +105,19 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
         setOpen((o) => !o);
       }
     };
-    const onOpen = () => setOpen(true);
+    // Un bouton peut ouvrir la palette avec une requête déjà tapée : « Chercher
+    // partout » depuis Notes ou le Savoir (2026-10-20).
+    const onOpen = (e: Event) => {
+      const requete = (e as CustomEvent<{ requete?: string } | null>).detail?.requete;
+      setArgAction(null);
+      if (requete !== undefined) setQuery(requete);
+      setOpen(true);
+    };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("sb:open-palette", onOpen);
+    window.addEventListener(EVT_PALETTE, onOpen);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("sb:open-palette", onOpen);
+      window.removeEventListener(EVT_PALETTE, onOpen);
     };
   }, []);
 

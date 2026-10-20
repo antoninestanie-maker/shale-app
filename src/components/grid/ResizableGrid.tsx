@@ -73,6 +73,9 @@ import type { EntreePossible } from "../../lib/menu/entrees";
 import { IconChevronDown, IconChevronUp, IconExpand, IconEyeOff, IconReset } from "../icons";
 
 import { t } from "../../lib/i18n";
+import { afficherToast } from "../../lib/toast";
+import { oublierSuppression, retenirSuppression } from "../../lib/annulerSuppression";
+import { DUREE_ANNULER } from "../corbeille/geste";
 const COLUMNS = 12;
 const COL_GAP = 16;
 const V_SPACE = 16;
@@ -524,19 +527,6 @@ export function ResizableGrid({
     [persistSizes, captureFlip],
   );
 
-  const hidePanel = useCallback(
-    (id: string) => {
-      captureFlip();
-      setHidden((prev) => {
-        if (prev.includes(id)) return prev;
-        const next = [...prev, id];
-        setSetting(hiddenKey, JSON.stringify(next)).catch(() => {});
-        return next;
-      });
-    },
-    [captureFlip, hiddenKey],
-  );
-
   const restorePanel = useCallback(
     (id: string) => {
       captureFlip();
@@ -551,6 +541,51 @@ export function ResizableGrid({
 
   const hiddenRef = useRef(hidden);
   hiddenRef.current = hidden;
+  /** Le nom d'un panneau, lisible ici (il est calculé plus bas, d'après les enfants). */
+  const titreDeRef = useRef<(id: string) => string>(prettify);
+
+  /**
+   * ✕ et « Masquer le panneau ».
+   *
+   * ⭐ AVEC SON « ANNULER » (2026-10-20, audit complet ; rang 26 du 12/10,
+   * toujours présent) : la croix retirait la carte sans un mot, et son retour
+   * était une pastille « masqués » en bas de page — à 2 079 px sous la carte
+   * « Apparence » des Réglages. Un toast le dit, « Annuler » la remet, et ⌘Z
+   * aussi (`lib/annulerSuppression.ts`) : rien n'est supprimé, mais le geste se
+   * défait comme une suppression.
+   */
+  const hidePanel = useCallback(
+    (id: string) => {
+      if (hiddenRef.current.includes(id)) return;
+      captureFlip();
+      setHidden((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        setSetting(hiddenKey, JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+      const titre = titreDeRef.current(id);
+      const annulable = {
+        titre,
+        rendre: async () => {
+          if (!hiddenRef.current.includes(id)) return false;
+          restorePanel(id);
+          return true;
+        },
+      };
+      retenirSuppression(annulable);
+      afficherToast({
+        msg: t("Panneau masqué : « {titre} »", { titre }),
+        actionLabel: t("Annuler|défaire"),
+        onAction: () => {
+          oublierSuppression(annulable);
+          void annulable.rendre();
+        },
+        duree: DUREE_ANNULER,
+      });
+    },
+    [captureFlip, hiddenKey, restorePanel],
+  );
 
   /**
    * Avance ou recule un panneau d'UNE place parmi les panneaux visibles — le
@@ -775,6 +810,7 @@ export function ResizableGrid({
   const byId = new Map(items.map((c) => [c.props.id, c]));
   const hiddenKnown = masquesConnus(hidden, jsxIds);
   const titreDe = (id: string) => byId.get(id)?.props.title ?? prettify(id);
+  titreDeRef.current = titreDe;
 
   /**
    * ⚠️ RÈGLE 18 — chaque entrée appelle ce qu'appelle la poignée : `hidePanel`

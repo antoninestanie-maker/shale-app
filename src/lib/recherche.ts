@@ -81,7 +81,74 @@ export function scoreDe(doc: Document, requete: string): number {
   if (titre.split(/\s+/).some((mot) => mot.startsWith(requete))) return 60 + POIDS[doc.kind];
   if (titre.includes(requete)) return 30 + POIDS[doc.kind];
   if (doc.corps && norm(doc.corps).includes(requete)) return 10 + POIDS[doc.kind];
+  if (titreApproche(titre, requete)) return 5 + POIDS[doc.kind];
   return 0;
+}
+
+/**
+ * ⭐ UNE FAUTE DE FRAPPE PARDONNÉE (2026-10-20, audit complet, constat 36).
+ * « linkdin », « linkedn » et « plonbier » ne trouvaient rien, alors que
+ * « linkedin » et « plombier » trouvaient l'objectif et la tâche : on corrige sa
+ * frappe, mais on croit d'abord que la chose n'existe pas.
+ *
+ * Le palier le plus bas (5) : une correspondance exacte passe toujours devant.
+ * Chaque mot de la requête doit retrouver un mot du TITRE — en tête de mot, ou
+ * à une faute près (deux à partir de huit lettres). Une lettre en trop, en
+ * moins, changée, ou deux lettres inversées comptent pour une faute. Sous
+ * quatre lettres, aucune tolérance : « ami » trouverait la moitié de la base.
+ *
+ * ⚠️ Le TITRE seulement, jamais le corps : sur des milliers de notes, une
+ * tolérance dans le texte rendrait n'importe quoi.
+ */
+export function titreApproche(titreNormalise: string, requeteNormalisee: string): boolean {
+  const motsRequete = requeteNormalisee.split(/\s+/).filter(Boolean);
+  if (motsRequete.length === 0 || !motsRequete.some((m) => m.length >= LONGUEUR_TOLERANCE)) return false;
+  const motsTitre = titreNormalise.split(/[\s\-_/.,;:!?()«»"']+/).filter(Boolean);
+  return motsRequete.every((q) => motsTitre.some((m) => m.startsWith(q) || motProche(q, m)));
+}
+
+/** En dessous, une requête doit être juste. */
+const LONGUEUR_TOLERANCE = 4;
+
+/** `q` tapé, `mot` du titre : à une faute près, du mot entier ou de son début. */
+export function motProche(q: string, mot: string): boolean {
+  if (q.length < LONGUEUR_TOLERANCE) return false;
+  const max = q.length >= 8 ? 2 : 1;
+  if (Math.abs(mot.length - q.length) <= max && distanceEdition(q, mot, max) <= max) return true;
+  // On tape souvent le DÉBUT d'un mot : « linkdi » pour « linkedin ».
+  for (let l = q.length - max; l <= q.length + max; l++) {
+    if (l < LONGUEUR_TOLERANCE || l >= mot.length) continue;
+    if (distanceEdition(q, mot.slice(0, l), max) <= max) return true;
+  }
+  return false;
+}
+
+/**
+ * Distance d'édition (Damerau, version « alignement optimal ») : insertions,
+ * suppressions, substitutions et inversion de deux lettres voisines. S'arrête
+ * dès qu'elle dépasse `max` — on ne veut savoir que « proche ou pas ».
+ */
+export function distanceEdition(a: string, b: string, max = Infinity): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const n = b.length;
+  let avant2: number[] = [];
+  let avant = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const ligne = [i];
+    let mini = i;
+    for (let j = 1; j <= n; j++) {
+      const cout = a[i - 1] === b[j - 1] ? 0 : 1;
+      let d = Math.min(avant[j] + 1, ligne[j - 1] + 1, avant[j - 1] + cout);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, avant2[j - 2] + 1);
+      ligne.push(d);
+      if (d < mini) mini = d;
+    }
+    if (mini > max) return max + 1;
+    avant2 = avant;
+    avant = ligne;
+  }
+  return avant[n];
 }
 
 /** Le fragment du corps autour de la requête — pour montrer POURQUOI ça sort. */

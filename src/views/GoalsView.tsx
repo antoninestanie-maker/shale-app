@@ -18,7 +18,7 @@ import { annonceDepart, jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { auFilDeLaLigne } from "../lib/calendrier/champDate";
-import { consommerDemande } from "../lib/naviguer";
+import { consommerDemande, consommerGeste } from "../lib/naviguer";
 import { mouvementReduit } from "../lib/defilement";
 import { jouerTransition, type Sens } from "../lib/objectifs/transition";
 import { menuContextuelOuvert } from "../lib/menu/tactile";
@@ -319,9 +319,16 @@ export default function GoalsView({ data, refresh }: Props) {
   }, [goals, tasks]);
 
   // action palette "Nouvel objectif" → ouvre le formulaire
+  // ⭐ Le geste peut avoir été DÉPOSÉ avant le montage de la vue (2026-10-20,
+  // constat 22 : au premier appel de la session, page Objectifs sans formulaire).
   useEffect(() => {
-    window.addEventListener("sb:new-goal", nouvelObjectif);
-    return () => window.removeEventListener("sb:new-goal", nouvelObjectif);
+    const surDemande = () => {
+      consommerGeste("sb:new-goal");
+      nouvelObjectif();
+    };
+    window.addEventListener("sb:new-goal", surDemande);
+    if (consommerGeste("sb:new-goal")) nouvelObjectif();
+    return () => window.removeEventListener("sb:new-goal", surDemande);
   }, [nouvelObjectif]);
 
   /**

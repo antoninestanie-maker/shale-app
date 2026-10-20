@@ -28,6 +28,7 @@ import type { AppData, Trade } from "../lib/types";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { localeTag, t } from "../lib/i18n";
+import { consommerGeste } from "../lib/naviguer";
 /** Jauge radiale de winrate (référence : dashboards de trading pro). */
 function WinrateGauge({ stats }: { stats: TradeStats }) {
   const pct = stats.winrate ?? 0;
@@ -117,8 +118,13 @@ export default function TradingView({ data, refresh }: Props) {
 
   // action palette / vocal "nouveau trade"
   useEffect(() => {
-    const onNew = () => setCreating(true);
+    const onNew = () => {
+      consommerGeste("sb:new-trade");
+      setCreating(true);
+    };
     window.addEventListener("sb:new-trade", onNew);
+    // Déposé par la palette avant que la vue soit montée (`naviguer.ts`, 2026-10-20).
+    if (consommerGeste("sb:new-trade")) setCreating(true);
     return () => window.removeEventListener("sb:new-trade", onNew);
   }, []);
 

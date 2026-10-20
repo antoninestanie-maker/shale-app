@@ -32,7 +32,8 @@ import Clock from "./Clock";
 import NotificationBell from "./NotificationBell";
 import SessionIndicator from "./SessionIndicator";
 import SyncIndicator from "./SyncIndicator";
-import { IconBarre, IconLock, IconSliders, IconTrash } from "./icons";
+import { IconBarre, IconLock, IconLoupe, IconSliders, IconTrash } from "./icons";
+import { ouvrirPalette } from "../lib/palette";
 
 import { getLang, t, tp } from "../lib/i18n";
 import PointAction from "./PointAction";
@@ -956,6 +957,34 @@ export default function Sidebar({
                 c'est l'accueil, le bouton auquel on revient. Avant, il partait
                 avec la liste dès qu'elle défilait — c'est-à-dire dans la fenêtre
                 par défaut, toutes catégories ouvertes. */}
+            {/* ⭐ La recherche ANNONCÉE (2026-10-20, audit complet, constat 36 ;
+                rang 25 du 12/10) : ⌘K couvrait tout, mais rien à l'écran ne le
+                disait — on la découvrait par hasard. Une ligne de la barre, au
+                même dessin que les modules, avec son raccourci au survol ; au
+                rail, la loupe seule. Hors de la liste qui défile. */}
+            <div className="flex shrink-0 flex-col gap-0.5 px-3 pb-0.5">
+              <button
+                type="button"
+                onClick={() => ouvrirPalette()}
+                aria-label={t("Rechercher")}
+                aria-keyshortcuts="Meta+K"
+                data-tip={t("Rechercher")}
+                data-tip-sub={t("Notes, fiches, tâches, objectifs, rendez-vous — et les actions.")}
+                data-tip-kbd={kbd("⌘K")}
+                data-tip-side="right"
+                className="group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text"
+              >
+                <span className="h-[17px] w-[17px] shrink-0 text-text-dim/80">
+                  <IconLoupe className="h-full w-full" />
+                </span>
+                {/* Le raccourci DANS le libellé : il se coupe avec lui quand la
+                    barre rétrécit, et n'existe plus au rail. */}
+                <span className="barre-texte barre-coupe flex min-w-0 flex-1 items-center gap-2 text-left">
+                  <span className="min-w-0 flex-1">{t("Rechercher")}</span>
+                  <kbd className="hud-label shrink-0 opacity-70">{kbd("⌘K")}</kbd>
+                </span>
+              </button>
+            </div>
             {uncategorized.length > 0 && (
               <div className="flex shrink-0 flex-col gap-0.5 px-3 pb-2">
                 {uncategorized.map((m) => {
