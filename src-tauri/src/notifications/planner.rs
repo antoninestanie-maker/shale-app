@@ -349,8 +349,8 @@ mod tests {
     fn snapshot_deux_habitudes_non_cochees() -> Snapshot {
         Snapshot {
             habits: vec![
-                Habit { id: 1, name: "Lire".into() },
-                Habit { id: 2, name: "Sport".into() },
+                Habit { id: 1, name: "Lire".into(), is_example: false },
+                Habit { id: 2, name: "Sport".into(), is_example: false },
             ],
             habit_checks: vec![],
             tasks: vec![],

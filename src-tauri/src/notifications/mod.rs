@@ -12,6 +12,7 @@
 //! - `rules`   — une règle = un fichier + une ligne au registre
 
 pub mod data;
+pub mod discipline_habitudes;
 pub mod emitter;
 pub mod engine;
 pub mod model;

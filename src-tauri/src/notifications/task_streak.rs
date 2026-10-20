@@ -1,5 +1,12 @@
 //! Série de tâches — **portage Rust de `src/lib/logic.ts`**.
 //!
+//! ⚠️ **Depuis le 2026-10-20, AUCUNE règle ne lit ce fichier.** La notification
+//! « série en danger » suit la série d'habitudes (`discipline_habitudes.rs`),
+//! celle que l'écran affiche. Le portage est gardé, avec ses tests, pour le jour
+//! où une règle parlerait de nouveau des tâches ; tant qu'aucune ne le lit, il
+//! n'est plus nécessaire de le tenir d'accord avec `logic.ts` — mais il faudra
+//! le remettre à jour AVANT de le rebrancher.
+//!
 //! ⚠️ Code dupliqué, en connaissance de cause. La série affichée dans le bandeau
 //! de performance est calculée en TypeScript ; pour qu'une notification puisse
 //! dire « ta série est en danger » sans fenêtre ouverte, le Rust doit refaire le

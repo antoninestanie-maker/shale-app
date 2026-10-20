@@ -60,10 +60,16 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     let f_tache = filtre_vivant(&mut conn, "tasks", "").await;
     let f_tache_j = filtre_vivant(&mut conn, "tasks", "t").await;
 
-    let habits = sqlx::query_as::<_, (i64, String)>(&format!("SELECT id, name FROM habits WHERE archived = 0{f_hab}"))
+    // `is_example` (migration 024) : même garde que `due_date` plus bas — nommée en
+    // aveugle sur une base pas encore migrée, la requête échouerait et il n'y
+    // aurait plus aucune habitude.
+    let col_ex = if colonne_existe(&mut conn, "habits", "is_example").await { "is_example" } else { "0" };
+    let habits = sqlx::query_as::<_, (i64, String, i64)>(&format!(
+        "SELECT id, name, {col_ex} FROM habits WHERE archived = 0{f_hab}"
+    ))
         .fetch_all(&mut conn)
         .await
-        .map(|rows| rows.into_iter().map(|(id, name)| Habit { id, name }).collect())
+        .map(|rows| rows.into_iter().map(|(id, name, ex)| Habit { id, name, is_example: ex != 0 }).collect())
         .unwrap_or_else(|e| {
             eprintln!("notifications : lecture des habitudes ({e})");
             Vec::new()
@@ -423,6 +429,27 @@ mod tests {
         let pending = snap.habits_pending_on(today());
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].name, "Lecture");
+        assert!(snap.habits.iter().all(|h| !h.is_example), "sans la colonne 024 : aucun exemple");
+    }
+
+    /// La série de la notification écarte les exemples, comme l'écran : il faut
+    /// donc que la lecture rende le drapeau quand la colonne existe.
+    #[tokio::test]
+    async fn lit_le_drapeau_d_exemple_des_habitudes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE habits ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+            INSERT INTO habits (id, name, is_example) VALUES (1, 'Sport', 0), (2, 'Exemple', 1);
+            "#,
+        )
+        .await;
+
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        let ex: Vec<_> = snap.habits.iter().map(|h| (h.name.as_str(), h.is_example)).collect();
+        assert_eq!(ex, vec![("Sport", false), ("Exemple", true)]);
     }
 
     #[tokio::test]

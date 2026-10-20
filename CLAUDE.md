@@ -8738,4 +8738,16 @@ Antonin : « si je coche des tâches en retard, cela les fait apparaître dans T
 - ⚠️ **Décision du 2026-10-11 retournée en partie** (« ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa date »). Une ponctuelle datée d'AVANT le jour (`estRattrapage`, `logic.ts`) cochée ce jour-là n'entre plus dans `todayTasks` ni dans `dayStat` de ce jour. Sans date ou faite en avance : inchangé. Portage Rust : `est_rattrapage`. Conséquence assumée : un jour passé qui ne tenait qu'à des rattrapages redevient neutre (seule exception à « un pourcentage passé ne peut que monter »).
 - **L'anneau de l'accueil ET la tuile « série en cours » lisent les HABITUDES** (`lib/disciplineHabitudes.ts`) : tenues / actives aujourd'hui, avec la règle de Performance (`debutsDesHabitudes` : exemples exclus, une habitude compte depuis sa première coche), et la coche optimiste. Les tâches gardent leur compte partout ailleurs (carte « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
 - **Un jour d'habitudes est « tenu » à 75 %**, pas 80 : avec 4 ou 8 habitudes, 80 % exigeait un sans-faute (3/4 = 75 %) ; 67 % aurait rendu la série trop facile à 3 habitudes. Le seuil des TÂCHES (`STREAK_THRESHOLD`, Rust) reste 80.
-- ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
+- ~~⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.~~ **Tranché le jour même** : elle suit les habitudes (section suivante).
+
+## 2026-10-20 — La notification « série en danger » suit la série d'habitudes
+
+Antonin, sur la question laissée ouverte juste au-dessus : « on passe sur les habitudes ».
+
+- **`streak_at_risk` ne lit plus que la série d'HABITUDES**, celle de l'anneau et de la tuile « série en cours » d'Aujourd'hui. La série de tâches (≥ 80 % des tâches prévues) n'est plus surveillée par aucune notification : l'écran ne l'affichant plus, on aurait prévenu d'une série que personne ne voyait.
+- **La règle est portée en Rust, pas réinventée** : `src-tauri/src/notifications/discipline_habitudes.rs` recopie `disciplineHabitudes.ts` (une habitude compte depuis sa première coche, exemples exclus, jour neutre sans habitude active, jour tenu à 75 %, arrondi de JavaScript). ⚠️ Portage à tenir d'accord, comme l'était `task_streak.rs` : les deux fichiers se citent l'un l'autre.
+- **Ce qui change pour Antonin** : avant, la série d'habitudes exigeait TOUTES les habitudes cochées (une manquée sur quatre la rompait), et la notification pouvait parler de deux séries à la fois. Désormais une seule série, la même qu'à l'écran, et le corps dit combien cocher pour tenir : « 5 jours d'habitudes tenus d'affilée. Coche encore 2 habitudes pour tenir aujourd'hui aussi. » Elle ouvre la vue Habitudes.
+- **Elle se tait** quand la journée est déjà tenue (≥ 75 %), quand aucune habitude ne compte, et sous `min_streak` (3 jours).
+- `Habit.is_example` est lu (`data.rs`, avec garde de colonne : une base d'avant la 024 lit 0). Le rappel « habitudes non cochées » (`habits_pending`) n'a pas changé : il compte encore les exemples.
+- `task_streak.rs` reste, avec ses tests, **lu par aucune règle** : il n'est plus à tenir d'accord avec `logic.ts`, mais devra être remis à jour avant d'être rebranché.
+- Vérifié : `cargo test --lib notifications` (dont 7 tests de la série et 9 de la règle). **Pas de build natif** : à grouper avec le prochain.

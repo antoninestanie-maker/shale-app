@@ -2745,3 +2745,9 @@ Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-re
 - **Pas fait** : aucun build natif — **l'app installée (Mac 13/10 01:16, iPhone 0.8.0) ne porte pas ce changement**. Aucun appel authentifié (toutes les fonctions d'IA sont éteintes dans `ai_config`, et il ne faut pas en allumer avant la politique de confidentialité à jour). Rien modifié dans le dépôt du site.
 - **Ligne de base** (charge de la machine 45 à 60, d'autres sessions) : `tsc` vert ; `test:types` vert ; `src/lib/ia` 169 tests verts — les quatre fichiers `serveur*` (base PGlite) dépassent leur délai de 60 s sous cette charge et passent rejoués seuls (65/65), comme noté au carnet le même soir. Contre-épreuve : région retirée de `runAi.ts`, trois tests rouges. ⚠️ **Suite complète et `vite build` non rejoués** (aucun autre fichier touché ; ni `en.ts`, ni Rust).
 - **Non fusionné, non poussé** : un commit local sur `chantier/ia-region`, en attente de l'accord d'Antonin.
+
+## 2026-10-20 (soir) — La notification « série en danger » passe sur les habitudes
+
+Antonin : « on passe sur les habitudes ». `streak_at_risk` lit désormais la série de l'anneau d'Aujourd'hui (portage Rust `notifications/discipline_habitudes.rs` de `disciplineHabitudes.ts`, jour tenu à 75 %, exemples exclus) ; la série de tâches n'est plus notifiée. Détail et pourquoi : `CLAUDE.md`, même date.
+- **Prouvé** : `cargo test --lib notifications` vert (7 tests neufs pour la série, règle réécrite avec 9 tests, lecture du drapeau d'exemple) ; `tsc`, `i18n:check`.
+- **Pas prouvé** : aucune notification réelle reçue ; **pas de build natif** (Rust : il faut un build pour que l'app installée change) — à grouper avec le prochain.
