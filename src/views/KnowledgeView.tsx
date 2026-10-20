@@ -179,9 +179,15 @@ export default function KnowledgeView() {
    * il vient d'être chargé en `lazy` (voir `lib/naviguer.ts`).
    */
   useEffect(() => {
+    // ⚠️ La vue était déjà là : la demande déposée est servie, on la retire —
+    // sinon elle rouvrait la même fiche au montage suivant (audit du
+    // 2026-10-20, objectifs-10, corrigé large : le motif de `NotesView`).
     const onOpenNote = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
-      if (id) setOpenId(id);
+      if (id) {
+        setOpenId(id);
+        consommerDemande("knowledge");
+      }
     };
     // ⭐ Une mention vers un SUJET ouvre sa page — c'est-à-dire son périmètre.
     // Depuis la fusion, il n'y a plus d'onglet à sélectionner : citer @Trading
@@ -191,6 +197,7 @@ export default function KnowledgeView() {
       if (id) {
         setOpenId(null);
         setScope(id);
+        consommerDemande("object");
       }
     };
     window.addEventListener("sb:open-knowledge", onOpenNote);

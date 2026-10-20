@@ -283,7 +283,13 @@ export default function TasksView({ data, refresh }: Props) {
       const tache = tachesRef.current.find((x) => x.id === id);
       if (tache) setEditing(tache);
     };
-    const onOpen = (e: Event) => ouvrir((e as CustomEvent<number>).detail);
+    // ⚠️ La vue était déjà là : la demande déposée est servie, on la retire —
+    // sinon elle rouvrait la même tâche au montage suivant (audit du
+    // 2026-10-20, objectifs-10, corrigé large : le motif de `NotesView`).
+    const onOpen = (e: Event) => {
+      ouvrir((e as CustomEvent<number>).detail);
+      consommerDemande("task");
+    };
     window.addEventListener("sb:open-task", onOpen);
     const enAttente = consommerDemande("task");
     if (enAttente) ouvrir(enAttente);
