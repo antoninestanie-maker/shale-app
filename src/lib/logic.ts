@@ -202,13 +202,31 @@ export function estPrevueLe(task: Task, jour: string): boolean {
  *   • une routine due aujourd'hui, cochée ou non ;
  *   • une ponctuelle datée d'aujourd'hui, tant qu'elle n'a pas été faite UN
  *     AUTRE jour (faite en avance, elle a compté ce jour-là) ;
- *   • une ponctuelle COCHÉE aujourd'hui, quelle que soit sa date : ce qu'on a
- *     fait aujourd'hui compte pour aujourd'hui. C'est aussi ce qui garde à
- *     l'écran, cochée, la tâche en retard qu'on vient de rattraper.
+ *   • une ponctuelle COCHÉE aujourd'hui, sans date ou datée d'aujourd'hui ou
+ *     plus tard : ce qu'on a fait aujourd'hui compte pour aujourd'hui.
+ *
+ * ⭐ SAUF LE RATTRAPAGE (2026-10-20, Antonin : « si je coche des tâches en
+ * retard, cela les fait apparaître dans Tâches du jour et fait avancer la
+ * discipline même si c'était 0/0 avant »). Une tâche en retard cochée depuis
+ * « En retard » quitte cette ligne et n'entre PAS dans la liste du jour : elle
+ * n'était pas prévue aujourd'hui, la cocher ne doit ni allonger la liste ni
+ * faire monter le pourcentage. Voir `estRattrapage`.
  *
  * ⚠️ Ajouter une tâche sans date, ou datée de jeudi, ne change donc RIEN à la
  * liste ni au pourcentage du jour — c'est le défaut que la règle corrige.
  */
+/**
+ * Une ponctuelle datée d'AVANT `jour` : cochée ce jour-là, c'est un rattrapage,
+ * pas une tâche du jour. Elle ne compte ni dans la liste (`todayTasks`) ni dans
+ * le compte d'un jour (`dayStat`) — depuis le 2026-10-20 ; avant, elle y
+ * entrait cochée et faisait passer un « 0/0 » à « 1/1, 100 % ».
+ *
+ * ⚠️ Portage Rust : `est_rattrapage`, `src-tauri/src/notifications/task_streak.rs`.
+ */
+export function estRattrapage(task: Pick<Task, "recurrence" | "due_date">, jour: string): boolean {
+  return !isRecurring(task as Task) && !!task.due_date && task.due_date < jour;
+}
+
 export function todayTasks(
   tasks: Task[],
   completions: Completion[],
@@ -224,7 +242,7 @@ export function todayTasks(
   return tasks
     .filter((t) => {
       if (isRecurring(t)) return isDueOn(t, today);
-      if (cochesDuJour.get(t.id)) return true;
+      if (cochesDuJour.get(t.id)) return !estRattrapage(t, today);
       return estPrevueLe(t, today) && !faitesUnJour.has(t.id);
     })
     .map((t) => ({ ...t, done: cochesDuJour.get(t.id) ?? false }));
@@ -278,6 +296,11 @@ export function tachesAFaire(
  * ne compte plus — elle n'était ni prévue, ni faite. Un pourcentage passé ne
  * peut que MONTER, une série ne peut que s'allonger.
  *
+ * ⭐ 2026-10-20 — un RATTRAPAGE (ponctuelle datée d'avant ce jour, cochée ce
+ * jour-là) sort du compte de ce jour (`estRattrapage`). Seule exception à
+ * « jamais à la baisse » : un jour passé qui ne tenait qu'à des rattrapages
+ * redevient neutre, et un jour où ils gonflaient le chiffre le perd.
+ *
  * ⚠️ LIMITE CONNUE, laissée telle quelle : une ponctuelle datée d'un jour et
  * PAS faite sort du compte de ce jour à minuit (elle devient « en retard »). Le
  * chiffre du soir peut donc monter le lendemain matin, jamais baisser. La faire
@@ -302,7 +325,8 @@ export function dayStat(
   for (const t of tasks) if (isDueOn(t, date)) due.add(t.id);
   for (const id of doneIds) {
     const t = byId.get(id);
-    if (t && !isRecurring(t)) due.add(id);
+    // Un rattrapage ne compte pas pour le jour où on l'a coché (`estRattrapage`).
+    if (t && !isRecurring(t) && !estRattrapage(t, date)) due.add(id);
   }
 
   const total = due.size;

@@ -87,6 +87,17 @@ pub fn est_prevue_le(task: &Task, date: NaiveDate) -> bool {
     task.due_date.as_deref() == Some(day_str(date).as_str())
 }
 
+/// Une ponctuelle datée d'AVANT `date`, cochée ce jour-là : un rattrapage, pas
+/// une tâche du jour. Port de `estRattrapage` (2026-10-20) — elle ne compte ni
+/// dans la liste du jour ni dans le compte d'un jour.
+pub fn est_rattrapage(task: &Task, date: NaiveDate) -> bool {
+    !is_recurring(task)
+        && task
+            .due_date
+            .as_deref()
+            .is_some_and(|d| !d.is_empty() && d < day_str(date).as_str())
+}
+
 /// Pourcentage de complétion d'un jour PASSÉ. `None` = aucune tâche due,
 /// journée neutre qui ne casse pas la série. Port de `dayStat().pct`.
 ///
@@ -105,7 +116,7 @@ pub fn day_pct(tasks: &[Task], completions: &[Completion], date: NaiveDate) -> O
         .collect();
     for c in comps.iter().filter(|c| c.done) {
         if let Some(t) = tasks.iter().find(|t| t.id == c.task_id) {
-            if !is_recurring(t) && !due.contains(&t.id) {
+            if !is_recurring(t) && !est_rattrapage(t, date) && !due.contains(&t.id) {
                 due.push(t.id);
             }
         }
@@ -129,7 +140,8 @@ pub fn day_pct(tasks: &[Task], completions: &[Completion], date: NaiveDate) -> O
 ///   • une routine due aujourd'hui ;
 ///   • une ponctuelle datée d'aujourd'hui, tant qu'elle n'a pas été faite un
 ///     AUTRE jour (faite en avance, elle a compté ce jour-là) ;
-///   • une ponctuelle COCHÉE aujourd'hui, quelle que soit sa date.
+///   • une ponctuelle COCHÉE aujourd'hui, sauf un rattrapage (datée d'avant
+///     aujourd'hui — `est_rattrapage`, depuis le 2026-10-20).
 ///
 /// ⚠️ Avant le 2026-10-11, toute ponctuelle non faite y entrait, datée ou non :
 /// noter une tâche pour jeudi faisait baisser le pourcentage du jour, et la
@@ -148,7 +160,7 @@ pub fn today_pct(tasks: &[Task], completions: &[Completion], today: NaiveDate) -
                 return is_due_on(t, today);
             }
             if cochee_aujourdhui(t) {
-                return true;
+                return !est_rattrapage(t, today);
             }
             est_prevue_le(t, today) && !faite_un_jour(t)
         })
@@ -293,6 +305,16 @@ mod tests {
         assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), Some(100));
     }
 
+    /// Port de `estRattrapage` (2026-10-20) : une tâche en retard cochée ne
+    /// compte ni pour le jour où on la coche, ni dans la liste du jour.
+    #[test]
+    fn un_rattrapage_ne_compte_pas_pour_le_jour() {
+        let tasks = vec![datee(1, Some("2026-07-26"))];
+        let comps = vec![done(1, "2026-07-27")];
+        assert_eq!(day_pct(&tasks, &comps, d("2026-07-27")), None);
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), None);
+    }
+
     /// Une tâche sans date ou à venir, jamais cochée, n'a jamais pesé sur un
     /// jour passé — avant comme après la règle.
     #[test]
@@ -389,8 +411,8 @@ mod tests {
         assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(50));
     }
 
-    /// Ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa
-    /// date : sans date, en retard rattrapée, faite en avance.
+    /// Ce qu'on coche aujourd'hui compte pour aujourd'hui : sans date, faite en
+    /// avance — mais pas une tâche en retard rattrapée (2026-10-20).
     #[test]
     fn ce_qu_on_coche_aujourd_hui_compte_pour_aujourd_hui() {
         let tasks = vec![
@@ -400,7 +422,8 @@ mod tests {
             datee(4, Some("2026-07-28")),
         ];
         let comps = vec![done(2, "2026-07-27"), done(3, "2026-07-27"), done(4, "2026-07-27")];
-        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(75));
+        // 2 faites sur 3 : la tâche n° 3 (en retard) n'est pas dans la liste.
+        assert_eq!(today_pct(&tasks, &comps, d("2026-07-27")), Some(67));
     }
 
     #[test]

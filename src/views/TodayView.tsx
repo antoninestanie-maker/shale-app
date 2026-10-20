@@ -9,7 +9,6 @@ import TimerCard from "../components/TimerCard";
 import TodayTasks from "../components/TodayTasks";
 import CalendarCard from "../components/CalendarCard";
 import {
-  computeStreak,
   statDeListe,
   todayStr,
   todayTasks,
@@ -21,6 +20,7 @@ import { afficherToast } from "../lib/toast";
 import { titreCourt } from "../components/corbeille/geste";
 import EnRetard from "../components/EnRetard";
 import { useSourcesProgression } from "../lib/objectifs/useProgression";
+import { disciplineHabitudes } from "../lib/disciplineHabitudes";
 import { useCochesOptimistes } from "../components/CaseACocher";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 import type { FocusController } from "../lib/useFocus";
@@ -86,7 +86,7 @@ const WIDGET_MIN_H: Record<string, number> = {
 /** Vue complète associée à chaque widget (poignée ↗ discrète du panneau). */
 const WIDGET_TARGET: Record<string, View> = {
   perf: "performance",
-  discipline: "tasks",
+  discipline: "journal",
   timer: "timer",
   habitudes: "journal",
   position: "sizing",
@@ -122,8 +122,9 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   const ia = useIa();
   const briefIa = ia.visible && ia.aLeDroit && !!ia.prefs && iaAutorisee(ia.prefs, "brief");
 
-  // La case bascule AU CLIC ; l'anneau de discipline suit la même liste, donc
-  // il bouge avec elle au lieu d'attendre la relecture de la base.
+  // La case bascule AU CLIC ; l'anneau de discipline (habitudes) et la liste
+  // du jour lisent les mêmes coches optimistes, donc ils bougent avec elle au
+  // lieu d'attendre la relecture de la base.
   const { etat, basculer } = useCochesOptimistes();
 
   const derived = useMemo(() => {
@@ -137,8 +138,12 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     return {
       list,
       stat,
-      streak: computeStreak(data.tasks, data.completions, today, stat.pct),
       week: weekStats(data.tasks, data.completions, today, list),
+      // ⭐ 2026-10-20 : l'anneau de l'accueil se lit sur les HABITUDES, plus
+      // sur les tâches (`lib/disciplineHabitudes.ts`).
+      habitudes: disciplineHabitudes(data.habits, data.habitChecks, today, (id) =>
+        etat(`h${id}:${today}`, data.habitChecks.some((c) => c.habit_id === id && c.date === today)),
+      ),
     };
   }, [data, today, etat]);
 
@@ -191,7 +196,8 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   // Registre des widgets : la page Personnaliser pilote ordre et visibilité.
   const widgets: Record<string, () => ReactNode> = {
     perf: () => (
-      <PerfStrip key="perf" data={data} week={derived.week} streak={derived.streak} />
+      // La série du bandeau est celle de l'anneau : la discipline (habitudes).
+      <PerfStrip key="perf" data={data} week={derived.week} streak={derived.habitudes.serie} />
     ),
     discipline: () => (
       <section key="discipline" className="card p-5">
@@ -200,10 +206,11 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
             recentre au lieu de laisser un vide sous lui. */}
         <div className="panel-grow flex items-center justify-center">
           <DisciplineRing
-            pct={derived.stat.pct}
-            streak={derived.streak}
-            done={derived.stat.done}
-            total={derived.stat.total}
+            pct={derived.habitudes.pct}
+            streak={derived.habitudes.serie}
+            done={derived.habitudes.tenues}
+            total={derived.habitudes.actives}
+            unite="habitudes"
           />
         </div>
       </section>

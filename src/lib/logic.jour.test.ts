@@ -97,17 +97,26 @@ describe("todayTasks — la liste du jour", () => {
     expect(liste[0].done).toBe(true);
   });
 
-  it("⭐ ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa date", () => {
+  it("⭐ ce qu'on coche aujourd'hui compte pour aujourd'hui — sauf un rattrapage", () => {
     const tasks = [
       routine(1),
       tache({ id: 2, due_date: null }), // sans date
-      tache({ id: 3, due_date: HIER }), // en retard, rattrapée
+      tache({ id: 3, due_date: HIER }), // en retard, rattrapée : hors du jour (2026-10-20)
       tache({ id: 4, due_date: DEMAIN }), // faite en avance
     ];
     const coches = [coche(2, AUJ), coche(3, AUJ), coche(4, AUJ)];
     const liste = todayTasks(tasks, coches, AUJ);
-    expect(ids(liste)).toEqual([1, 2, 3, 4]);
-    expect(statDeListe(liste)).toEqual({ total: 4, done: 3, pct: 75 });
+    expect(ids(liste)).toEqual([1, 2, 4]);
+    expect(statDeListe(liste)).toEqual({ total: 3, done: 2, pct: 67 });
+  });
+
+  it("⭐ rattraper une tâche en retard ne fait pas passer un 0/0 à 1/1 (2026-10-20)", () => {
+    const tasks = [tache({ id: 3, due_date: HIER })];
+    const coches = [coche(3, AUJ)];
+    expect(todayTasks(tasks, coches, AUJ)).toEqual([]);
+    expect(statDeListe(todayTasks(tasks, coches, AUJ)).pct).toBeNull();
+    // Le jour passé non plus : relu demain, ce jour reste neutre.
+    expect(dayStat(tasks, coches, AUJ).pct).toBeNull();
   });
 
   it("cochée puis décochée aujourd'hui, une tâche sans date ressort de la liste", () => {

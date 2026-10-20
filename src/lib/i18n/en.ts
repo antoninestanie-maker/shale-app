@@ -335,8 +335,6 @@ export const EN: Record<string, string> = {
   "Rien pour aujourd'hui.": "Nothing for today.",
   "Ajoute une première tâche ↑": "Add your first task ↑",
   "Ajouter une tâche…  (Entrée)": "Add a task…  (Enter)",
-  "Compte dans la discipline et le streak du jour.":
-    "Counts towards today’s discipline and streak.",
   "Démarre un pomodoro dédié à cette tâche.": "Start a pomodoro dedicated to this task.",
   "Libellé, tag, priorité, récurrence et objectif lié.":
     "Label, tag, priority, recurrence and linked goal.",
@@ -1868,6 +1866,10 @@ export const EN: Record<string, string> = {
   "{nom} aujourd'hui": "{nom} today",
   "{done}/{n} tâche": "{done}/{n} task",
   "{done}/{n} tâches": "{done}/{n} tasks",
+  // 2026-10-20 — l'anneau de discipline d'Aujourd'hui se lit sur les habitudes.
+  "{done}/{n} habitude": "{done}/{n} habit",
+  "{done}/{n} habitudes": "{done}/{n} habits",
+  "Compte dans la série du jour.": "Counts toward today's streak.",
   "{n} position": "{n} position",
   "{n} positions": "{n} positions",
   "focus / {objectif}": "focus / {objectif}",

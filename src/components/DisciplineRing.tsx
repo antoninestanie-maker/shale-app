@@ -7,6 +7,8 @@ interface Props {
   streak: number;
   done: number;
   total: number;
+  /** Ce que compte la fraction sous le pourcentage. Défaut : des tâches. */
+  unite?: "taches" | "habitudes";
 }
 
 const R = 84;
@@ -36,7 +38,7 @@ const TICKS = Array.from({ length: 60 }, (_, i) => {
  * donc à l'échelle exactement comme l'anneau, à n'importe quelle taille de
  * widget, sans media query ni container query.
  */
-export default function DisciplineRing({ pct, streak, done, total }: Props) {
+export default function DisciplineRing({ pct, streak, done, total, unite = "taches" }: Props) {
   const p = (pct ?? 0) / 100;
   // Id propre à l'instance : un id fixe collisionnerait si l'anneau était
   // monté deux fois (le premier <linearGradient> du document gagne).
@@ -154,7 +156,9 @@ export default function DisciplineRing({ pct, streak, done, total }: Props) {
           fill="var(--color-text-dim)"
           style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}
         >
-          {tp(total, "{done}/{n} tâche", "{done}/{n} tâches", { done })}
+          {unite === "habitudes"
+            ? tp(total, "{done}/{n} habitude", "{done}/{n} habitudes", { done })
+            : tp(total, "{done}/{n} tâche", "{done}/{n} tâches", { done })}
         </text>
       </svg>
 
