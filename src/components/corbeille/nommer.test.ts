@@ -50,7 +50,7 @@ describe("le nom d'une note sans titre", () => {
     const a = await repo.createNote("Nouvelle note", "<p>Rappeler Garnier</p>");
     const b = await repo.createNote("Nouvelle note", "<p>Acheter du café</p>");
     await geste.jeterAvecSesCartes("note", a, "Nouvelle note", "<p>Rappeler Garnier</p>", () => undefined);
-    expect(toasts.at(-1)?.msg).toContain("Rappeler Garnier");
+    expect(toasts[toasts.length - 1]?.msg).toContain("Rappeler Garnier");
     await geste.jeterAvecSesCartes("note", b, "Nouvelle note", null, () => undefined);
     const lignes = (await repo.lireCorbeille()).filter((e) => e.kind === "note" && (e.id === a || e.id === b));
     expect(lignes.map((e) => geste.titreAffiche(e)).sort()).toEqual(["Acheter du café", "Rappeler Garnier"]);

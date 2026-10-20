@@ -40,7 +40,7 @@ describe("⌘Z après une suppression", () => {
     expect(await labels()).toEqual([]);
     expect(await geste.defaireDerniereSuppression()).toBe(true);
     expect(await labels()).toEqual(["Défaire — appeler Léa"]);
-    expect(toasts.at(-1)?.msg).toMatch(/Défaire — appeler Léa/);
+    expect(toasts[toasts.length - 1]?.msg).toMatch(/Défaire — appeler Léa/);
   });
 
   it("rend les suppressions dans l'ordre inverse, une par ⌘Z", async () => {
@@ -75,7 +75,7 @@ describe("⌘Z après une suppression", () => {
     const b = await tache("Défaire B");
     await geste.jeter("task", a, "Défaire A", () => undefined);
     await geste.jeter("task", b, "Défaire B", () => undefined);
-    toasts.at(-1)!.onAction!(); // « Annuler » sur B
+    toasts[toasts.length - 1]!.onAction!(); // « Annuler » sur B
     await new Promise((r) => setTimeout(r, 0));
     expect(await labels()).toContain("Défaire B");
     // ⌘Z rend A, pas B une seconde fois.
