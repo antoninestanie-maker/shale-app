@@ -183,7 +183,7 @@ export function contenuExemples(): ContenuExemples {
               `<li><strong>${t("Objectifs")}</strong> : ${t("un cap, découpé en étapes et en tâches ; l'avancement se calcule tout seul.")}</li>`,
               `<li><strong>${t("Performance")}</strong> : ${t("tes statistiques de la semaine.")}</li>`,
               `<li><strong>${t("Notes")}</strong> : ${t("du texte libre ; tape @ pour citer une tâche, un objectif ou une fiche.")}</li>`,
-              `<li><strong>${t("Journal")}</strong> : ${t("tes habitudes, une case par jour à cocher.")}</li>`,
+              `<li><strong>${t("Habitudes")}</strong> : ${t("tes habitudes, une case par jour à cocher.")}</li>`,
               `<li><strong>${t("Savoir")}</strong> : ${t("ce que tu veux garder, rangé par sujet. Cette fiche en fait partie.")}</li>`,
               "</ul>",
               `<p>${t("Rien n'est obligatoire : commence par les Tâches, et ajoute un module quand tu en as besoin.")}</p>`,

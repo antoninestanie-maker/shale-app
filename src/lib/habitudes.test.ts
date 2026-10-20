@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, todayStr } from "./logic";
-import { HABIT_COLORS, JOURS_HISTORIQUE, derniersJours, serieHabitude } from "./habitudes";
+import { COULEUR_HABITUDE_PAR_DEFAUT, HABIT_COLORS, JOURS_HISTORIQUE, derniersJours, serieHabitude } from "./habitudes";
 import type { HabitCheck } from "./types";
 
 const coche = (habit_id: number, date: string): HabitCheck => ({ id: 0, habit_id, date }) as HabitCheck;
@@ -22,8 +22,16 @@ describe("la série d'une habitude — le calcul du Journal, sorti tel quel", ()
     const c = [coche(1, "2026-09-29"), coche(2, "2026-09-28")];
     expect(serieHabitude(1, c, "2026-09-29")).toBe(1);
   });
-  it("⚠️ les couleurs enregistrées en base ne bougent pas (PIEGES § 21.9)", () => {
-    expect(HABIT_COLORS).toEqual(["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"]);
+  it("⚠️ les couleurs enregistrées en base restent proposées (PIEGES § 21.9)", () => {
+    // Les six d'avant le 2026-10-20 : la palette peut grandir, jamais les perdre.
+    for (const c of ["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"]) {
+      expect(HABIT_COLORS).toContain(c);
+    }
+    expect(HABIT_COLORS).toContain(COULEUR_HABITUDE_PAR_DEFAUT);
+    expect(new Set(HABIT_COLORS).size).toBe(HABIT_COLORS.length);
+  });
+  it("le rouge du logo est dans la palette", () => {
+    expect(HABIT_COLORS).toContain("#dc2626");
   });
 });
 

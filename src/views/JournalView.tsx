@@ -6,11 +6,13 @@ import {
   todayStr,
   weekdayOf,
 } from "../lib/logic";
-import { HABIT_COLORS, derniersJours, serieHabitude } from "../lib/habitudes";
+import { COULEUR_HABITUDE_PAR_DEFAUT, PALETTE_HABITUDES, derniersJours, serieHabitude } from "../lib/habitudes";
 import { useIsPhone } from "../lib/platform";
 import {
   addHabit,
   createNote,
+  recolorerHabitude,
+  renommerHabitude,
   setHabitCheck,
   upsertJournal,
 } from "../lib/repo";
@@ -28,6 +30,7 @@ import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesHabitude, entreesJour } from "../components/menu/catalogue/journal";
 import { jeter } from "../components/corbeille/geste";
+import ChampRenommage from "../components/taches/ChampRenommage";
 
 interface Props {
   data: AppData;
@@ -123,7 +126,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   const enAttente = useRef<{ jour: string; body: string } | null>(null);
 
   const [newHabit, setNewHabit] = useState("");
-  const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
+  const [newColor, setNewColor] = useState(COULEUR_HABITUDE_PAR_DEFAUT);
+  /** L'habitude dont le nom est en cours de saisie, sur sa ligne. */
+  const [enRenommage, setEnRenommage] = useState<number | null>(null);
   const menuHabitude = useMenuContextuel<Habit>();
   /** Le menu de l'entrée du jour : une seule cible, la carte elle-même. */
   const menuJour = useMenuContextuel<"jour">();
@@ -194,6 +199,19 @@ export default function JournalView({ data, refresh, navigate }: Props) {
     await jeter("habit", h.id, h.name, refresh);
   };
 
+  /** Le menu et le double-clic sur le nom passent par ces deux-là (règle 18). */
+  const validerNom = async (h: Habit, nom: string) => {
+    setEnRenommage(null);
+    if (nom.trim() && nom.trim() !== h.name) {
+      await renommerHabitude(h.id, nom);
+      await refresh();
+    }
+  };
+  const recolorer = async (h: Habit, couleur: string) => {
+    await recolorerHabitude(h.id, couleur);
+    await refresh();
+  };
+
   /**
    * Efface l'entrée du jour CHOISI. ⚠️ L'écriture EN VOL part d'abord : sans elle, le
    * minuteur de 600 ms écrirait APRÈS le jet — et l'`upsert` du journal
@@ -228,7 +246,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   return (
     <div className="mx-auto max-w-5xl p-8 telephone:p-4">
       <header className="view-head">
-        <h1 className="text-3xl text-text">{t("Journal")}</h1>
+        <h1 className="text-3xl text-text">{t("Habitudes")}</h1>
         <button
           type="button"
           onClick={generateReview}
@@ -319,7 +337,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
               className="w-40 min-w-0 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
             />
             <span className="flex flex-wrap gap-1">
-              {HABIT_COLORS.map((c) => (
+              {PALETTE_HABITUDES.map(({ valeur: c, nom }) => (
                 // Le BOUTON fait 44 pt au doigt ; la pastille, elle, garde ses
                 // 16 px — d'où la couleur portée par un enfant, pas par lui.
                 <button
@@ -327,12 +345,13 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   type="button"
                   onClick={() => setNewColor(c)}
                   className="cible-tactile flex h-4 w-4 items-center justify-center rounded-full"
-                  aria-label={t("Couleur {name}", { name: c })}
+                  aria-label={t("Couleur {name}", { name: t(nom) })}
                   aria-pressed={newColor === c}
-                  data-tip={t("Couleur de l’habitude")}
+                  data-tip={t(nom)}
+                  data-tip-sub={t("Couleur de l’habitude")}
                 >
                   <span
-                    className={`block h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-accent" : ""}`}
+                    className={`block h-4 w-4 rounded-full ${newColor === c ? "ring-2 ring-accent ring-offset-1 ring-offset-surface" : ""}`}
                     style={{ backgroundColor: c }}
                   />
                 </button>
@@ -396,9 +415,24 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                     largeur nulle au téléphone, où les quatorze carrés ne lui
                     laissaient rien. `truncate-souris` : au doigt, pas de bulle
                     pour lire la suite, donc il passe à la ligne. */}
-                <span className="truncate-souris min-w-0 flex-1 truncate text-sm text-text" title={habit.name}>
-                  {habit.name}
-                </span>
+                {enRenommage === habit.id ? (
+                  <span className="min-w-0 flex-1">
+                    <ChampRenommage
+                      valeur={habit.name}
+                      libelle={t("Nouveau nom de l'habitude")}
+                      onValider={(nom) => void validerNom(habit, nom)}
+                      onAnnuler={() => setEnRenommage(null)}
+                    />
+                  </span>
+                ) : (
+                  <span
+                    className="truncate-souris min-w-0 flex-1 truncate text-sm text-text"
+                    title={habit.name}
+                    onDoubleClick={() => setEnRenommage(habit.id)}
+                  >
+                    {habit.name}
+                  </span>
+                )}
                 {/* ⚠️ Pour un exemple, le badge REMPLACE la série. Le cahier des
                     charges interdit qu'une habitude d'exemple affiche 0 %, et
                     l'autre issue — lui fabriquer des coches passées — aurait
@@ -463,6 +497,8 @@ export default function JournalView({ data, refresh, navigate }: Props) {
           return entreesHabitude(h, coche, {
             // La case de la ligne : le jour CHOISI (règle 18).
             basculer: (x) => void basculerHabitude(x.id, jour, coche),
+            renommer: (x) => setEnRenommage(x.id),
+            recolorer: (x, c) => void recolorer(x, c),
             supprimer: supprimerHabitude,
           }, estAujourdhui ? null : jourEnLettres);
         })()}

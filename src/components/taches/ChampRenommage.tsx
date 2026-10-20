@@ -17,12 +17,14 @@ export default function ChampRenommage(props: {
   onValider: (libelle: string) => void;
   onAnnuler: () => void;
   className?: string;
+  /** Le nom du champ pour un lecteur d'écran — par défaut, celui d'une tâche. */
+  libelle?: string;
 }) {
   return (
     <input
       autoFocus
       defaultValue={props.valeur}
-      aria-label={t("Nouveau nom de la tâche")}
+      aria-label={props.libelle ?? t("Nouveau nom de la tâche")}
       onFocus={(e) => e.currentTarget.select()}
       onKeyDown={(e) => {
         if (e.key === "Enter") {

@@ -52,10 +52,10 @@ export default function HabitudesDuJour({
             onClick={ouvrirJournal}
             className="cible-tactile-ligne text-xs text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
           >
-            {t("Crée la première dans le Journal")}
+            {t("Crée la première dans Habitudes")}
           </button>
         ) : (
-          <p className="text-xs text-text-dim/70">{t("Crée la première dans le Journal")}</p>
+          <p className="text-xs text-text-dim/70">{t("Crée la première dans Habitudes")}</p>
         )}
       </div>
     );

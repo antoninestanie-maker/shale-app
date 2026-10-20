@@ -397,7 +397,7 @@ export default function PerformanceView({ data, refresh }: Props) {
             pt.avant !== null && pt.avant > pt.pct
               ? t("« {nom} » : tenue {pct} % du temps, contre {avant} % la période d'avant.", { nom: pt.nom, pct: pt.pct, avant: pt.avant })
               : t("« {nom} » : tenue {pct} % du temps.", { nom: pt.nom, pct: pt.pct }),
-          action: t("Ouvrir le Journal"),
+          action: t("Ouvrir les Habitudes"),
           vue: "journal",
         };
       case "jour-faible":
@@ -614,7 +614,7 @@ export default function PerformanceView({ data, refresh }: Props) {
         </div>
         {analyse.habitudes.length === 0 ? (
           <p className="py-6 text-center text-sm text-text-dim">
-            {t("Ajoute une habitude dans le Journal pour suivre ta régularité ici.")}
+            {t("Ajoute une habitude dans Habitudes pour suivre ta régularité ici.")}
           </p>
         ) : (
           <>

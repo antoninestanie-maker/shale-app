@@ -267,7 +267,7 @@ export const EN: Record<string, string> = {
   "série en cours": "current streak",
   "Habitudes à tenir": "Habits to keep",
   "Aucune habitude pour l'instant.": "No habits yet.",
-  "Crée la première dans le Journal": "Create your first one in the Journal",
+  "Crée la première dans Habitudes": "Create your first one in Habits",
   "Moyenne 30 jours": "30-day average",
   "Jours précis": "Specific days",
   "dernier jour": "last day",
@@ -295,7 +295,7 @@ export const EN: Record<string, string> = {
   "Aller à Performance": "Go to Performance",
   "Aller aux Notes": "Go to Notes",
   "Aller au Savoir": "Go to Knowledge",
-  "Aller au Journal": "Go to Journal",
+  "Aller aux Habitudes": "Go to Habits",
   "Ajouter une tâche": "Add a task",
   "Début du nom de la tâche…": "Start of the task name…",
   "Nom de la tâche…": "Task name…",
@@ -557,7 +557,6 @@ export const EN: Record<string, string> = {
   "Complétion des tâches": "Task completion",
   "complétion": "completion",
   "Granularité du graphique de complétion.": "Granularity of the completion chart.",
-  "Habitudes à tenir (Journal)": "Habits to keep (Journal)",
   "Nouvelle métrique…": "New metric…",
   "Supprimer la métrique": "Delete metric",
   "Un second clic supprime la métrique et tout son historique.":
@@ -2596,8 +2595,8 @@ export const EN: Record<string, string> = {
   "Créé par Shale pour te montrer le produit. Modifie-le, il devient tien.":
     "Created by Shale to show you around. Edit it and it becomes yours.",
   "exemple": "example",
-  "Quelques exemples sont là pour te montrer le produit, dans Tâches, Notes, Journal et Savoir. Modifie-en un, il devient tien.":
-    "A few examples are here to show you around, in Tasks, Notes, Journal and Knowledge. Edit one and it becomes yours.",
+  "Quelques exemples sont là pour te montrer le produit, dans Tâches, Notes, Habitudes et Savoir. Modifie-en un, il devient tien.":
+    "A few examples are here to show you around, in Tasks, Notes, Habits and Knowledge. Edit one and it becomes yours.",
   "Supprimer l'exemple": "Delete the example",
   "Supprimer les {n} exemples": "Delete the {n} examples",
   "Sommeil": "Sleep",
@@ -3032,8 +3031,8 @@ export const EN: Record<string, string> = {
   // ─── Typage direct et suppression qui emporte l'objet (retours d'Antonin, 2026-09-29 au soir) ──
   "Tâche rattachée à « {objectif} ».": "Task attached to “{objectif}”.",
   "Tâche libre, dans Tâches : aucun objectif au-dessus d'elle.": "Standalone task, in Tasks: no goal above it.",
-  "Habitude dans le Journal, comptée sur {n} jours dans « {objectif} ».": "Habit in the Journal, counted over {n} days in “{objectif}”.",
-  "Habitude dans le Journal.": "Habit in the Journal.",
+  "Habitude, comptée sur {n} jours dans « {objectif} ».": "Habit, counted over {n} days in “{objectif}”.",
+  "Habitude.": "Habit.",
   "Aucun objectif au-dessus de ce nœud sur la carte : choisis celui qui l'accueille.": "No goal above this node on the map: choose the one that holds it.",
   // ─── Suppression en cascade : un objectif emporte ses tâches, une carte ses objets (2026-09-30) ──
   "Il part dans Supprimés récemment avec {liste}.": "It goes to Recently Deleted with {liste}.",
@@ -3556,7 +3555,7 @@ export const EN: Record<string, string> = {
   "« {nom} » : tenue {pct} % du temps, contre {avant} % la période d'avant.":
     "“{nom}”: kept {pct}% of the time, against {avant}% the period before.",
   "« {nom} » : tenue {pct} % du temps.": "“{nom}”: kept {pct}% of the time.",
-  "Ouvrir le Journal": "Open the Journal",
+  "Ouvrir les Habitudes": "Open Habits",
   "Le {jour} : {pct} % de tes tâches faites, contre {moyenne} % en moyenne.":
     "{jour}: {pct}% of your tasks done, against {moyenne}% on average.",
   "Le {jour} : {pct} % de tes habitudes tenues, contre {moyenne} % en moyenne.":
@@ -3577,8 +3576,8 @@ export const EN: Record<string, string> = {
   "jour par jour": "day by day",
   "ce jour-là": "that day",
   "Pas encore assez de jours pour tracer une courbe.": "Not enough days yet to draw a curve.",
-  "Ajoute une habitude dans le Journal pour suivre ta régularité ici.":
-    "Add a habit in the Journal to follow your regularity here.",
+  "Ajoute une habitude dans Habitudes pour suivre ta régularité ici.":
+    "Add a habit in Habits to follow your regularity here.",
   "{n} jour d'affilée": "{n} day in a row",
   "{n} jours d'affilée": "{n} days in a row",
   "par jour de la semaine": "by day of the week",
@@ -3756,4 +3755,18 @@ export const EN: Record<string, string> = {
   "Deux cartes dont les chiffres basculent, comme un afficheur à palettes.":
     "Two cards whose digits flip, like a split-flap display.",
   "Un cercle qui se remplit, le temps restant au centre.": "A circle that fills up, with the time left in the middle.",
+
+  // ── 2026-10-20 — « Journal » devient « Habitudes » à l'écran ; la ligne
+  // d'une habitude se renomme et change de couleur ; la palette passe à douze.
+  "Habitudes": "Habits",
+  "Les habitudes à tenir, et la note du jour.": "Habits to keep, and the day's note.",
+  "Nouveau nom de l'habitude": "New habit name",
+  "Cramoisi": "Crimson",
+  "Orange": "Orange",
+  "Citron vert": "Lime",
+  "Sarcelle": "Teal",
+  "Ciel": "Sky",
+  "Indigo": "Indigo",
+  "Rose": "Pink",
+  "Ardoise": "Slate",
 };

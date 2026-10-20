@@ -171,9 +171,9 @@ export const ACTIONS: AppAction[] = [
   {
     id: "nav.journal",
     module: "journal",
-    title: "Aller au Journal",
+    title: "Aller aux Habitudes",
     category: "navigation",
-    keywords: ["habitudes", "journée", "revue"],
+    keywords: ["journal", "habitude", "journée", "revue"],
     run: (ctx) => ctx.navigate("journal"),
   },
   {
