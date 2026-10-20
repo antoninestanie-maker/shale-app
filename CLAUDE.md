@@ -8769,6 +8769,16 @@ Antonin a choisi ce lot dans l'audit complet du 20/10 (rapport `labo/passes/2026
 - **`fetchAll` borne l'historique, pas l'état.** Toute coche d'une tâche ponctuelle, et toute coche ou case d'une source de compte d'objectif, est lue quelle que soit sa date.
 - **La ré-indexation du Savoir n'écrit que ce qui change.**
 
+## 2026-10-20 — L'attente est une variante de l'entrée (`chantier/chargement`)
+
+Antonin : « j'aimerais que l'onglet de chargement de l'app et du site soit une variante de l'entrée dans l'app ». Lu comme : tout écran qui attend (un module qui s'ouvre, des données qui se lisent) montre la marque comme l'entrée, pas un texte gris seul. Interprétation non confirmée par lui : à reprendre s'il pensait à autre chose (l'icône de l'onglet du navigateur, par exemple).
+
+- **Ce qu'on garde de l'entrée** : l'icône, ses deux couches (plaque sans lueur + `lueur-seule` par-dessus), « la lueur s'allume » et l'inspiration (la contraction). **Ce qu'on en retire** : l'entrée elle-même — l'attente boucle sur les deux premiers temps sans jamais entrer. Cycle 2,4 s : lueur 0 → 1 (38 %), tenue, l'icône inspire à 92 % (52 %), la lueur retombe. 92 % et pas les 86 % de l'entrée : vu en boucle, 86 % pompe.
+- **Rien avant 150 ms** (un module en cache ne fait pas clignoter l'icône) ; **le texte après 1,5 s seulement**, comme `.lancement-attente`. Les deux textes distincts de `App.tsx` (« Ouverture du module… » / « Chargement des données… ») sont gardés : MOBILE § 14.3 dit pourquoi.
+- **Où** : `components/Chargement.tsx` remplace le repli de `Suspense`, l'attente des données, Finance, le Savoir (dans sa carte), l'aperçu de facture. Laissés en texte : les « Chargement… » EN LIGNE d'une section (Réglages › Notifications) — ce n'est pas un écran qui attend. Le `Splash` de `AuthGate` est inchangé : il EST la première image de l'entrée.
+- **Mouvement réduit** : la règle globale fige l'icône, lueur allumée ; texte d'emblée.
+- ⚠️ **Jumelle sur le site** : `vitrine/src/components/Chargement.astro` (dépôt shale-site), sur « Mon compte ». Mêmes images clés et durées, recopiées à la main : changer l'une, c'est changer l'autre.
+
 - ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
 
 ## 2026-10-20 (soir) — Lot 2 de l'audit : les pauses se gardent, une routine convertie repart à zéro, l'état se voit partout

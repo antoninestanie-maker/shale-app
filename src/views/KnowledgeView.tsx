@@ -121,6 +121,7 @@ import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
 import { afficherToast } from "../lib/toast";
+import Chargement from "../components/Chargement";
 
 /**
  * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
@@ -701,7 +702,9 @@ export default function KnowledgeView() {
 
         <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pr-0.5 pt-0.5">
           {status === "loading" ? (
-            <Placeholder title={t("Chargement…")} />
+            <div className="card flex h-full min-h-[240px] items-center justify-center">
+              <Chargement texte={t("Chargement…")} />
+            </div>
           ) : status === "error" ? (
             <Placeholder
               title={t("Le savoir n’a pas pu être ouvert")}
