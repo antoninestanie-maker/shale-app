@@ -8796,10 +8796,19 @@ Antonin a choisi le lot 2 de l'audit du jour (`labo/passes/2026-10-20-audit/SYNT
 - **Sous-titre de Tâches** : « N tâches aujourd'hui » = la carte « Tâches du jour » ; les relances à part (« N à relancer »).
 - Le toast d'un changement d'état dit « Annuler|défaire » (“Undo”) et remet les CINQ colonnes, pauses comprises (`etatActuel`).
 
+## 2026-10-21 — Lot 4 de l'audit : le doigt, le téléphone, la tablette (décisions prises sans Antonin, à valider)
+
+État et preuves : `PASSATION.md`, même date. Antonin autorise d'office cette nuit ; ce qui suit est la recommandation prise, réversible.
+
+- **L'horloge épurée garde sa décision du 30/09 AU REPOS.** Au doigt seulement, un toucher fait paraître « Pause / Reprendre » et « Réduire » en bas, quatre secondes, puis l'horloge redevient seule ; elles se montrent aussi une fois à l'ouverture, pour qu'on sache qu'elles existent. Un toucher ne SORT plus (c'était le cas sur iOS, sans annonce). À la souris : inchangé (Échap, double-clic). `lib/timerEcran.ts` (`gesteSurHorloge`), `EcranTimer.tsx`. Pour revenir au « rien » strict au doigt : retirer le bloc `data-commandes-horloge`.
+- **Au doigt, aucune carte de grille ne défile en elle-même** : la carte prend sa hauteur naturelle, la page défile. Au bureau, inchangé.
+- **Grille étroite** (tablette debout, fenêtre réduite) : une carte qui ne peut plus avoir de voisine prend la rangée, une carte étroite la demi-rangée ; sur Aujourd'hui, l'ordre du téléphone (l'action en tête). Rien n'est écrit dans les réglages.
+- **Calendrier** : la vue CHOISIE est retenue jusqu'à la fin de la session (la semaine reste le défaut au lancement, 13/10) ; au téléphone, plusieurs alertes se replient en une ligne qu'on déplie ; « Journée surchargée » devient « Aujourd'hui, journée surchargée. ».
+- **Roulette** : crans de 44 px au doigt, pas d'une minute gardé ; aucun cran désigné tant que rien n'est choisi.
 
 ## 2026-10-20 (nuit) — Lot 5 de l'audit : le premier démarrage et la lecture des dates (`chantier/lot5-accueil`)
 
-Lancé par Antonin avec tous les lots de l'audit du jour (`labo/passes/2026-10-20-audit/SYNTHESE.md`, constats 6, 7, 8, 18, 39). État et preuves : `PASSATION.md` (même date). Pièges : `PIEGES.md` § 56.
+Lancé par Antonin avec tous les lots de l'audit du jour (`labo/passes/2026-10-20-audit/SYNTHESE.md`, constats 6, 7, 8, 18, 39). État et preuves : `PASSATION.md` (même date). Pièges : `PIEGES.md` § 57 (le § 56 était pris par le lot 4).
 
 - ⭐ **Le champ de date lit les jours 19 à 22** (constat 8, vrai bogue). `parserSaisie` recollait les chiffres de « 20/02/2027 » et lisait « 2002… » comme une date ISO. Seuls huit chiffres SANS séparateur passent par la lecture « collée », et l'ordre de la langue y est essayé avant l'ISO (les deux ne peuvent pas réussir ensemble). Un test parcourt toutes les dates de 2026 et 2027.
 - **Décision retournée : « une lettre suffit à refuser »** (2026-09-18). Un nom de mois ENTIER se lit maintenant (« 20 mai 2027 », “May 20, 2027”, « 1er févr. ») : le refus visait « 12 mars » lu comme le 12 du mois AFFICHÉ, pas une date écrite qu'on sait lire entièrement. Le reste (« le 24 », « 24/12x », « 3 jui ») est toujours refusé. Noms de mois tirés d'`Intl` (`rangDuMois`).

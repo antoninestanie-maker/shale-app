@@ -19,7 +19,7 @@ import {
 import type { AppData, Habit } from "../lib/types";
 import { IconBolt, IconFlame, IconX } from "../components/icons";
 import BarreJours from "../components/BarreJours";
-import { CarresHabitude, GrilleHabitudes } from "../components/habitudes/Grilles";
+import { CarresHabitude, GrilleHabitudes, LegendeCarres } from "../components/habitudes/Grilles";
 import { ResizableGrid, ResizablePanel } from "../components/grid/ResizableGrid";
 
 import { formatDate, localeTag, t } from "../lib/i18n";
@@ -182,10 +182,10 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   // aussi (2026-09-29), et deux calculs finiraient par diverger.
   const habitStreak = (habitId: number): number => serieHabitude(habitId, data.habitChecks, today);
 
-  const handleAddHabit = async () => {
+  const handleAddHabit = async (couleur: string = newColor) => {
     const name = newHabit.trim();
     if (!name) return;
-    await addHabit(name, newColor);
+    await addHabit(name, couleur);
     setNewHabit("");
     await refresh();
   };
@@ -327,7 +327,7 @@ export default function JournalView({ data, refresh, navigate }: Props) {
             className="flex min-w-0 flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              handleAddHabit();
+              void handleAddHabit();
             }}
           >
             <input
@@ -344,6 +344,15 @@ export default function JournalView({ data, refresh, navigate }: Props) {
                   key={c}
                   type="button"
                   onClick={() => setNewColor(c)}
+                  // ⭐ Entrée sur une pastille AJOUTE (audit du 20/10, constat 38) :
+                  // on tape le nom, on choisit la couleur, on valide — Entrée
+                  // ne faisait que rechoisir la couleur, et rien ne s'ajoutait.
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || !newHabit.trim()) return;
+                    e.preventDefault();
+                    setNewColor(c);
+                    void handleAddHabit(c);
+                  }}
                   className="cible-tactile flex h-4 w-4 items-center justify-center rounded-full"
                   aria-label={t("Couleur {name}", { name: t(nom) })}
                   aria-pressed={newColor === c}
@@ -368,7 +377,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
         </div>
 
         {/* Grille combinée type GitHub */}
-        <GrilleHabitudes habits={data.habits} habitChecks={data.habitChecks} today={today} className="mt-4" />
+        <GrilleHabitudes habits={data.habits} habitChecks={data.habitChecks} today={today} className="mt-4" legende />
+        {/* La légende des carrés de chaque ligne (constat 38 : « grilles sans légende »). */}
+        {data.habits.length > 0 && <LegendeCarres className="mt-3" />}
 
         {/* Lignes par habitude */}
         <ul className="panel-scroll mt-5 flex flex-col gap-3">

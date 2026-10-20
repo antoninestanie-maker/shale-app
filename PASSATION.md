@@ -2809,9 +2809,39 @@ Antonin a choisi le lot 2 de l'audit du 20/10 (`labo/passes/2026-10-20-audit/`, 
 **Pas vu** : la carte Calendrier d'Aujourd'hui, les cases du mois et le badge d'une routine dans la feuille de route (ajoutés après ce build, `a6b7497` — tsc et tests seulement) ; l'anglais, le clair, le téléphone ; rien dans WKWebView ni sur l'iPhone ; la 032 n'a jamais tourné sur une vraie base (seulement sur les bases SQLite des tests, migrations rejouées de 001 à 032).
 **Fusionné** dans `mobile-ios` le 2026-10-20 à 23:46 (`343acbc`, avance rapide après recalage sur le lot 1 et « chargement »), **non poussé** (consigne de la session qui a lancé le lot). **Reste** : le build natif groupé (la 032 se joue au premier lancement — copier la base avant). ⚠️ Depuis `930317a` (tronc), la notification « série en danger » lit les HABITUDES : `task_streak.rs` n'est plus lu par aucune règle ; il garde le portage des pauses et ses tests, au cas où une règle de tâches revienne.
 
+- **Non fusionné, non poussé** : un commit local sur `chantier/ia-region`, en attente de l'accord d'Antonin.
+
+## 2026-10-21 (nuit) — Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (`chantier/lot4-doigt`)
+
+Lancé par Antonin avec les six autres lots (« lance tous les lots »). Constats d'usage 1, 10, 17, 26, 35, 38 et contrôle du 12/10 rangs 31 et 34 (`labo/passes/2026-10-20-audit/SYNTHESE.md`). Front seul : ni Rust, ni migration.
+
+**Revérifié dans WebKit avant de corriger** (`tools/webkit-pilote.swift`, désormais `WK_W`/`WK_H`/`WK_TACTILE=1` : 390 × 844 et 820 × 1180, règles « au doigt » de l'app actives, démo du labo au commit `6b737fe`, port 4640) :
+
+| Constat | Dans WebKit, avant | Après (même plan, build `bcaf075`/`e8361e8`, port 4641) |
+|---|---|---|
+| 1 — carte « Habitudes — 12 semaines » | **reproduit** : la liste fait 330 px de haut pour 628 de contenu, défile dans la carte ; défilée en bas, les « ⋯ » de Méditation à Planifier tombent sur le formulaire et la grille (`elementFromPoint`), celui de « Coucher avant 23 h » sur la barre d'onglets ; une habitude neuve n'a pas de menu atteignable | carte de 1 104 px, aucune région ne défile dedans ; les sept premiers « ⋯ » se touchent eux-mêmes (le dernier est sous la barre d'onglets tant qu'on n'a pas défilé la PAGE, ce qui marche) ; habitude neuve : menu, Renommer (champ qui garde le focus), Supprimer — vus |
+| 1 — « le ⋯ ouvre celui d'une autre » | **cause trouvée** : chaque re-mesure de la grille retirait `.rgrid-fill` le temps d'une lecture, la liste perdait son `scrollTop` (retour en haut à chaque coche) et le menu s'ouvrait où le bouton ÉTAIT | `garderDefilement` (`lib/grille.ts`) dans la mesure ; et plus de défilement interne au doigt |
+| 10 — plein écran du minuteur | **reproduit** : 0 commande | au doigt, Pause + Réduire paraissent à l'ouverture, s'effacent après 4 s, reviennent au toucher ; Pause → Reprendre ; Réduire ferme le calque — vus |
+| 17 — Calendrier au téléphone | **reproduit** : 4 bandeaux, la grille commence à 841 px sur 844 ; Agenda → Tâches → Calendrier = Semaine | une ligne « 5 alertes · aujourd'hui surchargé · 3 objectifs · 1 tâche à décider — Afficher », grille à 326 px ; la vue Agenda est retrouvée au retour |
+| 26 — tablette | **reproduit** : Tâches (8/12) et Timer seuls sur leur rangée, tiers droit vide ; Timer « cycles du jour » / « moyenne / jour » / « objectif atteint » tronqués ; pastille de la barre 41 × 35 | Tâches pleine largeur en tête, puis Habitudes ‖ Timer, Discipline sous le Timer, plus de trou ; aucune troncature au Timer ; lignes de la barre à 44 px de haut au doigt |
+| 26 — densité Large | **non reproduit** dans WebKit à 1440 × 900 zoom 1,2 : deux colonnes pleines | — |
+| 35 — roulette | **reproduit** : crans 54 × 28, « 12 h » / « 00 » désignés champ vide | crans de 44 px au doigt, aucun cran désigné ni filet tant que rien n'est choisi ; pas d'une minute gardé (décision d'Antonin) |
+| 38 — Entrée sur une pastille | **reproduit** : rien ne s'ajoute | « Marcher 3 fois » ajouté |
+| 38 — « toucher le nom coche » | **non reproduit** : le centre du nom est un `<span>` sans geste ; probable artefact du pilote, qui vise par nom accessible (« Lecture aujourd'hui » est le nom de la CASE) | — |
+| 38 — grilles sans légende | reproduit | « aucune tenue · moins ▢▢▢ plus » sous la grille de 12 semaines, « Tenue / Pas tenue » pour les carrés des lignes ; au Journal et sur Aujourd'hui |
+| 12/10 rang 31 — toast sur « Plus » | **reproduit** : le toast (y 650-756) couvre Admin, Personnaliser, Réglages, Supprimés récemment (aucun ne se touche) | feuille ouverte, le toast monte en haut (y 12) ; les quatre tuiles se touchent |
+| 12/10 rang 34 — sous-menu « Dater » | **reproduit** : 192 px de sous-menu posés sur les 240 du menu | au téléphone, posé au-dessus (ou au-dessous) du menu, sans le toucher ; au bureau inchangé |
+
+**Corrigé large** : au doigt (téléphone ET pointeur grossier), AUCUNE carte de grille ne défile en elle-même (plafond et hauteur épinglée ignorés, `ResizableGrid.tsx`) ; l'agenda du Calendrier au téléphone défile avec la page ; la règle « grille étroite » (`largeurEtroite`) vaut pour toute grille (tablette, fenêtre réduite) ; les noms d'habitudes d'Aujourd'hui passent à la ligne au doigt (`truncate-souris`).
+
+**Tests** : `src/lib/grille.doigt.test.ts` (10), `src/lib/doigt.lot4.test.ts` (16), `src/lib/menu/placement.test.ts` (+3). `tsc` vert, i18n 0 manquante, suite complète 2 691 verts — le seul rouge, `finance/facturation/demo.test.ts`, était un délai de 60 s sous la charge des sept lots ; seul, 20/20.
+
+**Voulu, non touché** : l'horloge épurée au repos (30/09) ; la suppression d'une habitude en un geste avec « Annuler » (CLAUDE.md, 2026-09-23, « Menus contextuels, et Supprimés récemment ») ; la semaine par défaut au Calendrier (13/10) ; la barre latérale en icônes sous 1024 px et ses compteurs en points (MOBILE § 5.1, couleurs V9).
+
+**Pas prouvé** : rien de tout cela n'a été vu sur un vrai iPhone ou iPad, ni avec de vrais événements tactiles (le pilote WebKit n'en produit pas : les gestes sont rejoués en JS, la mise en page et le hit-test sont ceux de WebKit). Le simulateur iOS était démarré, mais l'accès du panneau demande l'accord d'Antonin, et le Web Inspector du simulateur a refusé la connexion depuis le bac à sable. **Pas de build natif** (à grouper).
 ## 2026-10-21 (nuit) — Lot 5 de l'audit : le premier démarrage et la lecture des dates (`chantier/lot5-accueil`)
 
-Lancé avec tous les lots de l'audit du 20/10 (`labo/passes/2026-10-20-audit/SYNTHESE.md`, constats 6, 7, 8, 18, 39). Les cinq défauts existaient encore sur la tête de `mobile-ios` (`6b737fe`) : aucun des fichiers concernés n'avait bougé depuis `49eb01f`. Décisions : `CLAUDE.md` (« Lot 5 de l'audit », 2026-10-20 nuit). Pièges : `PIEGES.md` § 56.
+Lancé avec tous les lots de l'audit du 20/10 (`labo/passes/2026-10-20-audit/SYNTHESE.md`, constats 6, 7, 8, 18, 39). Les cinq défauts existaient encore sur la tête de `mobile-ios` (`6b737fe`) : aucun des fichiers concernés n'avait bougé depuis `49eb01f`. Décisions : `CLAUDE.md` (« Lot 5 de l'audit », 2026-10-20 nuit). Pièges : `PIEGES.md` § 57.
 
 | Constat | État | Où | Test |
 |---|---|---|---|

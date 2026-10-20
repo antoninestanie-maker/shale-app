@@ -3857,4 +3857,16 @@ export const EN: Record<string, string> = {
   "{nom} : la note a changé pendant la copie": "{nom}: the note changed during the copy",
   "Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.":
     "This note no longer exists: it was deleted, perhaps on another device.",
+  // ── Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (2026-10-21) ──
+  "Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.":
+    "Leaves only the clock on screen. Tap the screen to pause or minimise.",
+  "aujourd’hui surchargé": "today overloaded",
+  "Masquer les alertes": "Hide alerts",
+  "Aujourd'hui, journée surchargée.": "Today is overloaded.",
+  "{n} alerte": "{n} alert",
+  "{n} alertes": "{n} alerts",
+  "{n} objectif": "{n} goal",
+  "{n} objectifs": "{n} goals",
+  "{n} tâche à décider": "{n} task to decide on",
+  "{n} tâches à décider": "{n} tasks to decide on",
 };

@@ -5599,15 +5599,21 @@ Avant de livrer une règle de tâche, chercher les copies :
 `grep -rnE "c\.done\)\.map|due_date < " src` — et la règle Rust
 (`notifications/task_streak.rs`). Payé : sept défauts d'audit, une demi-journée.
 
-## 56. Lot 5 de l'audit — deux erreurs qui se répètent (2026-10-20)
+## 56. Retirer un instant une classe pour MESURER remet à zéro le défilement des enfants
 
-### 56.1 Recoller les chiffres d'une date tapée la rend ambiguë
+- **Symptôme.** Au téléphone, cocher une habitude en bas de la carte la ramenait en haut ; le « ⋯ » d'une ligne du bas ouvrait un menu sous une AUTRE ligne (audit du 20/10, constat 1).
+- **Cause.** `ResizablePanel` lit la hauteur naturelle d'une carte en retirant `.rgrid-fill` le temps d'un `offsetHeight`. Sans l'étirement, la région `.panel-scroll` n'a plus rien à défiler : le navigateur ramène son `scrollTop` à 0, et remettre la classe ne le rend pas. Chaque re-mesure (une coche, un menu ouvert) relançait le défaut.
+- **Parade.** `garderDefilement` (`lib/grille.ts`) relève les `scrollTop` avant la lecture et les repose après. Toute mesure qui change la mise en page d'un parent le temps d'une lecture doit faire de même.
+- **Payé.** Vu par deux utilisateurs simulés, mesuré dans WebKit le 2026-10-21 (lot 4).
+## 57. Lot 5 de l'audit — deux erreurs qui se répètent (2026-10-20)
+
+### 57.1 Recoller les chiffres d'une date tapée la rend ambiguë
 **Symptôme.** « 20/02/2027 » répondait « Date illisible » ; « 15/01/2027 » passait. Seuls les jours 19 à 22 étaient touchés.
 **Cause.** `parserSaisie` retirait les séparateurs puis, devant huit chiffres, essayait l'ISO d'abord dès que les quatre premiers faisaient une année plausible (1900–2200) : « 2002 », mois 20. Les tests ne prenaient que des jours (24, 7) qui ne tombent pas dans la plage.
 **Parade.** Une saisie AVEC séparateurs se lit morceau par morceau ; seuls huit chiffres collés passent par la lecture « collée », langue d'abord. Tester un format de date sur TOUTES les dates d'une année, pas sur trois exemples (`champDate.test.ts` le fait).
 **Payé.** Trois utilisateurs du labo sur trois au format demandé ; « moment de fermer » de Léa.
 
-### 56.2 Une fonction de branchement testée n'est pas une fonction branchée
+### 57.2 Une fonction de branchement testée n'est pas une fonction branchée
 **Symptôme.** L'accueil promettait « c'est de là que partent les créneaux que le calendrier te proposera » ; le calendrier proposait 09:00 à qui avait déclaré 08:30 – 17:00, et les blocs fixes n'étaient nulle part.
 **Cause.** `repliDuTravail` (2026-09-10) avait ses tests, le commit annonçait le branchement ; aucun appelant de `profilDisponibilite` ne lui passait d'options. Les tests de la fonction étaient verts, le produit n'en voyait rien.
 **Parade.** Quand une fonction existe POUR être branchée quelque part, un test de source tient l'appel (`onboarding/horaires.test.ts` vérifie `CalendarView` et `CalendarCard`). Avant de documenter « branché », `grep -rn "nomDeLaFonction(" src | grep -v test`.
