@@ -2703,3 +2703,26 @@ Demande d'Antonin : des « tags » d'état sur les tâches. Retenu avec lui : en
 
 **Pas prouvé** : rien vu dans WKWebView (Mac) ni sur l'iPhone ; la migration 031 n'a jamais été jouée sur la vraie base ; pas vu en sombre ni au téléphone. **Fusionné** dans `mobile-ios` le 2026-10-20 à 02:52 (`7b32203`), poussé. **Reste** : le build natif, **groupé avec le prochain** à la demande d'Antonin (la 031 se joue au premier lancement — copier la base avant).
 - **Build natif groupé du 2026-10-20 (couleurs-net).** **Mac** : `mobile-ios` `f13ce31` (couleurs V9 + états des tâches), front 02:55, `.app` installé, sha256 `82c6a3eafac1` (`diff -r` identique au bundle ; ⚠️ remplacé dans `/Applications` à 02:57 par une autre session, avec ce même bundle). Base copiée avant (`sauvegardes-locales/avant-couleurs-net-20261020-0255`), **migration 031 jouée** : version 31, `integrity_check` ok, 82 tâches / 90 objectifs / 25 notes / 4 habitudes, comme avant. Vu dans l'app native (fenêtre en partie hors écran) : fond noir Net, points rouges après « reportée 2 fois ». ⚠️ Ne porte PAS `b92ab9c` ni `58f0a3f` (correctifs d'objectif) : prochain build groupé. **iPhone** : `.ipa` sur `58f0a3f`, `Shale-chantiers/couleurs-net-ipa/Shale-58f0a3f.ipa` (`1e5a6a170f12`), **NON posé** (iPhone « unavailable »). ⚠️ Profil gratuit valable jusqu'au 2026-10-20 à 10:06 : passé cette heure, refaire le build après renouvellement (MOBILE § 29.1). Le trousseau du Mac demande « Toujours autoriser » à Antonin.
+
+## 2026-10-20 — Aujourd'hui : la carte « Objectifs en cours » au survol, refaite (non commitée, non installée)
+
+Antonin : « au passage de la souris… c'est très moyen ». Trois défauts dans `src/components/GoalsPreview.tsx` :
+le fond de survol (`overlay`) avait la teinte de la piste (`surface-2`), donc la barre disparaissait (surtout à 0 %) ;
+la pastille d'horizon flottait seule à droite ; le cadre (`-mx-2` sur le bouton) débordait sous l'ascenseur.
+Désormais : piste en `overlay-2` (lisible sur la carte et sous le survol), barre de 4 px, horizon · échéance · retard
+sur UNE ligne discrète, la marge négative portée par la liste (`-mx-2 pr-1`), cadre dans la carte.
+- **Prouvé** : `tsc` propre ; captures Chrome headless au repos et au survol, démo habitée, 1470×923
+  (config hors dépôt `Shale-chantiers/vite.essai-habite.mjs`, entrée `shale-app-habite` de `.claude/launch.json` —
+  `vite.demo.config.ts` vide le jeu, il ne montre aucun objectif).
+- **Pas prouvé** : jamais vu dans l'app installée ni à 110 %. Le fichier est dans le checkout principal, à côté de
+  modifications d'autres sessions : rien n'est commité.
+
+## 2026-10-20 — Aujourd'hui : discipline sur les habitudes ; un rattrapage ne compte plus pour le jour (`bddc00f`, sur `mobile-ios`)
+
+Antonin : « si je coche des tâches en retard cela les fait apparaître dans tâches du jour et fait avancer la discipline même si c'était 0/0 », et « le score de discipline de l'accueil par rapport aux habitudes ». Puis, relayé par une session voisine : « rattache [la série en cours] à la discipline, et revois le pourcentage légèrement à la baisse ». Décision : `CLAUDE.md` (même date).
+
+**Fait** : `estRattrapage` (`logic.ts`) sort une ponctuelle datée d'avant le jour de `todayTasks` et de `dayStat` ; portage Rust `est_rattrapage` (`task_streak.rs`). `lib/disciplineHabitudes.ts` (seuil 75 %) alimente l'anneau (« n/m habitudes », ↗ vers Habitudes) ET la tuile « série en cours » du bandeau. La bulle d'une case de tâche dit « Compte dans la série du jour. ».
+- **Prouvé** : `tsc` ; `vitest` complet 2 655 verts ; `disciplineHabitudes.test.ts` (8, dont 3/4 tenu et 2/3 non) ; `logic.jour.test.ts` (le 0/0 reste 0/0) ; `cargo test task_streak` 25 verts. **Vu à l'écran** (build démo du labo sur `bddc00f`, Chrome sans fenêtre, 1440×900) : anneau « 25 % · 2/8 habitudes » ; tâche en retard cochée → quitte « En retard », n'entre pas dans « Tâches du jour » ; 4 habitudes cochées → « 75 % · 6/8 », série 2 j sur l'anneau et sur la tuile.
+- **Pas prouvé** : app installée, téléphone, anglais. **Pas de build natif** (à grouper).
+- ⚠️ La notification `streak_at_risk` lit toujours la série de TÂCHES (80 %) : elle peut ne plus parler de la même série que l'écran. À trancher par Antonin.
+- ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).

@@ -8730,3 +8730,12 @@ Antonin : « même la carte ouverte, il doit rester » (le gris), et « dans l'a
 - Le voile de la page occupe toute la colonne en permanence (`absolute inset-0`, `p-4 lg:p-8`), sur le matériau de la carte : `--card-bg`, filet, `--radius-card`. La découpe du film finit exactement sur ce rectangle. À l'ouverture le fond reste plein ; au retour il s'efface à la fin au profit de la vraie carte (`transition.ts`, étape 2).
 - `.sans-barres` (index.css) masque les barres de défilement du voile le temps du film.
 - Pas vu à l'écran.
+
+## 2026-10-20 — L'anneau d'Aujourd'hui se lit sur les habitudes ; un rattrapage ne compte pas pour le jour
+
+Antonin : « si je coche des tâches en retard, cela les fait apparaître dans Tâches du jour et fait avancer la discipline même si c'était 0/0 », et « j'aimerais que le score de discipline de l'accueil soit par rapport aux habitudes ». Puis (relayé par une session voisine) : « rattache [la série en cours] à la discipline, et revois le pourcentage légèrement à la baisse ».
+
+- ⚠️ **Décision du 2026-10-11 retournée en partie** (« ce qu'on coche aujourd'hui compte pour aujourd'hui, quelle que soit sa date »). Une ponctuelle datée d'AVANT le jour (`estRattrapage`, `logic.ts`) cochée ce jour-là n'entre plus dans `todayTasks` ni dans `dayStat` de ce jour. Sans date ou faite en avance : inchangé. Portage Rust : `est_rattrapage`. Conséquence assumée : un jour passé qui ne tenait qu'à des rattrapages redevient neutre (seule exception à « un pourcentage passé ne peut que monter »).
+- **L'anneau de l'accueil ET la tuile « série en cours » lisent les HABITUDES** (`lib/disciplineHabitudes.ts`) : tenues / actives aujourd'hui, avec la règle de Performance (`debutsDesHabitudes` : exemples exclus, une habitude compte depuis sa première coche), et la coche optimiste. Les tâches gardent leur compte partout ailleurs (carte « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
+- **Un jour d'habitudes est « tenu » à 75 %**, pas 80 : avec 4 ou 8 habitudes, 80 % exigeait un sans-faute (3/4 = 75 %) ; 67 % aurait rendu la série trop facile à 3 habitudes. Le seuil des TÂCHES (`STREAK_THRESHOLD`, Rust) reste 80.
+- ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
