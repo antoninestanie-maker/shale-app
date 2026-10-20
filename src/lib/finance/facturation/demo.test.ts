@@ -234,60 +234,81 @@ describe("⭐ la démo tient À N'IMPORTE QUEL JOUR du mois (PIEGES § 30)", () 
     vi.resetModules();
   });
 
-  it("solde composé, runway, encours et situations — jour par jour", async () => {
-    const fautifs: string[] = [];
+  /**
+   * ⚠️ UN `it` PAR MOIS, et plus un seul pour les 375 jours (audit du
+   * 2026-10-20, donnees-10). Le balayage recharge la démo à chaque jour
+   * (`vi.resetModules()` + `import()`) : environ 150 ms par jour sur une
+   * machine calme, 8 s en tout — mais plus de 60 s quand toute la suite
+   * tournait à côté, et le test unique tombait alors sur son délai. Un échec
+   * qui dépend de la charge apprend à ne plus lire la sortie des tests. Découpé
+   * par mois, chaque morceau tient en quelques secondes même sous charge, et
+   * TOUS les jours restent vérifiés.
+   */
+  const parMois = new Map<string, string[]>();
+  for (const jour of joursABalayer()) {
+    const mois = jour.slice(0, 7);
+    (parMois.get(mois) ?? parMois.set(mois, []).get(mois)!).push(jour);
+  }
 
-    for (const jour of joursABalayer()) {
-      vi.setSystemTime(new Date(`${jour}T12:00:00`));
-      vi.resetModules();
-      const { demo: d } = await import("../../demo");
-      const fin = await d.fetchFinance();
-      const fac = await d.fetchFacturation();
-      const auj = todayStr();
-      expect(auj).toBe(jour);
+  async function fautesDuJour(jour: string): Promise<string[]> {
+    vi.setSystemTime(new Date(`${jour}T12:00:00`));
+    vi.resetModules();
+    const { demo: d } = await import("../../demo");
+    const fin = await d.fetchFinance();
+    const fac = await d.fetchFacturation();
+    const auj = todayStr();
+    expect(auj).toBe(jour);
 
-      const { mouvements } = mouvementsDeTresorerie(fac.factures, fac.paiements, fin.comptes);
-      const nu = patrimoineAu(fin.comptes, fin.balances, auj);
-      const compose = patrimoineAu(fin.comptes, fin.balances, auj, undefined, mouvements);
-      const burn = burnMensuel(fin.recurrents, auj);
-      const prudent = runway(compose.liquideCents, burn, auj);
-      const avec = runwayAvecCreances(
-        compose.liquideCents,
-        burn,
-        echeancesAttendues(fac.factures, fac.paiements, auj),
-        auj,
-      );
-      const nuRunway = runway(nu.liquideCents, burn, auj);
-      const clients = encours(fac.factures, fac.paiements, "vente", auj);
-      const fournisseurs = encours(fac.factures, fac.paiements, "achat", auj);
-      const statuts = fac.factures.map((x) =>
-        etatFacture(x, fac.paiements.filter((p) => p.invoice_id === x.id), auj),
-      );
+    const { mouvements } = mouvementsDeTresorerie(fac.factures, fac.paiements, fin.comptes);
+    const nu = patrimoineAu(fin.comptes, fin.balances, auj);
+    const compose = patrimoineAu(fin.comptes, fin.balances, auj, undefined, mouvements);
+    const burn = burnMensuel(fin.recurrents, auj);
+    const prudent = runway(compose.liquideCents, burn, auj);
+    const avec = runwayAvecCreances(
+      compose.liquideCents,
+      burn,
+      echeancesAttendues(fac.factures, fac.paiements, auj),
+      auj,
+    );
+    const nuRunway = runway(nu.liquideCents, burn, auj);
+    const clients = encours(fac.factures, fac.paiements, "vente", auj);
+    const fournisseurs = encours(fac.factures, fac.paiements, "achat", auj);
+    const statuts = fac.factures.map((x) =>
+      etatFacture(x, fac.paiements.filter((p) => p.invoice_id === x.id), auj),
+    );
 
-      const echecs = [
-        compose.liquideCents > nu.liquideCents || "solde composé = solde nu",
-        (nu.sansReleve === 0 && nu.lignes.every((l) => !l.perime)) || "relevé manquant ou périmé",
-        (prudent.etat === "ok" && avec.etat === "ok") || "runway incalculable",
-        (avec.mois as number) > (prudent.mois as number) || "runway avec créances pas meilleur",
-        (nuRunway.etat === "ok" &&
-          moisAffiches(nuRunway.mois as number) > 5 &&
-          moisAffiches(nuRunway.mois as number) < 11) ||
-          "runway de la démo Finance hors fourchette",
-        (clients.totalCents > 0 && clients.nbEnRetard > 0 && fournisseurs.totalCents > 0) ||
-          "encours vide",
-        (statuts.some((e) => e.statut === "encaissee") &&
-          statuts.some((e) => e.statut === "partiellement_encaissee") &&
-          statuts.some((e) => e.enRetard)) ||
-          "situation de facture manquante",
-      ].filter((r): r is string => typeof r === "string");
+    const echecs = [
+      compose.liquideCents > nu.liquideCents || "solde composé = solde nu",
+      (nu.sansReleve === 0 && nu.lignes.every((l) => !l.perime)) || "relevé manquant ou périmé",
+      (prudent.etat === "ok" && avec.etat === "ok") || "runway incalculable",
+      (avec.mois as number) > (prudent.mois as number) || "runway avec créances pas meilleur",
+      (nuRunway.etat === "ok" &&
+        moisAffiches(nuRunway.mois as number) > 5 &&
+        moisAffiches(nuRunway.mois as number) < 11) ||
+        "runway de la démo Finance hors fourchette",
+      (clients.totalCents > 0 && clients.nbEnRetard > 0 && fournisseurs.totalCents > 0) ||
+        "encours vide",
+      (statuts.some((e) => e.statut === "encaissee") &&
+        statuts.some((e) => e.statut === "partiellement_encaissee") &&
+        statuts.some((e) => e.enRetard)) ||
+        "situation de facture manquante",
+    ].filter((r): r is string => typeof r === "string");
 
-      if (echecs.length) fautifs.push(`${jour} : ${echecs.join(", ")}`);
-    }
+    return echecs;
+  }
 
-    // Un seul `expect` pour la liste entière : un échec montre TOUS les jours
-    // fautifs d'un coup, pas seulement le premier.
-    expect(fautifs).toEqual([]);
-  }, 60_000);
+  for (const [mois, jours] of parMois) {
+    it(`solde composé, runway, encours et situations — jour par jour, ${mois}`, async () => {
+      const fautifs: string[] = [];
+      for (const jour of jours) {
+        const echecs = await fautesDuJour(jour);
+        if (echecs.length) fautifs.push(`${jour} : ${echecs.join(", ")}`);
+      }
+      // Un seul `expect` pour le mois entier : un échec montre TOUS les jours
+      // fautifs d'un coup, pas seulement le premier.
+      expect(fautifs).toEqual([]);
+    }, 60_000);
+  }
 });
 
 describe("les écritures de démo ont la MÊME SÉMANTIQUE que le natif", () => {
