@@ -5619,9 +5619,26 @@ Avant de livrer une règle de tâche, chercher les copies :
 **Parade.** Quand une fonction existe POUR être branchée quelque part, un test de source tient l'appel (`onboarding/horaires.test.ts` vérifie `CalendarView` et `CalendarCard`). Avant de documenter « branché », `grep -rn "nomDeLaFonction(" src | grep -v test`.
 **Payé.** Six semaines de réglages déclarés pour rien ; constat 7 de l'audit (Monique : « j'aurais douté de tout le reste »).
 
-## 58. Lot 6 de l'audit — deux erreurs qui se répètent (2026-10-21)
+## 58. Lot 7 de l'audit du 2026-10-20 (finitions d'Objectifs et divers)
 
-## 58.1 Après `insertHTML` d'un élément `contenteditable="false"`, Chrome laisse le curseur DEVANT
+### 58.1 Un verrou tenu dans un `useState` ne garde pas deux événements du même instant
+**Symptôme** : deux Entrée rapprochées (ou une touche qui rebondit) créent la même étape, la même tâche, ou rattachent deux fois. **Cause** : `if (occupe) return; setOccupe(true)` — l'état ne change qu'au rendu suivant, et le second événement lit encore `occupe === false` (`ComposerTache`, `RattacherElement`, `ChampLigne` de la feuille de route). **Parade** : le verrou LU est une `useRef` (`enCours.current`), posée avant le premier `await` ; l'état ne sert plus qu'à griser le bouton. **Payé** : objectifs-13 (A06a-46), trois composants corrigés le même jour.
+
+### 58.2 Une réponse de recherche peut être celle de la frappe d'AVANT
+**Symptôme** : on tape « Réviser chapitre 2 » puis Entrée tout de suite, et « Réviser chapitre 1 » (rattachée à un autre objectif) est arrachée à son objectif. **Cause** : la recherche part 120 ms après la frappe et répond plus tard encore ; Entrée agissait sur la liste affichée. **Parade** : retenir la requête dont la liste est la réponse (`resultatsPour`) ; sur Entrée, si elle diffère du champ, redemander la recherche et choisir dans la réponse JUSTE. Le clic, lui, garde ce qu'on a vu. **Payé** : objectifs-11 (A06a-04), deux audits.
+
+### 58.3 Une clé i18n partagée entre deux sens prend la traduction de l'un pour l'autre
+**Symptôme** : l'app anglaise ouvre le menu d'une tâche sur « End ». **Cause** : `t("Terminer")` sert à la fois à arrêter le minuteur (« End ») et à cocher une tâche ; le dictionnaire n'a qu'une entrée par clé. `i18n:check` ne voit rien (la clé existe). **Parade** : un discriminant (`t("Terminer|tâche")`, retiré du français) dès qu'un mot français a deux sens dans l'app. **Payé** : constat d'usage 41, vu par trois personas.
+
+### 58.4 `import("module?x=…")` donne bien une instance par requête… et une TRANSFORMATION par requête
+**Symptôme** : pour accélérer le balayage d'un an de la démo Finance, une instance de `demo.ts` par jour (`import(\`../../demo.ts?jour=${jour}\`)`) au lieu de `vi.resetModules()` : le test passe de 55 s à plus de 60 s. **Cause** : Vite traite chaque requête comme un module distinct et re-transforme les 3 000 lignes à chaque jour (« transform 36 s »). **Parade** : découper le balayage (un `it` par mois) plutôt que chercher à le rendre plus rapide. **Payé** : donnees-10, une heure.
+
+### 58.5 Une vue entière se rend dans vitest (happy-dom), pas seulement un composant de trois lignes
+Depuis le 2026-10-20, `GoalsView`, `FeuilleDeRoute`, `RattacherElement`, `EditeurCarte` et `CommandPalette` ont des tests de RENDU (`*.test.ts`, `// @vitest-environment happy-dom`, `createRoot` + `act`). Trois choses à savoir : `useIaPossible` lit la session (`AuthGate`) — `vi.mock("../lib/ia/useIa", …)` ; la langue se fixe par `setLangPref("fr")` avant d'importer la vue ; une saisie se simule par le *setter natif* de `value` puis un événement `input` (React n'écoute pas l'affectation directe). Le film d'une carte d'objectif (`jouerTransition`) se remplace par un faux qui compte ses départs.
+
+## 59. Lot 6 de l'audit — deux erreurs qui se répètent (2026-10-21)
+
+## 59.1 Après `insertHTML` d'un élément `contenteditable="false"`, Chrome laisse le curseur DEVANT
 
 **Symptôme.** Dans une note, « Before @Pros » + Entrée + « is done » donne « Before is done@Prospection ». Vu par trois passes du labo (11/10, 12/10, 20/10) ; rejoué le 2026-10-20 sous Chrome sans fenêtre.
 
@@ -5631,7 +5648,7 @@ Avant de livrer une règle de tâche, chercher les copies :
 
 **Payé.** Trois passes du labo l'ont signalé « incertain, Chrome seulement » avant qu'on le corrige. ⚠️ Non revu sous WebKit.
 
-## 58.2 Une action de palette qui change de module puis émet un événement à 50 ms rate la vue au premier appel
+## 59.2 Une action de palette qui change de module puis émet un événement à 50 ms rate la vue au premier appel
 
 **Symptôme.** ⌘K « Nouvel objectif » : la page Objectifs s'ouvre, sans formulaire ; au second appel, ça marche.
 

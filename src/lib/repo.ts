@@ -770,8 +770,11 @@ export type KnowledgeInput = Partial<Pick<KnowledgeEntry, KnowledgeField>>;
 // Le CORPS est volontairement absent : il peut contenir plusieurs centaines de
 // ko d'images. La liste vit sur `text` (recherche + extrait) et `thumb`
 // (couverture) ; `body_len` sert seulement à repérer les fiches à ré-indexer.
+// ⚠️ `is_example` Y EST depuis le 2026-10-20 (audit, savoir-8) : absente, la
+// fiche d'exemple semée par l'accueil s'affichait SANS son badge dans l'app
+// installée — la démo, qui garde toutes les colonnes, ne le montrait pas.
 const LITE_COLUMNS =
-  "id, topic_id, kind, title, text, url, thumb, data, tags, pinned, created_at, updated_at, LENGTH(body) AS body_len";
+  "id, topic_id, kind, title, text, url, thumb, data, tags, pinned, is_example, created_at, updated_at, LENGTH(body) AS body_len";
 
 export async function fetchKnowledge(): Promise<{
   topics: Sujet[];
@@ -2359,8 +2362,13 @@ function mimeDeNom(nom: string): string {
  */
 export async function ouvrirPieceJointe(uid: string): Promise<boolean> {
   if (!isTauri) return demo.ouvrirPieceJointe(uid);
+  // ⭐ Le NOM D'ORIGINE accompagne l'uid (audit du 2026-10-20, donnees-5) : les
+  // octets sont rangés sans extension, et macOS ouvrait un PDF dans TextEdit.
+  // Le Rust l'ouvre sous ce nom (`pieces_jointes.rs`, `vue_d_ouverture`).
+  const db = await getDb();
+  const rows = await db.select<{ name: string }[]>("SELECT name FROM files WHERE uid = $1", [uid]);
   const { invoke } = await import("@tauri-apps/api/core");
-  return (await invoke<boolean>("ouvrir_piece_jointe", { uid })) === true;
+  return (await invoke<boolean>("ouvrir_piece_jointe", { uid, nom: rows[0]?.name ?? null })) === true;
 }
 
 // ─── Événements du calendrier ────────────────────────────────────────────────
@@ -2740,13 +2748,14 @@ async function corpusPour(
       docs.push({ kind: "object", id: r.id, uid: r.uid, titre: r.name, contexte: r.nom ?? undefined });
   }
   if (veut("goal")) {
-    const rows = await db.select<{ id: number; uid: string; title: string }[]>(
+    const rows = await db.select<{ id: number; uid: string; title: string; parent_goal_id: number | null }[]>(
       q
-        ? `SELECT id, uid, title FROM goals WHERE title LIKE $1 AND ${VIVANT} LIMIT 40`
-        : `SELECT id, uid, title FROM goals WHERE ${VIVANT} LIMIT 40`,
+        ? `SELECT id, uid, title, parent_goal_id FROM goals WHERE title LIKE $1 AND ${VIVANT} LIMIT 40`
+        : `SELECT id, uid, title, parent_goal_id FROM goals WHERE ${VIVANT} LIMIT 40`,
       q ? [like] : [],
     );
-    for (const r of rows) docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title });
+    for (const r of rows)
+      docs.push({ kind: "goal", id: r.id, uid: r.uid, titre: r.title, ...(r.parent_goal_id != null ? { etape: true } : {}) });
   }
   if (veut("task")) {
     const rows = await db.select<{ id: number; uid: string; label: string }[]>(

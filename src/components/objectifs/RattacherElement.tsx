@@ -50,6 +50,9 @@ import { IconLink, IconPlus, IconX } from "../icons";
  */
 const FAMILLES: readonly LinkKind[] = ["task", ...FAMILLES_RATTACHABLES];
 
+/** Une ligne de la liste : rattacher ce qu'on a trouvé, ou créer la tâche tapée. */
+type Option = { type: "rattacher"; r: Trouvaille } | { type: "creer" };
+
 export default function RattacherElement(props: {
   goal: Goal;
   data: AppData;
@@ -61,7 +64,8 @@ export default function RattacherElement(props: {
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Trouvaille[]>([]);
   const [actif, setActif] = useState(0);
-  const [occupe, setOccupe] = useState(false);
+  /** Un geste à la fois — voir `verrouiller`. */
+  const enCours = useRef(false);
   const champ = useRef<HTMLInputElement>(null);
   const tour = useRef(0);
 
@@ -72,53 +76,100 @@ export default function RattacherElement(props: {
     champ.current?.focus();
   }, []);
 
+  /**
+   * Ce que la recherche propose pour `requete`, sans ce qui est DÉJÀ rattaché à
+   * cet objectif (il ne se propose pas une seconde fois).
+   */
+  const chercher = async (requete: string): Promise<Trouvaille[]> => {
+    const trouves = await rechercherPartout(requete, { familles: FAMILLES, limite: 8 });
+    const deja = new Set(rattachementsDe(uidObjectif, contexte).map((r) => `${r.kind}:${r.uid}`));
+    return trouves.filter((r) =>
+      r.kind === "task" ? data.tasks.find((x) => x.id === r.id)?.goal_id !== goal.id : !deja.has(`${r.kind}:${r.uid}`),
+    );
+  };
+  const chercherRef = useRef(chercher);
+  chercherRef.current = chercher;
+
+  /**
+   * La requête dont `resultats` est la réponse. ⚠️ Elle n'est pas toujours celle
+   * du champ : la recherche part 120 ms après la dernière frappe, et répond
+   * encore un peu plus tard (audit du 2026-10-20, objectifs-11 ; A06a-04).
+   */
+  const [resultatsPour, setResultatsPour] = useState("");
+
   useEffect(() => {
     if (!q) {
       setResultats([]);
+      setResultatsPour("");
       return;
     }
     const n = ++tour.current;
     const minuteur = window.setTimeout(async () => {
-      const trouves = await rechercherPartout(q, { familles: FAMILLES, limite: 8 });
+      const trouves = await chercherRef.current(q);
       // Une réponse plus ancienne que la dernière frappe ne remplace rien.
       if (n !== tour.current) return;
-      // Ce qui est DÉJÀ rattaché à cet objectif ne se propose pas une seconde fois.
-      const deja = new Set(rattachementsDe(uidObjectif, contexte).map((r) => `${r.kind}:${r.uid}`));
-      setResultats(
-        trouves.filter((r) =>
-          r.kind === "task" ? data.tasks.find((x) => x.id === r.id)?.goal_id !== goal.id : !deja.has(`${r.kind}:${r.uid}`),
-        ),
-      );
+      setResultats(trouves);
+      setResultatsPour(q);
       setActif(0);
     }, 120);
     return () => window.clearTimeout(minuteur);
   }, [q, data.tasks, goal.id, uidObjectif, contexte]);
 
-  const identique = resultats.some((r) => r.titre.trim().toLowerCase() === q.toLowerCase());
   // La création est TOUJOURS proposée quand aucun titre n'est identique — en
   // dernier, pour qu'`Entrée` sur une recherche fructueuse rattache l'existant.
-  const options: ({ type: "rattacher"; r: Trouvaille } | { type: "creer" })[] = [
-    ...resultats.map((r) => ({ type: "rattacher" as const, r })),
-    ...(q && !identique ? [{ type: "creer" as const }] : []),
-  ];
+  const optionsDe = (liste: readonly Trouvaille[], requete: string): Option[] => {
+    const identique = liste.some((r) => r.titre.trim().toLowerCase() === requete.toLowerCase());
+    return [...liste.map((r) => ({ type: "rattacher" as const, r })), ...(requete && !identique ? [{ type: "creer" as const }] : [])];
+  };
+  const options = optionsDe(resultats, q);
 
-  const choisir = async (i: number) => {
-    const o = options[i];
-    if (!o || occupe) return;
-    setOccupe(true);
+  const executer = async (o: Option | undefined, requete: string) => {
+    if (!o) return;
+    if (o.type === "rattacher" && o.r.kind === "task") await rattacherTache(o.r.id, goal.id);
+    else if (o.type === "rattacher")
+      await createLink({ from_kind: "goal", from_uid: uidObjectif, to_kind: o.r.kind, to_uid: o.r.uid, origin: "manual" });
+    else await createTask({ label: requete, tag: null, priority: "medium", recurrence: "none", goal_id: goal.id });
+    setRequete("");
+    setResultats([]);
+    setResultatsPour("");
+    await refresh();
+  };
+
+  /**
+   * Un geste à la fois. ⚠️ Le verrou est une REF, lue tout de suite : l'état
+   * React qui le tenait jusqu'au 2026-10-20 ne change qu'au rendu suivant, et
+   * deux Entrée d'un même instant le voyaient tous deux libre.
+   */
+  const verrouiller = async (geste: () => Promise<void>) => {
+    if (enCours.current) return;
+    enCours.current = true;
     try {
-      if (o.type === "rattacher" && o.r.kind === "task") await rattacherTache(o.r.id, goal.id);
-      else if (o.type === "rattacher")
-        await createLink({ from_kind: "goal", from_uid: uidObjectif, to_kind: o.r.kind, to_uid: o.r.uid, origin: "manual" });
-      else await createTask({ label: q, tag: null, priority: "medium", recurrence: "none", goal_id: goal.id });
-      setRequete("");
-      setResultats([]);
-      await refresh();
+      await geste();
     } finally {
-      setOccupe(false);
+      enCours.current = false;
       champ.current?.focus();
     }
   };
+
+  /** Le clic : ce qu'on a VU sous le doigt, tel quel. */
+  const choisir = (i: number) => void verrouiller(() => executer(options[i], q));
+
+  /**
+   * ⚠️ Entrée : la liste à l'écran peut être celle de la frappe d'AVANT. On tape
+   * « Réviser chapitre 2 » puis Entrée tout de suite : la liste montre encore
+   * « Réviser chapitre 1 » (rattachée à un autre objectif), en tête — Entrée
+   * l'ARRACHAIT à son objectif, et rien n'était créé. Si la réponse affichée
+   * n'est pas celle de la requête, on la demande d'abord, et Entrée choisit la
+   * tête de la réponse JUSTE.
+   */
+  const choisirAuClavier = () =>
+    void verrouiller(async () => {
+      const requete = q;
+      if (resultatsPour === requete) return executer(options[actif], requete);
+      ++tour.current; // la recherche en vol, partie pour une frappe d'avant, ne remplacera rien
+      const frais = requete ? await chercherRef.current(requete) : [];
+      await executer(optionsDe(frais, requete)[0], requete);
+    });
 
   const ailleurs = (r: Trouvaille) => {
     if (r.kind !== "task") return null;
@@ -142,7 +193,7 @@ export default function RattacherElement(props: {
             setActif((a) => (a - 1 + options.length) % options.length);
           } else if (e.key === "Enter") {
             e.preventDefault();
-            void choisir(actif);
+            choisirAuClavier();
           } else if (e.key === "Escape" && requete) {
             e.preventDefault();
             setRequete("");
@@ -165,7 +216,7 @@ export default function RattacherElement(props: {
                 type="button"
                 onPointerDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActif(i)}
-                onClick={() => void choisir(i)}
+                onClick={() => choisir(i)}
                 className={`cible-tactile-ligne flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm ${i === actif ? "bg-overlay-2" : ""}`}
               >
                 {o.type === "creer" ? (
@@ -318,6 +369,12 @@ function ComposerTache(props: { goal: Goal; surObjectif?: boolean; refresh: () =
   const [echeance, setEcheance] = useState("");
   const [priorite, setPriorite] = useState<Priority>("medium");
   const [occupe, setOccupe] = useState(false);
+  /**
+   * ⚠️ Le verrou LU, en plus de l'état AFFICHÉ (bouton grisé) : `occupe` ne
+   * change qu'au rendu suivant, et deux Entrée d'un même instant créaient deux
+   * tâches (audit du 2026-10-20, voisin d'objectifs-13 — corrigé large).
+   */
+  const enCours = useRef(false);
   const champ = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -326,7 +383,8 @@ function ComposerTache(props: { goal: Goal; surObjectif?: boolean; refresh: () =
 
   const creer = async () => {
     const nom = label.trim();
-    if (!nom || occupe) return;
+    if (!nom || enCours.current) return;
+    enCours.current = true;
     setOccupe(true);
     try {
       await createTask({
@@ -349,6 +407,7 @@ function ComposerTache(props: { goal: Goal; surObjectif?: boolean; refresh: () =
       setLabel("");
       await props.refresh();
     } finally {
+      enCours.current = false;
       setOccupe(false);
       champ.current?.focus();
     }

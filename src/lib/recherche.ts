@@ -28,6 +28,12 @@ export interface Document {
   corps?: string;
   /** Contexte affiché sous le titre (thème, tag, date…). */
   contexte?: string;
+  /**
+   * Un objectif qui a un parent : c'est une ÉTAPE, et elle se nomme ainsi dans
+   * ⌘K et le `@` (contrôle du 12/10, rang 22 : la palette la classait
+   * « OBJECTIF », avec l'icône d'un objectif).
+   */
+  etape?: boolean;
 }
 
 export interface Trouvaille extends Document {

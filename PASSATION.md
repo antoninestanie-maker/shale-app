@@ -2857,6 +2857,41 @@ Lancé avec tous les lots de l'audit du 20/10 (`labo/passes/2026-10-20-audit/SYN
 
 **Non vérifié** : les créneaux évitant un bloc fixe à l'écran (le cas de la démo tombait hors des heures de travail ; tenu par le test). `ia/brief.ts` garde le repli d'origine (synchrone) : à brancher avec l'IA. Aucune migration. Aucun build natif.
 
+## 2026-10-21 (nuit) — Lot 7 de l'audit du 20/10 : finitions d'Objectifs et divers (`chantier/lot7-finitions`)
+
+Lancé par Antonin pour la nuit avec les six autres lots (« lance tous les lots »). Worktree `~/Desktop/Shale-chantiers/lot7-finitions`, parti de `mobile-ios` 6b737fe. Les défauts sont décrits dans `~/Desktop/Shale-projet/labo/passes/2026-10-20-audit/` (`chasse-code.json` par `id`, `synthese.json` par `rang`). Tous vérifiés présents sur la tête avant correction.
+
+**Corrigé, chacun avec un test rouge avant, vert après :**
+- **objectifs-6** — une tâche de la feuille de route a son « ⋯ » (visible) et Maj+F10 : modifier, dater, état, supprimer depuis l'objectif, au doigt et au clavier (`FeuilleDeRoute.test.ts`).
+- **objectifs-8** — « ⋯ › Ajouter une tâche » d'une page ouverte ne rejoue plus le film (`GoalsView.test.ts`).
+- **objectifs-10** — l'objectif créé s'ouvre par son id (`GoalModal.onSaved(creeId)`) ; une demande d'ouverture servie par l'événement est consommée (Objectifs, et corrigé large dans Tâches et Savoir) (`GoalsView.test.ts`).
+- **objectifs-11** — Rattacher : Entrée sur une liste périmée redemande la recherche (`RattacherElement.test.ts`, PIEGES § 58.2).
+- **objectifs-12** — une étape terminée n'est plus « En retard ».
+- **objectifs-13** — une seule étape par Entrée ; même verrou par ref dans le composeur de tâche et Rattacher (PIEGES § 58.1).
+- **Constat 29** — « Atteindre un nombre » garde la liste des tâches, et se compte « par ses tâches » (`count_source = 'elements'`, posée d'office au premier nombre d'une étape qui a des tâches) (`cibleParTaches.test.ts`). **Aucune migration** (texte sans CHECK ; une version d'avant lit « manual »).
+- **Constat 30** — « Citer un objet » (et la touche @) crée un nœud sous le nœud regardé ; renoncer le retire.
+- **Constat 33** — à côté d'étapes, l'en-tête dit « tâche(s) directe(s) ». Le pourcentage qui saute à la suppression est la règle écrite (voulu).
+- **Constat 37** — une lettre tapée dans le menu « quel type ? » de « Sous-nœud » crée une tâche et commence son nom (`MenuContextuel.surLettre`).
+- **Rang 19 (12/10)** — ⌘Z dans la carte d'objectif défait le dernier geste écrit (suppression, détachement, renommage) ; un bouton Annuler y apparaît ; dans la carte d'une note, créer + nommer = un seul ⌘Z (`EditeurCarte.annuler.test.ts`).
+- **Rang 22 (12/10)** — une étape porte le losange dans Tâches, et « Étape » dans ⌘K et le @ (`recherche.etape.test.ts`, natif + démo).
+- **taches-7** — « Modifier la tâche » remet le compteur de reports à zéro quand l'échéance change.
+- **savoir-7** — description d'un sujet : 700 ms, une écriture à la fois, vidée au démontage (`lib/ecritureDifferee.ts`).
+- **savoir-8** — natif : `is_example` lu dans la liste du Savoir (badge « Exemple »).
+- **savoir-11** — unités de taille selon la langue (B, kB, MB).
+- **savoir-12** — titre de la commande ⌘K traduit à l'étape de saisie.
+- **donnees-5** — une pièce jointe s'ouvre sous son nom d'origine (lien dur `pieces-jointes/ouvertes/<uid>/<nom>`) : Aperçu, plus TextEdit. **Rust touché** (`pieces_jointes.rs`, commande `ouvrir_piece_jointe` reçoit `nom`).
+- **temps-8** — l'app démontée pendant une séance diffuse « plus de séance » à la barre des menus.
+- **donnees-10** — balayage d'un an de la démo Finance découpé par mois.
+- **Constat 41** — « End » → « Mark done » dans le menu d'une tâche ; horloge, ligne de Tâches et historique du Timer en AM/PM en anglais ; « Modifier l'étape » nomme son champ « Titre de l'étape ».
+
+**Voulu, pas corrigé :** objectifs-9 (étape cochée convertie en tâche « faite aujourd'hui » : `conversion.ts`, « cochée, la tâche naît faite, à la date du jour » ; la date de la coche d'une étape n'est stockée nulle part). Dans le constat 37, « pas de nœud idée » dans la carte d'objectif (la carte libre vit dans Notes, décision écrite) et « on n'y date pas » (la date se pose dans la feuille de route). Pas de réglage 12 h / 24 h : l'heure suit la langue.
+
+**Non vu dans l'app** : rien n'a été regardé dans l'app installée ni construit (pas de build natif : Antonin les groupe). Le prochain build porte le changement Rust des pièces jointes.
+
+**Corrigé large après la fusion du lot 2** : `EnRetard.tsx` montre le losange pour une étape en retard. **Reste** : le réglage 12 h / 24 h et un « Rétablir » dans la carte d'objectif ne sont pas faits.
+
+**Ligne de base après fusion du tronc (c6fa11e, lots 1, 2, 4, 5 et chargement compris)** : `tsc` vert ; `vitest` 213 fichiers, 2 848 tests verts (3 sautés) ; `cargo test` 190 + 3 verts ; `i18n:check` 0 manquante. `test:types` : une seule erreur, d'avant ce lot (`menu/catalogue/tache.test.ts`, `etat` manquant). Vu en démo (labo, téléphone 390 pt, port 4670, build `lot7-f0bedcb-habite`) : le « ⋯ » d'une tâche de la feuille de route ouvre le menu au doigt ; « Atteindre un nombre » à 12 sur une étape qui a deux tâches pose « par ses tâches », affiche « 1 tâche faite sur 12 » et garde la liste. Le reste n'a été vu que dans les tests de rendu (happy-dom). **Aucune migration. Rust touché (pièces jointes) : le prochain build natif groupé le porte.**
+
 ## 2026-10-21 (nuit) — Lot 6 de l'audit du 20/10 : se repérer, annuler, retrouver (`chantier/lot6-reperes`)
 
 Lancé par Antonin pour la nuit avec les six autres lots (« lance tous les lots »). Constats d'usage 4, 5, 9, 12, 22, 23, 36, code `savoir-9` et `savoir-10`, rangs 13, 25 et 26 du contrôle du 12/10. Chacun revérifié d'abord sur la tête de `mobile-ios` (`6b737fe`) : tous encore présents (rejoués dans Chrome sur le build démo de `6b737fe` pour ⌘Z, le titre « Nouvelle noteLouis Garnier » et « Before is done@Prospection »).

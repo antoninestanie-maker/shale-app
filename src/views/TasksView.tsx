@@ -28,7 +28,7 @@ import {
   IconX,
 } from "../components/icons";
 
-import { pick, t, tp } from "../lib/i18n";
+import { formatHeure, pick, t, tp } from "../lib/i18n";
 import PointAction from "../components/PointAction";
 import { useActions } from "../lib/pointAction/contexte";
 import { cleTache } from "../lib/pointAction/regle";
@@ -38,6 +38,7 @@ import { estExemple } from "../lib/onboarding/exemples";
 import { consommerDemande, consommerGeste, ouvrirParId } from "../lib/naviguer";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { IconeNature, ouvrirNature } from "../components/objectifs/IconeNature";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 import {
   ORDRE_SECTIONS,
@@ -284,7 +285,13 @@ export default function TasksView({ data, refresh }: Props) {
       const tache = tachesRef.current.find((x) => x.id === id);
       if (tache) setEditing(tache);
     };
-    const onOpen = (e: Event) => ouvrir((e as CustomEvent<number>).detail);
+    // ⚠️ La vue était déjà là : la demande déposée est servie, on la retire —
+    // sinon elle rouvrait la même tâche au montage suivant (audit du
+    // 2026-10-20, objectifs-10, corrigé large : le motif de `NotesView`).
+    const onOpen = (e: Event) => {
+      ouvrir((e as CustomEvent<number>).detail);
+      consommerDemande("task");
+    };
     window.addEventListener("sb:open-task", onOpen);
     const enAttente = consommerDemande("task");
     if (enAttente) ouvrir(enAttente);
@@ -633,7 +640,9 @@ export default function TasksView({ data, refresh }: Props) {
     if (task.start_at && task.due_date) {
       push(
         <span key="heure" className="tabular-nums">
-          {task.end_at ? `${task.start_at}–${task.end_at}` : task.start_at}
+          {/* L'heure telle que la langue l'écrit — « 2:00 PM » en anglais, comme
+              Aujourd'hui et le Calendrier (audit du 2026-10-20, constat 41). */}
+          {task.end_at ? `${formatHeure(task.start_at)}–${formatHeure(task.end_at)}` : formatHeure(task.start_at)}
         </span>,
       );
     }
@@ -656,11 +665,12 @@ export default function TasksView({ data, refresh }: Props) {
           key="objectif"
           type="button"
           onClick={() => ouvrirParId("goal", objectif.id)}
-          data-tip={t("Ouvrir l'objectif")}
+          data-tip={ouvrirNature(objectif)}
           data-tip-sub={objectif.title}
           className="cible-tactile-ligne inline-flex min-w-0 max-w-full items-center gap-1 rounded transition-colors hover:text-text"
         >
-          <IconTarget className="h-3 w-3 shrink-0" />
+          {/* Une ÉTAPE porte le losange, pas la cible d'un objectif (rang 22 du 12/10). */}
+          <IconeNature goal={objectif} goals={data.goals} className="h-3 w-3 shrink-0" />
           <span className="truncate">{objectif.title}</span>
         </button>,
       );

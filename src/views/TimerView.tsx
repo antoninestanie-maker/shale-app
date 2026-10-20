@@ -12,7 +12,7 @@ import Horloge from "../components/timer/Horloge";
 import { fenetreSepareeDisponible } from "../lib/timerFenetre";
 import { useStyleHorloge, type StyleHorloge } from "../lib/timerStyle";
 
-import { t } from "../lib/i18n";
+import { formatHeure, t } from "../lib/i18n";
 interface Props {
   data: AppData;
   focus: FocusController;
@@ -245,8 +245,10 @@ export default function TimerView({ data, focus }: Props) {
                     key={s.id}
                     className="flex items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-surface-2"
                   >
-                    <span className="w-12 shrink-0 font-mono text-xs text-text-dim">
-                      {s.started_at.slice(11, 16)}
+                    {/* L'heure dans la langue de l'app : « 9:00 AM » en anglais
+                        (audit du 2026-10-20, constat 41). */}
+                    <span className="min-w-12 shrink-0 whitespace-nowrap font-mono text-xs text-text-dim">
+                      {formatHeure(s.started_at.slice(11, 16))}
                     </span>
                     <span
                       className={`pill w-14 shrink-0 border px-2 py-0.5 text-center text-[10px] font-semibold uppercase ${

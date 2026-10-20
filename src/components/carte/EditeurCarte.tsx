@@ -5,6 +5,7 @@ import {
   ajouterEnfant,
   ajouterFrere,
   annuler,
+  remplacerPresent,
   appliquer,
   basculerPli,
   deplacer,
@@ -35,7 +36,7 @@ import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
 import { objetsEmportes, resoudreEmportes, sansNoeudsPortesAilleurs } from "../../lib/objectifs/emportes";
 import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
-import { defaireDerniereSuppression, jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
+import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
 import { cibleDeSaisie } from "../../lib/annulerSuppression";
 import { etatsVivants, type EtatVivant } from "../../lib/carteEtat";
 import { addDays, todayStr } from "../../lib/logic";
@@ -116,8 +117,12 @@ export interface GestesObjectif {
   enfantsPossibles: (ref: RefNoeud) => EnfantObjectif[];
   creer: (parent: RefNoeud, type: EnfantObjectif, titre: string) => Promise<void>;
   renommer: (ref: RefNoeud, titre: string) => Promise<void>;
-  /** Supprime l'OBJET (deux temps, puis « Supprimés récemment ») — ou DÉTACHE une note rattachée. */
-  supprimer: (ref: RefNoeud, parent: RefNoeud | null, titre: string) => Promise<void>;
+  /**
+   * Supprime l'OBJET (deux temps, puis « Supprimés récemment ») — ou DÉTACHE une
+   * note rattachée. Rend de quoi le DÉFAIRE, quand quelque chose est parti :
+   * c'est ce que ⌘Z appelle (2026-10-20).
+   */
+  supprimer: (ref: RefNoeud, parent: RefNoeud | null, titre: string) => Promise<(() => Promise<void>) | void>;
 }
 
 /** Les familles qui SONT un morceau de l'objectif — les autres y sont seulement rattachées. */
@@ -268,6 +273,25 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const courante = histoire.present;
   const histoireRef = useRef(histoire);
   histoireRef.current = histoire;
+  /**
+   * ⭐ LE NŒUD QUI VIENT DE NAÎTRE, et l'état de carte qui l'a vu naître
+   * (contrôle du 12/10, rang 19 : « le premier ⌘Z vide le nom »). Créer un
+   * nœud était un pas d'historique, lui donner son nom un second : le premier
+   * ⌘Z laissait un nœud VIDE à l'écran. Son premier nom REMPLACE l'état de sa
+   * naissance (`remplacerPresent`) : un seul ⌘Z défait les deux.
+   */
+  const naissance = useRef<{ id: string; etat: Carte } | null>(null);
+  /**
+   * ⭐ CARTE D'OBJECTIF : CE QUE ⌘Z DÉFAIT (contrôle du 12/10, rang 19 ; audit
+   * du 2026-10-20, rang 23). Ce qu'on y fait est écrit dans les OBJETS — la
+   * carte se re-dérive et repart d'un historique vide, si bien que ⌘Z ne
+   * défaisait rien. Chaque geste écrit range ici son contraire : une
+   * suppression, sa restauration ; un renommage, l'ancien nom. Le dernier part
+   * le premier. Les gestes d'écran (glisser, replier) restent dans
+   * l'historique de la carte, tant qu'elle ne s'est pas re-dérivée.
+   */
+  const [pileObjet, setPileObjet] = useState<(() => Promise<void>)[]>([]);
+  const empiler = (defaire: () => Promise<void>) => setPileObjet((p) => [...p, defaire].slice(-60));
   /**
    * ⭐ CE QU'UNE SUPPRESSION A EMPORTÉ, rangé sous l'état de carte qu'elle a
    * produit (2026-09-29). ⌘Z qui QUITTE cet état rend les objets ; ⌘⇧Z qui
@@ -586,12 +610,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   const choisirMention = useCallback(
     (r: Trouvaille) => {
       if (!edition) return;
-      modifier((c) => poserReference(c, edition, { kind: r.kind, uid: r.uid }, r.titre));
+      ecrireSurNoeud(edition, (c) => poserReference(c, edition, { kind: r.kind, uid: r.uid }, r.titre));
       fermerMention();
       setEdition(null);
       setSelection(edition);
     },
-    [edition, fermerMention, modifier],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [edition, fermerMention],
   );
 
   // ─── L'édition d'un nœud ───────────────────────────────────────────────────
@@ -712,13 +737,31 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         void objectif.creer(parentRef, attente.type, nom).finally(() => retirerAttente(attente));
         return;
       }
+      // Une citation abandonnée (« @ » seul, ou rien) dans le nœud qu'elle venait
+      // de créer : le nœud part avec elle, sans laisser de pas d'historique.
+      const neuf = naissance.current;
+      if (!objectif && neuf?.id === edition && ["", "@"].includes(brouillon.trim()) && histoireRef.current.present === neuf.etat) {
+        naissance.current = null;
+        // Recule d'un pas SANS le ranger dans « Rétablir » : rien à rétablir.
+        setHistoire((h) => (h.passe.length ? { passe: h.passe.slice(0, -1), present: h.passe[h.passe.length - 1], futur: h.futur } : h));
+        setSelection(noeudDe(neuf.etat, edition)?.parent ?? edition);
+        setEdition(null);
+        fermerMention();
+        return;
+      }
       if (garder) {
         const suivante = validerEdition(edition, brouillon);
         if (suivante !== courante) {
-          setHistoire((h) => appliquer(h, suivante));
+          ecrireSurNoeud(edition, () => suivante);
           // Renommer le nœud RENOMME l'objet — la feuille de route le montre aussitôt.
           const n = noeudDe(courante, edition);
-          if (objectif && n?.ref) void objectif.renommer(n.ref, brouillon.trim());
+          if (objectif && n?.ref) {
+            const ref = n.ref;
+            const ancien = n.texte;
+            void objectif.renommer(ref, brouillon.trim());
+            // ⌘Z rend l'ancien nom (voir `pileObjet`).
+            if (ancien.trim()) empiler(() => objectif.renommer(ref, ancien));
+          }
         }
       }
       setEdition(null);
@@ -755,19 +798,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === "z") {
         // Carte d'objectif, un nom de nœud en cours de frappe : ⌘Z défait la
-        // FRAPPE, c'est au champ (avant le 2026-10-20 la touche était avalée).
+        // FRAPPE, c'est au champ (lot 6, 2026-10-21 ; la touche était avalée).
+        // Hors frappe, c'est la pile des gestes écrits du lot 7 (`pileObjet`).
         if (objectif && (edition || cibleDeSaisie(document.activeElement))) {
           e.stopPropagation();
           return;
         }
         e.preventDefault();
         e.stopPropagation();
-        // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets. ⌘Z y
-        // rend la dernière SUPPRESSION (2026-10-20, audit complet, constat 23) —
-        // le nœud revient avec sa tâche ou son étape, par la corbeille. Le
-        // reste (renommer, déplacer) ne se défait pas ici.
+        // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets. ⌘Z
+        // défait le dernier geste écrit (`pileObjet`) — jusqu'au 2026-10-20 il
+        // ne défaisait rien. ⌘⇧Z n'y rétablit rien : le geste défait a
+        // repris sa place dans les données, la carte s'est re-dérivée.
         if (objectif) {
-          if (!e.shiftKey) void defaireDerniereSuppression();
+          if (!e.shiftKey && !edition) defaireObjet();
           return;
         }
         if (e.shiftKey) refaire();
@@ -872,10 +916,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         if (meta && objectif) {
           ouvrirCreation("frere");
         } else if (meta) {
-          const { carte: suivante, neuf } = ajouterFrere(courante, selection);
-          setHistoire((h) => appliquer(h, suivante));
-          setSelection(neuf);
-          ouvrirEdition(neuf, "", false);
+          naitre(ajouterFrere(courante, selection));
         } else if (renommable(n)) {
           ouvrirEdition(selection, n.texte, true);
         }
@@ -889,10 +930,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           ouvrirCreation("enfant");
           return;
         }
-        const { carte: suivante, neuf } = ajouterEnfant(courante, selection);
-        setHistoire((h) => appliquer(h, suivante));
-        setSelection(neuf);
-        ouvrirEdition(neuf, "", false);
+        naitre(ajouterEnfant(courante, selection));
         return;
       }
       if (e.key === "Backspace" || e.key === "Delete") {
@@ -939,6 +977,13 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         if (renommable(n)) ouvrirEdition(selection, n.texte, true);
         return;
       }
+      // « @ » CITE, comme le bouton (la légende le promet : « @ citer un
+      // objet ») — dans un nœud neuf, sans effacer celui-ci (constat 30).
+      if (e.key === "@" && !meta && !objectif) {
+        e.preventDefault();
+        citer();
+        return;
+      }
       // Une frappe imprimable ouvre l'édition et REMPLACE le texte : c'est ce
       // qu'on attend d'une carte mentale, où l'on renomme plus qu'on ne corrige.
       if (!meta && !e.altKey && e.key.length === 1 && (!objectif || renommable(n))) {
@@ -953,7 +998,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     // garderait la fermeture du rendu précédent — donc `arme` à `null` pour
     // toujours, et le second ⌫ ne confirmerait jamais. C'est le § 9.1 de
     // `PIEGES.md`, repris à l'identique.
-  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, objectif, onFermer, ouvrirEdition, rattache, selection, typage, versObjectif]);
+  }, [arme, armeReorg, courante, edition, fermerEdition, fermerMention, mention, modifier, objectif, onFermer, ouvrirEdition, pileObjet, rattache, selection, typage, versObjectif]);
 
   // ─── Panoramique, zoom, et « tout voir » ───────────────────────────────────
 
@@ -1246,10 +1291,27 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     }
     const base = edition ? validerEdition(edition, brouillon) : courante;
     const r = comment === "enfant" ? ajouterEnfant(base, selection) : ajouterFrere(base, selection);
-    setHistoire((h) => appliquer(h, r.carte));
-    setSelection(r.neuf);
     setEdition(null);
-    ouvrirEdition(r.neuf, "", false);
+    naitre(r);
+  };
+
+  /** Un nœud neuf entre dans l'historique, et l'édition s'ouvre sur lui (voir `naissance`). */
+  const naitre = (r: { carte: Carte; neuf: string }, texte = "") => {
+    setHistoire((h) => appliquer(h, r.carte));
+    naissance.current = { id: r.neuf, etat: r.carte };
+    setSelection(r.neuf);
+    ouvrirEdition(r.neuf, texte, false);
+  };
+
+  /**
+   * Écrit un changement de `id`. Si c'est le PREMIER changement d'un nœud qui
+   * vient de naître, et que rien n'a bougé depuis, il fait corps avec la
+   * naissance : un seul pas d'historique.
+   */
+  const ecrireSurNoeud = (id: string, suivante: (c: Carte) => Carte) => {
+    const n = naissance.current;
+    naissance.current = null;
+    setHistoire((h) => (n?.id === id && h.present === n.etat ? remplacerPresent(h, suivante(h.present)) : appliquer(h, suivante(h.present))));
   };
 
   const modifierTexte = () => {
@@ -1258,11 +1320,26 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     ouvrirEdition(selection, n.texte, true);
   };
 
-  /** Transforme le nœud en citation : on ouvre le champ SUR un « @ » déjà tapé. */
+  /**
+   * Cite un objet : on ouvre un champ SUR un « @ » déjà tapé.
+   *
+   * ⚠️ DANS UN NŒUD NEUF, sous celui qu'on regarde (audit du 2026-10-20,
+   * constat d'usage 30 ; A06b-06). Le geste ouvrait la saisie du nœud
+   * SÉLECTIONNÉ : son texte disparaissait sous le « @ », et l'objet choisi le
+   * remplaçait. Seul un nœud encore VIDE (qu'on vient de créer) reçoit la
+   * citation lui-même.
+   */
   const citer = () => {
-    if (!noeudDe(courante, selection)) return;
+    const n = noeudDe(courante, selection);
+    if (!n) return;
     chercherALOuverture.current = true;
-    ouvrirEdition(selection, "@", false);
+    if (!n.texte.trim() && !n.ref) {
+      ouvrirEdition(selection, "@", false);
+      return;
+    }
+    const base = edition ? validerEdition(edition, brouillon) : courante;
+    setEdition(null);
+    naitre(ajouterEnfant(base, selection), "@");
   };
 
   /**
@@ -1298,7 +1375,9 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     // La carte re-dérivée le retirera d'elle-même.
     if (objectif && n.ref) {
       const parent = n.parent ? noeudDe(courante, n.parent) : undefined;
-      void objectif.supprimer(n.ref, parent?.ref ?? null, n.texte);
+      void objectif.supprimer(n.ref, parent?.ref ?? null, n.texte).then((defaire) => {
+        if (defaire) empiler(defaire);
+      });
       setSelection(n.parent);
       return;
     }
@@ -1330,6 +1409,17 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     });
     const partis = elements.filter((e) => jetes.some((j) => j.kind === e.kind && j.id === e.id));
     if (partis.length) jetsParEtat.current.set(etat, partis);
+  };
+
+  /**
+   * ⌘Z, carte d'objectif : le dernier geste ÉCRIT dans les objets est défait
+   * (voir `pileObjet`) ; sans lui, le dernier geste d'écran.
+   */
+  const defaireObjet = () => {
+    const dernier = pileObjet[pileObjet.length - 1];
+    if (!dernier) return defaire();
+    setPileObjet((p) => p.slice(0, -1));
+    void dernier();
   };
 
   /** ⌘Z — la carte recule d'un geste ; si ce geste avait emporté des objets, ils reviennent. */
@@ -1518,12 +1608,31 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
     const el = scene.current?.querySelector<HTMLElement>(`[data-noeud="${CSS.escape(n.id)}"]`);
     if (el) menuCreation.ouvrirSurElement(el, parentId);
   };
-  const commencerEnfant = (parentId: string, type: EnfantObjectif) => {
+  const commencerEnfant = (parentId: string, type: EnfantObjectif, texte = "") => {
     const { carte: suivante, neuf } = ajouterEnfant(courante, parentId);
     setHistoire((h) => appliquer(h, suivante));
     setEnfantEnAttente({ id: neuf, parentId, type });
     setSelection(neuf);
-    ouvrirEdition(neuf, "", false);
+    ouvrirEdition(neuf, texte, false);
+  };
+  /**
+   * ⭐ ON TAPE AVANT D'AVOIR CHOISI LE TYPE (audit du 2026-10-20, constat
+   * d'usage 37). « Sous-nœud » ouvre le menu Tâche · Étape · Habitude, sans
+   * champ : la première lettre tapée y déplaçait la sélection du menu, et le
+   * nom commencé était perdu. Une lettre tapée dans ce menu crée le premier
+   * type possible — la TÂCHE d'abord, comme partout depuis le 2026-10-12 — et
+   * devient la première lettre de son nom. Le choix d'un type reste la règle
+   * de cette carte (décision écrite) : on peut toujours le prendre au clavier
+   * par ↑↓ et Entrée, ou à la souris.
+   */
+  const creerEnTapant = (lettre: string): boolean => {
+    const parentId = menuCreation.cible;
+    if (!parentId) return false;
+    const premier = entreesCreation(parentId).find((e) => !!e && !e.desactive);
+    if (!premier) return false;
+    menuCreation.fermer();
+    commencerEnfant(parentId, premier.id as EnfantObjectif, lettre);
+    return true;
   };
   const entreesCreation = (parentId: string): EntreePossible[] => {
     if (!objectif) return [];
@@ -1724,6 +1833,20 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           </button>
           </>
           )}
+          {!lecture && objectif && (
+            // ⭐ Carte d'objectif : ⌘Z défait le dernier geste écrit (2026-10-20).
+            <button
+              type="button"
+              onClick={defaireObjet}
+              disabled={pileObjet.length === 0 && histoire.passe.length === 0}
+              data-tip={t("Annuler|défaire")}
+              data-tip-sub={t("Rend ce que tu viens de supprimer ou de renommer dans la carte.")}
+              data-tip-kbd={kbd("⌘Z")}
+              className={outil}
+            >
+              <IconReset className="h-3.5 w-3.5" />
+            </button>
+          )}
           <span className="mx-0.5 h-5 w-px bg-border" />
           {!lecture && !objectif && (
             /* ⭐ LE PONT VERS LES OBJECTIFS EST ICI, dans l'éditeur, et pas dans
@@ -1846,7 +1969,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
           {!objectif && (
           <Outil
             libelle={t("Citer un objet")}
-            aide={t("Remplace le nœud par un lien vers une note, une tâche, une fiche…")}
+            aide={t("Ajoute sous le nœud un lien vers une note, une tâche, une fiche…")}
             raccourci="@"
             disabled={!noeudSel}
             onClick={citer}
@@ -2370,6 +2493,7 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         etat={menuCreation}
         libelle={t("Ajouter sous ce nœud")}
         entrees={menuCreation.cible ? entreesCreation(menuCreation.cible) : []}
+        surLettre={creerEnTapant}
       />
 
       {typage && !lecture && donnees && (

@@ -80,7 +80,13 @@ describe("chaque ligne dit d'où vient son pourcentage", () => {
     expect(origineEnClair(feuille({ etapes: [1, 3] }))).toBe("1 étape sur 3");
     expect(origineEnClair(feuille({ etapes: [2, 3] }))).toBe("2 étapes sur 3");
     expect(origineEnClair(feuille({ etapes: [0, 3] }))).toBe("0 étape sur 3");
-    expect(origineEnClair(feuille({ etapes: [3, 5], elements: [1, 2] }))).toBe("3 étapes sur 5 · 1 tâche sur 2");
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-20 (constat d'usage 33) : attendait
+    // « 3 étapes sur 5 · 1 tâche sur 2 ». À côté d'étapes, le second compteur
+    // ne dit que les tâches rattachées à l'objectif LUI-MÊME — on lisait
+    // « 0 tâche sur 1 » au-dessus de deux tâches.
+    expect(origineEnClair(feuille({ etapes: [3, 5], elements: [1, 2] }))).toBe("3 étapes sur 5 · 1 tâche directe sur 2");
+    expect(origineEnClair(feuille({ etapes: [0, 2], elements: [0, 1] }))).toBe("0 étape sur 2 · 0 tâche directe sur 1");
+    expect(origineEnClair(feuille({ etapes: [1, 2], elements: [2, 3], taches: false }))).toBe("1 étape sur 2 · 2 éléments directs sur 3");
   });
 
   it("le manuel se dit manuel", () => {
@@ -124,7 +130,8 @@ describe("les compteurs, en anglais", () => {
     const en = await import("./libelles");
     expect(en.origineEnClair(feuille({ etapes: [1, 3] }))).toBe("1 step out of 3");
     expect(en.origineEnClair(feuille({ etapes: [0, 3] }))).toBe("0 steps out of 3");
-    expect(en.origineEnClair(feuille({ etapes: [2, 3], elements: [0, 1] }))).toBe("2 steps out of 3 · 0 tasks out of 1");
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-20 (constat 33) : « 0 tasks out of 1 ».
+    expect(en.origineEnClair(feuille({ etapes: [2, 3], elements: [0, 1] }))).toBe("2 steps out of 3 · 0 direct tasks out of 1");
     expect(en.origineEnClair(feuille({ elements: [1, 4], taches: false }))).toBe("1 item out of 4");
     vi.stubGlobal("navigator", { userAgent: "test", language: "fr-FR", languages: ["fr-FR"] });
   });

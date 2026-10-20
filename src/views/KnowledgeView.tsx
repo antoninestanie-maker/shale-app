@@ -93,6 +93,7 @@ import {
   validerObjet,
 } from "../lib/objets";
 import { consommerDemande } from "../lib/naviguer";
+import { ecritureDifferee } from "../lib/ecritureDifferee";
 import {
   createKnowledgeEntry,
   createSujet,
@@ -193,9 +194,15 @@ export default function KnowledgeView() {
    * il vient d'être chargé en `lazy` (voir `lib/naviguer.ts`).
    */
   useEffect(() => {
+    // ⚠️ La vue était déjà là : la demande déposée est servie, on la retire —
+    // sinon elle rouvrait la même fiche au montage suivant (audit du
+    // 2026-10-20, objectifs-10, corrigé large : le motif de `NotesView`).
     const onOpenNote = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
-      if (id) setOpenId(id);
+      if (id) {
+        setOpenId(id);
+        consommerDemande("knowledge");
+      }
     };
     // ⭐ Une mention vers un SUJET ouvre sa page — c'est-à-dire son périmètre.
     // Depuis la fusion, il n'y a plus d'onglet à sélectionner : citer @Trading
@@ -205,6 +212,7 @@ export default function KnowledgeView() {
       if (id) {
         setOpenId(null);
         setScope(id);
+        consommerDemande("object");
       }
     };
     window.addEventListener("sb:open-knowledge", onOpenNote);
@@ -1092,6 +1100,27 @@ function PageSujet({
   const { rafraichir, enregistrerLiens } = useLiens("object", sujet.id);
   const [corpsFrais, setCorpsFrais] = useState<CorpsRafraichi | null>(null);
 
+  /**
+   * ⭐ LA DESCRIPTION S'ÉCRIT 700 MS APRÈS LA DERNIÈRE FRAPPE, une écriture à la
+   * fois (audit du 2026-10-20, savoir-7 ; A10-13) — le contrat des notes et
+   * des fiches. Chaque lettre lançait l'écriture du corps, la réconciliation
+   * des liens et le rechargement de tout le Savoir, sans attendre la
+   * précédente. Vidée au démontage et au changement de sujet : rien ne se perd.
+   */
+  const ecritureCorps = useMemo(
+    () =>
+      ecritureDifferee<{ id: number; html: string; liens: (html: string) => Promise<unknown>; apres: () => Promise<unknown> }>(
+        async ({ id, html, liens, apres }) => {
+          await updateSujet(id, { body: html });
+          await liens(html);
+          await apres();
+        },
+        700,
+      ),
+    [],
+  );
+  useEffect(() => () => void ecritureCorps.vider(), [ecritureCorps, sujet.id]);
+
   useEffect(() => {
     if (!complet) return;
     let annule = false;
@@ -1222,11 +1251,7 @@ function PageSujet({
               console.error(messageEcritureRefusee(complet.id, idSource));
               return;
             }
-            void (async () => {
-              await updateSujet(complet.id, { body: html });
-              await enregistrerLiens(html);
-              await onChange();
-            })();
+            ecritureCorps.planifier({ id: complet.id, html, liens: enregistrerLiens, apres: onChange });
           }}
           placeholder={t("Ce que tu sais de ce sujet. Tape @ pour citer autre chose.")}
         />

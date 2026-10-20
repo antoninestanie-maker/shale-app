@@ -1374,6 +1374,19 @@ export function appliquer(h: Historique, carte: Carte): Historique {
   };
 }
 
+/**
+ * Remplace le PRÉSENT sans créer de pas — « Rétablir » se vide, comme après
+ * tout geste neuf.
+ *
+ * ⭐ Le premier nom d'un nœud qui vient de naître fait corps avec sa
+ * naissance (contrôle du 12/10, rang 19) : créer un nœud puis le nommer
+ * faisait DEUX pas, et le premier ⌘Z laissait un nœud vide à l'écran.
+ */
+export function remplacerPresent(h: Historique, carte: Carte): Historique {
+  if (ecrireCarte(carte) === ecrireCarte(h.present)) return h;
+  return { ...h, present: carte, futur: [] };
+}
+
 export function annuler(h: Historique): Historique {
   if (h.passe.length === 0) return h;
   return {

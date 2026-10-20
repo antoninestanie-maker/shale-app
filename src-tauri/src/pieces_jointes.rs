@@ -114,18 +114,86 @@ pub fn piece_jointe_presente(app: AppHandle, uid: String) -> Result<bool, String
     Ok(chemin_de(&app, &uid)?.is_file())
 }
 
+/// Sous-dossier des VUES d'ouverture : `ouvertes/<uid>/<nom d'origine>`.
+const OUVERTES: &str = "ouvertes";
+
+/// Le nom sous lequel le système verra la pièce jointe à l'ouverture.
+///
+/// ⚠️ Le nom vient de la base (`files.name`), donc du pont JS : on n'en garde
+/// que le DERNIER segment, sans séparateur ni caractère de contrôle, et on
+/// refuse `.`/`..`. Il ne choisit qu'un nom de fichier dans un dossier que
+/// nous avons calculé — jamais un chemin.
+fn nom_d_ouverture(nom: &str) -> Option<String> {
+    let dernier = nom.rsplit(['/', '\\']).next().unwrap_or("");
+    let net: String = dernier.chars().filter(|c| !c.is_control()).collect();
+    let net = net.trim();
+    if net.is_empty() || net == "." || net == ".." {
+        return None;
+    }
+    // Les noms très longs sont refusés par certains systèmes de fichiers :
+    // on coupe sur une frontière de caractère, l'extension en dernier ressort.
+    if net.len() <= 200 {
+        return Some(net.to_string());
+    }
+    let ext = std::path::Path::new(net)
+        .extension()
+        .map(|e| e.to_string_lossy().to_string())
+        .filter(|e| e.len() <= 16);
+    let mut base: String = net.chars().take(150).collect();
+    if let Some(e) = ext {
+        base.push('.');
+        base.push_str(&e);
+    }
+    Some(base)
+}
+
 /// Ouvre la pièce jointe dans le logiciel du système.
 ///
 /// Rend `false` quand les octets ne sont pas là — cf. `piece_jointe_presente`.
+///
+/// ⭐ OUVERTE SOUS SON NOM D'ORIGINE (audit du 2026-10-20, donnees-5 ; A01-01).
+/// Les octets sont rangés sous leur `uid`, SANS extension : macOS ne
+/// reconnaissait pas le type (`public.data`) et ouvrait un PDF dans TextEdit,
+/// en caractères illisibles. On ouvre donc un LIEN DUR posé à
+/// `ouvertes/<uid>/<nom d'origine>` — même fichier, aucune copie, et le
+/// logiciel affiche « Contrat.pdf ». Le rangement par `uid` ne change pas :
+/// la présence, l'effacement et la synchronisation n'en savent rien. Si le
+/// lien dur échoue (volume qui n'en veut pas), on copie.
 #[tauri::command]
-pub fn ouvrir_piece_jointe(app: AppHandle, uid: String) -> Result<bool, String> {
+pub fn ouvrir_piece_jointe(app: AppHandle, uid: String, nom: Option<String>) -> Result<bool, String> {
     let p = chemin_de(&app, &uid)?;
     if !p.is_file() {
         return Ok(false);
     }
-    tauri_plugin_opener::open_path(p.to_string_lossy().to_string(), None::<&str>)
-        .map_err(|e| format!("ouverture de {} : {e}", p.display()))?;
+    let a_ouvrir = match nom.as_deref().and_then(nom_d_ouverture) {
+        Some(nom) => vue_d_ouverture(&dossier(&app)?, &uid, &nom, &p)?,
+        None => p.clone(),
+    };
+    tauri_plugin_opener::open_path(a_ouvrir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| format!("ouverture de {} : {e}", a_ouvrir.display()))?;
     Ok(true)
+}
+
+/// Pose (ou repose) `ouvertes/<uid>/<nom>` sur les octets de `source`.
+///
+/// ⚠️ Le dossier de l'uid est VIDÉ d'abord : un fichier renommé entre deux
+/// ouvertures laisserait sinon l'ancien nom à côté du nouveau, et un lien
+/// resté d'une version précédente des octets montrerait un contenu périmé.
+fn vue_d_ouverture(
+    racine: &std::path::Path,
+    uid: &str,
+    nom: &str,
+    source: &std::path::Path,
+) -> Result<PathBuf, String> {
+    let dossier_uid = racine.join(OUVERTES).join(uid);
+    let _ = std::fs::remove_dir_all(&dossier_uid);
+    std::fs::create_dir_all(&dossier_uid)
+        .map_err(|e| format!("création de {} : {e}", dossier_uid.display()))?;
+    let vue = dossier_uid.join(nom);
+    if std::fs::hard_link(source, &vue).is_err() {
+        std::fs::copy(source, &vue).map_err(|e| format!("copie de {} : {e}", source.display()))?;
+    }
+    Ok(vue)
 }
 
 /// Efface les octets d'une pièce jointe.
@@ -137,6 +205,9 @@ pub fn ouvrir_piece_jointe(app: AppHandle, uid: String) -> Result<bool, String> 
 #[tauri::command]
 pub fn supprimer_piece_jointe(app: AppHandle, uid: String) -> Result<(), String> {
     let p = chemin_de(&app, &uid)?;
+    // La vue d'ouverture part avec les octets (un lien dur les garderait sinon
+    // sur le disque). `chemin_de` a validé l'uid : ce dossier est le sien.
+    let _ = std::fs::remove_dir_all(dossier(&app)?.join(OUVERTES).join(&uid));
     match std::fs::remove_file(&p) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -175,6 +246,50 @@ mod tests {
     fn refuse_un_separateur_de_chemin() {
         assert!(!uid_acceptable("a/b"));
         assert!(!uid_acceptable("a\\b"));
+    }
+
+    use super::{nom_d_ouverture, vue_d_ouverture};
+
+    #[test]
+    fn le_nom_d_ouverture_garde_le_nom_et_son_extension() {
+        assert_eq!(nom_d_ouverture("Contrat.pdf").as_deref(), Some("Contrat.pdf"));
+        assert_eq!(nom_d_ouverture("  Facture mars.PDF ").as_deref(), Some("Facture mars.PDF"));
+    }
+
+    #[test]
+    fn le_nom_d_ouverture_ne_sort_jamais_du_dossier() {
+        assert_eq!(nom_d_ouverture("../../shale.db").as_deref(), Some("shale.db"));
+        assert_eq!(nom_d_ouverture("a\\b\\c.txt").as_deref(), Some("c.txt"));
+        assert_eq!(nom_d_ouverture(".."), None);
+        assert_eq!(nom_d_ouverture(""), None);
+        assert_eq!(nom_d_ouverture("dossier/"), None);
+    }
+
+    #[test]
+    fn un_nom_demesure_est_coupe_en_gardant_l_extension() {
+        let long = format!("{}.pdf", "é".repeat(300));
+        let n = nom_d_ouverture(&long).unwrap();
+        assert!(n.ends_with(".pdf"));
+        assert!(n.chars().count() <= 160);
+    }
+
+    #[test]
+    fn la_vue_d_ouverture_porte_l_extension_et_les_memes_octets() {
+        let racine = std::env::temp_dir().join(format!("shale-pj-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&racine);
+        std::fs::create_dir_all(&racine).unwrap();
+        let octets = racine.join("3f2a1b4c");
+        std::fs::write(&octets, b"%PDF-1.7 test").unwrap();
+
+        let vue = vue_d_ouverture(&racine, "3f2a1b4c", "Contrat.pdf", &octets).unwrap();
+        assert_eq!(vue.extension().unwrap(), "pdf");
+        assert_eq!(std::fs::read(&vue).unwrap(), b"%PDF-1.7 test");
+
+        // Renommée entre deux ouvertures : l'ancien nom ne reste pas à côté.
+        let vue2 = vue_d_ouverture(&racine, "3f2a1b4c", "Contrat signé.pdf", &octets).unwrap();
+        assert!(vue2.is_file());
+        assert!(!vue.exists());
+        let _ = std::fs::remove_dir_all(&racine);
     }
 
     #[test]

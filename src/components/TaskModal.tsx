@@ -6,9 +6,9 @@ import {
   serialiserRecurrence,
   type ModeRecurrence,
 } from "../lib/logic";
-import { changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
+import { appliquerReport, changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
-import { changerEtat, etatDe, planificationDeSaisie } from "../lib/taches";
+import { changerEtat, etatDe, planificationDeSaisie, replanifier, type Report } from "../lib/taches";
 import { todayStr } from "../lib/logic";
 import RouletteHeure from "./calendrier/RouletteHeure";
 import type { EtatTache, Goal, Priority, Tag, Task } from "../lib/types";
@@ -192,6 +192,8 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
     };
     if (task) {
       await updateTask(task.id, input);
+      const report = reportApresModification(task, input.due_date ?? null);
+      if (report) await appliquerReport(task.id, report);
       await enregistrerEtat(task);
     } else await createTask(input);
     await onSaved();
@@ -525,4 +527,18 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
       </div>
     </div>
   );
+}
+
+/**
+ * ⭐ CHANGER L'ÉCHÉANCE DANS « MODIFIER », C'EST REPLANIFIER (audit du
+ * 2026-10-20, taches-7 ; A07a-23). Le menu « Dater », la date sur la ligne et
+ * le glisser du Calendrier remettent le compteur de reports à zéro
+ * (`replanifier`) ; la fenêtre, elle, ne touchait que `due_date` : le badge
+ * « reportée 2 fois » restait, et la tâche, une fois repassée en retard,
+ * demandait une décision tout de suite. Une échéance retirée, ou inchangée,
+ * ne replanifie rien.
+ */
+export function reportApresModification(avant: Pick<Task, "due_date" | "postponed_count">, echeance: string | null): Report | null {
+  if (!echeance || echeance === avant.due_date || avant.postponed_count <= 0) return null;
+  return replanifier(echeance);
 }

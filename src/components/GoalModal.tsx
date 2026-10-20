@@ -22,7 +22,11 @@ interface Props {
   goals: Goal[];
   defaultParentId?: number | null; // l'objectif sous lequel la ligne naît, s'il est déjà connu
   onClose: () => void;
-  onSaved: () => Promise<void>;
+  /**
+   * `creeId` : l'objectif écrit, à la création seulement — la vue l'ouvre par
+   * son `id` plutôt que de deviner lequel est neuf (audit du 2026-10-20).
+   */
+  onSaved: (creeId?: number) => Promise<void>;
 }
 
 /** Libellés français, traduits à l'affichage — cf. `GoalsView`. */
@@ -172,6 +176,7 @@ export default function GoalModal({
       progress_pct: progress,
       manual_progress: manual ? 1 : 0,
     };
+    let creeId: number | undefined;
     if (goal) {
       await updateGoal(goal.id, input);
       // ⚠️ Pas par `updateGoal`, qui n'écrit que la fiche et ne connaît pas la
@@ -189,8 +194,9 @@ export default function GoalModal({
       const base = { scope: input.scope, category: input.category };
       for (const etape of etapesACreer(base, etapes, racineId)) await createGoal(etape);
       for (const t of tachesACreer(taches, racineId)) await createTask(t);
+      creeId = racineId;
     }
-    await onSaved();
+    await onSaved(creeId);
   };
 
   return (
@@ -224,7 +230,9 @@ export default function GoalModal({
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("Titre de l'objectif")}
+            // Une étape s'appelle une étape, jusque dans son champ (audit du
+            // 2026-10-20, constat 41 : « Edit step » proposait « Goal title »).
+            placeholder={estEtape ? t("Titre de l’étape") : t("Titre de l'objectif")}
             className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 

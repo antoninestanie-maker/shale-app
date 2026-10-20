@@ -88,14 +88,28 @@ export function origineEnClair(m: Mesure): string {
       if (o.elementsTotal > 0) {
         const v = { n: nombre(o.elementsFaits), total: nombre(o.elementsTotal) };
         const un = auSingulier(o.elementsFaits);
+        // ⭐ À CÔTÉ D'ÉTAPES, LES ÉLÉMENTS SONT « DIRECTS » (audit du
+        // 2026-10-20, constat d'usage 33). « 0 étape sur 2 · 0 tâche sur 1 »
+        // s'affichait au-dessus de DEUX tâches : celle de l'étape compte dans
+        // l'étape, ce compteur ne dit que ce qui est rattaché à l'objectif
+        // lui-même — le bloc « Rattaché directement » de la feuille de route.
+        const directs = o.etapesTotal > 0;
         morceaux.push(
           o.elementsSontDesTaches
-            ? un
-              ? t("{n} tâche sur {total}", v)
-              : t("{n} tâches sur {total}", v)
-            : un
-              ? t("{n} élément sur {total}", v)
-              : t("{n} éléments sur {total}", v),
+            ? directs
+              ? un
+                ? t("{n} tâche directe sur {total}", v)
+                : t("{n} tâches directes sur {total}", v)
+              : un
+                ? t("{n} tâche sur {total}", v)
+                : t("{n} tâches sur {total}", v)
+            : directs
+              ? un
+                ? t("{n} élément direct sur {total}", v)
+                : t("{n} éléments directs sur {total}", v)
+              : un
+                ? t("{n} élément sur {total}", v)
+                : t("{n} éléments sur {total}", v),
         );
       }
       return morceaux.join(" · ");

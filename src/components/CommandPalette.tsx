@@ -9,7 +9,7 @@ import {
 import { rechercherPartout } from "../lib/repo";
 import { ouvrirObjet } from "../lib/naviguer";
 import { EVT_PALETTE } from "../lib/palette";
-import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./liens/libelles";
+import { iconeDeTrouvaille, libelleDeTrouvaille } from "./liens/libelles";
 import { useIa } from "../lib/ia/useIa";
 import type { Trouvaille } from "../lib/recherche";
 
@@ -230,7 +230,7 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
                             index === selected ? "bg-surface-2 text-text" : "text-text-dim"
                           }`}
                         >
-                          <span className="shrink-0 text-text-dim">{ICONE_DE_KIND[o.kind]}</span>
+                          <span className="shrink-0 text-text-dim">{iconeDeTrouvaille(o)}</span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-text">{o.titre}</span>
                             {o.extrait && (
@@ -239,7 +239,7 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
                               </span>
                             )}
                           </span>
-                          <span className="hud-label shrink-0">{t(LIBELLE_DE_KIND[o.kind])}</span>
+                          <span className="hud-label shrink-0">{t(libelleDeTrouvaille(o))}</span>
                         </button>
                       </li>
                     );
@@ -252,8 +252,11 @@ export default function CommandPalette({ ctx, hasTrading = true, masques }: Prop
               </>
             ) : (
               <div className="flex items-center gap-3 px-4 py-3">
+                {/* ⚠️ Traduit, comme dans la liste (audit du 2026-10-20,
+                    savoir-12) : les titres d'`actions.ts` sont des clés
+                    françaises, et l'app anglaise lisait « Note rapide ». */}
                 <span className="shrink-0 text-sm text-text">
-                  {argAction.title}
+                  {t(argAction.title)}
                 </span>
                 <input
                   ref={inputRef}
