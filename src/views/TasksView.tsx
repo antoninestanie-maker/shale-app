@@ -413,7 +413,8 @@ export default function TasksView({ data, refresh }: Props) {
       );
     }
     return basculer(`t${task.id}:${today}`, task.done, async (fait) => {
-      await basculerTache(task, today, fait);
+      // La date relue AU CLIC (rythme-3) : `today` est celle du dernier rendu.
+      await basculerTache(task, todayStr(), fait);
       await refresh();
     });
   };

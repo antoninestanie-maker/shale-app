@@ -8,6 +8,7 @@ import {
 } from "../lib/logic";
 import { COULEUR_HABITUDE_PAR_DEFAUT, PALETTE_HABITUDES, derniersJours, serieHabitude } from "../lib/habitudes";
 import { useIsPhone } from "../lib/platform";
+import { jourDeCocheAffiche } from "../lib/jourDeCoche";
 import {
   addHabit,
   createNote,
@@ -115,7 +116,9 @@ export default function JournalView({ data, refresh, navigate }: Props) {
   const { etat: etatCoche, basculer } = useCochesOptimistes();
   const basculerHabitude = (habitId: number, date: string, reel: boolean) =>
     basculer(`h${habitId}:${date}`, reel, async (coche) => {
-      await setHabitCheck(habitId, date, coche);
+      // Le jour « aujourd'hui » se relit AU CLIC (rythme-3) ; un jour choisi
+      // dans la barre reste ce jour-là.
+      await setHabitCheck(habitId, jourDeCocheAffiche(date, today, todayStr()), coche);
       await refresh();
     });
   const entry = data.journal.find((j) => j.date === jour);

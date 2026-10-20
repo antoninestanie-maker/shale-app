@@ -27,6 +27,8 @@ import {
   profilDisponibilite,
 } from "../lib/calendrier/disponibilite";
 import { formaterDansPhrase } from "../lib/calendrier/champDate";
+import { AGENDA_JOURS, curseurApres, type ModeCalendrier } from "../lib/calendrier/navigation";
+import { jourDeCocheTache } from "../lib/jourDeCoche";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
 import {
@@ -86,10 +88,7 @@ type CibleCalendrier =
  * suggérés sont un fond en pointillé ; c'est Antonin qui dépose.
  */
 
-type Mode = "agenda" | "mois" | "semaine" | "jour";
-
-/** Sur combien de jours la vue agenda déroule. Un mois : au-delà, on planifie. */
-const AGENDA_JOURS = 30;
+type Mode = ModeCalendrier;
 
 /**
  * Combien d'alertes de chaque famille le bandeau montre avant de compter le
@@ -446,7 +445,12 @@ export default function CalendarView({ data, refresh }: Props) {
         tache,
         {
           ...communsTache,
-          basculer: (x) => void basculerTache(x, c.date, !faite).then(apresEvenement),
+          // ⭐ Une ponctuelle se coche À AUJOURD'HUI, comme partout ailleurs
+          // (Tâches, Aujourd'hui, « La faire maintenant ») : la date du bloc
+          // réécrivait un jour passé (0 tâche → 1/1) ou envoyait la coche dans
+          // le futur (temps-3, 2026-10-20). Une récurrente se coche jour par
+          // jour : son occurrence, c'est la date du bloc.
+          basculer: (x) => void basculerTache(x, jourDeCocheTache(x, c.date, todayStr()), !faite).then(apresEvenement),
           renommer: () => undefined, // omis : `renommable: false`
           modifier: (x) => ouvrirParId("task", x.id),
           focus: gesteFocus,
@@ -481,15 +485,11 @@ export default function CalendarView({ data, refresh }: Props) {
   const naviguer = useCallback(
     (sens: number) => {
       setMouvement((m) => ({ tour: m.tour + 1, sens }));
-      if (mode === "jour") setCurseur((c) => addDays(c, sens));
-      else if (mode === "semaine") setCurseur((c) => addDays(c, 7 * sens));
-      else {
-        const d = new Date(`${curseur}T12:00:00`);
-        d.setMonth(d.getMonth() + sens);
-        setCurseur(toDateStr(d));
-      }
+      // La règle (agenda par pages de 30 jours, mois sans débordement) vit dans
+      // `lib/calendrier/navigation.ts`, testée.
+      setCurseur((c) => curseurApres(mode, c, sens));
     },
-    [mode, curseur],
+    [mode],
   );
 
   const titre = useMemo(() => {

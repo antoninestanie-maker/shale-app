@@ -4,6 +4,7 @@ import { IconFlame } from "./icons";
 import { CarresHabitude, GrilleHabitudes } from "./habitudes/Grilles";
 import { JOURS_HISTORIQUE, derniersJours, serieHabitude } from "../lib/habitudes";
 import { todayStr } from "../lib/logic";
+import { jourDeCocheAffiche } from "../lib/jourDeCoche";
 import { estExemple } from "../lib/onboarding/exemples";
 import { setHabitCheck } from "../lib/repo";
 import type { AppData } from "../lib/types";
@@ -88,7 +89,9 @@ export default function HabitudesDuJour({
                   couleur={habit.color}
                   onBascule={() =>
                     void basculer(`h${habit.id}:${today}`, cochee, async (coche) => {
-                      await setHabitCheck(habit.id, today, coche);
+                      // La date relue AU CLIC : après minuit sans nouveau rendu,
+                      // `today` est encore la veille (rythme-3, 2026-10-20).
+                      await setHabitCheck(habit.id, jourDeCocheAffiche(today, today, todayStr()), coche);
                       await refresh();
                     })
                   }
