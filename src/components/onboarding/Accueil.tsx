@@ -189,6 +189,10 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
 
   const aller = (cible: Etape) => {
     setAlerte(null);
+    // Un bloc pas encore commencé propose les jours de travail DÉCLARÉS — pas
+    // ceux d'avant l'écran 2 (le brouillon vit ici depuis le 2026-10-20).
+    if (cible === "contraints")
+      setBrouillonBloc((b) => (b.label.trim() ? b : brouillonVide(reglages.travail.jours)));
     setEtape(cible);
   };
 

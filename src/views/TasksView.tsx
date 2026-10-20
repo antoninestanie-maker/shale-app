@@ -951,6 +951,7 @@ export default function TasksView({ data, refresh }: Props) {
         placeholder={t("Ajouter une tâche…")}
         aria={t("Ajouter une tâche")}
         onAjouter={ajouter}
+        pastillePriorite={<PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />}
       >
         {tagFilter && (
           <span
@@ -962,7 +963,6 @@ export default function TasksView({ data, refresh }: Props) {
             {tagFilter}
           </span>
         )}
-        <PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />
       </SaisieRapide>
 
       {/* Les filtres : les tags, et une recherche. */}

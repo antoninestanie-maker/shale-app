@@ -57,8 +57,15 @@ export default function SaisieRapide(props: {
   placeholder: string;
   /** Le nom du champ pour un lecteur d'écran. */
   aria: string;
-  /** Ce que la ligne porte en plus, à droite : le tag regardé, la priorité. */
+  /** Ce que la ligne porte en plus, à droite : le tag regardé. */
   children?: ReactNode;
+  /**
+   * La pastille de priorité de l'écran. Elle s'efface quand la phrase dit la
+   * sienne (« urgent ») : deux priorités côte à côte, l'une « Élevée »,
+   * l'autre « Moyenne », ne disaient plus laquelle comptait (vu en démo, le
+   * 2026-10-21).
+   */
+  pastillePriorite?: ReactNode;
   /** Un « + » devant le champ (la ligne de Tâches). */
   plus?: boolean;
   className?: string;
@@ -284,6 +291,7 @@ export default function SaisieRapide(props: {
             </span>
           )}
           {props.children}
+          {!resolue.priorite && props.pastillePriorite}
         </span>
       </div>
     </form>
