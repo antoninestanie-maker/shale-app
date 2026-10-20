@@ -1,7 +1,7 @@
 import { objectifsEnPeril, type ObjectifEnPeril } from "../calendrier/peril";
 import type { ContexteProgression } from "../objectifs/progression";
 import { racineDe } from "../objectifs/structure";
-import { demandeUneDecision, tachesADecider, tachesEnRetard } from "../taches";
+import { demandeUneDecision, estGlisseeJusquA, tachesADecider, tachesEnRetard } from "../taches";
 import type { Completion, Goal, Task } from "../types";
 
 /**
@@ -87,7 +87,9 @@ export function actionsRequises(entree: EntreeActions, jour: string): ActionRequ
       kind: "task",
       id: t.id,
       titre: t.label,
-      echeance: t.due_date ?? null,
+      // Reportée jusqu'à aujourd'hui par le Calendrier : son retard court depuis
+      // sa date d'ORIGINE (« en retard de 0 j » sinon — `estGlisseeJusquA`).
+      echeance: (estGlisseeJusquA(t, jour) ? t.postponed_from : null) ?? t.due_date ?? null,
       reports: t.postponed_count ?? 0,
     });
   }

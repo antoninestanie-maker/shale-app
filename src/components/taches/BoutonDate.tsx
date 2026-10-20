@@ -2,6 +2,7 @@ import { choisirDateDeTache, type GestesTache } from "../menu/catalogue/tache";
 import { dateAuFil, formaterComplet } from "../../lib/calendrier/champDate";
 import { t } from "../../lib/i18n";
 import { ancreSurElement } from "../../lib/selecteurDate";
+import { estGlisseeJusquA } from "../../lib/taches";
 import type { Task } from "../../lib/types";
 
 /**
@@ -24,6 +25,10 @@ export default function BoutonDate(props: {
 }) {
   const { task, aujourdHui } = props;
   if (!task.due_date) return null;
+  // ⭐ Reportée jusqu'à aujourd'hui par le Calendrier, elle est EN RETARD
+  // (`estGlisseeJusquA`, 2026-10-20) : on dit depuis quand elle attend — sa
+  // date d'origine —, pas « aujourd'hui » dans la ligne « En retard ».
+  const jour = estGlisseeJusquA(task, aujourdHui) ? (task.postponed_from ?? task.due_date) : task.due_date;
   return (
     <button
       type="button"
@@ -33,7 +38,7 @@ export default function BoutonDate(props: {
         choisirDateDeTache(task, props.dater, ancreSurElement(bouton), bouton);
       }}
       aria-haspopup="dialog"
-      aria-label={t("Échéance : {date}. Changer", { date: formaterComplet(task.due_date) })}
+      aria-label={t("Échéance : {date}. Changer", { date: formaterComplet(jour) })}
       data-tip={t("Changer la date")}
       // Au doigt : 44 pt de cible, mais la ligne ne grandit pas d'autant — la
       // marge négative laisse la zone déborder sans écarter le libellé de ses faits.
@@ -44,7 +49,7 @@ export default function BoutonDate(props: {
         props.className ?? ""
       }`}
     >
-      {dateAuFil(task.due_date, aujourdHui)}
+      {dateAuFil(jour, aujourdHui)}
     </button>
   );
 }

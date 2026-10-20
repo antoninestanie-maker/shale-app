@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addDays, dayStat, estPrevueLe, estRattrapage, statDeListe, todayTasks } from "./logic";
 import { coche, tache } from "./objectifs/objectif.testutil";
 import { tachesHorsCompte } from "./performance/analyse";
+import { actionsRequises } from "./pointAction/regle";
 import { estGlisseeJusquA, reportsAAppliquer, tachesEnRetard } from "./taches";
 import { sectionDe } from "./tachesVue";
 import type { Completion, Task } from "./types";
@@ -87,6 +88,15 @@ describe("le report du Calendrier et le compte du jour", () => {
     const t = tache({ id: 9, due_date: AUJ, postponed_count: 0, postponed_from: AUJ });
     expect(estGlisseeJusquA(t, AUJ)).toBe(false);
     expect(estPrevueLe(t, AUJ)).toBe(true);
+  });
+
+  it("le point d'action la garde en retard, depuis sa date d'origine (pas « 0 j »)", () => {
+    const apres = ouvrirLeCalendrier(avant, coches);
+    const a = actionsRequises({ tasks: apres, completions: coches, goals: [] }, AUJ);
+    expect(a.map((x) => [x.titre, x.genre, x.echeance])).toEqual([
+      ["A", "tache-en-retard", "2026-10-18"],
+      ["B", "tache-en-retard", "2026-10-19"],
+    ]);
   });
 
   it("« En retard » range une tâche reportée à sa date d'origine", () => {
