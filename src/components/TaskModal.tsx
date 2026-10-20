@@ -215,12 +215,16 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                     aria-label={t("En attente de")}
                     className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
                   />
-                  <ChampDate
-                    valeur={relance}
-                    onChange={setRelance}
-                    aria={t("Relance")}
-                    placeholder={t("Sans relance")}
-                  />
+                  <div>
+                    {/* Étiquetée : seule, « Demain » se confondait avec l'échéance plus bas. */}
+                    <p className="mb-1.5 text-xs font-medium text-text-dim">{t("Relance")}</p>
+                    <ChampDate
+                      valeur={relance}
+                      onChange={setRelance}
+                      aria={t("Relance")}
+                      placeholder={t("Sans relance")}
+                    />
+                  </div>
                 </div>
               )}
               {etat === "dropped" && (

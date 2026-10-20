@@ -593,7 +593,15 @@ export default function TasksView({ data, refresh }: Props) {
     const aAgir = !task.done && requise(cleTache(task.id));
     const point = <PointAction className="ml-1.5" libelle={t("Action requise")} />;
     const pointSurLeReport = aAgir && task.postponed_count > 0;
-    if (task.due_date && (section === "retard" || section === "avenir" || (parObjectif && section === "aujourdhui"))) {
+    // En attente ou abandonnée, la section ne dit pas QUAND : la ligne le dit (2026-10-20).
+    if (
+      task.due_date &&
+      (section === "retard" ||
+        section === "avenir" ||
+        section === "attente" ||
+        section === "abandonnees" ||
+        (parObjectif && section === "aujourdhui"))
+    ) {
       push(
         <span key="date" className="inline-flex items-center">
         <BoutonDate

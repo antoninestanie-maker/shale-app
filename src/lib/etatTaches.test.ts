@@ -12,6 +12,7 @@ import {
   estSuspendue,
   etatDe,
   reporter,
+  tachesADecider,
   tachesARelancer,
   tachesEnRetard,
 } from "./taches";
@@ -87,6 +88,8 @@ describe("la liste du jour, la Discipline et le retard", () => {
     expect(estEnRetard(t, AUJ, false)).toBe(false);
     expect(tachesEnRetard([t], [], AUJ)).toEqual([]);
     expect(reporter(t, AUJ, false)).toBeNull();
+    // Ni « à décider » (bandeau du calendrier, point d'action), même au seuil de reports.
+    expect(tachesADecider([{ ...t, postponed_count: 3 }], [], AUJ)).toEqual([]);
     // Reprise : elle est de nouveau en retard.
     expect(estEnRetard({ ...t, ...changerEtat("todo", AUJ) }, AUJ, false)).toBe(true);
   });

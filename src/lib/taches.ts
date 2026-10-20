@@ -113,11 +113,17 @@ export function ponctuellesFaites(
  * faite n'attend plus aucune décision.
  */
 export function tachesADecider<
-  T extends Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count">,
+  T extends Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count" | "state" | "state_since">,
 >(tasks: readonly T[], completions: readonly Pick<Completion, "task_id" | "done">[], jour: string): T[] {
   const faites = ponctuellesFaites(completions);
+  // En attente ou abandonnée (031) : la décision est déjà prise.
   return tasks.filter(
-    (t) => estDatee(t) && demandeUneDecision(t) && (t.due_date as string) <= jour && !faites.has(t.id),
+    (t) =>
+      estDatee(t) &&
+      demandeUneDecision(t) &&
+      (t.due_date as string) <= jour &&
+      !faites.has(t.id) &&
+      !estSuspendue(t, jour),
   );
 }
 

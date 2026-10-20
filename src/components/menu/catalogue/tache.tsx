@@ -362,18 +362,18 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
         ? { raison: t("Une tâche récurrente n'a pas de date : elle revient selon sa règle.") }
         : undefined,
     },
+    {
+      id: "priorite",
+      libelle: t("Priorité"),
+      icone: <IconePriorite priorite={actuelle} className="h-[1em] w-[1em]" />,
+      sousMenu: priorites,
+    },
     // Une tâche FAITE n'a plus d'état à prendre : la case le dit déjà.
     !ctx.faite && {
       id: "etat",
       libelle: t("État"),
       icone: <IconSablier />,
       sousMenu: etats,
-    },
-    {
-      id: "priorite",
-      libelle: t("Priorité"),
-      icone: <IconePriorite priorite={actuelle} className="h-[1em] w-[1em]" />,
-      sousMenu: priorites,
     },
     {
       id: "rattacher",
