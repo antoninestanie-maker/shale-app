@@ -175,12 +175,18 @@ export function refusDeDepot(taille: number): RefusDepot | null {
  * ⚠️ Passe par `Intl`, jamais par un `toFixed` : le séparateur décimal est une
  * virgule en français et un point en anglais. Une taille écrite « 1.4 Mo » dans
  * l'app française est le genre de détail qui trahit un logiciel traduit à moitié.
- * Les unités, elles, sont les symboles SI — ils ne se traduisent pas.
+ *
+ * ⚠️ Les UNITÉS suivent la langue aussi (audit du 2026-10-20, savoir-11). Ce
+ * commentaire disait « les symboles SI ne se traduisent pas » — mais « o »,
+ * « ko », « Mo » sont l'octet FRANÇAIS : l'app anglaise affichait
+ * « Report.pdf 1.4 Mo » et refusait un fichier qui « dépasse 100 Mo ». En
+ * anglais : B, kB, MB… (puissances de 1 000, comme ici).
  */
 export function tailleLisible(octets: number, langue: string): string {
   const n = Math.max(0, Math.trunc(octets) || 0);
-  if (n < 1000) return `${n} o`;
-  const unites = ["ko", "Mo", "Go", "To"];
+  const francais = langue.toLowerCase().startsWith("fr");
+  if (n < 1000) return `${n} ${francais ? "o" : "B"}`;
+  const unites = francais ? ["ko", "Mo", "Go", "To"] : ["kB", "MB", "GB", "TB"];
   let valeur = n / 1000;
   let i = 0;
   while (valeur >= 1000 && i < unites.length - 1) {
