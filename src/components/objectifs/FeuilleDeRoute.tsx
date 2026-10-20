@@ -30,7 +30,7 @@ import { ajouterEtape } from "../../lib/objectifs/ajouter";
 import { aAnnoncer, planConversion } from "../../lib/objectifs/conversion";
 import { convertirEnTache } from "./gesteConversion";
 import { filDObjectif, type Fil } from "../../lib/objectifs/fil";
-import { estRecurrente, estSuspendue, etatDe, ponctuellesFaites } from "../../lib/taches";
+import { estEnRetard, estRecurrente, etatDe, ponctuellesFaites } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal, Task } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
@@ -1301,7 +1301,9 @@ function ListeElements(props: {
           // deux lignes). Elle est grisée, sans case, avec son badge ; une
           // tâche en attente n'est jamais « en retard », comme partout.
           const ecartee = !recurrente && !faite && etatDe(tache) === "dropped";
-          const enRetard = !faite && !!tache.due_date && tache.due_date < jour && !estSuspendue(tache, jour);
+          // La règle unique du retard (`estEnRetard`) : suspendue, jamais ;
+          // reportée jusqu'à aujourd'hui par le Calendrier, en retard (lot 3).
+          const enRetard = !recurrente && estEnRetard(tache, jour, faite);
           return (
             /* ⚠️ `flex-wrap` ET une base flex sur le titre. Sous
                `pointer: coarse`, `.truncate-souris` REND LE RETOUR À LA LIGNE

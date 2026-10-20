@@ -132,8 +132,11 @@ describe("les faits de la semaine", () => {
   const p = payloadRevue("fr", DIMANCHE, SEMAINE, data, false);
 
   it("complétion : prévu et fait par jour, et ce qui a été fait hors de ce qui était prévu", () => {
-    // 7 routines + 3 datées de la semaine (tâches 2, 3, 5).
-    expect(p.completion).toMatchObject({ prevues: 10, faites: 4, faitesHorsPrevu: 1 });
+    // 7 routines + 2 datées de la semaine (tâches 2 et 5). La tâche 3 a glissé
+    // JUSQU'AU 1er (4 reports) : ce jour-là elle était en retard, pas prévue
+    // (`estGlisseeJusquA`, lot 3 de l'audit du 2026-10-20 — la règle de
+    // Performance et de « En retard »).
+    expect(p.completion).toMatchObject({ prevues: 9, faites: 4, faitesHorsPrevu: 1 });
     expect(p.completion.parJour).toHaveLength(7);
     expect(p.completion.parJour[0]).toEqual({ jour: "2026-09-28", prevues: 1, faites: 1 });
     expect(p.completion.parJour[2]).toEqual({ jour: "2026-09-30", prevues: 2, faites: 1 });

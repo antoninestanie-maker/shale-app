@@ -2,7 +2,7 @@ import type { Carte, TypeNoeud } from "./carte";
 import { serieHabitude } from "./habitudes";
 import { estAcheve, mesurer, uidDeLigne, type SourcesProgression } from "./objectifs/progression";
 import { cleDeNature, natureDe } from "./objectifs/structure";
-import { estRecurrente, estSuspendue, ponctuellesFaites } from "./taches";
+import { estEnRetard, estRecurrente, ponctuellesFaites } from "./taches";
 import type { Goal, Task } from "./types";
 
 /**
@@ -84,8 +84,10 @@ export function etatsVivants(carte: Carte, s: SourcesEtat): Map<string, EtatViva
         recurrente,
         tache: t,
         echeance: t.due_date,
-        // En attente ou abandonnée (031) : jamais en retard, comme partout ailleurs.
-        enRetard: !!t.due_date && t.due_date < s.today && !fait && !estSuspendue(t, s.today),
+        // La règle unique du retard (`lib/taches.ts`) : en attente ou
+        // abandonnée (031), jamais en retard ; reportée jusqu'à aujourd'hui par
+        // le Calendrier, en retard (2026-10-20).
+        enRetard: !recurrente && estEnRetard(t, s.today, fait),
       });
     } else if (n.ref.kind === "habit") {
       const h = habitudes.get(n.ref.uid);

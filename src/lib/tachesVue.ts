@@ -1,7 +1,7 @@
 import { estPrevueLe } from "./logic";
 import { racineDe } from "./objectifs/structure";
 import { rangPriorite } from "./priorite";
-import { aRelancer, estRecurrente, etatDe } from "./taches";
+import { aRelancer, estGlisseeJusquA, estRecurrente, etatDe } from "./taches";
 import type { Completion, Goal, Task } from "./types";
 
 /**
@@ -97,7 +97,8 @@ export function sectionDe(task: Task, faite: boolean, aujourdhui: string): CleSe
   if (estPrevueLe(task, aujourdhui)) return "aujourdhui";
   if (estRecurrente(task)) return "routines";
   if (!task.due_date) return "sansDate";
-  return task.due_date < aujourdhui ? "retard" : "avenir";
+  // Reportée jusqu'à aujourd'hui par le Calendrier : en retard (`estGlisseeJusquA`).
+  return task.due_date < aujourdhui || estGlisseeJusquA(task, aujourdhui) ? "retard" : "avenir";
 }
 
 /**

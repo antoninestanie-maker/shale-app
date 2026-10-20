@@ -9,8 +9,13 @@
 //! tâches.
 //!
 //! La règle, mot pour mot :
-//!   - une habitude compte à partir de sa PREMIÈRE coche (jamais cochée : à
-//!     partir d'aujourd'hui) ; les exemples ne comptent pas ;
+//!   - une habitude compte à partir du jour de sa CRÉATION (`created_at`,
+//!     migration 033) ; sans lui, de sa première coche (jamais cochée : à
+//!     partir d'aujourd'hui) ; un début dans le futur vaut aujourd'hui ; les
+//!     exemples ne comptent pas ;
+//!   - une coche posée AVANT le début compte en plus, ce jour-là seulement
+//!     (`compteLe`) : cocher ne fait jamais baisser un jour (audit du
+//!     2026-10-20, rythme-1 et rythme-2) ;
 //!   - la part d'un jour = habitudes cochées ÷ habitudes qui comptaient ce
 //!     jour-là, arrondie ; aucune ne comptait : jour neutre (ni tenu, ni rompu) ;
 //!   - un jour est tenu à `SEUIL_JOUR_TENU` (75 %).
@@ -40,18 +45,35 @@ pub fn pourcent(tenues: usize, actives: usize) -> i64 {
 }
 
 /// Le jour où chaque habitude qui compte a commencé à compter
-/// (`debutsDesHabitudes`).
+/// (`debutsDesHabitudes`) : sa création, sinon sa première coche, sinon
+/// aujourd'hui — jamais après aujourd'hui.
 fn debuts(snap: &Snapshot, today: NaiveDate) -> HashMap<i64, String> {
-    let mut debuts: HashMap<i64, String> =
-        snap.habits.iter().filter(|h| !h.is_example).map(|h| (h.id, jour(today))).collect();
+    let aujourdhui = jour(today);
+    let mut premieres: HashMap<i64, String> = HashMap::new();
     for c in &snap.habit_checks {
-        if let Some(d) = debuts.get_mut(&c.habit_id) {
-            if c.date < *d {
-                *d = c.date.clone();
-            }
+        let p = premieres.entry(c.habit_id).or_insert_with(|| c.date.clone());
+        if c.date < *p {
+            *p = c.date.clone();
         }
     }
-    debuts
+    snap.habits
+        .iter()
+        .filter(|h| !h.is_example)
+        .map(|h| {
+            let debut = jour_de_creation(h.created_at.as_deref())
+                .or_else(|| premieres.get(&h.id).cloned())
+                .unwrap_or_else(|| aujourdhui.clone());
+            (h.id, if debut > aujourdhui { aujourdhui.clone() } else { debut })
+        })
+        .collect()
+}
+
+/// Les dix premiers caractères d'un `created_at`, s'ils ont la forme
+/// `AAAA-MM-JJ` (la même garde que le TypeScript : `/^\d{4}-\d{2}-\d{2}$/`).
+fn jour_de_creation(created_at: Option<&str>) -> Option<String> {
+    let j = created_at?.get(0..10)?;
+    let forme = j.char_indices().all(|(i, c)| if i == 4 || i == 7 { c == '-' } else { c.is_ascii_digit() });
+    forme.then(|| j.to_string())
 }
 
 /// Où en est la journée, et la série qui la précède.
@@ -92,11 +114,16 @@ pub fn etat(snap: &Snapshot, today: NaiveDate) -> EtatHabitudes {
         }
     }
     let part = |date: &str| -> Option<i64> {
-        let actives = debuts.values().filter(|d| d.as_str() <= date).count();
+        let du_jour = cochees.get(date);
+        // `compteLe` : depuis son début, ou ce jour-là s'il y est coché avant.
+        let actives = debuts
+            .iter()
+            .filter(|(id, d)| d.as_str() <= date || du_jour.is_some_and(|s| s.contains(*id)))
+            .count();
         if actives == 0 {
             return None;
         }
-        Some(pourcent(cochees.get(date).map_or(0, |s| s.len()), actives))
+        Some(pourcent(du_jour.map_or(0, |s| s.len()), actives))
     };
 
     let aujourdhui = jour(today);
@@ -106,7 +133,13 @@ pub fn etat(snap: &Snapshot, today: NaiveDate) -> EtatHabitudes {
 
     // Avant le premier début, plus aucune habitude ne compte : inutile d'aller
     // plus loin (le TypeScript s'arrête à un an, ce qui revient au même).
-    let premier = debuts.values().min().cloned();
+    // Une coche d'avant tous les débuts compte aussi : le premier jour à lire
+    // est donc le plus ancien des débuts ET des coches.
+    let premier = debuts
+        .values()
+        .cloned()
+        .chain(snap.habit_checks.iter().filter(|c| debuts.contains_key(&c.habit_id)).map(|c| c.date.clone()))
+        .min();
     let mut serie_avant = 0;
     let mut d = today.pred_opt();
     while let (Some(day), Some(premier)) = (d, premier.as_deref()) {
@@ -134,11 +167,61 @@ mod tests {
         NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
     }
 
+    /// Les cas de `src/lib/disciplineHabitudes.naissance.test.ts`, rejoués.
+    #[test]
+    fn rythme_1_une_coche_d_avant_la_creation_ne_fait_pas_tomber_la_serie() {
+        let mut checks: Vec<(i64, String)> = Vec::new();
+        let mut j = d("2026-10-01");
+        while j <= d("2026-10-19") {
+            checks.push((1, jour(j)));
+            if j >= d("2026-10-18") {
+                checks.push((2, jour(j)));
+            }
+            j = j.succ_opt().unwrap();
+        }
+        let habits = vec![
+            Habit { id: 1, name: "A".into(), is_example: false, created_at: Some("2026-10-01 08:00:00".into()) },
+            Habit { id: 2, name: "B".into(), is_example: false, created_at: Some("2026-10-18 21:00:00".into()) },
+        ];
+        let fabriquer = |checks: &[(i64, String)]| Snapshot {
+            habits: habits.clone(),
+            habit_checks: checks.iter().map(|(h, dt)| HabitCheck { habit_id: *h, date: dt.clone() }).collect(),
+            ..Default::default()
+        };
+        assert_eq!(etat(&fabriquer(&checks), d("2026-10-20")).serie_avant, 19);
+        checks.push((2, "2026-10-05".into()));
+        assert_eq!(etat(&fabriquer(&checks), d("2026-10-20")).serie_avant, 19, "la coche du 5 ne recule plus le début de B");
+    }
+
+    #[test]
+    fn rythme_2_une_habitude_jamais_cochee_compte_depuis_sa_creation() {
+        let nee = Some("2026-10-19 07:00:00".to_string());
+        let s = Snapshot {
+            habits: (1..=4)
+                .map(|id| Habit { id, name: format!("h{id}"), is_example: false, created_at: nee.clone() })
+                .collect(),
+            habit_checks: vec![
+                HabitCheck { habit_id: 1, date: "2026-10-19".into() },
+                HabitCheck { habit_id: 1, date: "2026-10-20".into() },
+            ],
+            ..Default::default()
+        };
+        // Le 19 et le 20 à 1/4 : aucune série le 21 au matin (avant : 2 j).
+        assert_eq!(etat(&s, d("2026-10-21")).serie_avant, 0);
+    }
+
+    #[test]
+    fn une_date_de_creation_illisible_retombe_sur_la_premiere_coche() {
+        assert_eq!(jour_de_creation(Some("2026-10-19 07:00:00")).as_deref(), Some("2026-10-19"));
+        assert_eq!(jour_de_creation(Some("hier")), None);
+        assert_eq!(jour_de_creation(None), None);
+    }
+
     fn snap(habits: &[(i64, bool)], checks: &[(i64, &str)]) -> Snapshot {
         Snapshot {
             habits: habits
                 .iter()
-                .map(|&(id, is_example)| Habit { id, name: format!("h{id}"), is_example })
+                .map(|&(id, is_example)| Habit { id, name: format!("h{id}"), is_example, created_at: None })
                 .collect(),
             habit_checks: checks
                 .iter()

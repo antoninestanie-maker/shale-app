@@ -144,20 +144,44 @@ export function tachesADecider<
 }
 
 /**
- * Une tâche datée, due avant `jour`, et non faite.
+ * ⭐ Une ponctuelle que le Calendrier a REPORTÉE jusqu'à `jour` : sa date est
+ * devenue `jour`, et son compteur dit qu'elle a glissé (2026-10-20, lot 3 de
+ * l'audit, temps-1).
+ *
+ * Elle reste EN RETARD pour tous les comptes : ni « prévue » ce jour-là
+ * (`estPrevueLe`), ni dans le compte du jour, et la cocher est un rattrapage
+ * (`estRattrapage`). Sans cette règle, ouvrir le Calendrier (qui reporte à son
+ * ouverture) faisait entrer toutes les tâches en retard dans la liste du jour :
+ * « En retard » se vidait, l'anneau des tâches passait de 1/2 à 1/4, et la
+ * Discipline d'un jour dépendait de l'écran visité. Performance la comptait
+ * déjà « en retard ou reportée » (`tachesHorsCompte`).
+ *
+ * Replanifier à la main remet le compteur à zéro (`replanifier`) : la tâche
+ * redevient alors une tâche de son nouveau jour.
+ */
+export function estGlisseeJusquA(
+  t: Pick<Task, "due_date" | "recurrence"> & { postponed_count?: number | null },
+  jour: string,
+): boolean {
+  return estDatee(t) && (t.postponed_count ?? 0) >= 1 && t.due_date === jour;
+}
+
+/**
+ * Une tâche datée, due avant `jour` (ou reportée jusqu'à lui, `estGlisseeJusquA`),
+ * et non faite.
  *
  * `faite` est injectée : la complétion vit dans `task_completions`, que ce
  * module ne lit pas. C'est aussi ce qui permet de tester le retard sans monter
  * une base.
  */
 export function estEnRetard(
-  t: Pick<Task, "due_date" | "recurrence" | "state" | "state_since" | "pauses">,
+  t: Pick<Task, "due_date" | "recurrence" | "state" | "state_since" | "pauses"> & { postponed_count?: number | null },
   jour: string,
   faite: boolean,
 ): boolean {
   // ⭐ En attente ou abandonnée (031) : jamais en retard, donc jamais reportée.
   if (faite || !estDatee(t) || estSuspendue(t, jour)) return false;
-  return (t.due_date as string) < jour;
+  return (t.due_date as string) < jour || estGlisseeJusquA(t, jour);
 }
 
 /**
@@ -173,15 +197,23 @@ export function estEnRetard(
  * ⚠️ « Faite » se lit comme partout (`ponctuellesFaites`). Une routine manquée
  * n'est jamais en retard (`estRecurrente`).
  */
-export function tachesEnRetard<T extends Pick<Task, "id" | "due_date" | "recurrence">>(
+export function tachesEnRetard<
+  T extends Pick<Task, "id" | "due_date" | "recurrence"> & {
+    postponed_count?: number | null;
+    postponed_from?: string | null;
+  },
+>(
   tasks: readonly T[],
   completions: readonly Pick<Completion, "task_id" | "done" | "date">[],
   jour: string,
 ): T[] {
   const faites = ponctuellesFaites(completions, tasks);
+  // La plus ancienne d'abord, à sa date d'ORIGINE : une tâche reportée par le
+  // Calendrier porte la date du jour, mais elle attend depuis `postponed_from`.
+  const origine = (t: T) => (t.postponed_count ? t.postponed_from : null) ?? (t.due_date as string);
   return tasks
     .filter((t) => estEnRetard(t, jour, faites.has(t.id)))
-    .sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string) || a.id - b.id);
+    .sort((a, b) => origine(a).localeCompare(origine(b)) || a.id - b.id);
 }
 
 /** Ce qu'un report écrit dans la tâche. `null` quand il ne doit pas avoir lieu. */
@@ -211,6 +243,11 @@ export function reporter(
   faite: boolean,
 ): Report | null {
   if (!estEnRetard(t, jour, faite)) return null;
+  // ⚠️ Déjà reportée jusqu'à `jour` (`estGlisseeJusquA`) : elle est « en
+  // retard » pour les comptes, mais la reporter encore ne la déplacerait pas —
+  // seul son compteur monterait, à chaque ouverture. C'est ce qui garde le
+  // report IDEMPOTENT.
+  if ((t.due_date as string) >= jour) return null;
   if (demandeUneDecision(t)) return null;
   return {
     due_date: jour,

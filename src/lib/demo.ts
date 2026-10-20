@@ -486,6 +486,13 @@ for (const jour of historique) {
 // Aujourd'hui : les deux du matin sont faites.
 habitChecks.push({ id: hcId++, habit_id: 1, date: today });
 habitChecks.push({ id: hcId++, habit_id: 4, date: today });
+// ⭐ Le jour de création, comme la migration 033 le remplit sur une vraie base :
+// la première coche, sinon aujourd'hui. Sans lui, la démo gardait l'ancienne
+// règle (une coche antidatée reculait le début, audit rythme-1) que l'app n'a plus.
+for (const h of habits) {
+  const premiere = habitChecks.filter((c) => c.habit_id === h.id).reduce<string | null>((m, c) => (m === null || c.date < m ? c.date : m), null);
+  h.created_at = `${premiere ?? today} 00:00:00`;
+}
 
 // Journal de trades des 2 dernières semaines (motif déterministe, ~60% winrate)
 const trades: Trade[] = [];
@@ -1824,7 +1831,7 @@ export const demo = {
 
   async addHabit(name: string, color: string): Promise<number> {
     const id = nextHabitId++;
-    habits.push({ id, name, color, archived: 0, is_example: 0 });
+    habits.push({ id, name, color, archived: 0, is_example: 0, created_at: `${todayStr()} 00:00:00` });
     return id;
   },
 
@@ -2085,6 +2092,19 @@ export const demo = {
     // traînent dans l'objet passé, là où le natif les ignore (PIEGES § 6.2).
     const { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress } = input;
     Object.assign(goal, { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress });
+  },
+
+  /** Même sémantique que `repo.adopterObjectif` : l'objectif d'exemple et TOUTE sa feuille de route. */
+  async adopterObjectif(id: number): Promise<void> {
+    const racine = goals.find((g) => g.id === id);
+    if (!racine || racine.is_example !== 1) return;
+    const arbre = new Set<number>([id]);
+    for (let n = -1; n !== arbre.size; ) {
+      n = arbre.size;
+      for (const g of goals) if (g.parent_goal_id != null && arbre.has(g.parent_goal_id)) arbre.add(g.id);
+    }
+    for (const g of goals) if (arbre.has(g.id)) g.is_example = 0;
+    for (const t of tasks) if (t.goal_id != null && arbre.has(t.goal_id)) t.is_example = 0;
   },
 
   async majObjectif(id: number, champs: { title?: string; deadline?: string | null }): Promise<void> {

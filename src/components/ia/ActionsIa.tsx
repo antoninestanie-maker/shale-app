@@ -45,6 +45,7 @@ import type { AppData, Goal, Task } from "../../lib/types";
 import { Avant, useAppel } from "./communs";
 import { FenetreIa } from "./FenetreIa";
 import { Propositions } from "./Propositions";
+import { useSourcesProgression } from "../../lib/objectifs/useProgression";
 
 const CHAMP = "rounded-lg border border-border bg-surface-2 px-2 py-1 text-sm text-text";
 
@@ -404,7 +405,9 @@ function Objectif({
 
 function Peril({ goal, data, refresh, fermer }: { goal: Goal; data: AppData; refresh: () => Promise<void>; fermer: () => void }) {
   const jour = todayStr();
-  const contexte = useMemo(() => ({ habits: data.habits, habitChecks: data.habitChecks }), [data.habits, data.habitChecks]);
+  // Les sources complètes (arêtes, événements rattachés) : le péril se lit
+  // comme sur la page de l'objectif (objectifs-1, 2026-10-20).
+  const contexte = useSourcesProgression(data);
   // ⭐ La détection reste LOCALE et relue ici : l'objectif a pu sortir du péril entre-temps.
   const p = useMemo(
     () => objectifsEnPeril(data.goals, data.tasks, data.completions, jour, contexte).find((x) => x.goal.id === goal.id) ?? null,

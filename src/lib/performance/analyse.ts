@@ -79,21 +79,54 @@ export function serieTaches(
 }
 
 /**
- * Le jour à partir duquel chaque habitude COMPTE : celui de sa première coche.
+ * Le jour à partir duquel chaque habitude COMPTE : celui de sa CRÉATION
+ * (`created_at`, migration 033, 2026-10-21).
  *
- * ⚠️ `habits` n'a pas de date de création. Compter une habitude sur tous les
- * jours passés ferait chuter la courbe de trois mois le jour où on en ajoute
- * une. Une habitude jamais cochée ne compte qu'à partir d'aujourd'hui : elle
- * apparaît dans le détail par habitude, à 0 %, sans réécrire le passé.
+ * ⚠️ Jusqu'à la 033, `habits` n'avait pas de date de création, et une habitude
+ * comptait depuis sa PREMIÈRE COCHE (PIEGES § 33.3). Deux défauts, rendus
+ * visibles par l'anneau d'Aujourd'hui (lot 3 de l'audit du 2026-10-20) :
+ *   • rythme-1 — une coche posée sur un jour PASSÉ (Habitudes) reculait le
+ *     début : chaque jour entre les deux devenait « actif et raté », la série
+ *     tombait à 0. Cocher faisait baisser la discipline.
+ *   • rythme-2 — une habitude jamais cochée ne comptait qu'AUJOURD'HUI : 1/4 le
+ *     soir, 1/1 le lendemain pour le même jour, et la série gagnait un jour à
+ *     chaque minuit sous le seuil.
+ *
+ * Repli, pour une ligne sans `created_at` (venue d'un appareil d'avant la 033,
+ * ou démo semée) : la première coche, sinon aujourd'hui — la règle d'avant.
+ * Un début dans le futur (horloge d'un autre appareil) vaut aujourd'hui.
+ *
+ * ⭐ Une coche posée AVANT le début compte en plus, ce jour-là seulement
+ * (`compteLe`) : un rattrapage ou un historique saisi après coup ne fait jamais
+ * baisser un jour, il ne peut que le monter.
  */
 export function debutsDesHabitudes(habits: readonly Habit[], checks: readonly HabitCheck[], today: string): Map<number, string> {
   const debuts = new Map<number, string>();
-  for (const h of sansExemples(habits as Habit[])) debuts.set(h.id, today);
+  const premieres = new Map<number, string>();
   for (const c of checks) {
-    const d = debuts.get(c.habit_id);
-    if (d !== undefined && c.date < d) debuts.set(c.habit_id, c.date);
+    const d = premieres.get(c.habit_id);
+    if (d === undefined || c.date < d) premieres.set(c.habit_id, c.date);
+  }
+  for (const h of sansExemples(habits as Habit[])) {
+    const nee = jourDeCreation(h.created_at);
+    const debut = nee ?? premieres.get(h.id) ?? today;
+    debuts.set(h.id, debut > today ? today : debut);
   }
   return debuts;
+}
+
+/** Le jour local d'un `created_at` ('YYYY-MM-DD…'), ou `null` s'il est illisible. */
+function jourDeCreation(created_at: string | null | undefined): string | null {
+  const j = (created_at ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(j) ? j : null;
+}
+
+/**
+ * Une habitude compte-t-elle ce jour-là ? Depuis son début — ou ce jour-là
+ * seulement, si elle y est cochée avant son début (voir `debutsDesHabitudes`).
+ */
+function compteLe(debut: string, date: string, cocheeCeJour: boolean): boolean {
+  return debut <= date || cocheeCeJour;
 }
 
 /** La part des habitudes tenues, jour par jour. `null` tant qu'aucune habitude ne compte. */
@@ -111,10 +144,11 @@ export function serieHabitudes(
     (cochees.get(c.date) ?? cochees.set(c.date, new Set()).get(c.date)!).add(c.habit_id);
   }
   return jours(debut, fin).map((date) => {
+    const duJour = cochees.get(date);
     let actives = 0;
-    for (const d of debuts.values()) if (d <= date) actives++;
+    for (const [id, d] of debuts) if (compteLe(d, date, !!duJour?.has(id))) actives++;
     if (actives === 0) return { date, pct: null };
-    return { date, pct: Math.round(((cochees.get(date)?.size ?? 0) / actives) * 100) };
+    return { date, pct: Math.round(((duJour?.size ?? 0) / actives) * 100) };
   });
 }
 
@@ -184,7 +218,7 @@ export function parJourDeSemaine(serie: readonly PointJour[]): JourDeSemaine[] {
 
 export interface TenueHabitude {
   habit: Habit;
-  /** Jours tenus / jours comptés sur la période (depuis sa première coche). */
+  /** Jours tenus / jours comptés sur la période (depuis sa création, `debutsDesHabitudes`). */
   tenus: number;
   comptes: number;
   pct: number | null;
@@ -203,12 +237,13 @@ export function tenueParHabitude(
   const parHabitude = new Map<number, Set<string>>();
   for (const c of checks) (parHabitude.get(c.habit_id) ?? parHabitude.set(c.habit_id, new Set()).get(c.habit_id)!).add(c.date);
 
+  // La même règle que `serieHabitudes` : depuis le début, plus les jours
+  // d'avant où elle a été cochée (`compteLe`).
   const taux = (id: number, debut: string, fin: string) => {
     const depuis = debuts.get(id)!;
-    const de = depuis > debut ? depuis : debut;
-    if (de > fin) return { tenus: 0, comptes: 0, pct: null as number | null };
     const dates = parHabitude.get(id) ?? new Set<string>();
-    const liste = jours(de, fin);
+    const liste = jours(debut, fin).filter((d) => compteLe(depuis, d, dates.has(d)));
+    if (liste.length === 0) return { tenus: 0, comptes: 0, pct: null as number | null };
     const tenus = liste.filter((d) => dates.has(d)).length;
     return { tenus, comptes: liste.length, pct: Math.round((tenus / liste.length) * 100) };
   };

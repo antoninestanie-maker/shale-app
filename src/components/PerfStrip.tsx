@@ -61,8 +61,16 @@ export default function PerfStrip({ data, week, streak }: Props) {
     // tuiles portent un pictogramme/donut + 2 lignes de texte, elles ne sont
     // PAS lisibles sous ~180px (cf. index.css). panel-stretch : hauteur partagée.
     <div className="perf-tiles panel-stretch gap-3">
-      {/* 1 — Streak : chiffre */}
-      <div className="card flex min-w-0 items-center gap-3 p-4">
+      {/* 1 — Streak : chiffre.
+          ⭐ « série d'habitudes », plus « série en cours » (constat 3 de l'audit
+          du 2026-10-20) : depuis le 20/10 elle compte les HABITUDES, et
+          Performance montre une autre série, de tâches, le même jour (« 1 j » ici,
+          « 7 j » là-bas, sans un mot). L'écart est voulu ; il est dit. */}
+      <div
+        className="card flex min-w-0 items-center gap-3 p-4"
+        data-tip={t("Jours d'affilée où au moins 75 % de tes habitudes sont cochées")}
+        data-tip-sub={t("La série de tâches (80 % des tâches prévues faites) est dans Performance.")}
+      >
         <IconFlame className="h-6 w-6 shrink-0 text-accent" />
         <div className="min-w-0">
           <p className="font-display text-2xl font-extrabold leading-none text-success">
@@ -71,7 +79,7 @@ export default function PerfStrip({ data, week, streak }: Props) {
           {/* Seule étiquette du bandeau restée en anglais et hors `t()` dans
               une interface française — et la vitrine, qui recopie ce bandeau,
               écrivait « série en cours ». Les deux disent la même chose. */}
-          <p className="hud-label mt-1">{t("série en cours")}</p>
+          <p className="hud-label mt-1">{t("série d'habitudes")}</p>
         </div>
       </div>
 
@@ -95,7 +103,8 @@ export default function PerfStrip({ data, week, streak }: Props) {
             />
           ))}
         </div>
-        <p className="hud-label mt-2">{t("7 jours")}</p>
+        {/* Les barres sont celles des TÂCHES : la série voisine compte les habitudes. */}
+        <p className="hud-label mt-2">{t("tâches, 7 jours")}</p>
       </div>
 
       {/* 3 — Focus : donut */}

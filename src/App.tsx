@@ -37,9 +37,11 @@ import { signalerAppPrete } from "./lib/entree/signal";
 import { loadTheme } from "./lib/theme";
 import { applyZoom, useUiConfig } from "./lib/uiConfig";
 import { addDays, effectiveProgress, todayStr } from "./lib/logic";
+import { maintenantLocal } from "./lib/objectifs/useProgression";
 import {
   createNote,
   fetchAll,
+  fetchContexteObjectifs,
   isTauri,
   purgerCorbeille,
   snapshotGoals,
@@ -583,13 +585,28 @@ function App() {
     snapshotDone.current = true;
     const { goals, tasks, completions, habits, habitChecks } = data;
     if (goals.length === 0) return;
-    snapshotGoals(
-      todayStr(),
-      goals.map((g) => ({
-        goal_id: g.id,
-        pct: effectiveProgress(g, goals, tasks, completions, { habits, habitChecks }),
-      })),
-    ).then(refresh);
+    // ⭐ Avec les arêtes et les événements rattachés, comme la page de
+    // l'objectif : sans eux, un objectif tenu par ses rendez-vous s'inscrivait
+    // à 0 % dans l'historique (objectifs-1, 2026-10-20). Une lecture ratée
+    // retombe sur la mesure des tâches et des habitudes.
+    void fetchContexteObjectifs()
+      .catch(() => null)
+      .then((c) =>
+        snapshotGoals(
+          todayStr(),
+          goals.map((g) => ({
+            goal_id: g.id,
+            pct: effectiveProgress(g, goals, tasks, completions, {
+              habits,
+              habitChecks,
+              liens: c?.liens,
+              evenements: c?.evenements,
+              maintenant: maintenantLocal(),
+            }),
+          })),
+        ),
+      )
+      .then(refresh);
   }, [data, refresh]);
 
   /**

@@ -5,7 +5,10 @@
 //! celle que l'écran affiche. Le portage est gardé, avec ses tests, pour le jour
 //! où une règle parlerait de nouveau des tâches ; tant qu'aucune ne le lit, il
 //! n'est plus nécessaire de le tenir d'accord avec `logic.ts` — mais il faudra
-//! le remettre à jour AVANT de le rebrancher.
+//! le remettre à jour AVANT de le rebrancher. Écarts connus (audit du
+//! 2026-10-20, lot 3) : les tâches d'EXEMPLE y comptent (`data.rs` ne lit pas
+//! `is_example`, donnees-7), et une tâche reportée jusqu'au jour par le
+//! Calendrier y est « prévue » (`estGlisseeJusquA`, `lib/taches.ts`, temps-1).
 //!
 //! ⚠️ Code dupliqué, en connaissance de cause. La série affichée dans le bandeau
 //! de performance est calculée en TypeScript ; pour qu'une notification puisse

@@ -1093,3 +1093,10 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 
 - **App** : `src/lib/taches/saisieRapide.ts` (`lirePhrase`) — « tous les lundis », « chaque vendredi », « fin du mois », « ce week-end », « hier », « urgent » sont lus (FR et EN), chacun en pastille retirable. L'accueil du premier démarrage : « Passer » saute une question, « Tout passer » sort, « Étape n sur 6 » ; il ne dit plus « trois questions ».
 - **Site** : aucun texte ne devient faux à ma connaissance. Une page qui montre l'ajout rapide pourrait dire qu'on écrit « chaque lundi » ou « urgent » dans la phrase — à chercher et à proposer à Antonin avant d'écrire (règle « chercher avant d'écrire du texte de vente »). Une capture de l'accueil prise avant le 21/10 montre l'ancien bouton « Passer » et « Trois questions ».
+
+## AO — Les deux séries se nomment ; le focus compte le temps travaillé ; une habitude compte depuis sa création (app, 2026-10-21, lot 3 de l'audit)
+
+- **Libellés d'Aujourd'hui** : la tuile du bandeau dit « série d'habitudes » (plus « série en cours ») et les mini-barres « tâches, 7 jours » ; dans Performance, la série s'appelle « série de tâches ». Toute capture, maquette ou phrase du site qui recopie le bandeau d'Aujourd'hui (« série en cours », « 7 jours ») est datée. Fichiers à vérifier : les captures d'Aujourd'hui et de Performance de la vitrine (`vitrine/public/` et les composants qui les montrent) — rien trouvé en texte dans `vitrine/src` le 2026-10-21.
+- **Si le site promet que le minuteur « mesure ton temps de concentration »** : c'est désormais vrai au sens strict — les pauses, la veille du Mac et l'iPhone en arrière-plan ne comptent plus.
+- **Si le site décrit la série d'habitudes** : une habitude compte depuis le jour de sa création (plus depuis sa première coche) ; cocher un jour passé ne fait jamais baisser la série.
+- Rien n'a été modifié côté site.

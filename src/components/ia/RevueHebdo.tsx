@@ -34,6 +34,7 @@ import type { AppData } from "../../lib/types";
 import { ApercuEnvoi } from "./ApercuEnvoi";
 import { EtatIa, type EtatAppelIa } from "./EtatIa";
 import { IconeIa } from "./IconeIa";
+import { useSourcesProgression } from "../../lib/objectifs/useProgression";
 
 function jourCourt(jour: string): string {
   return formatDate(new Date(`${jour}T12:00:00`), { day: "numeric", month: "short" });
@@ -67,7 +68,9 @@ export function RevueHebdo({ data, refresh }: { data: AppData; refresh: () => Pr
     void relire(choisie);
   }, [choisie, relire]);
 
-  const contexte = useMemo(() => ({ habits: data.habits, habitChecks: data.habitChecks }), [data.habits, data.habitChecks]);
+  // Les sources complètes (arêtes, événements rattachés) : la revue mesure
+  // comme la page de l'objectif (objectifs-1, 2026-10-20).
+  const contexte = useSourcesProgression(data);
   const payload = useMemo(
     () => payloadRevue(getLang(), jour, courante, data, false, contexte),
     [jour, courante, data, contexte],

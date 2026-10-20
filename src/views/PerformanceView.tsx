@@ -577,7 +577,7 @@ export default function PerformanceView({ data, refresh }: Props) {
             seuil={t("80 % : jour tenu")}
             seuilAide={{
               titre: t("Un jour est tenu quand 80 % des tâches dues sont faites"),
-              detail: t("C'est le seuil des séries de jours tenus."),
+              detail: t("C'est le seuil de la série de tâches."),
             }}
           />
         </div>
@@ -599,7 +599,13 @@ export default function PerformanceView({ data, refresh }: Props) {
           }
         />
         <CourbeDiscipline className="mt-3" points={analyse.courbeTaches.points} lisse={analyse.courbeTaches.lisse} seuil={80} />
-        <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
+        <p
+          className="hud-label mb-2 mt-5"
+          data-tip={t("La grille montre toujours les 12 derniers mois")}
+          data-tip-sub={t("La régularité se lit sur la durée : elle ne suit pas la période choisie.")}
+        >
+          {t("régularité — un carré par jour · 12 derniers mois")}
+        </p>
         <GrilleCarres semaines={analyse.carresTaches} zeroEnRouge vide={t("rien de dû")} zero={t("rien de fait")} />
       </section>
       </ResizablePanel>
@@ -623,10 +629,16 @@ export default function PerformanceView({ data, refresh }: Props) {
               periode={analyse.periode}
               periodeAvant={analyse.periodeAvant}
               bulle={t("La part des habitudes cochées, en moyenne sur les jours finis")}
-              detail={t("Une habitude compte à partir du jour de sa première coche.")}
+              detail={t("Une habitude compte à partir du jour de sa création. Cocher un jour d'avant le fait monter, jamais baisser.")}
             />
             <CourbeDiscipline className="mt-3" points={analyse.courbeHabitudes.points} lisse={analyse.courbeHabitudes.lisse} />
-            <p className="hud-label mb-2 mt-5">{t("régularité — un carré par jour")}</p>
+            <p
+          className="hud-label mb-2 mt-5"
+          data-tip={t("La grille montre toujours les 12 derniers mois")}
+          data-tip-sub={t("La régularité se lit sur la durée : elle ne suit pas la période choisie.")}
+        >
+          {t("régularité — un carré par jour · 12 derniers mois")}
+        </p>
             <GrilleCarres semaines={analyse.carresHabitudes} vide={t("aucune tenue")} />
             {/* Une ligne par habitude : c'est elle qui dit LAQUELLE décroche. */}
             <ul className="mt-5 flex flex-col gap-2.5">

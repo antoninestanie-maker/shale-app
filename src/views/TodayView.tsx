@@ -127,7 +127,8 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
   // La case bascule AU CLIC ; l'anneau de discipline (habitudes) et la liste
   // du jour lisent les mêmes coches optimistes, donc ils bougent avec elle au
   // lieu d'attendre la relecture de la base.
-  const { etat, basculer } = useCochesOptimistes();
+  const coches = useCochesOptimistes();
+  const { etat, basculer } = coches;
 
   const derived = useMemo(() => {
     const list = todayTasks(data.tasks, data.completions, today).map((x) => ({
@@ -230,17 +231,19 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
     ),
     timer: () => (focus ? <TimerCard key="timer" data={data} focus={focus} /> : null),
     habitudes: () => {
-      const faites = data.habits.filter((h) =>
-        etat(`h${h.id}:${today}`, data.habitChecks.some((c) => c.habit_id === h.id && c.date === today)),
-      ).length;
+      // ⭐ Le compteur de la carte = la fraction de l'anneau (rythme-7,
+      // 2026-10-20) : mêmes habitudes (exemples exclus, `disciplineHabitudes`)
+      // et même coche optimiste. Il divisait par TOUTES les habitudes, exemple
+      // compris : « 0/4 » ici, « 0/3 habitudes » dans l'anneau voisin.
+      const { tenues, actives } = derived.habitudes;
       return (
         <section key="habitudes" className="card p-5">
           {/* `.rgrid-head` : le compteur s'écarte de la barre de poignées au survol. */}
           <div className="rgrid-head mb-3 flex items-baseline justify-between gap-2">
             <h2 className="hud-label">{t("Habitudes à tenir")}</h2>
-            {data.habits.length > 0 && (
+            {actives > 0 && (
               <span className="font-mono text-[10px] text-text-dim">
-                {faites}/{data.habits.length}
+                {tenues}/{actives}
               </span>
             )}
           </div>
@@ -248,6 +251,7 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
             data={data}
             refresh={refresh}
             ouvrirJournal={navigate ? () => navigate("journal") : undefined}
+            coches={coches}
           />
         </section>
       );

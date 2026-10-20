@@ -250,6 +250,13 @@ export interface Habit {
    * compter. Voir `lib/onboarding/exemples.ts`.
    */
   is_example: number; // SQLite: 0 | 1
+  /**
+   * L'instant de création, 'YYYY-MM-DD HH:MM:SS' local (migration 033). Une
+   * habitude COMPTE à partir de ce jour (`debutsDesHabitudes`). NULL ou absent
+   * (ligne d'avant la 033 venue d'un appareil plus ancien, démo semée) : on
+   * retombe sur sa première coche.
+   */
+  created_at?: string | null;
 }
 
 export interface HabitCheck {

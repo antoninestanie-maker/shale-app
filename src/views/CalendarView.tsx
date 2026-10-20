@@ -30,6 +30,9 @@ import {
 import { blocsDuJour, optionsDuProfil } from "../lib/onboarding/horaires";
 import { useHoraires } from "../lib/onboarding/useHoraires";
 import { formaterDansPhrase } from "../lib/calendrier/champDate";
+import { AGENDA_JOURS, curseurApres } from "../lib/calendrier/navigation";
+import { jourDeCocheTache } from "../lib/jourDeCoche";
+import { useSourcesProgression } from "../lib/objectifs/useProgression";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
 import {
@@ -90,10 +93,9 @@ type CibleCalendrier =
  * suggérés sont un fond en pointillé ; c'est Antonin qui dépose.
  */
 
+// La même union que `ModeCalendrier` (`calendrier/navigation.ts`), dont la
+// règle de « Précédent / Suivant » et `AGENDA_JOURS` viennent.
 type Mode = import("../lib/calendrier/memoire").VueCalendrier;
-
-/** Sur combien de jours la vue agenda déroule. Un mois : au-delà, on planifie. */
-const AGENDA_JOURS = 30;
 
 /**
  * Combien d'alertes de chaque famille le bandeau montre avant de compter le
@@ -318,13 +320,13 @@ export default function CalendarView({ data, refresh }: Props) {
   const eviterMarche = useEntitlements().afficheModule("market");
   const ia = useIaPossible();
   const surcharges = useMemo(() => joursSurcharges(parJour, profil), [parJour, profil]);
+  const sourcesObjectifs = useSourcesProgression(data);
   const peril = useMemo(
     () =>
-      objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui, {
-        habits: data.habits,
-        habitChecks: data.habitChecks,
-      }),
-    [data.goals, data.tasks, data.completions, data.habits, data.habitChecks, aujourdhui],
+      // Les sources complètes (arêtes, événements rattachés, l'heure), comme la
+      // page de l'objectif (objectifs-1, 2026-10-20).
+      objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui, sourcesObjectifs),
+    [data.goals, data.tasks, data.completions, aujourdhui, sourcesObjectifs],
   );
 
   /**
@@ -487,7 +489,12 @@ export default function CalendarView({ data, refresh }: Props) {
         tache,
         {
           ...communsTache,
-          basculer: (x) => void basculerTache(x, c.date, !faite).then(apresEvenement),
+          // ⭐ Une ponctuelle se coche À AUJOURD'HUI, comme partout ailleurs
+          // (Tâches, Aujourd'hui, « La faire maintenant ») : la date du bloc
+          // réécrivait un jour passé (0 tâche → 1/1) ou envoyait la coche dans
+          // le futur (temps-3, 2026-10-20). Une récurrente se coche jour par
+          // jour : son occurrence, c'est la date du bloc.
+          basculer: (x) => void basculerTache(x, jourDeCocheTache(x, c.date, todayStr()), !faite).then(apresEvenement),
           renommer: () => undefined, // omis : `renommable: false`
           modifier: (x) => ouvrirParId("task", x.id),
           focus: gesteFocus,
@@ -522,15 +529,11 @@ export default function CalendarView({ data, refresh }: Props) {
   const naviguer = useCallback(
     (sens: number) => {
       setMouvement((m) => ({ tour: m.tour + 1, sens }));
-      if (mode === "jour") setCurseur((c) => addDays(c, sens));
-      else if (mode === "semaine") setCurseur((c) => addDays(c, 7 * sens));
-      else {
-        const d = new Date(`${curseur}T12:00:00`);
-        d.setMonth(d.getMonth() + sens);
-        setCurseur(toDateStr(d));
-      }
+      // La règle (agenda par pages de 30 jours, mois sans débordement) vit dans
+      // `lib/calendrier/navigation.ts`, testée.
+      setCurseur((c) => curseurApres(mode, c, sens));
     },
-    [mode, curseur],
+    [mode],
   );
 
   const titre = useMemo(() => {
