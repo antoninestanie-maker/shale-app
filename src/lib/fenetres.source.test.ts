@@ -150,8 +150,12 @@ describe("Échap ne ferme qu'un étage", () => {
     expect(corps).toContain("Escape");
     expect(corps).toContain("e.defaultPrevented");
     expect(corps).toContain("e.preventDefault()");
-    // Le garde vient AVANT la fermeture.
-    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(corps.indexOf("onClose()"));
+    // Le garde vient AVANT la fermeture. Depuis le 2026-10-20, trois de ces
+    // fenêtres ferment par `fermer()` (`useFermetureGardee`), qui demande avant
+    // de jeter une saisie modifiée ; c'est elle qui appelle `onClose`.
+    const ferme = Math.max(corps.indexOf("onClose()"), corps.indexOf("fermer()"));
+    expect(ferme).toBeGreaterThan(-1);
+    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(ferme);
   });
 });
 

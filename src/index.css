@@ -662,10 +662,14 @@
      pas. Centré, petit, et lui seul reçoit le pointeur. Au rail il reste
      centré sur la colonne d'icônes. */
   .barre-suite {
+    /* Centré par les marges, pas par un `translate(-50%)` : une demi-largeur
+       impaire tomberait entre deux pixels et flouterait le chevron (garde
+       `nettete.source.test.ts`). */
     position: absolute;
-    left: 50%;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
     bottom: 2px;
-    transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
