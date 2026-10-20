@@ -8712,3 +8712,10 @@ Antonin : « j'aimerais que les tâches puissent avoir des sortes de tags dans l
 - **Sortir de l'attente vide `waiting_for` et `follow_up_on`** (`changerEtat`) : une relance oubliée ferait reparaître la tâche sans raison. À l'inverse, préciser « de quoi on attend » dans « Modifier… » garde `state_since`.
 - **Saisie** : menu « État ▸ » (après « Priorité », qui doit rester juste après « Dater » — `tache.test.ts`). L'attente s'y pose **avec sa relance en un geste** (sans relance, demain, lundi prochain, au jour choisi), parce que le menu n'a qu'un niveau de sous-menu. Toast avec « Annuler ». « Modifier la tâche » porte l'état, « En attente de… » et la date de relance.
 - **Badges déduits, jamais saisis** : « Prochaine action » (`prochainesActions`, la règle de la liste des objectifs avec les **mêmes sources**, arêtes et événements compris — sinon les deux vues pourraient désigner deux tâches différentes), « Rapide » (créneau de 15 min ou moins), et « reportée N fois », qui existait déjà. Le libellé « Bloque un objectif » proposé dans la conversation est devenu « Prochaine action » : c'est le mot que la liste des objectifs emploie déjà.
+
+## 2026-10-20 — Fermer un objectif à la souris n'allume plus d'anneau autour de sa ligne
+
+Signalé par Antonin, capture à l'appui : après la fermeture d'un objectif, un liseré (l'anneau de focus, couleur de l'accent) entourait sa ligne dans la liste. La règle du 2026-10-08 rendait le focus à la ligne quittée **dans tous les cas** ; dans WebKit, un `focus()` programmé allume `:focus-visible` même après un clic.
+- **Le focus n'est rendu à la ligne que si la page a été fermée au clavier** : Échap, ou Entrée/Espace sur « ← Tous les objectifs » (`event.detail === 0`). Au clic, rien n'est focalisé : le défilement, lui, est toujours rendu.
+- Code : `GoalsView.tsx`, `retour.current.clavier`, posé par `fermer(clavier)`.
+- ▶️ Même motif ailleurs (lecteur du Savoir, menus) : rendre le focus seulement après un geste clavier.

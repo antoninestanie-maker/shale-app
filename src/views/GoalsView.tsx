@@ -190,7 +190,10 @@ export default function GoalsView({ data, refresh }: Props) {
    */
   const [choisiId, setChoisiId] = useState<number | null>(null);
   /** Où en était la liste quand on l'a quittée : on y revient au même endroit. */
-  const retour = useRef<{ defilement: number; objectif: number | null }>({ defilement: 0, objectif: null });
+  // `clavier` : la page a été fermée au clavier (Échap, Entrée sur « retour »).
+  // Seul ce cas rend le focus à la ligne : au clic, l'anneau de focus
+  // s'allumerait autour d'une ligne qu'on n'a pas visée (signalé le 2026-10-20).
+  const retour = useRef<{ defilement: number; objectif: number | null; clavier: boolean }>({ defilement: 0, objectif: null, clavier: false });
   const listeRef = useRef<HTMLDivElement | null>(null);
 
   /**
@@ -212,7 +215,7 @@ export default function GoalsView({ data, refresh }: Props) {
 
   const ouvrir = (id: number) => {
     if (film) return;
-    retour.current = { defilement: listeRef.current?.scrollTop ?? 0, objectif: id };
+    retour.current = { defilement: listeRef.current?.scrollTop ?? 0, objectif: id, clavier: false };
     if (!mouvementReduit()) {
       setParLaCarte(id);
       setFilm({ sens: "ouvre", id });
@@ -220,8 +223,9 @@ export default function GoalsView({ data, refresh }: Props) {
     setChoisiId(id);
   };
   /** Revenir à la liste — le bouton, Échap : la page rentre dans sa carte. */
-  const fermer = () => {
+  const fermer = (clavier = false) => {
     if (film || choisiId == null) return;
+    retour.current.clavier = clavier;
     if (!mouvementReduit()) setFilm({ sens: "ferme", id: choisiId });
     setChoisiId(null);
   };
@@ -469,7 +473,7 @@ export default function GoalsView({ data, refresh }: Props) {
       if (e.key !== "Escape" || dansUnChamp(e.target)) return;
       if (occupeRef.current || menuContextuelOuvert() || document.querySelector('[role="dialog"], [role="menu"]')) return;
       window.setTimeout(() => {
-        if (!e.defaultPrevented) fermerRef.current();
+        if (!e.defaultPrevented) fermerRef.current(true);
       }, 0);
     };
     window.addEventListener("keydown", touche);
@@ -682,7 +686,8 @@ export default function GoalsView({ data, refresh }: Props) {
         <div className="flex shrink-0 items-center gap-1 pb-3">
           <button
             type="button"
-            onClick={fermer}
+            // `detail` vaut 0 quand le bouton est activé au clavier.
+            onClick={(e) => fermer(e.detail === 0)}
             className="cible-tactile-ligne -ml-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-dim transition-colors hover:bg-surface-2 hover:text-text"
             data-tip={t("Revenir à la liste")}
             data-tip-kbd={t("Échap")}
@@ -894,8 +899,8 @@ export default function GoalsView({ data, refresh }: Props) {
               retour.current.objectif != null
                 ? el.querySelector<HTMLElement>(`[data-objectif="${retour.current.objectif}"]`)
                 : null;
-            ligne?.focus({ preventScroll: true });
-            retour.current = { defilement: 0, objectif: null };
+            if (retour.current.clavier) ligne?.focus({ preventScroll: true });
+            retour.current = { defilement: 0, objectif: null, clavier: false };
           }}
           className="mt-6 min-h-0 flex-1 overflow-y-auto pb-6 pt-0.5"
         >
