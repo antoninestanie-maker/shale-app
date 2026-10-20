@@ -1062,8 +1062,8 @@ export const EN: Record<string, string> = {
     "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
   "Série en danger": "Streak at risk",
-  "En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue.":
-    "At the end of the day, if a running streak — habits or tasks — is about to break.",
+  "En fin de journée, si ta série d'habitudes risque d'être rompue.":
+    "At the end of the day, if your habit streak is about to break.",
   "Habitudes non cochées": "Habits not checked",
   "Le soir, si des habitudes du jour attendent encore d'être cochées.":
     "In the evening, if today’s habits are still waiting to be checked.",
@@ -3805,6 +3805,12 @@ export const EN: Record<string, string> = {
   "« {titre} » est en attente": "“{titre}” is waiting",
   "« {titre} » est abandonnée": "“{titre}” is dropped",
   "Abandonnée": "Dropped",
+  // ── Lot 2 de l'audit du 2026-10-20 (états des tâches) ──
+  "État · {etat}": "Status · {etat}",
+  "En attente, relance {quand}": "Waiting, follow up {quand}",
+  "{n} à relancer": "{n} to follow up",
+  "L'objectif ne l'attend plus. Pour la reprendre : ⋯ › État › À faire.":
+    "The goal no longer waits for it. To bring it back: ⋯ › Status › To do.",
   "En attente de… (une personne, une réponse)": "Waiting for… (someone, an answer)",
   "Relance": "Follow-up",
   "Sans relance": "No follow-up",
@@ -3812,6 +3818,10 @@ export const EN: Record<string, string> = {
     "It leaves the lists and no longer counts anywhere. “To do” brings it back.",
   "En retard et à relancer": "Overdue and to follow up",
   "À relancer : {quoi}": "Follow up: {quoi}",
+  // Lot 1 de l'audit du 2026-10-20 — les données qui s'abîment.
+  "{nom} : la note a changé pendant la copie": "{nom}: the note changed during the copy",
+  "Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.":
+    "This note no longer exists: it was deleted, perhaps on another device.",
   // ── Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (2026-10-21) ──
   "Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.":
     "Leaves only the clock on screen. Tap the screen to pause or minimise.",

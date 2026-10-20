@@ -112,7 +112,7 @@ mod tests {
             habits: names
                 .iter()
                 .enumerate()
-                .map(|(i, n)| Habit { id: i as i64 + 1, name: (*n).to_string() })
+                .map(|(i, n)| Habit { id: i as i64 + 1, name: (*n).to_string(), is_example: false })
                 .collect(),
             habit_checks: checked
                 .iter()

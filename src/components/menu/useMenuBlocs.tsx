@@ -26,6 +26,7 @@ import { useMenuContextuel } from "./useMenuContextuel";
 import { blocSous, nomDePiece, retirerBloc, type BlocNote } from "../../lib/blocsNote";
 import { carteDuBloc } from "../../lib/carteDom";
 import type { Carte } from "../../lib/carte";
+import type { PageCartes } from "../../lib/repo";
 import { CLASSE_ABSENTE, CLASSE_MORTE } from "../../lib/piecesJointes";
 import { pointeurGrossier } from "../../lib/menu/tactile";
 import type { EntreePossible } from "../../lib/menu/entrees";
@@ -39,6 +40,13 @@ export interface GestesBlocs {
   racine: () => HTMLElement | null;
   /** Enregistre la note après un changement fait par le DOM (qui ne déclenche pas `onInput`). */
   enregistrer: () => void;
+  /**
+   * Ce que l'éditeur affiche — change dès qu'il resème son DOM. « Annuler »
+   * ne remet un bloc que si elle n'a pas bougé depuis le retrait.
+   */
+  identite: () => unknown;
+  /** La page affichée, pour savoir où d'autre ses cartes vivent. `null` : inconnue. */
+  page: () => PageCartes | null;
   /** En lecture seule, rien ne se retire : on ouvre, c'est tout. */
   lectureSeule: boolean;
   /** Le double-clic sur une carte. */
@@ -90,6 +98,12 @@ export function useMenuBlocs(g: GestesBlocs): {
     return true;
   };
 
+  /** Vrai tant que l'éditeur montre la note d'où part le geste — capturée MAINTENANT. */
+  const memeNote = () => {
+    const depart = g.identite();
+    return () => g.identite() === depart;
+  };
+
   /** Le bloc n'a pas pu être remis : la note a bougé entre-temps. */
   const direEchec = () =>
     afficherToast({
@@ -108,9 +122,18 @@ export function useMenuBlocs(g: GestesBlocs): {
    */
   const retirerCarte = async (bloc: BlocNote) => {
     const c = carteDuBloc(bloc.element);
-    const emportes = c ? await elementsDesCartes([c]) : [];
+    const toujoursLa = memeNote();
+    // Les cartes qui RESTENT sur la page portent encore leurs nœuds.
+    const restantes = Array.from(g.racine()?.querySelectorAll<HTMLElement>("figure[data-mindmap]") ?? [])
+      .filter((f) => f !== bloc.element)
+      .map((f) => carteDuBloc(f))
+      .filter((x): x is Carte => x !== null);
+    const emportes = c ? await elementsDesCartes([c], { horsDe: g.page(), restantes }) : [];
+    // La note a changé pendant la lecture de la base : le bloc n'est plus à
+    // l'écran, rien à retirer — et surtout rien à jeter.
+    if (!toujoursLa()) return;
     if (emportes.length === 0) return retirer(bloc);
-    const remettre = retirerBloc(bloc);
+    const remettre = retirerBloc(bloc, toujoursLa);
     g.enregistrer();
     await jeterPlusieurs(
       emportes,
@@ -129,7 +152,7 @@ export function useMenuBlocs(g: GestesBlocs): {
   };
 
   const retirer = (bloc: BlocNote) => {
-    const remettre = retirerBloc(bloc);
+    const remettre = retirerBloc(bloc, memeNote());
     g.enregistrer();
     afficherToast({
       msg: t(LIBELLE_RETRAIT[bloc.type], { nom: titreCourt(nomDePiece(bloc.element), 30) }),

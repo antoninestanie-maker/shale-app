@@ -60,10 +60,16 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     let f_tache = filtre_vivant(&mut conn, "tasks", "").await;
     let f_tache_j = filtre_vivant(&mut conn, "tasks", "t").await;
 
-    let habits = sqlx::query_as::<_, (i64, String)>(&format!("SELECT id, name FROM habits WHERE archived = 0{f_hab}"))
+    // `is_example` (migration 024) : même garde que `due_date` plus bas — nommée en
+    // aveugle sur une base pas encore migrée, la requête échouerait et il n'y
+    // aurait plus aucune habitude.
+    let col_ex = if colonne_existe(&mut conn, "habits", "is_example").await { "is_example" } else { "0" };
+    let habits = sqlx::query_as::<_, (i64, String, i64)>(&format!(
+        "SELECT id, name, {col_ex} FROM habits WHERE archived = 0{f_hab}"
+    ))
         .fetch_all(&mut conn)
         .await
-        .map(|rows| rows.into_iter().map(|(id, name)| Habit { id, name }).collect())
+        .map(|rows| rows.into_iter().map(|(id, name, ex)| Habit { id, name, is_example: ex != 0 }).collect())
         .unwrap_or_else(|e| {
             eprintln!("notifications : lecture des habitudes ({e})");
             Vec::new()
@@ -102,15 +108,23 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     let etat_ok = colonne_existe(&mut conn, "tasks", "state").await;
     let (col_etat, col_depuis) =
         if etat_ok { ("state", "state_since") } else { ("CAST(NULL AS TEXT)", "CAST(NULL AS TEXT)") };
+    // Et pour les pauses (migration 032) : absentes, aucune pause, aucune conversion.
+    let pauses_ok = colonne_existe(&mut conn, "tasks", "pauses").await;
+    let (col_pauses, col_ponctuelle) =
+        if pauses_ok { ("pauses", "ponctuelle_depuis") } else { ("CAST(NULL AS TEXT)", "CAST(NULL AS TEXT)") };
     #[allow(clippy::type_complexity)]
-    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>)>(&format!(
-        "SELECT id, recurrence, created_at, {col_due}, {col_etat}, {col_depuis} FROM tasks WHERE 1 = 1{f_tache}"
+    let tasks = sqlx::query_as::<
+        _,
+        (i64, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>),
+    >(&format!(
+        "SELECT id, recurrence, created_at, {col_due}, {col_etat}, {col_depuis}, {col_pauses}, {col_ponctuelle} \
+         FROM tasks WHERE 1 = 1{f_tache}"
     ))
     .fetch_all(&mut conn)
     .await
     .map(|rows| {
         rows.into_iter()
-            .map(|(id, recurrence, created_at, due_date, state, state_since)| Task {
+            .map(|(id, recurrence, created_at, due_date, state, state_since, pauses, ponctuelle_depuis)| Task {
                 id,
                 recurrence,
                 created_at,
@@ -118,6 +132,8 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
                 due_date: due_date.filter(|d| !d.is_empty()),
                 state,
                 state_since: state_since.filter(|d| !d.is_empty()),
+                pauses: pauses.filter(|p| !p.is_empty()),
+                ponctuelle_depuis: ponctuelle_depuis.filter(|d| !d.is_empty()),
             })
             .collect()
     })
@@ -423,6 +439,27 @@ mod tests {
         let pending = snap.habits_pending_on(today());
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].name, "Lecture");
+        assert!(snap.habits.iter().all(|h| !h.is_example), "sans la colonne 024 : aucun exemple");
+    }
+
+    /// La série de la notification écarte les exemples, comme l'écran : il faut
+    /// donc que la lecture rende le drapeau quand la colonne existe.
+    #[tokio::test]
+    async fn lit_le_drapeau_d_exemple_des_habitudes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE habits ADD COLUMN is_example INTEGER NOT NULL DEFAULT 0;
+            INSERT INTO habits (id, name, is_example) VALUES (1, 'Sport', 0), (2, 'Exemple', 1);
+            "#,
+        )
+        .await;
+
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        let ex: Vec<_> = snap.habits.iter().map(|h| (h.name.as_str(), h.is_example)).collect();
+        assert_eq!(ex, vec![("Sport", false), ("Exemple", true)]);
     }
 
     #[tokio::test]
@@ -601,6 +638,32 @@ mod tests {
         let titres: Vec<_> = snap.calendar.iter().map(|c| format!("{}:{}", c.kind, c.title)).collect();
         assert!(titres.iter().all(|t| !t.contains("jet")), "rien de jeté dans le calendrier : {titres:?}");
         assert_eq!(titres.len(), 3, "l'événement, la tâche datée et l'échéance vivants : {titres:?}");
+    }
+
+    /// ⭐ Migration 032 : les pauses et la conversion sont LUES — sans elles, la
+    /// série de la notification compterait les jours de pause d'une routine
+    /// reprise comme manqués (audit 2026-10-20, taches-1).
+    #[tokio::test]
+    async fn les_pauses_d_une_tache_sont_lues() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shale.db");
+        seed(
+            &path,
+            r#"
+            ALTER TABLE tasks ADD COLUMN state TEXT NOT NULL DEFAULT 'todo';
+            ALTER TABLE tasks ADD COLUMN state_since TEXT;
+            ALTER TABLE tasks ADD COLUMN pauses TEXT;
+            ALTER TABLE tasks ADD COLUMN ponctuelle_depuis TEXT;
+            INSERT INTO tasks (id, label, recurrence, pauses, ponctuelle_depuis) VALUES
+              (1, 'Méditer', 'daily', '[["2026-07-20","2026-07-27"]]', NULL),
+              (2, 'Lire', 'none', '', '2026-07-25');
+            "#,
+        )
+        .await;
+        let snap = read_snapshot(&path, today()).await.unwrap();
+        assert_eq!(snap.tasks[0].pauses.as_deref(), Some(r#"[["2026-07-20","2026-07-27"]]"#));
+        assert!(snap.tasks[1].pauses.is_none(), "une chaîne vide n'est pas une pause");
+        assert_eq!(snap.tasks[1].ponctuelle_depuis.as_deref(), Some("2026-07-25"));
     }
 
     /// ⭐⭐ Et une base SANS la colonne (antérieure à la 027) continue de sonner.

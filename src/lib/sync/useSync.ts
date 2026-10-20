@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getDb } from "../db";
+import { getDb, getDbBrute } from "../db";
 import { isTauri } from "../repo";
 import { creer as creerSauvegarde } from "../sauvegardes";
 import { AUTH_CONFIGURED, SUPABASE_ANON_KEY, SUPABASE_URL } from "../auth/config";
@@ -248,7 +248,9 @@ export function useSync(
   const cycle = useCallback(async () => {
     const cles = clesRef.current;
     if (!cles || !session) return;
-    const db = (await getDb()) as unknown as BaseLocale;
+    // ⚠️ La connexion BRUTE : le moteur ferme lui-même la porte des écritures
+    // (`verrou.ts`) ; par `getDb`, il s'attendrait pour toujours.
+    const db = (await getDbBrute()) as unknown as BaseLocale;
     try {
       await synchroniser({
         db,

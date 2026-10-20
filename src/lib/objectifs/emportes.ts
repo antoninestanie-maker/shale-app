@@ -147,3 +147,34 @@ export function resoudreEmportes(
   }
   return out;
 }
+
+/**
+ * ⭐ UN NŒUD PORTÉ AILLEURS N'EST PAS EMPORTÉ (audit du 2026-10-20, savoir-5).
+ *
+ * « Dupliquer » recopie le corps d'une note, cartes comprises : la copie porte
+ * les MÊMES nœuds typés que l'original — les mêmes tâches, étapes, habitudes.
+ * Supprimer la copie, qu'on prend pour un brouillon jetable, mettait donc en
+ * corbeille ce que l'original porte toujours, et sa carte affichait des nœuds
+ * morts. Même chose pour une carte collée dans une autre note.
+ *
+ * La règle « un nœud typé EST son objet » tient, précisée : l'objet part avec
+ * la DERNIÈRE carte qui le porte. Un nœud que porte encore une autre carte
+ * vivante (`ailleurs`) est lu ici comme un nœud simple — sans `ref`. Ce qui
+ * pend dessous suit sa propre règle : une tâche qui n'est portée qu'ici part.
+ * Une étape comptée par une habitude gardée reste, puisque l'habitude reste.
+ */
+export function sansNoeudsPortesAilleurs(cartes: readonly Carte[], ailleurs: readonly Carte[]): Carte[] {
+  const portes = new Set<string>();
+  for (const c of ailleurs) {
+    for (const n of c.noeuds) if (n.ref && !n.mort) portes.add(`${n.ref.kind}:${n.ref.uid}`);
+  }
+  if (portes.size === 0) return [...cartes];
+  return cartes.map((c) => ({
+    ...c,
+    noeuds: c.noeuds.map((n) => {
+      if (!n.ref || !portes.has(`${n.ref.kind}:${n.ref.uid}`)) return n;
+      const { ref: _porteAilleurs, ...simple } = n;
+      return simple;
+    }),
+  }));
+}

@@ -31,6 +31,7 @@ import m28 from "../../../src-tauri/migrations/028_pieces_jointes.sql?raw";
 import m29 from "../../../src-tauri/migrations/029_ia_contenus.sql?raw";
 import m30 from "../../../src-tauri/migrations/030_priorite_etapes.sql?raw";
 import m31 from "../../../src-tauri/migrations/031_etat_taches.sql?raw";
+import m32 from "../../../src-tauri/migrations/032_pauses_taches.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -53,6 +54,8 @@ export const MIGRATIONS: readonly string[] = [
   m29, m30,
   // 031 : l'état d'une tâche (en cours, en attente, abandonnée).
   m31,
+  // 032 : les pauses terminées d'une tâche, et le jour où une routine devient ponctuelle.
+  m32,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

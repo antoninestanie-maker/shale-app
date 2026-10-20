@@ -60,14 +60,22 @@ export function blocSous(cible: EventTarget | null, racine: HTMLElement | null):
  * dans le document. Remettre un bloc dans un arbre détaché ne ferait rien de
  * visible, et le dire vaut mieux que de faire semblant (règle 15 : la cible est
  * capturée au retrait, jamais relue au moment du clic).
+ *
+ * ⚠️⚠️ « PARENT TOUJOURS DANS LE DOCUMENT » NE SUFFIT PAS (audit du 2026-10-20,
+ * savoir-2). Un bloc de premier niveau a pour parent la RACINE de l'éditeur, et
+ * les deux éditeurs gardent cette racine d'une note à l'autre : ils resèment
+ * seulement son contenu. Retirer une carte de A, ouvrir B, puis « Annuler »
+ * posait donc la carte à la fin de B — qui l'enregistrait —, et le Savoir
+ * écrasait A avec le corps de B. `toujoursLa` dit si l'éditeur montre encore
+ * la note d'où le bloc est parti ; sinon, la remise est refusée.
  */
-export function retirerBloc(bloc: BlocNote): () => boolean {
+export function retirerBloc(bloc: BlocNote, toujoursLa: () => boolean = () => true): () => boolean {
   const { element } = bloc;
   const parent = element.parentNode;
   const suivant = element.nextSibling;
   element.remove();
   return () => {
-    if (!parent || !parent.isConnected) return false;
+    if (!parent || !parent.isConnected || !toujoursLa()) return false;
     const voisin = suivant && suivant.parentNode === parent ? suivant : null;
     parent.insertBefore(element, voisin);
     return true;

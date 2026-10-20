@@ -3,6 +3,7 @@ import { dansLeBandeau, joursEntre, type EntreeAgenda } from "../../lib/calendri
 import { toDateStr } from "../../lib/logic";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
 import { IconSablier } from "../icons";
+import { BadgeDEntree } from "../taches/BadgeEtat";
 import { surAppuiLong } from "./appuiLong";
 
 /**
@@ -121,6 +122,7 @@ export default function VueAgenda({
                       }}
                     >
                       {e.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
+                      <BadgeDEntree entree={e} />
                       {e.titre}
                     </span>
                   </button>
