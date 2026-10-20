@@ -2637,7 +2637,8 @@ export const demo = {
       }
     }
     if (veut("goal")) {
-      for (const g of goals) docs.push({ kind: "goal", id: g.id, uid: uidDemo("goal", g.id), titre: g.title });
+      for (const g of goals)
+        docs.push({ kind: "goal", id: g.id, uid: uidDemo("goal", g.id), titre: g.title, ...(g.parent_goal_id != null ? { etape: true } : {}) });
     }
     if (veut("task")) {
       for (const t of tasks) docs.push({ kind: "task", id: t.id, uid: uidDemo("task", t.id), titre: t.label });

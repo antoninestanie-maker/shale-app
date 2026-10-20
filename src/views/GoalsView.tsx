@@ -215,6 +215,12 @@ export default function GoalsView({ data, refresh }: Props) {
 
   const ouvrir = (id: number) => {
     if (film) return;
+    // ⚠️ DÉJÀ OUVERTE : rien à rejouer (audit du 2026-10-20, objectifs-8).
+    // « ⋯ › Ajouter une tâche » d'une page ouverte passait par ici : on
+    // relisait le défilement d'une liste DÉMONTÉE (0), et le film d'ouverture
+    // repartait de la carte — la page se rétractait, la liste revenait en haut,
+    // et le retour ne savait plus où rendre le focus.
+    if (choisiId === id) return;
     retour.current = { defilement: listeRef.current?.scrollTop ?? 0, objectif: id, clavier: false };
     if (!mouvementReduit()) {
       setParLaCarte(id);
@@ -290,32 +296,40 @@ export default function GoalsView({ data, refresh }: Props) {
 
   const { goals, tasks, completions } = data;
   const [important, setImportant] = useState(false);
-  const goalsRef = useRef(goals);
-  goalsRef.current = goals;
 
   /**
-   * Un objectif créé devient l'objectif montré. `GoalModal` ne rend pas l'`id`
-   * écrit : on retient les objectifs d'avant, et le premier objectif racine
-   * inconnu qui apparaît après le rafraîchissement est le nouveau.
+   * Un objectif créé devient l'objectif montré.
+   *
+   * ⚠️ PAR SON `id`, RENDU PAR `GoalModal` (audit du 2026-10-20, objectifs-10 ;
+   * A06a-18). La version d'avant retenait les objectifs d'avant et prenait « le
+   * premier objectif RACINE inconnu » qui apparaissait ensuite. Créé sous un
+   * parent, l'objectif n'était pas une racine : la mémoire restait armée, et la
+   * prochaine racine venue d'ailleurs (import, restauration, synchro) prenait la
+   * page et ouvrait son champ « Tâche ». Une étape créée ouvre désormais la page
+   * de son objectif, dépliée jusqu'à elle (la demande d'ouverture le fait).
    */
-  const avantCreation = useRef<Set<number> | null>(null);
+  const [demande, setDemande] = useState<number | null>(null);
+  const aMontrer = useRef<number | null>(null);
   const nouvelObjectif = useCallback(() => {
-    avantCreation.current = new Set(goalsRef.current.map((g) => g.id));
+    aMontrer.current = null;
     setCreating(true);
   }, []);
   useEffect(() => {
-    const avant = avantCreation.current;
-    if (!avant) return;
-    const neuf = goals.find((g) => g.parent_goal_id === null && !avant.has(g.id));
-    if (neuf) {
-      avantCreation.current = null;
-      setChoisiId(neuf.id);
-      // ⭐ 2026-10-12 — LA TÂCHE REÇOIT LE FOCUS PAR DÉFAUT. Un objectif créé nu
-      // (ni tâche ni étape saisies dans la fenêtre) ouvre sa page sur le champ
-      // « Tâche » : la première chose qu'on lui donne est une chose à faire.
-      const nu = !goals.some((g) => g.parent_goal_id === neuf.id) && !tasks.some((x) => x.goal_id === neuf.id);
-      if (nu) setAjoutPour({ id: neuf.id, quoi: "tache" });
+    const id = aMontrer.current;
+    if (id == null) return;
+    const neuf = goals.find((g) => g.id === id);
+    if (!neuf) return;
+    aMontrer.current = null;
+    if (neuf.parent_goal_id != null) {
+      setDemande(neuf.id);
+      return;
     }
+    setChoisiId(neuf.id);
+    // ⭐ 2026-10-12 — LA TÂCHE REÇOIT LE FOCUS PAR DÉFAUT. Un objectif créé nu
+    // (ni tâche ni étape saisies dans la fenêtre) ouvre sa page sur le champ
+    // « Tâche » : la première chose qu'on lui donne est une chose à faire.
+    const nu = !goals.some((g) => g.parent_goal_id === neuf.id) && !tasks.some((x) => x.goal_id === neuf.id);
+    if (nu) setAjoutPour({ id: neuf.id, quoi: "tache" });
   }, [goals, tasks]);
 
   // action palette "Nouvel objectif" → ouvre le formulaire
@@ -333,11 +347,17 @@ export default function GoalsView({ data, refresh }: Props) {
    * avant elle (`lib/naviguer.ts`). Et la demande ATTEND l'objectif : celui
    * qu'une carte vient de créer n'est pas encore dans `data` quand elle arrive.
    */
-  const [demande, setDemande] = useState<number | null>(null);
   useEffect(() => {
     const surDemande = (e: Event) => {
       const id = (e as CustomEvent<number>).detail;
-      if (id) setDemande(id);
+      if (!id) return;
+      setDemande(id);
+      // ⚠️ La vue était déjà là : la demande déposée par `App.tsx` est servie,
+      // on la RETIRE — sinon elle rouvrait cet objectif au montage suivant
+      // (revenir de Tâches ramenait sur la page de la checklist importée
+      // plutôt que sur la liste ; audit du 2026-10-20, objectifs-10). Le motif
+      // de `NotesView`.
+      consommerDemande("goal");
     };
     window.addEventListener(EVT_OUVRIR_OBJECTIF, surDemande);
     const enAttente = consommerDemande("goal");
@@ -961,11 +981,14 @@ export default function GoalsView({ data, refresh }: Props) {
           goal={editing}
           goals={goals}
           onClose={() => {
-            avantCreation.current = null;
+            aMontrer.current = null;
             setCreating(false);
             setEditing(null);
           }}
-          onSaved={async () => {
+          onSaved={async (creeId) => {
+            // Posé AVANT le rafraîchissement : l'effet qui ouvre la page attend
+            // l'objectif dans les données neuves.
+            if (creating && creeId != null) aMontrer.current = creeId;
             await refresh();
             setCreating(false);
             setEditing(null);

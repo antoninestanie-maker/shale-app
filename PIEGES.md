@@ -5599,25 +5599,62 @@ Avant de livrer une règle de tâche, chercher les copies :
 `grep -rnE "c\.done\)\.map|due_date < " src` — et la règle Rust
 (`notifications/task_streak.rs`). Payé : sept défauts d'audit, une demi-journée.
 
-## 56. Chiffres qui se contredisent d'un écran à l'autre — lot 3 de l'audit (2026-10-21)
+## 56. Retirer un instant une classe pour MESURER remet à zéro le défilement des enfants
 
-### 56.1 Un écran qui ÉCRIT à son ouverture fait dépendre les chiffres des autres écrans du parcours
+- **Symptôme.** Au téléphone, cocher une habitude en bas de la carte la ramenait en haut ; le « ⋯ » d'une ligne du bas ouvrait un menu sous une AUTRE ligne (audit du 20/10, constat 1).
+- **Cause.** `ResizablePanel` lit la hauteur naturelle d'une carte en retirant `.rgrid-fill` le temps d'un `offsetHeight`. Sans l'étirement, la région `.panel-scroll` n'a plus rien à défiler : le navigateur ramène son `scrollTop` à 0, et remettre la classe ne le rend pas. Chaque re-mesure (une coche, un menu ouvert) relançait le défaut.
+- **Parade.** `garderDefilement` (`lib/grille.ts`) relève les `scrollTop` avant la lecture et les repose après. Toute mesure qui change la mise en page d'un parent le temps d'une lecture doit faire de même.
+- **Payé.** Vu par deux utilisateurs simulés, mesuré dans WebKit le 2026-10-21 (lot 4).
+## 57. Lot 5 de l'audit — deux erreurs qui se répètent (2026-10-20)
+
+### 57.1 Recoller les chiffres d'une date tapée la rend ambiguë
+**Symptôme.** « 20/02/2027 » répondait « Date illisible » ; « 15/01/2027 » passait. Seuls les jours 19 à 22 étaient touchés.
+**Cause.** `parserSaisie` retirait les séparateurs puis, devant huit chiffres, essayait l'ISO d'abord dès que les quatre premiers faisaient une année plausible (1900–2200) : « 2002 », mois 20. Les tests ne prenaient que des jours (24, 7) qui ne tombent pas dans la plage.
+**Parade.** Une saisie AVEC séparateurs se lit morceau par morceau ; seuls huit chiffres collés passent par la lecture « collée », langue d'abord. Tester un format de date sur TOUTES les dates d'une année, pas sur trois exemples (`champDate.test.ts` le fait).
+**Payé.** Trois utilisateurs du labo sur trois au format demandé ; « moment de fermer » de Léa.
+
+### 57.2 Une fonction de branchement testée n'est pas une fonction branchée
+**Symptôme.** L'accueil promettait « c'est de là que partent les créneaux que le calendrier te proposera » ; le calendrier proposait 09:00 à qui avait déclaré 08:30 – 17:00, et les blocs fixes n'étaient nulle part.
+**Cause.** `repliDuTravail` (2026-09-10) avait ses tests, le commit annonçait le branchement ; aucun appelant de `profilDisponibilite` ne lui passait d'options. Les tests de la fonction étaient verts, le produit n'en voyait rien.
+**Parade.** Quand une fonction existe POUR être branchée quelque part, un test de source tient l'appel (`onboarding/horaires.test.ts` vérifie `CalendarView` et `CalendarCard`). Avant de documenter « branché », `grep -rn "nomDeLaFonction(" src | grep -v test`.
+**Payé.** Six semaines de réglages déclarés pour rien ; constat 7 de l'audit (Monique : « j'aurais douté de tout le reste »).
+
+## 58. Lot 7 de l'audit du 2026-10-20 (finitions d'Objectifs et divers)
+
+### 58.1 Un verrou tenu dans un `useState` ne garde pas deux événements du même instant
+**Symptôme** : deux Entrée rapprochées (ou une touche qui rebondit) créent la même étape, la même tâche, ou rattachent deux fois. **Cause** : `if (occupe) return; setOccupe(true)` — l'état ne change qu'au rendu suivant, et le second événement lit encore `occupe === false` (`ComposerTache`, `RattacherElement`, `ChampLigne` de la feuille de route). **Parade** : le verrou LU est une `useRef` (`enCours.current`), posée avant le premier `await` ; l'état ne sert plus qu'à griser le bouton. **Payé** : objectifs-13 (A06a-46), trois composants corrigés le même jour.
+
+### 58.2 Une réponse de recherche peut être celle de la frappe d'AVANT
+**Symptôme** : on tape « Réviser chapitre 2 » puis Entrée tout de suite, et « Réviser chapitre 1 » (rattachée à un autre objectif) est arrachée à son objectif. **Cause** : la recherche part 120 ms après la frappe et répond plus tard encore ; Entrée agissait sur la liste affichée. **Parade** : retenir la requête dont la liste est la réponse (`resultatsPour`) ; sur Entrée, si elle diffère du champ, redemander la recherche et choisir dans la réponse JUSTE. Le clic, lui, garde ce qu'on a vu. **Payé** : objectifs-11 (A06a-04), deux audits.
+
+### 58.3 Une clé i18n partagée entre deux sens prend la traduction de l'un pour l'autre
+**Symptôme** : l'app anglaise ouvre le menu d'une tâche sur « End ». **Cause** : `t("Terminer")` sert à la fois à arrêter le minuteur (« End ») et à cocher une tâche ; le dictionnaire n'a qu'une entrée par clé. `i18n:check` ne voit rien (la clé existe). **Parade** : un discriminant (`t("Terminer|tâche")`, retiré du français) dès qu'un mot français a deux sens dans l'app. **Payé** : constat d'usage 41, vu par trois personas.
+
+### 58.4 `import("module?x=…")` donne bien une instance par requête… et une TRANSFORMATION par requête
+**Symptôme** : pour accélérer le balayage d'un an de la démo Finance, une instance de `demo.ts` par jour (`import(\`../../demo.ts?jour=${jour}\`)`) au lieu de `vi.resetModules()` : le test passe de 55 s à plus de 60 s. **Cause** : Vite traite chaque requête comme un module distinct et re-transforme les 3 000 lignes à chaque jour (« transform 36 s »). **Parade** : découper le balayage (un `it` par mois) plutôt que chercher à le rendre plus rapide. **Payé** : donnees-10, une heure.
+
+### 58.5 Une vue entière se rend dans vitest (happy-dom), pas seulement un composant de trois lignes
+Depuis le 2026-10-20, `GoalsView`, `FeuilleDeRoute`, `RattacherElement`, `EditeurCarte` et `CommandPalette` ont des tests de RENDU (`*.test.ts`, `// @vitest-environment happy-dom`, `createRoot` + `act`). Trois choses à savoir : `useIaPossible` lit la session (`AuthGate`) — `vi.mock("../lib/ia/useIa", …)` ; la langue se fixe par `setLangPref("fr")` avant d'importer la vue ; une saisie se simule par le *setter natif* de `value` puis un événement `input` (React n'écoute pas l'affectation directe). Le film d'une carte d'objectif (`jouerTransition`) se remplace par un faux qui compte ses départs.
+
+## 59. Chiffres qui se contredisent d'un écran à l'autre — lot 3 de l'audit (2026-10-21)
+
+### 59.1 Un écran qui ÉCRIT à son ouverture fait dépendre les chiffres des autres écrans du parcours
 **Symptôme.** La Discipline des tâches du jour n'était pas la même selon qu'on avait ouvert le Calendrier ou non. **Cause.** Le Calendrier reporte les tâches en retard dans un `useEffect` monté avec la vue (`due_date` ← aujourd'hui), et toutes les règles de compte lisaient `due_date === jour` comme « prévue ». **Parade.** La donnée écrite par l'effet doit garder son sens dans chaque règle : une tâche reportée jusqu'au jour (`estGlisseeJusquA`) reste en retard. Un test rejoue « avant / après l'ouverture » et exige les mêmes comptes (`reportCalendrier.compte.test.ts`). ▶️ Avant d'ajouter un effet qui écrit à l'ouverture d'une vue, chercher qui lit la colonne écrite.
 
-### 56.2 Deux appels d'un même crochet d'état ne partagent RIEN
+### 59.2 Deux appels d'un même crochet d'état ne partagent RIEN
 **Symptôme.** L'anneau d'Aujourd'hui annonçait une « coche optimiste » ; il n'avançait qu'après la relecture de la base. **Cause.** `useCochesOptimistes()` appelé dans TodayView ET dans la carte `HabitudesDuJour` : deux `useState`, deux mondes. Le commentaire disait le contraire. **Parade.** Passer l'instance du parent en prop (`coches`). ▶️ « Les deux lisent les mêmes coches optimistes » ne vaut que s'ils lisent la même instance.
 
-### 56.3 Mesurer un objectif sans ses arêtes ni ses événements — encore
+### 59.3 Mesurer un objectif sans ses arêtes ni ses événements — encore
 **Symptôme.** Point d'action « objectif dépassé » sur un objectif que sa page dit atteint. **Cause.** Le piège était consigné (mesure incomplète sans `fetchContexteObjectifs`) ; le point d'action du 20/10, le péril de la page Objectifs et du Calendrier, l'IA et l'instantané quotidien appelaient la mesure avec les seules tâches et habitudes. **Parade.** `useContexteObjectifs(data)` / `useSourcesProgression(data)` partout où un objectif se mesure hors de sa page. ▶️ `grep -rn "objectifsEnPeril(\|effectiveProgress(" src` : chaque appel doit recevoir `liens` et `evenements`.
 
-### 56.4 `Math.round` sur un pourcentage d'achèvement déclare « terminé » ce qui ne l'est pas
+### 59.4 `Math.round` sur un pourcentage d'achèvement déclare « terminé » ce qui ne l'est pas
 **Symptôme.** 299 séances sur 300 : « Atteint ». **Cause.** `pct = Math.round(fraction * 100)` puis `estAcheve = pct === 100`. **Parade.** `pctDe` : 100 seulement pour une fraction entière, 99 au plus sinon.
 
-### 56.5 Une durée lue `fin − début` partout, et une pause tenue en mémoire seulement
+### 59.5 Une durée lue `fin − début` partout, et une pause tenue en mémoire seulement
 **Symptôme.** 25 min de travail et 30 min de pause valaient 55 min ; une séance finie pendant la veille du Mac valait jusqu'au réveil. **Cause.** La reprise décalait le départ en mémoire, la fin écrivait l'heure du moment. **Parade.** Écrire dans `ended_at` la durée VRAIE (début + temps travaillé, borné au prévu) plutôt que de corriger chaque lecteur (`seance/duree.ts`). Une `setTimeout` ne se déclenche qu'au réveil : toute fin « naturelle » se borne au prévu.
 
-### 56.6 Une date capturée au RENDU, utilisée au CLIC
+### 59.6 Une date capturée au RENDU, utilisée au CLIC
 **Symptôme.** Cochée à 7 h, l'habitude partait sur la veille. **Cause.** `const today = todayStr()` au rendu ; l'app ouverte la nuit ne se redessine pas forcément à minuit. **Parade.** Relire la date au clic (`jourDeCocheAffiche`) ; une case qui montre un autre jour choisi garde ce jour.
 
-### 56.7 Labo : dans un même `faire`, les numéros sont ceux de l'écran D'AVANT
+### 59.7 Labo : dans un même `faire`, les numéros sont ceux de l'écran D'AVANT
 **Symptôme.** `[{"clic":"Habitudes"},{"clic":21}]` a cliqué l'élément 21 de l'écran précédent. Et `{"clic":"Aujourd'hui"}` dans le Calendrier a pris son bouton « Aujourd'hui », pas la barre latérale. **Parade.** Après un changement d'écran, viser par texte, ou finir le `faire` et relire les numéros ; pour la barre latérale, son numéro (« Aujourd'hui » = 2).

@@ -21,13 +21,16 @@ import {
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { FINANCE_ACTIF } from "../lib/features";
 import { chargeDuJour, joursSurcharges } from "../lib/calendrier/charge";
+import { alertesDeplieesAuTelephone, retenirAlertesDepliees, retenirVue, vueAOuvrir } from "../lib/calendrier/memoire";
 import {
   capaciteDuJour,
   creneauxLibres,
   profilDisponibilite,
 } from "../lib/calendrier/disponibilite";
+import { blocsDuJour, optionsDuProfil } from "../lib/onboarding/horaires";
+import { useHoraires } from "../lib/onboarding/useHoraires";
 import { formaterDansPhrase } from "../lib/calendrier/champDate";
-import { AGENDA_JOURS, curseurApres, type ModeCalendrier } from "../lib/calendrier/navigation";
+import { AGENDA_JOURS, curseurApres } from "../lib/calendrier/navigation";
 import { jourDeCocheTache } from "../lib/jourDeCoche";
 import { useSourcesProgression } from "../lib/objectifs/useProgression";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
@@ -90,7 +93,9 @@ type CibleCalendrier =
  * suggérés sont un fond en pointillé ; c'est Antonin qui dépose.
  */
 
-type Mode = ModeCalendrier;
+// La même union que `ModeCalendrier` (`calendrier/navigation.ts`), dont la
+// règle de « Précédent / Suivant » et `AGENDA_JOURS` viennent.
+type Mode = import("../lib/calendrier/memoire").VueCalendrier;
 
 /**
  * Combien d'alertes de chaque famille le bandeau montre avant de compter le
@@ -157,8 +162,10 @@ export default function CalendarView({ data, refresh }: Props) {
    * ⭐ LA SEMAINE PARTOUT (2026-10-13, Antonin). Jusque-là le téléphone
    * s'ouvrait sur l'AGENDA (« on y consulte plus qu'on n'y planifie ») ; il a
    * tranché : la semaine est plus lisible, au téléphone aussi.
+   * ⭐ Et une vue CHOISIE est retenue pour la session (`lib/calendrier/memoire.ts`,
+   * constat 17 du 20/10) : revenir au module ne la reprend plus.
    */
-  const [mode, setMode] = useState<Mode>("semaine");
+  const [mode, setMode] = useState<Mode>(() => vueAOuvrir(isPhone));
   const [curseur, setCurseur] = useState(aujourdhui);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [modale, setModale] = useState<{ event: CalendarEvent | null; jour: string; heure: string | null } | null>(null);
@@ -270,7 +277,13 @@ export default function CalendarView({ data, refresh }: Props) {
     [sources, jours, aujourdhui],
   );
 
-  const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
+  // ⭐ Les heures déclarées à l'accueil nourrissent enfin le repli et les
+  // créneaux (2026-10-20, audit, constat 7 — `lib/onboarding/horaires.ts`).
+  const horaires = useHoraires();
+  const profil = useMemo(
+    () => profilDisponibilite(data.focusSessions, optionsDuProfil(horaires)),
+    [data.focusSessions, horaires],
+  );
   // Éviter les sessions de marché n'a de sens que pour qui a Market Brain.
   // ⚠️ Corrigé le 2026-09-30 : c'était `true` pour TOUT LE MONDE. Or Sydney,
   // Tokyo, Londres et New York se relaient sans trou du lundi au vendredi
@@ -316,9 +329,10 @@ export default function CalendarView({ data, refresh }: Props) {
           eviterMarche,
           limite: mode === "jour" ? 3 : 1,
           pasAvant: jour === aujourdhui ? heureCourante() : undefined,
+          bloques: blocsDuJour(horaires, jour),
         }).map((c) => ({ jour, debut: c.debut, fin: c.fin })),
       );
-  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche, isPhone]);
+  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche, isPhone, horaires]);
 
   // ─── Gestes ────────────────────────────────────────────────────────────────
 
@@ -584,6 +598,7 @@ export default function CalendarView({ data, refresh }: Props) {
                 if (m.id === mode) return;
                 setMouvement((x) => ({ tour: x.tour + 1, sens: 0 }));
                 setMode(m.id);
+                retenirVue(m.id);
               }}
               data-tip={t(m.label)}
               data-tip-sub={t(m.aide)}
@@ -600,6 +615,7 @@ export default function CalendarView({ data, refresh }: Props) {
       </div>
 
       <BandeauIntelligence
+        replie={isPhone}
         aujourdhui={aujourdhui}
         entreesDuJourCourant={parJour.get(aujourdhui) ?? entreesDuJour(sources, aujourdhui, aujourdhui)}
         profil={profil}
@@ -651,7 +667,14 @@ export default function CalendarView({ data, refresh }: Props) {
           }
         >
         {mode === "agenda" ? (
-          <div className="max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
+          // Au téléphone, l'agenda ne défile plus DANS sa carte : c'est la page
+          // qui défile (constat 1 du 20/10, corrigé large — deux défilements
+          // emboîtés, le second sans barre visible sur iOS). La grille horaire
+          // garde le sien : 24 heures, et le glisser y fait défiler au bord.
+          <div
+            className={isPhone ? undefined : "max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto"}
+            style={isPhone ? undefined : { maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}
+          >
             <VueAgenda
               depuis={curseur}
               jours={AGENDA_JOURS}
@@ -751,6 +774,7 @@ function ModeRetombe({ onRetomber }: { onRetomber: () => void }) {
 // ─── Le bandeau d'intelligence ───────────────────────────────────────────────
 
 function BandeauIntelligence({
+  replie = false,
   aujourdhui,
   entreesDuJourCourant,
   profil,
@@ -761,6 +785,12 @@ function BandeauIntelligence({
   onSupprimer,
   onExpliquerPeril,
 }: {
+  /**
+   * Au téléphone, plusieurs alertes se replient en UNE ligne qu'on déplie
+   * (constat 17 du 20/10) : quatre bandeaux remplissaient l'écran, la grille
+   * commençait à 841 px sur un écran de 844 (mesuré dans WebKit).
+   */
+  replie?: boolean;
   aujourdhui: string;
   entreesDuJourCourant: EntreeAgenda[];
   profil: ReturnType<typeof profilDisponibilite>;
@@ -774,14 +804,70 @@ function BandeauIntelligence({
 }) {
   const { requise } = useActions();
   const charge = chargeDuJour(entreesDuJourCourant, profil, aujourdhui);
+  const [deplie, setDeplie] = useState(alertesDeplieesAuTelephone);
   const rien = !charge.surchargee && peril.length === 0 && aDecider.length === 0;
   if (rien) return null;
+  const nombre = (charge.surchargee ? 1 : 0) + peril.length + aDecider.length;
+  const enUneLigne = replie && nombre > 1;
+  const basculer = () => {
+    setDeplie((v) => {
+      retenirAlertesDepliees(!v);
+      return !v;
+    });
+  };
+
+  if (enUneLigne && !deplie) {
+    const actionRequise =
+      peril.some((p) => requise(cleObjectif(p.goal.id))) || aDecider.some((x) => requise(cleTache(x.id)));
+    return (
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={basculer}
+          aria-expanded={false}
+          className="cible-tactile-ligne flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm text-text"
+          style={{
+            borderColor: "color-mix(in srgb, var(--color-yellow) 40%, transparent)",
+            backgroundColor: "color-mix(in srgb, var(--color-yellow) 8%, transparent)",
+          }}
+        >
+          <IconAlert className="h-4 w-4 shrink-0" style={{ color: "var(--color-yellow)" }} />
+          <span className="min-w-0 flex-1">
+            <strong>{tp(nombre, "{n} alerte", "{n} alertes")}</strong>{" "}
+            <span className="text-text-dim">
+              {[
+                charge.surchargee ? t("aujourd’hui surchargé") : null,
+                peril.length > 0 ? tp(peril.length, "{n} objectif", "{n} objectifs") : null,
+                aDecider.length > 0 ? tp(aDecider.length, "{n} tâche à décider", "{n} tâches à décider") : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </span>
+          {actionRequise && <PointAction libelle={t("Action requise")} />}
+          <span className="shrink-0 text-xs font-medium text-text-dim">{t("Afficher")}</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 space-y-2">
+      {enUneLigne && (
+        <button
+          type="button"
+          onClick={basculer}
+          aria-expanded
+          className="cible-tactile-ligne px-1 text-xs font-medium text-text-dim"
+        >
+          {t("Masquer les alertes")}
+        </button>
+      )}
       {charge.surchargee && (
         <Alerte couleur="yellow">
-          <strong>{t("Journée surchargée.")}</strong>{" "}
+          {/* Le jour est NOMMÉ (constat 17 : « surchargée » sans dire quel
+              jour) — c'est toujours aujourd'hui, `chargeDuJour(…, aujourdhui)`. */}
+          <strong>{t("Aujourd'hui, journée surchargée.")}</strong>{" "}
           {t("{posees} posées pour {capacite} de capacité.", {
             posees: enHeures(charge.posees),
             capacite: enHeures(charge.capacite),

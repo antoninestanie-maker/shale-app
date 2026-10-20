@@ -352,7 +352,10 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
   return [
     {
       id: "basculer",
-      libelle: ctx.faite ? t("Rouvrir") : t("Terminer"),
+      // « |tâche » : la clé « Terminer » est aussi l'arrêt d'un minuteur, que
+      // l'anglais rend « End » — en tête du menu d'une tâche, « End » ne disait
+      // rien (audit du 2026-10-20, constat 41).
+      libelle: ctx.faite ? t("Rouvrir") : t("Terminer|tâche"),
       icone: ctx.faite ? <IconX /> : <IconCheck />,
       executer: () => gestes.basculer(task),
     },

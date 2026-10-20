@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ORDRE_SEMAINE,
   nomCourtDuJour,
@@ -8,7 +8,7 @@ import {
 } from "../lib/logic";
 import { appliquerReport, changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
-import { changerEtat, etatDe, planificationDeSaisie, replanifier } from "../lib/taches";
+import { changerEtat, etatDe, planificationDeSaisie, replanifier, type Report } from "../lib/taches";
 import { todayStr } from "../lib/logic";
 import RouletteHeure from "./calendrier/RouletteHeure";
 import type { EtatTache, Goal, Priority, Tag, Task } from "../lib/types";
@@ -72,6 +72,44 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const [roulette, setRoulette] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * ⭐ ÉCHAP NE JETTE PLUS UNE SAISIE SANS DEMANDER (2026-10-20, audit,
+   * constat 39 — Rémi : « Brouillon interrompu par Échap », rouvert vide).
+   *
+   * Tant que rien n'a changé, Échap et le clic sur le voile ferment comme
+   * avant. Dès qu'un champ a bougé, ils demandent d'abord, dans le pied de la
+   * fenêtre : « Ne pas garder » (qui prend le focus : Entrée confirme) ou
+   * « Continuer » (Échap, une seconde fois, revient à la saisie). « Annuler »,
+   * lui, est un geste explicite : il ferme sans demander.
+   */
+  const instantane = JSON.stringify([
+    label.trim(),
+    tag,
+    priority,
+    recMode,
+    [...days].sort(),
+    goalId,
+    etat,
+    attenteDe,
+    relance,
+    dueDate,
+    debut,
+    fin,
+  ]);
+  const depart = useRef(instantane);
+  const modifie = instantane !== depart.current;
+  const [confirmer, setConfirmer] = useState(false);
+  const boutonAbandon = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirmer) boutonAbandon.current?.focus();
+  }, [confirmer]);
+  const demanderFermeture = () => {
+    if (!modifie) return onClose();
+    setConfirmer(true);
+  };
+  const fermeture = useRef({ demanderFermeture, confirmer });
+  fermeture.current = { demanderFermeture, confirmer };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // ⚠️ Une couche AU-DESSUS a déjà traité la touche : elle l'a marquée.
@@ -82,7 +120,8 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
       if (e.defaultPrevented) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        if (fermeture.current.confirmer) setConfirmer(false);
+        else fermeture.current.demanderFermeture();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -125,14 +164,8 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
     };
     if (task) {
       await updateTask(task.id, input);
-      // ⭐ Changer l'échéance ici, c'est REPLANIFIER (règle du 2026-09-02) : le
-      // compteur de reports repart de zéro, comme par le menu « Dater » ou le
-      // glisser du Calendrier. Sans cela, la tâche gardait « reportée 2 fois »
-      // et, depuis le 2026-10-20, se lisait « reportée jusqu'à ce jour »
-      // (`estGlisseeJusquA`) — en retard le jour même où on l'a posée.
-      if (input.due_date && input.due_date !== task.due_date && (task.postponed_count ?? 0) > 0) {
-        await appliquerReport(task.id, replanifier(input.due_date));
-      }
+      const report = reportApresModification(task, input.due_date ?? null);
+      if (report) await appliquerReport(task.id, report);
       await enregistrerEtat(task);
     } else await createTask(input);
     await onSaved();
@@ -162,7 +195,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   return (
     <div
       className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-      onClick={onClose}
+      onClick={demanderFermeture}
     >
       {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). Cette
           fenêtre n'avait AUCUNE borne de hauteur : sur un écran bas elle
@@ -418,6 +451,26 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
 
           </div>
 
+          {confirmer ? (
+          <div className="fenetre-pied mt-[10px] flex flex-wrap items-center justify-end gap-2" role="alertdialog" aria-label={t("Abandonner la saisie ?")}>
+            <p className="mr-auto text-sm text-text">{t("Abandonner la saisie ?")}</p>
+            <button
+              type="button"
+              onClick={() => setConfirmer(false)}
+              className="pill px-4 py-2 text-sm font-medium text-text-dim hover:text-text"
+            >
+              {t("Continuer")}
+            </button>
+            <button
+              ref={boutonAbandon}
+              type="button"
+              onClick={onClose}
+              className="pill border border-border px-4 py-2 text-sm font-semibold text-text hover:border-border-strong"
+            >
+              {t("Ne pas garder")}
+            </button>
+          </div>
+          ) : (
           <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
@@ -434,8 +487,23 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
               {task ? t("Enregistrer") : t("Créer")}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>
   );
+}
+
+/**
+ * ⭐ CHANGER L'ÉCHÉANCE DANS « MODIFIER », C'EST REPLANIFIER (audit du
+ * 2026-10-20, taches-7 ; A07a-23). Le menu « Dater », la date sur la ligne et
+ * le glisser du Calendrier remettent le compteur de reports à zéro
+ * (`replanifier`) ; la fenêtre, elle, ne touchait que `due_date` : le badge
+ * « reportée 2 fois » restait, et la tâche, une fois repassée en retard,
+ * demandait une décision tout de suite. Une échéance retirée, ou inchangée,
+ * ne replanifie rien.
+ */
+export function reportApresModification(avant: Pick<Task, "due_date" | "postponed_count">, echeance: string | null): Report | null {
+  if (!echeance || echeance === avant.due_date || avant.postponed_count <= 0) return null;
+  return replanifier(echeance);
 }

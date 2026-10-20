@@ -86,7 +86,15 @@ describe("taille lisible", () => {
   it("⭐ suit le séparateur décimal de la LANGUE", () => {
     // Le défaut qui trahit un logiciel traduit à moitié.
     expect(tailleLisible(1_400_000, "fr")).toBe("1,4 Mo");
-    expect(tailleLisible(1_400_000, "en")).toBe("1.4 Mo");
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-20 (savoir-11) : attendait « 1.4 Mo ».
+    expect(tailleLisible(1_400_000, "en")).toBe("1.4 MB");
+  });
+
+  it("⭐ les unités suivent la langue : l'octet français, le byte anglais", () => {
+    expect(tailleLisible(512, "en-US")).toBe("512 B");
+    expect(tailleLisible(284_193, "en")).toBe("284 kB");
+    expect(tailleLisible(100_000_000, "en")).toBe("100 MB");
+    expect(tailleLisible(100_000_000, "fr-FR")).toBe("100 Mo");
   });
 
   it("ne met pas de décimale au-delà de dix", () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./libelles";
+import { iconeDeTrouvaille, libelleDeTrouvaille } from "./libelles";
 import type { Trouvaille } from "../../lib/recherche";
 import { t } from "../../lib/i18n";
 
@@ -80,11 +80,11 @@ export default function MentionPicker({ resultats, selection, position, onChoisi
               i === selection ? "bg-overlay-2 text-text" : "text-text-dim hover:bg-overlay"
             }`}
           >
-            <span className="shrink-0 text-text-dim">{ICONE_DE_KIND[r.kind]}</span>
+            <span className="shrink-0 text-text-dim">{iconeDeTrouvaille(r)}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-text">{r.titre}</span>
               <span className="block truncate text-[0.7rem] text-text-dim">
-                {r.contexte ?? t(LIBELLE_DE_KIND[r.kind])}
+                {r.contexte ?? t(libelleDeTrouvaille(r))}
               </span>
             </span>
           </button>

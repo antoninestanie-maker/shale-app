@@ -1,8 +1,9 @@
 import { DUREE_DEFAUT_MIN, finApres } from "../calendrier/agenda";
 import { parserSaisie } from "../calendrier/champDate";
 import { getLang, localeTag, type Lang } from "../i18n";
-import { addDays, weekdayOf } from "../logic";
+import { addDays, serialiserRecurrence, toDateStr, weekdayOf } from "../logic";
 import { planificationDeSaisie } from "../taches";
+import type { Priority } from "../types";
 import { prochainJourDeSemaine } from "./dates";
 
 /**
@@ -130,6 +131,20 @@ interface Vocabulaire {
    * `ap` (am / pm), `midi`. Dans l'ordre où on les essaie.
    */
   heures: string[];
+  /**
+   * ⭐ Les PÉRIODES (2026-10-20, audit, constat 18) : « fin du mois », « ce
+   * week-end », « la semaine prochaine », « le mois prochain ». Source
+   * (aplatie) → le jour qu'elle désigne.
+   */
+  periodes: [string, (aujourdHui: string) => string][];
+  /**
+   * ⭐ Les RÉPÉTITIONS (2026-10-20, constat 18) : `JOUR` est remplacé par
+   * l'alternance des noms de jour (pluriel toléré), `LISTE` par une suite de
+   * jours (« lundis et jeudis », “mondays and thursdays”).
+   */
+  recurrences: { quotidien: string; ouvres: string; jours: string[] };
+  /** ⭐ La PRIORITÉ dite dans la phrase (2026-10-20, constat 18). */
+  priorites: [string, Priority][];
   /** La langue compte-t-elle sur 24 heures ? Alors « à 2h » se lit 02:00. */
   vingtQuatre: boolean;
   /**
@@ -139,6 +154,40 @@ interface Vocabulaire {
   tientLHeure: string;
 }
 
+// ─── Les périodes (2026-10-20) ───────────────────────────────────────────────
+
+/** Le dernier jour du mois en cours — aujourd'hui, si c'est lui. */
+function finDuMois(aujourdHui: string): string {
+  const [a, m] = aujourdHui.split("-").map(Number);
+  return toDateStr(new Date(a, m, 0, 12));
+}
+
+/**
+ * « ce week-end » : le samedi qui vient ; le jour même un samedi ou un
+ * dimanche (le week-end est déjà là).
+ */
+function ceWeekEnd(aujourdHui: string): string {
+  const wd = weekdayOf(aujourdHui);
+  if (wd === 6 || wd === 0) return aujourdHui;
+  return addDays(aujourdHui, 6 - wd);
+}
+
+/**
+ * « la semaine prochaine » : son LUNDI. Une date précise vaut mieux qu'un vague
+ * « dans la semaine » qui ne se range nulle part ; la pastille l'écrit
+ * (« lun. 26 oct. ») avant qu'on valide.
+ */
+function semaineProchaine(aujourdHui: string): string {
+  const wd = weekdayOf(aujourdHui);
+  return addDays(aujourdHui, wd === 0 ? 1 : 8 - wd);
+}
+
+/** « le mois prochain » : son premier jour. */
+function moisProchain(aujourdHui: string): string {
+  const [a, m] = aujourdHui.split("-").map(Number);
+  return toDateStr(new Date(a, m, 1, 12));
+}
+
 const VOCABULAIRE: Record<Lang, Vocabulaire> = {
   fr: {
     relatifs: [
@@ -146,6 +195,33 @@ const VOCABULAIRE: Record<Lang, Vocabulaire> = {
       ["demain", 1],
       ["aujourd'?hui", 0],
       ["ce soir", 0],
+      // « hier » (2026-10-20, constat 18) : on note après coup ce qu'on a fait.
+      // « avant-hier » d'abord : à position égale, la première trouvée gagne.
+      ["avant[- ]hier", -2],
+      ["hier", -1],
+    ],
+    periodes: [
+      ["(?:(?:a )?la )?fin (?:du|de) mois", finDuMois],
+      ["ce week-?end", ceWeekEnd],
+      ["(?:la )?semaine prochaine", semaineProchaine],
+      ["(?:le )?mois prochain", moisProchain],
+    ],
+    recurrences: {
+      quotidien: "tous les jours|chaque jour|quotidiennement",
+      ouvres: "tous les jours de (?:la )?semaine|chaque jour de (?:la )?semaine|tous les jours ouvres|du lundi au vendredi|en semaine",
+      jours: ["(?:tous les|chaque) LISTE"],
+    },
+    priorites: [
+      ["pas (?:tres )?urgente?", "low"],
+      ["priorite (?:basse|faible)", "low"],
+      ["!(?:basse|faible|low)", "low"],
+      ["priorite moyenne", "medium"],
+      ["!(?:moyenne|medium)", "medium"],
+      ["(?:tres )?urgente?", "high"],
+      ["prioritaire", "high"],
+      ["priorite (?:haute|elevee)", "high"],
+      ["!(?:haute|elevee|high|urgent)", "high"],
+      ["!!+", "high"],
     ],
     devant: "(?:(?:pour|avant|d'ici(?: a)?) )?",
     semaine: "(?:(?:le|ce) )?(?:JOUR)(?: prochain)?",
@@ -171,6 +247,31 @@ const VOCABULAIRE: Record<Lang, Vocabulaire> = {
       ["tomorrow", 1],
       ["today", 0],
       ["tonight", 0],
+      ["(?:the )?day before yesterday", -2],
+      ["yesterday", -1],
+    ],
+    periodes: [
+      ["(?:the )?end of (?:the )?month", finDuMois],
+      ["this week-?end", ceWeekEnd],
+      ["next week", semaineProchaine],
+      ["next month", moisProchain],
+    ],
+    recurrences: {
+      quotidien: "every day|everyday|daily",
+      ouvres: "every weekday|on weekdays|weekdays|monday (?:to|through) friday",
+      jours: ["every LISTE", "on LISTE_PLURIEL"],
+    },
+    priorites: [
+      ["not urgent", "low"],
+      ["low priority", "low"],
+      ["!(?:low|basse|faible)", "low"],
+      ["medium priority", "medium"],
+      ["!(?:medium|moyenne)", "medium"],
+      ["urgent", "high"],
+      ["asap", "high"],
+      ["high priority", "high"],
+      ["!(?:high|urgent|haute|elevee)", "high"],
+      ["!!+", "high"],
     ],
     devant: "(?:(?:on|by|before|until|for) )?",
     semaine: "(?:(?:next|this) )?(?:JOUR)",
@@ -454,12 +555,28 @@ export function lireDate(phrase: string, aujourdHui: string, parDefaut: string |
 }
 
 function lire(phrase: string, aujourdHui: string, parDefaut: string | null): DateLue | null {
+  const lu = lireAvecPosition(phrase, aujourdHui, parDefaut);
+  if (!lu) return null;
+  const titre = titreSans(phrase, lu.debut, lu.fin);
+  if (!titre) return null;
+  return { jour: lu.jour, heure: lu.heure, titre, mots: phrase.slice(lu.debut, lu.fin).trim() };
+}
+
+/** La date lue et sa place dans la phrase — sans juger du titre qui reste. */
+function lireAvecPosition(
+  phrase: string,
+  aujourdHui: string,
+  parDefaut: string | null,
+): { jour: string; heure: string | null; debut: number; fin: number } | null {
   const plate = aplatir(phrase);
   const v = VOCABULAIRE[getLang()];
   const trouvailles: Trouvailles = { candidats: [], interdits: [] };
 
   for (const [mots, ecart] of v.relatifs) {
     trouver(plate, `${v.devant}${mots}`, () => addDays(aujourdHui, ecart), trouvailles);
+  }
+  for (const [mots, jourDe] of v.periodes) {
+    trouver(plate, `${v.devant}${mots}`, () => jourDe(aujourdHui), trouvailles);
   }
 
   const jours = nomsDesJours();
@@ -583,9 +700,170 @@ function lire(phrase: string, aujourdHui: string, parDefaut: string | null): Dat
     jour = parDefaut;
   }
 
-  const titre = titreSans(phrase, debut, fin);
-  if (!titre) return null;
-  return { jour, heure, titre, mots: phrase.slice(debut, fin).trim() };
+  return { jour, heure, debut, fin };
+}
+
+// ─── La répétition et la priorité (2026-10-20) ───────────────────────────────
+
+/** Un passage lu dans la phrase, avec sa place. */
+interface Passage<T> {
+  valeur: T;
+  debut: number;
+  fin: number;
+}
+
+/**
+ * La DERNIÈRE occurrence de l'une des expressions ; à fin égale, la plus
+ * longue (« pas urgent » l'emporte sur « urgent », « tous les jours de la
+ * semaine » sur « tous les jours »).
+ */
+function dernier<T>(plate: string, expressions: [string, (m: RegExpExecArray) => T | null][]): Passage<T> | null {
+  let garde: Passage<T> | null = null;
+  for (const [source, lireValeur] of expressions) {
+    const re = new RegExp(`${BORD_AVANT}(?:${source})${BORD_APRES}`, "gu");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(plate))) {
+      const debut = m.index + m[1].length;
+      const fin = m.index + m[0].length;
+      re.lastIndex = debut + 1;
+      const valeur = lireValeur(m);
+      if (valeur == null) continue;
+      if (!garde || fin > garde.fin || (fin === garde.fin && debut < garde.debut)) garde = { valeur, debut, fin };
+    }
+  }
+  return garde;
+}
+
+/**
+ * ⭐ « tous les lundis », « chaque vendredi », « tous les lundis et jeudis »,
+ * « tous les jours », « en semaine » ; “every Monday”, “on Mondays and
+ * Thursdays”, “daily”, “weekdays” — la récurrence dans le dialecte de
+ * `Task.recurrence` ('daily', 'weekdays', ou la liste des jours).
+ *
+ * Le défaut (audit du 2026-10-20, constat 18, Lucie) : « tous les lundis faire
+ * le point » tombait en « Sans date », phrase entière ; « faire ma compta
+ * chaque vendredi » devenait « faire ma compta chaque », datée d'UN vendredi.
+ *
+ * ⚠️ « le lundi » seul n'est PAS une répétition (« Réunion le lundi 26 ») : il
+ * faut « tous les », « chaque », “every”, ou “on” suivi d'un pluriel.
+ */
+function lireRecurrence(plate: string, v: Vocabulaire): Passage<string> | null {
+  const jours = nomsDesJours();
+  const alternance = [...jours].sort((a, b) => b.length - a.length).map(echapper).join("|");
+  const un = `(?:${alternance})s?`;
+  const pluriel = `(?:${alternance})s`;
+  const liste = (j: string) => `${j}(?:(?:, | et | and |, and |, et )${j})*`;
+  const joursDe = (texte: string): number[] =>
+    jours.flatMap((nom, i) => (new RegExp(`(?:^|[^\\p{L}])${echapper(nom)}s?(?![\\p{L}])`, "u").test(texte) ? [i] : []));
+  const enRecurrence = (liste: number[]): string | null => {
+    if (liste.length === 0) return null;
+    if (liste.length === 7) return "daily";
+    if (liste.join() === "1,2,3,4,5") return "weekdays";
+    return serialiserRecurrence("custom", liste);
+  };
+  return dernier<string>(plate, [
+    [v.recurrences.quotidien, () => "daily"],
+    [v.recurrences.ouvres, () => "weekdays"],
+    ...v.recurrences.jours.map(
+      (forme): [string, (m: RegExpExecArray) => string | null] => [
+        forme.replace("LISTE_PLURIEL", liste(pluriel)).replace("LISTE", liste(un)),
+        (m) => enRecurrence(joursDe(m[0])),
+      ],
+    ),
+  ]);
+}
+
+/**
+ * ⭐ « urgent », « prioritaire », « pas urgent », « !haute » ; “urgent”,
+ * “asap”, “low priority”, “!high”. Lucie : « formation compta urgent » restait
+ * « Moyenne », le mot dans le titre ; Ben : « #Acme !high » aussi.
+ *
+ * ⚠️ « important » n'est PAS lu : « Relire le document important » perdrait un
+ * mot de son titre pour une priorité qu'on n'a pas demandée.
+ */
+function lirePriorite(plate: string, v: Vocabulaire): Passage<Priority> | null {
+  return dernier<Priority>(plate, v.priorites.map(([source, p]) => [source, () => p]));
+}
+
+/** Remplace des passages par des espaces : les positions restent justes. */
+function masquer(phrase: string, passages: readonly ({ debut: number; fin: number } | null)[]): string {
+  let out = phrase;
+  for (const p of passages) {
+    if (!p) continue;
+    out = out.slice(0, p.debut) + " ".repeat(p.fin - p.debut) + out.slice(p.fin);
+  }
+  return out;
+}
+
+/** Ce qu'on a écarté d'une pastille : ces mots restent dans le titre. */
+export interface Ecartes {
+  date?: string | null;
+  recurrence?: string | null;
+  priorite?: string | null;
+}
+
+/** ⭐ Tout ce qu'une phrase dit d'une tâche. */
+export interface PhraseLue {
+  /** Le titre, les mots lus retirés. Jamais vide. */
+  titre: string;
+  date: { jour: string; heure: string | null; mots: string } | null;
+  recurrence: { valeur: string; mots: string } | null;
+  priorite: { valeur: Priority; mots: string } | null;
+}
+
+/**
+ * ⭐ LA PHRASE ENTIÈRE : date, répétition, priorité (2026-10-20, audit,
+ * constat 18).
+ *
+ * Chacune a sa pastille, retirable : ses mots restent alors dans le titre, et
+ * ne sont relus comme rien d'autre (« chaque vendredi » écarté ne devient pas
+ * la date de vendredi).
+ *
+ * ⚠️ UNE RÉPÉTITION L'EMPORTE SUR UNE DATE : une tâche récurrente n'a pas de
+ * date (`lib/taches.ts`). Les mots d'une date trouvée à côté restent alors dans
+ * le titre — rien n'est jeté en silence.
+ */
+export function lirePhrase(
+  phrase: string,
+  aujourdHui: string,
+  parDefaut: string | null = null,
+  ecartes: Ecartes = {},
+  /** La priorité seule : une date a été CHOISIE au calendrier, elle l'emporte sur la phrase. */
+  prioriteSeule = false,
+): PhraseLue {
+  const entier: PhraseLue = { titre: phrase.trim(), date: null, recurrence: null, priorite: null };
+  try {
+    const plate = aplatir(phrase);
+    const v = VOCABULAIRE[getLang()];
+    const mots = (p: { debut: number; fin: number }) => phrase.slice(p.debut, p.fin).trim();
+
+    let priorite = lirePriorite(plate, v);
+    let recurrence = prioriteSeule ? null : lireRecurrence(plate, v);
+    // Une priorité DANS une répétition ne se lit pas (cas d'école, mais sûr).
+    if (priorite && recurrence && priorite.debut < recurrence.fin && recurrence.debut < priorite.fin) priorite = null;
+    const masquee = masquer(phrase, [priorite, recurrence]);
+    const prioriteGardee = priorite && mots(priorite) !== ecartes.priorite ? priorite : null;
+    if (recurrence && mots(recurrence) === ecartes.recurrence) recurrence = null;
+    let date = prioriteSeule ? null : lireAvecPosition(masquee, aujourdHui, recurrence ? null : parDefaut);
+    if (date && (recurrence || mots(date) === ecartes.date)) date = null;
+
+    const passages = [prioriteGardee, recurrence, date]
+      .filter((p): p is NonNullable<typeof p> => p != null)
+      .sort((a, b) => b.debut - a.debut);
+    let titre = phrase;
+    for (const p of passages) titre = titreSans(titre, p.debut, p.fin);
+    titre = titre.trim();
+    if (!titre) return entier;
+    return {
+      titre,
+      date: date ? { jour: date.jour, heure: date.heure, mots: mots(date) } : null,
+      recurrence: recurrence ? { valeur: recurrence.valeur, mots: mots(recurrence) } : null,
+      priorite: prioriteGardee ? { valeur: prioriteGardee.valeur, mots: mots(prioriteGardee) } : null,
+    };
+  } catch {
+    // Une expression que le moteur ne saurait pas compiler ne casse pas la ligne.
+    return entier;
+  }
 }
 
 // ─── La ligne de saisie ──────────────────────────────────────────────────────
@@ -598,6 +876,10 @@ export interface Saisie {
   choisie: string | null;
   /** Les mots dont on a retiré la pastille : ils restent dans le titre. */
   ecartee: string | null;
+  /** Les mots de la répétition écartée (2026-10-20). */
+  ecarteeRecurrence?: string | null;
+  /** Les mots de la priorité écartée (2026-10-20). */
+  ecarteePriorite?: string | null;
 }
 
 export interface SaisieResolue {
@@ -614,6 +896,12 @@ export interface SaisieResolue {
   origine: "lue" | "choisie" | "defaut" | null;
   /** Les mots lus, pour une date `lue`. */
   mots: string | null;
+  /** La répétition lue dans la phrase — `Task.recurrence` — ou `null`. */
+  recurrence: string | null;
+  motsRecurrence: string | null;
+  /** La priorité lue dans la phrase, ou `null` (la ligne garde la sienne). */
+  priorite: Priority | null;
+  motsPriorite: string | null;
 }
 
 /**
@@ -626,13 +914,30 @@ export interface SaisieResolue {
  *   • sinon la date par DÉFAUT de la ligne, s'il y en a une.
  */
 export function resoudreSaisie(saisie: Saisie, aujourdHui: string, parDefaut: string | null = null): SaisieResolue {
-  const entier = saisie.texte.trim();
-  if (saisie.choisie) return { titre: entier, jour: saisie.choisie, heure: null, origine: "choisie", mots: null };
-  const lue = lireDate(saisie.texte, aujourdHui, parDefaut);
-  if (lue && lue.mots !== saisie.ecartee) {
-    return { titre: lue.titre, jour: lue.jour, heure: lue.heure, origine: "lue", mots: lue.mots };
+  const lue = lirePhrase(saisie.texte, aujourdHui, parDefaut, {
+    date: saisie.ecartee,
+    recurrence: saisie.ecarteeRecurrence,
+    priorite: saisie.ecarteePriorite,
+  });
+  const reste = {
+    recurrence: saisie.choisie ? null : (lue.recurrence?.valeur ?? null),
+    motsRecurrence: saisie.choisie ? null : (lue.recurrence?.mots ?? null),
+    priorite: lue.priorite?.valeur ?? null,
+    motsPriorite: lue.priorite?.mots ?? null,
+  };
+  if (saisie.choisie) {
+    // Le titre garde les mots d'une date (on a choisi au calendrier) et ceux
+    // d'une répétition (une date l'emporte) ; seule la priorité en sort.
+    const titre = lirePhrase(saisie.texte, aujourdHui, null, { priorite: saisie.ecarteePriorite }, true).titre;
+    return { titre, jour: saisie.choisie, heure: null, origine: "choisie", mots: null, ...reste };
   }
-  return { titre: entier, jour: parDefaut, heure: null, origine: parDefaut ? "defaut" : null, mots: null };
+  if (lue.recurrence) {
+    return { titre: lue.titre, jour: null, heure: null, origine: null, mots: null, ...reste };
+  }
+  if (lue.date) {
+    return { titre: lue.titre, jour: lue.date.jour, heure: lue.date.heure, origine: "lue", mots: lue.date.mots, ...reste };
+  }
+  return { titre: lue.titre, jour: parDefaut, heure: null, origine: parDefaut ? "defaut" : null, mots: null, ...reste };
 }
 
 /**
@@ -643,6 +948,40 @@ export function resoudreSaisie(saisie: Saisie, aujourdHui: string, parDefaut: st
  * tâche quand on y pose un début. La frontière datée / récurrente reste tenue
  * par `planificationDeSaisie` : une heure sans jour ne s'écrit pas.
  */
+/** Ce qu'une ligne d'ajout rapide rend à son écran (2026-10-20). */
+export interface AjoutRapide {
+  titre: string;
+  jour: string | null;
+  /** 'HH:MM', lue avec la date — ou `null`. */
+  heure: string | null;
+  /** La répétition lue (`Task.recurrence`), ou `null` : une tâche ponctuelle. */
+  recurrence: string | null;
+  /** La priorité lue dans la phrase, ou `null` : celle de l'écran s'applique. */
+  priorite: Priority | null;
+}
+
+/**
+ * ⭐ Les quatre colonnes d'une tâche ajoutée d'une phrase : la répétition lue
+ * (ou 'none') et la planification. Une répétition efface date et heure — la
+ * frontière est tenue par `planificationDeSaisie`.
+ */
+export function ecrituresRapides(ajout: {
+  jour: string | null;
+  heure: string | null;
+  recurrence: string | null;
+}): { recurrence: string; due_date: string | null; start_at: string | null; end_at: string | null } {
+  const recurrence = ajout.recurrence ?? "none";
+  return {
+    recurrence,
+    ...planificationDeSaisie(
+      recurrence,
+      ajout.jour ?? "",
+      ajout.heure ?? "",
+      ajout.heure ? finApres(ajout.heure, DUREE_DEFAUT_MIN) : "",
+    ),
+  };
+}
+
 export function planificationRapide(
   jour: string | null,
   heure: string | null,

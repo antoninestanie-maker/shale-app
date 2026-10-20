@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CaseACocher } from "./CaseACocher";
-import { IconChevronRight, IconSablier, IconTarget } from "./icons";
+import { IconChevronRight, IconSablier } from "./icons";
+import { IconeNature } from "./objectifs/IconeNature";
 import MenuContextuel, { BoutonMenu } from "./menu/MenuContextuel";
 import { useMenuContextuel } from "./menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "./menu/catalogue/tache";
@@ -204,7 +205,9 @@ export default function EnRetard(props: {
                 onClick={() => ouvrirParId("goal", objectif!.goal.id)}
                 className="cible-tactile-ligne flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
               >
-                <IconTarget className="h-4 w-4 shrink-0 text-text-dim" />
+                {/* Une ÉTAPE en retard porte le losange, pas la cible d'un objectif
+                    (rang 22 du contrôle du 12/10, corrigé large le 2026-10-21). */}
+                <IconeNature goal={objectif!.goal} goals={data.goals} className="h-4 w-4 shrink-0 text-text-dim" />
                 <span className="flex min-w-0 flex-1 flex-col gap-x-3 sm:flex-row sm:items-baseline">
                   <span className="truncate-souris min-w-0 truncate text-sm text-text" title={objectif!.goal.title}>
                     {objectif!.goal.title}

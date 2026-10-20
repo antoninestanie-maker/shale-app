@@ -28,7 +28,7 @@ import {
   IconX,
 } from "../components/icons";
 
-import { pick, t, tp } from "../lib/i18n";
+import { formatHeure, pick, t, tp } from "../lib/i18n";
 import PointAction from "../components/PointAction";
 import { useActions } from "../lib/pointAction/contexte";
 import { cleTache } from "../lib/pointAction/regle";
@@ -38,6 +38,7 @@ import { estExemple } from "../lib/onboarding/exemples";
 import { consommerDemande, ouvrirParId } from "../lib/naviguer";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
+import { IconeNature, ouvrirNature } from "../components/objectifs/IconeNature";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 import {
   ORDRE_SECTIONS,
@@ -50,7 +51,7 @@ import {
   type LigneVue,
   type Rangement,
 } from "../lib/tachesVue";
-import { planificationRapide } from "../lib/taches/saisieRapide";
+import { ecrituresRapides, type AjoutRapide } from "../lib/taches/saisieRapide";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
 import BoutonDate from "../components/taches/BoutonDate";
 import ChampRenommage from "../components/taches/ChampRenommage";
@@ -284,7 +285,13 @@ export default function TasksView({ data, refresh }: Props) {
       const tache = tachesRef.current.find((x) => x.id === id);
       if (tache) setEditing(tache);
     };
-    const onOpen = (e: Event) => ouvrir((e as CustomEvent<number>).detail);
+    // ⚠️ La vue était déjà là : la demande déposée est servie, on la retire —
+    // sinon elle rouvrait la même tâche au montage suivant (audit du
+    // 2026-10-20, objectifs-10, corrigé large : le motif de `NotesView`).
+    const onOpen = (e: Event) => {
+      ouvrir((e as CustomEvent<number>).detail);
+      consommerDemande("task");
+    };
     window.addEventListener("sb:open-task", onOpen);
     const enAttente = consommerDemande("task");
     if (enAttente) ouvrir(enAttente);
@@ -456,16 +463,17 @@ export default function TasksView({ data, refresh }: Props) {
    * calendrier (`SaisieRapide`) ; sans date, elle naît SANS DATE (décision du
    * 2026-09-30). Le reste (rythme, objectif) se règle ensuite.
    */
-  const ajouter = async (label: string, jour: string | null, heure: string | null) => {
+  const ajouter = async ({ titre: label, jour, heure, recurrence, priorite }: AjoutRapide) => {
     const id = await createTask({
       label,
       tag: tagFilter,
-      priority: prioriteNouvelle,
-      recurrence: "none",
+      // « urgent » lu dans la phrase l'emporte sur la pastille (2026-10-20).
+      priority: priorite ?? prioriteNouvelle,
       goal_id: null,
       // Jamais d'écriture directe de `due_date` (`lib/taches.ts`) ; une heure lue
-      // dans la phrase donne un créneau d'une heure.
-      ...planificationRapide(jour, heure),
+      // dans la phrase donne un créneau d'une heure ; une répétition lue fait
+      // une routine (2026-10-20, audit, constat 18).
+      ...ecrituresRapides({ jour, heure, recurrence }),
     });
     // Chaque tâche repart « moyenne » : une priorité restée collée d'un ajout à
     // l'autre en ferait passer cinq en élevée sans qu'on l'ait voulu.
@@ -626,7 +634,9 @@ export default function TasksView({ data, refresh }: Props) {
     if (task.start_at && task.due_date) {
       push(
         <span key="heure" className="tabular-nums">
-          {task.end_at ? `${task.start_at}–${task.end_at}` : task.start_at}
+          {/* L'heure telle que la langue l'écrit — « 2:00 PM » en anglais, comme
+              Aujourd'hui et le Calendrier (audit du 2026-10-20, constat 41). */}
+          {task.end_at ? `${formatHeure(task.start_at)}–${formatHeure(task.end_at)}` : formatHeure(task.start_at)}
         </span>,
       );
     }
@@ -649,11 +659,12 @@ export default function TasksView({ data, refresh }: Props) {
           key="objectif"
           type="button"
           onClick={() => ouvrirParId("goal", objectif.id)}
-          data-tip={t("Ouvrir l'objectif")}
+          data-tip={ouvrirNature(objectif)}
           data-tip-sub={objectif.title}
           className="cible-tactile-ligne inline-flex min-w-0 max-w-full items-center gap-1 rounded transition-colors hover:text-text"
         >
-          <IconTarget className="h-3 w-3 shrink-0" />
+          {/* Une ÉTAPE porte le losange, pas la cible d'un objectif (rang 22 du 12/10). */}
+          <IconeNature goal={objectif} goals={data.goals} className="h-3 w-3 shrink-0" />
           <span className="truncate">{objectif.title}</span>
         </button>,
       );
@@ -955,6 +966,7 @@ export default function TasksView({ data, refresh }: Props) {
         placeholder={t("Ajouter une tâche…")}
         aria={t("Ajouter une tâche")}
         onAjouter={ajouter}
+        pastillePriorite={<PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />}
       >
         {tagFilter && (
           <span
@@ -966,7 +978,6 @@ export default function TasksView({ data, refresh }: Props) {
             {tagFilter}
           </span>
         )}
-        <PastillePriorite valeur={prioriteNouvelle} onChange={setPrioriteNouvelle} />
       </SaisieRapide>
 
       {/* Les filtres : les tags, et une recherche. */}

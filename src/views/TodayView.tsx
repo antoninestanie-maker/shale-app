@@ -11,11 +11,13 @@ import CalendarCard from "../components/CalendarCard";
 import {
   statDeListe,
   todayStr,
+  occurrenceLe,
+  recurrenceLabel,
   todayTasks,
   weekStats,
 } from "../lib/logic";
 import { basculerTache, createTask } from "../lib/repo";
-import { planificationRapide } from "../lib/taches/saisieRapide";
+import { ecrituresRapides, type AjoutRapide } from "../lib/taches/saisieRapide";
 import { afficherToast } from "../lib/toast";
 import { titreCourt } from "../components/corbeille/geste";
 import EnRetard from "../components/EnRetard";
@@ -163,19 +165,30 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
    * Sans elle, la tâche n'entrerait pas dans la liste du jour (`todayTasks`).
    */
   const handleAdd = useCallback(
-    async (label: string, jour: string | null, heure: string | null) => {
+    async ({ titre: label, jour, heure, recurrence, priorite }: AjoutRapide) => {
       await createTask({
         label,
         tag: null,
-        priority: "medium",
-        recurrence: "none",
+        // La priorité lue dans la phrase (« urgent »), sinon moyenne (2026-10-20).
+        priority: priorite ?? "medium",
         goal_id: null,
         // Jamais d'écriture directe de `due_date` : la règle datée / récurrente
         // est tenue par `planificationDeSaisie` (`lib/taches.ts`), et une heure
-        // lue dans la phrase donne un créneau d'une heure (`planificationRapide`).
-        ...planificationRapide(jour, heure),
+        // lue dans la phrase donne un créneau d'une heure. Une répétition lue
+        // (« tous les lundis ») fait une routine, sans date (2026-10-20).
+        ...ecrituresRapides({ jour, heure, recurrence }),
       });
       await refresh();
+      // Une routine qui n'a pas lieu aujourd'hui n'entre pas dans la liste : le dire.
+      if (recurrence && !occurrenceLe(recurrence, null, todayStr())) {
+        afficherToast({
+          msg: t("« {titre} » rejoint tes routines : {rythme}", {
+            titre: titreCourt(label),
+            rythme: recurrenceLabel(recurrence) ?? "",
+          }),
+        });
+        return;
+      }
       // Datée d'un autre jour, elle n'apparaît PAS dans la liste : le dire,
       // sinon l'ajout a l'air d'avoir échoué.
       if (jour && jour !== todayStr()) {
@@ -336,6 +349,10 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         gridId="today"
         className="mt-4"
         ajusterOrdre={isPhone ? ordreAujourdhuiAuTelephone : undefined}
+        // Tablette debout, fenêtre réduite, densité Large : la grille n'a plus
+        // deux vraies colonnes, l'action passe en tête comme au téléphone
+        // (audit du 20/10, constat 26 : « Tâches du jour » tombait sous les habitudes).
+        ajusterOrdreEtroit={ordreAujourdhuiAuTelephone}
       >
         {ordered.map((w) => {
           const node = widgets[w.id]?.();

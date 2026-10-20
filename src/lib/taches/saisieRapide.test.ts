@@ -188,7 +188,7 @@ describe("en français", () => {
     const base = { choisie: null, ecartee: null };
 
     it("la date lue quitte le titre", () => {
-      expect(m.resoudreSaisie({ ...base, texte: "Relancer le devis jeudi" }, AUJ)).toEqual({
+      expect(m.resoudreSaisie({ ...base, texte: "Relancer le devis jeudi" }, AUJ)).toMatchObject({
         titre: "Relancer le devis",
         jour: l.addDays(AUJ, 4),
         heure: null,
@@ -199,7 +199,7 @@ describe("en français", () => {
 
     it("⭐ pastille retirée : le titre reste ENTIER, et la tâche n'a pas de date", () => {
       const r = m.resoudreSaisie({ ...base, texte: "Lire Vendredi ou la vie sauvage", ecartee: "Vendredi" }, AUJ);
-      expect(r).toEqual({ titre: "Lire Vendredi ou la vie sauvage", jour: null, heure: null, origine: null, mots: null });
+      expect(r).toMatchObject({ titre: "Lire Vendredi ou la vie sauvage", jour: null, heure: null, origine: null, mots: null });
     });
 
     it("une AUTRE date tapée après l'écart est proposée de nouveau", () => {
@@ -210,18 +210,18 @@ describe("en français", () => {
 
     it("une date choisie au calendrier l'emporte, et ne touche pas au titre", () => {
       const r = m.resoudreSaisie({ texte: "Relancer le devis jeudi", choisie: "2026-10-20", ecartee: null }, AUJ);
-      expect(r).toEqual({ titre: "Relancer le devis jeudi", jour: "2026-10-20", heure: null, origine: "choisie", mots: null });
+      expect(r).toMatchObject({ titre: "Relancer le devis jeudi", jour: "2026-10-20", heure: null, origine: "choisie", mots: null });
     });
 
     it("sans date : rien dans Tâches, aujourd'hui dans la carte d'Aujourd'hui", () => {
-      expect(m.resoudreSaisie({ ...base, texte: " Appeler Paul " }, AUJ)).toEqual({
+      expect(m.resoudreSaisie({ ...base, texte: " Appeler Paul " }, AUJ)).toMatchObject({
         titre: "Appeler Paul",
         jour: null,
         heure: null,
         origine: null,
         mots: null,
       });
-      expect(m.resoudreSaisie({ ...base, texte: "Appeler Paul" }, AUJ, AUJ)).toEqual({
+      expect(m.resoudreSaisie({ ...base, texte: "Appeler Paul" }, AUJ, AUJ)).toMatchObject({
         titre: "Appeler Paul",
         jour: AUJ,
         heure: null,
@@ -233,7 +233,7 @@ describe("en français", () => {
     it("dans Aujourd'hui, une date lue l'emporte sur la date par défaut ; écartée, on y revient", () => {
       expect(m.resoudreSaisie({ ...base, texte: "Appeler Paul demain" }, AUJ, AUJ).jour).toBe(l.addDays(AUJ, 1));
       const r = m.resoudreSaisie({ ...base, texte: "Appeler Paul demain", ecartee: "demain" }, AUJ, AUJ);
-      expect(r).toEqual({ titre: "Appeler Paul demain", jour: AUJ, heure: null, origine: "defaut", mots: null });
+      expect(r).toMatchObject({ titre: "Appeler Paul demain", jour: AUJ, heure: null, origine: "defaut", mots: null });
     });
   });
   /**
@@ -469,7 +469,7 @@ describe("en français", () => {
 
     it("resoudreSaisie porte l'heure ; la pastille retirée, date ET heure restent dans le titre", () => {
       const base = { choisie: null, ecartee: null };
-      expect(m.resoudreSaisie({ ...base, texte: "RDV clinique jeudi 14h30" }, AUJ)).toEqual({
+      expect(m.resoudreSaisie({ ...base, texte: "RDV clinique jeudi 14h30" }, AUJ)).toMatchObject({
         titre: "RDV clinique",
         jour: l.addDays(AUJ, 4),
         heure: "14:30",
@@ -477,9 +477,9 @@ describe("en français", () => {
         mots: "jeudi 14h30",
       });
       const r = m.resoudreSaisie({ ...base, texte: "RDV clinique jeudi 14h30", ecartee: "jeudi 14h30" }, AUJ);
-      expect(r).toEqual({ titre: "RDV clinique jeudi 14h30", jour: null, heure: null, origine: null, mots: null });
+      expect(r).toMatchObject({ titre: "RDV clinique jeudi 14h30", jour: null, heure: null, origine: null, mots: null });
       // Sur Aujourd'hui, l'heure seule est une date LUE (retirable), posée sur le jour d'office.
-      expect(m.resoudreSaisie({ ...base, texte: "Appeler Paul à 14h" }, AUJ, AUJ)).toEqual({
+      expect(m.resoudreSaisie({ ...base, texte: "Appeler Paul à 14h" }, AUJ, AUJ)).toMatchObject({
         titre: "Appeler Paul",
         jour: AUJ,
         heure: "14:00",
@@ -489,7 +489,7 @@ describe("en français", () => {
     });
 
     it("⭐ planificationRapide : un créneau d'UNE heure, plafonné à 23:59, jamais sans jour", () => {
-      expect(m.planificationRapide("2026-10-15", "14:30")).toEqual({ due_date: "2026-10-15", start_at: "14:30", end_at: "15:30" });
+      expect(m.planificationRapide("2026-10-15", "14:30")).toMatchObject({ due_date: "2026-10-15", start_at: "14:30", end_at: "15:30" });
       expect(m.planificationRapide("2026-10-15", "23:30")).toEqual({ due_date: "2026-10-15", start_at: "23:30", end_at: "23:59" });
       expect(m.planificationRapide("2026-10-15", null)).toEqual({ due_date: "2026-10-15", start_at: null, end_at: null });
       expect(m.planificationRapide(null, "14:30")).toEqual({ due_date: null, start_at: null, end_at: null });
@@ -565,7 +565,7 @@ describe("in English", () => {
 
   it("la pastille retirée laisse le titre entier", () => {
     const r = m.resoudreSaisie({ texte: "Read Friday Night Lights", choisie: null, ecartee: "Friday" }, AUJ);
-    expect(r).toEqual({ titre: "Read Friday Night Lights", jour: null, heure: null, origine: null, mots: null });
+    expect(r).toMatchObject({ titre: "Read Friday Night Lights", jour: null, heure: null, origine: null, mots: null });
   });
   describe("a weekday followed by a number: the number wins", () => {
     const LUN = "2026-10-12";

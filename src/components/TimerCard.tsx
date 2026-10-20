@@ -2,6 +2,7 @@
 // Session en cours → temps restant + pause/stop. Sinon → 3 presets + Lancer.
 // Tous les réglages détaillés (sur mesure, tâche liée…) vivent dans
 // la vue Timer, accessible via le lien en pied de carte.
+import { pointeurGrossier } from "../lib/menu/tactile";
 import { useMemo, useState } from "react";
 import { todayStr } from "../lib/logic";
 import type { FocusController } from "../lib/useFocus";
@@ -97,7 +98,7 @@ export default function TimerCard({ data, focus }: Props) {
               onClick={() => focus.setOverlayOpen(true)}
               aria-label={t("Plein écran")}
               data-tip={t("Plein écran")}
-              data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
+              data-tip-sub={pointeurGrossier() ? t("Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.") : t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
               className="pill inline-flex h-9 w-9 items-center justify-center border border-border text-text-dim hover:text-text"
             >
               <IconExpand className="h-3.5 w-3.5" />

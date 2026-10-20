@@ -120,7 +120,12 @@ export type OrigineMesure =
   /** Un réglage cassé : ne se mesure pas, et pèse 0 chez son parent. */
   | { type: "panne"; raison: RaisonPanne };
 
-export type SourceCompte = "manual" | "task" | "habit";
+/**
+ * `elements` (2026-10-20, constat d'usage 29) : les tâches FAITES de l'étape
+ * elle-même, une unité chacune. Une version d'avant lit cette valeur
+ * « manual » (`sourceDe`) — rien ne casse, le compte y est celui de « + ».
+ */
+export type SourceCompte = "manual" | "task" | "habit" | "elements";
 
 export type RaisonPanne =
   /** Une cible ≤ 0 : « atteindre zéro » ne se mesure pas. */
@@ -169,7 +174,7 @@ export function poidsDe(g: Pick<Goal, "weight">): number {
 
 /** Une source inconnue — écrite par une version future — se lit `'manual'`. */
 export function sourceDe(g: Pick<Goal, "count_source">): SourceCompte {
-  return g.count_source === "task" || g.count_source === "habit" ? g.count_source : "manual";
+  return g.count_source === "task" || g.count_source === "habit" || g.count_source === "elements" ? g.count_source : "manual";
 }
 
 /**
@@ -326,6 +331,10 @@ function mesurerCible(goal: Goal, s: SourcesProgression): Pick<Mesure, "pct" | "
  */
 export function compterSource(goal: Goal, source: SourceCompte, s: SourcesProgression): number | null {
   if (source === "manual") return Math.max(0, goal.manual_count || 0);
+  // ⭐ Les tâches de l'étape, faites : la règle de « Compter des éléments »
+  // (`elementsDe`), la cible ne fixant que le nombre à atteindre. Pas de
+  // `count_since` : une tâche faite l'est pour de bon, quelle que soit sa date.
+  if (source === "elements") return elementsDe(goal, s).comptables.filter((c) => c.fait).length;
 
   const uid = goal.count_ref_uid;
   if (!uid) return null;

@@ -2628,8 +2628,25 @@ export const EN: Record<string, string> = {
   "Temps": "Time",
   "C'est prêt : l'accueil se rejouera au prochain démarrage de Shale.":
     "Done: the welcome flow will play again next time Shale starts.",
-  "Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment.":
-    "Three questions to tune the app to your week. Nothing decorative: every answer is used for something. You can skip at any time.",
+  // Accueil, audit du 2026-10-20 (constats 6 et 7).
+  "Quelques questions pour régler l'app sur ta semaine, puis ton premier objectif. Rien de décoratif : chaque réponse sert à quelque chose. Chaque question peut être passée, ou tout d'un coup.":
+    "A few questions to tune the app to your week, then your first goal. Nothing decorative: every answer is used for something. Skip any question, or all of them at once.",
+  "Choisis au moins un jour pour « {nom} », ou efface son nom.": "Pick at least one day for “{nom}”, or clear its name.",
+  "Donne à « {nom} » une fin différente de son début, ou efface son nom.": "Give “{nom}” an end different from its start, or clear its name.",
+  "Étape {n} sur {total}": "Step {n} of {total}",
+  "Passer et commencer": "Skip and start",
+  "Passer cette question": "Skip this question",
+  "Tout passer": "Skip everything",
+  "Tout bloc qui revient et que tu ne choisis pas. Il réserve ces heures dans ta semaine : le calendrier ne te proposera pas de créneau dessus. Ce n'est pas un événement, il ne s'affiche pas dans le calendrier. Facultatif.":
+    "Any block that comes back and that you don't choose. It reserves those hours in your week: the calendar won't suggest a slot over it. It isn't an event and doesn't show in the calendar. Optional.",
+  "« Suivant » l'ajoute aussi.": "“Next” adds it too.",
+  "Récupérer, c'est réserver chaque semaine une part de ton temps libre pour ce qui compte pour toi. À l'écran suivant, tu diras pour quoi.":
+    "Getting time back means setting aside part of your free time each week for what matters to you. On the next screen, you'll say what for.",
+  "Blocs fixes": "Fixed blocks",
+  "{jours} · {debut} – {fin}": "{jours} · {debut} – {fin}",
+  "Début et fin identiques : aucune heure n'est comptée.": "Same start and end: no hours are counted.",
+  "La fin est avant le début : la plage passe minuit et dure {n} h. C'est voulu ?":
+    "The end is before the start: this range goes past midnight and lasts {n} h. Is that right?",
   "Refaire l'accueil du premier démarrage": "Redo the first-launch welcome",
   "Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.":
     "Sets your wake-up, bedtime and work hours again. Your data is untouched.",
@@ -2780,9 +2797,13 @@ export const EN: Record<string, string> = {
   "Autres tâches": "Other tasks",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
-  "Revenir au mois en cours": "Back to this month",
   "Mois précédent": "Previous month",
   "Mois suivant": "Next month",
+  // Le titre du calendrier ouvre le choix des mois (2026-10-20, audit, constat 8).
+  "Choisir le mois et l'année": "Choose month and year",
+  "Revenir aux jours": "Back to days",
+  "Année précédente": "Previous year",
+  "Année suivante": "Next year",
   "Effacer": "Clear",
   "Taper une date": "Type a date",
   "Date illisible": "Can’t read that date",
@@ -3658,8 +3679,22 @@ export const EN: Record<string, string> = {
   // L'ajout rapide de Tâches annonce sa règle, comme celui d'Aujourd'hui.
   "sans date": "no date",
   "Sans date. Choisir une date": "No date. Pick a date",
-  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
-    "Added like this, the task isn't due on any day. Or write the day in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
+  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris-le dans la phrase : « jeudi 14h30 », « demain », « fin du mois », « chaque lundi ».":
+    "Added like this, the task isn't due on any day. Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “end of the month”, “every Monday”.",
+  // La phrase entière : répétition, priorité (2026-10-20, audit, constat 18).
+  "Se répète : {rythme}. Choisir une date à la place": "Repeats: {rythme}. Pick a date instead",
+  "Répétition lue dans la phrase": "Repeat read from your sentence",
+  "« {mots} » quittera le titre. La tâche rejoindra tes routines. La croix garde le titre entier.":
+    "“{mots}” will leave the title. The task will join your routines. The cross keeps the title whole.",
+  "Retirer la répétition": "Remove the repeat",
+  "Priorité lue dans la phrase": "Priority read from your sentence",
+  "Retirer la priorité lue": "Remove the priority read",
+  "« {titre} » rejoint tes routines : {rythme}": "“{titre}” joins your routines: {rythme}",
+  "Lu dans la phrase :": "Read from your sentence:",
+  "Retirer : {quoi}": "Remove: {quoi}",
+  // Échap dans « Nouvelle tâche » demande avant de jeter (constat 39).
+  "Abandonner la saisie ?": "Discard your changes?",
+  "Ne pas garder": "Discard",
   "Ajoutée dans « {section} »": "Added to “{section}”",
   // L'échéance d'un objectif au fil d'une ligne (liste, cartes d'Aujourd'hui).
   // `{date}` porte l'année dès que ce n'est pas l'année en cours.
@@ -3822,6 +3857,32 @@ export const EN: Record<string, string> = {
   "{nom} : la note a changé pendant la copie": "{nom}: the note changed during the copy",
   "Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.":
     "This note no longer exists: it was deleted, perhaps on another device.",
+  // ── Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (2026-10-21) ──
+  "Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.":
+    "Leaves only the clock on screen. Tap the screen to pause or minimise.",
+  "aujourd’hui surchargé": "today overloaded",
+  "Masquer les alertes": "Hide alerts",
+  "Aujourd'hui, journée surchargée.": "Today is overloaded.",
+  "{n} alerte": "{n} alert",
+  "{n} alertes": "{n} alerts",
+  "{n} objectif": "{n} goal",
+  "{n} objectifs": "{n} goals",
+  "{n} tâche à décider": "{n} task to decide on",
+  "{n} tâches à décider": "{n} tasks to decide on",
+
+  // ── lot 7 — finitions d'Objectifs et divers (audit du 2026-10-20) ──
+  "{n} tâche directe sur {total}": "{n} direct task out of {total}",
+  "{n} tâches directes sur {total}": "{n} direct tasks out of {total}",
+  "{n} élément direct sur {total}": "{n} direct item out of {total}",
+  "{n} éléments directs sur {total}": "{n} direct items out of {total}",
+  "par ses tâches": "by its tasks",
+  "{n} tâche faite sur {cible}": "{n} task done out of {cible}",
+  "{n} tâches faites sur {cible}": "{n} tasks done out of {cible}",
+  "Ajoute sous le nœud un lien vers une note, une tâche, une fiche…": "Adds a link under the node to a note, a task, an entry…",
+  "Rend ce que tu viens de supprimer ou de renommer dans la carte.": "Brings back what you just deleted or renamed in the map.",
+  "Ouvrir l'étape": "Open the step",
+  "Terminer|tâche": "Mark done",
+
 
   // ─── lot3-chiffres (audit du 2026-10-20) : les deux séries se nomment, Performance dit ce qu'elle trace ───
   "Jours d'affilée où au moins 75 % de tes habitudes sont cochées": "Days in a row with at least 75% of your habits checked",

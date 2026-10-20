@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   IconCalendar,
   IconCheck,
+  IconEtape,
   IconFolder,
   IconNote,
   IconTarget,
@@ -39,6 +40,20 @@ export const LIBELLE_PLURIEL: Record<LinkKind, string> = {
   object: "Objets",
   file: "Fichiers",
 };
+
+/**
+ * Le nom d'une trouvaille de la recherche : celui de sa famille — sauf l'ÉTAPE,
+ * un objectif qui a un parent, qui se nomme « Étape » (contrôle du 12/10,
+ * rang 22). Phrase française, traduite à l'affichage comme les autres.
+ */
+export function libelleDeTrouvaille(o: { kind: LinkKind; etape?: boolean }): string {
+  return o.kind === "goal" && o.etape ? "Étape" : LIBELLE_DE_KIND[o.kind];
+}
+
+/** L'icône d'une trouvaille : le losange de l'étape (DESIGN.md, « Les types de nœud »), sinon celle de sa famille. */
+export function iconeDeTrouvaille(o: { kind: LinkKind; etape?: boolean }): ReactNode {
+  return o.kind === "goal" && o.etape ? <IconEtape className="h-4 w-4" /> : ICONE_DE_KIND[o.kind];
+}
 
 export const ICONE_DE_KIND: Record<LinkKind, ReactNode> = {
   note: <IconNote className="h-4 w-4" />,
