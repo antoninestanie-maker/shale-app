@@ -8685,9 +8685,10 @@ Demande d'Antonin : « quand je clique sur un objectif, ce rectangle gris s'agra
 - **Sans film** : `prefers-reduced-motion` (PIEGES § 50.2), une carte introuvable (l'effet abandonne et la page s'ouvre sèche), et l'ouverture depuis ailleurs (mention, « En faire un objectif ») qui garde son fondu d'entrée.
 - **Densité** : toute distance mesurée est divisée par `zoomFactor()` (PIEGES § 50.3).
 - **Site** : `DETTE-SITE.md` § AK.
+
 ## 2026-10-20 — Fond « Net », braise +2, grammaire des couleurs, point d'action (design system V9)
 
-Antonin, sur le canevas de design : « installe dans l'app le fond Net, la braise +2, la grammaire des couleurs et le point d'action lié aux notifications ». Spécification qui fait foi : `~/Desktop/Shale-projet/marque/COULEURS.md`. Valeurs, contrastes et liste de ce qui a changé : `DESIGN.md` (tête, « V9 »). Pièges : `PIEGES.md` § 51.
+Antonin, sur le canevas de design : « installe dans l'app le fond Net, la braise +2, la grammaire des couleurs et le point d'action lié aux notifications ». Spécification qui fait foi : `~/Desktop/Shale-projet/marque/COULEURS.md`. Valeurs, contrastes et liste de ce qui a changé : `DESIGN.md` (tête, « V9 »). Pièges : `PIEGES.md` § 51. Site : `DETTE-SITE.md` § AL.
 
 - **Fond Net** : noir `#030304` / blanc `#ffffff`, texte blanc / noir pur. En clair, cartes blanches sur fond blanc : le filet (`.16`) les sépare.
 - **Braise +2** (`#e6a2a6` / `#742f33`) remplace l'accent V8 ; un seul accent, **pas de couleur par module** (décision d'Antonin). `--color-blue` reste une couleur choisie.

@@ -2685,7 +2685,7 @@ Demande d'Antonin : cliquer un objectif fait grandir sa carte grise jusqu'à la 
 **Pas prouvé** : rien vu dans WKWebView (Mac) ni sur l'iPhone. **Reste** : fusion, puis le prochain build groupé.
 ## 2026-10-20 — Fond Net, braise +2, grammaire des couleurs, point d'action (`chantier/couleurs-net`)
 
-Demande d'Antonin : « installe dans l'app le fond Net, la braise +2, la grammaire des couleurs et le point d'action lié aux notifications » (`Shale-projet/marque/COULEURS.md`). Décisions : `CLAUDE.md` (section du 2026-10-20), `DESIGN.md` (V9), `PIEGES.md` § 51, `DETTE-SITE.md` § AK.
+Demande d'Antonin : « installe dans l'app le fond Net, la braise +2, la grammaire des couleurs et le point d'action lié aux notifications » (`Shale-projet/marque/COULEURS.md`). Décisions : `CLAUDE.md` (section du 2026-10-20), `DESIGN.md` (V9), `PIEGES.md` § 51, `DETTE-SITE.md` § AL.
 
 - Tokens Net + braise +2 dans les trois blocs d'`index.css` ; copies du fond (`theme.ts`, `index.html`, `PALETTE_EXPORT`) suivies.
 - Grammaire appliquée (liste dans `DESIGN.md`) : priorité ambre / gris, péril ambre et dépassé rouge, minuteur neutre, série braise, non-lus gris.

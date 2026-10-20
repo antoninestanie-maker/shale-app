@@ -1044,7 +1044,7 @@ Neutres, rouge, ambre, violet, encre du « réussi » : **inchangés**. Le logo 
 - **Clic droit sur une habitude** : Cocher, **Renommer**, **Couleur ▸**, Supprimer. Une fiche qui décrit les habitudes peut le dire.
 - **Douze couleurs d'habitude** au lieu de six, dont le cramoisi du logo (`#dc2626`). Les captures qui montrent la rangée de six pastilles sont datées.
 - Le site est sur une refonte (plus de `Demo.astro`) : rien n'a été modifié de ce côté ce jour-là.
-## AK — Fond « Net », braise +2, grammaire des couleurs, point d'action (app, 2026-10-20)
+## AL — Fond « Net », braise +2, grammaire des couleurs, point d'action (app, 2026-10-20)
 
 Règle « l'app et le site ne divergent jamais » : `vitrine/src/styles/global.css` doit recopier ces valeurs (spécification : `~/Desktop/Shale-projet/marque/COULEURS.md`).
 
