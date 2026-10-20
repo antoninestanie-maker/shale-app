@@ -1,6 +1,7 @@
 import { clesDe, colonneUid, colonnesLocales } from "./fk";
 import type { EntreeOutbox, ChangementEnAttente } from "./outbox";
 import { DEPENDANTS, libererDependants } from "../suppression";
+import { fermerLaPorte } from "./verrou";
 
 /**
  * Accès à la base SQLite locale pour le moteur de synchronisation.
@@ -225,15 +226,76 @@ let file: Promise<unknown> = Promise.resolve();
 
 export function enApplication<T>(db: BaseLocale, travail: () => Promise<T>): Promise<T> {
   const suivant = file.then(async () => {
-    await db.execute("UPDATE sync_meta SET v = '1' WHERE k = 'applying'");
+    // ⚠️ La porte AVANT le drapeau (2026-10-20) : les écritures de
+    // l'utilisateur déjà lancées finissent, et journalisées ; les suivantes
+    // attendent la fin de l'application (`verrou.ts`).
+    const ouvrir = await fermerLaPorte();
     try {
-      return await travail();
+      await db.execute("UPDATE sync_meta SET v = '1' WHERE k = 'applying'");
+      try {
+        return await travail();
+      } finally {
+        await db.execute("UPDATE sync_meta SET v = '0' WHERE k = 'applying'");
+      }
     } finally {
-      await db.execute("UPDATE sync_meta SET v = '0' WHERE k = 'applying'");
+      ouvrir();
     }
   });
   // La file ne doit pas s'interrompre sur un échec : une erreur d'application
   // ne doit pas bloquer toutes les synchronisations suivantes.
+  file = suivant.catch(() => undefined);
+  return suivant;
+}
+
+/**
+ * ⭐ LA BASE REMISE EN ORDRE AU DÉMARRAGE (audit du 2026-10-20), avant toute
+ * synchronisation. Deux gestes, dans la même file qu'`enApplication` pour ne
+ * jamais tomber au milieu de l'une.
+ *
+ * 1. UN DRAPEAU `applying` RESTÉ LEVÉ SE BAISSE (donnees-2). `enApplication`
+ *    le remet à '0' dans un `finally` — qui ne s'exécute pas si l'app est TUÉE
+ *    pendant l'application (iOS le fait sans prévenir, un plantage aussi). Il
+ *    restait alors à '1' pour toujours : plus aucune écriture n'entrait dans la
+ *    file d'envoi, sous un indicateur « synchronisé ».
+ *
+ * 2. UNE BASE RESTAURÉE DEVIENT LA SOURCE (donnees-3). Une sauvegarde porte le
+ *    curseur et l'état de synchronisation de SON jour. Restaurée telle quelle,
+ *    elle repartait de ce vieux curseur, tirait la pierre tombale de la note
+ *    qu'on voulait justement récupérer, et l'effaçait de nouveau — la
+ *    restauration ne servait à rien. Le Rust marque la base restaurée
+ *    (`sync_meta.restauree`, `sauvegardes.rs`) ; on fait alors ce que fait
+ *    « republier » : oublier ce qu'on croyait savoir du serveur, et remettre
+ *    toutes les lignes en file. Envoyées au présent, elles l'emportent sur ce
+ *    que le cloud a reçu depuis la copie — suppressions comprises — et les
+ *    autres appareils les reprennent. Ce qui a été CRÉÉ ailleurs depuis la
+ *    copie, et que la copie ne connaît pas, revient : on ne détruit rien.
+ *
+ * À appeler par la fenêtre PRINCIPALE : elle seule synchronise, et au
+ * démarrage aucune application ne peut être en cours.
+ */
+/**
+ * Attend ce que la file contient déjà — la remise en ordre du démarrage en
+ * tête. Le moteur l'appelle avant tout cycle : sans elle, un premier cycle
+ * parti tôt lirait l'ancien curseur d'une base restaurée avant qu'on l'ait remis
+ * à zéro.
+ */
+export function apresLaFile(): Promise<unknown> {
+  return file;
+}
+
+export function remettreEnOrdre(db: BaseLocale, tables: readonly string[]): Promise<{ restauree: boolean }> {
+  const suivant = file.then(async () => {
+    await db.execute("UPDATE sync_meta SET v = '0' WHERE k = 'applying' AND v <> '0'");
+    if ((await lireMeta(db, "restauree")) !== "1") return { restauree: false };
+    await ecrireMeta(db, "cursor", "0");
+    await ecrireMeta(db, "orphelines", "[]");
+    await ecrireMeta(db, "orphelines_a_relire", "0");
+    await db.execute("DELETE FROM sync_state");
+    await toutRemettreEnFile(db, tables);
+    // EN DERNIER : interrompu avant, tout recommence au démarrage suivant.
+    await ecrireMeta(db, "restauree", "0");
+    return { restauree: true };
+  });
   file = suivant.catch(() => undefined);
   return suivant;
 }

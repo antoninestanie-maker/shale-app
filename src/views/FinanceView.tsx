@@ -39,6 +39,7 @@ import { useEntitlements } from "../lib/entitlements";
 import { useFinance } from "../lib/finance/useFinance";
 import type { AppData, Invoice, InvoiceSens } from "../lib/types";
 import { t } from "../lib/i18n";
+import Chargement from "../components/Chargement";
 
 interface Props {
   /** Uniquement pour `data.trades` : le pont Trading → €. Le reste du module
@@ -71,11 +72,7 @@ export default function FinanceView({ data }: Props) {
   const [encaisse, setEncaisse] = useState<Invoice | null>(null);
 
   if (!f.pret)
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-text-dim">{t("Chargement…")}</p>
-      </div>
-    );
+    return <Chargement texte={t("Chargement…")} />;
 
   const etapes = {
     compte: f.data.comptes.length > 0,

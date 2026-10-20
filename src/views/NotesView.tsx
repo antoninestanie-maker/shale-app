@@ -4,7 +4,7 @@ import PanneauLiens from "../components/liens/PanneauLiens";
 import { useLiens } from "../components/liens/useLiens";
 import { consommerDemande, ouvrirObjet } from "../lib/naviguer";
 import { norm } from "../lib/actions";
-import { createNote, searchNotes, updateNote } from "../lib/repo";
+import { createNote, searchNotes, uidDe, updateNote } from "../lib/repo";
 import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
@@ -76,6 +76,8 @@ export default function NotesView({ data, refresh }: Props) {
   const [body, setBody] = useState("");
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<number | undefined>(undefined);
+  /** `flush`, lisible depuis un effet déclaré avant lui. */
+  const flushRef = useRef<() => Promise<void>>(async () => {});
   const champTitre = useRef<HTMLInputElement>(null);
   // La note qu'on vient de DEMANDER (création, ⌘⇧N, palette, raccourci de
   // l'iPhone) : si elle est neuve, elle reçoit le curseur dans son texte.
@@ -140,6 +142,12 @@ export default function NotesView({ data, refresh }: Props) {
   const ouvrirMention = (kind: LinkKind, mentionUid: string) => {
     void ouvrirObjet(kind, mentionUid);
   };
+
+  // Changer de note ÉCRIT ce qui attend pour la précédente (savoir-4) : rien ne
+  // doit dépendre d'un minuteur qui pourrait être remplacé.
+  useEffect(() => {
+    void flushRef.current();
+  }, [selectedId]);
 
   // charge la note sélectionnée dans l'éditeur
   useEffect(() => {
@@ -257,14 +265,25 @@ export default function NotesView({ data, refresh }: Props) {
     const p = enAttente.current;
     enAttente.current = null;
     if (!p) return;
-    await updateNote(p.id, p.titre.trim() || TITRE_SI_VIDE, p.corps);
-    // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
-    // chaque lettre remplirait l'outbox de synchronisation de centaines
-    // d'entrées pour une seule mention tapée.
-    await mentionsRef.current(p.corps, p.uid);
+    await ecrire(p);
     setSaved(true);
     await refreshRef.current();
   }, []);
+
+  /**
+   * Écrit UNE note en attente. Les arêtes suivent l'ENREGISTREMENT, pas la
+   * frappe : écrire une arête à chaque lettre remplirait l'outbox de
+   * synchronisation de centaines d'entrées pour une seule mention tapée.
+   *
+   * ⚠️ L'uid peut manquer : `useLiens` le résout en différé, et une frappe
+   * faite dans la milliseconde qui suit l'ouverture d'une note part avant lui.
+   * On le relit alors pour CETTE note — jamais « l'uid courant ».
+   */
+  const ecrire = async (p: NonNullable<typeof enAttente.current>) => {
+    await updateNote(p.id, p.titre.trim() || TITRE_SI_VIDE, p.corps);
+    const uidCible = p.uid ?? (await uidDe("note", p.id));
+    if (uidCible) await mentionsRef.current(p.corps, uidCible);
+  };
 
   /**
    * ⭐ ENREGISTREMENT GARANTI À LA FERMETURE — ajouté le 2026-09-05.
@@ -279,9 +298,19 @@ export default function NotesView({ data, refresh }: Props) {
    * `flush` est stable, donc ce nettoyage ne part qu'au VRAI démontage.
    */
   useEffect(() => () => void flush(), [flush]);
+  flushRef.current = flush;
 
+  /**
+   * ⚠️ UNE NOTE EN ATTENTE N'EN REMPLACE PAS UNE AUTRE (audit du 2026-10-20,
+   * savoir-4). La file ne tient qu'une écriture : taper dans A, faire ⌘⇧N et
+   * écrire aussitôt dans la note neuve remplaçait l'écriture de A, et
+   * annulait son minuteur — les derniers caractères de A ne partaient jamais.
+   * Celle d'une AUTRE note part donc tout de suite, avant d'être remplacée.
+   */
   const scheduleSave = (id: number, nextTitle: string, nextBody: string) => {
     setSaved(false);
+    const precedente = enAttente.current;
+    if (precedente && precedente.id !== id) void ecrire(precedente);
     enAttente.current = { id, uid, titre: nextTitle, corps: nextBody };
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => void flush(), 700);
@@ -619,6 +648,7 @@ export default function NotesView({ data, refresh }: Props) {
 
           <RichNoteEditor
             noteId={selected.id}
+            genrePage="note"
             graine={graineDeNote(selected.id, selected.body, corpsFrais)}
             source={uid ? { kind: "note", uid } : undefined}
             onOuvrirMention={(k, u) => ouvrirMention(k, u)}

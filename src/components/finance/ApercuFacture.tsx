@@ -29,6 +29,7 @@ import type {
   InvoiceParty,
 } from "../../lib/types";
 import { localeTag, t } from "../../lib/i18n";
+import Chargement from "../Chargement";
 
 export default function ApercuFacture({
   facture,
@@ -120,7 +121,7 @@ export default function ApercuFacture({
             {t("L'aperçu n'a pas pu être produit.")} {erreur}
           </p>
         ) : url === null ? (
-          <p className="py-12 text-center text-sm text-text-dim">{t("Chargement…")}</p>
+          <Chargement texte={t("Chargement…")} taille={32} className="py-12" />
         ) : (
           <iframe
             src={url}

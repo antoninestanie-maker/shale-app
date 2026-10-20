@@ -371,7 +371,7 @@ export const SEUILS = {
  *     elle a manqué au moins un jour — même si sa date est aujourd'hui.
  */
 export function tachesHorsCompte(tasks: readonly Task[], completions: readonly Completion[], today: string): Task[] {
-  const faites = ponctuellesFaites(completions);
+  const faites = ponctuellesFaites(completions, tasks);
   return sansExemples(tasks).filter(
     (t) =>
       !estRecurrente(t) &&

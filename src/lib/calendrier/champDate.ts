@@ -84,9 +84,29 @@ function jourReel(a: number, m: number, j: number): boolean {
  * rend le 3 mars sans rien dire : taper 31/02 sur une échéance l'aurait déplacée
  * en silence, et une date qu'on croit avoir posée est pire qu'un champ vide.
  */
-export function parserSaisie(texte: string, aujourdHui: string): string | null {
+export function parserSaisie(
+  texte: string,
+  aujourdHui: string,
+  options: {
+    /**
+     * Une date tapée SANS année qui tombe avant ce jour passe à l'année
+     * suivante (2026-10-20). Le panneau passe sa borne `min` : « 15/01 » tapé
+     * en octobre dans une échéance qui ne peut pas être passée, c'est janvier
+     * prochain — pas « Date hors des bornes ».
+     */
+    apres?: string;
+  } = {},
+): string | null {
   const brut = texte.trim();
   if (!brut) return null;
+  const [anneeCourante, moisCourant] = aujourdHui.split("-").map(Number);
+  /** Sans année écrite : l'année du jour donné, ou la suivante si `apres` l'exige. */
+  const sansAnnee = (mois: number, jour: number): string | null => {
+    const cette = assembler(anneeCourante, mois, jour);
+    if (!cette || !options.apres || cette >= options.apres) return cette;
+    return assembler(anneeCourante + 1, mois, jour) ?? cette;
+  };
+
   /**
    * ⚠️ UNE LETTRE SUFFIT À REFUSER, et c'est la même exigence que le jour
    * impossible : ce qu'on ne sait pas lire entièrement, on ne le devine pas.
@@ -97,28 +117,57 @@ export function parserSaisie(texte: string, aujourdHui: string): string | null {
    * décembre » sur une saisie qui contenait un caractère parasite. Le panneau
    * dit ce qu'il a lu avant qu'on valide, donc le dégât restait rattrapable —
    * mais une lecture qu'on doit relire n'est pas une lecture.
+   *
+   * ⭐ 2026-10-20 (audit, constat 8) — SAUF UN NOM DE MOIS ENTIER. Léa a tapé
+   * « 20 mai 2027 » et lu « Date illisible ». Une date écrite en toutes lettres
+   * se lit ENTIÈREMENT (`lireMoisEcrit`) : ce n'est pas deviner. Tout le reste
+   * avec une lettre (« 24/12x », « le 24 », « demain ») reste refusé.
    */
-  if (/\p{L}/u.test(brut)) return null;
-  const [anneeCourante, moisCourant] = aujourdHui.split("-").map(Number);
+  if (/\p{L}/u.test(brut)) {
+    const ecrit = lireMoisEcrit(brut);
+    if (!ecrit) return null;
+    return ecrit.annee == null
+      ? sansAnnee(ecrit.mois, ecrit.jour)
+      : assembler(ecrit.annee, ecrit.mois, ecrit.jour);
+  }
 
-  // Une suite de huit chiffres est lue telle quelle : ni la langue ni les
-  // séparateurs n'entrent en jeu. `2026-09-24` arrive ici par ce chemin.
-  const chiffres = brut.replace(/\D/g, "");
-  if (/^\d{8}$/.test(chiffres)) {
-    const enAnneeDAbord = Number(chiffres.slice(0, 4));
-    // Quatre chiffres plausibles en tête : c'est une date ISO, le seul format
-    // où l'année ouvre. Sinon, l'année ferme, dans l'ordre de la langue.
-    if (enAnneeDAbord >= 1900 && enAnneeDAbord <= 2200) {
-      const a = enAnneeDAbord;
-      const m = Number(chiffres.slice(4, 6));
-      const j = Number(chiffres.slice(6, 8));
-      return jourReel(a, m, j) ? `${pad4(a)}-${pad2(m)}-${pad2(j)}` : null;
-    }
+  /**
+   * ⭐ HUIT CHIFFRES COLLÉS : l'ordre de la langue, ou l'ISO — celui qui donne
+   * un jour réel.
+   *
+   * ⚠️ BOGUE CORRIGÉ LE 2026-10-20 (audit, constat 8). Ce chemin prenait aussi
+   * les saisies AVEC séparateurs (les chiffres étaient d'abord recollés), et
+   * l'ISO passait en premier dès que les quatre premiers chiffres faisaient une
+   * année plausible (1900 à 2200). Or « 20/02/2027 » recollé donne « 2002… » :
+   * lu comme l'an 2002, mois 20 — refusé. Tous les jours du 19 au 22 tombaient
+   * dans ce piège (« 19/05/2027 » = 1905, « 21/05/2027 » = 2105) ; « 20/02/27 »
+   * passait, n'ayant que six chiffres. Trois utilisateurs du labo sur trois ont
+   * lu « Date illisible » sur le format que le champ leur demandait.
+   *
+   * Maintenant : seuls huit chiffres SANS séparateur passent ici, et les deux
+   * lectures sont essayées. Elles ne peuvent pas réussir toutes les deux (en
+   * ISO, les chiffres 5-6 sont un mois, donc l'année « jj/mm/AAAA » commencerait
+   * par 0 ou 1 — hors des années admises).
+   */
+  if (/^\d{8}$/.test(brut)) {
     const ordre = ordreDesChamps();
     const vals: Record<ChampDePart, number> = { jour: 0, mois: 0, annee: 0 };
-    vals[ordre[0]] = Number(chiffres.slice(0, 2));
-    vals[ordre[1]] = Number(chiffres.slice(2, 4));
-    vals[ordre[2]] = Number(chiffres.slice(4, 8));
+    vals[ordre[0]] = Number(brut.slice(0, 2));
+    vals[ordre[1]] = Number(brut.slice(2, 4));
+    vals[ordre[2]] = Number(brut.slice(4, 8));
+    const langue = anneePlausible(vals.annee) ? assembler(vals.annee, vals.mois, vals.jour) : null;
+    if (langue) return langue;
+    const a = Number(brut.slice(0, 4));
+    return anneePlausible(a) ? assembler(a, Number(brut.slice(4, 6)), Number(brut.slice(6, 8))) : null;
+  }
+  // Six chiffres collés : jour, mois, année sur deux chiffres, dans l'ordre de
+  // la langue (« 200227 »). Le pendant de « 20/02/27 », qui passait déjà.
+  if (/^\d{6}$/.test(brut)) {
+    const ordre = ordreDesChamps();
+    const vals: Record<ChampDePart, number> = { jour: 0, mois: 0, annee: 0 };
+    vals[ordre[0]] = Number(brut.slice(0, 2));
+    vals[ordre[1]] = Number(brut.slice(2, 4));
+    vals[ordre[2]] = Number(brut.slice(4, 6));
     return assembler(vals.annee, vals.mois, vals.jour);
   }
 
@@ -137,7 +186,7 @@ export function parserSaisie(texte: string, aujourdHui: string): string | null {
     const iMois = ordre.indexOf("mois");
     const jour = morceaux[iJour < iMois ? 0 : 1];
     const mois = morceaux[iJour < iMois ? 1 : 0];
-    return assembler(anneeCourante, mois, jour);
+    return sansAnnee(mois, jour);
   }
   if (morceaux.length === 3) {
     // Une année en tête l'emporte sur l'ordre de la langue : personne n'écrit
@@ -150,6 +199,49 @@ export function parserSaisie(texte: string, aujourdHui: string): string | null {
     return assembler(vals.annee, vals.mois, vals.jour);
   }
   return null;
+}
+
+const anneePlausible = (a: number) => a >= 1900 && a <= 2200;
+
+/** Minuscule, sans accent : « Févr. » → « fevr. ». */
+const sansAccent = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/**
+ * Le rang (1 à 12) d'un mot de mois dans la langue de l'app, ou `null`.
+ *
+ * Le nom long, le nom court d'`Intl`, ou un début d'au moins trois lettres qui
+ * ne désigne QU'UN mois (« sept », « fev », « juil » ; pas « jui », juin ou
+ * juillet). Les noms viennent d'`Intl`, jamais d'une table (PIEGES § 5.2 bis).
+ */
+export function rangDuMois(mot: string): number | null {
+  const m = sansAccent(mot).replace(/\.$/, "");
+  if (m.length < 3) return null;
+  const longs: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(2026, i, 15, 12);
+    const long = sansAccent(d.toLocaleDateString(localeTag(), { month: "long" }));
+    const court = sansAccent(d.toLocaleDateString(localeTag(), { month: "short" })).replace(/\.$/, "");
+    if (m === long || m === court) return i + 1;
+    longs.push(long);
+  }
+  const prefixes = longs.flatMap((l, i) => (l.startsWith(m) ? [i + 1] : []));
+  return prefixes.length === 1 ? prefixes[0] : null;
+}
+
+/**
+ * « 20 mai 2027 », « 1er mars », « May 20, 2027 », « 20th of May » → jour, mois,
+ * année éventuelle. Rien d'autre : un mot qui n'est pas un mois, ou un mot de
+ * plus, et c'est `null`.
+ */
+function lireMoisEcrit(brut: string): { jour: number; mois: number; annee: number | null } | null {
+  const s = sansAccent(brut).replace(/,/g, " ").replace(/\s+/g, " ").trim();
+  const avant = /^(\d{1,2})(?:er|st|nd|rd|th)? (?:of )?(\p{L}+)\.?(?: (\d{4}|\d{2}))?$/u.exec(s);
+  const apres = /^(\p{L}+)\.? (\d{1,2})(?:er|st|nd|rd|th)?(?: (\d{4}))?$/u.exec(s);
+  const [jour, mot, annee] = avant ? [avant[1], avant[2], avant[3]] : apres ? [apres[2], apres[1], apres[3]] : [];
+  if (!jour || !mot) return null;
+  const mois = rangDuMois(mot);
+  if (!mois) return null;
+  return { jour: Number(jour), mois, annee: annee ? Number(annee) : null };
 }
 
 /** Deux chiffres d'année → le siècle courant. `26` vaut 2026, pas 1926. */
@@ -256,6 +348,45 @@ export function moisDecale(jour: string, n: number): string {
   const cible = new Date(a, m - 1 + n, 1, 12);
   const dernier = new Date(cible.getFullYear(), cible.getMonth() + 1, 0, 12).getDate();
   return toDateStr(new Date(cible.getFullYear(), cible.getMonth(), Math.min(j, dernier), 12));
+}
+
+/** Un mois proposé dans le choix des mois du calendrier. */
+export interface MoisAuChoix {
+  /** Où le curseur ira : le même jour, ramené à la fin du mois s'il manque. */
+  jour: string;
+  /** « janv. », “Jan” — le nom court de la langue de l'app. */
+  libelle: string;
+  /** Le mois en entier, pour un lecteur d'écran : « janvier 2027 ». */
+  complet: string;
+  /** Le mois entier est-il hors des bornes ? Il ne se choisit pas. */
+  horsBornes: boolean;
+}
+
+/**
+ * ⭐ LES DOUZE MOIS D'UNE ANNÉE, pour sauter loin sans taper sur la flèche
+ * (2026-10-20, audit, constat 8 — « 4 à 7 tapes sur la flèche »).
+ *
+ * Toucher le titre du calendrier ramenait au mois en cours ; Léa et Yanis
+ * cherchaient à aller en mai de l'an prochain. Le titre ouvre maintenant ce
+ * choix, comme le calendrier du système : l'année se change d'une flèche, le
+ * mois d'un toucher.
+ *
+ * `curseur` donne le jour à garder ; `annee` l'année affichée.
+ */
+export function moisAuChoix(annee: number, curseur: string, min?: string, max?: string): MoisAuChoix[] {
+  const [a, m] = curseur.split("-").map(Number);
+  return Array.from({ length: 12 }, (_, i) => {
+    const jour = moisDecale(curseur, (annee - a) * 12 + (i + 1 - m));
+    const premier = `${pad4(annee)}-${pad2(i + 1)}-01`;
+    const dernier = toDateStr(new Date(annee, i + 1, 0, 12));
+    const d = new Date(annee, i, 1, 12);
+    return {
+      jour,
+      libelle: d.toLocaleDateString(localeTag(), { month: "short" }),
+      complet: d.toLocaleDateString(localeTag(), { month: "long", year: "numeric" }),
+      horsBornes: (!!min && dernier < min) || (!!max && premier > max),
+    };
+  });
 }
 
 /** Les touches qui déplacent le curseur dans la grille, et de combien de jours. */

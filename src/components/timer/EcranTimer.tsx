@@ -8,8 +8,14 @@
 // le timer est affiché — pas de bouton pause, rien ; on sort avec Échap et
 // c'est tout, là on retrouve les boutons ». Donc ni en-tête, ni jauge, ni
 // bouton, et le curseur s'efface quand la souris ne bouge plus. Espace reste
-// une pause silencieuse (le chiffre s'efface à moitié). Sans clavier, un
-// toucher fait office d'Échap ; à la souris, un double-clic aussi.
+// une pause silencieuse (le chiffre s'efface à moitié). À la souris, un
+// double-clic fait office d'Échap.
+//
+// ⭐ AU DOIGT (2026-10-21, audit du 20/10, constat 10) : un toucher fait
+// paraître Pause / Reprendre et Réduire quelques secondes, puis l'horloge
+// redevient seule ; elles se montrent aussi une fois à l'ouverture. Avant,
+// un toucher SORTAIT sur iOS (sans que rien ne l'annonce) et ne faisait rien
+// ailleurs, et aucune pause n'était possible au doigt. `gesteSurHorloge`.
 //
 // ⚠️ Depuis le 2026-10-12, ce mode ne sert PLUS qu'au vrai plein écran de la
 // FENÊTRE SÉPARÉE (`TimerPane`, bureau seulement : on y entre par un bouton
@@ -17,12 +23,12 @@
 // l'app, lui, montre ses commandes : la seconde passe du labo y a vu six
 // utilisateurs sur douze enfermés, au bureau, au téléphone et sur tablette —
 // les seules sorties (Échap, double toucher) n'étaient écrites nulle part.
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "../../lib/i18n";
-import { IS_IOS } from "../../lib/platform";
-import { gesteAuClavier, nomDeLaSeance } from "../../lib/timerEcran";
+import { pointeurGrossier } from "../../lib/menu/tactile";
+import { DUREE_COMMANDES_MS, gesteAuClavier, gesteSurHorloge, nomDeLaSeance } from "../../lib/timerEcran";
 import type { StyleHorloge } from "../../lib/timerStyle";
-import { IconPause, IconPlay, IconStop } from "../icons";
+import { IconPause, IconPlay, IconReduire, IconStop } from "../icons";
 import Horloge from "./Horloge";
 
 export interface SeanceAffichee {
@@ -81,6 +87,49 @@ function useSourisImmobile(actif: boolean, delaiMs = 2000): boolean {
   return immobile;
 }
 
+/**
+ * Les commandes de l'horloge épurée, au doigt (`gesteSurHorloge`) : visibles
+ * à l'ouverture, puis le temps d'un toucher. `surGeste(double, garder)` rend
+ * le geste retenu ; `garder` relance seulement le délai (un bouton touché).
+ */
+function useCommandesAuToucher(actif: boolean) {
+  const [auDoigt] = useState(() => actif && pointeurGrossier());
+  const [visibles, setVisibles] = useState(auDoigt);
+  const minuterie = useRef(0);
+  const visiblesRef = useRef(visibles);
+  visiblesRef.current = visibles;
+
+  const montrer = useCallback(() => {
+    setVisibles(true);
+    window.clearTimeout(minuterie.current);
+    minuterie.current = window.setTimeout(() => setVisibles(false), DUREE_COMMANDES_MS);
+  }, []);
+
+  useEffect(() => {
+    if (auDoigt) montrer();
+    return () => window.clearTimeout(minuterie.current);
+  }, [auDoigt, montrer]);
+
+  const surGeste = useCallback(
+    (double: boolean, garder = false) => {
+      if (garder) {
+        montrer();
+        return null;
+      }
+      const geste = gesteSurHorloge({ auDoigt, double, commandesVisibles: visiblesRef.current });
+      if (geste === "montrer") montrer();
+      else if (geste === "cacher") {
+        window.clearTimeout(minuterie.current);
+        setVisibles(false);
+      }
+      return geste;
+    },
+    [auDoigt, montrer],
+  );
+
+  return { visibles, auDoigt, surGeste };
+}
+
 /** Espace ne doit pas basculer deux fois quand un bouton a le focus. */
 function cibleInteractive(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -102,6 +151,7 @@ export default function EcranTimer({
   clavierExclusif = false,
 }: Props) {
   const curseurCache = useSourisImmobile(epure);
+  const { visibles: commandesVisibles, auDoigt, surGeste } = useCommandesAuToucher(epure);
   const estPause = seance.kind === "break";
   const totalSec = seance.plannedMin * 60;
   const progression = totalSec > 0 ? Math.min(1, Math.max(0, 1 - restantSec / totalSec)) : 0;
@@ -135,10 +185,12 @@ export default function EcranTimer({
   if (epure) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center px-[4vw]"
+        className="relative flex h-full w-full items-center justify-center px-[4vw]"
         style={{ cursor: curseurCache ? "none" : undefined }}
-        onDoubleClick={onEchap}
-        onClick={IS_IOS ? onEchap : undefined}
+        onDoubleClick={() => {
+          if (surGeste(true) === "sortir") onEchap?.();
+        }}
+        onClick={() => void surGeste(false)}
       >
         <Horloge
           style={style}
@@ -149,6 +201,45 @@ export default function EcranTimer({
           hauteurVolets="min(calc(100vh - 6rem), 46rem)"
           diametreAnneau="min(calc(100vh * var(--zoom-inv, 1) - 6rem), 46rem)"
         />
+        {/* ⭐ Au doigt seulement : les commandes paraissent au toucher, puis
+            s'effacent (constat 10 du 20/10 ; `gesteSurHorloge`). Au repos,
+            l'horloge reste seule — la décision du 30/09 tient. Effacées, elles
+            ne prennent pas le toucher : il revient au fond, qui les rappelle. */}
+        {auDoigt && (
+          <div
+            data-commandes-horloge=""
+            aria-hidden={!commandesVisibles}
+            className={`absolute inset-x-0 bottom-0 flex justify-center gap-2.5 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] transition-opacity duration-300 ${
+              commandesVisibles ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              tabIndex={commandesVisibles ? 0 : -1}
+              onClick={() => {
+                onBasculerPause();
+                surGeste(false, true);
+              }}
+              className="pill inline-flex min-w-[8.5rem] items-center justify-center gap-2 border border-border-strong bg-bg/80 px-6 py-2.5 text-sm font-semibold text-text"
+            >
+              {enPause ? <IconPlay className="h-3.5 w-3.5" /> : <IconPause className="h-3.5 w-3.5" />}
+              {enPause ? t("Reprendre") : t("Pause")}
+            </button>
+            {onEchap && (
+              <button
+                type="button"
+                tabIndex={commandesVisibles ? 0 : -1}
+                onClick={onEchap}
+                className="pill inline-flex items-center justify-center gap-2 border border-border bg-bg/80 px-5 py-2.5 text-sm font-medium text-text-dim"
+              >
+                <IconReduire className="h-3.5 w-3.5" />
+                {t("Réduire|séance")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }

@@ -461,7 +461,8 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
         {/* L'erreur vit dans le PIED : dans le corps, elle pourrait être hors
             de vue au moment où « Enregistrer » la fait naître. */}
         {erreur && <p className="fenetre-pied text-sm text-red">{erreur}</p>}
-        {confirmation}
+        {/* La question remplace le pied ; « Annuler » ferme sans demander. */}
+        {confirmation ?? (
 
         <div className="fenetre-pied mt-[10px] flex flex-wrap items-center justify-between gap-y-2">
           {event ? (
@@ -495,7 +496,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={fermer}
+              onClick={onClose}
               className="pill px-4 py-2 text-sm text-text-dim hover:text-text"
             >
               {t("Annuler")}
@@ -510,6 +511,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

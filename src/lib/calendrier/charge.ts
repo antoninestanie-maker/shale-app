@@ -87,6 +87,10 @@ export function chargeDuJour(
     // du travail qui traîne.
     if (e.kind === "deadline" || e.kind === "echeance") continue;
     if (e.faite) continue; // ce qui est fait ne pèse plus sur la suite
+    // ⭐ En attente (031) : visible à sa date, mais plus PRÉVUE — elle ne fait
+    // pas « surchargée » une journée où l'on attend quelqu'un d'autre (audit
+    // 2026-10-20, temps-7).
+    if (e.etat === "waiting") continue;
     if (e.enRetard) enRetard++;
     if (e.dureeMin != null) {
       posees += e.dureeMin;

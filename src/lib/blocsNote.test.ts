@@ -70,3 +70,24 @@ describe("retirerBloc — et le remettre à sa place exacte", () => {
     expect(remettre()).toBe(false);
   });
 });
+
+describe("retirerBloc — une AUTRE note dans la même racine (audit du 2026-10-20, savoir-2)", () => {
+  it("la racine a été resemée avec une autre note : le bloc n'y est PAS posé", () => {
+    // Les deux éditeurs gardent leur racine d'une note à l'autre et ne font que
+    // resemer son contenu : le parent du bloc reste donc « dans le document ».
+    const r = note('<p>note A</p><figure data-mindmap="{}"></figure>');
+    let affichee = "A";
+    const remettre = retirerBloc(blocSous(r.querySelector("figure"), r)!, () => affichee === "A");
+    r.innerHTML = "<p>note B</p>";
+    affichee = "B";
+    expect(remettre()).toBe(false);
+    expect(r.innerHTML).toBe("<p>note B</p>");
+  });
+
+  it("revenu sur la note d'origine sans resemer : la remise reste possible", () => {
+    const r = note('<p>a</p><figure data-mindmap="{}"></figure><p>b</p>');
+    const remettre = retirerBloc(blocSous(r.querySelector("figure"), r)!, () => true);
+    expect(remettre()).toBe(true);
+    expect([...r.children].map((e) => e.tagName)).toEqual(["P", "FIGURE", "P"]);
+  });
+});

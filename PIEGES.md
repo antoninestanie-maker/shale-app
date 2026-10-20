@@ -5550,7 +5550,78 @@ date littérale proche du jour de la panne.
 
 Mesuré le 2026-10-13 sur `…/functions/v1/ai` (en-tête de réponse `x-sb-edge-region`) : sans région demandée, `eu-central-2` depuis la France ; `x-region: us-east-1` → `us-east-1` ; une région qui n'existe pas (`zz-nowhere-9`) → `eu-central-2`, **sans erreur**. La région du PROJET (Paris) ne dit donc rien de l'endroit où tourne une fonction. `runAi.ts` la fixe par `?forceFunctionRegion=` ; l'en-tête `x-region` ferait échouer le contrôle préalable CORS tant que la fonction ne l'autorise pas. Pour vérifier : `curl -s -o /dev/null -D - -X OPTIONS '<url>?forceFunctionRegion=eu-west-3'` et lire `x-sb-edge-region`.
 
-## 54.1 Après `insertHTML` d'un élément `contenteditable="false"`, Chrome laisse le curseur DEVANT
+## 54. Les données qui s'abîment sans prévenir — lot 1 de l'audit (2026-10-20)
+
+### 54.1 ⭐ Un éditeur qui reste monté garde, dans ses `useCallback([])`, l'enregistrement du PREMIER rendu
+**Symptôme.** Savoir : ouvrir A, ← / → vers B, coller une capture : A recevait le corps de B plus l'image, son propre contenu perdu. **Cause.** Le lecteur ne remonte pas l'éditeur en feuilletant, seul `noteId` change. `addImages` (dépendances vides) gardait `insertBlock → emit → onChange → patch → flush` du premier rendu, donc l'`entryId` de A — avec le DOM de B. **Parade.** Un geste qui finit après coup ne doit JAMAIS porter la cible dans sa fermeture : `emit` lit le dernier `onChange` par une ref et envoie l'identité du DOM (`idDuDom`, posée au semis), l'appelant range l'écriture sous CETTE identité ; un geste asynchrone compare un compteur de semis (`identite()`) avant d'agir. Même famille que le chantier H du 2026-09-05 (Notes). **Payé.** Le seul défaut « critique » de l'audit, présent depuis l'audit du 6–8 octobre.
+
+### 54.2 « Son parent est toujours dans le document » ne prouve pas que c'est la même note
+**Symptôme.** « Annuler » après le retrait d'une carte, une autre note ouverte entre-temps : la carte atterrissait à la fin de l'autre note. **Cause.** Un bloc de premier niveau a pour parent la RACINE `contenteditable`, que les deux éditeurs gardent d'une note à l'autre (ils ne font que resemer `innerHTML`) ; `parent.isConnected` restait vrai. **Parade.** `retirerBloc(bloc, toujoursLa)` : la remise est refusée si l'identité de l'éditeur a bougé. Toute « cible capturée au retrait » doit capturer l'identité du CONTENU, pas un nœud qui survit au changement.
+
+### 54.3 « Pas de balise, donc texte brut » ré-échappait les notes d'une ligne
+**Symptôme.** « Dupont & fils » devenait « Dupont &amp; fils » à la réouverture, puis « &amp;amp; »… **Cause.** L'éditeur enregistre `innerHTML` : une ligne nue s'enregistre SANS balise mais DÉJÀ échappée ; `toEditorHtml` la prenait pour un vieux texte brut. **Parade.** `estTexteBrut` (richtext.ts) : ce que `innerHTML` ne produit jamais (`<`/`>` nus, `&` hors entité, saut de ligne). Les notes déjà abîmées sont réparées au chargement, dans les nœuds texte seulement (`reparerEchappements`). ▶️ Une heuristique « ressemble à X » se teste par un ALLER-RETOUR (semer, relire `innerHTML`, resemer), pas sur un exemple.
+
+### 54.4 Une écriture « technique » (`touch: false`) part quand même dans le cloud, au présent
+**Symptôme.** Chaque visite du Savoir renvoyait au cloud le corps complet (images en data URL) des fiches « image seule », et pouvait battre une légende ajoutée sur l'iPhone. **Cause.** `touch: false` ne bouge pas `updated_at`, mais le déclencheur d'outbox pose une entrée à CHAQUE `UPDATE`, horodatée maintenant — et le moteur arbitre sur cet horodatage. Le tri « texte vide » retenait pour toujours une fiche faite d'images. **Parade.** Une écriture automatique ne part que si elle CHANGE quelque chose (`reindexationDe` rend `null` sinon). ▶️ Toute réécriture « sans effet » au démarrage ou à l'ouverture d'une vue est un envoi au cloud, et une victoire LWW potentielle sur un autre appareil.
+
+### 54.5 Un drapeau global en base est un verrou : tout ce qui écrit à côté est concerné, et un `finally` ne tourne pas si l'app est tuée
+**Symptôme.** Une tâche cochée pendant qu'une page reçue s'applique ne partait jamais vers les autres appareils ; après un arrêt brutal pendant une application, plus rien ne partait. **Cause.** `applying = '1'` fait taire TOUS les déclencheurs d'outbox ; `repo.ts` écrivait sans le savoir, et la remise à '0' n'était que dans un `finally`. **Parade.** Une porte (`sync/verrou.ts`) : l'application la ferme et attend les écritures en vol AVANT de lever le drapeau, les écritures de l'app (par `getDb`) attendent derrière ; le moteur écrit par `getDbBrute` (par `getDb`, il s'attendrait lui-même pour toujours). Le drapeau est baissé au démarrage de la fenêtre principale (`remettreEnOrdre`). ⚠️ **Pas couvert** : les fenêtres capture et Timer ont leur propre contexte JavaScript, donc leur propre porte.
+
+### 54.6 La copie « de secours » avant restauration copiait `shale.db` sans son `-wal`, que la ligne suivante supprimait
+L'en-tête de `sauvegardes.rs` disait pourquoi on utilise `VACUUM INTO` ; le filet de la restauration, trente lignes plus bas, faisait un `fs::copy`. **Parade.** `copier_coherente` pour les deux. ▶️ Une règle écrite en tête de module ne protège que le code qui la lit : chercher les `fs::copy` d'une base à chaque fois qu'on touche à ce fichier.
+
+### 54.7 Restaurer une sauvegarde rapporte AUSSI son curseur de synchronisation
+**Symptôme.** La note restaurée était effacée de nouveau au premier cycle. **Cause.** `sync_meta.cursor` et `sync_state` voyagent dans la copie : le moteur repartait du curseur d'hier et appliquait la pierre tombale d'aujourd'hui. **Parade.** Le Rust marque la base restaurée (`sync_meta.restauree = '1'`, et `applying` baissé) ; le front, au démarrage, fait ce que fait « republier » (curseur 0, `sync_state` vidé, tout remis en file). Prouvé sur le banc à deux appareils (`sync/restauration.test.ts`, avec un témoin qui montre le défaut sans marque).
+
+### 54.8 Bancs Rust : `drop` d'une `SqliteConnection` ne ferme pas tout de suite
+`drop(conn)` délègue la fermeture à un fil de sqlx : en WAL, le journal n'est pas encore reporté quand la ligne suivante copie le fichier (« no such table » sur la copie). Et une connexion encore ouverte sur un fichier qu'on écrase y reporte son journal en se fermant. **Parade.** `conn.close().await` dans les tests ; pour simuler un plantage, copier `shale.db` ET `shale.db-wal` pendant que la connexion vit, puis fermer.
+
+### 54.9 La démo cache un défaut de corbeille : ses objets jetés QUITTENT la liste
+`demo.updateKnowledgeEntry` ne trouvait pas une fiche jetée (elle n'est plus dans `knowledgeEntries`) ; le natif, lui, faisait `UPDATE … WHERE id = $n` sans `deleted_at IS NULL` et écrivait dans la ligne en corbeille. Un défaut de corbeille ne se prouve pas en démo : banc SQL (`corbeille/donnees.repo.test.ts`).
+
+### 54.10 La fenêtre de 400 jours de `fetchAll` tronquait aussi ce qui n'est PAS de l'historique
+Les coches servaient à deux choses : l'historique (séries, graphiques — 400 jours suffisent) et l'état présent d'une tâche ponctuelle (« faite »), plus le compte des cibles d'objectif depuis leur début. **Parade.** Le `WHERE` garde toute coche de ponctuelle et de source de compte. ▶️ Avant de borner une lecture par date, se demander si une seule ligne ancienne décide d'un état AUJOURD'HUI.
+
+## 55. Une règle de tâche neuve ne mord que là où l'on va la chercher : « faite » et « en retard » sont recalculés en ligne à quinze endroits (2026-10-20)
+
+La 031 (états des tâches) a branché `estSuspendue` et l'état dans les fichiers
+qu'elle connaissait ; l'audit du soir en a trouvé quatre qu'elle ignorait —
+le péril (`calendrier/peril.ts`), la feuille de route (`FeuilleDeRoute.tsx`),
+la carte mentale (`carteEtat.ts`), la charge du calendrier (`charge.ts`,
+`disponibilite.ts`) — et chacun mentait à sa façon : un objectif « en péril »
+pour des tâches abandonnées, une abandonnée rouge « en retard ». Cause :
+« faite » s'écrivait `new Set(completions.filter((c) => c.done).map(...))` en
+ligne, et « en retard » `due_date < aujourdhui && !faite`, sans passer par
+`lib/taches.ts`. Un même oubli guettait `ponctuelle_depuis` (032).
+▶️ Depuis le lot 2, `ponctuellesFaites(completions, tasks)` exige les tâches
+(un appel qui les oublie ne compile plus) et remplace les copies en ligne.
+Avant de livrer une règle de tâche, chercher les copies :
+`grep -rnE "c\.done\)\.map|due_date < " src` — et la règle Rust
+(`notifications/task_streak.rs`). Payé : sept défauts d'audit, une demi-journée.
+
+## 56. Retirer un instant une classe pour MESURER remet à zéro le défilement des enfants
+
+- **Symptôme.** Au téléphone, cocher une habitude en bas de la carte la ramenait en haut ; le « ⋯ » d'une ligne du bas ouvrait un menu sous une AUTRE ligne (audit du 20/10, constat 1).
+- **Cause.** `ResizablePanel` lit la hauteur naturelle d'une carte en retirant `.rgrid-fill` le temps d'un `offsetHeight`. Sans l'étirement, la région `.panel-scroll` n'a plus rien à défiler : le navigateur ramène son `scrollTop` à 0, et remettre la classe ne le rend pas. Chaque re-mesure (une coche, un menu ouvert) relançait le défaut.
+- **Parade.** `garderDefilement` (`lib/grille.ts`) relève les `scrollTop` avant la lecture et les repose après. Toute mesure qui change la mise en page d'un parent le temps d'une lecture doit faire de même.
+- **Payé.** Vu par deux utilisateurs simulés, mesuré dans WebKit le 2026-10-21 (lot 4).
+## 57. Lot 5 de l'audit — deux erreurs qui se répètent (2026-10-20)
+
+### 57.1 Recoller les chiffres d'une date tapée la rend ambiguë
+**Symptôme.** « 20/02/2027 » répondait « Date illisible » ; « 15/01/2027 » passait. Seuls les jours 19 à 22 étaient touchés.
+**Cause.** `parserSaisie` retirait les séparateurs puis, devant huit chiffres, essayait l'ISO d'abord dès que les quatre premiers faisaient une année plausible (1900–2200) : « 2002 », mois 20. Les tests ne prenaient que des jours (24, 7) qui ne tombent pas dans la plage.
+**Parade.** Une saisie AVEC séparateurs se lit morceau par morceau ; seuls huit chiffres collés passent par la lecture « collée », langue d'abord. Tester un format de date sur TOUTES les dates d'une année, pas sur trois exemples (`champDate.test.ts` le fait).
+**Payé.** Trois utilisateurs du labo sur trois au format demandé ; « moment de fermer » de Léa.
+
+### 57.2 Une fonction de branchement testée n'est pas une fonction branchée
+**Symptôme.** L'accueil promettait « c'est de là que partent les créneaux que le calendrier te proposera » ; le calendrier proposait 09:00 à qui avait déclaré 08:30 – 17:00, et les blocs fixes n'étaient nulle part.
+**Cause.** `repliDuTravail` (2026-09-10) avait ses tests, le commit annonçait le branchement ; aucun appelant de `profilDisponibilite` ne lui passait d'options. Les tests de la fonction étaient verts, le produit n'en voyait rien.
+**Parade.** Quand une fonction existe POUR être branchée quelque part, un test de source tient l'appel (`onboarding/horaires.test.ts` vérifie `CalendarView` et `CalendarCard`). Avant de documenter « branché », `grep -rn "nomDeLaFonction(" src | grep -v test`.
+**Payé.** Six semaines de réglages déclarés pour rien ; constat 7 de l'audit (Monique : « j'aurais douté de tout le reste »).
+
+## 58. Lot 6 de l'audit — deux erreurs qui se répètent (2026-10-21)
+
+## 58.1 Après `insertHTML` d'un élément `contenteditable="false"`, Chrome laisse le curseur DEVANT
 
 **Symptôme.** Dans une note, « Before @Pros » + Entrée + « is done » donne « Before is done@Prospection ». Vu par trois passes du labo (11/10, 12/10, 20/10) ; rejoué le 2026-10-20 sous Chrome sans fenêtre.
 
@@ -5560,7 +5631,7 @@ Mesuré le 2026-10-13 sur `…/functions/v1/ai` (en-tête de réponse `x-sb-edge
 
 **Payé.** Trois passes du labo l'ont signalé « incertain, Chrome seulement » avant qu'on le corrige. ⚠️ Non revu sous WebKit.
 
-## 54.2 Une action de palette qui change de module puis émet un événement à 50 ms rate la vue au premier appel
+## 58.2 Une action de palette qui change de module puis émet un événement à 50 ms rate la vue au premier appel
 
 **Symptôme.** ⌘K « Nouvel objectif » : la page Objectifs s'ouvre, sans formulaire ; au second appel, ça marche.
 

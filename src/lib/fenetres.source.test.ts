@@ -150,12 +150,14 @@ describe("Échap ne ferme qu'un étage", () => {
     expect(corps).toContain("Escape");
     expect(corps).toContain("e.defaultPrevented");
     expect(corps).toContain("e.preventDefault()");
-    // Le garde vient AVANT la fermeture. Depuis le 2026-10-20, trois de ces
-    // fenêtres ferment par `fermer()` (`useFermetureGardee`), qui demande avant
-    // de jeter une saisie modifiée ; c'est elle qui appelle `onClose`.
-    const ferme = Math.max(corps.indexOf("onClose()"), corps.indexOf("fermer()"));
-    expect(ferme).toBeGreaterThan(-1);
-    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(ferme);
+    // Le garde vient AVANT la fermeture. Depuis le 2026-10-20 (audit,
+    // constat 39 ; lot 6, rang 13), ces fenêtres ne ferment pas d'office :
+    // « Nouvelle tâche » passe par `demanderFermeture()`, l'objectif et
+    // l'événement par `fermer()` (`useFermetureGardee`). Les deux demandent si
+    // la saisie a changé, puis appellent `onClose`.
+    const fermeture = ["onClose()", "demanderFermeture()", "fermer()"].find((f) => corps.includes(f));
+    expect(fermeture).toBeDefined();
+    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(corps.indexOf(fermeture!));
   });
 });
 

@@ -20,8 +20,13 @@ export const defaultTexts = (): AppTexts => ({
   // accueil, qui ne branchaient rien et n'existent plus. Un texte éditable
   // depuis « Personnaliser » qui décrit un parcours disparu est un mensonge que
   // personne ne va voir venir.
+  //
+  // ⚠️ RÉÉCRIT le 2026-10-20 (audit, constat 6) : « Trois questions » pour six
+  // écrans, et « Tu peux passer à tout moment » alors que « Passer » fermait
+  // tout l'accueil d'un coup. L'écran compte maintenant ses étapes, « Passer »
+  // saute une question, « Tout passer » sort.
   onboardingBody:
-    t("Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment."),
+    t("Quelques questions pour régler l'app sur ta semaine, puis ton premier objectif. Rien de décoratif : chaque réponse sert à quelque chose. Chaque question peut être passée, ou tout d'un coup."),
   loginSubtitle: t("Connecte-toi pour accéder à ton espace."),
   subRequiredBody:
     t("Ton compte n'a pas d'abonnement actif. Souscris sur le site pour débloquer Shale."),

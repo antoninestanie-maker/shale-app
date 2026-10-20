@@ -27,12 +27,19 @@ export function GrilleHabitudes({
   today,
   semaines = 12,
   className = "",
+  legende = false,
 }: {
   habits: readonly Habit[];
   habitChecks: readonly HabitCheck[];
   today: string;
   semaines?: number;
   className?: string;
+  /**
+   * La légende sous la grille (audit du 20/10, constat 38 : la grille de
+   * Performance en a une, celle-ci non — et au doigt aucune info-bulle ne dit
+   * ce qu'une case veut dire).
+   */
+  legende?: boolean;
 }) {
   const { grille, total } = useMemo(() => {
     // ⭐ Les habitudes d'EXEMPLE ne comptent pas — ni au dénominateur, ni au
@@ -62,8 +69,8 @@ export function GrilleHabitudes({
     return { grille: colonnes, total: comptees.length };
   }, [habits, habitChecks, today, semaines]);
 
-  return (
-    <div className={`flex gap-[3px] ${className}`} role="img" aria-label={t("Habitudes tenues, jour par jour, sur {n} semaines", { n: semaines })}>
+  const cases = (
+    <div className={`flex gap-[3px] ${legende ? "" : className}`} role="img" aria-label={t("Habitudes tenues, jour par jour, sur {n} semaines", { n: semaines })}>
       {grille.map((semaine, wi) => (
         <div key={wi} className="flex flex-col gap-[3px]">
           {semaine.map((c) => (
@@ -73,17 +80,58 @@ export function GrilleHabitudes({
               data-tip-sub={c.futur ? undefined : `${c.tenues}/${total}`}
               className="h-3.5 w-3.5 rounded-[3px]"
               style={{
-                backgroundColor: c.futur
-                  ? "transparent"
-                  : c.ratio === 0
-                    ? "var(--color-overlay)"
-                    : `color-mix(in srgb, var(--color-success-fill) ${Math.round(25 + c.ratio * 75)}%, transparent)`,
+                backgroundColor: c.futur ? "transparent" : couleurCase(c.ratio),
               }}
             />
           ))}
         </div>
       ))}
     </div>
+  );
+  if (!legende) return cases;
+  return (
+    <div className={className}>
+      {cases}
+      <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-dim">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: couleurCase(0) }} aria-hidden />
+          {t("aucune tenue")}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="mr-0.5">{t("moins")}</span>
+          {[1 / 3, 2 / 3, 1].map((r) => (
+            <span key={r} className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: couleurCase(r) }} aria-hidden />
+          ))}
+          <span className="ml-0.5">{t("plus")}</span>
+        </span>
+      </p>
+    </div>
+  );
+}
+
+/** La teinte d'une case : la part des habitudes tenues ce jour-là. */
+function couleurCase(ratio: number): string {
+  return ratio === 0
+    ? "var(--color-overlay)"
+    : `color-mix(in srgb, var(--color-success-fill) ${Math.round(25 + ratio * 75)}%, transparent)`;
+}
+
+/**
+ * La légende des carrés d'UNE habitude (`CarresHabitude`) : plein = tenue,
+ * gris = pas tenue. Une seule fois au-dessus des lignes, pas sur chacune.
+ */
+export function LegendeCarres({ className = "" }: { className?: string }) {
+  return (
+    <p className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-dim ${className}`}>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 shrink-0 rounded-[3px] bg-text-dim" aria-hidden />
+        {t("Tenue")}
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: "var(--color-border)" }} aria-hidden />
+        {t("Pas tenue")}
+      </span>
+    </p>
   );
 }
 

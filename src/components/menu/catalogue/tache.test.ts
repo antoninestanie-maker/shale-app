@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "./tache";
 import { ordonner } from "../../../lib/menu/entrees";
+import { t } from "../../../lib/i18n";
 import { addDays, todayStr } from "../../../lib/logic";
 import { demandeDeDate, fermerSelecteurDate } from "../../../lib/selecteurDate";
 import { lundiProchain } from "../../../lib/taches/dates";
@@ -12,7 +13,10 @@ import type { GesteFocus } from "../../../lib/seance/gesteFocus";
 const depot = vi.hoisted(() => ({
   setTaskSchedule: vi.fn(async () => {}),
   appliquerReport: vi.fn(async () => {}),
+  changerEtatTache: vi.fn(async () => {}),
 }));
+const toast = vi.hoisted(() => ({ afficherToast: vi.fn() }));
+vi.mock("../../../lib/toast", () => toast);
 vi.mock("../../../lib/repo", () => ({
   ...depot,
   createTask: vi.fn(),
@@ -33,6 +37,7 @@ function gestes(focus?: GestesTache["focus"]): GestesTache {
     dupliquer: rien,
     supprimer: rien,
     prioriser: rien,
+    etat: rien,
     focus,
   };
 }
@@ -251,5 +256,72 @@ describe("les actions d'IA dans le menu d'une tâche (phase E)", () => {
     ordonner(entreesTache(tache, gestes(), { faite: false, objectifs: [], ia: true })).find((e) => e.id === "ia-decouper")!.executer!();
     vi.unstubAllGlobals();
     expect(recu).toEqual([{ action: "decouper", taskId: 7 }]);
+  });
+});
+
+describe("⭐ « État ▸ » — audit 2026-10-20 (lot 2)", () => {
+  afterEach(() => {
+    depot.changerEtatTache.mockClear();
+    toast.afficherToast.mockClear();
+  });
+  const enAttente = {
+    ...tache,
+    recurrence: "daily",
+    state: "waiting",
+    state_since: "2026-10-10",
+    waiting_for: "Paul",
+    follow_up_on: null,
+  } as unknown as Task;
+
+  it("⭐ taches-2 : changer la relance d'une tâche en attente garde sa date d'état", async () => {
+    await gestesCommunsTache(async () => {}).etat(enAttente, "waiting", "2026-10-30");
+    expect(depot.changerEtatTache).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ state: "waiting", state_since: "2026-10-10", waiting_for: "Paul", follow_up_on: "2026-10-30" }),
+    );
+  });
+
+  it("⭐ taches-1 : reprendre une routine range sa pause, et « défaire » remet les cinq colonnes", async () => {
+    await gestesCommunsTache(async () => {}).etat(enAttente, "todo");
+    const ecrit = (depot.changerEtatTache.mock.calls[0] as unknown[])[1] as { state_since: unknown; pauses: string };
+    expect(ecrit.state_since).toBeNull();
+    expect(JSON.parse(ecrit.pauses)).toEqual([["2026-10-10", todayStr()]]);
+    // donnees-9 : le bouton du toast DÉFAIT — “Undo” en anglais, pas “Cancel”.
+    const options = (toast.afficherToast.mock.calls[0] as unknown[])[0] as { actionLabel: string; onAction: () => void };
+    expect(options.actionLabel).toBe(t("Annuler|défaire"));
+    options.onAction();
+    expect(depot.changerEtatTache).toHaveBeenLastCalledWith(7, {
+      state: "waiting",
+      state_since: "2026-10-10",
+      waiting_for: "Paul",
+      follow_up_on: null,
+      pauses: null,
+    });
+  });
+
+  const sous = (task: Task) =>
+    ordonner(entreesTache(task, gestes(), { faite: false, objectifs: [] })).find((e) => e.id === "etat")!;
+
+  it("⭐ constat 21 : « État » nomme l'état actuel, et l'entrée courante dit l'état, pas le verbe", () => {
+    expect(sous(tache).libelle).toBe(t("État"));
+    const lachee = { ...tache, state: "dropped" } as unknown as Task;
+    expect(sous(lachee).libelle).toBe(t("État · {etat}", { etat: t("Abandonnée") }));
+    const abandon = sous(lachee).sousMenu!.find((e) => e.id === "etat-dropped")!;
+    expect(abandon.libelle).toBe(t("Abandonnée"));
+    expect(abandon.executer!()).toBeUndefined(); // la choisir de nouveau n'écrit rien
+  });
+
+  it("⭐ constat 21 : une attente avec relance coche SA relance", () => {
+    const demain = addDays(todayStr(), 1);
+    const loin = addDays(todayStr(), 20);
+    const entrees = (relance: string) =>
+      sous({ ...tache, state: "waiting", follow_up_on: relance } as unknown as Task).sousMenu!;
+    const coche = (relance: string) =>
+      entrees(relance)
+        .filter((e) => (e.icone as { type?: { name?: string } })?.type?.name === "IconCheck")
+        .map((e) => e.id);
+    expect(coche(demain)).toEqual(["etat-waiting-demain"]);
+    expect(coche(loin)).toEqual(["etat-waiting-choisir"]);
+    expect(entrees(loin).find((e) => e.id === "etat-waiting-choisir")!.libelle).not.toBe(t("En attente, relancer le…"));
   });
 });

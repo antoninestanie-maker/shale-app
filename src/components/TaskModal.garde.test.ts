@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLangPref } from "../lib/i18n";
 import TaskModal from "./TaskModal";
+import { gesteSuspendu } from "../lib/saisieGardee";
 
 /**
  * Rang 13 du contrôle du 12/10, toujours présent le 2026-10-20 : Échap dans
@@ -26,6 +27,7 @@ afterEach(() => {
 
 const ouvrir = (onClose: () => void) =>
   act(() => racine.render(createElement(TaskModal, { task: null, tags: [], goals: [], onClose, onSaved: async () => {} })));
+const bouton = (txt: string) => [...conteneur.querySelectorAll("button")].find((b) => b.textContent === txt)!;
 const echap = () => act(() => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 const taper = (texte: string) => {
   const champ = conteneur.querySelector<HTMLInputElement>("input")!;
@@ -44,19 +46,34 @@ describe("Nouvelle tâche — fermer sans perdre la saisie", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("⭐ saisie commencée : Échap demande, « Garder » la rend, « Abandonner » ferme", () => {
+  it("⭐ saisie commencée : Échap demande, « Continuer » la rend, « Ne pas garder » ferme", () => {
     const onClose = vi.fn();
     ouvrir(onClose);
     taper("Appeler le comptable");
     echap();
     expect(onClose).not.toHaveBeenCalled();
-    expect(conteneur.textContent).toContain("Fermer sans enregistrer");
-    const bouton = (txt: string) => [...conteneur.querySelectorAll("button")].find((b) => b.textContent === txt)!;
-    act(() => bouton("Garder").click());
-    expect(conteneur.textContent).not.toContain("Fermer sans enregistrer");
+    expect(conteneur.textContent).toContain("Abandonner la saisie ?");
+    act(() => bouton("Continuer").click());
+    expect(conteneur.textContent).not.toContain("Abandonner la saisie ?");
     expect(conteneur.querySelector<HTMLInputElement>("input")!.value).toBe("Appeler le comptable");
     echap();
-    act(() => bouton("Abandonner la saisie").click());
+    act(() => bouton("Ne pas garder").click());
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("⭐ changer de module (onglet du téléphone) pose la même question, et reprend la navigation si l'on confirme", () => {
+    const onClose = vi.fn();
+    ouvrir(onClose);
+    taper("Appeler le comptable");
+    let parti = false;
+    let suspendu = false;
+    act(() => {
+      suspendu = gesteSuspendu(() => (parti = true));
+    });
+    expect(suspendu).toBe(true);
+    expect(conteneur.textContent).toContain("Abandonner la saisie ?");
+    act(() => bouton("Ne pas garder").click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(parti).toBe(true);
   });
 });

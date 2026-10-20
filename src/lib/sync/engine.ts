@@ -2,6 +2,7 @@ import { aveugler, chiffrerLigne, dechiffrerLigne, type SousCles } from "./crypt
 import {
   appliquerLigne,
   ecrireMeta,
+  apresLaFile,
   enApplication,
   lireEtat,
   lireLigne,
@@ -466,6 +467,9 @@ function enTexte(seqs: Iterable<number>): string {
  * premier plan et périodiquement — jamais depuis une action utilisateur.
  */
 export async function synchroniser(ctx: Contexte): Promise<Resultat> {
+  // La remise en ordre du démarrage d'abord (`remettreEnOrdre`) : un drapeau
+  // oublié, une base restaurée qui doit redevenir la source.
+  await apresLaFile();
   const { versTag, versTable } = await dictionnaireTables(ctx.cles);
 
   const envoyees = await envoyer(ctx, versTag);

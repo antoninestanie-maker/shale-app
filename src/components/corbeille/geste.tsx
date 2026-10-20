@@ -17,6 +17,7 @@
 import { IconAlert, IconTrash } from "../icons";
 import { formatDate, t, tp } from "../../lib/i18n";
 import {
+  corpsAvecCartes,
   fetchAll,
   mettreEnCorbeille,
   restaurer,
@@ -25,8 +26,9 @@ import {
 import { todayStr } from "../../lib/logic";
 import type { Carte } from "../../lib/carte";
 import { cartesDuHtml } from "../../lib/carteDom";
-import { objetsDesCartes, resoudreEmportes } from "../../lib/objectifs/emportes";
+import { objetsDesCartes, resoudreEmportes, sansNoeudsPortesAilleurs } from "../../lib/objectifs/emportes";
 import type { KindCorbeille } from "../../lib/corbeille/regles";
+import type { PageCartes } from "../../lib/repo";
 import type { ElementCorbeille } from "../../lib/corbeille/base";
 import { afficherToast } from "../../lib/toast";
 import { annulerDerniereSuppression, oublierSuppression, retenirSuppression } from "../../lib/annulerSuppression";
@@ -250,10 +252,31 @@ export async function defaireDerniereSuppression(): Promise<boolean> {
  * locales. Lit la base elle-même : les vues qui suppriment une note n'ont pas
  * toutes les habitudes sous la main (le Savoir n'a pas `AppData`).
  */
-export async function elementsDesCartes(cartes: readonly Carte[]): Promise<(Jete & { titre: string })[]> {
+export async function elementsDesCartes(
+  cartes: readonly Carte[],
+  ailleurs?: CartesAilleurs,
+): Promise<(Jete & { titre: string })[]> {
   if (cartes.length === 0) return [];
-  const data = await fetchAll(todayStr());
-  return resoudreEmportes(objetsDesCartes(cartes, data.goals), data);
+  const [data, autres] = await Promise.all([
+    fetchAll(todayStr()),
+    ailleurs?.horsDe ? corpsAvecCartes(ailleurs.horsDe) : Promise.resolve([]),
+  ]);
+  const portees = [...autres.flatMap((corps) => cartesDuHtml(corps)), ...(ailleurs?.restantes ?? [])];
+  return resoudreEmportes(objetsDesCartes(sansNoeudsPortesAilleurs(cartes, portees), data.goals), data);
+}
+
+/**
+ * Où d'autre les nœuds peuvent vivre (audit du 2026-10-20, savoir-5) : toutes
+ * les pages vivantes SAUF `horsDe` — celle qu'on jette, ou dont on retire la
+ * carte —, plus les cartes qui RESTENT sur cette page (`restantes`).
+ *
+ * ⚠️ `horsDe` est obligatoire pour lire la base : sans lui, la page elle-même
+ * serait relue, sa carte encore enregistrée « porterait » tous ses nœuds, et
+ * plus rien ne partirait jamais.
+ */
+export interface CartesAilleurs {
+  horsDe: PageCartes | null;
+  restantes?: readonly Carte[];
 }
 
 /**
@@ -276,7 +299,7 @@ export async function jeterAvecSesCartes(
   corps: string | null | undefined,
   apres: () => unknown,
 ): Promise<boolean> {
-  const emportes = await elementsDesCartes(cartesDuHtml(corps));
+  const emportes = await elementsDesCartes(cartesDuHtml(corps), { horsDe: { kind, id } });
   if (emportes.length === 0) return jeter(kind, id, titre, apres, corps);
   const jetes = await jeterPlusieurs([{ kind, id, titre, apercu: corps }, ...emportes], apres);
   return jetes.length > 0;

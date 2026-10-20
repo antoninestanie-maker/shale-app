@@ -111,6 +111,17 @@ export default function MobileNav({
     setPlusOuvert(false);
   }, [view]);
 
+  // ⭐ Feuille ouverte : le toast monte en HAUT de l'écran (`.toast-pile`,
+  // index.css). Posé au-dessus de la barre d'onglets, il recouvrait le pied de
+  // la feuille — Supprimés récemment, Réglages, Personnaliser, Admin : aucun ne
+  // se touchait (mesuré dans WebKit ; contrôle du 12/10, rang 31).
+  useEffect(() => {
+    const racine = document.documentElement;
+    if (plusOuvert) racine.setAttribute("data-feuille-plus", "");
+    else racine.removeAttribute("data-feuille-plus");
+    return () => racine.removeAttribute("data-feuille-plus");
+  }, [plusOuvert]);
+
   // Échap ferme la feuille (clavier externe, et iPad plus tard).
   useEffect(() => {
     if (!plusOuvert) return;

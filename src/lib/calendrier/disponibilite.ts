@@ -213,6 +213,8 @@ export interface Creneau {
 export function creneauxOccupes(entrees: readonly EntreeAgenda[]): Creneau[] {
   const bruts: { d: number; f: number }[] = [];
   for (const e of entrees) {
+    // En attente (031) : plus prévue, son créneau est libre (audit 2026-10-20, temps-7).
+    if (e.etat === "waiting") continue;
     const d = minutesDe(e.start_at);
     const duree = e.dureeMin ?? dureeMinutes(e.start_at, e.end_at);
     if (d == null || duree == null) continue; // sans heure, n'occupe pas un créneau
@@ -240,6 +242,13 @@ export interface OptionsCreneaux {
   limite?: number;
   /** Heure à partir de laquelle chercher, pour le jour même ('HH:MM'). */
   pasAvant?: string;
+  /**
+   * ⭐ Les blocs fixes déclarés à l'accueil (trajet, cours, garde), pour CE
+   * jour — 'HH:MM'. Aucun créneau n'est proposé dessus (2026-10-20, audit,
+   * constat 7). Ce ne sont pas des événements : ils ne s'affichent pas, ils
+   * réservent.
+   */
+  bloques?: readonly { debut: string; fin: string }[];
 }
 
 const PAS_MIN = 15;
@@ -266,6 +275,11 @@ export function creneauxLibres(
     d: minutesDe(c.debut)!,
     f: minutesDe(c.fin)!,
   }));
+  for (const b of options.bloques ?? []) {
+    const d = minutesDe(b.debut);
+    const f = b.fin === "24:00" ? 24 * 60 : minutesDe(b.fin);
+    if (d != null && f != null && f > d) occupes.push({ d, f });
+  }
   const wd = weekdayOf(jour);
 
   const candidats: { debut: number; score: number }[] = [];

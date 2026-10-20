@@ -349,8 +349,8 @@ mod tests {
         fn tout_va_mal() -> Snapshot {
             Snapshot {
                 habits: vec![
-                    Habit { id: 1, name: "Sport".into() },
-                    Habit { id: 2, name: "Lecture".into() },
+                    Habit { id: 1, name: "Sport".into(), is_example: false },
+                    Habit { id: 2, name: "Lecture".into(), is_example: false },
                 ],
                 habit_checks: vec![],
                 knowledge_last_viewed: Some(naive("2026-07-22 10:00:00")),
@@ -413,7 +413,7 @@ mod tests {
         fn la_serie_en_danger_fait_taire_le_rappel_d_habitudes() {
             let p = defauts();
             let snap = Snapshot {
-                habits: vec![Habit { id: 1, name: "Sport".into() }],
+                habits: vec![Habit { id: 1, name: "Sport".into(), is_example: false }],
                 habit_checks: (24..=26)
                     .map(|d| crate::notifications::model::HabitCheck {
                         habit_id: 1,
@@ -437,7 +437,7 @@ mod tests {
         fn sans_serie_a_defendre_le_rappel_d_habitudes_parle() {
             let p = defauts();
             let snap = Snapshot {
-                habits: vec![Habit { id: 1, name: "Sport".into() }],
+                habits: vec![Habit { id: 1, name: "Sport".into(), is_example: false }],
                 habit_checks: vec![],
                 knowledge_last_viewed: Some(naive("2026-07-27 08:00:00")),
                 ..Default::default()
@@ -453,7 +453,7 @@ mod tests {
         fn journee_sereine_ne_produit_rien() {
             let p = defauts();
             let snap = Snapshot {
-                habits: vec![Habit { id: 1, name: "Sport".into() }],
+                habits: vec![Habit { id: 1, name: "Sport".into(), is_example: false }],
                 habit_checks: vec![crate::notifications::model::HabitCheck {
                     habit_id: 1,
                     date: "2026-07-27".into(),

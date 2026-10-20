@@ -457,11 +457,13 @@ export default function GoalModal({
 
           </div>
 
-          {confirmation}
+          {/* La question remplace le pied ; « Annuler » est un geste explicite,
+              il ferme sans demander (même règle que « Nouvelle tâche »). */}
+          {confirmation ?? (
           <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
-              onClick={fermer}
+              onClick={onClose}
               className="pill px-4 py-2 text-sm font-medium text-text-dim hover:text-text"
             >
               {t("Annuler")}
@@ -474,6 +476,7 @@ export default function GoalModal({
               {goal ? t("Enregistrer") : t("Créer")}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>

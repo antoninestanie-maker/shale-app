@@ -61,10 +61,16 @@ import {
   ancreTient,
   colonneCss,
   dispositionIntacte,
+  garderDefilement,
+  grilleEtroite,
+  largeurEtroite,
   masquesConnus,
   ordreEffectif,
+  plancherEnColonnes,
   type Ancre,
 } from "../../lib/grille";
+import { useIsPhone } from "../../lib/platform";
+import { pointeurGrossier } from "../../lib/menu/tactile";
 import { jaugerEntetes } from "./entetes";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
@@ -164,6 +170,14 @@ interface GridCtx {
   gridWidth: number;
   /** Hauteur de la zone visible (px), suivie au redimensionnement / rotation. */
   viewportH: number;
+  /**
+   * Au doigt (téléphone, tablette), une carte prend TOUTE la hauteur de son
+   * contenu : c'est la page qui défile, jamais la carte (audit du 20/10,
+   * constat 1). Sur iOS la barre de défilement d'une carte est invisible, et
+   * la poignée qui règle la hauteur est masquée au doigt : une hauteur
+   * épinglée au bureau ne s'y corrigeait même pas.
+   */
+  auDoigt: boolean;
   gridRef: React.RefObject<HTMLDivElement | null>;
   overrides: Record<string, PanelSize>;
   draggingId: string | null;
@@ -222,6 +236,7 @@ export function ResizableGrid({
   columns = COLUMNS,
   className = "",
   ajusterOrdre,
+  ajusterOrdreEtroit,
 }: {
   gridId: string;
   children: ReactNode;
@@ -234,7 +249,17 @@ export function ResizableGrid({
    * ⚠️ Une fonction STABLE (de module) : elle entre dans un `useMemo`.
    */
   ajusterOrdre?: (ordre: string[]) => string[];
+  /**
+   * La même chose, quand la grille est ÉTROITE (tablette debout, fenêtre
+   * réduite, densité Large : `grilleEtroite`, `lib/grille.ts`). Aujourd'hui y
+   * remet les cartes d'action en tête, comme au téléphone (constat 26 du 20/10).
+   * ⚠️ Stable, comme `ajusterOrdre`. Celle-ci prime au téléphone.
+   */
+  ajusterOrdreEtroit?: (ordre: string[]) => string[];
 }) {
+  const telephone = useIsPhone();
+  const [grossier] = useState(() => pointeurGrossier());
+  const auDoigt = telephone || grossier;
   const gridRef = useRef<HTMLDivElement>(null);
   const [overrides, setOverrides] = useState<Record<string, PanelSize>>({});
   const [order, setOrder] = useState<string[]>([]);
@@ -277,13 +302,16 @@ export function ResizableGrid({
 
   // Un identifiant enregistré dont le panneau n'existe plus (widget retiré de
   // l'app) ne laisse ni trou ni pastille : la règle est dans `lib/grille.ts`.
+  const etroite =
+    !telephone && grilleEtroite(plancherEnColonnes(gridWidth, columns, COL_GAP, MIN_PANEL_PX), columns);
   const effectiveOrder = useMemo(
     () => {
       const ordre = ordreEffectif(order, jsxIds);
-      return ajusterOrdre ? ajusterOrdre(ordre) : ordre;
+      if (ajusterOrdre) return ajusterOrdre(ordre);
+      return etroite && ajusterOrdreEtroit ? ajusterOrdreEtroit(ordre) : ordre;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [order, jsxKey, ajusterOrdre],
+    [order, jsxKey, ajusterOrdre, ajusterOrdreEtroit, etroite],
   );
   const effectiveOrderRef = useRef(effectiveOrder);
   effectiveOrderRef.current = effectiveOrder;
@@ -776,6 +804,7 @@ export function ResizableGrid({
       colGap: COL_GAP,
       gridWidth,
       viewportH,
+      auDoigt,
       gridRef,
       overrides,
       draggingId,
@@ -793,6 +822,7 @@ export function ResizableGrid({
       columns,
       gridWidth,
       viewportH,
+      auDoigt,
       overrides,
       draggingId,
       intacte,
@@ -953,6 +983,7 @@ export function ResizablePanel({
     colGap,
     gridWidth,
     viewportH,
+    auDoigt,
     gridRef,
     overrides,
     draggingId,
@@ -977,9 +1008,7 @@ export function ResizablePanel({
   // Un span en colonnes n'a de sens qu'à largeur de grille donnée : sur une
   // fenêtre étroite, 4/12 colonnes peuvent ne faire que 120px et le contenu se
   // tasse. On convertit donc un plancher EN PIXELS en nombre de colonnes.
-  const colStride = gridWidth > 0 ? (gridWidth - (columns - 1) * colGap) / columns + colGap : 0;
-  const minColsPx =
-    colStride > 0 ? clamp(Math.ceil((MIN_PANEL_PX + colGap) / colStride), 1, columns) : 1;
+  const minColsPx = plancherEnColonnes(gridWidth, columns, colGap, MIN_PANEL_PX);
   // — LE PLANCHER SE HISSE À LA RANGÉE ENTIÈRE —
   // Dès que le plancher dépasse la MOITIÉ des colonnes, deux panneaux ne
   // peuvent plus tenir côte à côte : la grille est déjà, mécaniquement, une
@@ -996,8 +1025,13 @@ export function ResizablePanel({
   const effMinW = clamp(Math.max(minW, minCols), 1, columns);
   const effMaxW = clamp(maxW ?? columns, effMinW, columns);
 
-  const w = clamp(override?.w ?? defaultW, effMinW, effMaxW);
-  const pinnedH = override?.h;
+  // Grille étroite (tablette, fenêtre réduite) : un panneau que personne n'a
+  // élargi prend la rangée ou la demi-rangée (`largeurEtroite`, constat 26).
+  const largeurNonRetouchee = largeurEtroite({ largeurParDefaut: defaultW, plancher: minCols, colonnes: columns });
+  const w = clamp(override?.w ?? largeurNonRetouchee, effMinW, effMaxW);
+  // Au doigt, une hauteur épinglée au bureau ne vaut pas : la carte suit son
+  // contenu, et la page défile (constat 1).
+  const pinnedH = auDoigt ? undefined : override?.h;
   // autoH = hauteur NATURELLE du contenu. La carte étant étirée en permanence
   // pour remplir son empreinte (bords alignés, gouttières uniformes), on mesure
   // en désactivant l'étirement LE TEMPS DE LA LECTURE (synchronement, avant tout
@@ -1040,10 +1074,16 @@ export function ResizablePanel({
         // tout paint : invisible). offsetHeight = hauteur de layout, insensible
         // aux transforms du drag. Aucune boucle possible : la mesure n'est
         // jamais polluée par la hauteur imposée.
-        const wasFill = el.classList.contains("rgrid-fill");
-        if (wasFill) el.classList.remove("rgrid-fill");
-        natural = card.offsetHeight;
-        if (wasFill) el.classList.add("rgrid-fill");
+        // ⚠️ Les régions qui défilent sont relevées et reposées : retirer
+        // l'étirement remettait leur défilement à zéro (`garderDefilement`).
+        const defilants = Array.from(el.querySelectorAll<HTMLElement>(".panel-scroll"));
+        natural = garderDefilement(defilants, () => {
+          const wasFill = el.classList.contains("rgrid-fill");
+          if (wasFill) el.classList.remove("rgrid-fill");
+          const h = card.offsetHeight;
+          if (wasFill) el.classList.add("rgrid-fill");
+          return h;
+        });
       } else {
         natural = el.offsetHeight;
       }
@@ -1270,15 +1310,21 @@ export function ResizablePanel({
   // Plancher : contenu entier si le widget ne sait pas défiler, plancher absolu
   // sinon (la région `.panel-scroll` absorbe la différence).
   const hardMin = ceil8(Math.max(MIN_PX, minH ?? 0));
-  const floorFootprint = scrollable ? hardMin : Math.max(hardMin, naturalFootprint);
+  // Au doigt (téléphone, tablette), aucune région ne défile DANS sa carte : sur iOS la barre de
+  // défilement est invisible, la carte s'arrêtait au milieu d'une liste sans
+  // rien en dire, et deux défilements emboîtés se disputaient le doigt
+  // (constat 1 du 20/10). La carte prend donc toute sa hauteur naturelle.
+  const floorFootprint = scrollable && !auDoigt ? hardMin : Math.max(hardMin, naturalFootprint);
   // Plafond : ~une hauteur d'écran, borné par `maxH`, jamais sous le plancher.
   // Appliqué AU RENDU → même une taille enregistrée démesurée (ancien override,
   // écran plus grand) est ramenée dans le cadre au chargement, et re-bornée si
   // la fenêtre est redimensionnée / l'écran tourné (`viewportH`).
-  const ceilFootprint = Math.max(
-    floorFootprint,
-    Math.min(maxH ?? Number.POSITIVE_INFINITY, Math.floor((viewportH * 0.9) / 8) * 8),
-  );
+  const ceilFootprint = auDoigt
+    ? floorFootprint
+    : Math.max(
+        floorFootprint,
+        Math.min(maxH ?? Number.POSITIVE_INFINITY, Math.floor((viewportH * 0.9) / 8) * 8),
+      );
   const wantH = isPinned
     ? Math.max(Math.round(effPinned as number), scrollable ? hardMin : floorFootprint)
     : naturalFootprint;
