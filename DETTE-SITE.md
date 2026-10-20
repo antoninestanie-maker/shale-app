@@ -1088,3 +1088,8 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 **Pas nécessaire** : ajouter `x-region` au CORS de la fonction. L'app passe par le paramètre d'URL, qui n'en a pas besoin.
 
 **À savoir pour le site** : `create-checkout` et `billing-portal`, appelées par `vitrine/src/lib/compteAuth.ts`, s'exécutent aussi au plus près du visiteur. Elles ne portent pas de contenu (jeton, offre choisie) ; si la politique situe « Supabase à Paris » sans nuance pour le paiement, ajouter `?forceFunctionRegion=eu-west-3` aux trois `fetch`. Non regardé : ce que la politique dit aujourd'hui de ces deux fonctions.
+
+## AN — L'ajout rapide lit les répétitions, les périodes et la priorité ; l'accueil compte ses étapes (app, 2026-10-20, lot 5)
+
+- **App** : `src/lib/taches/saisieRapide.ts` (`lirePhrase`) — « tous les lundis », « chaque vendredi », « fin du mois », « ce week-end », « hier », « urgent » sont lus (FR et EN), chacun en pastille retirable. L'accueil du premier démarrage : « Passer » saute une question, « Tout passer » sort, « Étape n sur 6 » ; il ne dit plus « trois questions ».
+- **Site** : aucun texte ne devient faux à ma connaissance. Une page qui montre l'ajout rapide pourrait dire qu'on écrit « chaque lundi » ou « urgent » dans la phrase — à chercher et à proposer à Antonin avant d'écrire (règle « chercher avant d'écrire du texte de vente »). Une capture de l'accueil prise avant le 21/10 montre l'ancien bouton « Passer » et « Trois questions ».
