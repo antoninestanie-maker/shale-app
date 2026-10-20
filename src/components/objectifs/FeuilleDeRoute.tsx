@@ -1307,7 +1307,7 @@ function ListeElements(props: {
                 {tache.label}
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
-              <BadgeEtat badge={recurrente && etatDe(tache) !== "doing" ? null : badgeEtat(tache, faite, jour)} />
+              <BadgeEtat badge={badgeEtat(tache, faite, jour)} />
               {recurrente ? (
                 /* Disait « récurrente, non comptée » en toutes lettres : le ↻
                     suffit, le pourquoi attend dans la bulle (2026-09-30). */

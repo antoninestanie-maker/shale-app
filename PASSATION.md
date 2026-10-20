@@ -2726,3 +2726,26 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - **Pas prouvé** : app installée, téléphone, anglais. **Pas de build natif** (à grouper).
 - ⚠️ La notification `streak_at_risk` lit toujours la série de TÂCHES (80 %) : elle peut ne plus parler de la même série que l'écran. À trancher par Antonin.
 - ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).
+
+## 2026-10-20 (soir) — Lot 2 de l'audit : les états des tâches corrigés (`chantier/lot2-etats`)
+
+Antonin a choisi le lot 2 de l'audit du 20/10 (`labo/passes/2026-10-20-audit/`, `chasse-code.json`). Décisions : `CLAUDE.md` (« Lot 2 de l'audit », même date). Piège : `PIEGES.md` § 53.
+
+> ### ⚠️ MIGRATION 032 À JOUER — au prochain build natif groupé
+> `src-tauri/migrations/032_pauses_taches.sql` ajoute **deux colonnes** à `tasks` : `pauses` (TEXT, JSON) et `ponctuelle_depuis` (TEXT). Enregistrée dans `lib.rs` (version 32) et `sync/schema.testutil.ts`. Elle se joue au premier lancement de l'app reconstruite : **copier la base avant** (mémoire « Copier la base avant tout remplacement »), puis vérifier `PRAGMA user_version`/`_sqlx_migrations` = 32 et `integrity_check`. Synchronisation : rien à changer (la ligne voyage entière ; un appareil sans la 032 ignore les colonnes et retombe sur la règle de la 031). Le Rust lit les colonnes sous garde (`colonne_existe`), donc une base non migrée ne casse rien.
+
+**Fait, défaut par défaut** (chacun vérifié présent sur la tête avant correction ; « avant » = test rejoué sur `mobile-ios` dans un worktree détaché, rouge) :
+- **taches-1 / donnees-1 (haute)** — reprendre une routine effaçait sa pause. `pauses` (032), `changerEtat(avant, etat, jour, attente)`, `estSuspendue` + `est_suspendue` (Rust). Tests : `etatTaches.audit.test.ts`, `catalogue/tache.test.ts`, `task_streak.rs` (`une_routine_reprise_garde_ses_jours_de_pause`), `data.rs` (`les_pauses_d_une_tache_sont_lues`), `sync/calendrier.test.ts` (les colonnes voyagent).
+- **taches-2** — changer la relance par le menu remettait `state_since` à aujourd'hui : gardé (`changerEtat` d'attente à attente). `TaskModal` passe par la même règle.
+- **taches-3** — une routine en attente remonte « À relancer » sur Aujourd'hui (`tachesARelancer` lit « faite » comme `estFaite`).
+- **taches-4** — le « ⋯ » / clic droit d'une ligne « À relancer » ouvrait un menu vide : `tachesDuBlocDuHaut`, une liste pour les lignes et le menu (`EnRetard.tsx`).
+- **taches-6** — routine → « Une fois » ne part plus dans « Faites » (`ponctuelle_depuis`, 032, `changerRecurrence` dans `updateTask` repo + démo ; `ponctuellesFaites` exige les tâches, les copies en ligne remplacées dans `peril`, `progression`, `carteEtat`, `FeuilleDeRoute`, `ia/planifier`, `ia/revue`) ; → routine remet « reportée N fois » à zéro. Rust : `today_pct`.
+- **objectifs-3 / temps-4** — le péril ignore les abandonnées non cochées et les exemples, comme la mesure.
+- **objectifs-4** — feuille de route : abandonnée grisée, sans case, en bas, badge ; « en retard » rouge jamais pour une tâche suspendue. Carte mentale : `enRetard` lit `estSuspendue`.
+- **temps-7** (« plausible ») — tranché : une tâche en attente reste à sa date mais ne pèse plus dans la charge ni n'occupe de créneau (`charge.ts`, `disponibilite.ts`, `EntreeAgenda.etat`).
+- **Constat d'usage 21** — `BadgeEtat` (Aujourd'hui, Calendrier agenda/grille/pastilles, feuille de route) ; menu « État · … », entrée courante nommée par l'état, relance cochée.
+- **taches-8** — sous-titre de Tâches : relances à part (`compteDuJour`).
+- **donnees-9** — toast « Undo » (`Annuler|défaire`) ; `retours-anglais.test.ts` surveille désormais `catalogue/tache.tsx`.
+- En passant : `catalogue/tache.test.ts` avait perdu `etat` dans `GestesTache` (faisait échouer `npm run test:types`) — réparé.
+
+**Prouvé** : `tsc` vert ; `npm run test:types` vert ; `i18n:check` 0 manquante ; `cargo test --lib notifications` 138 verts (5 nouveaux) ; vitest complet 2 646 verts, 4 échecs étrangers ou de charge (machine à 54) puis `taches.test.ts` (ancienne signature, corrigé, 33 verts) — `sync/supabase.test.ts` et `auth/*.sql.test.ts` passent seuls ; `facturation/demo.test.ts` dépasse son délai de 60 s sous charge (déjà noté le matin).

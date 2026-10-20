@@ -13,6 +13,7 @@ import { FINANCE_ACTIF } from "../lib/features";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
 import { IconSablier } from "./icons";
+import { BadgeDEntree } from "./taches/BadgeEtat";
 import { formatHeure, t } from "../lib/i18n";
 
 /**
@@ -122,6 +123,7 @@ export default function CalendarCard({ data }: { data: AppData }) {
                 }}
               >
                 {e.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-red" />}
+                <BadgeDEntree entree={e} />
                 {e.titre}
               </span>
             </li>

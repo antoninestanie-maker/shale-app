@@ -5545,3 +5545,20 @@ la fonction rendait 403 au lieu de 200, sans aucun commit en cause (vert à
 `demain` et `hier` de `serveur.sql.test.ts` —, jamais depuis l'horloge injectée
 ni en dur. Diagnostic express d'un test qui rougit « tout seul » : chercher une
 date littérale proche du jour de la panne.
+
+## 53. Une règle de tâche neuve ne mord que là où l'on va la chercher : « faite » et « en retard » sont recalculés en ligne à quinze endroits (2026-10-20)
+
+La 031 (états des tâches) a branché `estSuspendue` et l'état dans les fichiers
+qu'elle connaissait ; l'audit du soir en a trouvé quatre qu'elle ignorait —
+le péril (`calendrier/peril.ts`), la feuille de route (`FeuilleDeRoute.tsx`),
+la carte mentale (`carteEtat.ts`), la charge du calendrier (`charge.ts`,
+`disponibilite.ts`) — et chacun mentait à sa façon : un objectif « en péril »
+pour des tâches abandonnées, une abandonnée rouge « en retard ». Cause :
+« faite » s'écrivait `new Set(completions.filter((c) => c.done).map(...))` en
+ligne, et « en retard » `due_date < aujourdhui && !faite`, sans passer par
+`lib/taches.ts`. Un même oubli guettait `ponctuelle_depuis` (032).
+▶️ Depuis le lot 2, `ponctuellesFaites(completions, tasks)` exige les tâches
+(un appel qui les oublie ne compile plus) et remplace les copies en ligne.
+Avant de livrer une règle de tâche, chercher les copies :
+`grep -rnE "c\.done\)\.map|due_date < " src` — et la règle Rust
+(`notifications/task_streak.rs`). Payé : sept défauts d'audit, une demi-journée.
