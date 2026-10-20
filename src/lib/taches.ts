@@ -1,4 +1,4 @@
-import type { Completion, Task } from "./types";
+import type { Completion, EtatTache, Task } from "./types";
 
 /**
  * Les deux familles de tâches, et ce qu'il advient d'une tâche non faite.
@@ -129,11 +129,12 @@ export function tachesADecider<
  * une base.
  */
 export function estEnRetard(
-  t: Pick<Task, "due_date" | "recurrence">,
+  t: Pick<Task, "due_date" | "recurrence" | "state" | "state_since">,
   jour: string,
   faite: boolean,
 ): boolean {
-  if (faite || !estDatee(t)) return false;
+  // ⭐ En attente ou abandonnée (031) : jamais en retard, donc jamais reportée.
+  if (faite || !estDatee(t) || estSuspendue(t, jour)) return false;
   return (t.due_date as string) < jour;
 }
 
@@ -227,4 +228,111 @@ export function reportsAAppliquer(
     if (report) out.push({ id: t.id, report });
   }
   return out;
+}
+
+// ─── L'ÉTAT D'UNE TÂCHE (migration 031, 2026-10-20) ─────────────────────────
+
+/**
+ * ⭐ En cours, en attente, abandonnée — un ÉTAT à choix unique, retenu avec
+ * Antonin le 2026-10-20 plutôt que des étiquettes libres. « Faite » n'en est pas
+ * un : c'est la case à cocher.
+ *
+ * Ce que chaque état CHANGE, et rien d'autre :
+ *   • 'doing'   — un badge sur la ligne ; la tâche reste où elle était ;
+ *   • 'waiting' — elle n'est plus prévue, plus en retard, et une routine se met
+ *                 en pause ; elle REVIENT le jour de sa relance (`aRelancer`) ;
+ *   • 'dropped' — comme 'waiting', sans retour : rangée dans « Abandonnées ».
+ */
+export const ETATS: readonly EtatTache[] = ["todo", "doing", "waiting", "dropped"];
+
+/** L'état lu en base. Une valeur inconnue (appareil plus récent) vaut 'todo'. */
+export function etatDe(t: Pick<Task, "state">): EtatTache {
+  return (ETATS as readonly string[]).includes(t.state ?? "") ? (t.state as EtatTache) : "todo";
+}
+
+/**
+ * ⭐ LA TÂCHE EST-ELLE SUSPENDUE ce jour-là ? En attente ou abandonnée, et
+ * depuis un jour qui n'est pas après `jour`.
+ *
+ * C'est la seule règle que lisent la liste du jour, la Discipline, les séries,
+ * le retard et le report (`estPrevueLe`, `isDueOn`, `estEnRetard`) — et le
+ * portage Rust (`notifications/task_streak.rs`), à tenir d'accord à la main.
+ *
+ * ⚠️ `state_since` protège l'HISTORIQUE : une routine mise en pause aujourd'hui
+ * reste comptée les jours d'avant. Sans date (ligne venue d'ailleurs), la
+ * suspension vaut depuis toujours — le seul repli qui ne fasse pas compter un
+ * manque à une tâche que l'utilisateur a écartée.
+ */
+export function estSuspendue(t: Pick<Task, "state" | "state_since">, jour: string): boolean {
+  const etat = etatDe(t);
+  if (etat !== "waiting" && etat !== "dropped") return false;
+  return !t.state_since || t.state_since.slice(0, 10) <= jour;
+}
+
+/**
+ * En attente, et le jour de la relance est venu (ou passé). La tâche reparaît
+ * alors dans « Aujourd'hui » avec le badge « À relancer » — sans compter dans
+ * la Discipline : relancer n'est pas une tâche prévue, c'est un rappel.
+ */
+export function aRelancer(t: Pick<Task, "state" | "follow_up_on">, jour: string): boolean {
+  return etatDe(t) === "waiting" && !!t.follow_up_on && t.follow_up_on <= jour;
+}
+
+/**
+ * ⭐ Les tâches À RELANCER d'un jour donné, pas faites — la relance la plus
+ * ancienne d'abord. Elles rejoignent le bloc du haut d'Aujourd'hui, à côté des
+ * retards (`EnRetard`), sans entrer dans le compte du jour.
+ */
+export function tachesARelancer<T extends Pick<Task, "id" | "state" | "follow_up_on">>(
+  tasks: readonly T[],
+  completions: readonly Pick<Completion, "task_id" | "done">[],
+  jour: string,
+): T[] {
+  const faites = ponctuellesFaites(completions);
+  return tasks
+    .filter((t) => aRelancer(t, jour) && !faites.has(t.id))
+    .sort((a, b) => (a.follow_up_on as string).localeCompare(b.follow_up_on as string) || a.id - b.id);
+}
+
+/** Ce qu'un changement d'état écrit dans les quatre colonnes. */
+export interface ChangementEtat {
+  state: EtatTache;
+  state_since: string | null;
+  waiting_for: string | null;
+  follow_up_on: string | null;
+}
+
+/**
+ * Le changement d'état à écrire. Les champs de l'attente ne survivent pas à un
+ * autre état : une tâche reprise n'attend plus personne, et une relance oubliée
+ * la ferait reparaître sans raison.
+ */
+export function changerEtat(
+  etat: EtatTache,
+  jour: string,
+  attente: { waiting_for?: string | null; follow_up_on?: string | null } = {},
+): ChangementEtat {
+  if (etat === "waiting") {
+    const pour = attente.waiting_for?.trim();
+    return { state: etat, state_since: jour, waiting_for: pour || null, follow_up_on: attente.follow_up_on || null };
+  }
+  return { state: etat, state_since: etat === "todo" ? null : jour, waiting_for: null, follow_up_on: null };
+}
+
+// ─── Les badges DÉDUITS (2026-10-20) ─────────────────────────────────────────
+
+/**
+ * Un créneau de quinze minutes ou moins : une tâche « rapide », à glisser entre
+ * deux choses. Déduit du créneau, jamais saisi.
+ */
+export const MINUTES_RAPIDE = 15;
+
+export function estRapide(t: Pick<Task, "start_at" | "end_at">): boolean {
+  if (!t.start_at || !t.end_at) return false;
+  const min = (h: string) => {
+    const [hh, mm] = h.split(":").map(Number);
+    return hh * 60 + mm;
+  };
+  const duree = min(t.end_at) - min(t.start_at);
+  return duree > 0 && duree <= MINUTES_RAPIDE;
 }

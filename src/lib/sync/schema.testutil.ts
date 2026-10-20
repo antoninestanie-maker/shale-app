@@ -30,6 +30,7 @@ import m27 from "../../../src-tauri/migrations/027_corbeille.sql?raw";
 import m28 from "../../../src-tauri/migrations/028_pieces_jointes.sql?raw";
 import m29 from "../../../src-tauri/migrations/029_ia_contenus.sql?raw";
 import m30 from "../../../src-tauri/migrations/030_priorite_etapes.sql?raw";
+import m31 from "../../../src-tauri/migrations/031_etat_taches.sql?raw";
 
 /**
  * Les migrations telles que `src-tauri/src/lib.rs` les enregistre, dans l'ordre.
@@ -50,6 +51,8 @@ export const MIGRATIONS: readonly string[] = [
   // 029 : les contenus rédigés par l'IA de Shale Pro (chantier ia-pro). Même
   // ordre que `lib.rs` ; la vraie base l'a reçue APRÈS la 030 (PIEGES § 29.3).
   m29, m30,
+  // 031 : l'état d'une tâche (en cours, en attente, abandonnée).
+  m31,
 ];
 
 /** Numéro de la migration qui installe l'identité globale (colonnes `uid`). */

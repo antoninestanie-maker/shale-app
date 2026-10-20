@@ -30,9 +30,26 @@ fn is_recurring(task: &Task) -> bool {
     !matches!(task.recurrence.as_deref(), None | Some("") | Some("none"))
 }
 
+/// En attente ou abandonnée À PARTIR d'un jour qui n'est pas après `date` ?
+/// Port de `estSuspendue` (`lib/taches.ts`, migration 031) : une tâche suspendue
+/// n'est plus prévue, et une routine est en pause — sans toucher aux jours d'avant
+/// `state_since`. Sans date, la suspension vaut depuis toujours.
+pub fn est_suspendue(task: &Task, date: NaiveDate) -> bool {
+    if !matches!(task.state.as_deref(), Some("waiting") | Some("dropped")) {
+        return false;
+    }
+    match &task.state_since {
+        Some(depuis) if depuis.len() >= 10 => &depuis[..10] <= day_str(date).as_str(),
+        _ => true,
+    }
+}
+
 /// Une tâche récurrente est-elle due ce jour-là ?
 /// Port de `isDueOn` — même convention de jour que `Date.getDay()` : 0 = dimanche.
 pub fn is_due_on(task: &Task, date: NaiveDate) -> bool {
+    if est_suspendue(task, date) {
+        return false;
+    }
     let day = day_str(date);
     if let Some(created) = &task.created_at {
         if created.len() >= 10 && &created[..10] > day.as_str() {
@@ -63,6 +80,9 @@ pub fn is_due_on(task: &Task, date: NaiveDate) -> bool {
 pub fn est_prevue_le(task: &Task, date: NaiveDate) -> bool {
     if is_recurring(task) {
         return is_due_on(task, date);
+    }
+    if est_suspendue(task, date) {
+        return false;
     }
     task.due_date.as_deref() == Some(day_str(date).as_str())
 }
@@ -172,12 +192,19 @@ mod tests {
     }
 
     fn task(id: i64, recurrence: &str) -> Task {
-        Task { id, recurrence: Some(recurrence.into()), created_at: None, due_date: None }
+        Task { id, recurrence: Some(recurrence.into()), created_at: None, due_date: None, state: None, state_since: None }
     }
 
     /// Une ponctuelle datée (`None` = sans date).
     fn datee(id: i64, due: Option<&str>) -> Task {
-        Task { id, recurrence: Some("none".into()), created_at: None, due_date: due.map(Into::into) }
+        Task {
+            id,
+            recurrence: Some("none".into()),
+            created_at: None,
+            due_date: due.map(Into::into),
+            state: None,
+            state_since: None,
+        }
     }
 
     fn done(task_id: i64, date: &str) -> Completion {
@@ -194,7 +221,7 @@ mod tests {
     fn une_tache_non_recurrente_n_est_jamais_due() {
         assert!(!is_due_on(&task(1, "none"), d("2026-07-27")));
         assert!(!is_due_on(
-            &Task { id: 1, recurrence: None, created_at: None, due_date: None },
+            &Task { id: 1, recurrence: None, created_at: None, due_date: None, state: None, state_since: None },
             d("2026-07-27")
         ));
     }
@@ -223,6 +250,8 @@ mod tests {
             recurrence: Some("daily".into()),
             created_at: Some("2026-07-28 09:00:00".into()),
             due_date: None,
+            state: None,
+            state_since: None,
         };
         assert!(!is_due_on(&t, d("2026-07-27")));
         assert!(is_due_on(&t, d("2026-07-28")));
@@ -325,6 +354,8 @@ mod tests {
             recurrence: Some("weekdays".into()),
             created_at: None,
             due_date: Some("2026-08-01".into()),
+            state: None,
+            state_since: None,
         };
         assert!(!est_prevue_le(&egaree, d("2026-08-01")));
     }
@@ -425,5 +456,30 @@ mod tests {
         // Rien de prévu aujourd'hui : neutre, pas 0 %.
         let tasks = vec![datee(1, None), datee(2, Some("2026-07-20"))];
         assert_eq!(today_pct(&tasks, &[], d("2026-07-27")), None);
+    }
+
+    /// Migration 031 : une routine en attente ou abandonnée est en PAUSE à
+    /// partir de `state_since`, pas avant — l'historique ne se réécrit pas.
+    #[test]
+    fn une_routine_suspendue_est_en_pause_depuis_son_etat() {
+        let mut t = task(1, "daily");
+        t.state = Some("waiting".into());
+        t.state_since = Some("2026-07-28".into());
+        assert!(is_due_on(&t, d("2026-07-27")), "la veille reste due");
+        assert!(!is_due_on(&t, d("2026-07-28")));
+        t.state = Some("dropped".into());
+        assert!(!is_due_on(&t, d("2026-07-29")));
+        t.state = Some("doing".into());
+        assert!(is_due_on(&t, d("2026-07-29")), "en cours ne suspend rien");
+    }
+
+    #[test]
+    fn une_ponctuelle_suspendue_n_est_plus_prevue() {
+        let mut t = datee(1, Some("2026-07-28"));
+        assert!(est_prevue_le(&t, d("2026-07-28")));
+        t.state = Some("waiting".into());
+        assert!(!est_prevue_le(&t, d("2026-07-28")), "sans date d'état : depuis toujours");
+        t.state = Some("inconnu".into());
+        assert!(est_prevue_le(&t, d("2026-07-28")), "un état inconnu vaut « à faire »");
     }
 }

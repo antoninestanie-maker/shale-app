@@ -17,7 +17,7 @@ import { bilanDeDepart } from "../lib/corbeille/lots";
 import { annonceDepart, jeter } from "../components/corbeille/geste";
 import MenuContextuel from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
-import { formaterChamp, libelleRelatif } from "../lib/calendrier/champDate";
+import { auFilDeLaLigne } from "../lib/calendrier/champDate";
 import { consommerDemande } from "../lib/naviguer";
 import { mouvementReduit } from "../lib/defilement";
 import { jouerTransition, type Sens } from "../lib/objectifs/transition";
@@ -144,12 +144,6 @@ function echeanceDeLigne(dl: NonNullable<ReturnType<typeof deadlineInfo>>) {
       )}
     </>
   );
-}
-
-/** « hier », « demain », sinon « mar. 22 sept. » — la date d'un champ, en minuscule au fil d'une ligne. */
-function auFilDeLaLigne(jour: string, aujourdHui: string): string {
-  const relatif = libelleRelatif(jour, aujourdHui);
-  return relatif ? relatif.toLocaleLowerCase() : formaterChamp(jour, aujourdHui);
 }
 
 /** Une frappe dans un champ n'est pas un geste de navigation. */

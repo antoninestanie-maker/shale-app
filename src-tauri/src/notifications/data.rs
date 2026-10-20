@@ -98,19 +98,26 @@ pub async fn read_snapshot(db_path: &Path, today: NaiveDate) -> Result<Snapshot,
     // `filtre_vivant`, PIEGES § 19.7). Sans la colonne, aucune tâche n'a de
     // date : `NULL` est alors EXACT.
     let col_due = if colonne_existe(&mut conn, "tasks", "due_date").await { "due_date" } else { "CAST(NULL AS TEXT)" };
-    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>)>(&format!(
-        "SELECT id, recurrence, created_at, {col_due} FROM tasks WHERE 1 = 1{f_tache}"
+    // Même garde pour l'état (migration 031) : absent, chaque tâche est « à faire ».
+    let etat_ok = colonne_existe(&mut conn, "tasks", "state").await;
+    let (col_etat, col_depuis) =
+        if etat_ok { ("state", "state_since") } else { ("CAST(NULL AS TEXT)", "CAST(NULL AS TEXT)") };
+    #[allow(clippy::type_complexity)]
+    let tasks = sqlx::query_as::<_, (i64, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>)>(&format!(
+        "SELECT id, recurrence, created_at, {col_due}, {col_etat}, {col_depuis} FROM tasks WHERE 1 = 1{f_tache}"
     ))
     .fetch_all(&mut conn)
     .await
     .map(|rows| {
         rows.into_iter()
-            .map(|(id, recurrence, created_at, due_date)| Task {
+            .map(|(id, recurrence, created_at, due_date, state, state_since)| Task {
                 id,
                 recurrence,
                 created_at,
                 // Une chaîne vide n'est pas une date.
                 due_date: due_date.filter(|d| !d.is_empty()),
+                state,
+                state_since: state_since.filter(|d| !d.is_empty()),
             })
             .collect()
     })
@@ -219,9 +226,16 @@ async fn read_calendar(conn: &mut SqliteConnection, today: &str) -> Vec<Calendar
         items.push(CalendarItem { title, date, start_at, kind: "event" });
     }
 
+    // En attente ou abandonnée (migration 031) : pas de rappel — on a dit qu'on
+    // ne la ferait pas maintenant. Garde de colonne, comme `due_date` plus haut.
+    let f_etat = if colonne_existe(conn, "tasks", "state").await {
+        " AND (state IS NULL OR state NOT IN ('waiting', 'dropped'))"
+    } else {
+        ""
+    };
     let dated = sqlx::query_as::<_, (String, String, Option<String>)>(&format!(
         "SELECT label, due_date, start_at FROM tasks \
-         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none'){f_tache}"
+         WHERE due_date >= ?1 AND (recurrence IS NULL OR recurrence = 'none'){f_tache}{f_etat}"
     ))
     .bind(today)
     .fetch_all(&mut *conn)

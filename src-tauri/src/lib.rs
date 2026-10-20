@@ -465,6 +465,12 @@ pub fn run() {
             sql: include_str!("../migrations/030_priorite_etapes.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 31,
+            description: "etat_taches",
+            sql: include_str!("../migrations/031_etat_taches.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

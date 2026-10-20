@@ -264,6 +264,12 @@ pub struct Task {
     /// si elle n'a pas de date. C'est lui qui dit si elle est « du jour »
     /// (`task_streak::today_pct`, règle du 2026-10-11).
     pub due_date: Option<String>,
+    /// L'ÉTAT (migration 031) : `todo` | `doing` | `waiting` | `dropped`. `None`
+    /// sur une base pas encore migrée — vaut « à faire ».
+    pub state: Option<String>,
+    /// `YYYY-MM-DD` local : le jour où l'état a été posé. Voir
+    /// `task_streak::est_suspendue`.
+    pub state_since: Option<String>,
 }
 
 /// Ce qui a une DATE dans le calendrier : un événement, une tâche datée ou une

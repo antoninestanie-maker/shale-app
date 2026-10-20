@@ -1,6 +1,7 @@
 import { rangPriorite } from "../priorite";
+import { estSuspendue } from "../taches";
 import type { Goal, Task } from "../types";
-import { elementsDe, enfantsDe, uidDeLigne, type SourcesProgression } from "./progression";
+import { elementsDe, enfantsDe, estAcheve, mesurer, uidDeLigne, type SourcesProgression } from "./progression";
 
 /**
  * ⭐ LA PROCHAINE ACTION D'UN OBJECTIF — une règle d'AFFICHAGE, jamais écrite.
@@ -54,7 +55,8 @@ export function prochaineAction(
     for (const e of elementsDe(g, s).comptables) {
       if (e.kind !== "task" || e.fait || vues.has(e.uid)) continue;
       const tache = parUid.get(e.uid);
-      if (!tache) continue;
+      // ⭐ En attente (031) : on ne peut pas la faire maintenant, ce n'est pas « la suite ».
+      if (!tache || estSuspendue(tache, jour)) continue;
       vues.add(e.uid);
       candidates.push({ tache, etape, rang: candidates.length, ouverte });
     }
@@ -76,4 +78,25 @@ export function prochaineAction(
     etape: choisie.etape,
     enRetard: !!choisie.tache.due_date && choisie.tache.due_date < jour,
   };
+}
+
+/**
+ * ⭐ Les tâches qui sont la prochaine action d'un objectif racine — la tâche →
+ * son objectif. C'est le badge « Prochaine action » de la vue Tâches (badges
+ * déduits, 2026-10-20) : la même règle que la liste des objectifs, lue d'un
+ * coup pour tous, jamais écrite.
+ */
+export function prochainesActions(s: SourcesProgression): Map<number, Goal> {
+  const mesures = new Map(s.goals.map((g) => [g.id, mesurer(g, s)]));
+  const acheve = (id: number) => {
+    const m = mesures.get(id);
+    return !!m && estAcheve(m);
+  };
+  const out = new Map<number, Goal>();
+  for (const g of s.goals) {
+    if (g.parent_goal_id !== null) continue;
+    const suite = prochaineAction(g, s, acheve);
+    if (suite) out.set(suite.tache.id, g);
+  }
+  return out;
 }

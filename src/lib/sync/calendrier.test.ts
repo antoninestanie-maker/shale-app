@@ -184,4 +184,26 @@ describe("une tâche DATÉE traverse avec son créneau", () => {
     );
     expect(chezB[0]).toEqual({ postponed_count: 2, postponed_from: "2026-09-01" });
   });
+
+  it("⭐ l'ÉTAT voyage (031) — sinon une tâche abandonnée ici reviendrait en retard là-bas", async () => {
+    a.ecrire(
+      `INSERT INTO tasks (label, priority, recurrence, due_date)
+       VALUES ('relancer Hélice', 'medium', 'none', '2026-10-15')`,
+    );
+    await converger();
+    a.ecrire(
+      `UPDATE tasks SET state = 'waiting', state_since = '2026-10-20', waiting_for = 'leur réponse',
+       follow_up_on = '2026-10-23' WHERE label = 'relancer Hélice'`,
+    );
+    await converger();
+    const chezB = b.lire<{ state: string; state_since: string; waiting_for: string; follow_up_on: string }>(
+      "SELECT state, state_since, waiting_for, follow_up_on FROM tasks WHERE label = 'relancer Hélice'",
+    );
+    expect(chezB[0]).toEqual({
+      state: "waiting",
+      state_since: "2026-10-20",
+      waiting_for: "leur réponse",
+      follow_up_on: "2026-10-23",
+    });
+  });
 });

@@ -15,6 +15,8 @@
  *                          comme la déplacer dans le calendrier ;
  *   • Priorité ▸         → `prioriserTache`, qui n'écrit que la priorité (règle 16) ;
  *   • Rattacher ▸        → `rattacherTache`, celle de la feuille de route ;
+ *   • État ▸             → `changerEtatTache` (migration 031), la même écriture
+ *                          que la fenêtre de la tâche ;
  *   • Modifier…          → le même éditeur que le crayon ;
  *   • Supprimer          → `jeter()`, la corbeille, comme le bouton.
  *
@@ -25,10 +27,30 @@
  * ⚠️ `t()` à la construction, jamais dans une constante de module.
  */
 
-import { IconCalendar, IconCheck, IconPencil, IconPlay, IconTarget, IconTrash, IconX } from "../../icons";
+import type { ReactNode } from "react";
+import {
+  IconBan,
+  IconBolt,
+  IconCalendar,
+  IconCheck,
+  IconPencil,
+  IconPlay,
+  IconReset,
+  IconSablier,
+  IconTarget,
+  IconTrash,
+  IconX,
+} from "../../icons";
 import { IconDupliquer } from "../icones";
 import { formatDate, t } from "../../../lib/i18n";
-import { appliquerReport, createTask, prioriserTache, rattacherTache, setTaskSchedule } from "../../../lib/repo";
+import {
+  appliquerReport,
+  changerEtatTache,
+  createTask,
+  prioriserTache,
+  rattacherTache,
+  setTaskSchedule,
+} from "../../../lib/repo";
 import { nomDePriorite, PRIORITES, prioriteDe } from "../../../lib/priorite";
 import { IconePriorite } from "../../Priorite";
 import { afficherToast } from "../../../lib/toast";
@@ -36,12 +58,12 @@ import { jeter, titreCourt } from "../../corbeille/geste";
 import { addDays, todayStr } from "../../../lib/logic";
 import type { EntreeMenu, EntreePossible, OrigineMenu } from "../../../lib/menu/entrees";
 import { ancreSurElement, ancreSurPoint, ouvrirSelecteurDate, type AncreFenetre } from "../../../lib/selecteurDate";
-import { estRecurrente, replanifier } from "../../../lib/taches";
+import { changerEtat, estRecurrente, etatDe, replanifier } from "../../../lib/taches";
 import { lundiProchain, plusUnJour } from "../../../lib/taches/dates";
 import { demanderIa } from "../../../lib/ia/demande";
 import { IconeIa } from "../../ia/IconeIa";
 import { focusDeTache, type GesteFocus } from "../../../lib/seance/gesteFocus";
-import type { Goal, Priority, Task } from "../../../lib/types";
+import type { EtatTache, Goal, Priority, Task } from "../../../lib/types";
 
 export interface GestesTache {
   /** Exactement ce que fait la case à cocher de la vue. */
@@ -54,6 +76,8 @@ export interface GestesTache {
   /** Faible, moyenne, élevée — la même écriture que la fenêtre de la tâche. */
   prioriser: (task: Task, priorite: Priority) => Promise<void>;
   rattacher: (task: Task, goalId: number | null) => Promise<void>;
+  /** En cours, en attente (avec sa relance), abandonnée, ou de nouveau à faire. */
+  etat: (task: Task, etat: EtatTache, relance?: string | null) => Promise<void>;
   dupliquer: (task: Task) => Promise<void>;
   supprimer: (task: Task) => Promise<void>;
   /**
@@ -235,6 +259,64 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
     executer: () => (p === actuelle ? undefined : gestes.prioriser(task, p)),
   }));
 
+  /**
+   * ⭐ « État ▸ » (2026-10-20). L'attente se pose avec sa relance en un geste —
+   * sans relance, demain, lundi prochain, ou au jour choisi ; « de quoi on
+   * attend » se précise dans « Modifier… ». La coche dit l'état actuel, et le
+   * choisir de nouveau n'écrit rien (sauf l'attente, dont on change la relance).
+   */
+  const etat = etatDe(task);
+  const marque = (e: EtatTache, icone: ReactNode) => (e === etat ? <IconCheck /> : icone);
+  const etats: EntreeMenu[] = [
+    {
+      id: "etat-todo",
+      libelle: t("À faire"),
+      icone: marque("todo", <IconReset />),
+      executer: () => (etat === "todo" ? undefined : gestes.etat(task, "todo")),
+    },
+    {
+      id: "etat-doing",
+      libelle: t("En cours"),
+      icone: marque("doing", <IconBolt />),
+      executer: () => (etat === "doing" ? undefined : gestes.etat(task, "doing")),
+    },
+    {
+      id: "etat-waiting",
+      libelle: t("En attente, sans relance"),
+      icone: etat === "waiting" && !task.follow_up_on ? <IconCheck /> : <IconSablier />,
+      executer: () => gestes.etat(task, "waiting", null),
+    },
+    {
+      id: "etat-waiting-demain",
+      libelle: t("En attente, relancer demain"),
+      icone: <IconSablier />,
+      executer: () => gestes.etat(task, "waiting", addDays(aujourdhui, 1)),
+    },
+    {
+      id: "etat-waiting-lundi",
+      libelle: t("En attente, relancer lundi prochain"),
+      icone: <IconSablier />,
+      executer: () => gestes.etat(task, "waiting", lundiProchain(aujourdhui)),
+    },
+    {
+      id: "etat-waiting-choisir",
+      libelle: t("En attente, relancer le…"),
+      icone: <IconPencil />,
+      executer: (ou) =>
+        ouvrirSelecteurDate({
+          ancre: ancreDuMenu(ou),
+          valeur: task.follow_up_on ?? "",
+          onChoisir: (jour) => void gestes.etat(task, "waiting", jour || null),
+        }),
+    },
+    {
+      id: "etat-dropped",
+      libelle: t("Abandonner"),
+      icone: marque("dropped", <IconBan />),
+      executer: () => (etat === "dropped" ? undefined : gestes.etat(task, "dropped")),
+    },
+  ];
+
   const arbre = objectifsEnArbre(ctx.objectifs);
   const rattachements: EntreeMenu[] = [
     {
@@ -280,6 +362,13 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
         ? { raison: t("Une tâche récurrente n'a pas de date : elle revient selon sa règle.") }
         : undefined,
     },
+    // Une tâche FAITE n'a plus d'état à prendre : la case le dit déjà.
+    !ctx.faite && {
+      id: "etat",
+      libelle: t("État"),
+      icone: <IconSablier />,
+      sousMenu: etats,
+    },
     {
       id: "priorite",
       libelle: t("Priorité"),
@@ -323,15 +412,34 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
 
 // ─── Les gestes communs à toutes les vues qui montrent une tâche ─────────────
 
+/** Ce que dit le toast après un changement d'état. */
+function messageEtat(task: Task, etat: EtatTache, relance: string | null): string {
+  const titre = titreCourt(task.label);
+  switch (etat) {
+    case "todo":
+      return t("« {titre} » est de nouveau à faire", { titre });
+    case "doing":
+      return t("« {titre} » est en cours", { titre });
+    case "waiting":
+      return relance
+        ? t("« {titre} » est en attente, à relancer le {date}", {
+            titre,
+            date: formatDate(new Date(`${relance}T12:00:00`), { weekday: "long", day: "numeric", month: "long" }),
+          })
+        : t("« {titre} » est en attente", { titre });
+    case "dropped":
+      return t("« {titre} » est abandonnée", { titre });
+  }
+}
 
 /**
- * Dater, prioriser, rattacher, dupliquer, supprimer : écrits UNE fois, pour les Tâches,
+ * Dater, prioriser, rattacher, changer d'état, dupliquer, supprimer : écrits UNE fois, pour les Tâches,
  * Aujourd'hui et le Calendrier. Les trois autres gestes (cocher, renommer,
  * modifier) appartiennent à chaque vue, qui les a déjà.
  */
 export function gestesCommunsTache(
   refresh: () => Promise<void>,
-): Pick<GestesTache, "dater" | "prioriser" | "rattacher" | "dupliquer" | "supprimer"> {
+): Pick<GestesTache, "dater" | "prioriser" | "rattacher" | "etat" | "dupliquer" | "supprimer"> {
   return {
     async dater(task, date) {
       // Le créneau horaire est GARDÉ quand on change de jour — c'est ce que fait
@@ -361,6 +469,26 @@ export function gestesCommunsTache(
     async rattacher(task, goalId) {
       await rattacherTache(task.id, goalId);
       await refresh();
+    },
+    async etat(task, etat, relance) {
+      const avant = {
+        state: etatDe(task),
+        state_since: task.state_since ?? null,
+        waiting_for: task.waiting_for ?? null,
+        follow_up_on: task.follow_up_on ?? null,
+      };
+      // « De quoi on attend » survit à un changement de relance.
+      await changerEtatTache(
+        task.id,
+        changerEtat(etat, todayStr(), { waiting_for: task.waiting_for, follow_up_on: relance }),
+      );
+      await refresh();
+      // La tâche change de section (ou en sort) : le dire, et pouvoir revenir.
+      afficherToast({
+        msg: messageEtat(task, etat, relance ?? null),
+        actionLabel: t("Annuler"),
+        onAction: () => void changerEtatTache(task.id, avant).then(refresh),
+      });
     },
     async dupliquer(task) {
       await createTask({

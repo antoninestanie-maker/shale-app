@@ -1,6 +1,6 @@
 import { addDays, dayStat, weekdayOf, ORDRE_SEMAINE } from "../logic";
 import { sansExemples } from "../onboarding/exemples";
-import { estEnRetard, estRecurrente, ponctuellesFaites, SEUIL_REPORT } from "../taches";
+import { estEnRetard, estRecurrente, estSuspendue, ponctuellesFaites, SEUIL_REPORT } from "../taches";
 import type { Completion, FocusSession, Habit, HabitCheck, Task } from "../types";
 
 /**
@@ -376,6 +376,8 @@ export function tachesHorsCompte(tasks: readonly Task[], completions: readonly C
     (t) =>
       !estRecurrente(t) &&
       !faites.has(t.id) &&
+      // En attente ou abandonnée (031) : écartée exprès, elle ne « traîne » pas.
+      !estSuspendue(t, today) &&
       (estEnRetard(t, today, false) || (t.postponed_count ?? 0) >= 1),
   );
 }

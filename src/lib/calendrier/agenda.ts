@@ -1,5 +1,5 @@
 import { occurrenceLe, toDateStr, weekdayOf } from "../logic";
-import { estDatee, estRecurrente, ponctuellesFaites } from "../taches";
+import { estDatee, estRecurrente, estSuspendue, etatDe, ponctuellesFaites } from "../taches";
 import type { CalendarEvent, Completion, Goal, Task } from "../types";
 
 /**
@@ -357,6 +357,9 @@ export function entreesDuJour(
   for (const t of src.tasks) {
     if (!estDatee(t) || t.due_date !== jour) continue;
     const faite = ponctuelles.has(t.id);
+    // ⭐ Abandonnée (031) : plus au calendrier, sauf cochée quand même. En
+    // attente, elle reste à sa date — mais n'est jamais « en retard ».
+    if (etatDe(t) === "dropped" && !faite) continue;
     entrees.push({
       kind: "task",
       id: t.id,
@@ -370,7 +373,7 @@ export function entreesDuJour(
       color: null,
       dureeMin: dureeMinutes(t.start_at, t.end_at),
       serie: false,
-      enRetard: jour < aujourdhui && !faite,
+      enRetard: jour < aujourdhui && !faite && !estSuspendue(t, aujourdhui),
       reports: t.postponed_count,
       faite,
     });
@@ -381,6 +384,8 @@ export function entreesDuJour(
   // retard (voir `lib/taches.ts`). Elle ne se reporte pas non plus.
   for (const t of src.tasks) {
     if (!estRecurrente(t) || !occurrenceLe(t.recurrence, t.created_at, jour)) continue;
+    // En attente ou abandonnée (031) : la routine est en pause à partir de ce jour-là.
+    if (estSuspendue(t, jour)) continue;
     entrees.push({
       kind: "recurrence",
       id: t.id,

@@ -297,3 +297,13 @@ export function raccourcis(aujourdHui: string): Raccourci[] {
     { cle: "lundi", libelle: t("Lundi prochain"), jour: addDays(aujourdHui, versLundi) },
   ];
 }
+
+/**
+ * « hier », « demain », sinon « mar. 22 sept. » — la date d'un champ, en
+ * minuscule au fil d'une ligne. Sortie de `GoalsView` le 2026-10-20 : la vue
+ * Tâches l'écrit aussi (« relance demain »).
+ */
+export function auFilDeLaLigne(jour: string, aujourdHui: string): string {
+  const relatif = libelleRelatif(jour, aujourdHui);
+  return relatif ? relatif.toLocaleLowerCase() : formaterChamp(jour, aujourdHui);
+}

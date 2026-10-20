@@ -11,7 +11,7 @@ import { planConversion, type RecuConversion } from "./objectifs/conversion";
 import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
-import type { Report } from "./taches";
+import type { ChangementEtat, Report } from "./taches";
 import type { LigneProfil } from "./licence/signature";
 import { effacerLigne } from "./suppression";
 import type {
@@ -1380,6 +1380,26 @@ export async function prioriserTache(taskId: number, priorite: Priority): Promis
   }
   const db = await getDb();
   await db.execute("UPDATE tasks SET priority = $1 WHERE id = $2 AND priority IS NOT $1", [priorite, taskId]);
+  await adopter("tasks", taskId);
+}
+
+/**
+ * ⭐ Change l'ÉTAT d'une tâche (migration 031) : en cours, en attente,
+ * abandonnée, ou de nouveau à faire. Le changement se calcule dans
+ * `changerEtat` (`lib/taches.ts`), qui vide les champs de l'attente quand on en
+ * sort. Comme `prioriserTache`, un exemple touché devient une donnée ordinaire.
+ */
+export async function changerEtatTache(taskId: number, c: ChangementEtat): Promise<void> {
+  if (!isTauri) {
+    await demo.changerEtatTache(taskId, c);
+    await adopter("tasks", taskId);
+    return;
+  }
+  const db = await getDb();
+  await db.execute(
+    "UPDATE tasks SET state = $1, state_since = $2, waiting_for = $3, follow_up_on = $4 WHERE id = $5",
+    [c.state, c.state_since, c.waiting_for, c.follow_up_on, taskId],
+  );
   await adopter("tasks", taskId);
 }
 

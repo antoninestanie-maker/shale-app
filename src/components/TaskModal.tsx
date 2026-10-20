@@ -6,11 +6,12 @@ import {
   serialiserRecurrence,
   type ModeRecurrence,
 } from "../lib/logic";
-import { createTask, updateTask, type TaskInput } from "../lib/repo";
+import { changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
-import { planificationDeSaisie } from "../lib/taches";
+import { changerEtat, etatDe, planificationDeSaisie } from "../lib/taches";
+import { todayStr } from "../lib/logic";
 import RouletteHeure from "./calendrier/RouletteHeure";
-import type { Goal, Priority, Tag, Task } from "../lib/types";
+import type { EtatTache, Goal, Priority, Tag, Task } from "../lib/types";
 
 import { t } from "../lib/i18n";
 import ChampDate from "./ChampDate";
@@ -22,6 +23,14 @@ interface Props {
   onClose: () => void;
   onSaved: () => Promise<void>;
 }
+
+/** Les états qu'on choisit ici (migration 031). ⚠️ Une fonction : `t()` à l'affichage. */
+const choixEtats = (): { value: EtatTache; label: string }[] => [
+  { value: "todo", label: t("À faire") },
+  { value: "doing", label: t("En cours") },
+  { value: "waiting", label: t("En attente") },
+  { value: "dropped", label: t("Abandonnée") },
+];
 
 const recModes = (): { value: ModeRecurrence; label: string }[] => [
   { value: "none", label: t("Une fois") },
@@ -38,6 +47,10 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   const [recMode, setRecMode] = useState<ModeRecurrence>(parsed.mode);
   const [days, setDays] = useState<number[]>(parsed.jours);
   const [goalId, setGoalId] = useState<number | null>(task?.goal_id ?? null);
+  /** L'état (031) — seulement en modification : une tâche naît « à faire ». */
+  const [etat, setEtat] = useState<EtatTache>(task ? etatDe(task) : "todo");
+  const [attenteDe, setAttenteDe] = useState(task?.waiting_for ?? "");
+  const [relance, setRelance] = useState(task?.follow_up_on ?? "");
   /**
    * ⭐ LA DATE D'UNE TÂCHE, ENFIN SAISISSABLE ICI.
    *
@@ -110,9 +123,29 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
       // recopiée dans chaque formulaire finit par diverger.
       ...planificationDeSaisie(recurrence, dueDate, debut, fin),
     };
-    if (task) await updateTask(task.id, input);
-    else await createTask(input);
+    if (task) {
+      await updateTask(task.id, input);
+      await enregistrerEtat(task);
+    } else await createTask(input);
     await onSaved();
+  };
+
+  /**
+   * L'état ne s'écrit que s'il a CHANGÉ — et un état gardé garde sa date
+   * (`state_since`) : préciser « de quoi on attend » ne doit pas faire croire
+   * que l'attente commence aujourd'hui.
+   */
+  const enregistrerEtat = async (tache: Task) => {
+    const avant = etatDe(tache);
+    const attente = { waiting_for: attenteDe, follow_up_on: relance || null };
+    if (etat !== avant) {
+      await changerEtatTache(tache.id, changerEtat(etat, todayStr(), attente));
+      return;
+    }
+    if (etat !== "waiting") return;
+    const neuf = changerEtat("waiting", tache.state_since ?? todayStr(), attente);
+    if (neuf.waiting_for === (tache.waiting_for ?? null) && neuf.follow_up_on === (tache.follow_up_on ?? null)) return;
+    await changerEtatTache(tache.id, { ...neuf, state_since: tache.state_since ?? null });
   };
 
   return (
@@ -153,6 +186,50 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
                 vocabulaire désormais, celui des étapes (`lib/priorite.ts`). */}
             <ChoixPriorite valeur={priority} onChange={setPriority} />
           </div>
+
+          {task && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-text-dim">{t("État")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {choixEtats().map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setEtat(m.value)}
+                    className={`pill border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      etat === m.value
+                        ? "border-text/30 bg-surface-2 text-text"
+                        : "border-border text-text-dim hover:text-text"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              {etat === "waiting" && (
+                <div className="mt-2 flex flex-col gap-2">
+                  <input
+                    value={attenteDe}
+                    onChange={(e) => setAttenteDe(e.target.value)}
+                    placeholder={t("En attente de… (une personne, une réponse)")}
+                    aria-label={t("En attente de")}
+                    className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
+                  />
+                  <ChampDate
+                    valeur={relance}
+                    onChange={setRelance}
+                    aria={t("Relance")}
+                    placeholder={t("Sans relance")}
+                  />
+                </div>
+              )}
+              {etat === "dropped" && (
+                <p className="mt-2 text-xs text-text-dim">
+                  {t("Elle sort des listes et ne compte plus nulle part. « À faire » la reprend.")}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-text-dim">

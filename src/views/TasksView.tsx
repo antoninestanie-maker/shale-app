@@ -1,10 +1,32 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import TaskModal from "../components/TaskModal";
 import { recurrenceLabel, todayStr } from "../lib/logic";
-import { addTag, basculerTache, createTask, deleteTag, getSetting, renommerTache, setSetting } from "../lib/repo";
+import {
+  addTag,
+  basculerTache,
+  createTask,
+  deleteTag,
+  fetchContexteObjectifs,
+  getSetting,
+  renommerTache,
+  setSetting,
+} from "../lib/repo";
+import { CONTEXTE_VIDE, type ContexteObjectifs } from "../lib/objectifs/contexte";
+import { prochainesActions } from "../lib/objectifs/prochaineAction";
+import { aRelancer, estRapide, etatDe } from "../lib/taches";
+import { auFilDeLaLigne } from "../lib/calendrier/champDate";
 import { CaseACocher, useCochesOptimistes } from "../components/CaseACocher";
 import type { AppData, Goal, Priority, Tag, Task } from "../lib/types";
-import { IconChevronDown, IconSearch, IconSliders, IconTarget, IconTrash, IconX } from "../components/icons";
+import {
+  IconBolt,
+  IconChevronDown,
+  IconSablier,
+  IconSearch,
+  IconSliders,
+  IconTarget,
+  IconTrash,
+  IconX,
+} from "../components/icons";
 
 import { pick, t, tp } from "../lib/i18n";
 import PointAction from "../components/PointAction";
@@ -113,10 +135,14 @@ function libelleSection(s: CleSection): string {
       return t("À venir");
     case "sansDate":
       return t("Sans date");
+    case "attente":
+      return t("En attente");
     case "routines":
       return t("Routines");
     case "faites":
       return t("Faites");
+    case "abandonnees":
+      return t("Abandonnées");
   }
 }
 
@@ -133,8 +159,12 @@ function aideSection(s: CleSection): string {
       return t("Ni date ni rythme : à faire quand tu peux.");
     case "routines":
       return t("Les tâches récurrentes qui ne tombent pas aujourd'hui.");
+    case "attente":
+      return t("Bloquées par quelqu'un ou par quelque chose. Elles reviennent le jour de leur relance.");
     case "faites":
       return t("Les ponctuelles cochées, et les routines cochées aujourd'hui.");
+    case "abandonnees":
+      return t("Écartées sans être supprimées : elles ne comptent plus nulle part.");
   }
 }
 
@@ -149,7 +179,7 @@ function lireReplis(): Set<string> {
   } catch {
     /* stockage indisponible : les défauts */
   }
-  return new Set<string>(["faites"]);
+  return new Set<string>(["faites", "abandonnees"]);
 }
 
 /** Une section à l'écran, quel que soit le rangement. */
@@ -205,6 +235,37 @@ export default function TasksView({ data, refresh }: Props) {
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   const today = todayStr();
+
+  /**
+   * ⭐ Le badge « Prochaine action » (2026-10-20) : la règle de la liste des
+   * objectifs (`prochaineAction`), avec les mêmes sources — les arêtes et les
+   * événements compris, sans quoi la vue Tâches et la vue Objectifs pourraient
+   * désigner deux tâches différentes.
+   */
+  const [contexte, setContexte] = useState<ContexteObjectifs>(CONTEXTE_VIDE);
+  useEffect(() => {
+    let vivant = true;
+    fetchContexteObjectifs()
+      .then((c) => vivant && setContexte(c))
+      .catch(() => undefined);
+    return () => {
+      vivant = false;
+    };
+  }, [data]);
+  const suites = useMemo(
+    () =>
+      prochainesActions({
+        goals: data.goals,
+        tasks: data.tasks,
+        completions: data.completions,
+        habits: data.habits,
+        habitChecks: data.habitChecks,
+        liens: contexte.liens,
+        evenements: contexte.evenements,
+        maintenant: `${today} ${new Date().toTimeString().slice(0, 5)}`,
+      }),
+    [data.goals, data.tasks, data.completions, data.habits, data.habitChecks, contexte, today],
+  );
 
   /**
    * Ouvrir la tâche qu'on demande d'ailleurs — une mention `@`, ou « Modifier… »
@@ -286,7 +347,7 @@ export default function TasksView({ data, refresh }: Props) {
         titre: libelleSection(s),
         aide: aideSection(s),
         accent: s === "retard",
-        limiter: s === "faites",
+        limiter: s === "faites" || s === "abandonnees",
         lignes: sections.get(s)!.map((task) => ({ task, moment: s, etape: null })),
       })).filter((v) => v.lignes.length > 0);
     }
@@ -310,7 +371,7 @@ export default function TasksView({ data, refresh }: Props) {
               ? t("Les tâches récurrentes — celles du jour d'abord.")
               : aideSection(g.genre),
       objectif: g.racine,
-      limiter: g.genre === "faites",
+      limiter: g.genre === "faites" || g.genre === "abandonnees",
       lignes: g.lignes.map((l) => ({ task: l, moment: l.moment, etape: l.etape })),
     }));
     // `t()` suit la langue : elle change sans rechargement, et `data` avec elle.
@@ -581,7 +642,60 @@ export default function TasksView({ data, refresh }: Props) {
         </button>,
       );
     }
-    if (task.postponed_count > 0 && !task.done) {
+    // ⭐ L'ÉTAT et les badges DÉDUITS (2026-10-20). L'état se lit en premier :
+    // c'est lui qui dit pourquoi la tâche est là.
+    const etatTache = etatDe(task);
+    if (!task.done && etatTache === "doing") {
+      push(
+        <span key="etat" className="inline-flex items-center gap-1 font-medium text-accent">
+          <IconBolt className="h-3 w-3 shrink-0" />
+          {t("En cours")}
+        </span>,
+      );
+    }
+    if (!task.done && etatTache === "waiting") {
+      const relancer = aRelancer(task, today);
+      push(
+        <span
+          key="etat"
+          className={`inline-flex min-w-0 items-center gap-1 ${relancer ? "font-medium text-yellow" : ""}`}
+          data-tip={task.waiting_for ? t("En attente de") : undefined}
+          data-tip-sub={task.waiting_for ?? undefined}
+        >
+          <IconSablier className="h-3 w-3 shrink-0" />
+          <span className="truncate">
+            {relancer
+              ? t("À relancer")
+              : task.waiting_for
+                ? t("attend : {quoi}", { quoi: task.waiting_for })
+                : t("En attente")}
+          </span>
+        </span>,
+      );
+      if (task.follow_up_on && !relancer) {
+        push(
+          <span key="relance">
+            {t("relance {quand}", { quand: auFilDeLaLigne(task.follow_up_on, today) })}
+          </span>,
+        );
+      }
+    }
+    if (!task.done && suites.has(task.id)) {
+      push(
+        <span
+          key="suite"
+          className="font-medium text-text"
+          data-tip={t("La prochaine action de l'objectif")}
+          data-tip-sub={suites.get(task.id)!.title}
+        >
+          {t("Prochaine action")}
+        </span>,
+      );
+    }
+    if (!task.done && estRapide(task)) {
+      push(<span key="rapide">{t("Rapide")}</span>);
+    }
+    if (task.postponed_count > 0 && !task.done && etatTache !== "dropped") {
       push(
         <span key="report" className="inline-flex items-center text-yellow">
           {tp(task.postponed_count, "reportée une fois", "reportée {n} fois")}

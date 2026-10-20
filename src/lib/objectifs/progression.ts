@@ -1,5 +1,5 @@
 import { estExemple, sansExemples } from "../onboarding/exemples";
-import { estRecurrente } from "../taches";
+import { estRecurrente, etatDe } from "../taches";
 import type {
   CalendarEvent,
   Completion,
@@ -392,6 +392,9 @@ export function elementsDe(
     if (vus.has(cle("task", uid))) return;
     vus.add(cle("task", uid));
     if (estRecurrente(t)) nonComptes.push({ kind: "task", uid });
+    // ⭐ Une tâche ABANDONNÉE (031) sort du calcul : l'objectif ne l'attend plus.
+    // Cochée quand même, elle compte comme faite — la coche dit vrai.
+    else if (etatDe(t) === "dropped" && !faites.has(t.id)) nonComptes.push({ kind: "task", uid });
     else comptables.push({ kind: "task", uid, fait: faites.has(t.id) });
   };
 

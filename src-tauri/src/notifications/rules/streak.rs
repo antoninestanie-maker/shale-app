@@ -162,6 +162,8 @@ mod tests {
                 recurrence: Some("daily".into()),
                 created_at: None,
                 due_date: None,
+                state: None,
+                state_since: None,
             }],
             completions: days
                 .iter()
@@ -245,6 +247,8 @@ mod tests {
                 recurrence: Some("weekdays".into()),
                 created_at: None,
                 due_date: None,
+                state: None,
+                state_since: None,
             }],
             completions: vec![
                 Completion { task_id: 1, date: "2026-07-31".into(), done: true },

@@ -45,7 +45,25 @@ export interface Task {
    * compter. Voir `lib/onboarding/exemples.ts`.
    */
   is_example: number; // SQLite: 0 | 1
+  /**
+   * ⭐ L'ÉTAT de la tâche (migration 031) — choix unique, distinct du `tag`
+   * thématique. « Faite » n'en est PAS un : c'est la case (`task_completions`).
+   * Une valeur inconnue se lit 'todo' (`etatDe`, `lib/taches.ts`).
+   *
+   * Optionnels : un objet construit à la main (démo, tests, IA) peut les omettre,
+   * et cela vaut « à faire ».
+   */
+  state?: EtatTache | string;
+  /** Le jour où l'état a été posé, 'YYYY-MM-DD'. Voir `estSuspendue`. */
+  state_since?: string | null;
+  /** En attente : de qui, de quoi. */
+  waiting_for?: string | null;
+  /** En attente : le jour où relancer, 'YYYY-MM-DD'. */
+  follow_up_on?: string | null;
 }
+
+/** Les états d'une tâche (migration 031). */
+export type EtatTache = "todo" | "doing" | "waiting" | "dropped";
 
 export interface TodayTask extends Task {
   done: boolean;

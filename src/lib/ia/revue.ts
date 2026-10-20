@@ -20,7 +20,7 @@ import { objectifsEnPeril } from "../calendrier/peril";
 import { addDays, estPrevueLe, weekdayOf } from "../logic";
 import { mesurer, pourcentDe, type ContexteProgression } from "../objectifs/progression";
 import { createTask, getSetting, setSetting } from "../repo";
-import { estRecurrente, planificationDeSaisie } from "../taches";
+import { estRecurrente, etatDe, planificationDeSaisie } from "../taches";
 import type { AppData, Goal } from "../types";
 import { SORTIES, type LangIa, type PayloadDe, type SortieDe } from "./contrats";
 import { descendants } from "./planifier";
@@ -143,7 +143,10 @@ export function payloadRevue(
 
   const faitesUnJour = new Set(data.completions.filter((c) => c.done).map((c) => c.task_id));
   const glissees = data.tasks
-    .filter((t) => !estRecurrente(t) && (t.postponed_count ?? 0) > 0 && !faitesUnJour.has(t.id))
+    // Abandonnée (031) : elle ne glisse plus, elle a été écartée.
+    .filter(
+      (t) => !estRecurrente(t) && etatDe(t) !== "dropped" && (t.postponed_count ?? 0) > 0 && !faitesUnJour.has(t.id),
+    )
     .sort((a, b) => b.postponed_count - a.postponed_count || a.id - b.id);
 
   let journal: PayloadDe<"revue">["journal"] = null;

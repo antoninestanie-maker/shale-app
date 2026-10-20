@@ -16,7 +16,7 @@ import { profilDisponibilite } from "../calendrier/disponibilite";
 import { entreesDuJour } from "../calendrier/agenda";
 import { todayTasks } from "../logic";
 import { appliquerReport, getSetting, mettreEnCorbeille, setSetting, setTaskSchedule } from "../repo";
-import { estDatee, ponctuellesFaites } from "../taches";
+import { estDatee, estSuspendue, ponctuellesFaites } from "../taches";
 import type { AppData, CalendarEvent, Priority, Task } from "../types";
 import type { ActionCloture, ContratsIa, JourneeBrief, LangIa } from "./contrats";
 
@@ -149,7 +149,8 @@ export function tachesAReporter(data: AppData, jour: string): Task[] {
   // `lib/logic.ts`), et ce sont justement elles qu'une clôture doit proposer.
   const faites = ponctuellesFaites(data.completions);
   return data.tasks
-    .filter((t) => estDatee(t) && (t.due_date as string) <= jour && !faites.has(t.id))
+    // En attente ou abandonnée (031) : rien à reporter, elle est déjà écartée.
+    .filter((t) => estDatee(t) && (t.due_date as string) <= jour && !faites.has(t.id) && !estSuspendue(t, jour))
     .slice(0, 30);
 }
 

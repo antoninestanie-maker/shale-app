@@ -1,7 +1,7 @@
 import { estPrevueLe } from "./logic";
 import { racineDe } from "./objectifs/structure";
 import { rangPriorite } from "./priorite";
-import { estRecurrente } from "./taches";
+import { aRelancer, estRecurrente, etatDe } from "./taches";
 import type { Completion, Goal, Task } from "./types";
 
 /**
@@ -22,16 +22,39 @@ import type { Completion, Goal, Task } from "./types";
  *   • Routines    — récurrente, PAS due aujourd'hui (elle reviendra seule) ;
  *   • Faites      — ponctuelle cochée un jour, ou récurrente cochée AUJOURD'HUI.
  *
+ * ⭐ Deux de plus depuis l'état des tâches (migration 031, 2026-10-20) :
+ *   • En attente   — après « Sans date » : bloquée par quelqu'un ou quelque
+ *                    chose. Le jour de sa relance, elle remonte dans
+ *                    « Aujourd'hui » (badge « À relancer ») ;
+ *   • Abandonnées  — tout en bas, après « Faites ».
+ *
  * ⚠️ Une récurrente manquée n'est jamais « en retard » (`lib/taches.ts`) : elle
  * reste dans les routines. C'est la règle de l'app, pas un choix de la vue.
  *
  * Logique pure : ni base, ni horloge. Le jour s'injecte.
  */
 
-export type CleSection = "retard" | "aujourdhui" | "avenir" | "sansDate" | "routines" | "faites";
+export type CleSection =
+  | "retard"
+  | "aujourdhui"
+  | "avenir"
+  | "sansDate"
+  | "attente"
+  | "routines"
+  | "faites"
+  | "abandonnees";
 
 /** L'ordre d'affichage. ⚠️ Des CLÉS : les libellés se traduisent dans la vue. */
-export const ORDRE_SECTIONS: readonly CleSection[] = ["retard", "aujourdhui", "avenir", "sansDate", "routines", "faites"];
+export const ORDRE_SECTIONS: readonly CleSection[] = [
+  "retard",
+  "aujourdhui",
+  "avenir",
+  "sansDate",
+  "attente",
+  "routines",
+  "faites",
+  "abandonnees",
+];
 
 export interface LigneVue extends Task {
   /** Cochée, au sens de la vue (voir `estFaite`). */
@@ -61,6 +84,9 @@ export function estFaite(task: Task, completions: readonly Completion[], aujourd
 /** La section d'une tâche, pour un jour donné. */
 export function sectionDe(task: Task, faite: boolean, aujourdhui: string): CleSection {
   if (faite) return "faites";
+  const etat = etatDe(task);
+  if (etat === "dropped") return "abandonnees";
+  if (etat === "waiting") return aRelancer(task, aujourdhui) ? "aujourdhui" : "attente";
   // ⭐ « Aujourd'hui » se lit dans la règle unique (`estPrevueLe`, `lib/logic.ts`) :
   // c'est elle qui fait que le sous-titre de la vue et la carte d'Aujourd'hui
   // comptent les mêmes tâches (2026-10-11).
@@ -91,6 +117,7 @@ export function correspond(task: Pick<Task, "label" | "tag">, objectif: string |
 function comparer(section: CleSection): (a: LigneVue, b: LigneVue) => number {
   const parPriorite = (a: LigneVue, b: LigneVue) => rangPriorite(a.priority) - rangPriorite(b.priority);
   const parLibelle = (a: LigneVue, b: LigneVue) => a.label.localeCompare(b.label);
+  const enCours = (t: LigneVue) => (etatDe(t) === "doing" ? 1 : 0);
   switch (section) {
     case "retard":
     case "avenir":
@@ -101,12 +128,23 @@ function comparer(section: CleSection): (a: LigneVue, b: LigneVue) => number {
         parPriorite(a, b) ||
         parLibelle(a, b);
     case "aujourdhui":
-      // Ce qui a une HEURE d'abord, dans l'ordre de la journée ; le reste par priorité.
+      // Ce qui a une HEURE d'abord, dans l'ordre de la journée ; le reste par
+      // priorité — et, à priorité égale, ce qui est EN COURS avant le reste.
       return (a, b) =>
-        (a.start_at ?? "99").localeCompare(b.start_at ?? "99") || parPriorite(a, b) || parLibelle(a, b);
+        (a.start_at ?? "99").localeCompare(b.start_at ?? "99") ||
+        parPriorite(a, b) ||
+        enCours(b) - enCours(a) ||
+        parLibelle(a, b);
     case "sansDate":
       // La plus récente en haut à priorité égale : c'est celle qu'on vient d'ajouter.
       return (a, b) => parPriorite(a, b) || b.id - a.id;
+    case "attente":
+      // La relance la plus proche d'abord ; sans relance, après.
+      return (a, b) =>
+        (a.follow_up_on ?? "9999").localeCompare(b.follow_up_on ?? "9999") || parPriorite(a, b) || parLibelle(a, b);
+    case "abandonnees":
+      // La dernière abandonnée d'abord.
+      return (a, b) => (b.state_since ?? "").localeCompare(a.state_since ?? "") || b.id - a.id;
     case "routines":
       return (a, b) => parPriorite(a, b) || parLibelle(a, b);
     case "faites":
@@ -184,9 +222,9 @@ export interface LigneObjectif extends LigneVue {
 }
 
 export interface GroupeObjectif {
-  /** Stable d'un rendu à l'autre : `o:<id>`, `sansObjectif`, `routines`, `faites`. */
+  /** Stable d'un rendu à l'autre : `o:<id>`, `sansObjectif`, `routines`, `faites`, `abandonnees`. */
   cle: string;
-  genre: "objectif" | "sansObjectif" | "routines" | "faites";
+  genre: "objectif" | "sansObjectif" | "routines" | "faites" | "abandonnees";
   /** L'objectif racine d'une section `objectif`. */
   racine: Goal | null;
   lignes: LigneObjectif[];
@@ -249,14 +287,16 @@ export function rangerParObjectif(
 
     const naturelle = done
       ? "faites"
-      : estRecurrente(task)
+      : etatDe(task) === "dropped"
+        ? "abandonnees"
+        : estRecurrente(task)
         ? "routines"
         : racine
           ? cleObjectif(racine.id)
           : "sansObjectif";
     const cle = options.garder?.get(task.id) ?? naturelle;
     const genre: GroupeObjectif["genre"] =
-      cle === "faites" || cle === "routines" || cle === "sansObjectif" ? cle : "objectif";
+      cle === "faites" || cle === "routines" || cle === "sansObjectif" || cle === "abandonnees" ? cle : "objectif";
     // Gardée dans la section d'un objectif : c'est forcément le sien.
     groupe(cle, genre, genre === "objectif" ? racine : null).lignes.push(ligne);
   }
@@ -283,5 +323,7 @@ export function rangerParObjectif(
   }
   const faites = groupes.get("faites");
   if (faites) out.push({ ...faites, lignes: faites.lignes.sort(comparer("faites")) });
+  const abandonnees = groupes.get("abandonnees");
+  if (abandonnees) out.push({ ...abandonnees, lignes: abandonnees.lignes.sort(comparer("abandonnees")) });
   return out;
 }

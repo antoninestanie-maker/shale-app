@@ -16,7 +16,7 @@ import { objectifsEnRetard } from "../lib/objectifs/retard";
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
 import { renommerTache } from "../lib/repo";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
-import { tachesEnRetard } from "../lib/taches";
+import { tachesARelancer, tachesEnRetard } from "../lib/taches";
 import type { AppData, Task, TodayTask } from "../lib/types";
 import PointAction from "./PointAction";
 import { useActions } from "../lib/pointAction/contexte";
@@ -37,7 +37,10 @@ const VISIBLES = 3;
  *     fasse ou qu'on les replanifie — la case, la date et le « ⋯ » agissent sur
  *     place ;
  *   • les objectifs dont l'échéance est dépassée (`objectifsEnRetard`) : la
- *     ligne ouvre l'objectif.
+ *     ligne ouvre l'objectif ;
+ *   • ⭐ depuis le 2026-10-20, les tâches EN ATTENTE dont la relance est venue
+ *     (`tachesARelancer`) : le titre le dit (« À relancer »), la ligne dit de
+ *     quoi on attend. Elles ne comptent pas dans le jour, comme les retards.
  *
  * ⚠️ ABSENTE quand il n'y a rien : sur un compte neuf, elle n'existe pas.
  *
@@ -74,7 +77,19 @@ export default function EnRetard(props: {
     [data.goals, sources, today],
   );
 
-  const total = taches.length + objectifs.length;
+  const relances = useMemo(
+    () => tachesARelancer(data.tasks, data.completions, today),
+    [data.tasks, data.completions, today],
+  );
+
+  const total = taches.length + relances.length + objectifs.length;
+  const enRetard = taches.length + objectifs.length;
+  const titre =
+    relances.length === 0
+      ? t("En retard")
+      : enRetard === 0
+        ? t("À relancer")
+        : t("En retard et à relancer");
   if (total === 0) return null;
 
   const gestes: GestesTache = {
@@ -95,6 +110,7 @@ export default function EnRetard(props: {
   // Les tâches d'abord : ce sont elles qu'on règle d'un geste.
   const lignes = [
     ...taches.map((task) => ({ cle: `t${task.id}`, task, objectif: null })),
+    ...relances.map((task) => ({ cle: `t${task.id}`, task, objectif: null })),
     ...objectifs.map((o) => ({ cle: `o${o.goal.id}`, task: null, objectif: o })),
   ];
   const visibles = tout ? lignes : lignes.slice(0, VISIBLES);
@@ -103,7 +119,7 @@ export default function EnRetard(props: {
     <section className="card mt-4 px-3 py-3 lg:px-4" aria-labelledby="aujourdhui-en-retard">
       <h2 id="aujourdhui-en-retard" className="flex items-center gap-2 px-2">
         <IconSablier className="h-3.5 w-3.5 shrink-0 text-text-dim" />
-        <span className="hud-label">{t("En retard")}</span>
+        <span className="hud-label">{titre}</span>
         <span className="text-xs tabular-nums text-text-dim">{total}</span>
       </h2>
 
@@ -147,9 +163,17 @@ export default function EnRetard(props: {
                     {task.label}
                   </span>
                 )}
-                <span className="flex shrink-0 items-center gap-1.5 text-xs text-text-dim">
-                  <BoutonDate task={task} aujourdHui={today} dater={gestes.dater} className="font-medium text-text" />
-                  {task.postponed_count > 0 && (
+                <span className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-text-dim">
+                  {task.state === "waiting" ? (
+                    <span className="min-w-0 truncate font-medium text-text">
+                      {task.waiting_for
+                        ? t("À relancer : {quoi}", { quoi: task.waiting_for })
+                        : t("À relancer")}
+                    </span>
+                  ) : (
+                    <BoutonDate task={task} aujourdHui={today} dater={gestes.dater} className="font-medium text-text" />
+                  )}
+                  {task.postponed_count > 0 && task.state !== "waiting" && (
                     <>
                       <span aria-hidden>·</span>
                       <span>{tp(task.postponed_count, "reportée une fois", "reportée {n} fois")}</span>

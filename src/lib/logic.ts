@@ -10,7 +10,7 @@ import type {
   Task,
   TodayTask,
 } from "./types";
-import { ponctuellesFaites } from "./taches";
+import { estSuspendue, ponctuellesFaites } from "./taches";
 
 export const DAY_SHORT = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
 
@@ -161,6 +161,9 @@ export function occurrenceLe(
 
 /** Une tâche récurrente est-elle due ce jour-là ? (les one-off retournent false) */
 export function isDueOn(task: Task, dateStr: string): boolean {
+  // ⭐ En attente ou abandonnée (031) : la routine est en PAUSE à partir du jour
+  // où l'état a été posé — pas avant (`estSuspendue`, `lib/taches.ts`).
+  if (estSuspendue(task, dateStr)) return false;
   return occurrenceLe(task.recurrence, task.created_at, dateStr);
 }
 
@@ -187,6 +190,8 @@ export function isDueOn(task: Task, dateStr: string): boolean {
  */
 export function estPrevueLe(task: Task, jour: string): boolean {
   if (isRecurring(task)) return isDueOn(task, jour);
+  // ⭐ En attente ou abandonnée (031) : plus prévue — ni liste du jour, ni Discipline.
+  if (estSuspendue(task, jour)) return false;
   return task.due_date === jour;
 }
 
@@ -245,10 +250,13 @@ export function tachesAFaire(
     completions.filter((c) => c.date === today && c.done).map((c) => c.task_id),
   );
   const faitesUnJour = ponctuellesFaites(completions);
-  const possibles = tasks.filter((t) =>
-    isRecurring(t)
-      ? isDueOn(t, today) && !cochesDuJour.has(t.id)
-      : !faitesUnJour.has(t.id) && !(t.created_at && t.created_at.slice(0, 10) > today),
+  // En attente ou abandonnée (031) : rien à désigner maintenant.
+  const possibles = tasks.filter(
+    (t) =>
+      !estSuspendue(t, today) &&
+      (isRecurring(t)
+        ? isDueOn(t, today) && !cochesDuJour.has(t.id)
+        : !faitesUnJour.has(t.id) && !(t.created_at && t.created_at.slice(0, 10) > today)),
   );
   // Les tâches DU JOUR en tête : ce sont celles qu'on lie le plus souvent, et
   // la palette prend la première qui correspond. Le tri est stable — dans

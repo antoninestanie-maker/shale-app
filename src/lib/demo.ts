@@ -19,6 +19,7 @@ import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { debutRoutineDemo, historiqueDemo } from "./demoHistorique";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
+import type { ChangementEtat } from "./taches";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
@@ -1995,6 +1996,11 @@ export const demo = {
   async recolorerHabitude(id: number, couleur: string): Promise<void> {
     const h = habits.find((x) => x.id === id);
     if (h) h.color = couleur;
+  },
+
+  async changerEtatTache(taskId: number, c: ChangementEtat): Promise<void> {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) Object.assign(task, c);
   },
 
   async renommerTache(taskId: number, label: string): Promise<void> {
