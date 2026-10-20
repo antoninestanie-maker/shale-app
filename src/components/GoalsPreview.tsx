@@ -65,45 +65,50 @@ export default function GoalsPreview({ data, sources }: { data: AppData; sources
     );
   }
 
+  // ⭐ Survol revu (2026-10-20) — Antonin : « très moyen ». Le fond de survol
+  // (`overlay`) avait la teinte de la piste (`surface-2`) : la barre disparaissait,
+  // la pastille d'horizon flottait seule à droite, et le cadre (`-mx-2`) débordait
+  // sous l'ascenseur. Désormais : la piste est en `overlay-2`, visible sur la carte
+  // comme sous le survol ; horizon et échéance tiennent sur UNE ligne discrète ;
+  // le cadre reste dans la carte, l'ascenseur a sa marge.
   return (
-    <ul className="panel-scroll flex flex-col gap-2 pr-0.5">
+    <ul className="panel-scroll -mx-2 flex flex-col gap-0.5 pr-1">
       {active.map(({ goal, pct, echeance }) => (
         <li key={goal.id} className="shrink-0">
           {/* Toute la ligne ouvre l'objectif : c'est là qu'on agit sur lui. */}
           <button
             type="button"
             onClick={() => ouvrirParId("goal", goal.id)}
-            className="-mx-2 block w-[calc(100%+1rem)] rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-overlay"
+            className="block w-full rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-overlay focus-visible:bg-overlay"
           >
-            <span className="flex items-baseline justify-between gap-2">
+            <span className="flex items-baseline justify-between gap-3">
               <span className="truncate-souris min-w-0 truncate text-sm text-text" title={goal.title}>
                 {goal.title}
               </span>
-              <span className="shrink-0 font-display text-sm font-bold text-text">
+              <span className="shrink-0 font-display text-sm font-bold tabular-nums text-text">
                 {pct}%
               </span>
             </span>
-            <span className="mt-1.5 flex items-center gap-2">
-              <span className="pill block h-1.5 flex-1 overflow-hidden bg-surface-2">
-                <span
-                  className="pill block h-full bg-[image:var(--gradient-brand)] transition-[width] duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </span>
-              <span className="pill shrink-0 bg-surface-2 px-2 py-0.5 text-[10px] text-text-dim">
-                {t(SCOPE_LABEL[goal.scope])}
-              </span>
+            <span className="pill mt-2 block h-1 overflow-hidden bg-overlay-2">
+              <span
+                className="pill block h-full bg-[image:var(--gradient-brand)] transition-[width] duration-500"
+                style={{ width: `${pct}%` }}
+              />
             </span>
-            {/* L'échéance, et le retard s'il y en a un : un fait, écrit en
-                clair — pas une alarme rouge. */}
-            {echeance && (
-              <span className="mt-1 block text-xs text-text-dim">
-                {t("échéance {date}", { date: echeance.date })}
-                {echeance.retard > 0 && (
-                  <> · {tp(echeance.retard, "dépassée d'un jour", "dépassée de {n} jours")}</>
-                )}
-              </span>
-            )}
+            {/* Horizon, échéance et retard : des faits, écrits en clair sur une
+                seule ligne — pas une alarme rouge. */}
+            <span className="mt-1.5 block truncate text-[11px] text-text-dim">
+              {t(SCOPE_LABEL[goal.scope])}
+              {echeance && (
+                <>
+                  {" · "}
+                  {t("échéance {date}", { date: echeance.date })}
+                  {echeance.retard > 0 && (
+                    <> · {tp(echeance.retard, "dépassée d'un jour", "dépassée de {n} jours")}</>
+                  )}
+                </>
+              )}
+            </span>
           </button>
         </li>
       ))}
