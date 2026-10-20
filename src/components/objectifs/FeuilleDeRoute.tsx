@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { t, tp } from "../../lib/i18n";
+import { pick, t, tp } from "../../lib/i18n";
 import { formaterChamp } from "../../lib/calendrier/champDate";
 import { dateDEcheance } from "../../lib/objectifs/echeance";
 import { todayStr } from "../../lib/logic";
@@ -1198,7 +1198,27 @@ function PanneauMesure(props: PropsFeuille & { goal: Goal }) {
       {mode === "elements" ? (
         <ListeElements goal={goal} data={data} contexte={props.contexte} maintenant={sources.maintenant} refresh={refresh} avecRattachement />
       ) : (
-        <ReglageCible goal={goal} data={data} sources={sources} refresh={refresh} />
+        <>
+          <ReglageCible goal={goal} data={data} sources={sources} refresh={refresh} />
+          {/* ⭐ LES TÂCHES RESTENT À L'ÉCRAN (audit du 2026-10-20, constat
+              d'usage 29). « Atteindre un nombre » REMPLAÇAIT la liste : les
+              tâches de l'étape existaient toujours (dans Tâches, rattachées),
+              mais on ne les voyait plus d'ici, et on ne pouvait plus en
+              ajouter. Elles comptent quand la cible est « comptée par ses
+              tâches ». Pas de bouton « Étape » : une étape chiffrée ne lit pas
+              ses sous-étapes. */}
+          <div className="mt-2">
+            <ListeElements
+              goal={goal}
+              data={data}
+              contexte={props.contexte}
+              maintenant={sources.maintenant}
+              refresh={refresh}
+              avecRattachement
+              sansEtape
+            />
+          </div>
+        </>
       )}
 
       {/* Le repli « Avancé / Poids » est retiré le 2026-09-30 : « pas un mode
@@ -1216,6 +1236,8 @@ function ListeElements(props: {
   maintenant: string;
   refresh: () => Promise<void>;
   avecRattachement?: boolean;
+  /** Pas de bouton « Étape » dans la rangée d'ajout (une étape chiffrée ne lit pas ses sous-étapes). */
+  sansEtape?: boolean;
 }) {
   const { goal, data, contexte, refresh } = props;
   const faites = useMemo(() => new Set(data.completions.filter((c) => c.done).map((c) => c.task_id)), [data.completions]);
@@ -1428,7 +1450,7 @@ function ListeElements(props: {
           contexte={contexte}
           refresh={refresh}
           etape={
-            peutAjouterEtape(goal, data.goals)
+            !props.sansEtape && peutAjouterEtape(goal, data.goals)
               ? {
                   tip: t("Une étape sous celle-ci, pour regrouper des tâches"),
                   champ: (fermer) => <ChampEtape parent={goal} goals={data.goals} refresh={refresh} onFermer={fermer} />,
@@ -1471,6 +1493,8 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
   };
   const recurrentes = data.tasks.filter((x) => estRecurrente(x) && !x.is_example);
   const habitudes = data.habits.filter((h) => !h.is_example);
+  /** Les tâches ponctuelles de l'étape — celles qui comptent « par ses tâches ». */
+  const aDesTaches = data.tasks.some((x) => x.goal_id === goal.id && !estRecurrente(x));
   const compte = goal.target_count != null ? compterSource(goal, source, sources) : null;
   const champ = "rounded-[8px] border border-border bg-surface px-2 py-1 text-sm text-text";
 
@@ -1495,7 +1519,12 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
               if (!brut) return;
               // ENTIER, jamais REAL (règle du dépôt) : la décimale se règle par l'unité.
               const v = Math.max(1, Math.round(Number(brut)));
-              if (Number.isFinite(v) && v !== goal.target_count) void ecrire({ target_count: v });
+              if (!Number.isFinite(v) || v === goal.target_count) return;
+              // ⭐ Le PREMIER nombre d'une étape qui a déjà des tâches : elles
+              // le comptent (2026-10-20, constat 29). On passait l'étape en
+              // « à la main », et cocher ses tâches ne faisait plus rien.
+              const parSesTaches = goal.target_count == null && source === "manual" && aDesTaches;
+              void ecrire(parSesTaches ? { target_count: v, count_source: "elements" } : { target_count: v });
             }}
             className={`w-20 ${champ}`}
           />
@@ -1521,6 +1550,7 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
             className={champ}
           >
             <option value="manual">{t("à la main")}</option>
+            <option value="elements">{t("par ses tâches")}</option>
             <option value="task" disabled={recurrentes.length === 0}>{t("par une tâche récurrente")}</option>
             <option value="habit" disabled={habitudes.length === 0}>{t("par une habitude")}</option>
           </select>
@@ -1529,7 +1559,15 @@ function ReglageCible(props: { goal: Goal; data: AppData; sources: SourcesProgre
 
       {/* « Saisis le nombre à atteindre… » était écrit ici : il est dans la
           bulle du champ « Cible » depuis le 2026-09-30. */}
-      {goal.target_count == null ? null : source === "manual" ? (
+      {goal.target_count == null ? null : source === "elements" ? (
+        // ⭐ Un compte LU : chaque tâche cochée ci-dessous l'avance d'un.
+        <span>
+          {/* Pas `tp()` : en français, zéro s'accorde au singulier (« 0 tâche faite »). */}
+          {(compte ?? 0) === 1 || ((compte ?? 0) === 0 && pick(true, false))
+            ? t("{n} tâche faite sur {cible}", { n: compte ?? 0, cible: goal.target_count })
+            : t("{n} tâches faites sur {cible}", { n: compte ?? 0, cible: goal.target_count })}
+        </span>
+      ) : source === "manual" ? (
         <div className="flex items-center gap-2">
           <button
             type="button"

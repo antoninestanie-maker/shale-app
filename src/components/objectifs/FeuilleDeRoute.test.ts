@@ -179,3 +179,28 @@ describe("FeuilleDeRoute — une étape", () => {
     expect(ajouts).toEqual(["Préparation"]);
   });
 });
+
+describe("FeuilleDeRoute — « Atteindre un nombre » (constat d'usage 29)", () => {
+  it("les tâches de l'étape restent à l'écran, et la cible peut se compter par elles", async () => {
+    await monter(
+      donnees(
+        [
+          objectif({ id: 1, title: "Trouver un stage" }),
+          objectif({ id: 2, title: "Candidatures", parent_goal_id: 1, target_count: 12, count_source: "elements" }),
+        ],
+        [tache({ id: 7, label: "Envoyer la candidature Ubisoft", goal_id: 2 })],
+        [{ id: 1, task_id: 7, date: todayStr(), done: 1 }],
+      ),
+      { replis: { g2: true } },
+    );
+    const bloc = conteneur.querySelector('[data-etape="2"]')!;
+    // Le mode « nombre » est choisi…
+    expect(bloc.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe("Atteindre un nombre");
+    // … et la tâche est toujours là, cochable.
+    expect(bloc.textContent).toContain("Envoyer la candidature Ubisoft");
+    // La source « par ses tâches » existe, et compte la tâche cochée.
+    const select = [...bloc.querySelectorAll("select")].find((x) => [...x.options].some((o) => o.value === "elements"));
+    expect(select?.value).toBe("elements");
+    expect(bloc.textContent).toContain("1 tâche faite sur 12");
+  });
+});

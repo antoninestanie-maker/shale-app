@@ -3812,4 +3812,13 @@ export const EN: Record<string, string> = {
     "It leaves the lists and no longer counts anywhere. “To do” brings it back.",
   "En retard et à relancer": "Overdue and to follow up",
   "À relancer : {quoi}": "Follow up: {quoi}",
+
+  // ── lot 7 — finitions d'Objectifs et divers (audit du 2026-10-20) ──
+  "{n} tâche directe sur {total}": "{n} direct task out of {total}",
+  "{n} tâches directes sur {total}": "{n} direct tasks out of {total}",
+  "{n} élément direct sur {total}": "{n} direct item out of {total}",
+  "{n} éléments directs sur {total}": "{n} direct items out of {total}",
+  "par ses tâches": "by its tasks",
+  "{n} tâche faite sur {cible}": "{n} task done out of {cible}",
+  "{n} tâches faites sur {cible}": "{n} tasks done out of {cible}",
 };

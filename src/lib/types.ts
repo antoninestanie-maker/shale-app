@@ -134,8 +134,12 @@ export interface Goal {
   priority: Priority | string;
 }
 
-/** Les trois sources d'une cible chiffrée (migration 026). */
-export type CountSource = "manual" | "task" | "habit";
+/**
+ * Les sources d'une cible chiffrée (migration 026) — et, depuis le 2026-10-20,
+ * `elements` : les tâches faites de l'étape elle-même. Pas de migration : la
+ * colonne est un texte sans CHECK, et une version d'avant lit « manual ».
+ */
+export type CountSource = "manual" | "task" | "habit" | "elements";
 
 export interface Tag {
   id: number;
