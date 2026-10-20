@@ -528,11 +528,10 @@ export default function GoalsView({ data, refresh }: Props) {
   // plus seulement pour offrir « Pourquoi, et que faire ? » (#13) aux abonnés.
   const perils = useMemo(
     () =>
-      objectifsEnPeril(goals, data.tasks, completions, todayStr(), {
-        habits: data.habits,
-        habitChecks: data.habitChecks,
-      }),
-    [goals, data.tasks, completions, data.habits, data.habitChecks],
+      // Les sources COMPLÈTES de la page (arêtes, événements, l'heure) : le
+      // péril mesurait sans les événements rattachés (objectifs-1, 2026-10-20).
+      objectifsEnPeril(goals, data.tasks, completions, todayStr(), sources),
+    [goals, data.tasks, completions, sources],
   );
   const enPeril = useMemo(() => new Set(perils.map((p) => p.goal.id)), [perils]);
   const entreesObjectif = (goal: Goal): EntreePossible[] => {

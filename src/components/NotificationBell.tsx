@@ -210,7 +210,12 @@ export default function NotificationBell({ onNavigate }: Props) {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-medium text-text">{a.titre}</span>
                           <span className="block truncate text-[11px] text-text-dim">
-                            {t(a.module === "tasks" ? "Tâches" : "Objectifs")} · {motDAction(a)}
+                            {/* Une étape dit de quel objectif elle est : seule, elle ne
+                                portait que sa date (constat 27, 2026-10-20). */}
+                            {a.racine
+                              ? t("Étape de « {objectif} »", { objectif: a.racine.titre })
+                              : t(a.module === "tasks" ? "Tâches" : "Objectifs")}{" "}
+                            · {motDAction(a)}
                           </span>
                         </span>
                         <PointAction />

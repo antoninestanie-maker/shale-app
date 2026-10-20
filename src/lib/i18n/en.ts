@@ -3834,4 +3834,5 @@ export const EN: Record<string, string> = {
     "Regularity reads over time: it doesn’t follow the selected period.",
   "régularité — un carré par jour · 12 derniers mois": "regularity — one square per day · last 12 months",
   "C'est le seuil de la série de tâches.": "It’s the threshold for the task streak.",
+  "Étape de « {objectif} »": "Step of “{objectif}”",
 };

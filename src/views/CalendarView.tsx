@@ -29,6 +29,7 @@ import {
 import { formaterDansPhrase } from "../lib/calendrier/champDate";
 import { AGENDA_JOURS, curseurApres, type ModeCalendrier } from "../lib/calendrier/navigation";
 import { jourDeCocheTache } from "../lib/jourDeCoche";
+import { useSourcesProgression } from "../lib/objectifs/useProgression";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
 import {
@@ -277,13 +278,13 @@ export default function CalendarView({ data, refresh }: Props) {
   const eviterMarche = useEntitlements().afficheModule("market");
   const ia = useIaPossible();
   const surcharges = useMemo(() => joursSurcharges(parJour, profil), [parJour, profil]);
+  const sourcesObjectifs = useSourcesProgression(data);
   const peril = useMemo(
     () =>
-      objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui, {
-        habits: data.habits,
-        habitChecks: data.habitChecks,
-      }),
-    [data.goals, data.tasks, data.completions, data.habits, data.habitChecks, aujourdhui],
+      // Les sources complètes (arêtes, événements rattachés, l'heure), comme la
+      // page de l'objectif (objectifs-1, 2026-10-20).
+      objectifsEnPeril(data.goals, data.tasks, data.completions, aujourdhui, sourcesObjectifs),
+    [data.goals, data.tasks, data.completions, aujourdhui, sourcesObjectifs],
   );
 
   /**

@@ -1,5 +1,6 @@
 import { objectifsEnPeril, type ObjectifEnPeril } from "../calendrier/peril";
 import type { ContexteProgression } from "../objectifs/progression";
+import { racineDe } from "../objectifs/structure";
 import { demandeUneDecision, tachesADecider, tachesEnRetard } from "../taches";
 import type { Completion, Goal, Task } from "../types";
 
@@ -49,6 +50,11 @@ export interface ActionRequise {
   joursRestants?: number;
   /** Tâche : nombre de reports. */
   reports?: number;
+  /**
+   * Une ÉTAPE : l'objectif racine qui la porte — c'est sa ligne que montre la
+   * liste Objectifs, et c'est elle qui reçoit le point (constat 27, 2026-10-20).
+   */
+  racine?: { id: number; titre: string };
 }
 
 export const cleTache = (id: number) => `tache:${id}`;
@@ -98,6 +104,7 @@ export function actionsRequises(entree: EntreeActions, jour: string): ActionRequ
     const cle = cleObjectif(p.goal.id);
     if (vues.has(cle)) continue;
     vues.add(cle);
+    const racine = racineDe(p.goal, goals as Goal[]);
     actions.push({
       cle,
       genre: p.joursRestants < 0 ? "objectif-depasse" : "objectif-en-peril",
@@ -107,15 +114,32 @@ export function actionsRequises(entree: EntreeActions, jour: string): ActionRequ
       titre: p.goal.title,
       echeance: p.goal.deadline ?? null,
       joursRestants: p.joursRestants,
+      ...(racine.id !== p.goal.id ? { racine: { id: racine.id, titre: racine.title } } : {}),
     });
   }
   return actions;
 }
 
-/** Le nombre d'actions par module — le chiffre de la barre latérale. */
+/**
+ * Le nombre d'actions par module — le chiffre de la barre latérale.
+ *
+ * ⭐ Pour les Objectifs, un objectif RACINE compte une fois, avec ses étapes
+ * (constat 27 de l'audit du 2026-10-20) : le badge disait « 3 » pour un objectif
+ * dépassé et deux de ses étapes, quand la liste — qui ne montre que les racines —
+ * n'avait qu'une ligne marquée. Le nombre dit désormais combien de lignes de la
+ * liste attendent ; le centre de notifications détaille chaque étape.
+ */
 export function compterParModule(actions: readonly ActionRequise[]): Partial<Record<ModuleAction, number>> {
   const n: Partial<Record<ModuleAction, number>> = {};
-  for (const a of actions) n[a.module] = (n[a.module] ?? 0) + 1;
+  const racines = new Set<number>();
+  for (const a of actions) {
+    if (a.module === "goals") {
+      const id = a.racine?.id ?? a.id;
+      if (racines.has(id)) continue;
+      racines.add(id);
+    }
+    n[a.module] = (n[a.module] ?? 0) + 1;
+  }
   return n;
 }
 
