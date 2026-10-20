@@ -46,7 +46,7 @@ import { BarreAjout } from "./RattacherElement";
 import { couleurPriorite, phrasePriorite, rangPriorite } from "../../lib/priorite";
 import { ChoixPriorite, PastillePriorite } from "../Priorite";
 import type { Priority } from "../../lib/types";
-import MenuContextuel from "../menu/MenuContextuel";
+import MenuContextuel, { BoutonMenu } from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../menu/catalogue/tache";
 import { ouvrirParId } from "../../lib/naviguer";
@@ -723,7 +723,7 @@ function LigneEtape(p: PropsLigne) {
           {/* « Ajouter un sous-objectif », seul sur sa ligne jusqu'au
               2026-10-12, a rejoint la rangée d'ajout de l'étape (`PanneauMesure`
               → `BarreAjout`) : « Tâche · Étape · Rattacher », la tâche d'abord. */}
-          <EcheanceEtape etape={etape} maintenant={p.sources.maintenant} refresh={refresh} />
+          <EcheanceEtape etape={etape} acheve={termine} maintenant={p.sources.maintenant} refresh={refresh} />
           <PanneauMesure goal={etape} {...p} />
         </div>
       )}
@@ -1061,8 +1061,19 @@ function ChampLigne(props: {
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          // ⚠️ UNE validation à la fois (audit du 2026-10-20, objectifs-13). Le
+          // drapeau ne gardait que la perte du focus : deux Entrée rapprochées
+          // (ou une touche qui rebondit) appelaient deux fois `onValider`
+          // pendant que la première écriture tournait — l'étape naissait en
+          // double. Le champ est remonté (`key`) ou retiré une fois validé.
+          if (fini.current || e.repeat) return;
           fini.current = true;
-          void props.onValider(valeur.trim());
+          // Une écriture qui échoue rend la main : le champ reste, Entrée
+          // peut réessayer.
+          Promise.resolve(props.onValider(valeur.trim())).catch((err) => {
+            fini.current = false;
+            console.error(err);
+          });
         } else if (e.key === "Escape") {
           e.preventDefault();
           fini.current = true;
@@ -1097,10 +1108,13 @@ function ChampLigne(props: {
  * date. Avec la corbeille, une étape dont le parent est jeté se lit
  * sans parent en mémoire : la fiche complète aurait coupé ce lien pour de bon.
  */
-function EcheanceEtape(props: { etape: Goal; maintenant: string; refresh: () => Promise<void> }) {
+function EcheanceEtape(props: { etape: Goal; acheve: boolean; maintenant: string; refresh: () => Promise<void> }) {
   const { etape } = props;
   const jour = props.maintenant.slice(0, 10);
-  const enRetard = !!etape.deadline && etape.deadline < jour;
+  // ⚠️ Une étape TERMINÉE n'est pas en retard, elle est faite — la règle de la
+  // ligne de tâche voisine et de `carteEtat` (audit du 2026-10-20, objectifs-12 :
+  // « En retard » en rouge sous une étape à 100 %).
+  const enRetard = !props.acheve && !!etape.deadline && etape.deadline < jour;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2 px-1 text-xs text-text-dim">
       <span className="shrink-0">{t("Échéance")}</span>
@@ -1262,8 +1276,11 @@ function ListeElements(props: {
                pas le repli, il comprime (règle du 2026-07-26). */
             <li
               key={`t${tache.id}`}
-              className={PASTILLE_ELEMENT}
+              className={`group/ligne ${PASTILLE_ELEMENT}`}
               onContextMenu={(e) => menu.ouvrirAuPoint(e, tache)}
+              // Maj+F10 / touche Menu : macOS n'en fait pas un clic droit, on
+              // l'écoute nous-mêmes (PIEGES § 19.2).
+              onKeyDown={(e) => void menu.ouvrirAuClavier(e, tache)}
             >
               {recurrente ? (
                 <Coche faite={false} />
@@ -1326,6 +1343,19 @@ function ListeElements(props: {
               >
                 <IconX className="h-3.5 w-3.5" />
               </button>
+              {/* ⭐ LE « ⋯ » DE LA TÂCHE (audit du 2026-10-20, objectifs-6 ;
+                  règle 17). Le clic droit était le SEUL accès au menu : au
+                  doigt il ne fait rien (`ouvrirAuPoint` s'efface devant un
+                  pointeur grossier), et Maj+F10 n'arrivait pas. Depuis la page
+                  d'un objectif, une tâche ne se modifiait, ne se datait, ne
+                  changeait d'état ni ne se supprimait. Visible au repos, comme
+                  sur toutes les lignes de tâche (`visible`). */}
+              <BoutonMenu
+                visible
+                onOuvrir={(e) => menu.ouvrirSousLeBouton(e, tache)}
+                ouvert={menu.ouvert && menu.cible?.id === tache.id}
+                libelle={t("Actions sur « {titre} »", { titre: tache.label })}
+              />
               </span>
             </li>
           );
