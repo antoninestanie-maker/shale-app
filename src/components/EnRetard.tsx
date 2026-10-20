@@ -4,6 +4,7 @@ import { IconChevronRight, IconSablier, IconTarget } from "./icons";
 import MenuContextuel, { BoutonMenu } from "./menu/MenuContextuel";
 import { useMenuContextuel } from "./menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "./menu/catalogue/tache";
+import BadgeEtat from "./taches/BadgeEtat";
 import BoutonDate from "./taches/BoutonDate";
 import ChampRenommage from "./taches/ChampRenommage";
 import { t, tp } from "../lib/i18n";
@@ -16,7 +17,8 @@ import { objectifsEnRetard } from "../lib/objectifs/retard";
 import { couleurPriorite, phrasePriorite } from "../lib/priorite";
 import { renommerTache } from "../lib/repo";
 import { useGesteFocus } from "../lib/seance/gesteFocus";
-import { tachesARelancer, tachesEnRetard } from "../lib/taches";
+import { aRelancer, tachesDuBlocDuHaut } from "../lib/taches";
+import { badgeEtat } from "../lib/taches/etat";
 import type { AppData, Task, TodayTask } from "../lib/types";
 import PointAction from "./PointAction";
 import { useActions } from "../lib/pointAction/contexte";
@@ -71,21 +73,19 @@ export default function EnRetard(props: {
   const [tout, setTout] = useState(false);
   const { requise } = useActions();
 
-  const taches = useMemo(() => tachesEnRetard(data.tasks, data.completions, today), [data.tasks, data.completions, today]);
+  // Retards puis relances : UNE liste pour les lignes et pour le menu (taches-4).
+  const duHaut = useMemo(() => tachesDuBlocDuHaut(data.tasks, data.completions, today), [data.tasks, data.completions, today]);
   const objectifs = useMemo(
     () => objectifsEnRetard(data.goals, (g) => estAcheve(mesurer(g, sources)), today),
     [data.goals, sources, today],
   );
 
-  const relances = useMemo(
-    () => tachesARelancer(data.tasks, data.completions, today),
-    [data.tasks, data.completions, today],
-  );
+  const nRelances = duHaut.filter((t) => aRelancer(t, today)).length;
 
-  const total = taches.length + relances.length + objectifs.length;
-  const enRetard = taches.length + objectifs.length;
+  const total = duHaut.length + objectifs.length;
+  const enRetard = duHaut.length - nRelances + objectifs.length;
   const titre =
-    relances.length === 0
+    nRelances === 0
       ? t("En retard")
       : enRetard === 0
         ? t("À relancer")
@@ -109,8 +109,7 @@ export default function EnRetard(props: {
 
   // Les tâches d'abord : ce sont elles qu'on règle d'un geste.
   const lignes = [
-    ...taches.map((task) => ({ cle: `t${task.id}`, task, objectif: null })),
-    ...relances.map((task) => ({ cle: `t${task.id}`, task, objectif: null })),
+    ...duHaut.map((task) => ({ cle: `t${task.id}`, task, objectif: null })),
     ...objectifs.map((o) => ({ cle: `o${o.goal.id}`, task: null, objectif: o })),
   ];
   const visibles = tout ? lignes : lignes.slice(0, VISIBLES);
@@ -172,6 +171,13 @@ export default function EnRetard(props: {
                     </span>
                   ) : (
                     <BoutonDate task={task} aujourdHui={today} dater={gestes.dater} className="font-medium text-text" />
+                  )}
+                  {/* Une tâche en retard peut être EN COURS : le dire (constat 21). */}
+                  {task.state === "doing" && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <BadgeEtat badge={badgeEtat(task, props.cochee(task), today)} />
+                    </>
                   )}
                   {task.postponed_count > 0 && task.state !== "waiting" && (
                     <>
@@ -251,7 +257,10 @@ export default function EnRetard(props: {
         entrees={(() => {
           // Relue dans les tâches FRAÎCHES : cochée ou reportée pendant que le
           // menu est ouvert, elle n'est plus en retard — le menu se ferme seul.
-          const fraiche = menu.cible && taches.find((x) => x.id === menu.cible!.id);
+          // ⚠️ Dans la MÊME liste que les lignes, relances comprises : relue
+          // dans les seuls retards, une ligne « À relancer » ouvrait un menu
+          // vide (audit 2026-10-20, taches-4).
+          const fraiche = menu.cible && duHaut.find((x) => x.id === menu.cible!.id);
           return fraiche
             ? entreesTache(fraiche, gestes, { faite: props.cochee(fraiche), objectifs: data.goals, ia })
             : [];

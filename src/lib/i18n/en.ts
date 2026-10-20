@@ -3805,6 +3805,12 @@ export const EN: Record<string, string> = {
   "« {titre} » est en attente": "“{titre}” is waiting",
   "« {titre} » est abandonnée": "“{titre}” is dropped",
   "Abandonnée": "Dropped",
+  // ── Lot 2 de l'audit du 2026-10-20 (états des tâches) ──
+  "État · {etat}": "Status · {etat}",
+  "En attente, relance {quand}": "Waiting, follow up {quand}",
+  "{n} à relancer": "{n} to follow up",
+  "L'objectif ne l'attend plus. Pour la reprendre : ⋯ › État › À faire.":
+    "The goal no longer waits for it. To bring it back: ⋯ › Status › To do.",
   "En attente de… (une personne, une réponse)": "Waiting for… (someone, an answer)",
   "Relance": "Follow-up",
   "Sans relance": "No follow-up",

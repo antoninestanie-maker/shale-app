@@ -11,7 +11,7 @@ import { planConversion, type RecuConversion } from "./objectifs/conversion";
 import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
-import type { ChangementEtat, Report } from "./taches";
+import { changerRecurrence, type ChangementEtat, type Report } from "./taches";
 import type { LigneProfil } from "./licence/signature";
 import { effacerLigne } from "./suppression";
 import type {
@@ -1300,10 +1300,21 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
     return;
   }
   const db = await getDb();
+  // Changer la récurrence touche aussi `ponctuelle_depuis` et les reports
+  // (`changerRecurrence`, audit 2026-10-20 taches-6) : la règle est lue, pas
+  // recopiée en SQL.
+  const [avant] = await db.select<Pick<Task, "recurrence" | "ponctuelle_depuis" | "postponed_count" | "postponed_from">[]>(
+    "SELECT recurrence, ponctuelle_depuis, postponed_count, postponed_from FROM tasks WHERE id = $1",
+    [id],
+  );
+  const rec = avant
+    ? changerRecurrence(avant, input.recurrence, todayStr())
+    : { ponctuelle_depuis: null, postponed_count: 0, postponed_from: null };
   await db.execute(
     `UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5,
-            due_date = $6, start_at = $7, end_at = $8
-      WHERE id = $9`,
+            due_date = $6, start_at = $7, end_at = $8,
+            ponctuelle_depuis = $9, postponed_count = $10, postponed_from = $11
+      WHERE id = $12`,
     [
       input.label,
       input.tag,
@@ -1313,6 +1324,9 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
       input.due_date ?? null,
       input.start_at ?? null,
       input.end_at ?? null,
+      rec.ponctuelle_depuis,
+      rec.postponed_count,
+      rec.postponed_from,
       id,
     ],
   );
@@ -1397,8 +1411,8 @@ export async function changerEtatTache(taskId: number, c: ChangementEtat): Promi
   }
   const db = await getDb();
   await db.execute(
-    "UPDATE tasks SET state = $1, state_since = $2, waiting_for = $3, follow_up_on = $4 WHERE id = $5",
-    [c.state, c.state_since, c.waiting_for, c.follow_up_on, taskId],
+    "UPDATE tasks SET state = $1, state_since = $2, waiting_for = $3, follow_up_on = $4, pauses = $5 WHERE id = $6",
+    [c.state, c.state_since, c.waiting_for, c.follow_up_on, c.pauses, taskId],
   );
   await adopter("tasks", taskId);
 }

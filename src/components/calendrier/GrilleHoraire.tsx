@@ -8,6 +8,7 @@ import {
 } from "../../lib/calendrier/agenda";
 import { formatHeure, localeTag, t } from "../../lib/i18n";
 import { IconSablier } from "../icons";
+import { BadgeDEntree } from "../taches/BadgeEtat";
 import { APPUI_LONG_MS, avalerLeClicSuivant, surAppuiLong } from "./appuiLong";
 
 /**
@@ -649,7 +650,10 @@ function ColonneJour({
               textDecoration: e.faite ? "line-through" : undefined,
             }}
           >
-            <span className={compact ? "block break-words font-medium" : "block truncate font-medium"}>{e.titre}</span>
+            <span className={compact ? "block break-words font-medium" : "block truncate font-medium"}>
+              <BadgeDEntree entree={e} />
+              {e.titre}
+            </span>
             {duree >= 45 && !compact && (
               <span className="block text-text-dim">{formatHeure(e.start_at)}</span>
             )}
@@ -693,6 +697,7 @@ function Chip({
       }}
     >
       {entree.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
+      <BadgeDEntree entree={entree} />
       {entree.titre}
     </button>
   );

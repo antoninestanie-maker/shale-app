@@ -19,7 +19,7 @@ import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { debutRoutineDemo, historiqueDemo } from "./demoHistorique";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
-import type { ChangementEtat } from "./taches";
+import { changerRecurrence, type ChangementEtat } from "./taches";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
@@ -1980,7 +1980,8 @@ export const demo = {
 
   async updateTask(id: number, input: TaskInput): Promise<void> {
     const task = tasks.find((t) => t.id === id);
-    if (task) Object.assign(task, input);
+    // Même règle que la vraie base : `changerRecurrence` (audit 2026-10-20, taches-6).
+    if (task) Object.assign(task, changerRecurrence(task, input.recurrence, todayStr()), input);
   },
 
   async rattacherTache(taskId: number, goalId: number | null): Promise<void> {

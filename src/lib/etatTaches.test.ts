@@ -91,7 +91,7 @@ describe("la liste du jour, la Discipline et le retard", () => {
     // Ni « à décider » (bandeau du calendrier, point d'action), même au seuil de reports.
     expect(tachesADecider([{ ...t, postponed_count: 3 }], [], AUJ)).toEqual([]);
     // Reprise : elle est de nouveau en retard.
-    expect(estEnRetard({ ...t, ...changerEtat("todo", AUJ) }, AUJ, false)).toBe(true);
+    expect(estEnRetard({ ...t, ...changerEtat(t, "todo", AUJ) }, AUJ, false)).toBe(true);
   });
 });
 
@@ -115,23 +115,27 @@ describe("la relance", () => {
 
 describe("changer d'état", () => {
   it("l'attente garde de quoi elle attend et sa relance", () => {
-    expect(changerEtat("waiting", AUJ, { waiting_for: "  le comptable ", follow_up_on: "2026-10-23" })).toEqual({
+    expect(changerEtat(tache(), "waiting", AUJ, { waiting_for: "  le comptable ", follow_up_on: "2026-10-23" })).toEqual({
       state: "waiting",
       state_since: AUJ,
       waiting_for: "le comptable",
       follow_up_on: "2026-10-23",
+      pauses: null,
     });
   });
 
   it("⭐ sortir de l'attente vide ses champs — une relance oubliée la ferait reparaître", () => {
-    expect(changerEtat("doing", AUJ, { waiting_for: "x", follow_up_on: "2026-10-23" })).toEqual({
+    const enAttente = tache({ state: "waiting", state_since: AUJ, waiting_for: "x", follow_up_on: "2026-10-23" });
+    expect(changerEtat(enAttente, "doing", AUJ, { waiting_for: "x", follow_up_on: "2026-10-23" })).toEqual({
       state: "doing",
       state_since: AUJ,
       waiting_for: null,
       follow_up_on: null,
+      // Posée et levée le même jour : aucune pause à garder.
+      pauses: null,
     });
     // « À faire » n'a pas de date : c'est l'état par défaut.
-    expect(changerEtat("todo", AUJ).state_since).toBeNull();
+    expect(changerEtat(enAttente, "todo", AUJ).state_since).toBeNull();
   });
 });
 

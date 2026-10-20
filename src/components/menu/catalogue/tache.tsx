@@ -58,7 +58,9 @@ import { jeter, titreCourt } from "../../corbeille/geste";
 import { addDays, todayStr } from "../../../lib/logic";
 import type { EntreeMenu, EntreePossible, OrigineMenu } from "../../../lib/menu/entrees";
 import { ancreSurElement, ancreSurPoint, ouvrirSelecteurDate, type AncreFenetre } from "../../../lib/selecteurDate";
-import { changerEtat, estRecurrente, etatDe, replanifier } from "../../../lib/taches";
+import { changerEtat, estRecurrente, etatActuel, etatDe, replanifier } from "../../../lib/taches";
+import { nomDEtat } from "../../../lib/taches/etat";
+import { auFilDeLaLigne } from "../../../lib/calendrier/champDate";
 import { lundiProchain, plusUnJour } from "../../../lib/taches/dates";
 import { demanderIa } from "../../../lib/ia/demande";
 import { IconeIa } from "../../ia/IconeIa";
@@ -264,9 +266,20 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
    * sans relance, demain, lundi prochain, ou au jour choisi ; « de quoi on
    * attend » se précise dans « Modifier… ». La coche dit l'état actuel, et le
    * choisir de nouveau n'écrit rien (sauf l'attente, dont on change la relance).
+   *
+   * ⚠️ L'état actuel se LIT, pas seulement une coche à la place d'une icône
+   * (audit 2026-10-20, constat d'usage 21 : « il propose encore Abandonner sur
+   * une tâche déjà abandonnée ») : l'entrée « État » le nomme, l'entrée de
+   * l'état courant dit l'état (« Abandonnée », « En attente, relance ven. 23
+   * oct. ») au lieu du verbe, et une attente avec relance coche sa relance.
    */
   const etat = etatDe(task);
   const marque = (e: EtatTache, icone: ReactNode) => (e === etat ? <IconCheck /> : icone);
+  const relanceActuelle = etat === "waiting" ? (task.follow_up_on ?? null) : null;
+  const demain = addDays(aujourdhui, 1);
+  const lundi = lundiProchain(aujourdhui);
+  const marqueRelance = (jour: string) => (relanceActuelle === jour ? <IconCheck /> : <IconSablier />);
+  const relanceAilleurs = relanceActuelle != null && relanceActuelle !== demain && relanceActuelle !== lundi;
   const etats: EntreeMenu[] = [
     {
       id: "etat-todo",
@@ -289,19 +302,21 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
     {
       id: "etat-waiting-demain",
       libelle: t("En attente, relancer demain"),
-      icone: <IconSablier />,
-      executer: () => gestes.etat(task, "waiting", addDays(aujourdhui, 1)),
+      icone: marqueRelance(demain),
+      executer: () => (relanceActuelle === demain ? undefined : gestes.etat(task, "waiting", demain)),
     },
     {
       id: "etat-waiting-lundi",
       libelle: t("En attente, relancer lundi prochain"),
-      icone: <IconSablier />,
-      executer: () => gestes.etat(task, "waiting", lundiProchain(aujourdhui)),
+      icone: marqueRelance(lundi),
+      executer: () => (relanceActuelle === lundi ? undefined : gestes.etat(task, "waiting", lundi)),
     },
     {
       id: "etat-waiting-choisir",
-      libelle: t("En attente, relancer le…"),
-      icone: <IconPencil />,
+      libelle: relanceAilleurs
+        ? t("En attente, relance {quand}", { quand: auFilDeLaLigne(relanceActuelle, aujourdhui) })
+        : t("En attente, relancer le…"),
+      icone: relanceAilleurs ? <IconCheck /> : <IconPencil />,
       executer: (ou) =>
         ouvrirSelecteurDate({
           ancre: ancreDuMenu(ou),
@@ -311,7 +326,7 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
     },
     {
       id: "etat-dropped",
-      libelle: t("Abandonner"),
+      libelle: etat === "dropped" ? t("Abandonnée") : t("Abandonner"),
       icone: marque("dropped", <IconBan />),
       executer: () => (etat === "dropped" ? undefined : gestes.etat(task, "dropped")),
     },
@@ -371,7 +386,7 @@ export function entreesTache(task: Task, gestes: GestesTache, ctx: ContexteTache
     // Une tâche FAITE n'a plus d'état à prendre : la case le dit déjà.
     !ctx.faite && {
       id: "etat",
-      libelle: t("État"),
+      libelle: etat === "todo" ? t("État") : t("État · {etat}", { etat: nomDEtat(etat) }),
       icone: <IconSablier />,
       sousMenu: etats,
     },
@@ -471,22 +486,22 @@ export function gestesCommunsTache(
       await refresh();
     },
     async etat(task, etat, relance) {
-      const avant = {
-        state: etatDe(task),
-        state_since: task.state_since ?? null,
-        waiting_for: task.waiting_for ?? null,
-        follow_up_on: task.follow_up_on ?? null,
-      };
-      // « De quoi on attend » survit à un changement de relance.
+      // « Annuler » remet les CINQ colonnes à l'identique, pauses comprises.
+      const avant = etatActuel(task);
+      // « De quoi on attend » survit à un changement de relance. Le calcul part
+      // de l'état d'AVANT : d'attente à attente, la suspension garde sa date
+      // (audit 2026-10-20, taches-2 — « Modifier la tâche » la gardait déjà).
       await changerEtatTache(
         task.id,
-        changerEtat(etat, todayStr(), { waiting_for: task.waiting_for, follow_up_on: relance }),
+        changerEtat(task, etat, todayStr(), { waiting_for: task.waiting_for, follow_up_on: relance }),
       );
       await refresh();
       // La tâche change de section (ou en sort) : le dire, et pouvoir revenir.
+      // ⚠️ « défaire », pas « Annuler » nu : en anglais, “Undo” et non “Cancel”
+      // (audit 2026-10-20, donnees-9 ; règle de `retours-anglais.test.ts`).
       afficherToast({
         msg: messageEtat(task, etat, relance ?? null),
-        actionLabel: t("Annuler"),
+        actionLabel: t("Annuler|défaire"),
         onAction: () => void changerEtatTache(task.id, avant).then(refresh),
       });
     },

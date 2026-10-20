@@ -164,6 +164,8 @@ mod tests {
                 due_date: None,
                 state: None,
                 state_since: None,
+                pauses: None,
+                ponctuelle_depuis: None,
             }],
             completions: days
                 .iter()
@@ -249,6 +251,8 @@ mod tests {
                 due_date: None,
                 state: None,
                 state_since: None,
+                pauses: None,
+                ponctuelle_depuis: None,
             }],
             completions: vec![
                 Completion { task_id: 1, date: "2026-07-31".into(), done: true },

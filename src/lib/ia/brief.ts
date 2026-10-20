@@ -147,7 +147,7 @@ export function tachesAReporter(data: AppData, jour: string): Task[] {
   // ⚠️ Lu sur TOUTES les tâches, plus sur la liste du jour : depuis le
   // 2026-10-11 celle-ci ne contient plus les tâches en retard (`todayTasks`,
   // `lib/logic.ts`), et ce sont justement elles qu'une clôture doit proposer.
-  const faites = ponctuellesFaites(data.completions);
+  const faites = ponctuellesFaites(data.completions, data.tasks);
   return data.tasks
     // En attente ou abandonnée (031) : rien à reporter, elle est déjà écartée.
     .filter((t) => estDatee(t) && (t.due_date as string) <= jour && !faites.has(t.id) && !estSuspendue(t, jour))

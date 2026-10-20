@@ -30,12 +30,14 @@ import { ajouterEtape } from "../../lib/objectifs/ajouter";
 import { aAnnoncer, planConversion } from "../../lib/objectifs/conversion";
 import { convertirEnTache } from "./gesteConversion";
 import { filDObjectif, type Fil } from "../../lib/objectifs/fil";
-import { estRecurrente } from "../../lib/taches";
+import { estRecurrente, estSuspendue, etatDe, ponctuellesFaites } from "../../lib/taches";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { AppData, Goal, Task } from "../../lib/types";
 import { rattachementsDe, type ContexteObjectifs } from "../../lib/objectifs/contexte";
 import { ouvrirObjet } from "../../lib/naviguer";
-import { IconCheck, IconChevronDown, IconChevronRight, IconEtape, IconFlame, IconFolder, IconNote, IconX } from "../icons";
+import { IconBan, IconCheck, IconChevronDown, IconChevronRight, IconEtape, IconFlame, IconFolder, IconNote, IconX } from "../icons";
+import BadgeEtat from "../taches/BadgeEtat";
+import { badgeEtat } from "../../lib/taches/etat";
 import ChampDate from "../ChampDate";
 import { CaseACocher, useCochesOptimistes } from "../CaseACocher";
 import { placer as placerMenu } from "../../lib/menu/placement";
@@ -1204,12 +1206,18 @@ function ListeElements(props: {
   avecRattachement?: boolean;
 }) {
   const { goal, data, contexte, refresh } = props;
-  const faites = useMemo(() => new Set(data.completions.filter((c) => c.done).map((c) => c.task_id)), [data.completions]);
+  const faites = useMemo(() => ponctuellesFaites(data.completions, data.tasks), [data.completions, data.tasks]);
   const { etat, basculer } = useCochesOptimistes();
+  const jour = props.maintenant.slice(0, 10);
   // ⭐ L'élevée en haut (2026-09-30) ; à priorité égale, l'ordre d'avant (tri stable).
+  // Les ABANDONNÉES non cochées tout en bas (031) : l'objectif ne les attend plus.
+  const abandonnee = (x: Task) => etatDe(x) === "dropped" && !faites.has(x.id);
   const taches = data.tasks
     .filter((x) => x.goal_id === goal.id)
-    .sort((a, b) => rangPriorite(a.priority) - rangPriorite(b.priority));
+    .sort(
+      (a, b) =>
+        Number(abandonnee(a)) - Number(abandonnee(b)) || rangPriorite(a.priority) - rangPriorite(b.priority),
+    );
   const rattaches = rattachementsDe(uidDeLigne("goal", goal), contexte);
 
   /**
@@ -1251,6 +1259,13 @@ function ListeElements(props: {
           // Tâches était un détour. Une récurrente reste en lecture : elle ne
           // compte jamais comme une unité, la cocher ici ne ferait rien bouger.
           const faite = !recurrente && etat(`t${tache.id}`, faites.has(tache.id));
+          // ⭐ L'ÉTAT se lit ici aussi (audit 2026-10-20, objectifs-4) : une
+          // abandonnée était montrée à faire, case vide et date en rouge, sous
+          // un compteur qui ne la comptait pas (« 1 tâche sur 1 » au-dessus de
+          // deux lignes). Elle est grisée, sans case, avec son badge ; une
+          // tâche en attente n'est jamais « en retard », comme partout.
+          const ecartee = !recurrente && !faite && etatDe(tache) === "dropped";
+          const enRetard = !faite && !!tache.due_date && tache.due_date < jour && !estSuspendue(tache, jour);
           return (
             /* ⚠️ `flex-wrap` ET une base flex sur le titre. Sous
                `pointer: coarse`, `.truncate-souris` REND LE RETOUR À LA LIGNE
@@ -1267,6 +1282,16 @@ function ListeElements(props: {
             >
               {recurrente ? (
                 <Coche faite={false} />
+              ) : ecartee ? (
+                <span
+                  className="flex h-4 w-4 shrink-0 items-center justify-center text-text-dim"
+                  role="img"
+                  aria-label={t("Abandonnée")}
+                  data-tip={t("Abandonnée")}
+                  data-tip-sub={t("L'objectif ne l'attend plus. Pour la reprendre : ⋯ › État › À faire.")}
+                >
+                  <IconBan className="h-3.5 w-3.5" />
+                </span>
               ) : (
                 <CaseACocher
                   taille="sm"
@@ -1278,10 +1303,11 @@ function ListeElements(props: {
                   onBascule={() => cocher(tache, faite)}
                 />
               )}
-              <span className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris ${faite ? "text-text-dim line-through" : "text-text"}`} title={tache.label}>
+              <span className={`min-w-0 flex-1 basis-[9rem] truncate truncate-souris ${faite ? "text-text-dim line-through" : ecartee ? "text-text-dim" : "text-text"}`} title={tache.label}>
                 {tache.label}
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
+              <BadgeEtat badge={recurrente && etatDe(tache) !== "doing" ? null : badgeEtat(tache, faite, jour)} />
               {recurrente ? (
                 /* Disait « récurrente, non comptée » en toutes lettres : le ↻
                     suffit, le pourquoi attend dans la bulle (2026-09-30). */
@@ -1306,10 +1332,8 @@ function ListeElements(props: {
                      Et la comparaison porte sur le JOUR local (`maintenant` est
                      du local, PIEGES § 4.1), jamais sur un horodatage. */
                   <span
-                    className={`shrink-0 text-[10px] tabular-nums ${
-                      !faite && tache.due_date < props.maintenant.slice(0, 10) ? "text-red" : "text-text-dim"
-                    }`}
-                    data-tip={!faite && tache.due_date < props.maintenant.slice(0, 10) ? t("En retard") : undefined}
+                    className={`shrink-0 text-[10px] tabular-nums ${enRetard ? "text-red" : "text-text-dim"}`}
+                    data-tip={enRetard ? t("En retard") : undefined}
                   >
                     {formaterChamp(tache.due_date, props.maintenant.slice(0, 10))}
                   </span>

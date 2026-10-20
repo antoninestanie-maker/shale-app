@@ -35,13 +35,37 @@ fn is_recurring(task: &Task) -> bool {
 /// n'est plus prévue, et une routine est en pause — sans toucher aux jours d'avant
 /// `state_since`. Sans date, la suspension vaut depuis toujours.
 pub fn est_suspendue(task: &Task, date: NaiveDate) -> bool {
-    if !matches!(task.state.as_deref(), Some("waiting") | Some("dropped")) {
-        return false;
+    let day = day_str(date);
+    if matches!(task.state.as_deref(), Some("waiting") | Some("dropped")) {
+        let en_cours = match &task.state_since {
+            Some(depuis) if depuis.len() >= 10 => &depuis[..10] <= day.as_str(),
+            _ => true,
+        };
+        if en_cours {
+            return true;
+        }
     }
-    match &task.state_since {
-        Some(depuis) if depuis.len() >= 10 => &depuis[..10] <= day_str(date).as_str(),
-        _ => true,
-    }
+    // Les suspensions TERMINÉES (migration 032) : une routine reprise garde ses
+    // jours de pause neutres. Port de la fin d'`estSuspendue` — sans elles,
+    // « À faire » rendait chaque jour de pause dû et manqué (audit 2026-10-20).
+    lire_pauses(task.pauses.as_deref())
+        .iter()
+        .any(|(du, au)| du.as_deref().is_none_or(|du| du <= day.as_str()) && day.as_str() < au.as_str())
+}
+
+/// Port de `lirePauses` : un JSON illisible vaut « aucune pause ».
+fn lire_pauses(brut: Option<&str>) -> Vec<(Option<String>, String)> {
+    brut.and_then(|b| serde_json::from_str::<Vec<(Option<String>, String)>>(b).ok()).unwrap_or_default()
+}
+
+/// Une coche qui dit la ponctuelle faite : pas d'avant le jour où la routine
+/// est devenue ponctuelle (migration 032). Port de `ponctuellesFaites`.
+fn coche_compte(task: &Task, c: &Completion) -> bool {
+    c.done
+        && match task.ponctuelle_depuis.as_deref() {
+            Some(depuis) if depuis.len() >= 10 => c.date.as_str() >= &depuis[..10],
+            _ => true,
+        }
 }
 
 /// Une tâche récurrente est-elle due ce jour-là ?
@@ -151,7 +175,7 @@ pub fn today_pct(tasks: &[Task], completions: &[Completion], today: NaiveDate) -
     let day = day_str(today);
     let cochee_aujourdhui =
         |t: &Task| completions.iter().any(|c| c.task_id == t.id && c.date == day && c.done);
-    let faite_un_jour = |t: &Task| completions.iter().any(|c| c.task_id == t.id && c.done);
+    let faite_un_jour = |t: &Task| completions.iter().any(|c| c.task_id == t.id && coche_compte(t, c));
 
     let list: Vec<&Task> = tasks
         .iter()
@@ -204,7 +228,7 @@ mod tests {
     }
 
     fn task(id: i64, recurrence: &str) -> Task {
-        Task { id, recurrence: Some(recurrence.into()), created_at: None, due_date: None, state: None, state_since: None }
+        Task { id, recurrence: Some(recurrence.into()), created_at: None, due_date: None, state: None, state_since: None, pauses: None, ponctuelle_depuis: None }
     }
 
     /// Une ponctuelle datée (`None` = sans date).
@@ -216,6 +240,8 @@ mod tests {
             due_date: due.map(Into::into),
             state: None,
             state_since: None,
+            pauses: None,
+            ponctuelle_depuis: None,
         }
     }
 
@@ -233,7 +259,7 @@ mod tests {
     fn une_tache_non_recurrente_n_est_jamais_due() {
         assert!(!is_due_on(&task(1, "none"), d("2026-07-27")));
         assert!(!is_due_on(
-            &Task { id: 1, recurrence: None, created_at: None, due_date: None, state: None, state_since: None },
+            &Task { id: 1, recurrence: None, created_at: None, due_date: None, state: None, state_since: None, pauses: None, ponctuelle_depuis: None },
             d("2026-07-27")
         ));
     }
@@ -264,6 +290,8 @@ mod tests {
             due_date: None,
             state: None,
             state_since: None,
+            pauses: None,
+            ponctuelle_depuis: None,
         };
         assert!(!is_due_on(&t, d("2026-07-27")));
         assert!(is_due_on(&t, d("2026-07-28")));
@@ -378,6 +406,8 @@ mod tests {
             due_date: Some("2026-08-01".into()),
             state: None,
             state_since: None,
+            pauses: None,
+            ponctuelle_depuis: None,
         };
         assert!(!est_prevue_le(&egaree, d("2026-08-01")));
     }
@@ -494,6 +524,46 @@ mod tests {
         assert!(!is_due_on(&t, d("2026-07-29")));
         t.state = Some("doing".into());
         assert!(is_due_on(&t, d("2026-07-29")), "en cours ne suspend rien");
+    }
+
+    /// ⭐ Migration 032 (audit 2026-10-20, taches-1) : une routine REPRISE garde
+    /// ses jours de pause neutres. Avant, « À faire » effaçait `state_since` et
+    /// chaque jour de pause redevenait dû et manqué — la série tombait après coup.
+    #[test]
+    fn une_routine_reprise_garde_ses_jours_de_pause() {
+        let mut t = task(1, "daily");
+        t.state = Some("todo".into());
+        t.pauses = Some(r#"[["2026-07-20","2026-07-27"]]"#.into());
+        assert!(is_due_on(&t, d("2026-07-19")), "la veille de la pause reste due");
+        assert!(!is_due_on(&t, d("2026-07-20")));
+        assert!(!is_due_on(&t, d("2026-07-26")));
+        assert!(is_due_on(&t, d("2026-07-27")), "le jour de la reprise compte de nouveau");
+        // Faite les jours d'avant la pause, rien pendant : la série traverse la pause.
+        let comps = vec![done(1, "2026-07-18"), done(1, "2026-07-19")];
+        assert_eq!(day_pct(&[t.clone()], &comps, d("2026-07-23")), None, "un jour de pause est neutre");
+        assert_eq!(streak_before(&[t], &comps, d("2026-07-27")), 2);
+    }
+
+    #[test]
+    fn une_pause_depuis_toujours_et_un_json_illisible() {
+        let mut t = task(1, "daily");
+        t.pauses = Some(r#"[[null,"2026-07-20"]]"#.into());
+        assert!(!is_due_on(&t, d("2026-07-01")));
+        assert!(is_due_on(&t, d("2026-07-20")));
+        t.pauses = Some("{pas du json}".into());
+        assert!(is_due_on(&t, d("2026-07-01")), "illisible : aucune pause, jamais une panne");
+    }
+
+    /// ⭐ Migration 032 (audit 2026-10-20, taches-6) : une routine devenue
+    /// ponctuelle n'est pas « faite » par ses anciennes coches.
+    #[test]
+    fn une_routine_devenue_ponctuelle_n_est_pas_faite_par_ses_anciennes_coches() {
+        let mut t = datee(1, Some("2026-07-27"));
+        t.ponctuelle_depuis = Some("2026-07-25".into());
+        let comps = vec![done(1, "2026-07-20")];
+        assert_eq!(today_pct(&[t.clone()], &comps, d("2026-07-27")), Some(0), "prévue aujourd'hui, pas faite");
+        let comps = vec![done(1, "2026-07-26")];
+        assert_eq!(today_pct(&[t], &comps, d("2026-07-27")), None, "faite après la conversion : elle a compté ce jour-là");
     }
 
     #[test]

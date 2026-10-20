@@ -253,7 +253,7 @@ pub struct HabitCheck {
     pub date: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Task {
     pub id: i64,
     /// `none` | `daily` | `weekdays` | JSON de jours (`[1,3,5]`). Voir `task_streak`.
@@ -270,6 +270,12 @@ pub struct Task {
     /// `YYYY-MM-DD` local : le jour où l'état a été posé. Voir
     /// `task_streak::est_suspendue`.
     pub state_since: Option<String>,
+    /// Les suspensions TERMINÉES (migration 032), JSON `[[du|null, au], …]`,
+    /// `au` exclu. `None` sur une base pas encore migrée — aucune pause.
+    pub pauses: Option<String>,
+    /// `YYYY-MM-DD` : le jour où une routine est devenue ponctuelle (032). Ses
+    /// coches d'avant ne la disent pas faite. Voir `task_streak::today_pct`.
+    pub ponctuelle_depuis: Option<String>,
 }
 
 /// Ce qui a une DATE dans le calendrier : un événement, une tâche datée ou une

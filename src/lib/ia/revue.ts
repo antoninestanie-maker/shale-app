@@ -20,7 +20,7 @@ import { objectifsEnPeril } from "../calendrier/peril";
 import { addDays, estPrevueLe, weekdayOf } from "../logic";
 import { mesurer, pourcentDe, type ContexteProgression } from "../objectifs/progression";
 import { createTask, getSetting, setSetting } from "../repo";
-import { estRecurrente, etatDe, planificationDeSaisie } from "../taches";
+import { estRecurrente, etatDe, planificationDeSaisie, ponctuellesFaites } from "../taches";
 import type { AppData, Goal } from "../types";
 import { SORTIES, type LangIa, type PayloadDe, type SortieDe } from "./contrats";
 import { descendants } from "./planifier";
@@ -141,7 +141,7 @@ export function payloadRevue(
     };
   });
 
-  const faitesUnJour = new Set(data.completions.filter((c) => c.done).map((c) => c.task_id));
+  const faitesUnJour = ponctuellesFaites(data.completions, data.tasks);
   const glissees = data.tasks
     // Abandonnée (031) : elle ne glisse plus, elle a été écartée.
     .filter(
