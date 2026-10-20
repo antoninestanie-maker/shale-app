@@ -3723,3 +3723,23 @@ Le détail et le pourquoi : `CLAUDE.md`, section du 2026-10-14. Ce qui change AU
 - **Timer** : le choix Volets / Anneau vaut au téléphone (réglage synchronisé).
 
 **Vu** dans Chrome en format téléphone (390 × 844, toucher émulé par CDP : `Input.dispatchTouchEvent`) : semaine, maintien → menu → Supprimer → toast, simple toucher → fenêtre. ⛔ **Pas vu dans WebKit iOS** : le maintien sur un `<button>` peut y déclencher une sélection ou une loupe ; `select-none` et `-webkit-touch-callout: none` sont posés (agenda, grille), non mesurés sur l'appareil.
+
+## 32. ⭐ 2026-10-20 — Xcode et les simulateurs vivent sur le disque « Crucial X6 »
+
+Le Mac était plein à 99 %. À la demande d'Antonin, `~/Library/Developer/Xcode` (DerivedData,
+iOS DeviceSupport, UserData) et `~/Library/Developer/CoreSimulator` (les seize simulateurs et
+leurs données) sont dans l'image APFS `/Volumes/Crucial X6/Xcode/Xcode-Shale.sparsebundle`,
+montée sur `/Volumes/Xcode-Shale`. Les deux dossiers de `~/Library/Developer` sont des liens.
+
+- **Pourquoi une image** : le Crucial est en exFAT, qui ne garde ni les liens ni les droits.
+- **Avant tout build iPhone, simulateur ou pose sur l'appareil** : vérifier que
+  `/Volumes/Xcode-Shale/Xcode` existe, sinon
+  `hdiutil attach "/Volumes/Crucial X6/Xcode/Xcode-Shale.sparsebundle" -owners on`.
+  Pour Antonin : double-clic sur `Shale-projet/Brancher Xcode.command`.
+- **Disque débranché** : le dire à Antonin. Ne JAMAIS recréer ces dossiers sur le Mac : ils
+  remplaceraient les liens, et un build écrirait à côté des vraies données.
+- **Ce qui reste sur le Mac** : `Xcode.app` (appartient à root) et les environnements iOS 26.5 /
+  watchOS 26.5 (fichiers système). Les builds macOS ne sont pas concernés.
+- Copie vérifiée fichier par fichier (`diff -rq`) avant de retirer les originaux ; un simulateur
+  iPhone 17 a démarré depuis l'image, Shale toujours installé dedans.
+- Les fichiers Xcode de l'iOS 26.6.1 ont été supprimés (le téléphone est en 26.6.2).
