@@ -1017,8 +1017,8 @@ l'objectif » — un geste destructeur derrière un geste de dessin.
 Principe : **la FORME dit le niveau, l'ICÔNE dit la famille, la couleur reste celle
 de la branche.** On ne peint pas les types : `--color-green` et les couleurs choisies
 ne bougent pas, `HABIT_COLORS` (`lib/habitudes.ts`) est intacte (PIEGES § 21.9).
-> 2026-10-20 : `HABIT_COLORS` passe de six à douze (`PALETTE_HABITUDES`, rangée par teinte, le cramoisi du logo `#dc2626` en tête) ; les six d'avant y restent, à la même valeur.
 Seules les icônes déjà présentes (`components/icons.tsx`) servent.
+> 2026-10-20 : `HABIT_COLORS` passe de six à douze (`PALETTE_HABITUDES`, rangée par teinte, le cramoisi du logo `#dc2626` en tête) ; les six d'avant y restent, à la même valeur.
 
 | Type | Icône | Forme | État vivant (éditeur seulement) |
 |---|---|---|---|
