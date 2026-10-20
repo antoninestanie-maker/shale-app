@@ -921,20 +921,25 @@ export default function GoalsView({ data, refresh }: Props) {
           à sa place. Au retour, `choisi` vaut déjà `null` : le voile garde la
           page qu'on quitte jusqu'à ce qu'elle soit rentrée dans sa carte. */}
       {enPage && (
+        // ⭐ 2026-10-20, Antonin : « même la carte ouverte, [le gris] doit
+        // rester ». La page vit DANS la carte agrandie : le voile occupe toute
+        // la colonne, sur le matériau de la carte (`--card-bg`, son filet, son
+        // rayon), pendant le film comme après. La découpe du film finit
+        // exactement sur ce rectangle : rien ne saute à la dernière image.
+        // `sans-barres` : le temps du film, la barre de défilement de la page
+        // n'apparaît pas (au retour, elle flottait sur la carte qui rétrécit).
         <div
           ref={voileRef}
-          className={film ? "absolute inset-0 z-10 flex flex-col p-4 lg:p-8" : "flex min-h-0 flex-1 flex-col"}
+          className={`absolute inset-0 z-10 flex flex-col p-4 lg:p-8${film ? " sans-barres" : ""}`}
           style={film?.sens === "ferme" ? { pointerEvents: "none" } : undefined}
         >
-          {film && (
-            <div
-              ref={fondRef}
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{ background: "var(--card-bg)" }}
-            />
-          )}
-          {page(enPage)}
+          <div
+            ref={fondRef}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 border border-border"
+            style={{ background: "var(--card-bg)", borderRadius: "var(--radius-card)" }}
+          />
+          <div className="relative flex min-h-0 flex-1 flex-col">{page(enPage)}</div>
         </div>
       )}
 

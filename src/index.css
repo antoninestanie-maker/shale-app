@@ -2586,3 +2586,10 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
   animation: toast-compte linear both;
   pointer-events: none;
 }
+
+/* ⭐ 2026-10-20 — pendant le film d'un objectif (GoalsView, `sans-barres`) :
+   pas de barre de défilement. Au retour, celle de la page flottait sur la
+   carte qui rétrécit, à une place sans rapport avec le contenu. */
+.sans-barres, .sans-barres * { scrollbar-width: none; }
+.sans-barres::-webkit-scrollbar, .sans-barres *::-webkit-scrollbar { display: none; }
+

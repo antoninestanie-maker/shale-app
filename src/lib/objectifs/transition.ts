@@ -157,13 +157,16 @@ export function jouerTransition(s: Scene): Animation[] {
   // s'effaçait — un creux noir), et il ne s'efface qu'une fois la page
   // dépliée (avant : dès 55 % du film, la carte noircissait en grandissant).
   // Au retour, il revient vite et s'efface À LA FIN au profit de la vraie carte.
-  const ouvreFin = duree + 160;
+  // Depuis le 2026-10-20 (« même la carte ouverte, il doit rester »), le fond
+  // RESTE après le film : la page vit dans la carte agrandie. À l'ouverture il
+  // est donc plein de bout en bout ; au retour, il s'efface à la fin, au profit
+  // de la vraie carte revenue dans la liste.
   jouer(
     s.fond,
     ouvre
-      ? [{ opacity: 1 }, { opacity: 1, offset: duree / ouvreFin }, { opacity: 0 }]
-      : [{ opacity: 0 }, { opacity: 1, offset: t(80) }, { opacity: 1, offset: t(pose) }, { opacity: 0 }],
-    { duration: ouvre ? ouvreFin : fin, easing: "linear" },
+      ? [{ opacity: 1 }, { opacity: 1 }]
+      : [{ opacity: 1 }, { opacity: 1, offset: t(pose) }, { opacity: 0 }],
+    { duration: ouvre ? duree : fin, easing: "linear" },
   );
 
   // La vraie carte cède la place au voile (son ombre dépasse de la découpe),

@@ -8723,3 +8723,10 @@ Signalé par Antonin, capture à l'appui : après la fermeture d'un objectif, un
 ## 2026-10-20 — L'ouverture d'un objectif garde la carte grise jusqu'au bout
 
 Antonin : « sur l'animation d'ouverture de l'objectif, la carte doit rester du même gris, l'animation avec seulement le fond noir ». Le fond du voile (`--card-bg`) apparaissait en fondu (creux noir au départ) et s'effaçait dès 55 % du film, si bien que le rectangle noircissait en grandissant. Il est désormais opaque dès la première image et ne s'efface (160 ms) qu'une fois la page dépliée (`lib/objectifs/transition.ts`, étape 2). Au retour, il revient en 80 ms. Pas vu à l'écran.
+
+## 2026-10-20 (suite) — La page d'un objectif vit dans sa carte agrandie ; plus de barre de défilement pendant le film
+
+Antonin : « même la carte ouverte, il doit rester » (le gris), et « dans l'animation de fermeture, la barre pour défiler se met en position bizarre ».
+- Le voile de la page occupe toute la colonne en permanence (`absolute inset-0`, `p-4 lg:p-8`), sur le matériau de la carte : `--card-bg`, filet, `--radius-card`. La découpe du film finit exactement sur ce rectangle. À l'ouverture le fond reste plein ; au retour il s'efface à la fin au profit de la vraie carte (`transition.ts`, étape 2).
+- `.sans-barres` (index.css) masque les barres de défilement du voile le temps du film.
+- Pas vu à l'écran.
