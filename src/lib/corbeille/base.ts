@@ -191,6 +191,11 @@ export interface ElementCorbeille {
   uid: string | null;
   /** Brut, tel qu'en base. Peut être vide (un brouillon sans objet). */
   titre: string | null;
+  /**
+   * Le début du corps d'une note ou d'une fiche (2026-10-20) : une note sans
+   * titre s'y nomme par son texte (`titreAffiche`). `undefined` ailleurs.
+   */
+  apercu?: string | null;
   deleted_at: string;
   /**
    * Combien d'objets partiraient ou reviendraient AVEC lui, lui compris.
@@ -198,6 +203,9 @@ export interface ElementCorbeille {
    */
   taille: number;
 }
+
+/** Ce qu'on lit du corps d'une note pour la nommer : assez pour une ligne, sans charger ses images. */
+export const APERCU_MAX = 2000;
 
 /** Tout ce qui est en corbeille, le plus récent d'abord ; un lot par sa racine. */
 export async function lireCorbeilleDans(db: BaseCorbeille): Promise<ElementCorbeille[]> {
@@ -208,8 +216,9 @@ export async function lireCorbeilleDans(db: BaseCorbeille): Promise<ElementCorbe
   const tachesCouvertes = tachesDansUnLot(taches, objectifs);
   for (const kind of Object.keys(TABLE_DE) as KindCorbeille[]) {
     const { table, titre } = TABLE_DE[kind];
-    const rows = await db.select<{ id: number; uid: string | null; titre: unknown; deleted_at: string }[]>(
-      `SELECT id, uid, ${titre} AS titre, deleted_at FROM ${table} WHERE deleted_at IS NOT NULL`,
+    const avecCorps = kind === "note" || kind === "knowledge";
+    const rows = await db.select<{ id: number; uid: string | null; titre: unknown; apercu?: unknown; deleted_at: string }[]>(
+      `SELECT id, uid, ${titre} AS titre, ${avecCorps ? `substr(body, 1, ${APERCU_MAX}) AS apercu, ` : ""}deleted_at FROM ${table} WHERE deleted_at IS NOT NULL`,
     );
     const tailles = kind === "goal" ? new Map(racinesDeLot(objectifs, taches).map((r) => [r.id, r.taille])) : null;
     for (const r of rows) {
@@ -221,6 +230,7 @@ export async function lireCorbeilleDans(db: BaseCorbeille): Promise<ElementCorbe
         id: r.id,
         uid: r.uid,
         titre: r.titre == null ? null : String(r.titre),
+        ...(avecCorps ? { apercu: r.apercu == null ? null : String(r.apercu) } : null),
         deleted_at: r.deleted_at,
         taille,
       });

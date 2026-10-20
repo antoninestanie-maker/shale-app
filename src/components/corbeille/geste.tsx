@@ -29,9 +29,11 @@ import { objetsDesCartes, resoudreEmportes } from "../../lib/objectifs/emportes"
 import type { KindCorbeille } from "../../lib/corbeille/regles";
 import type { ElementCorbeille } from "../../lib/corbeille/base";
 import { afficherToast } from "../../lib/toast";
+import { annulerDerniereSuppression, oublierSuppression, retenirSuppression } from "../../lib/annulerSuppression";
 import { allerVers, ouvrirObjet } from "../../lib/naviguer";
 import type { LinkKind } from "../../lib/types";
 import { FAMILLES } from "./familles";
+import { estSansTitre, extraitDuCorps } from "../../lib/notesSansTitre";
 
 /**
  * Combien de temps un « Annuler » reste à l'écran. 4,5 s ne suffisent pas à le
@@ -60,13 +62,19 @@ export function titreCourt(titre: string, max = 40): string {
  * et un objet peut avoir été enregistré sans nom. Une ligne vide dans la liste
  * serait impossible à reconnaître — donc impossible à restaurer à bon escient.
  */
-export function titreAffiche(el: Pick<ElementCorbeille, "kind" | "titre">): string {
+export function titreAffiche(el: Pick<ElementCorbeille, "kind" | "titre"> & { apercu?: string | null }): string {
   if (el.kind === "journal" && el.titre) {
     // ⚠️ Midi LOCAL, pas `new Date("2026-09-22")` : cette forme est lue en UTC
     // minuit, et à l'ouest de Greenwich le Journal du 22 s'afficherait « du 21 »
     // (PIEGES § 4, les dates).
     const jour = new Date(`${el.titre}T12:00:00`);
     return t("Journal du {date}", { date: formatDate(jour, { day: "numeric", month: "long", year: "numeric" }) });
+  }
+  // ⭐ Une note ou une fiche SANS TITRE se nomme par le début de son texte
+  // (2026-10-20, savoir-10), comme dans la liste des Notes : « Nouvelle note »,
+  // le titre que l'app pose d'office, n'en distinguait aucune.
+  if ((el.kind === "note" || el.kind === "knowledge") && estSansTitre(el.titre)) {
+    return extraitDuCorps(el.apercu) || t("Sans titre");
   }
   const net = el.titre?.trim();
   if (net) return net;
@@ -89,6 +97,12 @@ export async function jeter(
   id: number,
   titre: string,
   apres: () => unknown,
+  /**
+   * Le corps d'une note ou d'une fiche, pour la NOMMER quand elle n'a pas de
+   * titre (2026-10-20) : « « Appeler Louis… » est dans Supprimés récemment »,
+   * pas « « Nouvelle note » » pour toutes.
+   */
+  corps?: string | null,
 ): Promise<boolean> {
   const lot = await mettreEnCorbeille(kind, id);
   if (lot.ids.length === 0) return false;
@@ -96,10 +110,20 @@ export async function jeter(
 
   // `titreAffiche` : une entrée de journal se nomme par sa date, écrite en
   // toutes lettres — jamais « 2026-09-23 » dans un toast.
-  const nom = titreCourt(titreAffiche({ kind, titre }));
+  const nom = titreCourt(titreAffiche({ kind, titre, apercu: corps }));
   // Un objectif emporte ses étapes ET ses tâches (2026-09-30) : le toast dit
   // tout ce qui est parti, pas seulement les objectifs.
   const autres = lot.ids.length + (lot.taches?.length ?? 0) - 1;
+  // ⭐ ⌘Z rend aussi ce jet (2026-10-20) : la même cible fermée que le bandeau.
+  const annulable = {
+    titre: nom,
+    rendre: async () => {
+      const plan = await restaurer(kind, id);
+      await apres();
+      return plan != null;
+    },
+  };
+  retenirSuppression(annulable);
   afficherToast({
     msg:
       autres > 0
@@ -114,10 +138,8 @@ export async function jeter(
     actionLabel: t("Annuler|défaire"),
     // ⚠️ `kind` et `id` sont ceux de CE jet — fermés ici, jamais relus.
     onAction: () => {
-      void (async () => {
-        await restaurer(kind, id);
-        await apres();
-      })();
+      oublierSuppression(annulable);
+      void annulable.rendre();
     },
     lienLabel: t("Voir"),
     onLien: () => allerVers("corbeille"),
@@ -142,7 +164,7 @@ export interface Jete {
  * Rend ce qui est vraiment parti, pour qu'un ⌘Z puisse le rendre sans toast.
  */
 export async function jeterPlusieurs(
-  elements: readonly (Jete & { titre: string })[],
+  elements: readonly (Jete & { titre: string; apercu?: string | null })[],
   apres: () => unknown,
   surAnnuler?: () => void,
   /**
@@ -152,7 +174,7 @@ export async function jeterPlusieurs(
    */
   message?: (total: number) => string,
 ): Promise<Jete[]> {
-  const partis: (Jete & { titre: string })[] = [];
+  const partis: (Jete & { titre: string; apercu?: string | null })[] = [];
   let total = 0;
   for (const e of elements) {
     const lot = await mettreEnCorbeille(e.kind, e.id);
@@ -166,6 +188,16 @@ export async function jeterPlusieurs(
   const nom = titreCourt(titreAffiche(partis[0]));
   const autres = total - 1;
   const jetes = partis.map(({ kind, id }) => ({ kind, id }));
+  const annulable = {
+    titre: nom,
+    rendre: async () => {
+      const revenus = await restaurerJetes(jetes);
+      await apres();
+      surAnnuler?.();
+      return revenus;
+    },
+  };
+  retenirSuppression(annulable);
   afficherToast({
     msg: message
       ? message(total)
@@ -180,11 +212,8 @@ export async function jeterPlusieurs(
     icone: iconeCorbeille,
     actionLabel: t("Annuler|défaire"),
     onAction: () => {
-      void (async () => {
-        await restaurerJetes(jetes);
-        await apres();
-        surAnnuler?.();
-      })();
+      oublierSuppression(annulable);
+      void annulable.rendre();
     },
     lienLabel: t("Voir"),
     onLien: () => allerVers("corbeille"),
@@ -198,8 +227,22 @@ export async function jeterPlusieurs(
  * revient avant la tâche qui s'y rattachait. Sans toast : c'est le ⌘Z de la
  * carte, ou l'« Annuler » du toast lui-même.
  */
-export async function restaurerJetes(jetes: readonly Jete[]): Promise<void> {
-  for (const j of [...jetes].reverse()) await restaurer(j.kind, j.id);
+export async function restaurerJetes(jetes: readonly Jete[]): Promise<boolean> {
+  let revenu = false;
+  for (const j of [...jetes].reverse()) if ((await restaurer(j.kind, j.id)) != null) revenu = true;
+  return revenu;
+}
+
+/**
+ * ⌘Z hors de tout champ (`App.tsx`) et dans la carte d'un objectif : rend la
+ * dernière suppression et le DIT. Rend `false` s'il n'y avait rien à rendre —
+ * la touche n'a alors rien fait, et l'appelant la laisse passer.
+ */
+export async function defaireDerniereSuppression(): Promise<boolean> {
+  const revenue = await annulerDerniereSuppression();
+  if (!revenue) return false;
+  afficherToast({ msg: t("« {titre} » est de retour", { titre: revenue.titre }) });
+  return true;
 }
 
 /**
@@ -234,8 +277,8 @@ export async function jeterAvecSesCartes(
   apres: () => unknown,
 ): Promise<boolean> {
   const emportes = await elementsDesCartes(cartesDuHtml(corps));
-  if (emportes.length === 0) return jeter(kind, id, titre, apres);
-  const jetes = await jeterPlusieurs([{ kind, id, titre }, ...emportes], apres);
+  if (emportes.length === 0) return jeter(kind, id, titre, apres, corps);
+  const jetes = await jeterPlusieurs([{ kind, id, titre, apercu: corps }, ...emportes], apres);
   return jetes.length > 0;
 }
 

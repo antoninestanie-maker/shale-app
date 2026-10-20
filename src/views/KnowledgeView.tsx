@@ -75,6 +75,7 @@ import { firstImageSrc, plainText } from "../lib/richtext";
 import { t, tp } from "../lib/i18n";
 import EditeurType from "../components/liens/EditeurType";
 import PanneauLiens from "../components/liens/PanneauLiens";
+import CiteDans from "../components/liens/CiteDans";
 import RichNoteEditor from "../components/RichNoteEditor";
 import {
   ecritureAcceptable,
@@ -118,6 +119,7 @@ import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuCont
 import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu/catalogue/savoir";
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
+import { estSansTitre } from "../lib/notesSansTitre";
 
 /**
  * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
@@ -2153,7 +2155,9 @@ function Reader({
         {/* Corps : titre puis éditeur de blocs */}
         <div className="flex min-h-0 flex-1 flex-col px-8 py-6">
           <input
-            value={entry.title}
+            // Titre d'office (« Nouvelle note ») : champ vide, l'invite le dit —
+            // la frappe ne s'y colle plus (2026-10-20, audit complet, constat 12).
+            value={estSansTitre(entry.title) ? "" : entry.title}
             onChange={(e) => patch({ title: e.target.value })}
             data-tip={t("Titre de la note")}
             placeholder={t("Titre")}
@@ -2194,6 +2198,17 @@ function Reader({
           `animate-fade-up` sur la carte ferait d'elle le bloc conteneur de
           tout descendant `position: fixed`.
         */}
+        {/* Ce qui cite cette fiche — une note, une tâche (2026-10-20, audit
+            complet, constat 5) : le lien se voit des deux côtés. Rien quand
+            rien ne la cite. */}
+        {uidFiche && (
+          <CiteDans
+            kind="knowledge"
+            uid={uidFiche}
+            avantOuvrir={onClose}
+            className="max-h-32 shrink-0 overflow-y-auto border-t border-border px-5 py-2"
+          />
+        )}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-5 py-3">
           {tags.map((tag) => (
             <span

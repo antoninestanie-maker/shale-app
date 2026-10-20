@@ -78,6 +78,46 @@ export function remplacerParMention(
   // l'historique d'annulation, que reconstruire à la main ferait perdre.
   // L'espace insaisissable qui suit évite que le curseur reste PRISONNIER
   // derrière un jeton `contenteditable="false"` en fin de ligne.
-  document.execCommand("insertHTML", false, jetonMention(kind, uid, titre) + "&nbsp;");
+  //
+  // ⚠️ LE CURSEUR EST REPOSÉ À LA MAIN, APRÈS (2026-10-20, audit complet,
+  // constat 9). Chrome laisse le curseur DEVANT un fragment inséré qui commence
+  // par un élément `contenteditable="false"` : « Before @Pros » + Entrée +
+  // « is done » donnait « Before is done@Prospecting ». Le jeton porte un
+  // repère le temps de l'insertion ; on le retrouve, on le retire, et le
+  // curseur va juste après l'espace qui le suit.
+  document.execCommand("insertHTML", false, marquerJeton(jetonMention(kind, uid, titre)) + "&nbsp;");
+  poserCurseurApresJeton(racine);
   return true;
+}
+
+/** Le repère posé sur le jeton pendant son insertion — retiré aussitôt. */
+const REPERE = "data-mention-neuve";
+
+/** Ajoute le repère à la balise ouvrante du jeton. */
+export function marquerJeton(html: string): string {
+  return html.replace(/^<span\b/, `<span ${REPERE}=""`);
+}
+
+/**
+ * Pose le curseur après le jeton qui vient d'entrer (et l'espace qui le suit),
+ * puis retire son repère. Sans jeton repéré, ne touche à rien.
+ */
+export function poserCurseurApresJeton(racine: HTMLElement): void {
+  const jeton = racine.querySelector<HTMLElement>(`[${REPERE}]`);
+  if (!jeton) return;
+  jeton.removeAttribute(REPERE);
+  const sel = window.getSelection();
+  if (!sel) return;
+  let suivant = jeton.nextSibling;
+  // L'espace insaisissable doit suivre le jeton : sans lui, le curseur
+  // resterait prisonnier derrière un élément non éditable en fin de ligne.
+  if (!suivant || suivant.nodeType !== Node.TEXT_NODE || !(suivant.textContent ?? "").startsWith("\u00a0")) {
+    suivant = document.createTextNode("\u00a0");
+    jeton.after(suivant);
+  }
+  const r = document.createRange();
+  r.setStart(suivant, 1);
+  r.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(r);
 }

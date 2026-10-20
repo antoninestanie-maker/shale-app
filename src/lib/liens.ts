@@ -215,3 +215,42 @@ export function grouperParKind(aretes: readonly ObjectLink[]): Map<LinkKind, Obj
   }
   return groupes;
 }
+
+/** Une ligne de « Cité dans » : ce qui cite l'objet qu'on regarde. */
+export interface Citant {
+  kind: LinkKind;
+  uid: string;
+  titre: string;
+}
+
+/**
+ * ⭐ L'AUTRE BOUT DU LIEN (2026-10-20, audit complet, constat 5). Une note qui
+ * cite une tâche, un rendez-vous ou une fiche le montrait — mais la tâche, le
+ * rendez-vous et la fiche ne disaient rien de la note : le lien ne se voyait
+ * que d'un côté. Quatre personnes du labo l'ont cherché en vain.
+ *
+ * Ce qui cite `soi`, une ligne par objet (une note qui le cite par « @ » ET par
+ * un rattachement manuel n'apparaît qu'une fois), sans les arêtes dont la
+ * source n'existe plus ici (`titres` ne la connaît pas), sans soi-même. L'ordre
+ * des familles suit `LINK_KINDS`, puis l'ordre des arêtes.
+ */
+export function citantsDe(
+  aretes: readonly ObjectLink[],
+  titres: ReadonlyMap<string, string>,
+  soi: Extremite,
+): Citant[] {
+  const vus = new Set<string>();
+  const out: Citant[] = [];
+  for (const kind of LINK_KINDS) {
+    for (const l of aretes) {
+      if (l.from_kind !== kind || l.to_kind !== soi.kind || l.to_uid !== soi.uid) continue;
+      if (l.from_kind === soi.kind && l.from_uid === soi.uid) continue;
+      const cle = `${l.from_kind}:${l.from_uid}`;
+      const titre = titres.get(cle);
+      if (titre == null || vus.has(cle)) continue;
+      vus.add(cle);
+      out.push({ kind: l.from_kind, uid: l.from_uid, titre });
+    }
+  }
+  return out;
+}

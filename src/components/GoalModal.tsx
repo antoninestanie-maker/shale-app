@@ -15,6 +15,7 @@ import {
 import type { Goal, Priority } from "../lib/types";
 
 import { t } from "../lib/i18n";
+import { useFermetureGardee } from "./useFermetureGardee";
 import ChampDate from "./ChampDate";
 interface Props {
   goal: Goal | null; // null = création
@@ -87,6 +88,11 @@ export default function GoalModal({
   const [taches, setTaches] = useState<LigneTache[]>([{ nom: "", echeance: "" }]);
   const lignesEtapes = lignesAffichees(etapes);
   const lignesTaches = tachesAffichees(taches);
+  // ⭐ Modifiée, la fenêtre demande avant de jeter la saisie (2026-10-20).
+  const { fermer, confirmation } = useFermetureGardee(
+    { title, description, scope, category, parentId, deadline, manual, progress, priorite, etapes, taches },
+    onClose,
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,12 +104,12 @@ export default function GoalModal({
       if (e.defaultPrevented) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        fermer();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [fermer]);
 
   // parents interdits : soi-même et ses descendants (cycles)
   const forbidden = goal ? descendantIds(goal.id, goals) : new Set<number>();
@@ -190,7 +196,7 @@ export default function GoalModal({
   return (
     <div
       className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-      onClick={onClose}
+      onClick={fermer}
     >
       {/* ⭐ Le pied reste, le corps défile — `.fenetre` dans `index.css`
           (2026-10-12, crible du labo, constat 20). La carte entière défilait
@@ -451,10 +457,11 @@ export default function GoalModal({
 
           </div>
 
+          {confirmation}
           <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={fermer}
               className="pill px-4 py-2 text-sm font-medium text-text-dim hover:text-text"
             >
               {t("Annuler")}

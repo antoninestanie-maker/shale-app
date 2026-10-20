@@ -19,6 +19,7 @@ import {
   lireCategories,
   lirePref,
   memesCategories,
+  piedSerre,
   regimeDe,
   type PrefBarre,
   type Regime,
@@ -725,6 +726,39 @@ export default function Sidebar({
     return () => io.disconnect();
   }, []);
 
+  // ── Le pied qui se serre ─────────────────────────────────────────────────
+  // Quand les modules ne tiennent pas, le pied passe en une rangée d'icônes et
+  // l'horloge se retire (`piedSerre`, `lib/barre.ts`). Mesuré à chaque
+  // changement de taille de la liste ou de ses catégories (dépliage compris).
+  const piedRef = useRef<HTMLDivElement>(null);
+  const horlogeRef = useRef<HTMLDivElement>(null);
+  const [serre, setSerre] = useState(false);
+  /** La hauteur du pied PLEIN, relevée la dernière fois qu'il l'était. */
+  const piedPlein = useRef(0);
+  const serreRef = useRef(serre);
+  serreRef.current = serre;
+  useEffect(() => {
+    const liste = listeRef.current;
+    if (!liste || typeof ResizeObserver === "undefined") return;
+    const hauteurPied = () => (piedRef.current?.offsetHeight ?? 0) + (horlogeRef.current?.offsetHeight ?? 0);
+    const mesurer = () => {
+      const avant = serreRef.current;
+      const pied = hauteurPied();
+      if (!avant) piedPlein.current = pied;
+      const apres = piedSerre(avant, {
+        contenu: liste.scrollHeight,
+        visible: liste.clientHeight,
+        gain: Math.max(0, piedPlein.current - pied),
+      });
+      if (apres !== avant) setSerre(apres);
+    };
+    const ro = new ResizeObserver(mesurer);
+    ro.observe(liste);
+    for (const enfant of Array.from(liste.children)) ro.observe(enfant);
+    mesurer();
+    return () => ro.disconnect();
+  }, [collapsed, config.modules, reduite]);
+
   const toggleCategory = (catId: string, bouton: HTMLElement) => {
     const bloc = bouton.closest<HTMLElement>("[data-cat]");
     const liste = listeRef.current;
@@ -747,6 +781,8 @@ export default function Sidebar({
     id: View,
     label: string,
     icon: ReactNode,
+    /** Dans le pied serré : l'icône seule, nommée au survol et par `aria-label`. */
+    compact = false,
   ) => {
     // ⚠️ `aria-label` sur le BOUTON, et pas seulement `title` sur le libellé :
     // réduite, la barre ne rend plus le libellé, donc le bouton ne contient
@@ -774,7 +810,7 @@ export default function Sidebar({
         // (12 + icône 17 + 12) parce que le libellé, lui, est tombé à zéro.
         // L'icône ne bouge jamais, et l'info-bulle se place à droite du bouton
         // (`Tooltip.tsx`), donc à côté du rail.
-        className={`group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
+        className={`group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${compact ? "flex-none" : ""} ${
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
@@ -800,9 +836,11 @@ export default function Sidebar({
         {/* Le libellé prend la place qui reste et se COUPE EN S'ESTOMPANT quand
             elle manque (`.barre-coupe`) — un nom long de Personnaliser, ou une
             barre qu'on a rétrécie. Toujours dans le DOM, à largeur nulle au rail. */}
-        <span className="barre-texte barre-coupe min-w-0 flex-1 text-left" title={label}>
-          {label}
-        </span>
+        {!compact && (
+          <span className="barre-texte barre-coupe min-w-0 flex-1 text-left" title={label}>
+            {label}
+          </span>
+        )}
         {/* Réduit, cadenas et pastille se posent sur le coin de l'icône : en
             bout de ligne ils sortiraient du bouton. */}
         {locked ? (
@@ -1027,13 +1065,36 @@ export default function Sidebar({
                 <div ref={basRef} aria-hidden className="-mt-0.5 h-px shrink-0" />
               </div>
               <div aria-hidden className={`barre-fondu ${cache.bas ? "opacity-100" : "opacity-0"}`} />
+              {/* ⭐ Le fondu seul ne se voyait pas (audit du 2026-10-20) : il dit
+                  « il reste des modules » par un chevron qu'on peut toucher, et
+                  qui amène la suite à l'écran. Hors du DOM quand tout tient. */}
+              {cache.bas && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const l = listeRef.current;
+                    if (l) l.scrollBy({ top: l.clientHeight * 0.8, behavior: mouvementReduit() ? "auto" : "smooth" });
+                  }}
+                  aria-label={t("Voir la suite des modules")}
+                  data-tip={t("Voir la suite des modules")}
+                  data-tip-side="right"
+                  className="barre-suite"
+                >
+                  <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 4.5 6 7.5 9 4.5" />
+                  </svg>
+                </button>
+              )}
             </div>
           </nav>
 
-          <div className="shrink-0 border-t border-border pt-3">
-            <nav className="flex flex-col gap-0.5 px-3">
+          <div ref={piedRef} className="shrink-0 border-t border-border pt-3">
+            <nav
+              data-serre={serre ? "" : undefined}
+              className={`flex gap-0.5 px-3 ${serre ? "flex-row flex-wrap" : "flex-col"}`}
+            >
               {ITEMS_PIED.filter((it) => (isAdmin || !it.adminSeul) && (COMMERCE_AUTORISE || it.id !== "console")).map((it) =>
-                navButton(it.id, t(it.label), it.icon),
+                navButton(it.id, t(it.label), it.icon, serre),
               )}
               {/* Réduire / étendre. Une LIGNE du pied, visible en permanence et
                   au doigt — pas une poignée au survol du bord (règle 17 : une
@@ -1053,7 +1114,7 @@ export default function Sidebar({
                 <span className="h-[17px] w-[17px] shrink-0 text-text-dim/80">
                   <IconBarre className="h-full w-full" />
                 </span>
-                <span className="barre-texte barre-coupe min-w-0 flex-1 text-left">{t("Réduire")}</span>
+                {!serre && <span className="barre-texte barre-coupe min-w-0 flex-1 text-left">{t("Réduire")}</span>}
               </button>
             </nav>
           </div>
@@ -1068,8 +1129,8 @@ export default function Sidebar({
               suit `--barre-w`. Les blocs de texte (`.barre-repli`) s'estompent
               puis se replient en hauteur à mesure que la barre rétrécit ; au
               rail il ne reste que la pastille de synchronisation, centrée. */}
-          <div className="flex shrink-0 flex-col px-[var(--barre-marge)] pb-5 pt-4">
-            {!basse && (
+          <div ref={horlogeRef} className="flex shrink-0 flex-col px-[var(--barre-marge)] pb-5 pt-4">
+            {!basse && !serre && (
               <div className="barre-repli">
                 <div className="barre-texte barre-coupe flex flex-col gap-3 pb-3">
                   <Clock />

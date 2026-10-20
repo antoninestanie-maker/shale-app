@@ -178,3 +178,30 @@ export function memesCategories(a: Record<string, boolean> | null, b: Record<str
   for (const c of cles) if ((a[c] ?? false) !== (b[c] ?? false)) return false;
   return true;
 }
+
+/**
+ * ⭐ LE PIED SE SERRE QUAND LES MODULES NE TIENNENT PAS (2026-10-20, audit
+ * complet, constat 4). À 1280×800 — et à 1470×923 en densité 110 %, la fenêtre
+ * d'Antonin — la liste débordait de plus de cent pixels sous un pied de cinq
+ * lignes et d'une horloge : « Penser et retenir » semblait vide, Notes,
+ * Habitudes et Savoir étaient sous le pli, sans ascenseur visible (macOS ne
+ * dessine la barre de défilement qu'en défilant). Cinq personnes du labo y ont
+ * perdu un module.
+ *
+ * Serré, le pied devient UNE rangée d'icônes (Personnaliser, Réglages,
+ * Supprimés récemment, Réduire — nommés au survol et pour les lecteurs
+ * d'écran) et l'horloge se retire : de l'ordre de 190 px rendus à la liste.
+ *
+ * Une MESURE, pas un seuil de fenêtre : ce qui déborde dépend des modules
+ * affichés, des catégories repliées, de la langue et de la densité.
+ *
+ * `contenu` : la hauteur de la liste (scrollHeight) ; `visible` : sa hauteur à
+ * l'écran (clientHeight) ; `gain` : ce que le pied plein prendrait en plus du
+ * pied serré. L'écart de quatre pixels évite de basculer d'un état à l'autre
+ * à chaque mesure quand tout tient au pixel près.
+ */
+export function piedSerre(avant: boolean, m: { contenu: number; visible: number; gain: number }): boolean {
+  if (!avant) return m.contenu > m.visible + 1;
+  // Serré : le redeviendrait-on aussitôt si le pied reprenait sa place ?
+  return m.contenu > m.visible - m.gain - 4;
+}

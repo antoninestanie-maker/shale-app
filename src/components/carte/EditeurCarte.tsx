@@ -35,7 +35,8 @@ import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
 import { objetsEmportes, resoudreEmportes } from "../../lib/objectifs/emportes";
 import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
-import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
+import { defaireDerniereSuppression, jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
+import { cibleDeSaisie } from "../../lib/annulerSuppression";
 import { etatsVivants, type EtatVivant } from "../../lib/carteEtat";
 import { addDays, todayStr } from "../../lib/logic";
 import { allerVers } from "../../lib/naviguer";
@@ -736,11 +737,22 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
       if (typage || versObjectif) return;
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === "z") {
+        // Carte d'objectif, un nom de nœud en cours de frappe : ⌘Z défait la
+        // FRAPPE, c'est au champ (avant le 2026-10-20 la touche était avalée).
+        if (objectif && (edition || cibleDeSaisie(document.activeElement))) {
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
-        // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets, et ⌘Z
-        // n'en défait rien. Une suppression se rattrape par la corbeille.
-        if (objectif) return;
+        // Carte d'objectif : ce qu'on y fait est ÉCRIT dans les objets. ⌘Z y
+        // rend la dernière SUPPRESSION (2026-10-20, audit complet, constat 23) —
+        // le nœud revient avec sa tâche ou son étape, par la corbeille. Le
+        // reste (renommer, déplacer) ne se défait pas ici.
+        if (objectif) {
+          if (!e.shiftKey) void defaireDerniereSuppression();
+          return;
+        }
         if (e.shiftKey) refaire();
         else defaire();
         setEdition(null);

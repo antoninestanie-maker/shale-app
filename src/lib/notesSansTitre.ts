@@ -149,3 +149,38 @@ export function estNoteNeuve(titre: string, corps: string): boolean {
   if (/<(img|figure|svg)\b/i.test(corps)) return false;
   return corps.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
+
+const ENTITES: Readonly<Record<string, string>> = { nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+/**
+ * Le début du TEXTE d'un corps HTML, sans DOM — pour nommer une note sans
+ * titre là où l'on n'a pas `plainText` sous la main : la corbeille, le bandeau
+ * de suppression (2026-10-20, audit complet : « la corbeille nomme ainsi toute
+ * note sans titre », savoir-10). Trois notes rapides jetées y étaient trois
+ * lignes « Nouvelle note » identiques.
+ *
+ * Les blocs sans texte lisible (carte mentale, croquis : `<figure>`, `<svg>`)
+ * sont sautés en entier — leurs libellés internes ne sont pas « le début de la
+ * note ». Rend une chaîne vide s'il ne reste pas un mot.
+ */
+export function extraitDuCorps(corps: string | null | undefined, longueur = LONGUEUR_EXTRAIT): string {
+  if (!corps) return "";
+  const texte = corps
+    .replace(/<(figure|svg|style|script)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    // Un corps lu TRONQUÉ (la corbeille n'en lit que le début) peut finir au
+    // milieu d'une balise — une image en `data:` surtout : on ne montre pas sa
+    // base64.
+    .replace(/<[^>]*$/, " ")
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+      if (e[0] === "#") {
+        const n = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
+      }
+      return ENTITES[e.toLowerCase()] ?? m;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+  const lettres = Array.from(texte);
+  return lettres.length > longueur ? `${lettres.slice(0, longueur).join("").trimEnd()}…` : texte;
+}

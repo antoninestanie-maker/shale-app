@@ -16,6 +16,9 @@ import { IconTrash } from "../icons";
 import RouletteHeure from "./RouletteHeure";
 import { t } from "../../lib/i18n";
 import ChampDate from "../ChampDate";
+import CiteDans from "../liens/CiteDans";
+import { uidDeLigne } from "../../lib/objectifs/progression";
+import { useFermetureGardee } from "../useFermetureGardee";
 
 /**
  * Créer ou modifier un événement.
@@ -115,6 +118,12 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
   const [roulette, setRoulette] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  // ⭐ Modifiée, la fiche demande avant de jeter la saisie — y compris quand on
+  // touche un onglet du téléphone, la barre restant active (2026-10-20).
+  const { fermer, confirmation } = useFermetureGardee(
+    { titre, corps, date, debut, fin, journee, plusieurs, finJour, couleur, recMode, jours },
+    onClose,
+  );
 
   /**
    * ⭐ DÉPLACER LE DÉBUT DÉPLACE LA FIN, en gardant la durée.
@@ -142,11 +151,11 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
       // le calendrier ET la fenêtre, saisie comprise (témoin A17-01).
       if (e.defaultPrevented || e.key !== "Escape") return;
       e.preventDefault();
-      onClose();
+      fermer();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [fermer]);
 
   async function enregistrer() {
     if (!titre.trim()) {
@@ -216,7 +225,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
   return (
     <div
       className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={fermer}
     >
       {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). Cette
           fenêtre n'avait AUCUNE borne de hauteur : ouverte sur un événement
@@ -444,11 +453,15 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           className="mt-1.5 w-full resize-none rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
         />
 
+        {/* Ce qui cite ce rendez-vous — une note (2026-10-20). */}
+        {event && <CiteDans kind="event" uid={uidDeLigne("event", event)} className="mt-4" />}
+
         </div>
 
         {/* L'erreur vit dans le PIED : dans le corps, elle pourrait être hors
             de vue au moment où « Enregistrer » la fait naître. */}
         {erreur && <p className="fenetre-pied text-sm text-red">{erreur}</p>}
+        {confirmation}
 
         <div className="fenetre-pied mt-[10px] flex flex-wrap items-center justify-between gap-y-2">
           {event ? (
@@ -482,7 +495,7 @@ export default function EventModal({ event, jour, heure, onClose, onSaved }: Pro
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={fermer}
               className="pill px-4 py-2 text-sm text-text-dim hover:text-text"
             >
               {t("Annuler")}

@@ -15,6 +15,7 @@ import {
   type LigneTache,
 } from "./corbeille/lots";
 import type { APurger, ElementCorbeille, Lot, PlanRestauration } from "./corbeille/base";
+import { APERCU_MAX } from "./corbeille/base";
 import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { debutRoutineDemo, historiqueDemo } from "./demoHistorique";
@@ -2962,6 +2963,9 @@ export const demo = {
           id: l.id,
           uid: uidCorbeilleDemo(kind, l.id),
           titre: titreDemo(kind, l),
+          ...(kind === "note" || kind === "knowledge"
+            ? { apercu: typeof l.body === "string" ? l.body.slice(0, APERCU_MAX) : null }
+            : null),
           deleted_at: l.deleted_at,
           taille,
         });

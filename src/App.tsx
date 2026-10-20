@@ -23,6 +23,9 @@ import { appliquerAuxModules, libelleProfil, moduleVisible } from "./lib/licence
 import { deposerDemande, EVT_ALLER, EVT_OUVRIR, ouvrirParId, VUE_DE_KIND, type DemandeOuverture } from "./lib/naviguer";
 import { installerMenuNatif } from "./lib/menu/natif";
 import { brancherHoteToast, type ToastGlobal } from "./lib/toast";
+import { aUneSuppressionARendre, cibleDeSaisie, estToucheDefaire } from "./lib/annulerSuppression";
+import { gesteSuspendu } from "./lib/saisieGardee";
+import { defaireDerniereSuppression } from "./components/corbeille/geste";
 import Toast from "./components/Toast";
 import SelecteurDateFlottant from "./components/SelecteurDateFlottant";
 import type { LinkKind } from "./lib/types";
@@ -65,6 +68,10 @@ const EVT_MODULE: Partial<Record<LinkKind, string>> = {
   // Depuis le 2026-09-29 : la vue Objectifs est en maître-détail, elle montre
   // la fiche de l'objectif demandé (celle de sa racine, pour une étape).
   goal: "sb:open-goal",
+  // Depuis le 2026-10-20 : un rendez-vous cité (« Cité dans », une mention)
+  // ouvre SA fiche, sur sa semaine — plus la semaine du jour, sans rien
+  // mettre en évidence (audit complet, constat 5).
+  event: "sb:open-event",
 };
 const TimerView = lazy(() => import("./views/TimerView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
@@ -153,6 +160,9 @@ function BandeauLecturePerimee({ onRetry }: { onRetry: () => void }) {
 
 function App() {
   const [view, setView] = useState<View>("today");
+  /** La vue du moment, lisible depuis `navigate` sans en faire une dépendance. */
+  const vueRef = useRef(view);
+  vueRef.current = view;
   const [data, setData] = useState<AppData | null>(null);
   const [erreurDonnees, setErreurDonnees] = useState<string | null>(null);
   const snapshotDone = useRef(false);
@@ -246,6 +256,10 @@ function App() {
         setPaywallFor(v);
         return;
       }
+      // Une fenêtre de saisie modifiée est ouverte (la fiche d'un événement au
+      // téléphone, sous la barre d'onglets) : elle demande d'abord, et reprend
+      // la navigation si l'on confirme (`lib/saisieGardee.ts`, 2026-10-20).
+      if (v !== vueRef.current && gesteSuspendu(() => setView(v))) return;
       setView(v);
     },
     [hasTrading, profil, isAdmin],
@@ -457,6 +471,22 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [ouvrirNoteRapide]);
+
+  // ⭐ ⌘Z hors de tout champ rend la dernière suppression (2026-10-20, audit
+  // complet, constat 23). Dans un champ, ⌘Z défait la frappe : on n'y touche
+  // pas. Un éditeur plein écran qui l'a déjà prise (carte mentale, croquis, en
+  // capture) l'a marquée `defaultPrevented`. `lib/annulerSuppression.ts`.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat || !estToucheDefaire(e)) return;
+      if (cibleDeSaisie(e.target) || cibleDeSaisie(document.activeElement)) return;
+      if (!aUneSuppressionARendre()) return;
+      e.preventDefault();
+      void defaireDerniereSuppression();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // ── Le bouton Action (et Siri, et Spotlight) ────────────────────────────
   // L'`AppIntent` Swift n'a aucun moyen d'appeler la webview : il pose un

@@ -658,6 +658,28 @@
     max-height: clamp(0px, calc((var(--barre-w) - 104px) * 2), 120px);
     opacity: clamp(0, calc((var(--barre-n) - 118) / 44), 1);
   }
+  /* Le chevron posé sur le fondu (2026-10-20) : le fondu seul ne se voyait
+     pas. Centré, petit, et lui seul reçoit le pointeur. Au rail il reste
+     centré sur la colonne d'icônes. */
+  .barre-suite {
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 18px;
+    border-radius: 9px;
+    border: 1px solid var(--color-border);
+    background: var(--barre-bg);
+    color: var(--color-text-dim);
+    transition: color var(--dur-fast), background-color var(--dur-fast);
+  }
+  .barre-suite:hover {
+    color: var(--color-text);
+  }
   /* Pied de la liste : il reste des modules plus bas. */
   .barre-fondu {
     position: absolute;

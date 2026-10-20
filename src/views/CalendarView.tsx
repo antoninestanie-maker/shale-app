@@ -52,7 +52,7 @@ import {
 } from "../components/menu/catalogue/evenement";
 import { entreesTache, gestesCommunsTache } from "../components/menu/catalogue/tache";
 import { jeter } from "../components/corbeille/geste";
-import { ouvrirParId } from "../lib/naviguer";
+import { consommerDemande, ouvrirParId } from "../lib/naviguer";
 import { useEntitlements } from "../lib/entitlements";
 import { useIaPossible } from "../lib/ia/useIa";
 import { demanderIa } from "../lib/ia/demande";
@@ -204,6 +204,34 @@ export default function CalendarView({ data, refresh }: Props) {
   useEffect(() => {
     void chargerEvents();
   }, [chargerEvents]);
+
+  /**
+   * ⭐ Ouvrir un rendez-vous demandé ailleurs — une mention, « Cité dans »
+   * (2026-10-20, audit complet, constat 5). Avant, le calendrier s'ouvrait sur
+   * la semaine du jour, sous les alertes, sans rien montrer. La demande peut
+   * avoir été DÉPOSÉE avant que la vue (chargée en `lazy`) soit montée
+   * (`lib/naviguer.ts`).
+   */
+  useEffect(() => {
+    let vivant = true;
+    const ouvrir = async (id: number) => {
+      // Tous les événements : celui qu'on cherche peut être loin de la semaine
+      // affichée. La table est petite ; la recherche n'a lieu qu'à la demande.
+      const tous = await fetchCalendarEvents("0000-01-01", "9999-12-31");
+      const ev = tous.find((x) => x.id === id);
+      if (!ev || !vivant) return;
+      setCurseur(ev.date);
+      setModale({ event: ev, jour: ev.date, heure: null });
+    };
+    const surDemande = (e: Event) => void ouvrir((e as CustomEvent<number>).detail);
+    window.addEventListener("sb:open-event", surDemande);
+    const enAttente = consommerDemande("event");
+    if (enAttente != null) void ouvrir(enAttente);
+    return () => {
+      vivant = false;
+      window.removeEventListener("sb:open-event", surDemande);
+    };
+  }, []);
 
   /**
    * ⭐ LE REPORT DES TÂCHES NON FAITES — appliqué à l'ouverture du calendrier.

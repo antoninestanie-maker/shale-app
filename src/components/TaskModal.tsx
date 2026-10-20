@@ -16,6 +16,9 @@ import type { EtatTache, Goal, Priority, Tag, Task } from "../lib/types";
 import { t } from "../lib/i18n";
 import ChampDate from "./ChampDate";
 import { ChoixPriorite } from "./Priorite";
+import CiteDans from "./liens/CiteDans";
+import { uidDeLigne } from "../lib/objectifs/progression";
+import { useFermetureGardee } from "./useFermetureGardee";
 interface Props {
   task: Task | null; // null = création
   tags: Tag[];
@@ -71,6 +74,11 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   /** Repliée par défaut, comme dans le formulaire d'événement. */
   const [roulette, setRoulette] = useState(false);
   const [saving, setSaving] = useState(false);
+  // ⭐ Modifiée, la fenêtre demande avant de jeter la saisie (2026-10-20).
+  const { fermer, confirmation } = useFermetureGardee(
+    { label, tag, priority, recMode, days, goalId, etat, attenteDe, relance, dueDate, debut, fin },
+    onClose,
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -82,12 +90,12 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
       if (e.defaultPrevented) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        fermer();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [fermer]);
 
   /** Même règle que le formulaire d'événement : la fin TRANSLATE avec le début. */
   function changerDebut(nouveau: string) {
@@ -151,7 +159,7 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
   return (
     <div
       className="fenetre-voile fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-      onClick={onClose}
+      onClick={fermer}
     >
       {/* Le pied reste, le corps défile (`.fenetre`, `index.css`). Cette
           fenêtre n'avait AUCUNE borne de hauteur : sur un écran bas elle
@@ -383,6 +391,10 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
             </div>
           </div>
 
+          {/* Ce qui cite cette tâche — une note, un rendez-vous (2026-10-20) :
+              le lien se voit des deux côtés. */}
+          {task && <CiteDans kind="task" uid={uidDeLigne("task", task)} />}
+
           {goals.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-medium text-text-dim">
@@ -407,10 +419,11 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
 
           </div>
 
+          {confirmation}
           <div className="fenetre-pied mt-[10px] flex justify-end gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={fermer}
               className="pill px-4 py-2 text-sm font-medium text-text-dim hover:text-text"
             >
               {t("Annuler")}

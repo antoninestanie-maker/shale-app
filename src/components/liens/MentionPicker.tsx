@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { ICONE_DE_KIND, LIBELLE_DE_KIND } from "./libelles";
 import type { Trouvaille } from "../../lib/recherche";
 import { t } from "../../lib/i18n";
+import { zoomFactor } from "../../lib/uiConfig";
 
 /**
  * Le sélecteur qui s'ouvre à la frappe d'un `@`.
@@ -44,22 +45,30 @@ export default function MentionPicker({ resultats, selection, position, onChoisi
    * Le repli sur `innerHeight` couvre le bureau, où les deux coïncident.
    */
   const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
-  const hauteurUtile = vv?.height ?? window.innerHeight;
-  const largeurUtile = vv?.width ?? window.innerWidth;
+  // ⚠️ PIXELS LOCAUX PARTOUT (2026-10-20, audit complet, constat 9 ; PIEGES
+  // § 35.3). `position` arrive en local (les appelants divisent par la
+  // densité) ; les mesures de la fenêtre sont à l'écran et se divisent ici.
+  // `left` et `top` s'écrivent en local, que le `zoom` multiplie ensuite.
+  // L'éditeur de note passait des pixels écran : sous une densité Large, la
+  // bulle sortait par la droite et faisait glisser toute la page.
+  const z = zoomFactor();
+  const { x, y } = position;
+  const hauteurUtile = (vv?.height ?? window.innerHeight) / z;
+  const largeurUtile = (vv?.width ?? window.innerWidth) / z;
   // `offsetTop` : la partie visible peut aussi être DÉCALÉE vers le bas quand
   // la page a été poussée par le clavier.
-  const basVisible = (vv?.offsetTop ?? 0) + hauteurUtile;
+  const basVisible = (vv?.offsetTop ?? 0) / z + hauteurUtile;
 
-  const place = position.y + HAUTEUR_MAX > basVisible;
+  const place = y + HAUTEUR_MAX > basVisible;
 
   return (
     <div
       ref={ref}
-      className="card card-solid fixed z-50 max-h-[16rem] w-72 overflow-y-auto p-1 shadow-lg"
+      className="card card-solid fixed z-50 max-h-[16rem] w-72 max-w-[calc(100%-16px)] overflow-y-auto p-1 shadow-lg"
       style={{
-        left: Math.max(8, Math.min(position.x, largeurUtile - 296)),
-        top: place ? undefined : position.y + 6,
-        bottom: place ? window.innerHeight - position.y + 22 : undefined,
+        left: Math.max(8, Math.min(x, largeurUtile - 296)),
+        top: place ? undefined : y + 6,
+        bottom: place ? window.innerHeight / z - y + 22 : undefined,
       }}
     >
       {resultats.length === 0 ? (

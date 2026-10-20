@@ -9,6 +9,7 @@ import MenuContextuel, { BoutonMenu } from "../components/menu/MenuContextuel";
 import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesNote } from "../components/menu/catalogue/note";
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
+import { selectionApresJet } from "../lib/selectionApresJet";
 import {
   ecritureAcceptable,
   graineDeNote,
@@ -142,7 +143,10 @@ export default function NotesView({ data, refresh }: Props) {
   // charge la note sélectionnée dans l'éditeur
   useEffect(() => {
     if (selected) {
-      setTitle(selected.title);
+      // ⭐ Un titre posé d'office (« Nouvelle note ») n'est PAS mis dans le
+      // champ (2026-10-20, audit complet, constat 12) : la frappe s'y collait
+      // (« Nouvelle noteLouis Garnier »). Le champ est vide, l'invite le dit.
+      setTitle(estSansTitre(selected.title) ? "" : selected.title);
       setBody(selected.body);
       setSaved(true);
     }
@@ -294,8 +298,15 @@ export default function NotesView({ data, refresh }: Props) {
       return;
     }
     setBody(html);
-    scheduleSave(idSource, title, html);
+    scheduleSave(idSource, titreAEcrire(title), html);
   };
+
+  /**
+   * Le titre à enregistrer. Champ vide sur une note sans titre : on garde le
+   * titre d'office tel qu'il est en base, plutôt que d'en écrire un autre.
+   */
+  const titreAEcrire = (saisi: string) =>
+    saisi.trim() || !selected || !estSansTitre(selected.title) ? saisi : selected.title;
 
   const handleNew = async () => {
     const id = await createNote(t("Nouvelle note"), "");
@@ -368,9 +379,14 @@ export default function NotesView({ data, refresh }: Props) {
   const jeterNote = async (note: Note) => {
     const etaitOuverte = note.id === selectedId;
     const corps = etaitOuverte ? body : note.body;
+    // ⚠️ Rappelé au jet PUIS au retour (« Annuler », ⌘Z) : la sélection se
+    // décide sur celle du MOMENT, jamais sur celle du jet (savoir-9).
+    let etape: "jet" | "retour" = "jet";
     await jeterAvecSesCartes("note", note.id, note.title, corps, async () => {
+      const ici = etape;
+      etape = "retour";
       await refresh();
-      if (etaitOuverte) setSelectedId(null);
+      setSelectedId((courante) => selectionApresJet(ici, note.id, etaitOuverte, courante));
     });
   };
   const handleDelete = async () => {
@@ -551,7 +567,7 @@ export default function NotesView({ data, refresh }: Props) {
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                if (selectedId !== null) scheduleSave(selectedId, e.target.value, body);
+                if (selectedId !== null) scheduleSave(selectedId, titreAEcrire(e.target.value), body);
               }}
               // Un titre effacé laissait un champ invisible : rien ne disait où
               // écrire. Le même mot que l'onglet, à l'encre discrète.

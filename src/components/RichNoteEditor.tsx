@@ -7,6 +7,7 @@ import { doitResemer, type Graine } from "../lib/graineEditeur";
 
 import { t } from "../lib/i18n";
 import { kbd } from "../lib/platform";
+import { zoomFactor } from "../lib/uiConfig";
 import MentionPicker from "./liens/MentionPicker";
 import { useDepotPieceJointe } from "./useDepotPieceJointe";
 import { pieceJointeCliquee } from "../lib/piecesJointesDom";
@@ -241,8 +242,12 @@ export default function RichNoteEditor({
       fermerMention();
       return;
     }
-    const position = rectDuCurseur();
-    if (!position) return;
+    const ecran = rectDuCurseur();
+    if (!ecran) return;
+    // En pixels LOCAUX, comme la carte mentale (`EditeurCarte`) : le sélecteur
+    // s'écrit sous la densité (PIEGES § 35.3).
+    const z = zoomFactor();
+    const position = { x: ecran.x / z, y: ecran.y / z };
     const id = ++requeteId.current;
     const resultats = await rechercherPartout(requete, { limite: 8, exclure: source });
     if (id !== requeteId.current) return; // une frappe plus récente a pris la main

@@ -95,7 +95,7 @@ export default function PanneauLiens({ kind, uid, onOuvrir, onCompte }: Props) {
     <section className="card mt-4 p-4">
       <header className="flex items-center justify-between">
         <h3 className="text-xs font-medium uppercase tracking-wide text-text-dim">
-          {t("Mentionné dans")}
+          {t("Cité dans")}
         </h3>
         <button
           type="button"
