@@ -8719,3 +8719,7 @@ Signalé par Antonin, capture à l'appui : après la fermeture d'un objectif, un
 - **Le focus n'est rendu à la ligne que si la page a été fermée au clavier** : Échap, ou Entrée/Espace sur « ← Tous les objectifs » (`event.detail === 0`). Au clic, rien n'est focalisé : le défilement, lui, est toujours rendu.
 - Code : `GoalsView.tsx`, `retour.current.clavier`, posé par `fermer(clavier)`.
 - ▶️ Même motif ailleurs (lecteur du Savoir, menus) : rendre le focus seulement après un geste clavier.
+
+## 2026-10-20 — L'ouverture d'un objectif garde la carte grise jusqu'au bout
+
+Antonin : « sur l'animation d'ouverture de l'objectif, la carte doit rester du même gris, l'animation avec seulement le fond noir ». Le fond du voile (`--card-bg`) apparaissait en fondu (creux noir au départ) et s'effaçait dès 55 % du film, si bien que le rectangle noircissait en grandissant. Il est désormais opaque dès la première image et ne s'efface (160 ms) qu'une fois la page dépliée (`lib/objectifs/transition.ts`, étape 2). Au retour, il revient en 80 ms. Pas vu à l'écran.

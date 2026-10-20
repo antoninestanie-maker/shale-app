@@ -9,7 +9,8 @@
  *    forme de la carte (`clip-path: inset(… round r)`), puis s'agrandit jusqu'à
  *    la colonne entière, sur un ressort ;
  * 2. son FOND reprend le matériau de la carte (`--card-bg`) : c'est bien le
- *    rectangle gris qui grandit ; il s'efface une fois la page dépliée ;
+ *    rectangle gris qui grandit, gris de bout en bout ; il ne s'efface qu'une
+ *    fois la page entièrement dépliée ;
  * 3. le TITRE et le POURCENTAGE voyagent : ceux de la page partent de la place
  *    exacte qu'ils occupaient dans la carte (FLIP), à leur taille d'alors ;
  * 4. le reste de la page arrive en cascade, du haut vers le bas ;
@@ -149,14 +150,20 @@ export function jouerTransition(s: Scene): Animation[] {
     delay: ouvre ? 0 : 60,
   });
 
-  // 2 — le fond de carte : là au départ, effacé une fois la page dépliée. Au
-  // retour, il revient tôt, et s'efface À LA FIN au profit de la vraie carte.
+  // 2 — le fond de carte. ⭐ 2026-10-20, Antonin : « la carte doit rester du
+  // même gris, l'animation avec seulement le fond noir ». Le rectangle est
+  // GRIS du premier au dernier pixel du mouvement : opaque dès la première
+  // image (avant, il apparaissait en fondu pendant que la vraie carte
+  // s'effaçait — un creux noir), et il ne s'efface qu'une fois la page
+  // dépliée (avant : dès 55 % du film, la carte noircissait en grandissant).
+  // Au retour, il revient vite et s'efface À LA FIN au profit de la vraie carte.
+  const ouvreFin = duree + 160;
   jouer(
     s.fond,
     ouvre
-      ? [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }]
-      : [{ opacity: 0 }, { opacity: 1, offset: t(140) }, { opacity: 1, offset: t(pose) }, { opacity: 0 }],
-    { duration: ouvre ? duree + 140 : fin, easing: "linear" },
+      ? [{ opacity: 1 }, { opacity: 1, offset: duree / ouvreFin }, { opacity: 0 }]
+      : [{ opacity: 0 }, { opacity: 1, offset: t(80) }, { opacity: 1, offset: t(pose) }, { opacity: 0 }],
+    { duration: ouvre ? ouvreFin : fin, easing: "linear" },
   );
 
   // La vraie carte cède la place au voile (son ombre dépasse de la découpe),
