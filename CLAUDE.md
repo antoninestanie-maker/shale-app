@@ -8739,3 +8739,13 @@ Antonin : « si je coche des tâches en retard, cela les fait apparaître dans T
 - **L'anneau de l'accueil ET la tuile « série en cours » lisent les HABITUDES** (`lib/disciplineHabitudes.ts`) : tenues / actives aujourd'hui, avec la règle de Performance (`debutsDesHabitudes` : exemples exclus, une habitude compte depuis sa première coche), et la coche optimiste. Les tâches gardent leur compte partout ailleurs (carte « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
 - **Un jour d'habitudes est « tenu » à 75 %**, pas 80 : avec 4 ou 8 habitudes, 80 % exigeait un sans-faute (3/4 = 75 %) ; 67 % aurait rendu la série trop facile à 3 habitudes. Le seuil des TÂCHES (`STREAK_THRESHOLD`, Rust) reste 80.
 - ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
+
+## 2026-10-21 — Lot 4 de l'audit : le doigt, le téléphone, la tablette (décisions prises sans Antonin, à valider)
+
+État et preuves : `PASSATION.md`, même date. Antonin autorise d'office cette nuit ; ce qui suit est la recommandation prise, réversible.
+
+- **L'horloge épurée garde sa décision du 30/09 AU REPOS.** Au doigt seulement, un toucher fait paraître « Pause / Reprendre » et « Réduire » en bas, quatre secondes, puis l'horloge redevient seule ; elles se montrent aussi une fois à l'ouverture, pour qu'on sache qu'elles existent. Un toucher ne SORT plus (c'était le cas sur iOS, sans annonce). À la souris : inchangé (Échap, double-clic). `lib/timerEcran.ts` (`gesteSurHorloge`), `EcranTimer.tsx`. Pour revenir au « rien » strict au doigt : retirer le bloc `data-commandes-horloge`.
+- **Au doigt, aucune carte de grille ne défile en elle-même** : la carte prend sa hauteur naturelle, la page défile. Au bureau, inchangé.
+- **Grille étroite** (tablette debout, fenêtre réduite) : une carte qui ne peut plus avoir de voisine prend la rangée, une carte étroite la demi-rangée ; sur Aujourd'hui, l'ordre du téléphone (l'action en tête). Rien n'est écrit dans les réglages.
+- **Calendrier** : la vue CHOISIE est retenue jusqu'à la fin de la session (la semaine reste le défaut au lancement, 13/10) ; au téléphone, plusieurs alertes se replient en une ligne qu'on déplie ; « Journée surchargée » devient « Aujourd'hui, journée surchargée. ».
+- **Roulette** : crans de 44 px au doigt, pas d'une minute gardé ; aucun cran désigné tant que rien n'est choisi.

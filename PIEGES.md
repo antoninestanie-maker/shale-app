@@ -5549,3 +5549,10 @@ date littérale proche du jour de la panne.
 ## 53.1 Une fonction edge Supabase s'exécute au plus près de l'appelant, et une région mal écrite n'est pas refusée
 
 Mesuré le 2026-10-13 sur `…/functions/v1/ai` (en-tête de réponse `x-sb-edge-region`) : sans région demandée, `eu-central-2` depuis la France ; `x-region: us-east-1` → `us-east-1` ; une région qui n'existe pas (`zz-nowhere-9`) → `eu-central-2`, **sans erreur**. La région du PROJET (Paris) ne dit donc rien de l'endroit où tourne une fonction. `runAi.ts` la fixe par `?forceFunctionRegion=` ; l'en-tête `x-region` ferait échouer le contrôle préalable CORS tant que la fonction ne l'autorise pas. Pour vérifier : `curl -s -o /dev/null -D - -X OPTIONS '<url>?forceFunctionRegion=eu-west-3'` et lire `x-sb-edge-region`.
+
+## 54.1 Retirer un instant une classe pour MESURER remet à zéro le défilement des enfants
+
+- **Symptôme.** Au téléphone, cocher une habitude en bas de la carte la ramenait en haut ; le « ⋯ » d'une ligne du bas ouvrait un menu sous une AUTRE ligne (audit du 20/10, constat 1).
+- **Cause.** `ResizablePanel` lit la hauteur naturelle d'une carte en retirant `.rgrid-fill` le temps d'un `offsetHeight`. Sans l'étirement, la région `.panel-scroll` n'a plus rien à défiler : le navigateur ramène son `scrollTop` à 0, et remettre la classe ne le rend pas. Chaque re-mesure (une coche, un menu ouvert) relançait le défaut.
+- **Parade.** `garderDefilement` (`lib/grille.ts`) relève les `scrollTop` avant la lecture et les repose après. Toute mesure qui change la mise en page d'un parent le temps d'une lecture doit faire de même.
+- **Payé.** Vu par deux utilisateurs simulés, mesuré dans WebKit le 2026-10-21 (lot 4).
