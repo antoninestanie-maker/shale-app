@@ -811,7 +811,9 @@ export default function Sidebar({
         // (12 + icône 17 + 12) parce que le libellé, lui, est tombé à zéro.
         // L'icône ne bouge jamais, et l'info-bulle se place à droite du bouton
         // (`Tooltip.tsx`), donc à côté du rail.
-        className={`group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${compact ? "flex-none" : ""} ${
+        // Serré, un peu moins de marge : les cinq icônes du pied tiennent sur
+        // UNE rangée dans la largeur par défaut (232 px).
+        className={`group/nav relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] py-2 text-[13px] font-medium transition-colors duration-150 ${compact ? "flex-none px-2.5" : "px-3"} ${
           locked
             ? "text-text-dim/55 hover:bg-overlay hover:text-text-dim"
             : active
@@ -1138,7 +1140,7 @@ export default function Sidebar({
                 data-tip-sub={reduite ? t("Affiche le nom des modules.") : t("Ne garde que les icônes.")}
                 data-tip-kbd={kbd("⌥⌘S")}
                 data-tip-side="right"
-                className="cible-tactile-ligne relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] px-3 py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text"
+                className={`cible-tactile-ligne relative flex shrink-0 items-center gap-3 rounded-[var(--radius-field)] py-2 text-[13px] font-medium text-text-dim transition-colors duration-150 hover:bg-overlay hover:text-text ${serre ? "px-2.5" : "px-3"}`}
               >
                 <span className="h-[17px] w-[17px] shrink-0 text-text-dim/80">
                   <IconBarre className="h-full w-full" />
