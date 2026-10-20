@@ -3847,4 +3847,6 @@ export const EN: Record<string, string> = {
   "Étape de « {objectif} »": "Step of “{objectif}”",
   "Une habitude compte à partir du jour de sa création. Cocher un jour d'avant le fait monter, jamais baisser.":
     "A habit counts from the day it was created. Checking an earlier day can raise it, never lower it.",
+  "{n} tâche à faire aujourd'hui": "{n} task to do today",
+  "{n} tâches à faire aujourd'hui": "{n} tasks to do today",
 };

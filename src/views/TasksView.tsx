@@ -386,7 +386,11 @@ export default function TasksView({ data, refresh }: Props) {
   const { prevues: nAujourdhui, aRelancer: nRelances } = compteDuJour(sections.get("aujourdhui")!);
   const nRetard = ouvertes("retard");
   const resume = [
-    nAujourdhui > 0 && tp(nAujourdhui, "{n} tâche aujourd'hui", "{n} tâches aujourd'hui"),
+    // « à faire » (constat 24 de l'audit du 2026-10-20) : ce compte est ce qu'il
+    // RESTE, quand Aujourd'hui et Performance montrent faites / prévues. « 1 tâche
+    // aujourd'hui » à côté de deux lignes (dont une cochée) se lisait comme un
+    // désaccord.
+    nAujourdhui > 0 && tp(nAujourdhui, "{n} tâche à faire aujourd'hui", "{n} tâches à faire aujourd'hui"),
     nRetard > 0 && tp(nRetard, "{n} en retard", "{n} en retard"),
     nRelances > 0 && tp(nRelances, "{n} à relancer", "{n} à relancer"),
   ].filter((x): x is string => !!x);
