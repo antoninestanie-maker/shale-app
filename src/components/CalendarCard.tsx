@@ -7,6 +7,8 @@ import {
 } from "../lib/calendrier/agenda";
 import { chargeDuJour } from "../lib/calendrier/charge";
 import { profilDisponibilite } from "../lib/calendrier/disponibilite";
+import { optionsDuProfil } from "../lib/onboarding/horaires";
+import { useHoraires } from "../lib/onboarding/useHoraires";
 import { fetchCalendarEvents, fetchFacturation, fetchRecurringEvents } from "../lib/repo";
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { FINANCE_ACTIF } from "../lib/features";
@@ -73,7 +75,12 @@ export default function CalendarCard({ data }: { data: AppData }) {
     [events, data.tasks, data.completions, data.goals, echeances, aujourdhui],
   );
 
-  const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
+  // Les heures déclarées à l'accueil (2026-10-20, audit, constat 7).
+  const horaires = useHoraires();
+  const profil = useMemo(
+    () => profilDisponibilite(data.focusSessions, optionsDuProfil(horaires)),
+    [data.focusSessions, horaires],
+  );
   const charge = useMemo(
     () => chargeDuJour(entrees, profil, aujourdhui),
     [entrees, profil, aujourdhui],

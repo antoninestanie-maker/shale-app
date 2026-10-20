@@ -10,6 +10,8 @@ import {
   type ReglagesHoraires,
 } from "../../lib/onboarding/reglages";
 import { echeanceDuPlan, heuresDuPlan, NB_JALONS_MAX, planRempli } from "../../lib/onboarding/planification";
+import { remarquePlage, resumePlage } from "../../lib/onboarding/horaires";
+import { blocEnAttente, brouillonVide, etapePrecedente, ETAPES, ETAPES_FACULTATIVES, type Etape } from "../../lib/onboarding/parcours";
 import {
   creerObjectifDuCurseur,
   creerObjectifPlanifie,
@@ -69,8 +71,8 @@ import GrilleSemaine from "./GrilleSemaine";
  * ⭐ `objectif` est arrivé avec la feuille de route (2026-09-16) : il demande à
  * quoi vont servir les heures du curseur, et plante l'objectif AVEC ses jalons.
  */
-type Etape = "heures" | "travail" | "contraints" | "grille" | "objectif" | "action";
-const ETAPES: readonly Etape[] = ["heures", "travail", "contraints", "grille", "objectif", "action"];
+// ⭐ `ETAPES`, `Etape` et la règle des blocs en attente vivent dans
+// `lib/onboarding/parcours.ts` depuis le 2026-10-20 (testés sans DOM).
 
 /** Au-delà, l'écran devient un formulaire — et la question était optionnelle. */
 const MAX_CONTRAINTS = 3;
@@ -90,6 +92,20 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
   // deadline de l'objectif, c'est très important »). '' : aucune, comme avant.
   const [echeanceObjectif, setEcheanceObjectif] = useState("");
   const [enCours, setEnCours] = useState(false);
+  /**
+   * ⭐ Le bloc fixe en cours de saisie — remonté ici le 2026-10-20 (audit,
+   * constat 7) : tapé sans toucher « + », il était JETÉ par « Suivant », sans
+   * un mot. « Suivant » l'ajoute maintenant (`blocEnAttente`).
+   */
+  const [brouillonBloc, setBrouillonBloc] = useState<BlocContraint>(() => brouillonVide(REGLAGES_PAR_DEFAUT.travail.jours));
+  /** Ce que l'écran doit dire avant d'avancer (un bloc sans jour, par exemple). */
+  const [alerte, setAlerte] = useState<string | null>(null);
+  /**
+   * ⭐ L'écran « objectif » PASSÉ (2026-10-20, constat 6). « Passer » ne ferme
+   * plus tout l'accueil : il saute la question. Passée, elle ne plante pas
+   * d'objectif — même si un titre avait été tapé avant.
+   */
+  const [objectifPasse, setObjectifPasse] = useState(false);
 
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
   const bornes = bornesDuCurseur(grille);
@@ -130,7 +146,7 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
        * (`heuresVoulues`), pas de la case allumée par défaut.
        */
       let jalonPourLaTache: number | null = null;
-      if (options.avecObjectif && planRempli(titreObjectif)) {
+      if (options.avecObjectif && !objectifPasse && planRempli(titreObjectif)) {
         const plante = await creerObjectifPlanifie(
           titreObjectif,
           jalons,
@@ -155,13 +171,56 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
     }
   };
 
+  const aller = (cible: Etape) => {
+    setAlerte(null);
+    setEtape(cible);
+  };
+
   const suivant = () => {
     if (etape === "action") return void terminer({ avecObjectif: true, avecTache: true });
+    if (etape === "contraints") {
+      // ⭐ Un bloc tapé sans « + » n'est plus jeté (constat 7).
+      const attente = blocEnAttente(brouillonBloc, reglages.contraints.length < MAX_CONTRAINTS);
+      if (attente.etat === "incomplet") {
+        const nom = brouillonBloc.label.trim();
+        return setAlerte(
+          brouillonBloc.jours.length === 0
+            ? t("Choisis au moins un jour pour « {nom} », ou efface son nom.", { nom })
+            : t("Donne à « {nom} » une fin différente de son début, ou efface son nom.", { nom }),
+        );
+      }
+      if (attente.etat === "pret") {
+        patch({ contraints: [...reglages.contraints, attente.bloc] });
+        setBrouillonBloc(brouillonVide(reglages.travail.jours));
+      }
+    }
     // « Suivant » sur la grille valide la case allumée. Sans case à l'écran
     // (aucune heure libre), il n'y a rien à retenir.
     if (etape === "grille") setHeuresMontrees(bornes.maximum > 0 ? curseur : null);
-    setEtape(ETAPES[index + 1]);
+    if (etape === "objectif") setObjectifPasse(false);
+    aller(ETAPES[index + 1]);
   };
+
+  /**
+   * ⭐ « Passer » saute LA QUESTION, pas tout l'accueil (2026-10-20, audit,
+   * constat 6). Monique a cliqué « Passer » sur une question qu'elle ne
+   * comprenait pas et s'est retrouvée dans l'app : l'objectif et la première
+   * tâche ne lui ont jamais été demandés. « Tout passer » garde la sortie
+   * immédiate que promet le premier écran.
+   */
+  const passerEtape = () => {
+    if (etape === "action") return void terminer({ avecObjectif: true, avecTache: false });
+    if (etape === "contraints") setBrouillonBloc(brouillonVide(reglages.travail.jours));
+    // La grille passée ne retient aucune heure : ni la case cliquée, ni l'allumée.
+    if (etape === "grille") {
+      setHeuresVoulues(null);
+      setHeuresMontrees(null);
+    }
+    if (etape === "objectif") setObjectifPasse(true);
+    aller(ETAPES[index + 1]);
+  };
+
+  const facultative = ETAPES_FACULTATIVES.includes(etape);
 
   return (
     // ⚠️ `z-[180]`, plus `z-[200]` (2026-10-12) : l'écran « objectif » ouvre le
@@ -186,7 +245,17 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
 
         {etape === "heures" && <EtapeHeures reglages={reglages} patch={patch} />}
         {etape === "travail" && <EtapeTravail reglages={reglages} patch={patch} />}
-        {etape === "contraints" && <EtapeContraints reglages={reglages} patch={patch} />}
+        {etape === "contraints" && (
+          <EtapeContraints
+            reglages={reglages}
+            patch={patch}
+            brouillon={brouillonBloc}
+            setBrouillon={(b) => {
+              setAlerte(null);
+              setBrouillonBloc(b);
+            }}
+          />
+        )}
         {etape === "grille" && (
           <EtapeGrille
             reglages={reglages}
@@ -216,8 +285,16 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
           />
         )}
 
+        {alerte && (
+          <p role="alert" className="mt-4 rounded-lg border border-border bg-overlay px-3 py-2 text-xs text-text">
+            {alerte}
+          </p>
+        )}
+
         {/* ── Pied : progression, suivant, passer ─────────────────────────── */}
-        <div className="mt-6 flex items-center justify-center gap-2">
+        {/* ⭐ Le compte est écrit (constat 6 : « Trois questions » annoncées,
+            six points à l'écran, et aucun moyen de savoir où l'on en était). */}
+        <div className="mt-6 flex items-center justify-center gap-2" aria-hidden>
           {ETAPES.map((e, k) => (
             <span
               key={e}
@@ -227,8 +304,24 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
             />
           ))}
         </div>
+        <p className="mt-2 text-center text-[11px] text-text-dim">
+          {t("Étape {n} sur {total}", { n: index + 1, total: ETAPES.length })}
+        </p>
 
-        <div className="mt-5 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex gap-2">
+            {/* ⭐ RETOUR (constat 6) : une heure mal tapée deux écrans plus tôt
+                ne se corrigeait qu'en refaisant tout l'accueil depuis les Réglages. */}
+            {index > 0 && (
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={() => aller(etapePrecedente(etape))}
+                className="pill cible-tactile shrink-0 border border-border px-4 py-2.5 text-sm font-medium text-text-dim transition-colors hover:text-text disabled:opacity-50"
+              >
+                {t("Retour")}
+              </button>
+            )}
           <button
             type="button"
             disabled={enCours}
@@ -245,19 +338,36 @@ export default function Accueil({ onDone }: { onDone: (allerAuxTaches: boolean) 
               t("Suivant")
             )}
           </button>
-          {/* ⚠️ Skippable à TOUTES les étapes, y compris la dernière. */}
-          <button
-            type="button"
-            disabled={enCours}
-            /* ⚠️ « La réponse crée un objectif » : dès que le curseur a été vu,
-               passer les écrans suivants n'annule pas la réponse donnée. */
-            onClick={() =>
-              void terminer({ avecObjectif: etape === "objectif" || etape === "action", avecTache: false })
-            }
-            className="cible-tactile-ligne text-xs text-text-dim transition-opacity hover:opacity-80 disabled:opacity-50"
-          >
-            {t("Passer")}
-          </button>
+          </div>
+          {/* ⚠️ Skippable à TOUTES les étapes, y compris la dernière — mais
+              « Passer » ne saute plus que la question (2026-10-20, constat 6).
+              « Tout passer » est la sortie immédiate promise au premier écran. */}
+          <div className="flex items-center justify-center gap-4">
+            {facultative && (
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={passerEtape}
+                className="cible-tactile-ligne text-xs text-text-dim transition-opacity hover:opacity-80 disabled:opacity-50"
+              >
+                {etape === "action" ? t("Passer et commencer") : t("Passer cette question")}
+              </button>
+            )}
+            {etape !== "action" && (
+              <button
+                type="button"
+                disabled={enCours}
+                /* ⚠️ « La réponse crée un objectif » : dès que le curseur a été vu,
+                   passer les écrans suivants n'annule pas la réponse donnée. */
+                onClick={() =>
+                  void terminer({ avecObjectif: etape === "objectif", avecTache: false })
+                }
+                className="cible-tactile-ligne text-xs text-text-dim transition-opacity hover:opacity-80 disabled:opacity-50"
+              >
+                {t("Tout passer")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -344,6 +454,7 @@ function EtapeTravail({
           onChange={(v) => patch({ travail: { ...reglages.travail, fin: v } })}
         />
       </div>
+      <Remarque texte={remarquePlage(reglages.travail)} />
     </Bloc>
   );
 }
@@ -353,17 +464,15 @@ function EtapeTravail({
 function EtapeContraints({
   reglages,
   patch,
+  brouillon,
+  setBrouillon,
 }: {
   reglages: ReglagesHoraires;
   patch: (p: Partial<ReglagesHoraires>) => void;
+  /** Remonté dans `Accueil` : « Suivant » ajoute un bloc tapé sans « + ». */
+  brouillon: BlocContraint;
+  setBrouillon: (b: BlocContraint) => void;
 }) {
-  const [brouillon, setBrouillon] = useState<BlocContraint>({
-    label: "",
-    jours: reglages.travail.jours,
-    debut: "08:00",
-    fin: "09:00",
-  });
-
   const ajouter = () => {
     if (reglages.contraints.length >= MAX_CONTRAINTS) return;
     patch({
@@ -372,7 +481,7 @@ function EtapeContraints({
         { ...brouillon, label: brouillon.label.trim() || t("Trajet") },
       ],
     });
-    setBrouillon({ label: "", jours: reglages.travail.jours, debut: "08:00", fin: "09:00" });
+    setBrouillon(brouillonVide(reglages.travail.jours));
   };
 
   const retirer = (i: number) =>
@@ -381,7 +490,7 @@ function EtapeContraints({
   return (
     <Bloc
       titre={t("Un trajet, un cours, une garde ?")}
-      aide={t("Tout bloc qui revient et que tu ne choisis pas. Facultatif — tu peux passer.")}
+      aide={t("Tout bloc qui revient et que tu ne choisis pas. Il réserve ces heures dans ta semaine : le calendrier ne te proposera pas de créneau dessus. Ce n'est pas un événement, il ne s'affiche pas dans le calendrier. Facultatif.")}
     >
       {reglages.contraints.length > 0 && (
         <ul className="mb-3 flex flex-col gap-1.5">
@@ -390,7 +499,12 @@ function EtapeContraints({
               key={`${c.label}-${i}`}
               className="cible-tactile-ligne flex items-center justify-between rounded-lg border border-border bg-overlay px-3 py-2 text-sm text-text"
             >
-              <span className="truncate">{c.label}</span>
+              {/* ⭐ Jours et heures écrits (constat 7) : la ligne ne montrait que
+                  le nom, et on ne savait plus ce qu'on avait déclaré. */}
+              <span className="min-w-0">
+                <span className="block truncate">{c.label}</span>
+                <span className="block truncate text-xs text-text-dim">{resumePlage(c)}</span>
+              </span>
               <button
                 type="button"
                 onClick={() => retirer(i)}
@@ -457,6 +571,10 @@ function EtapeContraints({
               <IconPlus className="h-4 w-4" />
             </button>
           </div>
+          <Remarque texte={remarquePlage(brouillon)} />
+          {brouillon.label.trim() && (
+            <p className="mt-2 text-[11px] text-text-dim">{t("« Suivant » l'ajoute aussi.")}</p>
+          )}
         </>
       )}
     </Bloc>
@@ -497,6 +615,12 @@ function EtapeGrille({
         <div className="mt-6 border-t border-border pt-5">
           <p className="block text-sm font-medium text-text">
             {t("Combien d'heures veux-tu récupérer par semaine ?")}
+          </p>
+          {/* ⭐ CE QUE « RÉCUPÉRER » VEUT DIRE, AVANT la question (constat 6).
+              Ce n'était expliqué qu'à l'écran suivant ; Monique a passé la
+              question faute de la comprendre. */}
+          <p className="mt-1 text-xs leading-relaxed text-text-dim">
+            {t("Récupérer, c'est réserver chaque semaine une part de ton temps libre pour ce qui compte pour toi. À l'écran suivant, tu diras pour quoi.")}
           </p>
           <div role="radiogroup" aria-label={t("Combien d'heures veux-tu récupérer par semaine ?")} className="mt-3 flex flex-wrap gap-1.5">
             {cases.map((n) => (
@@ -672,6 +796,16 @@ function EtapeAction({
 }
 
 // ─── Briques communes ────────────────────────────────────────────────────────
+
+/** Ce qu'une plage horaire mérite qu'on dise (fin avant début…), ou rien. */
+function Remarque({ texte }: { texte: string | null }) {
+  if (!texte) return null;
+  return (
+    <p role="status" className="mt-2 text-xs leading-relaxed text-yellow">
+      {texte}
+    </p>
+  );
+}
 
 function Bloc({
   titre,

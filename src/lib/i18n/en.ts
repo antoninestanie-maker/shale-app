@@ -2628,8 +2628,25 @@ export const EN: Record<string, string> = {
   "Temps": "Time",
   "C'est prêt : l'accueil se rejouera au prochain démarrage de Shale.":
     "Done: the welcome flow will play again next time Shale starts.",
-  "Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment.":
-    "Three questions to tune the app to your week. Nothing decorative: every answer is used for something. You can skip at any time.",
+  // Accueil, audit du 2026-10-20 (constats 6 et 7).
+  "Quelques questions pour régler l'app sur ta semaine, puis ton premier objectif. Rien de décoratif : chaque réponse sert à quelque chose. Chaque question peut être passée, ou tout d'un coup.":
+    "A few questions to tune the app to your week, then your first goal. Nothing decorative: every answer is used for something. Skip any question, or all of them at once.",
+  "Choisis au moins un jour pour « {nom} », ou efface son nom.": "Pick at least one day for “{nom}”, or clear its name.",
+  "Donne à « {nom} » une fin différente de son début, ou efface son nom.": "Give “{nom}” an end different from its start, or clear its name.",
+  "Étape {n} sur {total}": "Step {n} of {total}",
+  "Passer et commencer": "Skip and start",
+  "Passer cette question": "Skip this question",
+  "Tout passer": "Skip everything",
+  "Tout bloc qui revient et que tu ne choisis pas. Il réserve ces heures dans ta semaine : le calendrier ne te proposera pas de créneau dessus. Ce n'est pas un événement, il ne s'affiche pas dans le calendrier. Facultatif.":
+    "Any block that comes back and that you don't choose. It reserves those hours in your week: the calendar won't suggest a slot over it. It isn't an event and doesn't show in the calendar. Optional.",
+  "« Suivant » l'ajoute aussi.": "“Next” adds it too.",
+  "Récupérer, c'est réserver chaque semaine une part de ton temps libre pour ce qui compte pour toi. À l'écran suivant, tu diras pour quoi.":
+    "Getting time back means setting aside part of your free time each week for what matters to you. On the next screen, you'll say what for.",
+  "Blocs fixes": "Fixed blocks",
+  "{jours} · {debut} – {fin}": "{jours} · {debut} – {fin}",
+  "Début et fin identiques : aucune heure n'est comptée.": "Same start and end: no hours are counted.",
+  "La fin est avant le début : la plage passe minuit et dure {n} h. C'est voulu ?":
+    "The end is before the start: this range goes past midnight and lasts {n} h. Is that right?",
   "Refaire l'accueil du premier démarrage": "Redo the first-launch welcome",
   "Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.":
     "Sets your wake-up, bedtime and work hours again. Your data is untouched.",
@@ -2780,9 +2797,13 @@ export const EN: Record<string, string> = {
   "Autres tâches": "Other tasks",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
-  "Revenir au mois en cours": "Back to this month",
   "Mois précédent": "Previous month",
   "Mois suivant": "Next month",
+  // Le titre du calendrier ouvre le choix des mois (2026-10-20, audit, constat 8).
+  "Choisir le mois et l'année": "Choose month and year",
+  "Revenir aux jours": "Back to days",
+  "Année précédente": "Previous year",
+  "Année suivante": "Next year",
   "Effacer": "Clear",
   "Taper une date": "Type a date",
   "Date illisible": "Can’t read that date",

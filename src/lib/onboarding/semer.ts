@@ -142,10 +142,17 @@ export async function rejouerAccueil(): Promise<void> {
 
 // ─── Ce que les réponses écrivent ────────────────────────────────────────────
 
+/**
+ * Annoncé quand les heures déclarées changent : le calendrier les relit
+ * (`useHoraires.ts`, 2026-10-20).
+ */
+export const EVT_HORAIRES = "sb:horaires";
+
 /** Range les heures déclarées. Appelé aussi quand l'accueil est passé. */
 export async function enregistrerReglages(r: ReglagesHoraires): Promise<void> {
   const ecritures = ecrireReglages(r);
   for (const [cle, valeur] of Object.entries(ecritures)) await setSetting(cle, valeur);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT_HORAIRES));
 }
 
 /** Toutes les clés de réglage de l'app, relues en une fois. */

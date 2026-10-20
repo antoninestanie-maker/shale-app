@@ -26,6 +26,8 @@ import {
   creneauxLibres,
   profilDisponibilite,
 } from "../lib/calendrier/disponibilite";
+import { blocsDuJour, optionsDuProfil } from "../lib/onboarding/horaires";
+import { useHoraires } from "../lib/onboarding/useHoraires";
 import { formaterDansPhrase } from "../lib/calendrier/champDate";
 import { objectifsEnPeril } from "../lib/calendrier/peril";
 import { addDays, toDateStr, todayStr } from "../lib/logic";
@@ -269,7 +271,13 @@ export default function CalendarView({ data, refresh }: Props) {
     [sources, jours, aujourdhui],
   );
 
-  const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
+  // ⭐ Les heures déclarées à l'accueil nourrissent enfin le repli et les
+  // créneaux (2026-10-20, audit, constat 7 — `lib/onboarding/horaires.ts`).
+  const horaires = useHoraires();
+  const profil = useMemo(
+    () => profilDisponibilite(data.focusSessions, optionsDuProfil(horaires)),
+    [data.focusSessions, horaires],
+  );
   // Éviter les sessions de marché n'a de sens que pour qui a Market Brain.
   // ⚠️ Corrigé le 2026-09-30 : c'était `true` pour TOUT LE MONDE. Or Sydney,
   // Tokyo, Londres et New York se relaient sans trou du lundi au vendredi
@@ -315,9 +323,10 @@ export default function CalendarView({ data, refresh }: Props) {
           eviterMarche,
           limite: mode === "jour" ? 3 : 1,
           pasAvant: jour === aujourdhui ? heureCourante() : undefined,
+          bloques: blocsDuJour(horaires, jour),
         }).map((c) => ({ jour, debut: c.debut, fin: c.fin })),
       );
-  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche, isPhone]);
+  }, [mode, jours, parJour, profil, aujourdhui, eviterMarche, isPhone, horaires]);
 
   // ─── Gestes ────────────────────────────────────────────────────────────────
 

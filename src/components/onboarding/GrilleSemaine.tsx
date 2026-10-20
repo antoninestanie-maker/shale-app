@@ -24,7 +24,9 @@ import type { ReglagesHoraires } from "../../lib/onboarding/reglages";
 const LEGENDE = (): { cle: Categorie; libelle: string }[] => [
   { cle: "sommeil", libelle: t("Sommeil") },
   { cle: "travail", libelle: t("Travail") },
-  { cle: "trajet", libelle: t("Trajets") },
+  // « Blocs fixes », plus « Trajets » (2026-10-20, audit, constat 7) : une
+  // visio ou un cours s'y rangeaient sous un nom qui n'était pas le leur.
+  { cle: "trajet", libelle: t("Blocs fixes") },
   { cle: "libre", libelle: t("Temps libre") },
 ];
 
@@ -50,7 +52,9 @@ export default function GrilleSemaine({
 }) {
   const grille = useMemo(() => grilleSemaine(reglages), [reglages]);
   const libres = heuresLibres(grille);
-  const legende = LEGENDE();
+  // Une entrée de légende sans aucune case est un mensonge (Yanis : « Trajets »
+  // affiché, aucun bloc) : les blocs fixes n'y paraissent que s'il y en a.
+  const legende = LEGENDE().filter((l) => l.cle !== "trajet" || reglages.contraints.length > 0);
 
   // ⭐ 2026-10-05 (Antonin) : des CASES, pas de longs rectangles. Une ligne par
   // jour, une case carrée par heure — comme les cases du Journal. Les jours en

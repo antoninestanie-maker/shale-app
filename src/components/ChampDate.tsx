@@ -9,6 +9,7 @@ import {
   formaterMois,
   gabaritDeSaisie,
   libelleRelatif,
+  moisAuChoix,
   moisDecale,
   parserSaisie,
   pasDeTouche,
@@ -188,6 +189,13 @@ export function PanneauDate(props: {
     return min && depart < min ? min : max && depart > max ? max : depart;
   });
   const [saisie, setSaisie] = useState("");
+  /**
+   * L'année affichée dans le choix des mois, ou `null` : la grille des jours.
+   * ⭐ 2026-10-20 (audit, constat 8) : le titre ouvre ce choix au lieu de
+   * ramener au mois en cours — aller en mai de l'an prochain coûtait sept
+   * tapes sur la flèche.
+   */
+  const [anneeChoix, setAnneeChoix] = useState<number | null>(null);
   const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
   const panneau = useRef<HTMLDivElement>(null);
   const cellule = useRef<HTMLButtonElement>(null);
@@ -197,6 +205,8 @@ export function PanneauDate(props: {
   // posés une fois. Ils lisent donc la version courante par une référence.
   const courant = useRef(props);
   courant.current = props;
+  const choixOuvert = useRef(false);
+  choixOuvert.current = anneeChoix != null;
 
   /**
    * ⭐ LA HAUTEUR UTILE, PAS LA HAUTEUR DE LA FENÊTRE.
@@ -259,7 +269,7 @@ export function PanneauDate(props: {
 
   useLayoutEffect(() => {
     placer();
-  }, [curseur]);
+  }, [curseur, anneeChoix]);
 
   // La cellule du curseur porte le focus : c'est ce qui rend les flèches
   // utilisables dès l'ouverture, sans cliquer d'abord.
@@ -272,8 +282,8 @@ export function PanneauDate(props: {
   // ne déplaçaient rien. D'où `visible` dans les dépendances.
   const visible = place !== null;
   useEffect(() => {
-    if (visible) cellule.current?.focus();
-  }, [curseur, visible]);
+    if (visible && anneeChoix == null) cellule.current?.focus();
+  }, [curseur, visible, anneeChoix]);
 
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
@@ -289,6 +299,11 @@ export function PanneauDate(props: {
       // capture, on passerait avant qu'il n'ait marqué la touche (`tactile.ts`).
       if (e.defaultPrevented || e.key !== "Escape" || menuContextuelOuvert()) return;
       e.preventDefault();
+      // Dans le choix des mois, Échap revient aux jours : un étage à la fois.
+      if (choixOuvert.current) {
+        setAnneeChoix(null);
+        return;
+      }
       courant.current.onFermer(true);
     };
     /**
@@ -338,6 +353,13 @@ export function PanneauDate(props: {
 
   /** Hors bornes, un jour ne se choisit ni au clic, ni à la flèche, ni à la frappe. */
   const admis = (jour: string) => !(min && jour < min) && !(max && jour > max);
+
+  /**
+   * La frappe lue. Sans année, la date suit la borne basse : « 15/01 » tapé en
+   * octobre dans une échéance qui ne peut pas être passée, c'est janvier
+   * prochain (2026-10-20).
+   */
+  const lireSaisie = () => parserSaisie(saisie, curseur, { apres: min });
 
   const choisir = (jour: string) => {
     if (!admis(jour)) return;
@@ -391,33 +413,78 @@ export function PanneauDate(props: {
       }}
     >
       <div className="flex items-center gap-1">
+        {/* ⭐ Le titre OUVRE LE CHOIX DES MOIS (2026-10-20, audit, constat 8).
+            Il ramenait au mois en cours : pour une échéance en mai prochain,
+            il ne restait que la flèche, sept fois. « Aujourd'hui », plus bas,
+            ramène toujours au jour même. */}
         <button
           type="button"
           id={titreId}
-          onClick={() => setCurseur(aujourdHui)}
-          data-tip={t("Revenir au mois en cours")}
-          className="cible-tactile-ligne min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-left text-sm font-medium text-text first-letter:uppercase hover:bg-overlay"
+          onClick={() => setAnneeChoix((a) => (a == null ? Number(curseur.slice(0, 4)) : null))}
+          aria-expanded={anneeChoix != null}
+          data-tip={anneeChoix == null ? t("Choisir le mois et l'année") : t("Revenir aux jours")}
+          className="cible-tactile-ligne inline-flex min-w-0 flex-1 items-center gap-1 truncate rounded-md px-1.5 py-1 text-left text-sm font-medium text-text first-letter:uppercase hover:bg-overlay"
         >
-          {formaterMois(curseur)}
+          <span className="truncate first-letter:uppercase">
+            {anneeChoix == null ? formaterMois(curseur) : String(anneeChoix)}
+          </span>
+          <IconChevronRight
+            className={`h-3 w-3 shrink-0 text-text-dim transition-transform ${anneeChoix == null ? "" : "rotate-90"}`}
+          />
         </button>
         <button
           type="button"
-          onClick={() => setCurseur((j) => moisDecale(j, -1))}
-          aria-label={t("Mois précédent")}
+          onClick={() =>
+            anneeChoix == null ? setCurseur((j) => moisDecale(j, -1)) : setAnneeChoix((a) => (a ?? 0) - 1)
+          }
+          aria-label={anneeChoix == null ? t("Mois précédent") : t("Année précédente")}
           className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
         >
           <IconChevronLeft className="h-4 w-4" />
         </button>
         <button
           type="button"
-          onClick={() => setCurseur((j) => moisDecale(j, 1))}
-          aria-label={t("Mois suivant")}
+          onClick={() =>
+            anneeChoix == null ? setCurseur((j) => moisDecale(j, 1)) : setAnneeChoix((a) => (a ?? 0) + 1)
+          }
+          aria-label={anneeChoix == null ? t("Mois suivant") : t("Année suivante")}
           className="cible-tactile flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-overlay hover:text-text"
         >
           <IconChevronRight className="h-4 w-4" />
         </button>
       </div>
 
+      {anneeChoix != null ? (
+        <div className="mt-2 grid grid-cols-3 gap-1" role="group" aria-label={String(anneeChoix)}>
+          {moisAuChoix(anneeChoix, curseur, min, max).map((m) => {
+            const affiche = m.jour.slice(0, 7) === curseur.slice(0, 7);
+            const cejour = m.jour.slice(0, 7) === aujourdHui.slice(0, 7);
+            return (
+              <button
+                key={m.jour}
+                type="button"
+                disabled={m.horsBornes}
+                aria-label={m.complet}
+                aria-current={affiche ? "true" : undefined}
+                onClick={() => {
+                  setCurseur(min && m.jour < min ? min : max && m.jour > max ? max : m.jour);
+                  setAnneeChoix(null);
+                }}
+                className={`cible-tactile flex h-10 items-center justify-center rounded-[9px] text-[13px] transition-colors disabled:cursor-not-allowed disabled:text-text-dim/30 ${
+                  affiche
+                    ? "bg-accent-solid font-semibold text-on-accent"
+                    : cejour
+                      ? "font-semibold text-accent hover:bg-overlay"
+                      : "text-text hover:bg-overlay"
+                }`}
+              >
+                {m.libelle}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+      <>
       {/* ⚠️ La semaine commence le LUNDI — `ORDRE_SEMAINE`, comme partout
           dans l'app, et `nomCourtDuJour` demande les noms à `Intl` plutôt
           qu'à une table figée en français (PIEGES § 4.2 et § 5.2 bis). */}
@@ -466,6 +533,8 @@ export function PanneauDate(props: {
           );
         })}
       </div>
+      </>
+      )}
 
       {/* Les trois dates qu'on pose le plus souvent. Celle qui est déjà en
           place se marque, pour qu'un second clic ne se cherche pas. */}
@@ -511,13 +580,13 @@ export function PanneauDate(props: {
             // cette touche : on la consomme ici.
             e.preventDefault();
             e.stopPropagation();
-            const lu = parserSaisie(saisie, curseur);
+            const lu = lireSaisie();
             if (lu && admis(lu)) choisir(lu);
           }}
           inputMode="numeric"
           placeholder={gabaritDeSaisie()}
           aria-label={t("Taper une date")}
-          aria-invalid={saisie.trim() !== "" && parserSaisie(saisie, curseur) === null}
+          aria-invalid={saisie.trim() !== "" && lireSaisie() === null}
           className="w-full rounded-[8px] border border-border bg-surface px-2.5 py-1.5 text-center text-[13px] tabular-nums text-text placeholder:text-text-dim focus:border-accent focus:outline-none aria-[invalid=true]:border-red/60"
         />
         {/* Ce qui a été lu, AVANT de valider : « 24/09 » est ambigu pour
@@ -526,7 +595,7 @@ export function PanneauDate(props: {
         {saisie.trim() !== "" && (
           <p className="mt-1 text-center text-[11px] text-text-dim">
             {(() => {
-              const lu = parserSaisie(saisie, curseur);
+              const lu = lireSaisie();
               if (!lu) return t("Date illisible");
               // Une date lue mais hors bornes le DIT : muette, elle
               // laisserait croire que `Entrée` n'a pas marché.
