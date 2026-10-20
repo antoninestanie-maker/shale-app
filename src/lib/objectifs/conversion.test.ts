@@ -169,16 +169,17 @@ describe("le plan : ce qui ne se convertit pas", () => {
 });
 
 describe("⭐ l'avancement ne bouge pas à la conversion — et les deux compteurs, si", () => {
-  it("trois étapes vides, on en convertit une : 0 % avant, 0 % après ; « 0 étape sur 3 » devient « 0 étape sur 2 · 0 tâche sur 1 »", () => {
+  it("trois étapes vides, on en convertit une : 0 % avant, 0 % après ; « 0 étape sur 3 » devient « 0 étape sur 2 · 0 tâche directe sur 1 »", () => {
+    // ⚠️ MIS À JOUR EXPRÈS le 2026-10-20 (constat 33) : à côté d'étapes, « tâche directe ».
     const s = sources({ goals: [racine, etape(2, 1), etape(3, 1), etape(4, 1)] });
     expect(lire(racine, s)).toEqual({ pct: 0, ligne: "0 étape sur 3" });
-    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 0, ligne: "0 étape sur 2 · 0 tâche sur 1" });
+    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 0, ligne: "0 étape sur 2 · 0 tâche directe sur 1" });
   });
 
   it("l'étape convertie était COCHÉE : 33 % avant, 33 % après ; elle quitte les étapes faites pour les tâches faites", () => {
     const s = sources({ goals: [racine, etape(2, 1, { progress_pct: 100 }), etape(3, 1), etape(4, 1)] });
     expect(lire(racine, s)).toEqual({ pct: 33, ligne: "1 étape sur 3" });
-    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 33, ligne: "0 étape sur 2 · 1 tâche sur 1" });
+    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 33, ligne: "0 étape sur 2 · 1 tâche directe sur 1" });
   });
 
   it("⭐ elle était la SEULE étape de son parent : le parent garde son chiffre, et redevient une étape (il n'en contient plus)", () => {
@@ -202,9 +203,9 @@ describe("⭐ l'avancement ne bouge pas à la conversion — et les deux compteu
       completions: [faite(10), faite(13)],
     });
     // (0 + 1/3 + 1) / 3
-    expect(lire(racine, s)).toEqual({ pct: 44, ligne: "0 étape sur 2 · 1 tâche sur 1" });
+    expect(lire(racine, s)).toEqual({ pct: 44, ligne: "0 étape sur 2 · 1 tâche directe sur 1" });
     // (1/3 + 1 + 0) / 3 : le même total, la même somme.
-    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 44, ligne: "0 étape sur 1 · 1 tâche sur 2" });
+    expect(lire(racine, appliquer(plan(2, s), s))).toEqual({ pct: 44, ligne: "0 étape sur 1 · 1 tâche directe sur 2" });
   });
 
   it("⚠️ LE SEUL CAS OÙ LE CHIFFRE BOUGE : une étape qui porte un vieux POIDS différent de 1 (plus rien ne l'écrit depuis le 2026-09-30)", () => {
