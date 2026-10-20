@@ -5549,3 +5549,23 @@ date littérale proche du jour de la panne.
 ## 53.1 Une fonction edge Supabase s'exécute au plus près de l'appelant, et une région mal écrite n'est pas refusée
 
 Mesuré le 2026-10-13 sur `…/functions/v1/ai` (en-tête de réponse `x-sb-edge-region`) : sans région demandée, `eu-central-2` depuis la France ; `x-region: us-east-1` → `us-east-1` ; une région qui n'existe pas (`zz-nowhere-9`) → `eu-central-2`, **sans erreur**. La région du PROJET (Paris) ne dit donc rien de l'endroit où tourne une fonction. `runAi.ts` la fixe par `?forceFunctionRegion=` ; l'en-tête `x-region` ferait échouer le contrôle préalable CORS tant que la fonction ne l'autorise pas. Pour vérifier : `curl -s -o /dev/null -D - -X OPTIONS '<url>?forceFunctionRegion=eu-west-3'` et lire `x-sb-edge-region`.
+
+## 54.1 Après `insertHTML` d'un élément `contenteditable="false"`, Chrome laisse le curseur DEVANT
+
+**Symptôme.** Dans une note, « Before @Pros » + Entrée + « is done » donne « Before is done@Prospection ». Vu par trois passes du labo (11/10, 12/10, 20/10) ; rejoué le 2026-10-20 sous Chrome sans fenêtre.
+
+**Cause.** `document.execCommand("insertHTML", …)` d'un fragment qui COMMENCE par un élément non éditable (le jeton de mention) laisse la sélection à l'endroit d'où le fragment est parti, devant lui. L'espace insaisissable ajouté derrière ne suffit pas.
+
+**Parade.** Poser un repère sur le jeton le temps de l'insertion, le retrouver, le retirer, et placer le curseur dans le nœud texte qui le suit, après l'espace (`marquerJeton` / `poserCurseurApresJeton`, `lib/mentionsDom.ts`). Garder `insertHTML` pour l'historique d'annulation du navigateur.
+
+**Payé.** Trois passes du labo l'ont signalé « incertain, Chrome seulement » avant qu'on le corrige. ⚠️ Non revu sous WebKit.
+
+## 54.2 Une action de palette qui change de module puis émet un événement à 50 ms rate la vue au premier appel
+
+**Symptôme.** ⌘K « Nouvel objectif » : la page Objectifs s'ouvre, sans formulaire ; au second appel, ça marche.
+
+**Cause.** La vue est chargée en `lazy` : au premier appel de la session, son chunk n'est pas encore là quand `setTimeout(…, 50)` émet `sb:new-goal`. Même famille que § 6.2 ter.
+
+**Parade.** `demanderGeste(nom)` (`lib/naviguer.ts`) : le geste est déposé ET émis ; la vue le reprend à son montage par `consommerGeste(nom)` et le consomme aussi dans son écouteur. Un geste vieux de plus de 10 s n'est plus repris.
+
+**Payé.** Constat A11-09, présent de la passe du 11/10 jusqu'au 20/10.

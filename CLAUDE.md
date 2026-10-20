@@ -8739,3 +8739,11 @@ Antonin : « si je coche des tâches en retard, cela les fait apparaître dans T
 - **L'anneau de l'accueil ET la tuile « série en cours » lisent les HABITUDES** (`lib/disciplineHabitudes.ts`) : tenues / actives aujourd'hui, avec la règle de Performance (`debutsDesHabitudes` : exemples exclus, une habitude compte depuis sa première coche), et la coche optimiste. Les tâches gardent leur compte partout ailleurs (carte « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
 - **Un jour d'habitudes est « tenu » à 75 %**, pas 80 : avec 4 ou 8 habitudes, 80 % exigeait un sans-faute (3/4 = 75 %) ; 67 % aurait rendu la série trop facile à 3 habitudes. Le seuil des TÂCHES (`STREAK_THRESHOLD`, Rust) reste 80.
 - ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
+
+## 2026-10-21 — Lot 6 de l'audit : ⌘Z, saisie gardée, « Cité dans », titre d'office (`chantier/lot6-reperes`)
+
+- **⌘Z hors d'un champ rend la dernière SUPPRESSION**, pas la dernière action : seules les suppressions passent par une pile (`lib/annulerSuppression.ts`), parce qu'elles ont déjà toutes un chemin de retour (la corbeille) et un seul point d'entrée (`jeter`/`jeterPlusieurs`). Défaire un renommage ou un déplacement demanderait un historique par module — pas fait. Masquer un panneau y est assimilé (même geste de retour). Dans un champ, ⌘Z reste au champ, toujours.
+- **Une fenêtre de saisie ne demande que si elle a été MODIFIÉE** (comparée à son ouverture). Intacte, Échap ferme comme avant : une question pour rien serait pire que le défaut. La question est en ligne (`ConfirmationEnLigne`, « Garder » a le focus), pas une fenêtre de plus.
+- **Le titre d'office d'une note reste en base** (« Nouvelle note », « New note ») ; c'est l'affichage qui le traite comme absent (champ vide, extrait du texte dans la corbeille). Pas de migration, et `estSansTitre` reste la seule règle.
+- **« Cité dans »** remplace « Mentionné dans » : le panneau montre ce qui cite l'objet, et deux profils du labo le lisaient comme « ce que la note cite ».
+- **La barre latérale serre son pied d'après une MESURE**, pas d'après la hauteur de fenêtre : ce qui déborde dépend des modules affichés, des catégories repliées, de la langue et de la densité.
