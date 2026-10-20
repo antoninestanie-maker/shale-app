@@ -3815,7 +3815,7 @@ export const EN: Record<string, string> = {
   // ── Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (2026-10-21) ──
   "Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.":
     "Leaves only the clock on screen. Tap the screen to pause or minimise.",
-  "journée surchargée": "overloaded day",
+  "aujourd’hui surchargé": "today overloaded",
   "Masquer les alertes": "Hide alerts",
   "Aujourd'hui, journée surchargée.": "Today is overloaded.",
   "{n} alerte": "{n} alert",

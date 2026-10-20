@@ -823,7 +823,7 @@ function BandeauIntelligence({
             <strong>{tp(nombre, "{n} alerte", "{n} alertes")}</strong>{" "}
             <span className="text-text-dim">
               {[
-                charge.surchargee ? t("journée surchargée") : null,
+                charge.surchargee ? t("aujourd’hui surchargé") : null,
                 peril.length > 0 ? tp(peril.length, "{n} objectif", "{n} objectifs") : null,
                 aDecider.length > 0 ? tp(aDecider.length, "{n} tâche à décider", "{n} tâches à décider") : null,
               ]
