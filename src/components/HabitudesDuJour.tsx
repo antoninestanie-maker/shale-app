@@ -101,7 +101,7 @@ export default function HabitudesDuJour({
                   tipSub={t("Cocher pour aujourd’hui.")}
                 />
                 <span
-                  className={`min-w-0 flex-1 truncate text-sm transition-colors duration-150 ${
+                  className={`truncate-souris min-w-0 flex-1 truncate text-sm transition-colors duration-150 ${
                     cochee ? "text-text-dim" : "text-text"
                   }`}
                   title={habit.name}

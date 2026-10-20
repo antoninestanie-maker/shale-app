@@ -654,7 +654,14 @@ export default function CalendarView({ data, refresh }: Props) {
           }
         >
         {mode === "agenda" ? (
-          <div className="max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto" style={{ maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}>
+          // Au téléphone, l'agenda ne défile plus DANS sa carte : c'est la page
+          // qui défile (constat 1 du 20/10, corrigé large — deux défilements
+          // emboîtés, le second sans barre visible sur iOS). La grille horaire
+          // garde le sien : 24 heures, et le glisser y fait défiler au bord.
+          <div
+            className={isPhone ? undefined : "max-h-[calc(70vh*var(--zoom-inv))] overflow-y-auto"}
+            style={isPhone ? undefined : { maxHeight: "calc(70vh * var(--zoom-inv, 1))" }}
+          >
             <VueAgenda
               depuis={curseur}
               jours={AGENDA_JOURS}

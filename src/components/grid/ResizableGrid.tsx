@@ -70,6 +70,7 @@ import {
   type Ancre,
 } from "../../lib/grille";
 import { useIsPhone } from "../../lib/platform";
+import { pointeurGrossier } from "../../lib/menu/tactile";
 import { jaugerEntetes } from "./entetes";
 import MenuContextuel from "../menu/MenuContextuel";
 import { useMenuContextuel } from "../menu/useMenuContextuel";
@@ -167,10 +168,13 @@ interface GridCtx {
   /** Hauteur de la zone visible (px), suivie au redimensionnement / rotation. */
   viewportH: number;
   /**
-   * Au téléphone, une carte prend TOUTE la hauteur de son contenu : c'est la
-   * page qui défile, jamais la carte (audit du 20/10, constat 1).
+   * Au doigt (téléphone, tablette), une carte prend TOUTE la hauteur de son
+   * contenu : c'est la page qui défile, jamais la carte (audit du 20/10,
+   * constat 1). Sur iOS la barre de défilement d'une carte est invisible, et
+   * la poignée qui règle la hauteur est masquée au doigt : une hauteur
+   * épinglée au bureau ne s'y corrigeait même pas.
    */
-  telephone: boolean;
+  auDoigt: boolean;
   gridRef: React.RefObject<HTMLDivElement | null>;
   overrides: Record<string, PanelSize>;
   draggingId: string | null;
@@ -251,6 +255,8 @@ export function ResizableGrid({
   ajusterOrdreEtroit?: (ordre: string[]) => string[];
 }) {
   const telephone = useIsPhone();
+  const [grossier] = useState(() => pointeurGrossier());
+  const auDoigt = telephone || grossier;
   const gridRef = useRef<HTMLDivElement>(null);
   const [overrides, setOverrides] = useState<Record<string, PanelSize>>({});
   const [order, setOrder] = useState<string[]>([]);
@@ -763,7 +769,7 @@ export function ResizableGrid({
       colGap: COL_GAP,
       gridWidth,
       viewportH,
-      telephone,
+      auDoigt,
       gridRef,
       overrides,
       draggingId,
@@ -781,7 +787,7 @@ export function ResizableGrid({
       columns,
       gridWidth,
       viewportH,
-      telephone,
+      auDoigt,
       overrides,
       draggingId,
       intacte,
@@ -941,7 +947,7 @@ export function ResizablePanel({
     colGap,
     gridWidth,
     viewportH,
-    telephone,
+    auDoigt,
     gridRef,
     overrides,
     draggingId,
@@ -987,9 +993,9 @@ export function ResizablePanel({
   // élargi prend la rangée ou la demi-rangée (`largeurEtroite`, constat 26).
   const largeurNonRetouchee = largeurEtroite({ largeurParDefaut: defaultW, plancher: minCols, colonnes: columns });
   const w = clamp(override?.w ?? largeurNonRetouchee, effMinW, effMaxW);
-  // Au téléphone, une hauteur épinglée au bureau ne vaut pas : la carte suit
-  // son contenu, et la page défile (constat 1).
-  const pinnedH = telephone ? undefined : override?.h;
+  // Au doigt, une hauteur épinglée au bureau ne vaut pas : la carte suit son
+  // contenu, et la page défile (constat 1).
+  const pinnedH = auDoigt ? undefined : override?.h;
   // autoH = hauteur NATURELLE du contenu. La carte étant étirée en permanence
   // pour remplir son empreinte (bords alignés, gouttières uniformes), on mesure
   // en désactivant l'étirement LE TEMPS DE LA LECTURE (synchronement, avant tout
@@ -1268,16 +1274,16 @@ export function ResizablePanel({
   // Plancher : contenu entier si le widget ne sait pas défiler, plancher absolu
   // sinon (la région `.panel-scroll` absorbe la différence).
   const hardMin = ceil8(Math.max(MIN_PX, minH ?? 0));
-  // Au téléphone, aucune région ne défile DANS sa carte : sur iOS la barre de
+  // Au doigt (téléphone, tablette), aucune région ne défile DANS sa carte : sur iOS la barre de
   // défilement est invisible, la carte s'arrêtait au milieu d'une liste sans
   // rien en dire, et deux défilements emboîtés se disputaient le doigt
   // (constat 1 du 20/10). La carte prend donc toute sa hauteur naturelle.
-  const floorFootprint = scrollable && !telephone ? hardMin : Math.max(hardMin, naturalFootprint);
+  const floorFootprint = scrollable && !auDoigt ? hardMin : Math.max(hardMin, naturalFootprint);
   // Plafond : ~une hauteur d'écran, borné par `maxH`, jamais sous le plancher.
   // Appliqué AU RENDU → même une taille enregistrée démesurée (ancien override,
   // écran plus grand) est ramenée dans le cadre au chargement, et re-bornée si
   // la fenêtre est redimensionnée / l'écran tourné (`viewportH`).
-  const ceilFootprint = telephone
+  const ceilFootprint = auDoigt
     ? floorFootprint
     : Math.max(
         floorFootprint,

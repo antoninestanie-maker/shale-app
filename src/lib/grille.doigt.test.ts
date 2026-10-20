@@ -65,12 +65,15 @@ describe("garderDefilement — cocher en bas ne ramène plus la liste en haut (c
 
 describe("ResizableGrid — la mesure et le téléphone (lecture de la source)", () => {
   const src = readFileSync(new URL("../components/grid/ResizableGrid.tsx", import.meta.url), "utf8");
+  it("au doigt = téléphone OU pointeur grossier", () => {
+    expect(src).toMatch(/const auDoigt = telephone \|\| grossier;/);
+  });
   it("la mesure de la hauteur naturelle passe par garderDefilement", () => {
     expect(src).toMatch(/natural = garderDefilement\(defilants/);
   });
-  it("au téléphone, ni plafond ni hauteur épinglée : la carte suit son contenu", () => {
-    expect(src).toMatch(/const pinnedH = telephone \? undefined : override\?\.h;/);
-    expect(src).toMatch(/const ceilFootprint = telephone\s*\?\s*floorFootprint/);
-    expect(src).toMatch(/scrollable && !telephone \? hardMin/);
+  it("au doigt (téléphone, tablette), ni plafond ni hauteur épinglée : la carte suit son contenu", () => {
+    expect(src).toMatch(/const pinnedH = auDoigt \? undefined : override\?\.h;/);
+    expect(src).toMatch(/const ceilFootprint = auDoigt\s*\?\s*floorFootprint/);
+    expect(src).toMatch(/scrollable && !auDoigt \? hardMin/);
   });
 });
