@@ -17,6 +17,7 @@ import {
   uidDe,
 } from "../repo";
 import { planificationDeSaisie } from "../taches";
+import { ecrituresRapides, type AjoutRapide } from "../taches/saisieRapide";
 import { contenuExemples } from "./exemples";
 import { planDuPremierObjectif } from "./planification";
 import {
@@ -142,10 +143,17 @@ export async function rejouerAccueil(): Promise<void> {
 
 // ─── Ce que les réponses écrivent ────────────────────────────────────────────
 
+/**
+ * Annoncé quand les heures déclarées changent : le calendrier les relit
+ * (`useHoraires.ts`, 2026-10-20).
+ */
+export const EVT_HORAIRES = "sb:horaires";
+
 /** Range les heures déclarées. Appelé aussi quand l'accueil est passé. */
 export async function enregistrerReglages(r: ReglagesHoraires): Promise<void> {
   const ecritures = ecrireReglages(r);
   for (const [cle, valeur] of Object.entries(ecritures)) await setSetting(cle, valeur);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT_HORAIRES));
 }
 
 /** Toutes les clés de réglage de l'app, relues en une fois. */
@@ -217,15 +225,25 @@ export async function creerObjectifPlanifie(
  * `goalId` la fait naître rattachée à la première étape quand l'accueil a planté
  * un objectif ; `null` reproduit le comportement d'avant.
  */
-export async function creerPremiereTache(label: string, goalId: number | null = null): Promise<void> {
+export async function creerPremiereTache(
+  label: string,
+  goalId: number | null = null,
+  /**
+   * ⭐ Ce que la phrase disait (2026-10-20, audit, constat 18) : Lucie a tapé
+   * « appeler l URSSAF demain à 10h » et retrouvé la phrase entière en « Sans
+   * date ». L'écran lit la phrase comme l'ajout rapide, et la MONTRE avant
+   * qu'on valide ; `lue` porte ce qui a été gardé.
+   */
+  lue?: Pick<AjoutRapide, "jour" | "heure" | "recurrence" | "priorite">,
+): Promise<void> {
   const propre = label.trim();
   if (!propre) return;
   await createTask({
     label: propre,
     tag: null,
-    priority: "medium",
-    recurrence: "none",
+    priority: lue?.priorite ?? "medium",
     goal_id: goalId,
+    ...ecrituresRapides({ jour: lue?.jour ?? null, heure: lue?.heure ?? null, recurrence: lue?.recurrence ?? null }),
   });
 }
 

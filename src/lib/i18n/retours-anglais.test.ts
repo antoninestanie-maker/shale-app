@@ -57,7 +57,12 @@ describe("« Annuler » a deux sens, donc deux clés", () => {
   });
 
   it("⭐ le bouton d'un toast qui REND ce qui est parti dit « défaire », jamais « Annuler » nu", () => {
-    for (const fichier of ["src/components/corbeille/geste.tsx", "src/components/menu/useMenuBlocs.tsx"]) {
+    // `catalogue/tache.tsx` : le toast d'un changement d'état (audit 2026-10-20, donnees-9).
+    for (const fichier of [
+      "src/components/corbeille/geste.tsx",
+      "src/components/menu/useMenuBlocs.tsx",
+      "src/components/menu/catalogue/tache.tsx",
+    ]) {
       const source = lire(fichier);
       expect(source, fichier).toContain('actionLabel: t("Annuler|défaire")');
       expect(source, fichier).not.toContain('actionLabel: t("Annuler")');

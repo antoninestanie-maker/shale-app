@@ -11,7 +11,7 @@ import { planConversion, type RecuConversion } from "./objectifs/conversion";
 import { plainText } from "./richtext";
 import { rechercher, type Document as DocumentRecherche, type Trouvaille } from "./recherche";
 import { serialiserChamps, serialiserValeurs } from "./objets";
-import type { ChangementEtat, Report } from "./taches";
+import { changerRecurrence, type ChangementEtat, type Report } from "./taches";
 import type { LigneProfil } from "./licence/signature";
 import { effacerLigne } from "./suppression";
 import type {
@@ -160,9 +160,22 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
     trades,
   ] = await Promise.all([
     db.select<Task[]>(`SELECT * FROM tasks WHERE ${VIVANT}`),
+    // ⚠️ LA FENÊTRE NE VAUT QUE POUR L'HISTORIQUE (audit du 2026-10-20,
+    // objectifs-2). Une coche plus vieille que `sinceDate` reste lue quand elle
+    // dit encore quelque chose AUJOURD'HUI :
+    //   • celle d'une tâche PONCTUELLE — c'est elle qui la dit « faite » ;
+    //     tronquée, la tâche redevenait « à faire » au bout de 400 jours, et
+    //     l'avancement de son objectif reculait tout seul ;
+    //   • celle d'une tâche qui sert de SOURCE au compte d'un objectif vivant —
+    //     `compterSource` compte depuis le début de l'objectif, pas depuis 400 jours.
+    // Les coches des tâches récurrentes, elles, restent bornées : une par jour.
     db.select<Completion[]>(
       `SELECT c.* FROM task_completions c LEFT JOIN tasks t ON t.id = c.task_id
-        WHERE c.date >= $1 AND ${vivant("t")}`,
+        WHERE (c.date >= $1
+               OR COALESCE(t.recurrence, 'none') = 'none'
+               OR t.uid IN (SELECT count_ref_uid FROM goals
+                             WHERE count_source = 'task' AND count_ref_uid IS NOT NULL AND ${VIVANT}))
+          AND ${vivant("t")}`,
       [sinceDate],
     ),
     db.select<Goal[]>(`SELECT * FROM goals WHERE ${VIVANT}`),
@@ -194,9 +207,15 @@ export async function fetchAll(sinceDate: string): Promise<AppData> {
     db.select<Habit[]>(
       `SELECT * FROM habits WHERE archived = 0 AND ${VIVANT}`,
     ),
+    // Même règle : les cases d'une habitude qui sert de SOURCE au compte d'un
+    // objectif sont lues depuis toujours — sans quoi une cible comptée par
+    // une habitude plafonnait vers 400.
     db.select<HabitCheck[]>(
       `SELECT c.* FROM habit_checks c LEFT JOIN habits h ON h.id = c.habit_id
-        WHERE c.date >= $1 AND ${vivant("h")}`,
+        WHERE (c.date >= $1
+               OR h.uid IN (SELECT count_ref_uid FROM goals
+                             WHERE count_source = 'habit' AND count_ref_uid IS NOT NULL AND ${VIVANT}))
+          AND ${vivant("h")}`,
       [sinceDate],
     ),
     db.select<Trade[]>(
@@ -931,6 +950,39 @@ export async function createKnowledgeEntry(
  * technique (ré-indexation du texte, conversion d'une fiche historique) qui
  * ne doit ni mentir sur la date de modification ni réordonner la liste.
  */
+/** Une page qui peut porter des cartes mentales : une note, une fiche, un sujet. */
+export interface PageCartes {
+  kind: "note" | "knowledge" | "object";
+  id: number;
+}
+
+/**
+ * Les corps des AUTRES pages vivantes qui portent une carte mentale — tout sauf
+ * `horsDe`. Sert à ne pas jeter un objet que porte encore une autre carte
+ * (`objectifs/emportes.ts`, `sansNoeudsPortesAilleurs`).
+ *
+ * Le `LIKE` ne lit que les corps qui contiennent une carte : les autres, souvent
+ * lourds d'images en data URL, ne quittent pas la base.
+ */
+export async function corpsAvecCartes(horsDe: PageCartes): Promise<string[]> {
+  if (!isTauri) return demo.corpsAvecCartes(horsDe);
+  const db = await getDb();
+  const lire = async (table: string, kind: PageCartes["kind"]) =>
+    (
+      await db.select<{ id: number; body: string | null }[]>(
+        `SELECT id, body FROM ${table} WHERE ${VIVANT} AND body LIKE '%data-mindmap%'`,
+      )
+    )
+      .filter((r) => !(r.id === horsDe.id && kind === horsDe.kind))
+      .map((r) => r.body ?? "");
+  const [notes, fiches, sujets] = await Promise.all([
+    lire("notes", "note"),
+    lire("knowledge_entries", "knowledge"),
+    lire("knowledge_topics", "object"),
+  ]);
+  return [...notes, ...fiches, ...sujets];
+}
+
 export async function updateKnowledgeEntry(
   id: number,
   patch: KnowledgeInput,
@@ -947,10 +999,14 @@ export async function updateKnowledgeEntry(
   const db = await getDb();
   const sets = fields.map((f, i) => `${f} = $${i + 1}`).join(", ");
   const values = fields.map((f) => patch[f] as string | number | null);
+  // ⚠️ `VIVANT` (audit du 2026-10-20, savoir-6) : une fiche en corbeille ne
+  // reçoit plus d'écriture. Le lecteur l'écrivait à l'aveugle quand la fiche
+  // ouverte avait été jetée ailleurs, et la restauration rendait un contenu
+  // étranger. La démo n'a pas ce défaut : ses fiches jetées quittent la liste.
   await db.execute(
     touch
-      ? `UPDATE knowledge_entries SET ${sets}, updated_at = $${fields.length + 1} WHERE id = $${fields.length + 2}`
-      : `UPDATE knowledge_entries SET ${sets} WHERE id = $${fields.length + 1}`,
+      ? `UPDATE knowledge_entries SET ${sets}, updated_at = $${fields.length + 1} WHERE id = $${fields.length + 2} AND ${VIVANT}`
+      : `UPDATE knowledge_entries SET ${sets} WHERE id = $${fields.length + 1} AND ${VIVANT}`,
     touch ? [...values, localNow(), id] : [...values, id],
   );
   // ⚠️ `touch: false` = écriture technique de l'app, pas geste de
@@ -1303,10 +1359,21 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
     return;
   }
   const db = await getDb();
+  // Changer la récurrence touche aussi `ponctuelle_depuis` et les reports
+  // (`changerRecurrence`, audit 2026-10-20 taches-6) : la règle est lue, pas
+  // recopiée en SQL.
+  const [avant] = await db.select<Pick<Task, "recurrence" | "ponctuelle_depuis" | "postponed_count" | "postponed_from">[]>(
+    "SELECT recurrence, ponctuelle_depuis, postponed_count, postponed_from FROM tasks WHERE id = $1",
+    [id],
+  );
+  const rec = avant
+    ? changerRecurrence(avant, input.recurrence, todayStr())
+    : { ponctuelle_depuis: null, postponed_count: 0, postponed_from: null };
   await db.execute(
     `UPDATE tasks SET label = $1, tag = $2, priority = $3, recurrence = $4, goal_id = $5,
-            due_date = $6, start_at = $7, end_at = $8
-      WHERE id = $9`,
+            due_date = $6, start_at = $7, end_at = $8,
+            ponctuelle_depuis = $9, postponed_count = $10, postponed_from = $11
+      WHERE id = $12`,
     [
       input.label,
       input.tag,
@@ -1316,6 +1383,9 @@ export async function updateTask(id: number, input: TaskInput): Promise<void> {
       input.due_date ?? null,
       input.start_at ?? null,
       input.end_at ?? null,
+      rec.ponctuelle_depuis,
+      rec.postponed_count,
+      rec.postponed_from,
       id,
     ],
   );
@@ -1400,8 +1470,8 @@ export async function changerEtatTache(taskId: number, c: ChangementEtat): Promi
   }
   const db = await getDb();
   await db.execute(
-    "UPDATE tasks SET state = $1, state_since = $2, waiting_for = $3, follow_up_on = $4 WHERE id = $5",
-    [c.state, c.state_since, c.waiting_for, c.follow_up_on, taskId],
+    "UPDATE tasks SET state = $1, state_since = $2, waiting_for = $3, follow_up_on = $4, pauses = $5 WHERE id = $6",
+    [c.state, c.state_since, c.waiting_for, c.follow_up_on, c.pauses, taskId],
   );
   await adopter("tasks", taskId);
 }

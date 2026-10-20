@@ -7,6 +7,7 @@ import TimerPane from "./TimerPane";
 import FiletErreur from "./components/FiletErreur";
 import { applyLangAttribute, useLang } from "./lib/i18n";
 import { sauvegardeQuotidienne } from "./lib/sauvegardes";
+import { remettreLaBaseEnOrdre } from "./lib/sync/demarrage";
 import { peindreLaFenetre, suivreLApparenceDuSysteme, themeAuDemarrage } from "./lib/theme";
 import { estFenetreTimer } from "./lib/timerFenetre";
 import { retirerLancement } from "./lib/entree/lancement";
@@ -94,6 +95,10 @@ applyLangAttribute();
 // (`lib/timerFenetre.ts`), et la fenêtre principale, qui tourne forcément à
 // côté, a déjà fait ce geste.
 if (!estFenetreTimer()) void sauvegardeQuotidienne();
+
+// La base remise en ordre avant toute synchronisation — fenêtre PRINCIPALE
+// seulement : elle seule synchronise (`lib/sync/demarrage.ts`).
+if (!estFenetreTimer() && !isCapturePane()) void remettreLaBaseEnOrdre();
 
 // La première image (`#lancement`, `index.html`) n'appartient qu'à la fenêtre
 // principale, où `AuthGate` la reprend puis la retire. La barre de capture est

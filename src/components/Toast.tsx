@@ -111,7 +111,7 @@ export default function Toast({
   return (
     <div
       ref={racine}
-      className="animate-fade-up fixed z-[90]"
+      className="toast-pile animate-fade-up fixed z-[90]"
       style={place}
       // Lu par un lecteur d'écran sans voler le focus : « poli », pas « assertif ».
       role="status"

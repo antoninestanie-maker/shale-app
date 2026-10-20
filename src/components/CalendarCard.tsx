@@ -7,12 +7,15 @@ import {
 } from "../lib/calendrier/agenda";
 import { chargeDuJour } from "../lib/calendrier/charge";
 import { profilDisponibilite } from "../lib/calendrier/disponibilite";
+import { optionsDuProfil } from "../lib/onboarding/horaires";
+import { useHoraires } from "../lib/onboarding/useHoraires";
 import { fetchCalendarEvents, fetchFacturation, fetchRecurringEvents } from "../lib/repo";
 import { echeancesDuCalendrier } from "../lib/finance/facturation/relances";
 import { FINANCE_ACTIF } from "../lib/features";
 import { todayStr } from "../lib/logic";
 import type { AppData, CalendarEvent } from "../lib/types";
 import { IconSablier } from "./icons";
+import { BadgeDEntree } from "./taches/BadgeEtat";
 import { formatHeure, t } from "../lib/i18n";
 
 /**
@@ -73,7 +76,12 @@ export default function CalendarCard({ data }: { data: AppData }) {
     [events, data.tasks, data.completions, data.goals, echeances, aujourdhui],
   );
 
-  const profil = useMemo(() => profilDisponibilite(data.focusSessions), [data.focusSessions]);
+  // Les heures déclarées à l'accueil (2026-10-20, audit, constat 7).
+  const horaires = useHoraires();
+  const profil = useMemo(
+    () => profilDisponibilite(data.focusSessions, optionsDuProfil(horaires)),
+    [data.focusSessions, horaires],
+  );
   const charge = useMemo(
     () => chargeDuJour(entrees, profil, aujourdhui),
     [entrees, profil, aujourdhui],
@@ -122,6 +130,7 @@ export default function CalendarCard({ data }: { data: AppData }) {
                 }}
               >
                 {e.enRetard && <IconSablier className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-red" />}
+                <BadgeDEntree entree={e} />
                 {e.titre}
               </span>
             </li>

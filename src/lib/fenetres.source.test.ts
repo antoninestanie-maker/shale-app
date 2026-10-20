@@ -150,8 +150,12 @@ describe("Échap ne ferme qu'un étage", () => {
     expect(corps).toContain("Escape");
     expect(corps).toContain("e.defaultPrevented");
     expect(corps).toContain("e.preventDefault()");
-    // Le garde vient AVANT la fermeture.
-    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(corps.indexOf("onClose()"));
+    // Le garde vient AVANT la fermeture. Depuis le 2026-10-20 (audit, constat
+    // 39), « Nouvelle tâche » ne ferme pas d'office : elle passe par
+    // `demanderFermeture()`, qui demande si la saisie a changé.
+    const fermeture = corps.includes("onClose()") ? "onClose()" : "demanderFermeture()";
+    expect(corps).toContain(fermeture);
+    expect(corps.indexOf("e.defaultPrevented")).toBeLessThan(corps.indexOf(fermeture));
   });
 });
 

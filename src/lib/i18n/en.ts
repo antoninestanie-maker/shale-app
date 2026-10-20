@@ -1062,8 +1062,8 @@ export const EN: Record<string, string> = {
     "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
   "Série en danger": "Streak at risk",
-  "En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue.":
-    "At the end of the day, if a running streak — habits or tasks — is about to break.",
+  "En fin de journée, si ta série d'habitudes risque d'être rompue.":
+    "At the end of the day, if your habit streak is about to break.",
   "Habitudes non cochées": "Habits not checked",
   "Le soir, si des habitudes du jour attendent encore d'être cochées.":
     "In the evening, if today’s habits are still waiting to be checked.",
@@ -2628,8 +2628,25 @@ export const EN: Record<string, string> = {
   "Temps": "Time",
   "C'est prêt : l'accueil se rejouera au prochain démarrage de Shale.":
     "Done: the welcome flow will play again next time Shale starts.",
-  "Trois questions pour régler l'app sur ta semaine. Rien de décoratif : chaque réponse sert à quelque chose. Tu peux passer à tout moment.":
-    "Three questions to tune the app to your week. Nothing decorative: every answer is used for something. You can skip at any time.",
+  // Accueil, audit du 2026-10-20 (constats 6 et 7).
+  "Quelques questions pour régler l'app sur ta semaine, puis ton premier objectif. Rien de décoratif : chaque réponse sert à quelque chose. Chaque question peut être passée, ou tout d'un coup.":
+    "A few questions to tune the app to your week, then your first goal. Nothing decorative: every answer is used for something. Skip any question, or all of them at once.",
+  "Choisis au moins un jour pour « {nom} », ou efface son nom.": "Pick at least one day for “{nom}”, or clear its name.",
+  "Donne à « {nom} » une fin différente de son début, ou efface son nom.": "Give “{nom}” an end different from its start, or clear its name.",
+  "Étape {n} sur {total}": "Step {n} of {total}",
+  "Passer et commencer": "Skip and start",
+  "Passer cette question": "Skip this question",
+  "Tout passer": "Skip everything",
+  "Tout bloc qui revient et que tu ne choisis pas. Il réserve ces heures dans ta semaine : le calendrier ne te proposera pas de créneau dessus. Ce n'est pas un événement, il ne s'affiche pas dans le calendrier. Facultatif.":
+    "Any block that comes back and that you don't choose. It reserves those hours in your week: the calendar won't suggest a slot over it. It isn't an event and doesn't show in the calendar. Optional.",
+  "« Suivant » l'ajoute aussi.": "“Next” adds it too.",
+  "Récupérer, c'est réserver chaque semaine une part de ton temps libre pour ce qui compte pour toi. À l'écran suivant, tu diras pour quoi.":
+    "Getting time back means setting aside part of your free time each week for what matters to you. On the next screen, you'll say what for.",
+  "Blocs fixes": "Fixed blocks",
+  "{jours} · {debut} – {fin}": "{jours} · {debut} – {fin}",
+  "Début et fin identiques : aucune heure n'est comptée.": "Same start and end: no hours are counted.",
+  "La fin est avant le début : la plage passe minuit et dure {n} h. C'est voulu ?":
+    "The end is before the start: this range goes past midnight and lasts {n} h. Is that right?",
   "Refaire l'accueil du premier démarrage": "Redo the first-launch welcome",
   "Repose tes heures de lever, de coucher et de travail. Tes données ne sont pas touchées.":
     "Sets your wake-up, bedtime and work hours again. Your data is untouched.",
@@ -2780,9 +2797,13 @@ export const EN: Record<string, string> = {
   "Autres tâches": "Other tasks",
   "Choisir une date": "Pick a date",
   "Retirer la date": "Remove date",
-  "Revenir au mois en cours": "Back to this month",
   "Mois précédent": "Previous month",
   "Mois suivant": "Next month",
+  // Le titre du calendrier ouvre le choix des mois (2026-10-20, audit, constat 8).
+  "Choisir le mois et l'année": "Choose month and year",
+  "Revenir aux jours": "Back to days",
+  "Année précédente": "Previous year",
+  "Année suivante": "Next year",
   "Effacer": "Clear",
   "Taper une date": "Type a date",
   "Date illisible": "Can’t read that date",
@@ -3658,8 +3679,22 @@ export const EN: Record<string, string> = {
   // L'ajout rapide de Tâches annonce sa règle, comme celui d'Aujourd'hui.
   "sans date": "no date",
   "Sans date. Choisir une date": "No date. Pick a date",
-  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris le jour dans la phrase : « jeudi 14h30 », « demain », « le 22 ».":
-    "Added like this, the task isn't due on any day. Or write the day in the sentence: “thursday 2:30pm”, “tomorrow”, “the 22nd”.",
+  "Ajoutée ainsi, la tâche n'est prévue aucun jour. Ou écris-le dans la phrase : « jeudi 14h30 », « demain », « fin du mois », « chaque lundi ».":
+    "Added like this, the task isn't due on any day. Or write it in the sentence: “thursday 2:30pm”, “tomorrow”, “end of the month”, “every Monday”.",
+  // La phrase entière : répétition, priorité (2026-10-20, audit, constat 18).
+  "Se répète : {rythme}. Choisir une date à la place": "Repeats: {rythme}. Pick a date instead",
+  "Répétition lue dans la phrase": "Repeat read from your sentence",
+  "« {mots} » quittera le titre. La tâche rejoindra tes routines. La croix garde le titre entier.":
+    "“{mots}” will leave the title. The task will join your routines. The cross keeps the title whole.",
+  "Retirer la répétition": "Remove the repeat",
+  "Priorité lue dans la phrase": "Priority read from your sentence",
+  "Retirer la priorité lue": "Remove the priority read",
+  "« {titre} » rejoint tes routines : {rythme}": "“{titre}” joins your routines: {rythme}",
+  "Lu dans la phrase :": "Read from your sentence:",
+  "Retirer : {quoi}": "Remove: {quoi}",
+  // Échap dans « Nouvelle tâche » demande avant de jeter (constat 39).
+  "Abandonner la saisie ?": "Discard your changes?",
+  "Ne pas garder": "Discard",
   "Ajoutée dans « {section} »": "Added to “{section}”",
   // L'échéance d'un objectif au fil d'une ligne (liste, cartes d'Aujourd'hui).
   // `{date}` porte l'année dès que ce n'est pas l'année en cours.
@@ -3805,6 +3840,12 @@ export const EN: Record<string, string> = {
   "« {titre} » est en attente": "“{titre}” is waiting",
   "« {titre} » est abandonnée": "“{titre}” is dropped",
   "Abandonnée": "Dropped",
+  // ── Lot 2 de l'audit du 2026-10-20 (états des tâches) ──
+  "État · {etat}": "Status · {etat}",
+  "En attente, relance {quand}": "Waiting, follow up {quand}",
+  "{n} à relancer": "{n} to follow up",
+  "L'objectif ne l'attend plus. Pour la reprendre : ⋯ › État › À faire.":
+    "The goal no longer waits for it. To bring it back: ⋯ › Status › To do.",
   "En attente de… (une personne, une réponse)": "Waiting for… (someone, an answer)",
   "Relance": "Follow-up",
   "Sans relance": "No follow-up",
@@ -3812,6 +3853,22 @@ export const EN: Record<string, string> = {
     "It leaves the lists and no longer counts anywhere. “To do” brings it back.",
   "En retard et à relancer": "Overdue and to follow up",
   "À relancer : {quoi}": "Follow up: {quoi}",
+  // Lot 1 de l'audit du 2026-10-20 — les données qui s'abîment.
+  "{nom} : la note a changé pendant la copie": "{nom}: the note changed during the copy",
+  "Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.":
+    "This note no longer exists: it was deleted, perhaps on another device.",
+  // ── Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (2026-10-21) ──
+  "Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.":
+    "Leaves only the clock on screen. Tap the screen to pause or minimise.",
+  "aujourd’hui surchargé": "today overloaded",
+  "Masquer les alertes": "Hide alerts",
+  "Aujourd'hui, journée surchargée.": "Today is overloaded.",
+  "{n} alerte": "{n} alert",
+  "{n} alertes": "{n} alerts",
+  "{n} objectif": "{n} goal",
+  "{n} objectifs": "{n} goals",
+  "{n} tâche à décider": "{n} task to decide on",
+  "{n} tâches à décider": "{n} tasks to decide on",
 
   // ── lot 7 — finitions d'Objectifs et divers (audit du 2026-10-20) ──
   "{n} tâche directe sur {total}": "{n} direct task out of {total}",

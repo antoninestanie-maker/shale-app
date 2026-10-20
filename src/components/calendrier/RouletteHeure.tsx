@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { heureDe, minutesDe } from "../../lib/calendrier/agenda";
 import { localeTag, t } from "../../lib/i18n";
+import { pointeurGrossier } from "../../lib/menu/tactile";
 
 /**
  * La roulette de sélection d'une heure — demandée par Antonin le 2026-09-06.
@@ -15,9 +16,20 @@ import { localeTag, t } from "../../lib/i18n";
  * veille : 14:37 serait redevenu inatteignable.
  */
 
-/** Hauteur d'un cran, en pixels. Trois crans visibles à la fois. */
-const CRAN = 28;
+/**
+ * Hauteur d'un cran, en pixels. Trois crans visibles à la fois.
+ * ⭐ 44 au doigt (2026-10-21, audit du 20/10, constat 35) : à 28 px, un cran
+ * faisait 54 × 28 px sous le doigt, sous les 44 pt de la règle de MOBILE.md.
+ * Le pas, lui, reste d'UNE minute (décision d'Antonin, ci-dessus).
+ */
+const CRAN_SOURIS = 28;
+const CRAN_DOIGT = 44;
 const VISIBLES = 3;
+
+/** La hauteur d'un cran sur ce matériel (`pointer: coarse` = au doigt). */
+export function hauteurCran(auDoigt: boolean): number {
+  return auDoigt ? CRAN_DOIGT : CRAN_SOURIS;
+}
 
 /**
  * ⚠️ AUCUNE DÉPENDANCE, ET AUCUN GESTE À LA MAIN : c'est le DÉFILEMENT NATIF qui
@@ -35,12 +47,17 @@ function Colonne({
   index,
   onIndex,
   aria,
+  CRAN,
+  vide,
 }: {
   valeurs: number[];
   libelle: (v: number) => string;
   index: number;
   onIndex: (i: number) => void;
   aria: string;
+  CRAN: number;
+  /** Rien n'est encore choisi : la molette se tient à midi, sans rien désigner. */
+  vide: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   /**
@@ -126,10 +143,10 @@ function Colonne({
         <div
           key={v}
           role="option"
-          aria-selected={i === index}
+          aria-selected={!vide && i === index}
           onClick={() => onIndex(i)}
           className={`roulette-cran flex cursor-pointer items-center justify-center tabular-nums ${
-            i === index ? "font-semibold text-text" : "text-text-dim"
+            !vide && i === index ? "font-semibold text-text" : "text-text-dim"
           }`}
           style={{ height: CRAN }}
         >
@@ -142,7 +159,7 @@ function Colonne({
 }
 
 /** L'enveloppe qui porte la bordure et met en évidence le cran du milieu. */
-function Cadre({ children }: { children: React.ReactNode }) {
+function Cadre({ children, CRAN, vide }: { children: React.ReactNode; CRAN: number; vide: boolean }) {
   return (
     <div className="relative overflow-hidden rounded-lg border border-border focus-within:border-border-strong">
       {children}
@@ -150,11 +167,15 @@ function Cadre({ children }: { children: React.ReactNode }) {
           QUELLE ligne sera prise, et une molette dont on ignore où elle pointe
           ne se vise pas. `pointer-events: none` — ils ne doivent pas voler le
           défilement. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 border-y border-border-strong"
-        style={{ top: CRAN, height: CRAN }}
-      />
+      {/* Rien de choisi : pas de filets. Ils affirmaient « 12 h 00 » alors que
+          le champ était vide (constat 35 du 20/10). */}
+      {!vide && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 border-y border-border-strong"
+          style={{ top: CRAN, height: CRAN }}
+        />
+      )}
     </div>
   );
 }
@@ -173,6 +194,8 @@ export default function RouletteHeure({
   aria: string;
 }) {
   const total = minutesDe(valeur);
+  const [CRAN] = useState(() => hauteurCran(pointeurGrossier()));
+  const vide = total == null;
   // Une molette doit toujours pointer quelque part : midi tant que rien n'est
   // saisi, plutôt qu'un cran vide dont on ne saurait pas quoi faire.
   const h = total == null ? 12 : Math.floor(total / 60);
@@ -180,8 +203,10 @@ export default function RouletteHeure({
 
   return (
     <div className="mt-1.5 flex gap-1.5">
-      <Cadre>
+      <Cadre CRAN={CRAN} vide={vide}>
       <Colonne
+        CRAN={CRAN}
+        vide={vide}
         valeurs={HEURES}
         /* ⚠️ `Intl`, pas un nombre brut : `en-US` écrit « 6 AM » et « 1 PM » là
            où le français écrit « 06 h » et « 13 h ». Une colonne de 0 à 23
@@ -193,8 +218,10 @@ export default function RouletteHeure({
         aria={t("Heure")}
       />
       </Cadre>
-      <Cadre>
+      <Cadre CRAN={CRAN} vide={vide}>
       <Colonne
+        CRAN={CRAN}
+        vide={vide}
         valeurs={MINUTES}
         libelle={(v) => String(v).padStart(2, "0")}
         index={m}

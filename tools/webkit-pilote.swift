@@ -18,6 +18,15 @@
 //   {"fond":true}     {"ecran":"nom","zone":[x,y,l,h]}     {"echelle":1}
 // À lancer sur le mode démo (PASSATION § 13.2), jamais sur tauri dev.
 //
+// ⭐ TÉLÉPHONE ET TABLETTE (2026-10-21, lot 4 de l'audit) — deux variables :
+//   WK_W=390 WK_H=844 /tmp/wk plan.json dossier      taille de la fenêtre
+//   WK_TACTILE=1                                       « au doigt » : réécrit
+//     `(pointer: coarse)` / `(hover: none)` en vrai dans `matchMedia` ET dans les
+//     feuilles de style, donc `html[data-telephone]`, `.cible-tactile` et les
+//     règles au doigt de l'app s'appliquent. Ce n'est PAS du toucher (aucun
+//     événement tactile) : la mise en page, la géométrie et le hit-test
+//     (`elementFromPoint`) sont ceux de WebKit, les gestes se rejouent en `js`.
+//
 // ⚠️ DEUX CAPTURES, QUI NE DISENT PAS LA MÊME CHOSE (2026-10-12, PIEGES § 41).
 // `capture` (takeSnapshot) redessine la page : elle ne montre PAS un calque
 // rééchantillonné par le compositeur — un texte flou à l'écran y sort net.
@@ -32,7 +41,8 @@ import WebKit
 let args = CommandLine.arguments
 let plan = try! JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: args[1]))) as! [[String: Any]]
 let out = args[2]
-let W = 1360.0, H = 880.0
+let env = ProcessInfo.processInfo.environment
+let W = Double(env["WK_W"] ?? "1360")!, H = Double(env["WK_H"] ?? "880")!
 
 final class Nav: NSObject, WKNavigationDelegate {
   var fini = false
@@ -46,6 +56,23 @@ let cfg = WKWebViewConfiguration()
 cfg.userContentController.addUserScript(WKUserScript(
   source: "try{localStorage.setItem('shale.lang','fr');localStorage.setItem('shale.onboarded','1')}catch(e){}",
   injectionTime: .atDocumentStart, forMainFrameOnly: true))
+
+if env["WK_TACTILE"] == "1" {
+  cfg.userContentController.addUserScript(WKUserScript(source: """
+  (function(){
+    const om = window.matchMedia.bind(window);
+    const rw = (q) => q.replace(/\\(pointer:\\s*coarse\\)/g,'(min-width: 0px)').replace(/\\(pointer:\\s*fine\\)/g,'(max-width: 0px)').replace(/\\(hover:\\s*hover\\)/g,'(max-width: 0px)').replace(/\\(hover:\\s*none\\)/g,'(min-width: 0px)');
+    window.matchMedia = (q) => om(rw(q));
+    const fix = () => { for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules } catch(e) { continue }
+      const walk = (rs) => { for (const r of rs) { if (r.media && r.media.mediaText && /pointer|hover:/.test(r.media.mediaText)) { const t = rw(r.media.mediaText); if (t !== r.media.mediaText) r.media.mediaText = t; }
+        if (r.cssRules) walk(r.cssRules); } };
+      walk(rules); } };
+    window.__fixTactile = fix;
+    document.addEventListener('DOMContentLoaded', fix); window.addEventListener('load', fix);
+    let n = 0; const iv = setInterval(() => { fix(); if (++n > 40) clearInterval(iv) }, 100);
+  })();
+  """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+}
 let rect = NSRect(x: 0, y: 0, width: W, height: H)
 final class Fen: NSWindow { override var canBecomeKey: Bool { true }; override var canBecomeMain: Bool { true }; override var isKeyWindow: Bool { true }; override var isMainWindow: Bool { true } }
 let win = Fen(contentRect: rect, styleMask: [.borderless], backing: .buffered, defer: false)

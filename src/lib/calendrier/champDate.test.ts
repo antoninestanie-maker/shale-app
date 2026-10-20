@@ -85,10 +85,66 @@ describe("ce qui est tapé au clavier devient une date", () => {
    * mois faux, sur une saisie que l'utilisateur croyait explicite.
    */
   it("une lettre suffit à refuser : rien ne se devine", () => {
-    expect(fr.parserSaisie("12 mars", AUJ)).toBeNull();
     expect(fr.parserSaisie("24/12x", AUJ)).toBeNull();
-    expect(fr.parserSaisie("24 décembre 2026", AUJ)).toBeNull();
     expect(fr.parserSaisie("le 24", AUJ)).toBeNull();
+    expect(fr.parserSaisie("24 décembre 2026 midi", AUJ)).toBeNull();
+    expect(fr.parserSaisie("24 truc 2026", AUJ)).toBeNull();
+    // « jui » : juin ou juillet ? On ne choisit pas.
+    expect(fr.parserSaisie("3 jui", AUJ)).toBeNull();
+  });
+
+  /**
+   * ⭐ 2026-10-20 (audit, constat 8) : « 20 mai 2027 » répondait « Date
+   * illisible ». Jusque-là, ce test exigeait le refus de « 12 mars » et de
+   * « 24 décembre 2026 » : le risque était de lire le 12 du mois AFFICHÉ. Un
+   * nom de mois entier se lit entièrement — ce n'est plus deviner.
+   */
+  it("sauf une date écrite en toutes lettres, lue entièrement", () => {
+    expect(fr.parserSaisie("12 mars", AUJ)).toBe("2026-03-12");
+    expect(fr.parserSaisie("24 décembre 2026", AUJ)).toBe("2026-12-24");
+    expect(fr.parserSaisie("20 mai 2027", AUJ)).toBe("2027-05-20");
+    expect(fr.parserSaisie("1er févr. 2027", AUJ)).toBe("2027-02-01");
+    expect(fr.parserSaisie("15 sept", AUJ)).toBe("2026-09-15");
+    expect(fr.parserSaisie("15 Aout", AUJ)).toBe("2026-08-15");
+    expect(fr.parserSaisie("31 avril 2027", AUJ)).toBeNull();
+  });
+
+  /**
+   * ⭐ LE BOGUE DU CONSTAT 8 (audit du 2026-10-20). Les chiffres recollés de
+   * « 20/02/2027 » font « 2002… », pris pour une date ISO de l'an 2002 au mois
+   * 20 : refusé. Les jours 19 à 22 tombaient tous dedans, au format même que
+   * le champ affiche.
+   */
+  it("les jours 19 à 22 ne sont plus pris pour un début d'année", () => {
+    expect(fr.parserSaisie("20/02/2027", AUJ)).toBe("2027-02-20");
+    expect(fr.parserSaisie("20/01/2027", AUJ)).toBe("2027-01-20");
+    expect(fr.parserSaisie("20/11/2026", AUJ)).toBe("2026-11-20");
+    expect(fr.parserSaisie("19/05/2027", AUJ)).toBe("2027-05-19");
+    expect(fr.parserSaisie("21/05/2027", AUJ)).toBe("2027-05-21");
+    expect(fr.parserSaisie("22/12/2026", AUJ)).toBe("2026-12-22");
+    expect(fr.parserSaisie("20-02-2027", AUJ)).toBe("2027-02-20");
+    expect(fr.parserSaisie("20 02 2027", AUJ)).toBe("2027-02-20");
+    expect(fr.parserSaisie("20022027", AUJ)).toBe("2027-02-20");
+    expect(fr.parserSaisie("19052027", AUJ)).toBe("2027-05-19");
+    // Toutes les dates de deux années, dans le format affiché.
+    for (let d = new Date(2026, 0, 1, 12); d.getFullYear() < 2028; d.setDate(d.getDate() + 1)) {
+      const j = String(d.getDate()).padStart(2, "0");
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const iso = `${d.getFullYear()}-${m}-${j}`;
+      expect(fr.parserSaisie(`${j}/${m}/${d.getFullYear()}`, AUJ), iso).toBe(iso);
+    }
+  });
+
+  it("six chiffres collés : l'année sur deux chiffres", () => {
+    expect(fr.parserSaisie("200227", AUJ)).toBe("2027-02-20");
+  });
+
+  it("sans année, une date avant la borne passe à l'année suivante", () => {
+    expect(fr.parserSaisie("15/01", "2026-10-20", { apres: "2026-10-20" })).toBe("2027-01-15");
+    expect(fr.parserSaisie("15/11", "2026-10-20", { apres: "2026-10-20" })).toBe("2026-11-15");
+    expect(fr.parserSaisie("15 janvier", "2026-10-20", { apres: "2026-10-20" })).toBe("2027-01-15");
+    // L'année écrite est respectée : la borne dira « hors des bornes ».
+    expect(fr.parserSaisie("15/01/2026", "2026-10-20", { apres: "2026-10-20" })).toBe("2026-01-15");
   });
 
   it("mais les séparateurs, eux, restent tolérés", () => {
@@ -181,6 +237,24 @@ describe("naviguer d'un mois à l'autre", () => {
   });
 });
 
+describe("sauter à un mois lointain (constat 8 de l'audit du 2026-10-20)", () => {
+  it("douze mois, le jour du curseur gardé, ramené à la fin du mois", () => {
+    const mois = fr.moisAuChoix(2027, "2026-10-31");
+    expect(mois).toHaveLength(12);
+    expect(mois[4].jour).toBe("2027-05-31");
+    expect(mois[1].jour).toBe("2027-02-28");
+    expect(mois[0].libelle).toBe("janv.");
+    expect(mois[4].complet).toBe("mai 2027");
+  });
+
+  it("un mois entièrement hors des bornes ne se choisit pas", () => {
+    const mois = fr.moisAuChoix(2026, "2026-10-20", "2026-10-20");
+    expect(mois[8].horsBornes).toBe(true); // septembre
+    expect(mois[9].horsBornes).toBe(false); // octobre : il reste des jours
+    expect(mois[10].horsBornes).toBe(false);
+  });
+});
+
 describe("les raccourcis", () => {
   it("aujourd'hui et demain, toujours", () => {
     const r = fr.raccourcis("2026-09-18");
@@ -247,6 +321,19 @@ describe("en anglais américain, le mois ouvre", () => {
 
   it("et un jour impossible reste refusé", () => {
     expect(en.parserSaisie("02/31/2026", "2026-03-01")).toBeNull();
+  });
+
+  it("les jours 19 à 22 passent aussi en anglais (constat 8)", () => {
+    expect(en.parserSaisie("02/20/2027", "2026-03-01")).toBe("2027-02-20");
+    expect(en.parserSaisie("05/19/2027", "2026-03-01")).toBe("2027-05-19");
+    expect(en.parserSaisie("12/21/2026", "2026-03-01")).toBe("2026-12-21");
+  });
+
+  it("une date écrite en toutes lettres, dans les deux ordres", () => {
+    expect(en.parserSaisie("May 20, 2027", "2026-03-01")).toBe("2027-05-20");
+    expect(en.parserSaisie("20 May 2027", "2026-03-01")).toBe("2027-05-20");
+    expect(en.parserSaisie("the 20th", "2026-03-01")).toBeNull();
+    expect(en.parserSaisie("Sept 3rd", "2026-03-01")).toBe("2026-09-03");
   });
 
   it("au fil d'une phrase, le mois d'abord : “due on October 6”", () => {

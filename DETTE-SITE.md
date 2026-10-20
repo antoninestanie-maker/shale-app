@@ -1071,8 +1071,11 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 - **Ce que ça change aux chiffres** (si le site promet « la discipline juge le comportement ») : une tâche en attente ou abandonnée ne fait plus baisser la Discipline, à partir du jour où on l'a dit — jamais en arrière.
 - **Badges déduits** sur la ligne d'une tâche : « Prochaine action » (d'un objectif), « Rapide » (créneau de 15 min ou moins). Les captures de la vue Tâches faites avant cette date ne les montrent pas.
 - Rien n'a été modifié côté site ce jour-là.
+- **Ajout du 2026-10-20 au soir (lot 2 de l'audit)** : l'état se voit aussi sur Aujourd'hui, au Calendrier et dans la feuille de route d'un objectif (badge « En cours », « En attente », « À relancer », « Abandonnée ») ; une tâche en attente ne rend plus une journée « surchargée ». Une capture d'Aujourd'hui ou du Calendrier faite avant cette date ne montre pas ces badges.
 
-## AM — L'IA de Shale Pro s'exécute à Paris (app, 2026-10-13)
+## AM ✅ REPORTÉ SUR LE SITE le 2026-10-20 — L'IA de Shale Pro s'exécute à Paris (app, 2026-10-13)
+
+> ✅ **Publié le 2026-10-20** (site `sync-chiffree` `9b32ad8`, constaté en ligne sur www.shaleapp.com/legal et /en/legal) : « Supabase (relais, sans conservation, exécuté à Paris, région eu-west-3), puis Google (API Gemini) … ». Décision d'Antonin le même jour : publier sans attendre le verrou côté fonction (l'IA est éteinte ; à ne pas allumer avant que la version de l'app qui porte `6b737fe` soit installée). ⚠️ La version et la date AFFICHÉES viennent de `content.json` → `legal.version` / `legal.updated` (communes aux cinq documents), PAS des champs `version` / `updated` de chaque document dans `legal.json` : passées à 1.5 / 20.10.2026. Les deux étaient restées à 1.4 / 13.10.2026 malgré la mise à jour du 14.10. Le verrou côté fonction (ci-dessous) reste à faire.
 
 ⛔ **À n'écrire sur le site qu'une fois ce changement LIVRÉ dans une version de l'app** (au 2026-10-13 : sur la branche, aucun build). Et aucune fonction d'IA ne s'allume dans `ai_config` avant que la politique à jour soit en ligne.
 
@@ -1085,3 +1088,8 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 **Pas nécessaire** : ajouter `x-region` au CORS de la fonction. L'app passe par le paramètre d'URL, qui n'en a pas besoin.
 
 **À savoir pour le site** : `create-checkout` et `billing-portal`, appelées par `vitrine/src/lib/compteAuth.ts`, s'exécutent aussi au plus près du visiteur. Elles ne portent pas de contenu (jeton, offre choisie) ; si la politique situe « Supabase à Paris » sans nuance pour le paiement, ajouter `?forceFunctionRegion=eu-west-3` aux trois `fetch`. Non regardé : ce que la politique dit aujourd'hui de ces deux fonctions.
+
+## AN — L'ajout rapide lit les répétitions, les périodes et la priorité ; l'accueil compte ses étapes (app, 2026-10-20, lot 5)
+
+- **App** : `src/lib/taches/saisieRapide.ts` (`lirePhrase`) — « tous les lundis », « chaque vendredi », « fin du mois », « ce week-end », « hier », « urgent » sont lus (FR et EN), chacun en pastille retirable. L'accueil du premier démarrage : « Passer » saute une question, « Tout passer » sort, « Étape n sur 6 » ; il ne dit plus « trois questions ».
+- **Site** : aucun texte ne devient faux à ma connaissance. Une page qui montre l'ajout rapide pourrait dire qu'on écrit « chaque lundi » ou « urgent » dans la phrase — à chercher et à proposer à Antonin avant d'écrire (règle « chercher avant d'écrire du texte de vente »). Une capture de l'accueil prise avant le 21/10 montre l'ancien bouton « Passer » et « Trois questions ».

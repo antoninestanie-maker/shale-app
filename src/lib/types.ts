@@ -60,6 +60,16 @@ export interface Task {
   waiting_for?: string | null;
   /** En attente : le jour où relancer, 'YYYY-MM-DD'. */
   follow_up_on?: string | null;
+  /**
+   * Les suspensions TERMINÉES (migration 032), JSON `[[du|null, au], …]`, `au`
+   * exclu. Écrit par `changerEtat`, lu par `estSuspendue` (`lib/taches.ts`).
+   */
+  pauses?: string | null;
+  /**
+   * Le jour où une routine est devenue « une fois » (migration 032) : ses coches
+   * d'avant ne la disent pas faite (`ponctuellesFaites`).
+   */
+  ponctuelle_depuis?: string | null;
 }
 
 /** Les états d'une tâche (migration 031). */

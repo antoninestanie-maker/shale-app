@@ -1,6 +1,6 @@
 import { occurrenceLe, toDateStr, weekdayOf } from "../logic";
 import { estDatee, estRecurrente, estSuspendue, etatDe, ponctuellesFaites } from "../taches";
-import type { CalendarEvent, Completion, Goal, Task } from "../types";
+import type { CalendarEvent, Completion, EtatTache, Goal, Task } from "../types";
 
 /**
  * Ce qui occupe une journée — logique pure.
@@ -67,6 +67,17 @@ export interface EntreeAgenda {
   reports: number;
   /** Faite ce jour-là ? `null` quand la question n'a pas de sens (événement). */
   faite: boolean | null;
+  /**
+   * L'ÉTAT d'une tâche (031), pour son badge au calendrier (audit 2026-10-20,
+   * constat d'usage 21). Absent ailleurs.
+   *
+   * ⚠️ « En attente » : la tâche reste à sa date (choix du 2026-10-20) mais
+   * n'est plus prévue — elle ne pèse pas dans la charge du jour et n'occupe
+   * pas de créneau (`charge.ts`, `creneauxOccupes`, audit temps-7).
+   */
+  etat?: EtatTache;
+  /** En attente : le jour de la relance, pour la bulle du badge. */
+  relance?: string | null;
 }
 
 export interface SourcesAgenda {
@@ -353,7 +364,7 @@ export function entreesDuJour(
   // ⚠️ Faite = cochée, QUEL QUE SOIT LE JOUR de la coche (`ponctuellesFaites`).
   // Chercher la coche à la date d'échéance laissait « en retard » une tâche
   // échue le 6 et cochée le 9 (2026-10-09).
-  const ponctuelles = ponctuellesFaites(src.completions);
+  const ponctuelles = ponctuellesFaites(src.completions, src.tasks);
   for (const t of src.tasks) {
     if (!estDatee(t) || t.due_date !== jour) continue;
     const faite = ponctuelles.has(t.id);
@@ -376,6 +387,8 @@ export function entreesDuJour(
       enRetard: jour < aujourdhui && !faite && !estSuspendue(t, aujourdhui),
       reports: t.postponed_count,
       faite,
+      etat: etatDe(t),
+      relance: t.follow_up_on ?? null,
     });
   }
 
@@ -402,6 +415,7 @@ export function entreesDuJour(
       enRetard: false,
       reports: 0,
       faite: !!faites.get(`${t.id}:${jour}`),
+      etat: etatDe(t),
     });
   }
 

@@ -24,7 +24,7 @@ import { estAcheve, mesurer, type ContexteProgression } from "../objectifs/progr
 import { peutAjouterEtape } from "../objectifs/structure";
 import { ajouterEtape } from "../objectifs/ajouter";
 import { createLink, createTask, uidDe, type HistoriqueFocus } from "../repo";
-import { estRecurrente, planificationDeSaisie } from "../taches";
+import { estRecurrente, planificationDeSaisie, ponctuellesFaites } from "../taches";
 import type { CalendarEvent, Completion, Goal, Task } from "../types";
 import type { ChargeJour, ContratsIa, LangIa, ObjectifPourIa, PayloadDe, PrioriteIa, TacheProposee } from "./contrats";
 
@@ -46,7 +46,7 @@ export function chargeJours(
   nb: number,
 ): ChargeJour[] {
   const n = Math.max(0, Math.min(JOURS_CHARGE_MAX, nb));
-  const faites = new Set(completions.filter((c) => c.done).map((c) => c.task_id));
+  const faites = ponctuellesFaites(completions, tasks);
   const out: ChargeJour[] = [];
   for (let i = 0; i < n; i++) {
     const jour = addDays(depuis, i);
@@ -316,7 +316,7 @@ export function payloadTachesObjectif(
 ): PayloadDe<"etapes_objectif"> {
   const arbre = descendants(goal, goals);
   const ids = new Set([goal.id, ...arbre.map((g) => g.id)]);
-  const faites = new Set(completions.filter((c) => c.done).map((c) => c.task_id));
+  const faites = ponctuellesFaites(completions, tasks);
   const taches = tasks
     .filter((t) => t.goal_id != null && ids.has(t.goal_id) && !estRecurrente(t))
     .slice(0, 50)
@@ -381,7 +381,7 @@ export function payloadPeril(
   /** Habitudes et coches, comme pour la détection : une cible chiffrée peut en dépendre. */
   contexte: Partial<ContexteProgression> = {},
 ): PayloadDe<"objectif_peril"> {
-  const faites = new Set(completions.filter((c) => c.done).map((c) => c.task_id));
+  const faites = ponctuellesFaites(completions, tasks);
   // Les étapes directes NON ACHEVÉES, mesurées par la règle unique — celles que
   // le péril a comptées.
   const sources = { goals, tasks, completions, ...contexte, maintenant: contexte.maintenant ?? `${jour} 00:00` };

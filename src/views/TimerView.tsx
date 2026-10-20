@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { pointeurGrossier } from "../lib/menu/tactile";
 import TimerPanel from "../components/TimerPanel";
 import { addDays, todayStr } from "../lib/logic";
 import { getSetting, setSetting } from "../lib/repo";
@@ -203,7 +204,7 @@ export default function TimerView({ data, focus }: Props) {
                   type="button"
                   onClick={() => focus.setOverlayOpen(true)}
                   data-tip={t("Plein écran")}
-                  data-tip-sub={t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
+                  data-tip-sub={pointeurGrossier() ? t("Ne laisse que le chrono à l’écran. Touchez l’écran pour la pause ou pour réduire.") : t("Ne laisse que le chrono à l’écran. Échap pour en sortir.")}
                   className="pill inline-flex items-center gap-1.5 border border-border px-5 py-2 text-sm text-text-dim hover:text-text"
                 >
                   <IconExpand className="h-3.5 w-3.5" /> {t("Plein écran")}

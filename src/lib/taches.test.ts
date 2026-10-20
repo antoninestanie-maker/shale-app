@@ -226,8 +226,10 @@ describe("une tâche faite n'attend plus de décision", () => {
   });
 
   it("une ponctuelle est faite dès qu'UNE coche le dit, quel que soit le jour", () => {
-    const faites = ponctuellesFaites([coche({ date: "2026-10-01" }), coche({ task_id: 9, done: 0 })]);
+    const faites = ponctuellesFaites([coche({ date: "2026-10-01" }), coche({ task_id: 9, done: 0 })], []);
     expect([...faites]).toEqual([7]);
+    // Sauf une coche d'AVANT qu'une routine ne devienne ponctuelle (032, audit taches-6).
+    expect([...ponctuellesFaites([coche({ date: "2026-10-01" })], [{ id: 7, ponctuelle_depuis: "2026-10-05" }])]).toEqual([]);
   });
 });
 

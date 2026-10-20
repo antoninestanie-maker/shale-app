@@ -2725,8 +2725,14 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - **Prouvé** : `tsc` ; `vitest` complet 2 655 verts ; `disciplineHabitudes.test.ts` (8, dont 3/4 tenu et 2/3 non) ; `logic.jour.test.ts` (le 0/0 reste 0/0) ; `cargo test task_streak` 25 verts. **Vu à l'écran** (build démo du labo sur `bddc00f`, Chrome sans fenêtre, 1440×900) : anneau « 25 % · 2/8 habitudes » ; tâche en retard cochée → quitte « En retard », n'entre pas dans « Tâches du jour » ; 4 habitudes cochées → « 75 % · 6/8 », série 2 j sur l'anneau et sur la tuile.
 - **Pas prouvé** : app installée, téléphone, anglais. **Pas de build natif** (à grouper).
 - ⚠️ La notification `streak_at_risk` lit toujours la série de TÂCHES (80 %) : elle peut ne plus parler de la même série que l'écran. À trancher par Antonin.
-- ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).
+- ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches). **→ Réparé le 2026-10-20 au soir par le lot 2** (`chantier/lot2-etats`).
 
+
+## 2026-10-20 — L'attente, variante de l'entrée (`chantier/chargement`)
+
+Demande d'Antonin : le chargement de l'app et du site, « une variante de l'entrée ». **Fait** : `src/components/Chargement.tsx` + § « L'ATTENTE » en fin d'`index.css` ; branché dans `App.tsx` (module, données), `FinanceView`, `KnowledgeView`, `ApercuFacture`. Côté site (shale-site, `chantier/chargement-site`) : « Mon compte » reste derrière l'icône jusqu'à ce que session et abonnement soient lus, puis paraît (0,97 → 1), filet à 8 s. Décision : `CLAUDE.md` (même date).
+
+**Prouvé** : `tsc` vert. **Vu** dans Chrome sans fenêtre, build démo du labo, réseau ralenti (latence 4 s) pour forcer l'ouverture d'un module : bureau 1470 × 923 sombre (Savoir) et téléphone 390 clair (Notes) — la lueur monte de 0 à 1 puis retombe, l'icône descend à 0,92, le texte n'arrive qu'après ≈ 1,3 s. **Pas vu** : WKWebView (Mac), iPhone, densité 110 % au vrai. **Reste** : fusion, puis le prochain build groupé (aucun Rust, aucune migration).
 
 ## 2026-10-13 (nuit) — l'IA de Shale Pro s'exécute à Paris, où que soit l'utilisateur
 
@@ -2744,7 +2750,112 @@ Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-re
 - **Autres fonctions edge** : l'app n'en appelle aucune autre (`create-checkout` et `billing-portal` ne sont appelées que par le site, `vitrine/src/lib/compteAuth.ts`, sans région ; elles portent le jeton et le choix d'offre, pas de contenu). Le Rust n'appelle aucune fonction.
 - **Pas fait** : aucun build natif — **l'app installée (Mac 13/10 01:16, iPhone 0.8.0) ne porte pas ce changement**. Aucun appel authentifié (toutes les fonctions d'IA sont éteintes dans `ai_config`, et il ne faut pas en allumer avant la politique de confidentialité à jour). Rien modifié dans le dépôt du site.
 - **Ligne de base** (charge de la machine 45 à 60, d'autres sessions) : `tsc` vert ; `test:types` vert ; `src/lib/ia` 169 tests verts — les quatre fichiers `serveur*` (base PGlite) dépassent leur délai de 60 s sous cette charge et passent rejoués seuls (65/65), comme noté au carnet le même soir. Contre-épreuve : région retirée de `runAi.ts`, trois tests rouges. ⚠️ **Suite complète et `vite build` non rejoués** (aucun autre fichier touché ; ni `en.ts`, ni Rust).
+- ⭐ **Fusionné le 2026-10-20** (`6b737fe`, sur accord d'Antonin), et la politique de confidentialité du site mise à jour le même soir (version affichée 1.5, `DETTE-SITE.md` § AM). ⛔ **Aucune fonction d'IA ne s'allume dans `ai_config` avant qu'un build natif portant `6b737fe` soit installé** : une app plus ancienne appellerait encore sans région. Restent : ce build (à grouper) et, facultatif, le verrou côté fonction.
+
+## 2026-10-20 (soir) — La notification « série en danger » passe sur les habitudes
+
+Antonin : « on passe sur les habitudes ». `streak_at_risk` lit désormais la série de l'anneau d'Aujourd'hui (portage Rust `notifications/discipline_habitudes.rs` de `disciplineHabitudes.ts`, jour tenu à 75 %, exemples exclus) ; la série de tâches n'est plus notifiée. Détail et pourquoi : `CLAUDE.md`, même date.
+- **Prouvé** : `cargo test --lib notifications` vert (7 tests neufs pour la série, règle réécrite avec 9 tests, lecture du drapeau d'exemple) ; `tsc`, `i18n:check`.
+- **Pas prouvé** : aucune notification réelle reçue ; **pas de build natif** (Rust : il faut un build pour que l'app installée change) — à grouper avec le prochain.
+## 2026-10-20 — Lot 1 de l'audit : les données qui s'abîment sans prévenir (`chantier/lot1-donnees`)
+
+Antonin a choisi ce lot dans l'audit complet du 20/10 (`labo/passes/2026-10-20-audit/`, détail de chaque défaut par `id` dans `chasse-code.json`). Lancé en parallèle du lot 2 (états de tâche), dans une autre session : seuls `repo.ts` et `demo.ts` sont touchés des deux côtés, dans des fonctions différentes. Décisions : `CLAUDE.md` (même date) ; pièges : `PIEGES.md` § 54.
+
+**Les onze défauts, tous vérifiés présents sur `mobile-ios` `5624eb5` avant correction :**
+
+| Défaut | Correctif | Tenu par |
+|---|---|---|
+| savoir-1 (critique) image collée après ←/→ écrase une autre fiche | `NoteComposer` : `emit` lit le dernier `onChange` et envoie `idDuDom` ; le lecteur range ses écritures **par fiche** (`KnowledgeView`, `patchPour`) ; une image recompressée après un changement de fiche n'est posée nulle part | `components/NoteComposer.ecriture.test.ts` (échoue sur l'ancien code) |
+| savoir-2 « Annuler » pose le bloc dans l'autre note | `retirerBloc(bloc, toujoursLa)` + compteur de semis (`identite`) dans les deux éditeurs ; même garde pour une pièce jointe copiée pendant un changement de note (`useDepotPieceJointe`) | `blocsNote.test.ts` |
+| savoir-3 ré-indexation à chaque visite, renvoyée au cloud | `reindexationDe` (`knowledge.ts`) n'écrit que ce qui change ; fiches déjà vues gardées au niveau du module | `knowledge.reindexation.test.ts` |
+| savoir-4 Notes : la note en attente remplacée par la suivante | changer de note écrit la précédente ; `scheduleSave` écrit celle d'une autre note avant de la remplacer ; `useLiens` ne rend plus l'uid de l'objet précédent | `views/NotesView.ecriture.test.ts` (échoue sur l'ancien code) |
+| savoir-5 supprimer la copie d'une note à carte jette les objets de l'original | `sansNoeudsPortesAilleurs` (`objectifs/emportes.ts`) + `corpsAvecCartes` (`repo.ts`, démo) : branché dans `jeterAvecSesCartes`, le retrait d'une carte (`useMenuBlocs`) et la suppression d'un nœud (`EditeurCarte`) | `objectifs/emportes.test.ts`, `corbeille/donnees.repo.test.ts` |
+| savoir-6 fiche suivante introuvable | le lecteur se ferme avec un message (« Cette note n'existe plus… ») ; `updateKnowledgeEntry` filtre `deleted_at` | `corbeille/donnees.repo.test.ts` |
+| objectifs-2 au bout de 400 jours, tâches cochées « à faire » | `fetchAll` lit toute coche de ponctuelle et de source de compte (tâche ou habitude) | `corbeille/donnees.repo.test.ts` |
+| donnees-2 écritures perdues pendant une application distante ; drapeau collé | porte d'écriture `sync/verrou.ts` (`getDb` gardé, `getDbBrute` pour le moteur) ; `remettreEnOrdre` au démarrage de la fenêtre principale (`sync/demarrage.ts`, `main.tsx`) ; le moteur attend la file avant chaque cycle | `sync/verrou.test.ts` |
+| donnees-3 restauration défaite par la synchro | le Rust marque la base restaurée (`sync_meta.restauree`, `applying` baissé) ; au démarrage le front republie (curseur 0, `sync_state` vidé, tout en file) | `sync/restauration.test.ts` (banc à deux appareils, avec témoin) ; `cargo test` (marque) |
+| donnees-4 copie « avant restauration » sans `-wal` | `copier_coherente` (`VACUUM INTO`) ; repli : base ET `-wal` copiés | `cargo test --lib sauvegardes` (crash simulé) |
+| Constat 2 (bloquant) note d'une ligne ré-échappée en `&amp;amp;` | `estTexteBrut` + `reparerEchappements` (`richtext.ts`) : un corps est toujours du HTML ; notes déjà abîmées réparées au chargement (nœuds texte seulement) | `richtext.test.ts` (échoue sur l'ancien code) |
+
+**Prouvé.** `tsc` vert ; `i18n:check` 0 manquante, `i18n:durs` 0. Suite complète : **2 692 verts** ; deux délais dépassés sous une charge machine de 37 (mon test Notes, corrigé ensuite en sortant l'import du délai ; `finance/facturation/demo.test.ts`, déjà connu pour ça) — les trois fichiers relancés seuls : verts. `test:types` : seule erreur `catalogue/tache.test.ts` (`etat` manquant), antérieure et dans les fichiers du lot 2. `cargo test --lib sauvegardes` : 3 verts (cache du dossier principal, PIEGES § 26.7). **Vu à l'écran** (build démo du labo `lot1-dc12fc4-habite`, Chrome sans fenêtre, 1440×900) : une note neuve « Dupont & fils <3 ! » tapée, quittée et rouverte plusieurs fois reste intacte ; une note portant une carte qui cite une tâche, dupliquée, puis la copie supprimée → toast « est dans Supprimés récemment » seul ; l'original supprimé ensuite → « et 1 élément » (le témoin).
+
+**Pas prouvé.** Rien vu dans l'app native (WKWebView), ni sur la vraie base, ni sur l'iPhone ; la restauration réelle (Rust + premier cycle de synchro avec Supabase) n'a été jouée que sur le banc ; le collage d'une image dans le lecteur du Savoir n'a pas été fait à la main (test de composant seulement) ; la fiche suivante supprimée ailleurs (savoir-6) non reproduite en démo. **Pas de build natif** (à grouper). **Fusionné** dans `mobile-ios` le 2026-10-20 (avance rapide, après recalage sur `91ad68e` : `tsc` et 57 fichiers de tests des zones touchées verts) ; **non poussé** (consigne de la session qui a lancé le lot).
+
+**Ce qui reste exposé.** Les fenêtres capture et Timer ont leur propre contexte : une écriture faite là pendant une application distante reste hors de la porte. Les notes abîmées en base ne sont réparées qu'à leur prochaine écriture (l'affichage, lui, est réparé tout de suite).
+
+## 2026-10-20 (soir) — Lot 2 de l'audit : les états des tâches corrigés (`chantier/lot2-etats`)
+
+Antonin a choisi le lot 2 de l'audit du 20/10 (`labo/passes/2026-10-20-audit/`, `chasse-code.json`). Décisions : `CLAUDE.md` (« Lot 2 de l'audit », même date). Piège : `PIEGES.md` § 55.
+
+> ### ⚠️ MIGRATION 032 À JOUER — au prochain build natif groupé
+> `src-tauri/migrations/032_pauses_taches.sql` ajoute **deux colonnes** à `tasks` : `pauses` (TEXT, JSON) et `ponctuelle_depuis` (TEXT). Enregistrée dans `lib.rs` (version 32) et `sync/schema.testutil.ts`. Elle se joue au premier lancement de l'app reconstruite : **copier la base avant** (mémoire « Copier la base avant tout remplacement »), puis vérifier `PRAGMA user_version`/`_sqlx_migrations` = 32 et `integrity_check`. Synchronisation : rien à changer (la ligne voyage entière ; un appareil sans la 032 ignore les colonnes et retombe sur la règle de la 031). Le Rust lit les colonnes sous garde (`colonne_existe`), donc une base non migrée ne casse rien.
+
+**Fait, défaut par défaut** (chacun vérifié présent sur la tête avant correction ; « avant » = test rejoué sur `mobile-ios` dans un worktree détaché, rouge) :
+- **taches-1 / donnees-1 (haute)** — reprendre une routine effaçait sa pause. `pauses` (032), `changerEtat(avant, etat, jour, attente)`, `estSuspendue` + `est_suspendue` (Rust). Tests : `etatTaches.audit.test.ts`, `catalogue/tache.test.ts`, `task_streak.rs` (`une_routine_reprise_garde_ses_jours_de_pause`), `data.rs` (`les_pauses_d_une_tache_sont_lues`), `sync/calendrier.test.ts` (les colonnes voyagent).
+- **taches-2** — changer la relance par le menu remettait `state_since` à aujourd'hui : gardé (`changerEtat` d'attente à attente). `TaskModal` passe par la même règle.
+- **taches-3** — une routine en attente remonte « À relancer » sur Aujourd'hui (`tachesARelancer` lit « faite » comme `estFaite`).
+- **taches-4** — le « ⋯ » / clic droit d'une ligne « À relancer » ouvrait un menu vide : `tachesDuBlocDuHaut`, une liste pour les lignes et le menu (`EnRetard.tsx`).
+- **taches-6** — routine → « Une fois » ne part plus dans « Faites » (`ponctuelle_depuis`, 032, `changerRecurrence` dans `updateTask` repo + démo ; `ponctuellesFaites` exige les tâches, les copies en ligne remplacées dans `peril`, `progression`, `carteEtat`, `FeuilleDeRoute`, `ia/planifier`, `ia/revue`) ; → routine remet « reportée N fois » à zéro. Rust : `today_pct`.
+- **objectifs-3 / temps-4** — le péril ignore les abandonnées non cochées et les exemples, comme la mesure.
+- **objectifs-4** — feuille de route : abandonnée grisée, sans case, en bas, badge ; « en retard » rouge jamais pour une tâche suspendue. Carte mentale : `enRetard` lit `estSuspendue`.
+- **temps-7** (« plausible ») — tranché : une tâche en attente reste à sa date mais ne pèse plus dans la charge ni n'occupe de créneau (`charge.ts`, `disponibilite.ts`, `EntreeAgenda.etat`).
+- **Constat d'usage 21** — `BadgeEtat` (Aujourd'hui, Calendrier agenda/grille/pastilles, feuille de route) ; menu « État · … », entrée courante nommée par l'état, relance cochée.
+- **taches-8** — sous-titre de Tâches : relances à part (`compteDuJour`).
+- **donnees-9** — toast « Undo » (`Annuler|défaire`) ; `retours-anglais.test.ts` surveille désormais `catalogue/tache.tsx`.
+- En passant : `catalogue/tache.test.ts` avait perdu `etat` dans `GestesTache` (faisait échouer `npm run test:types`) — réparé.
+
+**Prouvé** : `tsc` vert ; `npm run test:types` vert (il échouait avant, voir plus haut) ; `i18n:check` 0 manquante ; `cargo test --lib notifications` vert (5 tests neufs) ; vitest complet 2 646 verts avant la fusion du tronc, avec quatre échecs : un à moi (`taches.test.ts`, ancienne signature de `ponctuellesFaites`, corrigé, 33 verts) et trois de charge (machine à 54, puis 120) — `sync/supabase.test.ts` et `auth/*.sql.test.ts` passent seuls, `facturation/demo.test.ts` dépasse son délai de 60 s (déjà noté le matin). Chaque test neuf du lot a été rejoué sur l'ancien `mobile-ios` (worktree détaché, supprimé ensuite) : les huit échouent.
+**Vu à l'écran** (build démo du labo `lot2-etats-98a8a0a-habite`, Chrome sans fenêtre, 1440×900, sombre) : « En cours » posé depuis Aujourd'hui → badge braise dans « Tâches du jour » et toast ; une routine (« Production client (matin) ») mise en attente avec relance aujourd'hui → sous-titre de Tâches « 2 tâches aujourd'hui · 1 en retard · 1 à relancer », et sur Aujourd'hui « En retard et à relancer » la montre ; son « ⋯ » s'ouvre, « État · En attente », « En attente, relance aujourd'hui » coché ; une tâche d'étape abandonnée → grisée, « ⊘ » à la place de la case, badge « Abandonnée », « Hier » plus en rouge, en bas de l'étape ; au Calendrier (agenda), une tâche 14:00–15:30 passée en attente → la bannière « Journée surchargée » disparaît, sablier gris devant le titre.
+**Pas vu** : la carte Calendrier d'Aujourd'hui, les cases du mois et le badge d'une routine dans la feuille de route (ajoutés après ce build, `a6b7497` — tsc et tests seulement) ; l'anglais, le clair, le téléphone ; rien dans WKWebView ni sur l'iPhone ; la 032 n'a jamais tourné sur une vraie base (seulement sur les bases SQLite des tests, migrations rejouées de 001 à 032).
+**Fusionné** dans `mobile-ios` le 2026-10-20 à 23:46 (`343acbc`, avance rapide après recalage sur le lot 1 et « chargement »), **non poussé** (consigne de la session qui a lancé le lot). **Reste** : le build natif groupé (la 032 se joue au premier lancement — copier la base avant). ⚠️ Depuis `930317a` (tronc), la notification « série en danger » lit les HABITUDES : `task_streak.rs` n'est plus lu par aucune règle ; il garde le portage des pauses et ses tests, au cas où une règle de tâches revienne.
+
 - **Non fusionné, non poussé** : un commit local sur `chantier/ia-region`, en attente de l'accord d'Antonin.
+
+## 2026-10-21 (nuit) — Lot 4 de l'audit du 20/10 : le doigt, le téléphone, la tablette (`chantier/lot4-doigt`)
+
+Lancé par Antonin avec les six autres lots (« lance tous les lots »). Constats d'usage 1, 10, 17, 26, 35, 38 et contrôle du 12/10 rangs 31 et 34 (`labo/passes/2026-10-20-audit/SYNTHESE.md`). Front seul : ni Rust, ni migration.
+
+**Revérifié dans WebKit avant de corriger** (`tools/webkit-pilote.swift`, désormais `WK_W`/`WK_H`/`WK_TACTILE=1` : 390 × 844 et 820 × 1180, règles « au doigt » de l'app actives, démo du labo au commit `6b737fe`, port 4640) :
+
+| Constat | Dans WebKit, avant | Après (même plan, build `bcaf075`/`e8361e8`, port 4641) |
+|---|---|---|
+| 1 — carte « Habitudes — 12 semaines » | **reproduit** : la liste fait 330 px de haut pour 628 de contenu, défile dans la carte ; défilée en bas, les « ⋯ » de Méditation à Planifier tombent sur le formulaire et la grille (`elementFromPoint`), celui de « Coucher avant 23 h » sur la barre d'onglets ; une habitude neuve n'a pas de menu atteignable | carte de 1 104 px, aucune région ne défile dedans ; les sept premiers « ⋯ » se touchent eux-mêmes (le dernier est sous la barre d'onglets tant qu'on n'a pas défilé la PAGE, ce qui marche) ; habitude neuve : menu, Renommer (champ qui garde le focus), Supprimer — vus |
+| 1 — « le ⋯ ouvre celui d'une autre » | **cause trouvée** : chaque re-mesure de la grille retirait `.rgrid-fill` le temps d'une lecture, la liste perdait son `scrollTop` (retour en haut à chaque coche) et le menu s'ouvrait où le bouton ÉTAIT | `garderDefilement` (`lib/grille.ts`) dans la mesure ; et plus de défilement interne au doigt |
+| 10 — plein écran du minuteur | **reproduit** : 0 commande | au doigt, Pause + Réduire paraissent à l'ouverture, s'effacent après 4 s, reviennent au toucher ; Pause → Reprendre ; Réduire ferme le calque — vus |
+| 17 — Calendrier au téléphone | **reproduit** : 4 bandeaux, la grille commence à 841 px sur 844 ; Agenda → Tâches → Calendrier = Semaine | une ligne « 5 alertes · aujourd'hui surchargé · 3 objectifs · 1 tâche à décider — Afficher », grille à 326 px ; la vue Agenda est retrouvée au retour |
+| 26 — tablette | **reproduit** : Tâches (8/12) et Timer seuls sur leur rangée, tiers droit vide ; Timer « cycles du jour » / « moyenne / jour » / « objectif atteint » tronqués ; pastille de la barre 41 × 35 | Tâches pleine largeur en tête, puis Habitudes ‖ Timer, Discipline sous le Timer, plus de trou ; aucune troncature au Timer ; lignes de la barre à 44 px de haut au doigt |
+| 26 — densité Large | **non reproduit** dans WebKit à 1440 × 900 zoom 1,2 : deux colonnes pleines | — |
+| 35 — roulette | **reproduit** : crans 54 × 28, « 12 h » / « 00 » désignés champ vide | crans de 44 px au doigt, aucun cran désigné ni filet tant que rien n'est choisi ; pas d'une minute gardé (décision d'Antonin) |
+| 38 — Entrée sur une pastille | **reproduit** : rien ne s'ajoute | « Marcher 3 fois » ajouté |
+| 38 — « toucher le nom coche » | **non reproduit** : le centre du nom est un `<span>` sans geste ; probable artefact du pilote, qui vise par nom accessible (« Lecture aujourd'hui » est le nom de la CASE) | — |
+| 38 — grilles sans légende | reproduit | « aucune tenue · moins ▢▢▢ plus » sous la grille de 12 semaines, « Tenue / Pas tenue » pour les carrés des lignes ; au Journal et sur Aujourd'hui |
+| 12/10 rang 31 — toast sur « Plus » | **reproduit** : le toast (y 650-756) couvre Admin, Personnaliser, Réglages, Supprimés récemment (aucun ne se touche) | feuille ouverte, le toast monte en haut (y 12) ; les quatre tuiles se touchent |
+| 12/10 rang 34 — sous-menu « Dater » | **reproduit** : 192 px de sous-menu posés sur les 240 du menu | au téléphone, posé au-dessus (ou au-dessous) du menu, sans le toucher ; au bureau inchangé |
+
+**Corrigé large** : au doigt (téléphone ET pointeur grossier), AUCUNE carte de grille ne défile en elle-même (plafond et hauteur épinglée ignorés, `ResizableGrid.tsx`) ; l'agenda du Calendrier au téléphone défile avec la page ; la règle « grille étroite » (`largeurEtroite`) vaut pour toute grille (tablette, fenêtre réduite) ; les noms d'habitudes d'Aujourd'hui passent à la ligne au doigt (`truncate-souris`).
+
+**Tests** : `src/lib/grille.doigt.test.ts` (10), `src/lib/doigt.lot4.test.ts` (16), `src/lib/menu/placement.test.ts` (+3). `tsc` vert, i18n 0 manquante, suite complète 2 691 verts — le seul rouge, `finance/facturation/demo.test.ts`, était un délai de 60 s sous la charge des sept lots ; seul, 20/20.
+
+**Voulu, non touché** : l'horloge épurée au repos (30/09) ; la suppression d'une habitude en un geste avec « Annuler » (CLAUDE.md, 2026-09-23, « Menus contextuels, et Supprimés récemment ») ; la semaine par défaut au Calendrier (13/10) ; la barre latérale en icônes sous 1024 px et ses compteurs en points (MOBILE § 5.1, couleurs V9).
+
+**Pas prouvé** : rien de tout cela n'a été vu sur un vrai iPhone ou iPad, ni avec de vrais événements tactiles (le pilote WebKit n'en produit pas : les gestes sont rejoués en JS, la mise en page et le hit-test sont ceux de WebKit). Le simulateur iOS était démarré, mais l'accès du panneau demande l'accord d'Antonin, et le Web Inspector du simulateur a refusé la connexion depuis le bac à sable. **Pas de build natif** (à grouper).
+## 2026-10-21 (nuit) — Lot 5 de l'audit : le premier démarrage et la lecture des dates (`chantier/lot5-accueil`)
+
+Lancé avec tous les lots de l'audit du 20/10 (`labo/passes/2026-10-20-audit/SYNTHESE.md`, constats 6, 7, 8, 18, 39). Les cinq défauts existaient encore sur la tête de `mobile-ios` (`6b737fe`) : aucun des fichiers concernés n'avait bougé depuis `49eb01f`. Décisions : `CLAUDE.md` (« Lot 5 de l'audit », 2026-10-20 nuit). Pièges : `PIEGES.md` § 57.
+
+| Constat | État | Où | Test |
+|---|---|---|---|
+| 8 — « Date illisible » sur 20/02/2027, 19/05, 21/05… | **corrigé** (cause : chiffres recollés lus en ISO « 2002 ») ; + dates en toutes lettres, six chiffres, an prochain sous la borne, choix des mois au titre du calendrier | `calendrier/champDate.ts`, `ChampDate.tsx` | `champDate.test.ts` (toutes les dates 2026-2027 ; échouait avant) |
+| 6 — « Passer » ferme tout, « récupérer » expliqué après, pas de retour, fin avant début muette, « trois questions » | **corrigé** : « Passer cette question » / « Tout passer », « Retour », « Étape n sur 6 », explication avant la question, remarque sur la plage, texte du premier écran. **Gardé** : trois étapes au plus, une plage de travail, 8/10 h allumées d'office | `onboarding/Accueil.tsx`, `onboarding/parcours.ts`, `onboarding/horaires.ts`, `appTexts.ts` | `parcours.test.ts`, `horaires.test.ts` |
+| 7 — bloc sans « + » jeté, ligne sans jours ni heures, rien au Calendrier | **corrigé** : « Suivant » l'ajoute (ou le signale), jours et heures écrits, légende « Blocs fixes ». ⭐ Les heures déclarées n'étaient JAMAIS passées au calendrier (`repliDuTravail` jamais appelé) : branché, blocs compris dans les créneaux proposés. Le bloc reste non affiché (décision) : l'écran le dit | `useHoraires.ts`, `CalendarView.tsx`, `CalendarCard.tsx`, `disponibilite.ts` (option `bloques`) | `horaires.test.ts` (dont un test de source sur les deux vues) |
+| 18 — la phrase pas lue en entier | **corrigé** : répétitions, périodes, hier, priorité, FR et EN, pastilles retirables ; aussi la première tâche de l'accueil. **Voulu** : « Nouvelle tâche » ne lit pas la phrase (CLAUDE.md, 2026-10-12, « ni les fenêtres ») | `taches/saisieRapide.ts` (`lirePhrase`, `ecrituresRapides`), `SaisieRapide.tsx`, `TasksView`, `TodayView`, `semer.ts` | `saisieRapide.phrase.test.ts` (22 tests ; la fonction n'existait pas) |
+| 39 — Échap jette « Nouvelle tâche » | **corrigé** pour `TaskModal` : saisie modifiée → « Abandonner la saisie ? ». L'ajout rapide ne vidait déjà pas la ligne (Échap écarte ce qui est lu). « Modifier l'objectif » (`GoalModal`) : pas fait, fichier du lot 7 | `TaskModal.tsx` | `TaskModal.echap.source.test.ts` |
+
+**Vu à l'écran** (build démo du labo `lot5-e7ad295-neuf`, port 4650, Chrome sans fenêtre 1440×900) : l'accueil entier — fin 07:00 sur début 09:00 dite (« 22 h »), « Visio licence » mar./jeu. 19–21 h tapée sans « + » puis « Suivant » : ajoutée, la ligne écrit « mar., jeu. · 19:00 – 21:00 », la grille la montre en « Blocs fixes » ; « Passer cette question » sur la grille mène à l'objectif ; « 20/02/2027 » lu « samedi 20 février 2027 » ; titre du calendrier → 2027 → mai en trois tapes ; « appeler l URSSAF demain à 10h urgent » → pastilles « demain · 10:00 » et « Élevée », tâche créée « appeler l URSSAF », demain 10:00–11:00 ; « faire ma compta chaque vendredi urgent » → « ↻ ven. » + « Élevée », rangée dans Routines ; « Nouvelle tâche » + Échap → la question, second Échap → retour à la saisie. Non vu : l'app en anglais (tests seulement), le téléphone, la pastille de priorité masquée dans Tâches (commit suivant le build, `tsc` vert).
+
+**Prouvé.** Après fusion de la tête de `mobile-ios` (`13a44fe`, lot 4) : `tsc` vert, `test:types` vert, `i18n:check` 0 manquante, `i18n:durs` 0 ; suite complète **2 802 verts**, 3 ignorés, 0 échec. Un test de source accordé (`fenetres.source.test.ts` : la fermeture de `TaskModal` passe par `demanderFermeture()`, toujours après le garde `defaultPrevented`).
+
+**Non vérifié** : les créneaux évitant un bloc fixe à l'écran (le cas de la démo tombait hors des heures de travail ; tenu par le test). `ia/brief.ts` garde le repli d'origine (synchrone) : à brancher avec l'IA. Aucune migration. Aucun build natif.
 
 ## 2026-10-21 (nuit) — Lot 7 de l'audit du 20/10 : finitions d'Objectifs et divers (`chantier/lot7-finitions`)
 
@@ -2754,9 +2865,9 @@ Lancé par Antonin pour la nuit avec les six autres lots (« lance tous les lots
 - **objectifs-6** — une tâche de la feuille de route a son « ⋯ » (visible) et Maj+F10 : modifier, dater, état, supprimer depuis l'objectif, au doigt et au clavier (`FeuilleDeRoute.test.ts`).
 - **objectifs-8** — « ⋯ › Ajouter une tâche » d'une page ouverte ne rejoue plus le film (`GoalsView.test.ts`).
 - **objectifs-10** — l'objectif créé s'ouvre par son id (`GoalModal.onSaved(creeId)`) ; une demande d'ouverture servie par l'événement est consommée (Objectifs, et corrigé large dans Tâches et Savoir) (`GoalsView.test.ts`).
-- **objectifs-11** — Rattacher : Entrée sur une liste périmée redemande la recherche (`RattacherElement.test.ts`, PIEGES § 54.2).
+- **objectifs-11** — Rattacher : Entrée sur une liste périmée redemande la recherche (`RattacherElement.test.ts`, PIEGES § 58.2).
 - **objectifs-12** — une étape terminée n'est plus « En retard ».
-- **objectifs-13** — une seule étape par Entrée ; même verrou par ref dans le composeur de tâche et Rattacher (PIEGES § 54.1).
+- **objectifs-13** — une seule étape par Entrée ; même verrou par ref dans le composeur de tâche et Rattacher (PIEGES § 58.1).
 - **Constat 29** — « Atteindre un nombre » garde la liste des tâches, et se compte « par ses tâches » (`count_source = 'elements'`, posée d'office au premier nombre d'une étape qui a des tâches) (`cibleParTaches.test.ts`). **Aucune migration** (texte sans CHECK ; une version d'avant lit « manual »).
 - **Constat 30** — « Citer un objet » (et la touche @) crée un nœud sous le nœud regardé ; renoncer le retire.
 - **Constat 33** — à côté d'étapes, l'en-tête dit « tâche(s) directe(s) ». Le pourcentage qui saute à la suppression est la règle écrite (voulu).

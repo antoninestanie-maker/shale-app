@@ -3743,3 +3743,14 @@ montée sur `/Volumes/Xcode-Shale`. Les deux dossiers de `~/Library/Developer` s
 - Copie vérifiée fichier par fichier (`diff -rq`) avant de retirer les originaux ; un simulateur
   iPhone 17 a démarré depuis l'image, Shale toujours installé dedans.
 - Les fichiers Xcode de l'iOS 26.6.1 ont été supprimés (le téléphone est en 26.6.2).
+
+## 33. Lot 4 de l'audit du 20/10 — ce qui change au doigt (2026-10-21)
+
+Le détail et les mesures : `PASSATION.md`, même date ; le pourquoi : `CLAUDE.md`, même date.
+
+- **Aucune carte ne défile en elle-même** au doigt (téléphone, iPad) : la carte des habitudes, les listes d'Aujourd'hui, l'agenda du Calendrier défilent avec la page.
+- **Plein écran du minuteur** : un toucher fait paraître Pause et Réduire quatre secondes.
+- **Calendrier** : alertes repliées en une ligne ; vue choisie retenue pour la session.
+- **Roulette** : crans de 44 pt. **Sous-menus** : au-dessus ou au-dessous de leur menu au téléphone. **Toast** : en haut de l'écran quand la feuille « Plus » est ouverte.
+- **Tablette** (820 pt) : Aujourd'hui sans tiers vide, l'action en tête ; lignes de la barre latérale à 44 pt de haut.
+- ⛔ **Vu dans WebKit (macOS) en format téléphone/tablette, pas sur un appareil** : le toucher, la loupe, l'inertie du défilement et la zone sûre restent à voir sur l'iPhone et l'iPad.

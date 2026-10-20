@@ -2,7 +2,7 @@ import type { Carte, TypeNoeud } from "./carte";
 import { serieHabitude } from "./habitudes";
 import { estAcheve, mesurer, uidDeLigne, type SourcesProgression } from "./objectifs/progression";
 import { cleDeNature, natureDe } from "./objectifs/structure";
-import { estRecurrente } from "./taches";
+import { estRecurrente, estSuspendue, ponctuellesFaites } from "./taches";
 import type { Goal, Task } from "./types";
 
 /**
@@ -66,7 +66,7 @@ export function genreDObjectif(
  */
 export function etatsVivants(carte: Carte, s: SourcesEtat): Map<string, EtatVivant> {
   const out = new Map<string, EtatVivant>();
-  const faites = new Set(s.completions.filter((c) => c.done).map((c) => c.task_id));
+  const faites = ponctuellesFaites(s.completions, s.tasks);
   const taches = new Map(s.tasks.map((t) => [uidDeLigne("task", t), t]));
   const objectifs = new Map(s.goals.map((g) => [uidDeLigne("goal", g), g]));
   const habitudes = new Map((s.habits ?? []).map((h) => [uidDeLigne("habit", h), h]));
@@ -84,7 +84,8 @@ export function etatsVivants(carte: Carte, s: SourcesEtat): Map<string, EtatViva
         recurrente,
         tache: t,
         echeance: t.due_date,
-        enRetard: !!t.due_date && t.due_date < s.today && !fait,
+        // En attente ou abandonnée (031) : jamais en retard, comme partout ailleurs.
+        enRetard: !!t.due_date && t.due_date < s.today && !fait && !estSuspendue(t, s.today),
       });
     } else if (n.ref.kind === "habit") {
       const h = habitudes.get(n.ref.uid);

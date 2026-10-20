@@ -18,7 +18,8 @@ coupées — c'est lui la source de vérité.
 | `engine.rs` | Contraintes transverses + regroupement. Fonction **pure** |
 | `scheduler.rs` | Boucle, rattrapage du réveil machine, déclenchement au focus |
 | `emitter.rs` | Envoi système + journal + événement `shale:notification` |
-| `task_streak.rs` | Portage Rust de `src/lib/logic.ts` (séries de tâches) |
+| `discipline_habitudes.rs` | Portage Rust de `src/lib/disciplineHabitudes.ts` (la série de l'anneau d'Aujourd'hui) |
+| `task_streak.rs` | Portage Rust de `src/lib/logic.ts` (séries de tâches) — ⚠️ lu par aucune règle depuis le 2026-10-20 |
 | `rules/` | Une règle = un fichier |
 
 Côté front : `src/lib/notifications.ts` (façade + hook), `src/components/NotificationBell.tsx`
@@ -28,12 +29,12 @@ Côté front : `src/lib/notifications.ts` (façade + hook), `src/components/Noti
 
 | id | Ce qu'elle dit | Seuils | Cooldown |
 |---|---|---|---|
-| `streak_at_risk` | Une série en cours (habitudes **ou** tâches) risque d'être rompue | `hour` (21), `min_streak` (3) | 20 h |
+| `streak_at_risk` | La série d'habitudes (celle de l'anneau d'Aujourd'hui, jour tenu à 75 %) risque d'être rompue — depuis le 2026-10-20 ; avant, aussi la série de tâches | `hour` (21), `min_streak` (3) | 20 h |
 | `habits_pending` | Il reste des habitudes à cocher aujourd'hui | `hour` (20) | 20 h |
 | `inactivity` | N jours sans ouvrir une fiche du Savoir | `days` (3) | 48 h |
 
-`streak_at_risk` **met en sourdine** `habits_pending` quand c'est la série
-d'habitudes qui est menacée : elle dit déjà qu'il reste des habitudes à cocher.
+`streak_at_risk` **met en sourdine** `habits_pending` : elle dit déjà combien
+d'habitudes il reste à cocher.
 
 Les notifications de test (bouton « Envoyer un test ») portent la règle `test` :
 elles vont au journal mais **ne comptent pas** dans le plafond quotidien, sans
