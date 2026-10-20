@@ -1,7 +1,7 @@
 import { CaseACocher, useCochesOptimistes } from "./CaseACocher";
 import BadgeExemple from "./onboarding/BadgeExemple";
 import { IconFlame } from "./icons";
-import { CarresHabitude, GrilleHabitudes } from "./habitudes/Grilles";
+import { CarresHabitude, GrilleHabitudes, LegendeCarres } from "./habitudes/Grilles";
 import { JOURS_HISTORIQUE, derniersJours, serieHabitude } from "../lib/habitudes";
 import { todayStr } from "../lib/logic";
 import { estExemple } from "../lib/onboarding/exemples";
@@ -76,7 +76,11 @@ export default function HabitudesDuJour({
   return (
     <div className="@container panel-grow panel-col">
       <div className="panel-scroll panel-col gap-4 pr-0.5 @[34rem]:flex-row @[34rem]:gap-6 @[34rem]:overflow-visible @[34rem]:pr-0">
-        <GrilleHabitudes habits={data.habits} habitChecks={data.habitChecks} today={today} className="shrink-0" />
+        {/* Légendes : constat 38 du 20/10 (« la bande des jours n'a pas de légende »). */}
+        <div className="shrink-0">
+          <GrilleHabitudes habits={data.habits} habitChecks={data.habitChecks} today={today} legende />
+          <LegendeCarres className="mt-1.5" />
+        </div>
         <ul className="flex min-w-0 flex-col gap-3 @[34rem]:min-h-0 @[34rem]:flex-1 @[34rem]:overflow-y-auto @[34rem]:overscroll-contain @[34rem]:pr-0.5">
           {data.habits.map((habit) => {
             const cochee = etat(`h${habit.id}:${today}`, faitesAujourdhui.has(habit.id));

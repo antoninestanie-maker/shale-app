@@ -332,6 +332,10 @@ export default function TodayView({ data, refresh, focus, navigate, config }: Pr
         gridId="today"
         className="mt-4"
         ajusterOrdre={isPhone ? ordreAujourdhuiAuTelephone : undefined}
+        // Tablette debout, fenêtre réduite, densité Large : la grille n'a plus
+        // deux vraies colonnes, l'action passe en tête comme au téléphone
+        // (audit du 20/10, constat 26 : « Tâches du jour » tombait sous les habitudes).
+        ajusterOrdreEtroit={ordreAujourdhuiAuTelephone}
       >
         {ordered.map((w) => {
           const node = widgets[w.id]?.();

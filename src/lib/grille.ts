@@ -229,3 +229,82 @@ export function reserveDEntete(tete: BordsEcran, barre: BordsEcran, echelle: num
 export function enteteSerre(sans: number, avec: number): boolean {
   return avec - sans > 0.5;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⭐ 2026-10-21 — lot 4 de l'audit du 20/10 : la grille au doigt, au téléphone
+// et sur tablette (constats 1 et 26).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Le plancher d'un panneau, en COLONNES, pour une grille de `largeur` px.
+ * C'était un calcul en ligne de `ResizablePanel` ; il sort ici parce que la
+ * grille entière en a besoin aussi (`grilleEtroite`).
+ */
+export function plancherEnColonnes(largeur: number, colonnes: number, gouttiere: number, plancherPx: number): number {
+  if (largeur <= 0) return 1;
+  const pas = (largeur - (colonnes - 1) * gouttiere) / colonnes + gouttiere;
+  if (pas <= 0) return 1;
+  return Math.min(colonnes, Math.max(1, Math.ceil((plancherPx + gouttiere) / pas)));
+}
+
+/**
+ * La grille est-elle « étroite » : trois panneaux à leur plancher ne tiennent
+ * plus côte à côte ? C'est le cas d'une tablette tenue debout (820 px), d'une
+ * fenêtre de Mac réduite, ou de la densité « Large » sur un écran moyen. Au
+ * bureau ordinaire (plancher de 4 colonnes sur 12), jamais.
+ */
+export function grilleEtroite(plancher: number, colonnes: number): boolean {
+  return plancher * 3 > colonnes;
+}
+
+/**
+ * ⭐ LA LARGEUR D'UN PANNEAU NON RETOUCHÉ, DANS UNE GRILLE ÉTROITE.
+ *
+ * LE DÉFAUT (audit du 20/10, constat 26 ; contrôle du 12/10, rang 17). Sur une
+ * tablette de 820 px, le plancher monte à 5 colonnes : les cartes de 4 passent
+ * à 5, les cartes de 8 restent à 8 — et une carte de 8 ne peut plus avoir de
+ * voisine (8 + 5 > 12). « Tâches du jour » laissait un tiers de l'écran vide à
+ * sa droite, le Timer aussi, et les habitudes à 5 colonnes coupaient leurs noms.
+ *
+ * LA RÈGLE, au rendu seulement (rien n'est écrit dans les réglages) :
+ *   • une carte qui ne peut plus avoir de voisine prend toute la rangée ;
+ *   • une carte étroite prend la demi-rangée : deux par rangée, sans trou ;
+ *   • les autres gardent leur largeur.
+ * Hors grille étroite, la largeur par défaut, inchangée.
+ */
+export function largeurEtroite(o: { largeurParDefaut: number; plancher: number; colonnes: number }): number {
+  const { largeurParDefaut: d, plancher: p, colonnes: c } = o;
+  if (!grilleEtroite(p, c) || p * 2 > c) return d;
+  if (d + p > c) return c;
+  const moitie = Math.ceil(c / 2);
+  if (d < moitie) return Math.max(p, moitie);
+  return d;
+}
+
+/** Ce qu'il faut d'un élément qui défile pour lui rendre sa position. */
+export interface Defilant {
+  scrollTop: number;
+}
+
+/**
+ * ⭐ GARDER LA POSITION DES RÉGIONS QUI DÉFILENT PENDANT UNE MESURE.
+ *
+ * LE DÉFAUT (audit du 20/10, constat 1 : « cocher en bas la ramène en haut »).
+ * Pour lire la hauteur naturelle d'une carte, la grille retire un instant
+ * l'étirement (`.rgrid-fill`) : la région `.panel-scroll` reprend alors toute
+ * sa hauteur, n'a plus rien à défiler, et le navigateur ramène son `scrollTop`
+ * à 0. Remettre la classe ne le rend pas. Chaque re-mesure — une coche, un
+ * menu ouvert, une ligne ajoutée — renvoyait donc la liste en haut ; au
+ * téléphone, le menu « ⋯ » s'ouvrait alors sous une AUTRE habitude que la
+ * sienne (il visait l'ancien emplacement du bouton).
+ *
+ * `lire` fait la mesure ; les positions sont relevées avant et reposées après.
+ */
+export function garderDefilement<T>(defilants: readonly Defilant[], lire: () => T): T {
+  const avant = defilants.map((d) => d.scrollTop);
+  const r = lire();
+  defilants.forEach((d, i) => {
+    if (avant[i] > 0 && d.scrollTop !== avant[i]) d.scrollTop = avant[i];
+  });
+  return r;
+}

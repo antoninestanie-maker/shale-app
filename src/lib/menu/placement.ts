@@ -131,8 +131,32 @@ export function placerSousMenu(
   if (ancrePerdue(entree, fenetre)) return "fermer";
 
   const CHEVAUCHEMENT = 4;
-  let left = parent.right - CHEVAUCHEMENT;
-  if (left + menu.width > fenetre.width - MARGE) left = parent.left - menu.width + CHEVAUCHEMENT;
+  const aDroite = parent.right - CHEVAUCHEMENT;
+  const aGauche = parent.left - menu.width + CHEVAUCHEMENT;
+  const tientADroite = aDroite + menu.width <= fenetre.width - MARGE;
+  const tientAGauche = aGauche >= MARGE;
+
+  // ⭐ NI À DROITE NI À GAUCHE (2026-10-21 ; contrôle du 12/10, rang 34). Au
+  // téléphone, un menu de 240 px dans un écran de 390 ne laisse la place d'un
+  // sous-menu d'aucun côté : borné dans l'écran, il recouvrait la moitié de
+  // son menu (« uer », « mer » — mesuré dans WebKit : 192 px sur 240). Il se
+  // pose alors SOUS le menu, ou au-dessus, sans rien en cacher ; s'il ne tient
+  // ni dessous ni dessus, il se pose sous son entrée et recouvre le moins
+  // possible (la ligne qui l'a ouvert reste lisible).
+  if (!tientADroite && !tientAGauche) {
+    const left = Math.max(MARGE, Math.min(parent.left, fenetre.width - MARGE - menu.width));
+    if (parent.bottom + ECART + menu.height <= fenetre.height - MARGE) {
+      return { top: (parent.bottom + ECART) / zoom, left: left / zoom };
+    }
+    if (parent.top - ECART - menu.height >= MARGE) {
+      return { top: (parent.top - ECART - menu.height) / zoom, left: left / zoom };
+    }
+    let top = entree.bottom + ECART;
+    top = Math.max(MARGE, Math.min(top, fenetre.height - MARGE - menu.height));
+    return { top: top / zoom, left: left / zoom };
+  }
+
+  let left = tientADroite ? aDroite : aGauche;
   left = Math.max(MARGE, Math.min(left, fenetre.width - MARGE - menu.width));
 
   let top = entree.top - ECART;

@@ -107,3 +107,33 @@ describe("le sous-menu", () => {
     expect(p).toEqual({ top: 146, left: 584 });
   });
 });
+
+describe("placerSousMenu au téléphone — le sous-menu ne recouvre plus son menu (contrôle du 12/10, rang 34)", () => {
+  // Les mesures de WebKit à 390 × 844 : menu « ⋯ » d'une tâche [103, 377, 240 × 459],
+  // sous-menu « Dater » de 192 × 274.
+  const TEL = { width: 390, height: 844 };
+  const parent = { top: 377, left: 103, bottom: 836, right: 343 };
+  const entree = { top: 500, left: 107, bottom: 544, right: 339 };
+  const SOUS = { width: 192, height: 274 };
+  const chevauche = (a: { top: number; left: number }, b: typeof parent) =>
+    a.left < b.right && a.left + SOUS.width > b.left && a.top < b.bottom && a.top + SOUS.height > b.top;
+
+  it("avant : borné dans l'écran, il se posait SUR le menu ; maintenant au-dessus, sans le toucher", () => {
+    const p = placerSousMenu(entree, parent, SOUS, TEL, 1);
+    expect(p).not.toBe("fermer");
+    if (p === "fermer") return;
+    expect(chevauche(p, parent)).toBe(false);
+    expect(p.top + SOUS.height).toBeLessThanOrEqual(parent.top);
+  });
+
+  it("sous le menu quand la place y est", () => {
+    const haut = { top: 60, left: 103, bottom: 360, right: 343 };
+    const p = placerSousMenu({ top: 120, left: 107, bottom: 164, right: 339 }, haut, SOUS, TEL, 1);
+    expect(p).toEqual({ top: 364, left: 103 });
+  });
+
+  it("au bureau, rien ne change : toujours à côté", () => {
+    const p = placerSousMenu(bouton(150, 70, 210, 28), { top: 100, left: 60, bottom: 300, right: 290 }, { width: 180, height: 120 }, FENETRE, 1);
+    expect(p).toEqual({ top: 146, left: 286 });
+  });
+});

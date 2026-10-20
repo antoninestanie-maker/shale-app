@@ -55,3 +55,30 @@ export function nomDeLaSeance(seance: { label: string; kind: "focus" | "break" }
   const nom = seance.label.trim();
   return nom && nom !== LIBELLE_SANS_TACHE ? nom : libre;
 }
+
+/**
+ * ⭐ L'HORLOGE ÉPURÉE AU DOIGT (audit du 20/10, constat 10).
+ *
+ * L'horloge seule est la décision d'Antonin du 2026-09-30 : au repos, rien
+ * d'autre à l'écran. Mais au doigt, il n'y a ni Échap ni double-clic qu'on
+ * devine : sur tablette et téléphone, le plein écran n'avait AUCUNE commande,
+ * et la seule sortie (un toucher sur iOS, un double toucher ailleurs) n'était
+ * annoncée nulle part. Deux utilisateurs simulés sur deux s'y sont crus enfermés.
+ *
+ * La règle : au doigt, un toucher FAIT PARAÎTRE les commandes (Pause / Reprendre,
+ * Réduire) pendant quelques secondes, puis elles s'effacent ; un second toucher
+ * sur le vide les efface tout de suite. À l'ouverture, elles se montrent une
+ * première fois, le temps d'apprendre qu'elles existent. À la souris rien ne
+ * change : Échap ou un double-clic sortent, un simple clic ne fait rien (il
+ * redonne seulement la main à la fenêtre).
+ */
+export type GesteHorloge = "montrer" | "cacher" | "sortir" | null;
+
+/** Combien de temps les commandes restent à l'écran après un toucher. */
+export const DUREE_COMMANDES_MS = 4000;
+
+export function gesteSurHorloge(o: { auDoigt: boolean; double: boolean; commandesVisibles: boolean }): GesteHorloge {
+  if (o.double) return o.auDoigt ? null : "sortir";
+  if (!o.auDoigt) return null;
+  return o.commandesVisibles ? "cacher" : "montrer";
+}

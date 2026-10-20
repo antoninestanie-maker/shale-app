@@ -2593,3 +2593,22 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
 .sans-barres, .sans-barres * { scrollbar-width: none; }
 .sans-barres::-webkit-scrollbar, .sans-barres *::-webkit-scrollbar { display: none; }
 
+
+/* ⭐ 2026-10-21 — lot 4 de l'audit du 20/10 (le doigt, le téléphone, la tablette).
+   1. Feuille « Plus » ouverte au téléphone : le toast monte en haut de l'écran.
+      En bas, il recouvrait tout le pied de la feuille (Supprimés récemment,
+      Réglages, Personnaliser, Admin) — contrôle du 12/10, rang 31. L'attribut
+      est posé par `MobileNav`. `!important` : la place du toast est en style
+      en ligne (`Toast.tsx`). */
+html[data-feuille-plus] .toast-pile {
+  top: calc(env(safe-area-inset-top) + 0.75rem) !important;
+  bottom: auto !important;
+}
+/* 2. Barre latérale réduite au doigt (tablette) : une ligne de 44 pt de haut.
+      Mesurée à 41 × 35 px dans WebKit à 820 px (constat 26). La largeur suit le
+      rail, qui n'est pas de ce lot. */
+@media (pointer: coarse) {
+  .barre .group\/nav {
+    min-height: 44px;
+  }
+}
