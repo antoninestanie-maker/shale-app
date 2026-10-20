@@ -1,5 +1,5 @@
 import { rangPriorite } from "../priorite";
-import { estSuspendue } from "../taches";
+import { estEnRetard, estSuspendue } from "../taches";
 import type { Goal, Task } from "../types";
 import { elementsDe, enfantsDe, estAcheve, mesurer, uidDeLigne, type SourcesProgression } from "./progression";
 
@@ -76,7 +76,9 @@ export function prochaineAction(
   return {
     tache: choisie.tache,
     etape: choisie.etape,
-    enRetard: !!choisie.tache.due_date && choisie.tache.due_date < jour,
+    // La règle unique du retard (`lib/taches.ts`), sans la coche : la tâche
+    // choisie n'est jamais faite.
+    enRetard: estEnRetard(choisie.tache, jour, false),
   };
 }
 

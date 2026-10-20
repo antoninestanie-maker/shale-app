@@ -6,9 +6,9 @@ import {
   serialiserRecurrence,
   type ModeRecurrence,
 } from "../lib/logic";
-import { changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
+import { appliquerReport, changerEtatTache, createTask, updateTask, type TaskInput } from "../lib/repo";
 import { DUREE_DEFAUT_MIN, finApres, minutesDe } from "../lib/calendrier/agenda";
-import { changerEtat, etatDe, planificationDeSaisie } from "../lib/taches";
+import { changerEtat, etatDe, planificationDeSaisie, replanifier } from "../lib/taches";
 import { todayStr } from "../lib/logic";
 import RouletteHeure from "./calendrier/RouletteHeure";
 import type { EtatTache, Goal, Priority, Tag, Task } from "../lib/types";
@@ -125,6 +125,14 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
     };
     if (task) {
       await updateTask(task.id, input);
+      // ⭐ Changer l'échéance ici, c'est REPLANIFIER (règle du 2026-09-02) : le
+      // compteur de reports repart de zéro, comme par le menu « Dater » ou le
+      // glisser du Calendrier. Sans cela, la tâche gardait « reportée 2 fois »
+      // et, depuis le 2026-10-20, se lisait « reportée jusqu'à ce jour »
+      // (`estGlisseeJusquA`) — en retard le jour même où on l'a posée.
+      if (input.due_date && input.due_date !== task.due_date && (task.postponed_count ?? 0) > 0) {
+        await appliquerReport(task.id, replanifier(input.due_date));
+      }
       await enregistrerEtat(task);
     } else await createTask(input);
     await onSaved();

@@ -10,7 +10,7 @@ import type {
   Task,
   TodayTask,
 } from "./types";
-import { estSuspendue, ponctuellesFaites } from "./taches";
+import { estGlisseeJusquA, estSuspendue, ponctuellesFaites } from "./taches";
 
 export const DAY_SHORT = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
 
@@ -192,7 +192,9 @@ export function estPrevueLe(task: Task, jour: string): boolean {
   if (isRecurring(task)) return isDueOn(task, jour);
   // ⭐ En attente ou abandonnée (031) : plus prévue — ni liste du jour, ni Discipline.
   if (estSuspendue(task, jour)) return false;
-  return task.due_date === jour;
+  // ⭐ Reportée jusqu'à ce jour par le Calendrier : toujours en retard, pas
+  // prévue (`estGlisseeJusquA`, 2026-10-20).
+  return task.due_date === jour && !estGlisseeJusquA(task, jour);
 }
 
 /**
@@ -223,8 +225,14 @@ export function estPrevueLe(task: Task, jour: string): boolean {
  *
  * ⚠️ Portage Rust : `est_rattrapage`, `src-tauri/src/notifications/task_streak.rs`.
  */
-export function estRattrapage(task: Pick<Task, "recurrence" | "due_date">, jour: string): boolean {
-  return !isRecurring(task as Task) && !!task.due_date && task.due_date < jour;
+export function estRattrapage(
+  task: Pick<Task, "recurrence" | "due_date"> & { postponed_count?: number | null },
+  jour: string,
+): boolean {
+  if (isRecurring(task as Task) || !task.due_date) return false;
+  // Une tâche que le Calendrier a reportée jusqu'à ce jour était en retard :
+  // la cocher est un rattrapage, comme si on n'avait pas ouvert le Calendrier.
+  return task.due_date < jour || estGlisseeJusquA(task, jour);
 }
 
 export function todayTasks(
