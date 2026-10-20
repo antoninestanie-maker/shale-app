@@ -19,7 +19,7 @@ import { detacherDesJetes, sansSujetJete } from "./corbeille/orphelins";
 import { theoreticalRR } from "./liveTracker";
 import { debutRoutineDemo, historiqueDemo } from "./demoHistorique";
 import { addDays, isDueOn, todayStr, weekdayOf } from "./logic";
-import type { ChangementEtat } from "./taches";
+import { changerRecurrence, type ChangementEtat } from "./taches";
 import { ajouterMois, debutDeMois } from "./finance/calendrier";
 import { t } from "./i18n";
 import type { AreteVoulue } from "./liens";
@@ -1690,6 +1690,19 @@ export const demo = {
     return { topics, entries: sansSujetJete(entries, topics) };
   },
 
+  async corpsAvecCartes(horsDe: { kind: "note" | "knowledge" | "object"; id: number }): Promise<string[]> {
+    const pages: [typeof horsDe.kind, { id: number; body?: string | null }[]][] = [
+      ["note", notes],
+      ["knowledge", knowledgeEntries],
+      ["object", sujets],
+    ];
+    return pages.flatMap(([kind, liste]) =>
+      liste
+        .filter((p) => !(kind === horsDe.kind && p.id === horsDe.id) && (p.body ?? "").includes("data-mindmap"))
+        .map((p) => p.body ?? ""),
+    );
+  },
+
   async fetchKnowledgeEntry(id: number): Promise<KnowledgeEntry | null> {
     const e = knowledgeEntries.find((k) => k.id === id);
     return e ? { ...e } : null;
@@ -1980,7 +1993,8 @@ export const demo = {
 
   async updateTask(id: number, input: TaskInput): Promise<void> {
     const task = tasks.find((t) => t.id === id);
-    if (task) Object.assign(task, input);
+    // Même règle que la vraie base : `changerRecurrence` (audit 2026-10-20, taches-6).
+    if (task) Object.assign(task, changerRecurrence(task, input.recurrence, todayStr()), input);
   },
 
   async rattacherTache(taskId: number, goalId: number | null): Promise<void> {

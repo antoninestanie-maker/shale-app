@@ -47,16 +47,23 @@ import type { LinkKind } from "../../lib/types";
  * les autres — un test le garde (`carte.test.ts`, § porte 3).
  */
 export function useLiens(kind: LinkKind, id: number | null) {
-  const [uid, setUid] = useState<string | null>(null);
+  /**
+   * ⚠️ L'uid VOYAGE AVEC SON NUMÉRO (2026-10-20). Il se résout en différé :
+   * pendant l'instant qui suit un changement d'objet, l'état tenait encore
+   * l'uid de l'ANCIEN — et une frappe faite là enregistrait ses arêtes sous
+   * l'objet précédent. Un uid qui n'est pas celui de `id` se lit `null`.
+   */
+  const [resolu, setResolu] = useState<{ id: number; uid: string | null } | null>(null);
+  const uid = resolu && resolu.id === id ? resolu.uid : null;
 
   useEffect(() => {
     let annule = false;
     if (id == null) {
-      setUid(null);
+      setResolu(null);
       return;
     }
     void uidDe(kind, id).then((u) => {
-      if (!annule) setUid(u);
+      if (!annule) setResolu({ id, uid: u });
     });
     return () => {
       annule = true;

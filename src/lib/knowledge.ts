@@ -4,7 +4,7 @@
 //      recompression avant d'entrer en base : une capture d'écran de 4 Mo
 //      devient ~150 ko sans perte visible à l'écran) ;
 //   2. la recherche travaille sur du texte brut, jamais sur le HTML.
-import { plainText } from "./richtext";
+import { firstImageSrc, plainText } from "./richtext";
 import type { KnowledgeEntry, KnowledgeEntryLite } from "./types";
 
 import { localeTag } from "./i18n";
@@ -252,6 +252,31 @@ export function legacyBodyOf(entry: KnowledgeEntry): string {
   }
 
   return doc.innerHTML;
+}
+
+/**
+ * Ce que la ré-indexation du Savoir doit écrire pour cette fiche — `null` s'il
+ * n'y a RIEN à changer.
+ *
+ * ⚠️ « Rien à changer » se constate, il ne se suppose pas (audit du 2026-10-20,
+ * savoir-3). Le tri d'entrée retient toute fiche « au texte vide » : une fiche
+ * faite seulement d'images ou de croquis l'est POUR TOUJOURS (`plainText`
+ * ignore les images). Elle était donc réécrite à chaque visite du module — et
+ * chaque `UPDATE` pose une entrée d'outbox au présent : le corps entier, images
+ * comprises, repartait dans le cloud, et pouvait battre une modification plus
+ * récente faite sur un autre appareil.
+ *
+ * `couverture` : la source dont il faut tirer la vignette, quand elle manque.
+ */
+export function reindexationDe(
+  full: KnowledgeEntry,
+): { patch: { kind: "note"; body: string; text: string }; couverture: string | null } | null {
+  const body = legacyBodyOf(full);
+  const text = plainText(body);
+  const cover = firstImageSrc(body);
+  const couverture = cover && !full.thumb ? cover : null;
+  if (full.kind === "note" && body === full.body && text === (full.text ?? "") && !couverture) return null;
+  return { patch: { kind: "note", body, text }, couverture };
 }
 
 /** Texte brut du corps — réexporté ici pour garder un point d'entrée unique. */

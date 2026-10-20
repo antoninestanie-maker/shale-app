@@ -139,13 +139,16 @@ export default function TaskModal({ task, tags, goals, onClose, onSaved }: Props
     const avant = etatDe(tache);
     const attente = { waiting_for: attenteDe, follow_up_on: relance || null };
     if (etat !== avant) {
-      await changerEtatTache(tache.id, changerEtat(etat, todayStr(), attente));
+      // Reprendre une routine range sa pause dans `pauses` (032) : `changerEtat`
+      // part de l'état d'avant, comme le menu.
+      await changerEtatTache(tache.id, changerEtat(tache, etat, todayStr(), attente));
       return;
     }
     if (etat !== "waiting") return;
-    const neuf = changerEtat("waiting", tache.state_since ?? todayStr(), attente);
+    // D'attente à attente, `changerEtat` garde `state_since` : la suspension continue.
+    const neuf = changerEtat(tache, "waiting", todayStr(), attente);
     if (neuf.waiting_for === (tache.waiting_for ?? null) && neuf.follow_up_on === (tache.follow_up_on ?? null)) return;
-    await changerEtatTache(tache.id, { ...neuf, state_since: tache.state_since ?? null });
+    await changerEtatTache(tache.id, neuf);
   };
 
   return (

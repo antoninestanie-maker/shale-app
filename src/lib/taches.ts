@@ -102,9 +102,25 @@ export function demandeUneDecision(t: Pick<Task, "postponed_count">): boolean {
  * ⚠️ Ne vaut PAS pour une récurrente, qui se coche jour par jour.
  */
 export function ponctuellesFaites(
-  completions: readonly Pick<Completion, "task_id" | "done">[],
+  completions: readonly Pick<Completion, "task_id" | "done" | "date">[],
+  tasks: readonly Pick<Task, "id" | "ponctuelle_depuis">[],
 ): Set<number> {
-  return new Set(completions.filter((c) => c.done).map((c) => c.task_id));
+  // ⭐ Une ROUTINE devenue « une fois » (migration 032) : ses coches d'avant la
+  // conversion sont celles de la routine. Elles restent dans l'historique des
+  // jours passés, mais ne disent pas la ponctuelle faite — sinon elle partait
+  // dans « Faites » à l'instant de l'enregistrement (audit 2026-10-20, taches-6).
+  // ⚠️ `tasks` est OBLIGATOIRE, exprès : un appel qui l'oublierait garderait le
+  // défaut sans que rien ne le dise.
+  const depuis = new Map<number, string>();
+  for (const t of tasks) if (t.ponctuelle_depuis) depuis.set(t.id, t.ponctuelle_depuis.slice(0, 10));
+  const faites = new Set<number>();
+  for (const c of completions) {
+    if (!c.done) continue;
+    const d = depuis.get(c.task_id);
+    if (d && c.date < d) continue;
+    faites.add(c.task_id);
+  }
+  return faites;
 }
 
 /**
@@ -114,8 +130,8 @@ export function ponctuellesFaites(
  */
 export function tachesADecider<
   T extends Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count" | "state" | "state_since">,
->(tasks: readonly T[], completions: readonly Pick<Completion, "task_id" | "done">[], jour: string): T[] {
-  const faites = ponctuellesFaites(completions);
+>(tasks: readonly T[], completions: readonly Pick<Completion, "task_id" | "done" | "date">[], jour: string): T[] {
+  const faites = ponctuellesFaites(completions, tasks);
   // En attente ou abandonnée (031) : la décision est déjà prise.
   return tasks.filter(
     (t) =>
@@ -135,7 +151,7 @@ export function tachesADecider<
  * une base.
  */
 export function estEnRetard(
-  t: Pick<Task, "due_date" | "recurrence" | "state" | "state_since">,
+  t: Pick<Task, "due_date" | "recurrence" | "state" | "state_since" | "pauses">,
   jour: string,
   faite: boolean,
 ): boolean {
@@ -159,10 +175,10 @@ export function estEnRetard(
  */
 export function tachesEnRetard<T extends Pick<Task, "id" | "due_date" | "recurrence">>(
   tasks: readonly T[],
-  completions: readonly Pick<Completion, "task_id" | "done">[],
+  completions: readonly Pick<Completion, "task_id" | "done" | "date">[],
   jour: string,
 ): T[] {
-  const faites = ponctuellesFaites(completions);
+  const faites = ponctuellesFaites(completions, tasks);
   return tasks
     .filter((t) => estEnRetard(t, jour, faites.has(t.id)))
     .sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string) || a.id - b.id);
@@ -224,10 +240,10 @@ export function replanifier(jour: string): Report {
  */
 export function reportsAAppliquer(
   tasks: readonly Pick<Task, "id" | "due_date" | "recurrence" | "postponed_count" | "postponed_from">[],
-  completions: readonly Pick<Completion, "task_id" | "done">[],
+  completions: readonly Pick<Completion, "task_id" | "done" | "date">[],
   jour: string,
 ): { id: number; report: Report }[] {
-  const faites = ponctuellesFaites(completions);
+  const faites = ponctuellesFaites(completions, tasks);
   const out: { id: number; report: Report }[] = [];
   for (const t of tasks) {
     const report = reporter(t, jour, faites.has(t.id));
@@ -269,10 +285,57 @@ export function etatDe(t: Pick<Task, "state">): EtatTache {
  * suspension vaut depuis toujours — le seul repli qui ne fasse pas compter un
  * manque à une tâche que l'utilisateur a écartée.
  */
-export function estSuspendue(t: Pick<Task, "state" | "state_since">, jour: string): boolean {
-  const etat = etatDe(t);
-  if (etat !== "waiting" && etat !== "dropped") return false;
-  return !t.state_since || t.state_since.slice(0, 10) <= jour;
+export function estSuspendue(t: Pick<Task, "state" | "state_since" | "pauses">, jour: string): boolean {
+  if (estEtatSuspensif(etatDe(t)) && (!t.state_since || t.state_since.slice(0, 10) <= jour)) return true;
+  // ⭐ Les suspensions TERMINÉES (migration 032) : une routine reprise garde
+  // ses jours de pause neutres. Sans elles, « À faire » effaçait `state_since`
+  // et chaque jour de pause redevenait un jour dû et manqué (audit 2026-10-20,
+  // taches-1).
+  return lirePauses(t.pauses).some(([du, au]) => (du == null || du <= jour) && jour < au);
+}
+
+/** En attente et abandonnée suspendent ; à faire et en cours, non. */
+export function estEtatSuspensif(etat: EtatTache): boolean {
+  return etat === "waiting" || etat === "dropped";
+}
+
+/**
+ * Une suspension terminée : `du` compris (`null` = depuis toujours), `au` EXCLU
+ * — le jour de la reprise compte de nouveau.
+ */
+export type Pause = [du: string | null, au: string];
+
+/**
+ * Les pauses lues en base (`tasks.pauses`, JSON). Une valeur illisible vaut
+ * « aucune pause » : le repli de la 031, jamais une panne.
+ */
+export function lirePauses(brut: string | null | undefined): Pause[] {
+  if (!brut) return [];
+  try {
+    const v: unknown = JSON.parse(brut);
+    if (!Array.isArray(v)) return [];
+    return v.filter(
+      (p): p is Pause =>
+        Array.isArray(p) && p.length === 2 && (p[0] === null || typeof p[0] === "string") && typeof p[1] === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Ajoute la suspension `[du, au[` aux pauses. Vide (`du === au`, posée et
+ * levée le même jour), elle n'écrit rien ; collée à la précédente, elle la
+ * prolonge.
+ */
+export function fermerPause(brut: string | null | undefined, du: string | null, au: string): string | null {
+  const pauses = lirePauses(brut);
+  const debut = du?.slice(0, 10) ?? null;
+  if (debut != null && debut >= au) return pauses.length ? JSON.stringify(pauses) : null;
+  const derniere = pauses[pauses.length - 1];
+  if (derniere && debut != null && derniere[1] === debut) derniere[1] = au;
+  else pauses.push([debut, au]);
+  return JSON.stringify(pauses);
 }
 
 /**
@@ -289,40 +352,130 @@ export function aRelancer(t: Pick<Task, "state" | "follow_up_on">, jour: string)
  * ancienne d'abord. Elles rejoignent le bloc du haut d'Aujourd'hui, à côté des
  * retards (`EnRetard`), sans entrer dans le compte du jour.
  */
-export function tachesARelancer<T extends Pick<Task, "id" | "state" | "follow_up_on">>(
+export function tachesARelancer<T extends Pick<Task, "id" | "state" | "follow_up_on" | "recurrence">>(
   tasks: readonly T[],
-  completions: readonly Pick<Completion, "task_id" | "done">[],
+  completions: readonly Pick<Completion, "task_id" | "done" | "date">[],
   jour: string,
 ): T[] {
-  const faites = ponctuellesFaites(completions);
+  const faites = ponctuellesFaites(completions, tasks);
+  // ⚠️ Faite au sens de la vue Tâches (`estFaite`) : une ROUTINE l'est si elle
+  // est cochée CE jour-là. Lue comme une ponctuelle, une seule coche passée la
+  // retirait pour toujours d'« À relancer » sur Aujourd'hui, alors que Tâches
+  // l'y montrait (audit 2026-10-20, taches-3).
+  const cocheeLeJour = new Set(completions.filter((c) => c.done && c.date === jour).map((c) => c.task_id));
+  const faite = (t: T) => (estRecurrente(t) ? cocheeLeJour.has(t.id) : faites.has(t.id));
   return tasks
-    .filter((t) => aRelancer(t, jour) && !faites.has(t.id))
+    .filter((t) => aRelancer(t, jour) && !faite(t))
     .sort((a, b) => (a.follow_up_on as string).localeCompare(b.follow_up_on as string) || a.id - b.id);
 }
 
-/** Ce qu'un changement d'état écrit dans les quatre colonnes. */
+/**
+ * ⭐ Les tâches du BLOC DU HAUT d'Aujourd'hui (`EnRetard`) : les retards, puis
+ * les relances du jour. UNE liste, que lisent les lignes ET le menu « ⋯ » :
+ * le menu ne relisait sa cible que dans les retards, et s'ouvrait vide sur une
+ * ligne « À relancer » (audit 2026-10-20, taches-4).
+ */
+export function tachesDuBlocDuHaut<
+  T extends Pick<Task, "id" | "due_date" | "recurrence" | "state" | "follow_up_on">,
+>(tasks: readonly T[], completions: readonly Pick<Completion, "task_id" | "done" | "date">[], jour: string): T[] {
+  const retards = tachesEnRetard(tasks, completions, jour);
+  const vus = new Set(retards.map((t) => t.id));
+  return [...retards, ...tachesARelancer(tasks, completions, jour).filter((t) => !vus.has(t.id))];
+}
+
+/** Ce qu'un changement d'état écrit dans les cinq colonnes (031 + `pauses`, 032). */
 export interface ChangementEtat {
   state: EtatTache;
   state_since: string | null;
   waiting_for: string | null;
   follow_up_on: string | null;
+  pauses: string | null;
+}
+
+/** Les cinq colonnes telles qu'elles sont — pour « Annuler », qui les remet à l'identique. */
+export function etatActuel(
+  t: Pick<Task, "state" | "state_since" | "waiting_for" | "follow_up_on" | "pauses">,
+): ChangementEtat {
+  return {
+    state: etatDe(t),
+    state_since: t.state_since ?? null,
+    waiting_for: t.waiting_for ?? null,
+    follow_up_on: t.follow_up_on ?? null,
+    pauses: t.pauses ?? null,
+  };
 }
 
 /**
- * Le changement d'état à écrire. Les champs de l'attente ne survivent pas à un
- * autre état : une tâche reprise n'attend plus personne, et une relance oubliée
- * la ferait reparaître sans raison.
+ * ⭐ Le changement d'état à écrire, À PARTIR DE L'ÉTAT D'AVANT — c'est lui qui
+ * dit si une suspension commence, continue ou se termine. Les champs de
+ * l'attente ne survivent pas à un autre état : une tâche reprise n'attend plus
+ * personne, et une relance oubliée la ferait reparaître sans raison.
+ *
+ * ⚠️ L'HISTORIQUE NE SE RÉÉCRIT PAS (audit 2026-10-20, taches-1 et taches-2) :
+ *   • d'attente à attente (changer la relance), la suspension CONTINUE : sa
+ *     date est gardée — le menu la remettait à aujourd'hui, et les jours de
+ *     pause d'avant redevenaient dus ;
+ *   • en SORTANT d'une suspension (vers à faire, en cours, ou d'attente vers
+ *     abandonnée), l'intervalle `[state_since, jour[` rejoint `pauses` avant
+ *     que `state_since` ne change. Avant la 032, « À faire » l'effaçait.
  */
 export function changerEtat(
+  avant: Pick<Task, "state" | "state_since" | "pauses">,
   etat: EtatTache,
   jour: string,
   attente: { waiting_for?: string | null; follow_up_on?: string | null } = {},
 ): ChangementEtat {
+  const ancien = etatDe(avant);
+  const depuis = avant.state_since ?? null;
+  let pauses = avant.pauses ?? null;
+  let since: string | null;
+  if (ancien === etat && estEtatSuspensif(etat)) {
+    since = depuis; // la même suspension continue
+  } else {
+    if (estEtatSuspensif(ancien)) pauses = fermerPause(pauses, depuis, jour);
+    if (etat === "todo") since = null;
+    else if (ancien === etat) since = depuis ?? jour; // en cours le reste
+    else since = jour;
+  }
   if (etat === "waiting") {
     const pour = attente.waiting_for?.trim();
-    return { state: etat, state_since: jour, waiting_for: pour || null, follow_up_on: attente.follow_up_on || null };
+    return { state: etat, state_since: since, waiting_for: pour || null, follow_up_on: attente.follow_up_on || null, pauses };
   }
-  return { state: etat, state_since: etat === "todo" ? null : jour, waiting_for: null, follow_up_on: null };
+  return { state: etat, state_since: since, waiting_for: null, follow_up_on: null, pauses };
+}
+
+/** Ce qu'un changement de RÉCURRENCE écrit en plus de la récurrence (032). */
+export interface ChangementRecurrence {
+  ponctuelle_depuis: string | null;
+  postponed_count: number;
+  postponed_from: string | null;
+}
+
+/**
+ * ⭐ Changer la récurrence d'une tâche existante (audit 2026-10-20, taches-6).
+ *   • ROUTINE → « une fois » : `ponctuelle_depuis` = ce jour. Ses coches
+ *     d'avant restent l'historique de la routine, mais ne la disent plus
+ *     faite (`ponctuellesFaites`) — elle partait dans « Faites » à l'instant
+ *     de l'enregistrement.
+ *   • → ROUTINE : plus de `ponctuelle_depuis`, et le compteur de reports
+ *     repart de zéro. Une routine ne se reporte jamais (`estRecurrente`) ;
+ *     elle gardait « reportée 2 fois » de sa vie de ponctuelle.
+ *   • Sinon : rien ne change.
+ */
+export function changerRecurrence(
+  avant: Pick<Task, "recurrence" | "ponctuelle_depuis" | "postponed_count" | "postponed_from">,
+  recurrence: string | null,
+  jour: string,
+): ChangementRecurrence {
+  const garde = {
+    ponctuelle_depuis: avant.ponctuelle_depuis ?? null,
+    postponed_count: avant.postponed_count,
+    postponed_from: avant.postponed_from ?? null,
+  };
+  const etaitRoutine = estRecurrente(avant);
+  if (estRecurrente({ recurrence })) return { ponctuelle_depuis: null, postponed_count: 0, postponed_from: null };
+  if (etaitRoutine) return { ...garde, ponctuelle_depuis: jour };
+  return garde;
 }
 
 // ─── Les badges DÉDUITS (2026-10-20) ─────────────────────────────────────────

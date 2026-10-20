@@ -213,6 +213,8 @@ export interface Creneau {
 export function creneauxOccupes(entrees: readonly EntreeAgenda[]): Creneau[] {
   const bruts: { d: number; f: number }[] = [];
   for (const e of entrees) {
+    // En attente (031) : plus prévue, son créneau est libre (audit 2026-10-20, temps-7).
+    if (e.etat === "waiting") continue;
     const d = minutesDe(e.start_at);
     const duree = e.dureeMin ?? dureeMinutes(e.start_at, e.end_at);
     if (d == null || duree == null) continue; // sans heure, n'occupe pas un créneau

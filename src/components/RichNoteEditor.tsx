@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 // Normalisation des couleurs + conversion texte → HTML : partagées avec
 // l'éditeur de blocs du Savoir (src/lib/richtext.ts).
 import { toEditorHtml } from "../lib/richtext";
+import type { PageCartes } from "../lib/repo";
 import { doitResemer, type Graine } from "../lib/graineEditeur";
 
 import { t } from "../lib/i18n";
@@ -53,6 +54,11 @@ interface Props {
    *   • savoir quelles arêtes mettre à jour à l'enregistrement.
    */
   source?: { kind: LinkKind; uid: string };
+  /**
+   * La famille de la page éditée — note, fiche, sujet. Retirer une carte la
+   * relit pour ne pas jeter ce qu'une AUTRE page porte encore (savoir-5).
+   */
+  genrePage?: PageCartes["kind"];
   /** Clic sur un jeton de mention. Sans elle, le jeton reste inerte. */
   onOuvrirMention?: (kind: LinkKind, uid: string) => void;
   /**
@@ -88,6 +94,7 @@ export default function RichNoteEditor({
   onChange,
   placeholder,
   source,
+  genrePage,
   onOuvrirMention,
   titre,
   onNoteCreee,
@@ -113,6 +120,14 @@ export default function RichNoteEditor({
    * mots à l'utilisateur (voir `doitResemer`).
    */
   const aTape = useRef(false);
+  /**
+   * Combien de fois le DOM a été resemé. Un geste qui finit après coup — un
+   * « Annuler » de bloc, une pièce jointe qui se copie — compare ce compte à
+   * celui de son départ : s'il a bougé, la note affichée n'est plus la sienne
+   * et il renonce (audit du 2026-10-20, savoir-2). Même règle que `NoteComposer`.
+   */
+  const chargement = useRef(0);
+  const identite = useCallback(() => chargement.current, []);
 
   // ─── Cartes mentales ───────────────────────────────────────────────────────
   //
@@ -134,6 +149,7 @@ export default function RichNoteEditor({
       aTape.current = true;
       emit();
     },
+    identite,
   });
   /** Le bloc en cours d'édition. `null` = la carte n'est pas encore posée. */
   const blocCarteRef = useRef<HTMLElement | null>(null);
@@ -193,6 +209,7 @@ export default function RichNoteEditor({
     if (idDuDom.current !== noteId) aTape.current = false;
     grainePosee.current = graine.cle;
     idDuDom.current = noteId;
+    chargement.current++;
     ref.current.innerHTML = toEditorHtml(graine.html);
   }, [graine.cle, graine.html, noteId]);
 
@@ -229,6 +246,8 @@ export default function RichNoteEditor({
   const blocs = useMenuBlocs({
     racine: () => ref.current,
     enregistrer: emit,
+    identite,
+    page: () => (genrePage && idDuDom.current !== null ? { kind: genrePage, id: idDuDom.current } : null),
     lectureSeule: false,
     modifierCarte: (figure, c) => ouvrirCarte(figure, c),
     ouvrirPiece: (uid) => void ouvrirPieceJointeOuDire(uid),
@@ -568,6 +587,7 @@ export default function RichNoteEditor({
             carte={carteOuverte}
             source={source}
             onEnregistrer={enregistrerCarte}
+            page={genrePage && idDuDom.current !== null ? { kind: genrePage, id: idDuDom.current } : null}
             onFermer={() => setCarteOuverte(null)}
             onOuvrirRef={onOuvrirMention}
           />,
