@@ -2744,7 +2744,7 @@ Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-re
 - **Autres fonctions edge** : l'app n'en appelle aucune autre (`create-checkout` et `billing-portal` ne sont appelées que par le site, `vitrine/src/lib/compteAuth.ts`, sans région ; elles portent le jeton et le choix d'offre, pas de contenu). Le Rust n'appelle aucune fonction.
 - **Pas fait** : aucun build natif — **l'app installée (Mac 13/10 01:16, iPhone 0.8.0) ne porte pas ce changement**. Aucun appel authentifié (toutes les fonctions d'IA sont éteintes dans `ai_config`, et il ne faut pas en allumer avant la politique de confidentialité à jour). Rien modifié dans le dépôt du site.
 - **Ligne de base** (charge de la machine 45 à 60, d'autres sessions) : `tsc` vert ; `test:types` vert ; `src/lib/ia` 169 tests verts — les quatre fichiers `serveur*` (base PGlite) dépassent leur délai de 60 s sous cette charge et passent rejoués seuls (65/65), comme noté au carnet le même soir. Contre-épreuve : région retirée de `runAi.ts`, trois tests rouges. ⚠️ **Suite complète et `vite build` non rejoués** (aucun autre fichier touché ; ni `en.ts`, ni Rust).
-- **Non fusionné, non poussé** : un commit local sur `chantier/ia-region`, en attente de l'accord d'Antonin.
+- ⭐ **Fusionné le 2026-10-20** (`6b737fe`, sur accord d'Antonin), et la politique de confidentialité du site mise à jour le même soir (version affichée 1.5, `DETTE-SITE.md` § AM). ⛔ **Aucune fonction d'IA ne s'allume dans `ai_config` avant qu'un build natif portant `6b737fe` soit installé** : une app plus ancienne appellerait encore sans région. Restent : ce build (à grouper) et, facultatif, le verrou côté fonction.
 
 ## 2026-10-20 (soir) — La notification « série en danger » passe sur les habitudes
 
