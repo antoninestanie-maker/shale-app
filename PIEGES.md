@@ -5516,6 +5516,7 @@ film). Même famille que le défilement lissé, déjà rangé là.
 en plus loin vers le bas de la liste. ▶️ Diviser toute distance mesurée par
 `zoomFactor()` (`lib/uiConfig.ts`) ; une échelle (rapport de deux mesures) n'en
 a pas besoin. Tenu par `transition.test.ts`.
+
 ## 51. Couleurs V9 et point d'action (2026-10-20)
 
 ### 51.1 `src/lib/actions.ts` existe déjà : c'est la palette ⌘K
@@ -5529,3 +5530,18 @@ Le nom vient tout seul pour « les actions requises ». Écrit par-dessus le 202
 
 ### 51.4 Un point qui suit un « · » orphelin
 Dans la méta d'une ligne de Tâches, chaque morceau poussé reçoit son séparateur. Un point d'action poussé comme morceau à part s'affichait « hier · reportée 2 fois · ● ». Le point se colle au morceau qui dit pourquoi (le report, sinon la date).
+
+## 52.1 Une horloge injectée ne fige pas le `now()` de Postgres : une date en dur dans un banc PGlite est une bombe à retardement
+
+`serveur.test.ts` injecte `maintenant: () => 2026-10-14` dans le cœur de la
+fonction `ai`, mais `ai_offre` (migration 008) décide « essai en cours » par
+`trial_ends_at > now()`, et le `now()` de PGlite est la VRAIE heure. La fin
+d'essai du test, écrite en dur au `2026-10-20T00:00:00Z`, est passée à minuit
+UTC (02:00 à Paris) le 2026-10-20 : le compte d'essai n'avait plus d'offre et
+la fonction rendait 403 au lieu de 200, sans aucun commit en cause (vert à
+01:39, rouge à 02:27). Le serveur avait raison ; le test mêlait deux horloges.
+▶️ Dans un banc SQL, toute date que Postgres compare à `now()` (`trial_ends_at`,
+`current_period_end`, `created_at`…) se calcule depuis `Date.now()` — comme
+`demain` et `hier` de `serveur.sql.test.ts` —, jamais depuis l'horloge injectée
+ni en dur. Diagnostic express d'un test qui rougit « tout seul » : chercher une
+date littérale proche du jour de la panne.

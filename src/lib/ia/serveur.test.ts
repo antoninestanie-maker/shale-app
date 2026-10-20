@@ -32,6 +32,14 @@ const SECRET = "Diagnostic-médical-confidentiel-7Q2";
 
 const MAINTENANT = new Date("2026-10-14T09:30:00Z");
 
+/**
+ * La fin de l'essai se compte sur la VRAIE horloge, pas sur `MAINTENANT` :
+ * `ai_offre` (migration 008) la compare au `now()` de Postgres, que l'horloge
+ * injectée ne touche pas. Figée au 2026-10-20, elle a fait tomber le test à
+ * minuit UTC ce jour-là (PIEGES § 52.1). Dans trente jours, à minuit UTC pile.
+ */
+const FIN_ESSAI = new Date(Math.ceil(Date.now() / 86_400_000) * 86_400_000 + 30 * 86_400_000).toISOString();
+
 let db: PGlite;
 
 // ── Le fournisseur simulé ────────────────────────────────────────────────────
@@ -149,7 +157,7 @@ async function pdfDe(pages: number): Promise<string> {
 beforeAll(async () => {
   db = await bancIa();
   await compte(db, PRO, { status: "active", tier: "shale_pro" });
-  await compte(db, ESSAI, { status: "trialing", tier: "shale_pro", trialEndsAt: "2026-10-20T00:00:00Z" });
+  await compte(db, ESSAI, { status: "trialing", tier: "shale_pro", trialEndsAt: FIN_ESSAI });
   await compte(db, SHALE, { status: "active", tier: "shale" });
   await compte(db, BUSINESS, { status: "active", tier: "shale_business" });
   // Ce fichier éprouve le cœur À TRAVERS l'adaptateur Claude (le fournisseur
@@ -240,7 +248,7 @@ describe("ai — le chemin qui marche", () => {
     file = [{ texte: SORTIE_OK }];
     const r = await appel(RESUMER, "jeton-essai");
     expect(r.statut).toBe(200);
-    expect(r.corps.usage).toEqual({ actionsLeft: 59, resetsAt: "2026-10-20T00:00:00.000Z" });
+    expect(r.corps.usage).toEqual({ actionsLeft: 59, resetsAt: FIN_ESSAI });
     expect(await usage(ESSAI, "essai")).toMatchObject({ actions: 1 });
   });
 
