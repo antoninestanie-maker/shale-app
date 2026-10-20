@@ -13,7 +13,9 @@ import { focusDeTache, useGesteFocus } from "../lib/seance/gesteFocus";
 import { t } from "../lib/i18n";
 import { todayStr } from "../lib/logic";
 import { phrasePriorite } from "../lib/priorite";
+import BadgeEtat from "./taches/BadgeEtat";
 import ChampRenommage from "./taches/ChampRenommage";
+import { badgeEtat } from "../lib/taches/etat";
 import SaisieRapide from "./taches/SaisieRapide";
 interface Props {
   tasks: TodayTask[];
@@ -158,6 +160,10 @@ export default function TodayTasks({ tasks, tags, goals, onToggle, onAdd, refres
               >
                 {task.label}
               </span>
+
+              {/* L'état se voit ici aussi (audit 2026-10-20, constat 21) : la
+                  liste du jour n'a que des tâches à faire ou EN COURS. */}
+              <BadgeEtat badge={badgeEtat(task, task.done, todayStr())} />
 
               {goalTitle(task.goal_id) && (
                 <span

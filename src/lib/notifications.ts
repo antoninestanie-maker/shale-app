@@ -128,7 +128,7 @@ export const ruleMeta = (): Record<
 > => ({
   streak_at_risk: {
     label: t("Série en danger"),
-    desc: t("En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue."),
+    desc: t("En fin de journée, si ta série d'habitudes risque d'être rompue."),
     params: [
       { key: "hour", label: t("heure de l'alerte"), min: 0, max: 23, suffix: "h" },
       { key: "min_streak", label: t("à partir de"), min: 1, max: 365, suffix: t("jours") },

@@ -41,6 +41,7 @@ import { useMenuContextuel } from "../components/menu/useMenuContextuel";
 import { entreesTache, gestesCommunsTache, type GestesTache } from "../components/menu/catalogue/tache";
 import {
   ORDRE_SECTIONS,
+  compteDuJour,
   correspond,
   ranger,
   rangementDe,
@@ -381,11 +382,13 @@ export default function TasksView({ data, refresh }: Props) {
   const lignes = useMemo(() => vues.flatMap((v) => v.lignes.map((l) => l.task)), [vues]);
 
   const ouvertes = (s: CleSection) => sections.get(s)!.filter((x) => !x.done).length;
-  const nAujourdhui = ouvertes("aujourdhui");
+  // Les relances à part : elles ne sont pas des tâches du jour (taches-8).
+  const { prevues: nAujourdhui, aRelancer: nRelances } = compteDuJour(sections.get("aujourdhui")!);
   const nRetard = ouvertes("retard");
   const resume = [
     nAujourdhui > 0 && tp(nAujourdhui, "{n} tâche aujourd'hui", "{n} tâches aujourd'hui"),
     nRetard > 0 && tp(nRetard, "{n} en retard", "{n} en retard"),
+    nRelances > 0 && tp(nRelances, "{n} à relancer", "{n} à relancer"),
   ].filter((x): x is string => !!x);
 
   // ─── Les gestes ──────────────────────────────────────────────────────────

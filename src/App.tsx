@@ -45,6 +45,7 @@ import {
 import type { AppData } from "./lib/types";
 
 import { getLang, t } from "./lib/i18n";
+import Chargement from "./components/Chargement";
 // Vues chargées à la demande (code-splitting) : sortent recharts et le code de chaque
 // vue du bundle de démarrage. Chaque vue devient son propre chunk, chargé au 1er affichage.
 const TodayView = lazy(() => import("./views/TodayView"));
@@ -730,19 +731,13 @@ function App() {
               chaque changement de module, ce qui efface l'erreur. */}
           <FiletErreur portee="module">
           <Suspense
-            fallback={
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-text-dim">{t("Ouverture du module…")}</p>
-              </div>
-            }
+            fallback={<Chargement texte={t("Ouverture du module…")} />}
           >
           {!data ? (
             erreurDonnees ? (
               <EcranDonneesIllisibles message={erreurDonnees} onRetry={refresh} />
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-text-dim">{t("Chargement des données…")}</p>
-              </div>
+              <Chargement texte={t("Chargement des données…")} />
             )
           ) : view === "today" ? (
             <TodayView

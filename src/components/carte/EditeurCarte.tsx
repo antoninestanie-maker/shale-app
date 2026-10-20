@@ -32,7 +32,7 @@ import {
   type RefNoeud,
 } from "../../lib/carte";
 import { fusionnerCarteObjectif } from "../../lib/objectifs/carte";
-import { objetsEmportes, resoudreEmportes } from "../../lib/objectifs/emportes";
+import { objetsEmportes, resoudreEmportes, sansNoeudsPortesAilleurs } from "../../lib/objectifs/emportes";
 import { planDirect, type TypeDirect } from "../../lib/objectifs/typage";
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
 import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
@@ -43,9 +43,9 @@ import type { ContexteObjectifs } from "../../lib/objectifs/contexte";
 import type { AppData } from "../../lib/types";
 import EtatsVivants from "./EtatsVivants";
 import PanneauType from "./PanneauType";
-import { pngDeCarte, svgExportable } from "../../lib/carteDom";
+import { cartesDuHtml, pngDeCarte, svgExportable } from "../../lib/carteDom";
 import { requeteEnCours } from "../../lib/mentions";
-import { basculerTache, fetchAll, fetchContexteObjectifs, rechercherPartout } from "../../lib/repo";
+import { basculerTache, corpsAvecCartes, fetchAll, fetchContexteObjectifs, rechercherPartout, type PageCartes } from "../../lib/repo";
 import { enregistrerFichier } from "../../lib/fichiers";
 import { zoomFactor } from "../../lib/uiConfig";
 import type { Trouvaille } from "../../lib/recherche";
@@ -153,6 +153,12 @@ interface Props {
   onOuvrirRef?: (kind: LinkKind, uid: string) => void;
   /** Présent = carte d'un OBJECTIF, éditable (voir `GestesObjectif`). */
   objectif?: GestesObjectif;
+  /**
+   * La page qui porte la carte. Supprimer un nœud ne jette pas l'objet qu'une
+   * AUTRE page porte encore — une copie faite par « Dupliquer », une carte
+   * collée ailleurs (audit du 2026-10-20, savoir-5).
+   */
+  page?: PageCartes | null;
 }
 
 /**
@@ -250,7 +256,7 @@ function Outil({
 /** Le signal que toute écriture hors-vue émet : l'app relit, la carte relit (PIEGES § 18.2). */
 const signalerDonnees = () => window.dispatchEvent(new Event("sb:data-changed"));
 
-export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef, objectif }: Props) {
+export default function EditeurCarte({ titre, carte, source, onEnregistrer, lecture, onFermer, onOuvrirRef, objectif, page }: Props) {
   const ouvrirCible = (kind: KindCarte, uid: string) => {
     // Une habitude n'a pas de fiche à elle : elle vit dans le Journal.
     if (kind === "habit") allerVers("journal");
@@ -349,12 +355,23 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
    * chaque `sb:data-changed` — le signal que toute écriture hors-vue émet, y
    * compris celles de la carte (PIEGES § 18.2).
    */
-  const [donnees, setDonnees] = useState<{ data: AppData; contexte: ContexteObjectifs } | null>(null);
+  const [donnees, setDonnees] = useState<{
+    data: AppData;
+    contexte: ContexteObjectifs;
+    /** Les cartes des AUTRES pages : leurs nœuds ne partent pas avec celui-ci. */
+    portees: Carte[];
+  } | null>(null);
+  const pageRef = useRef(page);
   useEffect(() => {
     let vivant = true;
     const lire = async () => {
-      const [data, contexte] = await Promise.all([fetchAll(addDays(todayStr(), -400)), fetchContexteObjectifs()]);
-      if (vivant) setDonnees({ data, contexte });
+      const ici = pageRef.current;
+      const [data, contexte, autres] = await Promise.all([
+        fetchAll(addDays(todayStr(), -400)),
+        fetchContexteObjectifs(),
+        ici ? corpsAvecCartes(ici) : Promise.resolve([]),
+      ]);
+      if (vivant) setDonnees({ data, contexte, portees: autres.flatMap((corps) => cartesDuHtml(corps)) });
     };
     void lire();
     const surChangement = () => void lire();
@@ -1286,7 +1303,8 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
   /** Les objets qu'emporterait la suppression de `id`, avec leur numéro local et leur titre. */
   const elementsEmportes = (id: string): (Jete & { titre: string })[] => {
     if (!donnees) return [];
-    return resoudreEmportes(objetsEmportes(courante, id, donnees.data.goals), donnees.data);
+    const [seule] = sansNoeudsPortesAilleurs([courante], donnees.portees);
+    return resoudreEmportes(objetsEmportes(seule, id, donnees.data.goals), donnees.data);
   };
 
   /**

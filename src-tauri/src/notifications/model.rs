@@ -244,6 +244,10 @@ impl NotifFile {
 pub struct Habit {
     pub id: i64,
     pub name: String,
+    /// Habitude semée par l'accueil (migration 024). Elle ne compte pas dans la
+    /// série (`discipline_habitudes`), comme à l'écran. `false` sur une base
+    /// d'avant la 024.
+    pub is_example: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -253,7 +257,7 @@ pub struct HabitCheck {
     pub date: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Task {
     pub id: i64,
     /// `none` | `daily` | `weekdays` | JSON de jours (`[1,3,5]`). Voir `task_streak`.
@@ -270,6 +274,12 @@ pub struct Task {
     /// `YYYY-MM-DD` local : le jour où l'état a été posé. Voir
     /// `task_streak::est_suspendue`.
     pub state_since: Option<String>,
+    /// Les suspensions TERMINÉES (migration 032), JSON `[[du|null, au], …]`,
+    /// `au` exclu. `None` sur une base pas encore migrée — aucune pause.
+    pub pauses: Option<String>,
+    /// `YYYY-MM-DD` : le jour où une routine est devenue ponctuelle (032). Ses
+    /// coches d'avant ne la disent pas faite. Voir `task_streak::today_pct`.
+    pub ponctuelle_depuis: Option<String>,
 }
 
 /// Ce qui a une DATE dans le calendrier : un événement, une tâche datée ou une
@@ -352,31 +362,6 @@ impl Snapshot {
                     .any(|c| c.habit_id == h.id && c.date == day)
             })
             .collect()
-    }
-
-    /// Jours consécutifs, **strictement avant** `date`, où TOUTES les habitudes
-    /// actives étaient cochées. C'est la série « en cours » : on exclut le jour
-    /// même, qui n'est pas fini — c'est justement lui qui peut la rompre.
-    ///
-    /// Borné par la profondeur d'historique chargée (`data::HISTORY_DAYS`) ;
-    /// sans importance ici, une série plus longue reste « en danger ».
-    pub fn habit_streak_before(&self, date: NaiveDate) -> i64 {
-        if self.habits.is_empty() {
-            return 0;
-        }
-        let mut streak = 0;
-        let mut d = date.pred_opt();
-        while let Some(day) = d {
-            if !self.habits_pending_on(day).is_empty() {
-                break;
-            }
-            streak += 1;
-            d = day.pred_opt();
-            if streak >= 365 {
-                break;
-            }
-        }
-        streak
     }
 }
 

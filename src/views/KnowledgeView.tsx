@@ -67,6 +67,7 @@ import {
   legacyBodyOf,
   matchesQuery,
   parseTags,
+  reindexationDe,
   sameTopicName,
   serializeTags,
   thumbFromDataUrl,
@@ -100,6 +101,7 @@ import {
   fetchSujet,
   markKnowledgeViewed,
   reorderSujets,
+  uidDe,
   updateKnowledgeEntry,
   updateSujet,
   type KnowledgeInput,
@@ -118,6 +120,8 @@ import { useMenuContextuel, type EtatMenu } from "../components/menu/useMenuCont
 import { entreesFiche, entreesSujet, type GestesFiche } from "../components/menu/catalogue/savoir";
 import { jeterAvecSesCartes } from "../components/corbeille/geste";
 import { estExemple } from "../lib/onboarding/exemples";
+import { afficherToast } from "../lib/toast";
+import Chargement from "../components/Chargement";
 
 /**
  * Ce qu'on regarde. `null` = l'ACCUEIL, c'est-à-dire la grille de sujets ;
@@ -157,6 +161,13 @@ function figuresHtml(sources: string[]): string {
 type TopicStats = { count: number; last: string | null; recent: string[] };
 
 const EMPTY_STATS: TopicStats = { count: 0, last: null, recent: [] };
+
+/**
+ * Les fiches déjà passées par la ré-indexation, dans cette session : `id@updated_at`.
+ * Au niveau du MODULE, parce que la vue est remontée à chaque visite (`key`
+ * du conteneur, `App.tsx`) et qu'un `useRef` repartirait de zéro.
+ */
+const dejaReindexees = new Set<string>();
 
 export default function KnowledgeView() {
   const [topics, setTopics] = useState<Sujet[]>([]);
@@ -256,16 +267,23 @@ export default function KnowledgeView() {
     );
     if (stale.length === 0) return;
     (async () => {
+      let ecrites = 0;
       for (const lite of stale) {
+        // Déjà vue dans cette version : la vue est remontée à chaque visite,
+        // la lecture du corps (data URL comprises) ne se refait pas.
+        const cle = `${lite.id}@${lite.updated_at}`;
+        if (dejaReindexees.has(cle)) continue;
         const full = await fetchKnowledgeEntry(lite.id);
         if (!full) continue;
-        const body = legacyBodyOf(full);
-        const patch: KnowledgeInput = { kind: "note", body, text: plainText(body) };
-        const cover = firstImageSrc(body);
-        if (cover && !full.thumb) patch.thumb = await thumbFromDataUrl(cover);
+        dejaReindexees.add(cle);
+        const r = reindexationDe(full);
+        if (!r) continue; // rien ne change : surtout pas d'écriture (savoir-3)
+        const patch: KnowledgeInput = { ...r.patch };
+        if (r.couverture) patch.thumb = await thumbFromDataUrl(r.couverture);
         await updateKnowledgeEntry(lite.id, patch, { touch: false });
+        ecrites++;
       }
-      await load();
+      if (ecrites > 0) await load();
     })();
   }, [entries, load]);
 
@@ -684,7 +702,9 @@ export default function KnowledgeView() {
 
         <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pr-0.5 pt-0.5">
           {status === "loading" ? (
-            <Placeholder title={t("Chargement…")} />
+            <div className="card flex h-full min-h-[240px] items-center justify-center">
+              <Chargement texte={t("Chargement…")} />
+            </div>
           ) : status === "error" ? (
             <Placeholder
               title={t("Le savoir n’a pas pu être ouvert")}
@@ -1186,6 +1206,7 @@ function PageSujet({
       {complet && (
         <RichNoteEditor
           noteId={complet.id}
+          genrePage="object"
           graine={graineDeNote(complet.id, complet.body ?? "", corpsFrais)}
           source={{ kind: "object", uid: complet.uid }}
           onOuvrirMention={(k: LinkKind, u: string) => void ouvrirObjet(k, u)}
@@ -1908,10 +1929,30 @@ function Reader({
   const [tagDraft, setTagDraft] = useState("");
   /** Dernière écriture refusée. L'indicateur du pied LIT cet état, il ne le devine pas. */
   const [saveError, setSaveError] = useState(false);
-  const pending = useRef<KnowledgeInput>({});
+  /**
+   * ⭐ LES ÉCRITURES EN ATTENTE, RANGÉES PAR FICHE — corrigé le 2026-10-20
+   * (audit, savoir-1 et savoir-6).
+   *
+   * Il y avait UNE file pour tout le lecteur, et `flush` l'écrivait dans
+   * l'`entryId` de son rendu. Or le lecteur reste monté quand on feuillette :
+   * un geste qui finit après coup (une image recompressée, un « Annuler »)
+   * appelait un `flush` d'un rendu précédent — et le corps de B partait dans A.
+   * Et quand la fiche suivante n'existait plus, l'écran gardait A pendant que
+   * la frappe partait dans l'autre.
+   *
+   * Désormais chaque écriture porte SA fiche, au moment où elle est faite :
+   * le corps vient avec l'identité du DOM qui l'a produit (`NoteComposer`), le
+   * titre, les tags et le sujet avec la fiche affichée par le rendu qui les a
+   * dessinés. `flush` n'a plus de cible à deviner : il vide tout.
+   */
+  const pending = useRef(new Map<number, KnowledgeInput>());
   const timer = useRef<number | undefined>(undefined);
-  /** Source de l'image de couverture actuellement reflétée par `thumb`. */
-  const coverSrc = useRef<string | null>(null);
+  /** Par fiche : la source de l'image de couverture actuellement reflétée par `thumb`. */
+  const couvertures = useRef(new Map<number, string | null>());
+  const onChangedRef = useRef(onChanged);
+  onChangedRef.current = onChanged;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   /**
    * ⭐ LES LIAISONS DU SAVOIR — branchées le 2026-09-07, elles n'existaient pas.
@@ -1936,10 +1977,80 @@ function Reader({
   const prevId = index > 0 ? siblings[index - 1].id : null;
   const nextId = index >= 0 && index < siblings.length - 1 ? siblings[index + 1].id : null;
 
+  /**
+   * Écrit tout ce qui attend, fiche par fiche. Le TEXTE BRUT et la COUVERTURE
+   * sont dérivés ici, une seule fois par enregistrement — jamais à chaque
+   * frappe : recalculer une vignette à chaque caractère saisi ferait ramer
+   * l'éditeur.
+   */
+  const flush = useCallback(async () => {
+    window.clearTimeout(timer.current);
+    const lots = [...pending.current].filter(([, patch]) => Object.keys(patch).length > 0);
+    pending.current.clear();
+    if (lots.length === 0) return;
+    let echec = false;
+    for (const [id, patch] of lots) {
+      if (patch.body !== undefined) {
+        patch.text = plainText(patch.body ?? "");
+        const cover = firstImageSrc(patch.body ?? "");
+        if (!couvertures.current.has(id) || cover !== couvertures.current.get(id)) {
+          couvertures.current.set(id, cover);
+          patch.thumb = cover ? await thumbFromDataUrl(cover) : null;
+        }
+      }
+      try {
+        await updateKnowledgeEntry(id, patch);
+      } catch {
+        // L'écriture a été refusée : on REND le patch à la file (ce qui a été
+        // frappé entre-temps reste prioritaire) pour que la frappe suivante, ou
+        // le bouton « Terminé », retente. Sans ça le contenu serait perdu en
+        // silence et l'indicateur resterait bloqué sur « Enregistrement… ».
+        pending.current.set(id, { ...patch, ...pending.current.get(id) });
+        echec = true;
+        continue;
+      }
+      // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête
+      // à chaque lettre remplirait l'outbox de centaines d'entrées pour une
+      // seule citation. L'uid est celui de LA FICHE ÉCRITE, relu ici.
+      if (patch.body !== undefined) {
+        const uid = await uidDe("knowledge", id);
+        if (uid) await liensRef.current(patch.body ?? "", uid);
+      }
+    }
+    setSaveError(echec);
+    if (echec) return;
+    setDirty(false);
+    await onChangedRef.current();
+  }, []);
+
+  /** Ajoute à l'écriture en attente de CETTE fiche, puis l'enregistrement part 0,7 s après. */
+  const patchPour = useCallback(
+    (id: number, p: KnowledgeInput) => {
+      setEntry((cur) => (cur && cur.id === id ? { ...cur, ...p } : cur));
+      pending.current.set(id, { ...pending.current.get(id), ...p });
+      setDirty(true);
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => void flush(), 700);
+    },
+    [flush],
+  );
+
   useEffect(() => {
     let alive = true;
+    // Ce qui attend part tout de suite, vers SA fiche, avant d'en montrer une autre.
+    void flush();
     fetchKnowledgeEntry(entryId).then(async (e) => {
-      if (!alive || !e) return;
+      if (!alive) return;
+      if (!e) {
+        // ⚠️ La fiche demandée n'existe plus — jetée ou supprimée ailleurs,
+        // souvent sur un autre appareil (savoir-6). Le lecteur NE GARDE PAS
+        // la précédente à l'écran sous une autre identité : il le dit, relit
+        // la liste et se ferme.
+        afficherToast({ msg: t("Cette note n'existe plus : elle a été supprimée, peut-être sur un autre appareil.") });
+        await onChangedRef.current();
+        if (alive) onCloseRef.current();
+        return;
+      }
       // fiche d'avant l'unification : son média redevient un bloc du corps
       const brut = legacyBodyOf(e);
       // ⚠️ Les titres cités par les cartes sont des COPIES d'affichage : on les
@@ -1947,65 +2058,16 @@ function Reader({
       // Après, il faudrait réécrire le DOM sous le curseur.
       const body = await rafraichir(brut);
       if (!alive) return;
+      couvertures.current.set(e.id, firstImageSrc(body));
       setEntry({ ...e, kind: "note", body });
-      coverSrc.current = firstImageSrc(body);
       // Un rafraîchissement qui change quelque chose doit être ENREGISTRÉ,
       // sinon la fiche affiche le bon titre et la base garde l'ancien.
-      if (body !== brut) pending.current = { ...pending.current, body };
+      if (body !== brut) pending.current.set(e.id, { ...pending.current.get(e.id), body });
     });
     return () => {
       alive = false;
     };
-  }, [entryId, rafraichir]);
-
-  /**
-   * Écrit le patch accumulé. Le TEXTE BRUT et la COUVERTURE sont dérivés ici,
-   * une seule fois par enregistrement — jamais à chaque frappe : recalculer
-   * une vignette à chaque caractère saisi ferait ramer l'éditeur.
-   */
-  const flush = useCallback(async () => {
-    window.clearTimeout(timer.current);
-    const patch = pending.current;
-    pending.current = {};
-    if (Object.keys(patch).length === 0) return;
-    if (patch.body !== undefined) {
-      patch.text = plainText(patch.body ?? "");
-      const cover = firstImageSrc(patch.body ?? "");
-      if (cover !== coverSrc.current) {
-        coverSrc.current = cover;
-        patch.thumb = cover ? await thumbFromDataUrl(cover) : null;
-      }
-    }
-    try {
-      await updateKnowledgeEntry(entryId, patch);
-    } catch {
-      // L'écriture a été refusée : on REND le patch à la file (ce qui a été
-      // frappé entre-temps reste prioritaire) pour que la frappe suivante, ou
-      // le bouton « Terminé », retente. Sans ça le contenu serait perdu en
-      // silence et l'indicateur resterait bloqué sur « Enregistrement… ».
-      pending.current = { ...patch, ...pending.current };
-      setSaveError(true);
-      return;
-    }
-    setSaveError(false);
-    setDirty(false);
-    // Les arêtes suivent l'ENREGISTREMENT, pas la frappe : écrire une arête à
-    // chaque lettre remplirait l'outbox de centaines d'entrées pour une seule
-    // citation. `uidFiche` est capturé ici, jamais relu au départ du minuteur.
-    if (patch.body !== undefined) await liensRef.current(patch.body ?? "", uidFiche);
-    await onChanged();
-  }, [entryId, onChanged, uidFiche]);
-
-  const patch = useCallback(
-    (p: KnowledgeInput) => {
-      setEntry((cur) => (cur ? { ...cur, ...p } : cur));
-      pending.current = { ...pending.current, ...p };
-      setDirty(true);
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => void flush(), 700);
-    },
-    [flush],
-  );
+  }, [entryId, rafraichir, flush]);
 
   // Enregistrement garanti : à la fermeture comme au changement de note.
   useEffect(() => () => void flush(), [flush]);
@@ -2050,6 +2112,8 @@ function Reader({
 
   if (!entry) return null;
 
+  /** Les champs du lecteur écrivent dans la fiche que CE rendu affiche. */
+  const patch = (p: KnowledgeInput) => patchPour(entry.id, p);
   const tags = parseTags(entry.tags);
   const topic = topics.find((t) => t.id === entry.topic_id) ?? null;
 
@@ -2169,10 +2233,11 @@ function Reader({
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
             <NoteComposer
               noteId={entry.id}
+              genrePage="knowledge"
               initialHtml={entry.body}
               reading={reading}
               autoFocus={entry.title === newTitle() && !entry.body}
-              onChange={(html) => patch({ body: html })}
+              onChange={(html, idDuDom) => patchPour(idDuDom, { body: html })}
               source={uidFiche ? { kind: "knowledge", uid: uidFiche } : undefined}
               // ⚠️ TOUT passe par `ouvrirObjet` : la vue cible peut être chargée
               // en `lazy`, donc pas encore montée. La demande est DÉPOSÉE et

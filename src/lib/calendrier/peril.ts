@@ -1,5 +1,7 @@
 import { estAcheve, mesurer, pourcentDe, type ContexteProgression, type SourcesProgression } from "../objectifs/progression";
 import { racineDe } from "../objectifs/structure";
+import { estExemple, sansExemples } from "../onboarding/exemples";
+import { estRecurrente, etatDe, ponctuellesFaites } from "../taches";
 import { addDays } from "../logic";
 import { joursEntre } from "./agenda";
 import type { Completion, Goal, Task } from "../types";
@@ -134,10 +136,14 @@ export function objectifsEnPeril(
 
     const enfants = goals.filter((x) => x.parent_goal_id === g.id && !x.is_example);
     const etapesRestantes = enfants.filter((x) => !estAcheve(mesurer(x, sources))).length;
-    const rattachees = tasks.filter(
-      (t) => t.goal_id === g.id && (!t.recurrence || t.recurrence === "none"),
+    const faites = ponctuellesFaites(completions, tasks);
+    // ⭐ Les tâches que la MESURE compte (`elementsDe`, `progression.ts`) :
+    // ponctuelles, hors exemples, et pas ABANDONNÉES sans coche (031). Une
+    // abandonnée comptait ici comme restante : en abandonner trois pouvait
+    // déclarer « en péril » un objectif à 80 % (audit 2026-10-20, objectifs-3).
+    const rattachees = (estExemple(g) ? tasks : sansExemples(tasks)).filter(
+      (t) => t.goal_id === g.id && !estRecurrente(t) && !(etatDe(t) === "dropped" && !faites.has(t.id)),
     );
-    const faites = new Set(completions.filter((c) => c.done).map((c) => c.task_id));
     const tachesRestantes = rattachees.filter((t) => !faites.has(t.id)).length;
 
     const restant = etapesRestantes + tachesRestantes;

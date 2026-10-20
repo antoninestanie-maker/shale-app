@@ -1,5 +1,5 @@
 import { estExemple, sansExemples } from "../onboarding/exemples";
-import { estRecurrente, etatDe } from "../taches";
+import { estRecurrente, etatDe, ponctuellesFaites } from "../taches";
 import type {
   CalendarEvent,
   Completion,
@@ -395,7 +395,7 @@ export function elementsDe(
   const nonComptes: ElementRattache[] = [];
   const vus = new Set<string>();
   const cle = (kind: LinkKind, uid: string) => `${kind}:${uid}`;
-  const faites = new Set(s.completions.filter((c) => c.done).map((c) => c.task_id));
+  const faites = ponctuellesFaites(s.completions, s.tasks);
   // Même nuance que `enfantsDe` : les tâches d'exemple comptent DANS un exemple.
   const taches = estExemple(goal) ? [...s.tasks] : sansExemples(s.tasks);
 

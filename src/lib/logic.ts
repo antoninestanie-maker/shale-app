@@ -245,7 +245,7 @@ export function todayTasks(
       .filter((c) => c.date === today)
       .map((c) => [c.task_id, !!c.done]),
   );
-  const faitesUnJour = ponctuellesFaites(completions);
+  const faitesUnJour = ponctuellesFaites(completions, tasks);
 
   return tasks
     .filter((t) => {
@@ -275,7 +275,7 @@ export function tachesAFaire(
   const cochesDuJour = new Set(
     completions.filter((c) => c.date === today && c.done).map((c) => c.task_id),
   );
-  const faitesUnJour = ponctuellesFaites(completions);
+  const faitesUnJour = ponctuellesFaites(completions, tasks);
   // En attente ou abandonnée (031) : rien à désigner maintenant.
   const possibles = tasks.filter(
     (t) =>
@@ -389,9 +389,16 @@ export function weekStats(
   return out;
 }
 
-/** Une tâche ponctuelle est "faite" si elle a au moins une complétion done. */
+/**
+ * Une tâche ponctuelle est "faite" si elle a au moins une complétion done —
+ * depuis qu'elle est ponctuelle (`ponctuelle_depuis`, 032 : la règle de
+ * `ponctuellesFaites`).
+ */
 export function isOneOffDone(task: Task, completions: Completion[]): boolean {
-  return completions.some((c) => c.task_id === task.id && c.done);
+  return ponctuellesFaites(
+    completions.filter((c) => c.task_id === task.id),
+    [task],
+  ).has(task.id);
 }
 
 /**

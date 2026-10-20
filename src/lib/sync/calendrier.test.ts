@@ -206,4 +206,20 @@ describe("une tâche DATÉE traverse avec son créneau", () => {
       follow_up_on: "2026-10-23",
     });
   });
+
+  it("⭐ les PAUSES et la conversion voyagent (032) — sinon la série de l'autre appareil retomberait", async () => {
+    a.ecrire(
+      `INSERT INTO tasks (label, priority, recurrence) VALUES ('méditer', 'medium', 'daily')`,
+    );
+    await converger();
+    a.ecrire(
+      `UPDATE tasks SET pauses = '[["2026-10-10","2026-10-20"]]', ponctuelle_depuis = '2026-10-21'
+       WHERE label = 'méditer'`,
+    );
+    await converger();
+    const chezB = b.lire<{ pauses: string; ponctuelle_depuis: string }>(
+      "SELECT pauses, ponctuelle_depuis FROM tasks WHERE label = 'méditer'",
+    );
+    expect(chezB[0]).toEqual({ pauses: '[["2026-10-10","2026-10-20"]]', ponctuelle_depuis: "2026-10-21" });
+  });
 });

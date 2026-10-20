@@ -471,6 +471,12 @@ pub fn run() {
             sql: include_str!("../migrations/031_etat_taches.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 32,
+            description: "pauses_taches",
+            sql: include_str!("../migrations/032_pauses_taches.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

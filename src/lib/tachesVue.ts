@@ -73,9 +73,13 @@ export function estFaite(task: Task, completions: readonly Completion[], aujourd
     const c = completions.find((x) => x.task_id === task.id && x.date === aujourdhui && x.done);
     return { faite: !!c, le: c ? aujourdhui : null };
   }
+  // Une routine devenue ponctuelle (032) : ses coches d'avant ne la disent pas
+  // faite — la même règle que `ponctuellesFaites` (audit 2026-10-20, taches-6).
+  const depuis = task.ponctuelle_depuis?.slice(0, 10) ?? null;
   let le: string | null = null;
   for (const c of completions) {
     if (c.task_id !== task.id || !c.done) continue;
+    if (depuis && c.date < depuis) continue;
     if (le == null || c.date > le) le = c.date;
   }
   return { faite: le != null, le };
@@ -95,6 +99,24 @@ export function sectionDe(task: Task, faite: boolean, aujourdhui: string): CleSe
   if (!task.due_date) return "sansDate";
   // Reportée jusqu'à aujourd'hui par le Calendrier : en retard (`estGlisseeJusquA`).
   return task.due_date < aujourdhui || estGlisseeJusquA(task, aujourdhui) ? "retard" : "avenir";
+}
+
+/**
+ * Le compte du sous-titre de la vue, sur la section « Aujourd'hui » : les
+ * tâches PRÉVUES (le même nombre que la carte « Tâches du jour ») et, à part,
+ * les relances. ⚠️ Une relance est rangée dans « Aujourd'hui » mais n'est pas
+ * une tâche du jour (décision du 2026-10-20) : le sous-titre la comptait parmi
+ * les « tâches aujourd'hui » (audit 2026-10-20, taches-8).
+ */
+export function compteDuJour(lignes: readonly LigneVue[]): { prevues: number; aRelancer: number } {
+  let prevues = 0;
+  let relances = 0;
+  for (const l of lignes) {
+    if (l.done) continue;
+    if (etatDe(l) === "waiting") relances++;
+    else prevues++;
+  }
+  return { prevues, aRelancer: relances };
 }
 
 /** Minuscule, sans accent : « Réviser » se trouve en tapant « revis ». */

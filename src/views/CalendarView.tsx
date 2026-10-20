@@ -66,6 +66,7 @@ import type { EntreePossible } from "../lib/menu/entrees";
 import PointAction from "../components/PointAction";
 import { useActions } from "../lib/pointAction/contexte";
 import { cleObjectif, cleTache } from "../lib/pointAction/regle";
+import { BadgeDEntree } from "../components/taches/BadgeEtat";
 
 /**
  * Ce sur quoi le menu du Calendrier est ouvert. Des IDENTIFIANTS, jamais des
@@ -1059,6 +1060,7 @@ function RangeeSemaine({
                     }}
                   >
                     {e.start_at ? `${formatHeure(e.start_at)} ` : ""}
+                    <BadgeDEntree entree={e} />
                     {e.titre}
                   </span>
                 ))}

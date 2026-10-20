@@ -1,0 +1,35 @@
+-- ============================================================================
+-- 032 — LES PAUSES D'UNE TÂCHE, ET LE JOUR OÙ UNE ROUTINE DEVIENT PONCTUELLE
+--       (2026-10-20, lot 2 de l'audit du même jour)
+-- ============================================================================
+--
+-- ⭐ `pauses` — l'historique des SUSPENSIONS terminées. La 031 ne gardait que
+-- la suspension EN COURS (`state_since`) : reprendre une routine en attente
+-- (« À faire ») effaçait la date, et chaque jour de pause redevenait un jour
+-- dû et manqué — Discipline passée, séries, Performance et notification de
+-- série (audit 2026-10-20, taches-1 / donnees-1). C'est exactement ce que
+-- `state_since` devait empêcher.
+--
+-- Forme : un tableau JSON d'intervalles `[du, au]`, `du` compris, `au` EXCLU
+-- (le jour de la reprise compte de nouveau). `du` vaut `null` pour une
+-- suspension « depuis toujours » (une ligne venue sans `state_since`) :
+--   [["2026-10-10","2026-10-20"], [null,"2026-09-01"]]
+-- NULL = jamais suspendue. Écrit par `changerEtat` (`src/lib/taches.ts`), lu
+-- par `estSuspendue` et son portage Rust (`notifications/task_streak.rs`).
+--
+-- ⭐ `ponctuelle_depuis` — le jour où une ROUTINE est devenue « une fois ».
+-- Une ponctuelle est faite dès qu'une coche la dit faite, un jour quelconque ;
+-- les anciennes coches de la routine la rendaient donc faite à l'instant de la
+-- conversion (audit taches-6). Les coches d'avant ce jour restent dans
+-- l'historique des jours passés, mais ne disent plus la tâche faite
+-- (`ponctuellesFaites`). NULL = jamais convertie (toutes ses coches comptent).
+--
+-- ⚠️ Synchronisation : rien à changer. Elle lit la ligne entière
+-- (`sync/local.ts`) et ignore une colonne inconnue chez un appareil plus
+-- ancien, qui retombe alors sur la règle de la 031 (moins juste, jamais fausse
+-- au point de bloquer).
+--
+-- ⚠️ `ALTER TABLE ADD COLUMN` n'accepte que des défauts littéraux (PIEGES § 3.3).
+
+ALTER TABLE tasks ADD COLUMN pauses TEXT;             -- JSON [[du|null, au], …], NULL = aucune
+ALTER TABLE tasks ADD COLUMN ponctuelle_depuis TEXT;  -- 'YYYY-MM-DD' local, NULL = jamais convertie
