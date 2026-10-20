@@ -2888,4 +2888,4 @@ Lancé par Antonin pour la nuit avec les six autres lots (« lance tous les lots
 
 **Non vu dans l'app** : rien n'a été regardé dans l'app installée ni construit (pas de build natif : Antonin les groupe). Le prochain build porte le changement Rust des pièces jointes.
 
-**Reste ailleurs** : `EnRetard.tsx` montre aussi l'icône d'objectif pour une étape en retard (fichier du lot 2) ; le réglage 12 h / 24 h et un « Rétablir » dans la carte d'objectif ne sont pas faits.
+**Corrigé large après la fusion du lot 2** : `EnRetard.tsx` montre le losange pour une étape en retard. **Reste** : le réglage 12 h / 24 h et un « Rétablir » dans la carte d'objectif ne sont pas faits.
