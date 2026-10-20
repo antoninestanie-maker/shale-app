@@ -1062,8 +1062,8 @@ export const EN: Record<string, string> = {
     "Reminders show up here even if you’ve turned system banners off.",
   "Supprimer cette notification": "Delete this notification",
   "Série en danger": "Streak at risk",
-  "En fin de journée, si une série en cours — habitudes ou tâches — risque d'être rompue.":
-    "At the end of the day, if a running streak — habits or tasks — is about to break.",
+  "En fin de journée, si ta série d'habitudes risque d'être rompue.":
+    "At the end of the day, if your habit streak is about to break.",
   "Habitudes non cochées": "Habits not checked",
   "Le soir, si des habitudes du jour attendent encore d'être cochées.":
     "In the evening, if today’s habits are still waiting to be checked.",

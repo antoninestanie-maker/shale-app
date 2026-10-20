@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runAi, type DepsRunAi } from "./runAi";
+import { REGION_IA, REGIONS_UE, runAi, urlRegionale, type DepsRunAi } from "./runAi";
 
 const PAYLOAD = { lang: "fr" as const, titre: "Budget", texte: "Une note." };
 const SORTIE = { resume: "Une note sur le budget.", points: ["Un", "Deux", "Trois"] };
@@ -26,7 +26,7 @@ describe("runAi", () => {
     const r = await runAi("resumer", PAYLOAD, deps(f as unknown as typeof fetch));
     expect(r).toEqual({ ok: true, data: SORTIE, usage: { actionsLeft: 12, resetsAt: "2026-11-01T00:00:00.000Z" } });
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://projet.supabase.co/functions/v1/ai");
+    expect(url).toBe("https://projet.supabase.co/functions/v1/ai?forceFunctionRegion=eu-west-3");
     expect(JSON.parse(String(init.body))).toEqual({ feature: "resumer", payload: PAYLOAD });
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer ancien");
   });
@@ -88,5 +88,39 @@ describe("runAi", () => {
       expect(r.data.points.length).toBeGreaterThan(0);
       expect(r.usage?.actionsLeft).toBeLessThan(400);
     }
+  });
+
+  // ── La région d'exécution ───────────────────────────────────────────────────
+  // Sans région, Supabase exécute la fonction au plus près de l'appelant : le
+  // contenu d'un utilisateur hors d'Europe serait relayé hors d'Europe.
+  it("AUCUN appel ne part sans la région fixée — le premier comme la reprise sur 401", async () => {
+    const urls: string[] = [];
+    const f = (async (u: string) => {
+      urls.push(u);
+      return urls.length === 1 ? reponse({ ok: false, code: "unauthorized" }, 401) : reponse({ ok: true, data: SORTIE, usage: null });
+    }) as unknown as typeof fetch;
+    await runAi("resumer", PAYLOAD, deps(f));
+    expect(urls).toHaveLength(2);
+    for (const u of urls) expect(new URL(u).searchParams.get("forceFunctionRegion")).toBe(REGION_IA);
+  });
+
+  it("un point d'accès qui porte déjà une région, ou d'autres paramètres, finit sur la nôtre", () => {
+    const u = new URL(urlRegionale("https://projet.supabase.co/functions/v1/ai?forceFunctionRegion=us-east-1&a=1"));
+    expect(u.searchParams.getAll("forceFunctionRegion")).toEqual([REGION_IA]);
+    expect(u.searchParams.get("a")).toBe("1");
+  });
+
+  // Une région inconnue n'est PAS refusée par Supabase : il retombe en silence
+  // sur la plus proche. Une faute de frappe passerait donc tous les autres tests.
+  it("la région fixée est une région de l'Union européenne connue de Supabase", () => {
+    expect(REGIONS_UE).toContain(REGION_IA);
+    expect(REGION_IA).toBe("eu-west-3"); // Paris, la région du projet ; en changer se décide avec la politique de confidentialité
+  });
+
+  it("l'en-tête x-region n'est pas envoyé : le CORS de la fonction ne l'autorise pas", async () => {
+    const f = vi.fn(async () => reponse({ ok: true, data: SORTIE, usage: null }));
+    await runAi("resumer", PAYLOAD, deps(f as unknown as typeof fetch));
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(Object.keys(init.headers as Record<string, string>).map((k) => k.toLowerCase())).not.toContain("x-region");
   });
 });

@@ -244,6 +244,10 @@ impl NotifFile {
 pub struct Habit {
     pub id: i64,
     pub name: String,
+    /// Habitude semée par l'accueil (migration 024). Elle ne compte pas dans la
+    /// série (`discipline_habitudes`), comme à l'écran. `false` sur une base
+    /// d'avant la 024.
+    pub is_example: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -358,31 +362,6 @@ impl Snapshot {
                     .any(|c| c.habit_id == h.id && c.date == day)
             })
             .collect()
-    }
-
-    /// Jours consécutifs, **strictement avant** `date`, où TOUTES les habitudes
-    /// actives étaient cochées. C'est la série « en cours » : on exclut le jour
-    /// même, qui n'est pas fini — c'est justement lui qui peut la rompre.
-    ///
-    /// Borné par la profondeur d'historique chargée (`data::HISTORY_DAYS`) ;
-    /// sans importance ici, une série plus longue reste « en danger ».
-    pub fn habit_streak_before(&self, date: NaiveDate) -> i64 {
-        if self.habits.is_empty() {
-            return 0;
-        }
-        let mut streak = 0;
-        let mut d = date.pred_opt();
-        while let Some(day) = d {
-            if !self.habits_pending_on(day).is_empty() {
-                break;
-            }
-            streak += 1;
-            d = day.pred_opt();
-            if streak >= 365 {
-                break;
-            }
-        }
-        streak
     }
 }
 

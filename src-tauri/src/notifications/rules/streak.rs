@@ -1,19 +1,21 @@
 //! Règle 3 — série en danger, avant la fin de la journée.
 //!
-//! Deux séries coexistent dans Shale et la règle surveille les DEUX :
-//!   - la série de **tâches** (jours consécutifs à ≥ 80 % des tâches dues),
-//!     celle du bandeau de performance — voir `task_streak.rs` ;
-//!   - la série d'**habitudes** (jours consécutifs où toutes ont été cochées).
+//! ⭐ DEPUIS LE 2026-10-20, ELLE NE SURVEILLE QUE LA SÉRIE D'HABITUDES — celle
+//! de l'anneau et de la tuile « série en cours » d'Aujourd'hui
+//! (`discipline_habitudes.rs`, portage de `disciplineHabitudes.ts`). Antonin :
+//! « on passe sur les habitudes ». Avant, elle surveillait aussi la série de
+//! TÂCHES (≥ 80 % des tâches prévues) : l'écran ne l'affichant plus, la
+//! notification parlait d'une série que personne ne voyait.
 //!
-//! Dans les deux cas on regarde la série ARRÊTÉE À HIER : c'est elle que la
-//! journée en cours peut rompre. Une série de 0 ou 1 jour ne mérite pas qu'on
-//! dérange (seuil `min_streak`).
+//! On regarde la série ARRÊTÉE À HIER : c'est elle que la journée en cours peut
+//! rompre. Elle est en danger si la journée n'est pas encore tenue (75 %). Une
+//! série de 0 ou 1 jour ne mérite pas qu'on dérange (seuil `min_streak`).
 
 use chrono::Timelike;
 
 use super::NotificationRule;
+use crate::notifications::discipline_habitudes::{self, SEUIL_JOUR_TENU};
 use crate::notifications::model::{Candidate, EvalContext, RulePrefs};
-use crate::notifications::task_streak::{self, STREAK_THRESHOLD};
 
 pub struct StreakAtRisk;
 
@@ -43,86 +45,47 @@ impl NotificationRule for StreakAtRisk {
         }
 
         let today = ctx.today();
-        let snap = ctx.snapshot;
-
-        // Habitudes : série menacée s'il reste quelque chose à cocher.
-        let pending = snap.habits_pending_on(today).len();
-        let habit_streak = snap.habit_streak_before(today);
-        let habits_at_risk = pending > 0 && habit_streak >= min_streak;
-
-        // Tâches : la journée doit avoir quelque chose à faire (sinon elle est
-        // neutre et ne rompt rien) et être encore sous le seuil.
-        let task_streak = task_streak::streak_before(&snap.tasks, &snap.completions, today);
-        let pct = task_streak::today_pct(&snap.tasks, &snap.completions, today);
-        let tasks_at_risk =
-            task_streak >= min_streak && matches!(pct, Some(p) if p < STREAK_THRESHOLD);
-
-        if !habits_at_risk && !tasks_at_risk {
+        let etat = discipline_habitudes::etat(ctx.snapshot, today);
+        let serie = etat.serie_avant;
+        // `pct` absent : aucune habitude ne compte, rien à rompre.
+        let pct = etat.pct?;
+        if serie < min_streak || pct >= SEUIL_JOUR_TENU {
             return None;
         }
+        let reste = etat.a_cocher_pour_tenir();
 
-        let mut parts: Vec<String> = Vec::new();
         let en = ctx.lang() == "en";
-        if habits_at_risk {
-            parts.push(if en {
-                format!(
-                    "{habit_streak} days of habits kept, and {pending} {} left to check",
-                    if pending == 1 { "habit" } else { "habits" }
-                )
-            } else {
-                format!(
-                    "{habit_streak} jours d'habitudes tenues, et il reste {pending} {} à cocher",
-                    if pending == 1 { "habitude" } else { "habitudes" }
-                )
-            });
-        }
-        if tasks_at_risk {
-            parts.push(if en {
-                format!(
-                    "{task_streak} days at {STREAK_THRESHOLD}% of your tasks, and you're at {}% today",
-                    pct.unwrap_or(0)
-                )
-            } else {
-                format!(
-                    "{task_streak} jours à {STREAK_THRESHOLD} % de tes tâches, et tu es à {} % aujourd'hui",
-                    pct.unwrap_or(0)
-                )
-            });
-        }
-
-        let longest = habit_streak.max(task_streak);
-
         Some(Candidate {
             rule: ID,
             dedupe_key: format!("{ID}:{today}"),
-            title: match (en, parts.len()) {
-                (true, 2) => "Both your streaks are on the line".into(),
-                (true, _) => format!("Your {longest}-day streak is on the line"),
-                (false, 2) => "Tes deux séries sont en jeu".into(),
-                (false, _) => format!("Ta série de {longest} jours est en jeu"),
+            title: if en {
+                format!("Your {serie}-day streak is on the line")
+            } else {
+                format!("Ta série de {serie} jours est en jeu")
             },
             body: if en {
-                format!("{}. There's still a bit of time.", parts.join("; "))
+                format!(
+                    "{serie} days of habits kept in a row. Check {reste} more {} to keep today too.",
+                    if reste == 1 { "habit" } else { "habits" }
+                )
             } else {
-                format!("{}. Il reste un peu de temps.", parts.join(" ; "))
+                format!(
+                    "{serie} jours d'habitudes tenus d'affilée. Coche encore {reste} {} pour tenir aujourd'hui aussi.",
+                    if reste == 1 { "habitude" } else { "habitudes" }
+                )
             },
             summary: if en {
-                format!("{longest}-day streak at risk")
+                format!("{serie}-day streak at risk")
             } else {
-                format!("Série de {longest} jours en danger")
+                format!("Série de {serie} jours en danger")
             },
-            // Le tableau de bord porte les deux séries ; le Journal ne porte que
-            // les habitudes.
-            target: Some(if tasks_at_risk { "today" } else { "journal" }),
+            // La vue Habitudes (identifiant de vue `journal`).
+            target: Some("journal"),
             priority: 30,
-            // Quand c'est la série d'habitudes qui est menacée, cette règle dit
-            // déjà « il reste N habitudes à cocher » : laisser en plus le rappel
-            // d'habitudes reviendrait à répéter le même constat en moins urgent.
-            supersedes: if habits_at_risk {
-                &[super::habits::ID]
-            } else {
-                &[]
-            },
+            // Cette règle dit déjà ce qu'il reste à cocher : laisser en plus le
+            // rappel d'habitudes reviendrait à répéter le même constat en moins
+            // urgent.
+            supersedes: &[super::habits::ID],
         })
     }
 }
@@ -142,21 +105,81 @@ mod tests {
         p
     }
 
-    /// Habitude unique, cochée les `days` jours donnés.
-    fn with_habits(days: &[&str]) -> Snapshot {
+    /// Une habitude par entrée de `coches`, cochée les jours donnés.
+    fn habitudes(coches: &[&[&str]]) -> Snapshot {
         Snapshot {
-            habits: vec![Habit { id: 1, name: "Sport".into() }],
-            habit_checks: days
+            habits: (0..coches.len())
+                .map(|i| Habit { id: i as i64 + 1, name: format!("h{i}"), is_example: false })
+                .collect(),
+            habit_checks: coches
                 .iter()
-                .map(|d| HabitCheck { habit_id: 1, date: (*d).to_string() })
+                .enumerate()
+                .flat_map(|(i, jours)| {
+                    jours.iter().map(move |d| HabitCheck { habit_id: i as i64 + 1, date: (*d).into() })
+                })
                 .collect(),
             ..Default::default()
         }
     }
 
-    /// Tâche quotidienne, faite les `days` jours donnés.
-    fn with_tasks(days: &[&str]) -> Snapshot {
-        Snapshot {
+    const TROIS_JOURS: &[&str] = &["2026-07-26", "2026-07-25", "2026-07-24"];
+
+    #[test]
+    fn muette_avant_l_heure() {
+        let snap = habitudes(&[TROIS_JOURS]);
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 20:30:00"), &snap, &p, &[]);
+        assert!(StreakAtRisk.evaluate(&ctx).is_none());
+    }
+
+    #[test]
+    fn serie_d_habitudes_en_danger() {
+        let snap = habitudes(&[TROIS_JOURS]);
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
+        assert_eq!(c.title, "Ta série de 3 jours est en jeu");
+        assert!(c.body.contains("Coche encore 1 habitude "), "corps : {}", c.body);
+        assert_eq!(c.target, Some("journal"));
+        assert_eq!(c.supersedes, &["habits_pending"], "n'ajoute pas un doublon");
+    }
+
+    #[test]
+    fn la_journee_deja_tenue_ne_declenche_rien() {
+        // 3 habitudes sur 4 cochées aujourd'hui : 75 %, la journée est tenue.
+        let mut avec_auj: Vec<&str> = TROIS_JOURS.to_vec();
+        avec_auj.push("2026-07-27");
+        let snap = habitudes(&[&avec_auj, &avec_auj, &avec_auj, TROIS_JOURS]);
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        assert!(StreakAtRisk.evaluate(&ctx).is_none());
+    }
+
+    #[test]
+    fn la_serie_se_lit_a_75_pour_cent_comme_a_l_ecran() {
+        // Hier et avant-hier, 3 habitudes sur 4 seulement : la série tient
+        // quand même (une habitude manquée sur quatre est pardonnée). Avant le
+        // 2026-10-20, il fallait TOUT cocher, et cette série valait 0.
+        let snap = habitudes(&[TROIS_JOURS, TROIS_JOURS, TROIS_JOURS, &["2026-07-24"]]);
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
+        assert_eq!(c.title, "Ta série de 3 jours est en jeu");
+        assert!(c.body.contains("Coche encore 3 habitudes"), "3/4 pour tenir : {}", c.body);
+    }
+
+    #[test]
+    fn une_serie_trop_courte_ne_derange_pas() {
+        let snap = habitudes(&[&["2026-07-26"]]);
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        assert!(StreakAtRisk.evaluate(&ctx).is_none());
+    }
+
+    #[test]
+    fn la_serie_de_taches_ne_declenche_plus_rien() {
+        // Trois jours de tâches tenus, aucune habitude : plus de notification.
+        let snap = Snapshot {
             tasks: vec![Task {
                 id: 1,
                 recurrence: Some("daily".into()),
@@ -167,103 +190,37 @@ mod tests {
                 pauses: None,
                 ponctuelle_depuis: None,
             }],
-            completions: days
+            completions: TROIS_JOURS
                 .iter()
                 .map(|d| Completion { task_id: 1, date: (*d).to_string(), done: true })
                 .collect(),
             ..Default::default()
-        }
-    }
-
-    #[test]
-    fn muette_avant_l_heure() {
-        let snap = with_habits(&["2026-07-26", "2026-07-25", "2026-07-24"]);
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 20:30:00"), &snap, &p, &[]);
-        assert!(StreakAtRisk.evaluate(&ctx).is_none());
-    }
-
-    #[test]
-    fn serie_d_habitudes_en_danger() {
-        let snap = with_habits(&["2026-07-26", "2026-07-25", "2026-07-24"]);
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
-        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
-        assert_eq!(c.title, "Ta série de 3 jours est en jeu");
-        assert!(c.body.contains("1 habitude à cocher"), "corps : {}", c.body);
-        assert_eq!(c.target, Some("journal"));
-        assert_eq!(c.supersedes, &["habits_pending"], "n'ajoute pas un doublon");
-    }
-
-    #[test]
-    fn rien_a_signaler_si_l_habitude_est_deja_cochee() {
-        let snap = with_habits(&["2026-07-27", "2026-07-26", "2026-07-25", "2026-07-24"]);
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
-        assert!(StreakAtRisk.evaluate(&ctx).is_none());
-    }
-
-    #[test]
-    fn une_serie_trop_courte_ne_derange_pas() {
-        let snap = with_habits(&["2026-07-26"]);
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
-        assert!(StreakAtRisk.evaluate(&ctx).is_none());
-    }
-
-    #[test]
-    fn serie_de_taches_en_danger() {
-        let snap = with_tasks(&["2026-07-26", "2026-07-25", "2026-07-24"]);
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
-        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
-        assert!(c.body.contains("3 jours à 80 %"), "corps : {}", c.body);
-        assert!(c.body.contains("0 % aujourd'hui"));
-        assert_eq!(c.target, Some("today"));
-        assert!(c.supersedes.is_empty(), "aucune habitude en cause ici");
-    }
-
-    #[test]
-    fn les_deux_series_a_la_fois() {
-        let mut snap = with_tasks(&["2026-07-26", "2026-07-25", "2026-07-24"]);
-        let h = with_habits(&["2026-07-26", "2026-07-25", "2026-07-24", "2026-07-23"]);
-        snap.habits = h.habits;
-        snap.habit_checks = h.habit_checks;
-
-        let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
-        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
-        assert_eq!(c.title, "Tes deux séries sont en jeu");
-        assert!(c.body.contains("4 jours d'habitudes"));
-        assert!(c.body.contains("3 jours à 80 %"));
-        assert_eq!(c.summary, "Série de 4 jours en danger", "la plus longue");
-        assert_eq!(c.target, Some("today"));
-    }
-
-    #[test]
-    fn une_journee_sans_tache_due_ne_met_rien_en_danger() {
-        // Tâche du lundi au vendredi ; on est samedi : journée neutre.
-        let snap = Snapshot {
-            tasks: vec![Task {
-                id: 1,
-                recurrence: Some("weekdays".into()),
-                created_at: None,
-                due_date: None,
-                state: None,
-                state_since: None,
-                pauses: None,
-                ponctuelle_depuis: None,
-            }],
-            completions: vec![
-                Completion { task_id: 1, date: "2026-07-31".into(), done: true },
-                Completion { task_id: 1, date: "2026-07-30".into(), done: true },
-                Completion { task_id: 1, date: "2026-07-29".into(), done: true },
-            ],
-            ..Default::default()
         };
         let p = prefs(21, 3);
-        let ctx = ctx_at(at("2026-08-01 21:00:00"), &snap, &p, &[]);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
         assert!(StreakAtRisk.evaluate(&ctx).is_none());
+    }
+
+    #[test]
+    fn un_exemple_ne_menace_aucune_serie() {
+        let mut snap = habitudes(&[TROIS_JOURS]);
+        snap.habits.push(Habit { id: 9, name: "Exemple".into(), is_example: true });
+        snap.habit_checks.push(HabitCheck { habit_id: 9, date: "2026-07-27".into() });
+        let p = prefs(21, 3);
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        let c = StreakAtRisk.evaluate(&ctx).expect("l'exemple coché ne tient pas la journée");
+        assert!(c.body.contains("Coche encore 1 habitude "));
+    }
+
+    #[test]
+    fn en_anglais() {
+        let snap = habitudes(&[TROIS_JOURS]);
+        let mut p = prefs(21, 3);
+        p.lang = "en".into();
+        let ctx = ctx_at(at("2026-07-27 21:00:00"), &snap, &p, &[]);
+        let c = StreakAtRisk.evaluate(&ctx).expect("candidat attendu");
+        assert_eq!(c.title, "Your 3-day streak is on the line");
+        assert!(c.body.contains("Check 1 more habit to keep today"), "{}", c.body);
     }
 
     #[test]

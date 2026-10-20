@@ -20,7 +20,11 @@ import type { Habit, HabitCheck } from "./types";
  * d'habitudes les pourcentages vont par paliers, et 80 % exigeait un sans-faute
  * à 4 ou 8 habitudes (3/4 = 75 %). 75 % pardonne une habitude manquée sur
  * quatre ; 67 % rendrait la série trop facile à 3 habitudes (2/3).
- * Le seuil des séries de TÂCHES (`STREAK_THRESHOLD`, et le Rust) reste à 80.
+ * Le seuil des séries de TÂCHES (`STREAK_THRESHOLD`) reste à 80.
+ *
+ * ⚠️ PORTÉE EN RUST (2026-10-20) : `src-tauri/src/notifications/discipline_habitudes.rs`,
+ * que lit la notification « série en danger ». Toute évolution de cette règle
+ * (seuil, début d'une habitude, exemples) se répercute là-bas.
  */
 export const SEUIL_JOUR_TENU = 75;
 

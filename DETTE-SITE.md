@@ -1071,3 +1071,20 @@ Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 
 - **Ce que ça change aux chiffres** (si le site promet « la discipline juge le comportement ») : une tâche en attente ou abandonnée ne fait plus baisser la Discipline, à partir du jour où on l'a dit — jamais en arrière.
 - **Badges déduits** sur la ligne d'une tâche : « Prochaine action » (d'un objectif), « Rapide » (créneau de 15 min ou moins). Les captures de la vue Tâches faites avant cette date ne les montrent pas.
 - Rien n'a été modifié côté site ce jour-là.
+- **Ajout du 2026-10-20 au soir (lot 2 de l'audit)** : l'état se voit aussi sur Aujourd'hui, au Calendrier et dans la feuille de route d'un objectif (badge « En cours », « En attente », « À relancer », « Abandonnée ») ; une tâche en attente ne rend plus une journée « surchargée ». Une capture d'Aujourd'hui ou du Calendrier faite avant cette date ne montre pas ces badges.
+
+## AM ✅ REPORTÉ SUR LE SITE le 2026-10-20 — L'IA de Shale Pro s'exécute à Paris (app, 2026-10-13)
+
+> ✅ **Publié le 2026-10-20** (site `sync-chiffree` `9b32ad8`, constaté en ligne sur www.shaleapp.com/legal et /en/legal) : « Supabase (relais, sans conservation, exécuté à Paris, région eu-west-3), puis Google (API Gemini) … ». Décision d'Antonin le même jour : publier sans attendre le verrou côté fonction (l'IA est éteinte ; à ne pas allumer avant que la version de l'app qui porte `6b737fe` soit installée). ⚠️ La version et la date AFFICHÉES viennent de `content.json` → `legal.version` / `legal.updated` (communes aux cinq documents), PAS des champs `version` / `updated` de chaque document dans `legal.json` : passées à 1.5 / 20.10.2026. Les deux étaient restées à 1.4 / 13.10.2026 malgré la mise à jour du 14.10. Le verrou côté fonction (ci-dessous) reste à faire.
+
+⛔ **À n'écrire sur le site qu'une fois ce changement LIVRÉ dans une version de l'app** (au 2026-10-13 : sur la branche, aucun build). Et aucune fonction d'IA ne s'allume dans `ai_config` avant que la politique à jour soit en ligne.
+
+**Ce qui devient faux.** `vitrine/src/lib/legal.json` et `legal.en.json`, politique de confidentialité, « Sous-traitants et destinataires », ligne « Fonctions d'IA (Shale Pro, sur activation) » : « Supabase (relais, sans conservation, exécuté dans le centre de données le plus proche de vous), puis Google (API Gemini) … ».
+
+**Ce qu'elle devra dire** : le relais Supabase s'exécute à **Paris (eu-west-3)**, comme les comptes et la synchronisation. Proposition : « Supabase (relais, sans conservation, exécuté à Paris, eu-west-3), puis Google (API Gemini) … ». La partie Google ne change pas : la région du relais ne dit rien de l'endroit où Google traite la requête.
+
+**Avant de l'écrire sans réserve, un verrou côté fonction** (dépôt du site, `supabase/functions/ai/index.ts`, puis redéploiement par Antonin). Aujourd'hui c'est l'app qui demande Paris (`?forceFunctionRegion=eu-west-3`) ; le serveur, lui, accepte toujours de s'exécuter n'importe où (une ancienne version de l'app, ou une région mal écrite, retombe en silence sur le centre le plus proche — mesuré). Pour que la phrase soit vraie quel que soit l'appelant : en tête de la fonction, répondre une erreur sans lire le corps si `Deno.env.get("SB_REGION")` n'est pas `eu-west-3`. ⚠️ Non essayé : le nom et la valeur exacte de cette variable sont à lire une fois dans la fonction déployée avant de s'y fier. Sans ce verrou, la formulation honnête est « exécuté à Paris à la demande de l'app ».
+
+**Pas nécessaire** : ajouter `x-region` au CORS de la fonction. L'app passe par le paramètre d'URL, qui n'en a pas besoin.
+
+**À savoir pour le site** : `create-checkout` et `billing-portal`, appelées par `vitrine/src/lib/compteAuth.ts`, s'exécutent aussi au plus près du visiteur. Elles ne portent pas de contenu (jeton, offre choisie) ; si la politique situe « Supabase à Paris » sans nuance pour le paiement, ajouter `?forceFunctionRegion=eu-west-3` aux trois `fetch`. Non regardé : ce que la politique dit aujourd'hui de ces deux fonctions.
