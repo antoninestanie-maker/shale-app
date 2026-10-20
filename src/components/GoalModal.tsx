@@ -224,7 +224,9 @@ export default function GoalModal({
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("Titre de l'objectif")}
+            // Une étape s'appelle une étape, jusque dans son champ (audit du
+            // 2026-10-20, constat 41 : « Edit step » proposait « Goal title »).
+            placeholder={estEtape ? t("Titre de l’étape") : t("Titre de l'objectif")}
             className="w-full rounded-[10px] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
           />
 

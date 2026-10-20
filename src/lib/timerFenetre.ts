@@ -435,6 +435,17 @@ export function usePontFenetreTimer(focus: FocusController, style?: StyleHorloge
     diffuserEtat(etatRef.current);
   }, [cle]);
 
+  /**
+   * ⚠️ LE PONT QUI SE DÉMONTE DIT « PLUS DE SÉANCE » (audit du 2026-10-20,
+   * temps-8). Se déconnecter pendant une séance démonte toute l'app (AuthGate),
+   * donc ce pont, sans un mot : la barre des menus décomptait jusqu'à
+   * « 00:00 » et y restait, ses entrées Pause et Terminer envoyant des
+   * commandes que personne n'écoutait, et la fenêtre séparée gardait son
+   * horloge. À la reconnexion, la séance encore ouverte en base est reprise et
+   * rediffusée (`fetchActiveFocus`) : rien n'est perdu à le dire.
+   */
+  useEffect(() => () => diffuserEtat(etatDepuisFocus(null, false, 0)), []);
+
   useEffect(
     () =>
       ecouterCommandes((c) => {

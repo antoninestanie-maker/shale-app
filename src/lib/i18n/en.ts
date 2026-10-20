@@ -3824,4 +3824,5 @@ export const EN: Record<string, string> = {
   "Ajoute sous le nœud un lien vers une note, une tâche, une fiche…": "Adds a link under the node to a note, a task, an entry…",
   "Rend ce que tu viens de supprimer ou de renommer dans la carte.": "Brings back what you just deleted or renamed in the map.",
   "Ouvrir l'étape": "Open the step",
+  "Terminer|tâche": "Mark done",
 };

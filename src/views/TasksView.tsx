@@ -28,7 +28,7 @@ import {
   IconX,
 } from "../components/icons";
 
-import { pick, t, tp } from "../lib/i18n";
+import { formatHeure, pick, t, tp } from "../lib/i18n";
 import PointAction from "../components/PointAction";
 import { useActions } from "../lib/pointAction/contexte";
 import { cleTache } from "../lib/pointAction/regle";
@@ -625,7 +625,9 @@ export default function TasksView({ data, refresh }: Props) {
     if (task.start_at && task.due_date) {
       push(
         <span key="heure" className="tabular-nums">
-          {task.end_at ? `${task.start_at}–${task.end_at}` : task.start_at}
+          {/* L'heure telle que la langue l'écrit — « 2:00 PM » en anglais, comme
+              Aujourd'hui et le Calendrier (audit du 2026-10-20, constat 41). */}
+          {task.end_at ? `${formatHeure(task.start_at)}–${formatHeure(task.end_at)}` : formatHeure(task.start_at)}
         </span>,
       );
     }
