@@ -17,6 +17,7 @@ import { CIBLE_HABITUDE_PAR_DEFAUT, premierAccueil } from "../../lib/objectifs/t
 import { typerEnEtape, typerEnHabitude, typerEnTache } from "../../lib/objectifs/typer";
 import { ouvrirObjet } from "../../lib/naviguer";
 import {
+  createLink,
   deleteLink,
   getSetting,
   renommerHabitude,
@@ -26,7 +27,7 @@ import {
 } from "../../lib/repo";
 import type { AppData, Goal } from "../../lib/types";
 import EditeurCarte, { type EnfantObjectif, type GestesObjectif } from "../carte/EditeurCarte";
-import { jeterPlusieurs, type Jete } from "../corbeille/geste";
+import { jeterPlusieurs, restaurerJetes, type Jete } from "../corbeille/geste";
 
 /**
  * ⭐ La feuille de route d'un objectif, en carte mentale — ÉDITABLE depuis le
@@ -142,8 +143,14 @@ export default function CarteObjectif(props: {
             }
           }
         }
-        await jeterPlusieurs(elements, signaler);
-        return;
+        const jetes = await jeterPlusieurs(elements, signaler);
+        // ⌘Z dans la carte (2026-10-20) : la même restauration que l'« Annuler » du toast.
+        return jetes.length
+          ? async () => {
+              await restaurerJetes(jetes);
+              signaler();
+            }
+          : undefined;
       }
       // ⭐ Décision E : une note, une fiche, un événement RATTACHÉS ne sont pas
       // un morceau de l'objectif — on retire le lien, exactement comme le ✕ de
@@ -153,6 +160,13 @@ export default function CarteObjectif(props: {
       if (!lien) return;
       await deleteLink(lien.id);
       signaler();
+      // ⌘Z le rattache de nouveau, par une arête manuelle — celle que pose le ✕ inverse.
+      const objectifUid = parentRef.uid;
+      const vers = lien.to_kind;
+      return async () => {
+        await createLink({ from_kind: "goal", from_uid: objectifUid, to_kind: vers, to_uid: ref.uid, origin: "manual" });
+        signaler();
+      };
     },
   };
 

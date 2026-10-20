@@ -48,12 +48,19 @@ interface Props<C> {
   entrees: readonly EntreePossible[];
   /** Nom accessible du menu — « Actions sur « Ma note » ». */
   libelle: string;
+  /**
+   * Une lettre tapée dans le menu, AVANT qu'elle ne serve à y choisir une
+   * entrée. Rendre `true` la prend : le menu ne fait rien d'autre. Pour un
+   * menu qui précède une saisie (« quel type ? » d'un nœud neuf), où la
+   * frappe est le début d'un nom, pas une recherche d'entrée (2026-10-20).
+   */
+  surLettre?: (lettre: string) => boolean;
 }
 
 /** Les pixels du panneau doivent être mesurés avant d'être placés : on le cache. */
 const INVISIBLE = { top: 0, left: 0, visibility: "hidden" as const };
 
-export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) {
+export default function MenuContextuel<C>({ etat, entrees, libelle, surLettre }: Props<C>) {
   const items = useMemo(() => ordonner(entrees), [entrees]);
   const { ouvert, fermer } = etat;
 
@@ -251,6 +258,8 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
         setRangSous(rangSuivant(sous, -1, "bas"));
       };
 
+      if (action.quoi === "lettre" && surLettre?.(action.lettre)) return;
+
       switch (action.quoi) {
         case "deplacer":
           setSousMenu(null);
@@ -274,7 +283,7 @@ export default function MenuContextuel<C>({ etat, entrees, libelle }: Props<C>) 
         }
       }
     },
-    [items, rang, sousMenu, rangSous, lancer, fermer],
+    [items, rang, sousMenu, rangSous, lancer, fermer, surLettre],
   );
 
   // ── Le clavier est au menu, même quand le focus n'y est pas ────────────────
