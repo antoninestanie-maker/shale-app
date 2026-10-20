@@ -157,6 +157,13 @@ describe("cible chiffrée", () => {
     expect(m.origine).toEqual({ type: "cible", compte: 12, cible: 50, unite: "backtests", source: "manual" });
   });
 
+  it("⭐ 299 sur 300 n'est pas atteint : 99 %, pas 100 (objectifs-7)", () => {
+    const g = racine({ target_count: 300, target_unit: "séances", manual_count: 299 });
+    const m = mesurer(g, sources({ goals: [g] }));
+    expect(m.pct).toBe(99);
+    expect(estAcheve(m)).toBe(false);
+  });
+
   it("atteinte : 100 %", () => {
     const g = racine({ target_count: 50, manual_count: 50 });
     expect(mesurer(g, sources({ goals: [g] })).pct).toBe(100);

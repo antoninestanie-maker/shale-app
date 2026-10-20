@@ -1577,12 +1577,45 @@ export async function renommerObjectif(goalId: number, titre: string): Promise<v
   if (!net) return;
   if (!isTauri) {
     await demo.majObjectif(goalId, { title: net });
-    await adopter("goals", goalId);
+    await adopterObjectif(goalId);
     return;
   }
   const db = await getDb();
   await db.execute("UPDATE goals SET title = $1 WHERE id = $2 AND title IS NOT $1", [net, goalId]);
-  await adopter("goals", goalId);
+  await adopterObjectif(goalId);
+}
+
+/**
+ * ⭐ Adopter un objectif d'EXEMPLE, c'est adopter sa feuille de route entière :
+ * ses étapes (à toute profondeur) et les tâches qui leur sont rattachées
+ * (objectifs-5, audit du 2026-10-20).
+ *
+ * Renommer ou modifier l'objectif d'exemple pour s'en servir n'adoptait que la
+ * racine. Devenue réelle, elle ne comptait plus ses étapes d'exemple (« un
+ * exemple ne nourrit jamais le chiffre d'un objectif réel », `enfantsDe`) :
+ * figée à 0 % quoi qu'on coche, jamais « Atteint », et « Supprimer les
+ * exemples » emportait ensuite ses étapes et détachait la tâche cochée.
+ *
+ * ⚠️ Rien ne change pour un objectif déjà réel : ses éventuelles étapes
+ * d'exemple restent des exemples (cocher une étape d'exemple n'adopte pas,
+ * exprès — décision du 2026-10-11).
+ */
+export async function adopterObjectif(goalId: number): Promise<void> {
+  if (!isTauri) return demo.adopterObjectif(goalId);
+  const db = await getDb();
+  const lu = await db.select<{ is_example: number }[]>("SELECT is_example FROM goals WHERE id = $1", [goalId]);
+  if (lu[0]?.is_example !== 1) return;
+  const arbre = `WITH RECURSIVE arbre(id) AS (
+       SELECT $1 UNION SELECT g.id FROM goals g JOIN arbre a ON g.parent_goal_id = a.id
+     )`;
+  await db.execute(
+    `${arbre} UPDATE tasks SET is_example = 0 WHERE goal_id IN (SELECT id FROM arbre) AND is_example <> 0`,
+    [goalId],
+  );
+  await db.execute(
+    `${arbre} UPDATE goals SET is_example = 0 WHERE id IN (SELECT id FROM arbre) AND is_example <> 0`,
+    [goalId],
+  );
 }
 
 /** L'échéance d'un objectif, et rien d'autre — même raison que `renommerObjectif`. */
@@ -1741,7 +1774,7 @@ export async function reordonnerObjectifs(ids: readonly number[]): Promise<void>
 export async function updateGoal(id: number, input: GoalInput): Promise<void> {
   if (!isTauri) {
     await demo.updateGoal(id, input);
-    await adopter("goals", id);
+    await adopterObjectif(id);
     return;
   }
   const db = await getDb();
@@ -1759,7 +1792,7 @@ export async function updateGoal(id: number, input: GoalInput): Promise<void> {
       id,
     ],
   );
-  await adopter("goals", id);
+  await adopterObjectif(id);
 }
 
 /**

@@ -206,6 +206,18 @@ export function estAcheve(m: Pick<Mesure, "pct">): boolean {
 }
 
 /**
+ * Le pourcentage d'une fraction mesurée. ⭐ 100 n'est écrit que pour une
+ * fraction ENTIÈRE (objectifs-7, audit A06a-03, 2026-10-20) : `Math.round`
+ * donnait 100 à 299/300, et l'objectif passait « Atteint » — titre barré,
+ * prochaine action effacée, péril et point d'action éteints — une séance avant
+ * la fin. Tout le reste s'arrondit comme avant, plafonné à 99.
+ */
+export function pctDe(fraction: number): number {
+  if (fraction >= 1 - 1e-9) return 100;
+  return Math.min(99, Math.round(fraction * 100));
+}
+
+/**
  * Le nombre des écrans qui ne savent afficher qu'un nombre (`effectiveProgress`,
  * le péril, la revue). Un réglage cassé y vaut 0 : il n'a rien de fait à montrer.
  */
@@ -277,7 +289,7 @@ function mesurerAvecGarde(goal: Goal, s: SourcesProgression, vus: Set<number>): 
   const fraction = poids > 0 ? somme / poids : 0;
   return {
     ...base,
-    pct: Math.round(fraction * 100),
+    pct: pctDe(fraction),
     fraction,
     origine: {
       type: "feuille",
@@ -300,7 +312,7 @@ function mesurerCible(goal: Goal, s: SourcesProgression): Pick<Mesure, "pct" | "
 
   const fraction = Math.min(1, compte / cible);
   return {
-    pct: Math.round(fraction * 100),
+    pct: pctDe(fraction),
     fraction,
     origine: { type: "cible", compte, cible, unite: goal.target_unit, source },
   };

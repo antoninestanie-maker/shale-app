@@ -2072,6 +2072,19 @@ export const demo = {
     Object.assign(goal, { title, description, scope, category, parent_goal_id, deadline, progress_pct, manual_progress });
   },
 
+  /** Même sémantique que `repo.adopterObjectif` : l'objectif d'exemple et TOUTE sa feuille de route. */
+  async adopterObjectif(id: number): Promise<void> {
+    const racine = goals.find((g) => g.id === id);
+    if (!racine || racine.is_example !== 1) return;
+    const arbre = new Set<number>([id]);
+    for (let n = -1; n !== arbre.size; ) {
+      n = arbre.size;
+      for (const g of goals) if (g.parent_goal_id != null && arbre.has(g.parent_goal_id)) arbre.add(g.id);
+    }
+    for (const g of goals) if (arbre.has(g.id)) g.is_example = 0;
+    for (const t of tasks) if (t.goal_id != null && arbre.has(t.goal_id)) t.is_example = 0;
+  },
+
   async majObjectif(id: number, champs: { title?: string; deadline?: string | null }): Promise<void> {
     const goal = goals.find((g) => g.id === id);
     if (goal) Object.assign(goal, champs);
