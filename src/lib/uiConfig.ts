@@ -65,7 +65,7 @@ export const WIDGET_LABELS: Record<string, string> = {
   perf: TRADING_ACTIF ? "Bandeau performance (streak, focus, trading)" : "Bandeau performance (streak, focus)",
   discipline: "Anneau discipline",
   timer: "Timer rapide",
-  habitudes: "Habitudes à tenir (Journal)",
+  habitudes: "Habitudes à tenir",
   position: "Calculateur de position (widget)",
   quicklinks: "Liens rapides",
   tasks: "Tâches du jour",

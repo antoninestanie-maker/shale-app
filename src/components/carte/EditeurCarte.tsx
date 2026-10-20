@@ -1373,11 +1373,11 @@ export default function EditeurCarte({ titre, carte, source, onEnregistrer, lect
         modifier((c) => poserReference(c, id, ref, titre));
         dire(
           plan.rattacher
-            ? t("Habitude dans le Journal, comptée sur {n} jours dans « {objectif} ».", {
+            ? t("Habitude, comptée sur {n} jours dans « {objectif} ».", {
                 n: plan.rattacher.cible,
                 objectif: nom(plan.rattacher.sous),
               })
-            : t("Habitude dans le Journal."),
+            : t("Habitude."),
           5000,
         );
       }

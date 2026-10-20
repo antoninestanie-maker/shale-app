@@ -13,9 +13,37 @@ import type { HabitCheck } from "./types";
 /**
  * ⚠️ DES COULEURS DE DONNÉES : elles sont ENREGISTRÉES dans `habits.color`.
  * Ne jamais en retirer ni en renommer une (PIEGES § 21.9) — seulement ajouter.
- * La première est celle qu'une habitude reçoit quand on ne choisit pas.
+ *
+ * 2026-10-20 (Antonin : « change la banque de couleurs avec plus de choix,
+ * notamment le nouveau rouge ») : de six à douze, rangées par teinte. Les six
+ * d'avant y sont toutes, à la même valeur ; le cramoisi est celui de la plaque
+ * du logo (`PLAQUE_HAUT`, `ShaleMark.tsx`). `nom` est la phrase française,
+ * traduite à l'affichage.
  */
-export const HABIT_COLORS = ["var(--color-green)", "var(--color-blue)", "var(--color-yellow)", "#a78bfa", "#fb923c", "#f472b6"];
+export const PALETTE_HABITUDES: readonly { valeur: string; nom: string }[] = [
+  { valeur: "#dc2626", nom: "Cramoisi" },
+  { valeur: "#fb923c", nom: "Orange" },
+  { valeur: "var(--color-yellow)", nom: "Ambre" },
+  { valeur: "#a3e635", nom: "Citron vert" },
+  { valeur: "var(--color-green)", nom: "Vert" },
+  { valeur: "#14b8a6", nom: "Sarcelle" },
+  { valeur: "#38bdf8", nom: "Ciel" },
+  { valeur: "var(--color-blue)", nom: "Bleu" },
+  { valeur: "#818cf8", nom: "Indigo" },
+  { valeur: "#a78bfa", nom: "Violet" },
+  { valeur: "#f472b6", nom: "Rose" },
+  { valeur: "#94a3b8", nom: "Ardoise" },
+];
+
+export const HABIT_COLORS = PALETTE_HABITUDES.map((c) => c.valeur);
+
+/** Celle qu'une habitude reçoit quand on ne choisit pas (la première d'avant). */
+export const COULEUR_HABITUDE_PAR_DEFAUT = "var(--color-green)";
+
+/** Le nom d'une couleur de la palette, `null` pour une couleur venue d'ailleurs. */
+export function nomDeCouleur(valeur: string): string | null {
+  return PALETTE_HABITUDES.find((c) => c.valeur === valeur)?.nom ?? null;
+}
 
 /**
  * ⭐ Les derniers jours qu'une LIGNE d'habitude montre, du plus ancien à

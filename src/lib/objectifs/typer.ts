@@ -1,5 +1,5 @@
 import type { GenreRef, RefNoeud } from "../carte";
-import { HABIT_COLORS } from "../habitudes";
+import { COULEUR_HABITUDE_PAR_DEFAUT } from "../habitudes";
 import { t } from "../i18n";
 import { addHabit, createTask, majFeuilleDeRoute, uidDe } from "../repo";
 import type { Goal } from "../types";
@@ -68,7 +68,7 @@ export async function typerEnHabitude(
   rattacher: { sous: Goal; cible: number } | null,
   goals: readonly Goal[],
 ): Promise<RefNoeud | null> {
-  const id = await addHabit(titre, HABIT_COLORS[0]);
+  const id = await addHabit(titre, COULEUR_HABITUDE_PAR_DEFAUT);
   const uid = await uidDe("habit", id);
   if (uid && rattacher) {
     const etapeId = await ajouterEtape(rattacher.sous, titre, goals);

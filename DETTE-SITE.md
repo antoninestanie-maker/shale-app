@@ -1037,3 +1037,10 @@ Neutres, rouge, ambre, violet, encre du « réussi » : **inchangés**. Le logo 
 > lui, ne bougent pas. Plus aucun bleu dans le code du site ; il n'en reste que
 > dans les captures `shots/v2`, qui montrent l'app d'avant. `npm run check`
 > vert sur la branche.
+
+## AJ — « Journal » devient « Habitudes » ; une habitude se renomme et change de couleur (app, 2026-10-20)
+
+- **Le module s'appelle « Habitudes »** (« Habits » en anglais) dans la barre latérale, la barre d'onglets iPhone, la palette ⌘K et la corbeille. Son identifiant (`journal`) ne change pas. Toute page du site qui nomme le module « Journal » est à reprendre. ⚠️ Ne pas confondre avec le « Journal » du blog (`content.json` → `blogTitle`), qui n'est pas le module.
+- **Clic droit sur une habitude** : Cocher, **Renommer**, **Couleur ▸**, Supprimer. Une fiche qui décrit les habitudes peut le dire.
+- **Douze couleurs d'habitude** au lieu de six, dont le cramoisi du logo (`#dc2626`). Les captures qui montrent la rangée de six pastilles sont datées.
+- Le site est sur une refonte (plus de `Demo.astro`) : rien n'a été modifié de ce côté ce jour-là.

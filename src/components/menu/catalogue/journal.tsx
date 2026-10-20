@@ -11,10 +11,11 @@
  * ⚠️ `t()` à la construction, jamais dans une constante de module.
  */
 
-import { IconCheck, IconTrash, IconX } from "../../icons";
+import { IconCheck, IconPencil, IconTrash, IconX } from "../../icons";
 import { IconCopier } from "../icones";
 import { t } from "../../../lib/i18n";
-import type { EntreePossible } from "../../../lib/menu/entrees";
+import type { EntreeMenu, EntreePossible } from "../../../lib/menu/entrees";
+import { PALETTE_HABITUDES } from "../../../lib/habitudes";
 import { copierTexte } from "../../../lib/menu/pressePapier";
 import type { Habit } from "../../../lib/types";
 
@@ -48,7 +49,21 @@ export function entreesJour(texte: string, existe: boolean, gestes: GestesJour):
 export interface GestesHabitude {
   /** La case de la ligne, pour le jour choisi. */
   basculer: (h: Habit) => void;
+  /** Ouvre le champ de la ligne — le même que le double-clic sur le nom (règle 18). */
+  renommer: (h: Habit) => void;
+  recolorer: (h: Habit, couleur: string) => void;
   supprimer: (h: Habit) => Promise<void>;
+}
+
+/** La pastille d'une couleur, à la place de l'icône d'une entrée. */
+function Pastille({ couleur }: { couleur: string }) {
+  return (
+    <span
+      aria-hidden
+      className="block h-[0.85em] w-[0.85em] rounded-full ring-1 ring-inset ring-border"
+      style={{ backgroundColor: couleur }}
+    />
+  );
 }
 
 /**
@@ -69,6 +84,13 @@ export function entreesHabitude(
     : cochee
       ? t("Décocher pour aujourd'hui")
       : t("Cocher pour aujourd'hui");
+  // La coche dit la couleur ACTUELLE ; la choisir de nouveau n'écrit rien.
+  const couleurs: EntreeMenu[] = PALETTE_HABITUDES.map((c) => ({
+    id: `couleur-${c.valeur}`,
+    libelle: t(c.nom),
+    icone: c.valeur === h.color ? <IconCheck /> : <Pastille couleur={c.valeur} />,
+    executer: () => (c.valeur === h.color ? undefined : gestes.recolorer(h, c.valeur)),
+  }));
   return [
     {
       id: "basculer",
@@ -76,6 +98,8 @@ export function entreesHabitude(
       icone: cochee ? <IconX /> : <IconCheck />,
       executer: () => gestes.basculer(h),
     },
+    { id: "renommer", libelle: t("Renommer"), icone: <IconPencil />, executer: () => gestes.renommer(h) },
+    { id: "couleur", libelle: t("Couleur"), icone: <Pastille couleur={h.color} />, sousMenu: couleurs },
     { id: "supprimer", libelle: t("Supprimer"), icone: <IconTrash />, danger: true, executer: () => gestes.supprimer(h) },
   ];
 }

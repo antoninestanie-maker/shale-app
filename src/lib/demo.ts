@@ -1992,6 +1992,11 @@ export const demo = {
     if (h) h.name = nom;
   },
 
+  async recolorerHabitude(id: number, couleur: string): Promise<void> {
+    const h = habits.find((x) => x.id === id);
+    if (h) h.color = couleur;
+  },
+
   async renommerTache(taskId: number, label: string): Promise<void> {
     const task = tasks.find((t) => t.id === taskId);
     if (task) task.label = label;

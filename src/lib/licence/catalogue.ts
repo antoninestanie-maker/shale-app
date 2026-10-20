@@ -105,7 +105,7 @@ export const CLES_LIBELLES_PROFIL = [
   "Performance",
   "Finance",
   "Notes",
-  "Journal",
+  "Habitudes",
   "Savoir",
   "Trading",
   "Market-Brain",

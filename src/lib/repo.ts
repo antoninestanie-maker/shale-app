@@ -1031,6 +1031,23 @@ export async function renommerHabitude(id: number, nom: string): Promise<void> {
   await adopter("habits", id);
 }
 
+/**
+ * Change la couleur d'une habitude, et RIEN d'autre (menu de la ligne,
+ * 2026-10-20). Recolorer à l'identique n'écrit rien. Comme renommer, c'est une
+ * écriture de l'utilisateur : un exemple touché est adopté.
+ */
+export async function recolorerHabitude(id: number, couleur: string): Promise<void> {
+  if (!couleur) return;
+  if (!isTauri) {
+    await demo.recolorerHabitude(id, couleur);
+    await adopter("habits", id);
+    return;
+  }
+  const db = await getDb();
+  await db.execute("UPDATE habits SET color = $1 WHERE id = $2 AND color IS NOT $1", [couleur, id]);
+  await adopter("habits", id);
+}
+
 export async function deleteHabit(id: number): Promise<void> {
   if (!isTauri) return demo.deleteHabit(id);
   const db = await getDb();

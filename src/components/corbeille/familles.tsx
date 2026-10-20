@@ -31,9 +31,9 @@ export const FAMILLES: Readonly<Record<KindCorbeille, Famille>> = {
   object: { module: "Savoir", vue: "knowledge" },
   knowledge: { module: "Savoir", vue: "knowledge" },
   invoice: { module: "Finance", vue: "finance" },
-  journal: { module: "Journal", vue: "journal" },
+  journal: { module: "Habitudes", vue: "journal" },
   // Les habitudes vivent dans le Journal, les métriques dans Performance.
-  habit: { module: "Journal", vue: "journal" },
+  habit: { module: "Habitudes", vue: "journal" },
   metric: { module: "Performance", vue: "performance" },
 };
 

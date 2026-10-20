@@ -170,7 +170,7 @@ export const ITEMS: { id: View; label: string; icon: ReactNode }[] = [
   },
   {
     id: "journal",
-    label: "Journal",
+    label: "Habitudes",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" />
@@ -248,7 +248,7 @@ const DESCRIPTIONS: Record<View, string> = {
   performance: "Courbes de progression : régularité, focus, objectifs.",
   finance: "Trésorerie : runway, patrimoine net, burn mensuel.",
   notes: "Notes riches liées entre elles, recherche plein texte.",
-  journal: "Ce qui s'est passé dans la journée, et les habitudes à tenir.",
+  journal: "Les habitudes à tenir, et la note du jour.",
   knowledge: "Base de connaissances : notes, images, croquis et liens par thème.",
   trading: "Journal de trades en R, statistiques et tracker de positions live.",
   market: "Briefing marchés généré 2×/jour : biais, niveaux, zones no-trade.",
