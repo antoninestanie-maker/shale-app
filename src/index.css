@@ -2593,3 +2593,76 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
 .sans-barres, .sans-barres * { scrollbar-width: none; }
 .sans-barres::-webkit-scrollbar, .sans-barres *::-webkit-scrollbar { display: none; }
 
+
+/* ⭐ 2026-10-20 — L'ATTENTE, UNE VARIANTE DE L'ENTRÉE (`Chargement.tsx`).
+   Demande d'Antonin : le chargement de l'app et du site doit être une variante
+   de l'entrée. L'entrée allume la lueur (≈ 500 ms), inspire (contraction à
+   86 %), puis entre. L'attente rejoue les deux premiers temps en boucle, sans
+   jamais entrer : la lueur s'allume, l'icône inspire (92 %, plus doux que
+   l'entrée : on le voit en boucle), la lueur s'éteint. Cycle de 2,4 s.
+   N'anime que `transform` et `opacity` (PIEGES § 11).
+   `prefers-reduced-motion` : la règle globale fige l'icône, lueur allumée,
+   sans aucun mouvement, et montre le texte d'emblée.
+   ⚠️ Recopiée en CSS seul sur le site (`vitrine/src/styles/compte.css`). */
+@keyframes chargement-paraitre {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes chargement-lueur {
+  0%,
+  8% {
+    opacity: 0;
+  }
+  38%,
+  62% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes chargement-inspire {
+  0%,
+  38% {
+    transform: scale(1);
+  }
+  52% {
+    transform: scale(0.92);
+  }
+  70%,
+  100% {
+    transform: scale(1);
+  }
+}
+.chargement {
+  display: flex;
+  height: 100%;
+  min-height: 160px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  animation: chargement-paraitre 300ms ease-out 150ms both;
+}
+.chargement-icone {
+  position: relative;
+  width: var(--chargement-taille, 44px);
+  height: var(--chargement-taille, 44px);
+  animation: chargement-inspire 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+}
+.chargement-lueur {
+  position: absolute;
+  inset: 0;
+  animation: chargement-lueur 2.4s ease-in-out infinite;
+  will-change: opacity;
+}
+.chargement-texte {
+  font-size: 13px;
+  color: var(--color-text-dim);
+  animation: chargement-paraitre 400ms ease-out 1500ms both;
+}
