@@ -1064,3 +1064,10 @@ Règle « l'app et le site ne divergent jamais » : `vitrine/src/styles/global.c
 | point d'action | `#ff3b4a` | `#d7192b` |
 
 Inchangés : rouge d'erreur, ambre, halo cramoisi, sélection 10 % / liseré 30 %. La grammaire (une couleur, un sens) vaut aussi pour le site : la braise ne marque jamais une erreur. Le point d'action n'a pas d'usage sur le site (rien n'y attend une action), sauf dans les captures de l'app, à refaire après le build. ⛔ **Pas encore recopié.**
+
+## AK — Les tâches ont un état et des badges (app, 2026-10-20)
+
+- **États d'une tâche** : en cours, en attente (de quelqu'un ou de quelque chose, avec une date de relance), abandonnée. Clic droit « État ▸ » ou « Modifier la tâche ». Une fiche Tâches qui liste « trois priorités, étiquettes libres, récurrences » peut ajouter : « une tâche en attente revient le jour de sa relance ; abandonnée, elle ne compte plus ».
+- **Ce que ça change aux chiffres** (si le site promet « la discipline juge le comportement ») : une tâche en attente ou abandonnée ne fait plus baisser la Discipline, à partir du jour où on l'a dit — jamais en arrière.
+- **Badges déduits** sur la ligne d'une tâche : « Prochaine action » (d'un objectif), « Rapide » (créneau de 15 min ou moins). Les captures de la vue Tâches faites avant cette date ne les montrent pas.
+- Rien n'a été modifié côté site ce jour-là.
