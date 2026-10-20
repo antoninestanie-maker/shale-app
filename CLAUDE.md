@@ -8739,3 +8739,17 @@ Antonin : « si je coche des tâches en retard, cela les fait apparaître dans T
 - **L'anneau de l'accueil ET la tuile « série en cours » lisent les HABITUDES** (`lib/disciplineHabitudes.ts`) : tenues / actives aujourd'hui, avec la règle de Performance (`debutsDesHabitudes` : exemples exclus, une habitude compte depuis sa première coche), et la coche optimiste. Les tâches gardent leur compte partout ailleurs (carte « Tâches du jour », mini-barres 7 jours, Performance, notification de série).
 - **Un jour d'habitudes est « tenu » à 75 %**, pas 80 : avec 4 ou 8 habitudes, 80 % exigeait un sans-faute (3/4 = 75 %) ; 67 % aurait rendu la série trop facile à 3 habitudes. Le seuil des TÂCHES (`STREAK_THRESHOLD`, Rust) reste 80.
 - ⚠️ **Non tranché** : la notification `streak_at_risk` lit la série de tâches, plus celle que l'écran affiche.
+
+## 2026-10-21 (nuit) — Lot 7 de l'audit : les décisions prises sans Antonin (il autorise d'office)
+
+Le détail est dans `PASSATION.md` (même date). Ce qui s'y est décidé, et pourquoi :
+
+- **« Atteindre un nombre » peut se compter « par ses tâches »** (`count_source = 'elements'`, `progression.ts`) : chaque tâche ponctuelle faite de l'étape vaut une unité, comme dans « Compter des éléments » ; la cible ne fixe que le nombre. C'est la source posée d'office au premier nombre d'une étape qui a DÉJÀ des tâches — Priya cochait ses candidatures et le compteur restait à 0/12. Les tâches restent affichées sous le réglage, quel que soit le mode. ⚠️ Pas de `count_since` pour cette source : une tâche faite l'est pour de bon. Une version d'avant lit « manual ».
+- **À côté d'étapes, l'en-tête d'un objectif dit « tâche(s) directe(s) »** : le compteur ne compte que ce qui est rattaché à l'objectif lui-même (le bloc « Rattaché directement »), celles des étapes comptent dans leur étape. Changer le calcul aurait touché la règle des parts (« Écrire n'est pas avancer »), qui reste.
+- **« Citer un objet » n'écrase plus rien** : la citation naît dans un nœud neuf sous le nœud regardé — sauf s'il est encore vide. La touche @ fait le même geste.
+- **⌘Z dans la carte d'un objectif défait le dernier geste ÉCRIT** (suppression → restauration de la corbeille, détachement → arête remise, renommage → ancien nom), puis, faute de geste écrit, le dernier geste d'écran. Pas de « Rétablir » : le geste défait a repris sa place dans les données, la carte s'est re-dérivée. Le commentaire du code qui disait « ⌘Z n'en défait rien » est retourné.
+- **Créer un nœud puis le nommer = UN pas d'historique** (`remplacerPresent`).
+- **Une lettre tapée dans le menu « quel type ? » d'un nœud neuf (carte d'objectif) crée une TÂCHE** et commence son nom. Le choix d'un type reste la règle de cette carte ; seule la frappe n'est plus perdue.
+- **L'heure suit la langue, sans réglage 12 h / 24 h** : tout affichage d'une heure stockée passe par `formatHeure` (horloge, Tâches, Timer). Un réglage serait un chantier à part, à trancher par Antonin.
+- **Un mot français à deux sens prend un discriminant** (`t("Terminer|tâche")` → « Mark done ») : PIEGES § 54.3.
+- **Une pièce jointe s'ouvre par un lien dur à son nom d'origine** (`pieces-jointes/ouvertes/<uid>/<nom>`) ; le rangement des octets par `uid` ne change pas.
