@@ -2603,7 +2603,7 @@ html[data-telephone] .vue-defilante:has(.fenetre-voile) {
    N'anime que `transform` et `opacity` (PIEGES § 11).
    `prefers-reduced-motion` : la règle globale fige l'icône, lueur allumée,
    sans aucun mouvement, et montre le texte d'emblée.
-   ⚠️ Recopiée en CSS seul sur le site (`vitrine/src/styles/compte.css`). */
+   ⚠️ Jumelle sur le site : `vitrine/src/components/Chargement.astro`. */
 @keyframes chargement-paraitre {
   from {
     opacity: 0;

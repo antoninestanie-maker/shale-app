@@ -18,8 +18,9 @@ import ShaleMark from "./auth/ShaleMark";
  * - `prefers-reduced-motion` : la règle globale d'`index.css` fige tout ;
  *   l'icône reste, lueur allumée, et le texte est là d'emblée.
  *
- * Le site a la même attente, en CSS seul (`vitrine/src/styles/compte.css`,
- * `.chargement`) : changer l'une, c'est changer l'autre.
+ * Le site a la même attente (dépôt shale-site,
+ * `vitrine/src/components/Chargement.astro`, sur « Mon compte ») : mêmes images
+ * clés, mêmes durées. Changer l'une, c'est changer l'autre.
  */
 export default function Chargement({
   texte,

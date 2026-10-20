@@ -2728,6 +2728,12 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches).
 
 
+## 2026-10-20 — L'attente, variante de l'entrée (`chantier/chargement`)
+
+Demande d'Antonin : le chargement de l'app et du site, « une variante de l'entrée ». **Fait** : `src/components/Chargement.tsx` + § « L'ATTENTE » en fin d'`index.css` ; branché dans `App.tsx` (module, données), `FinanceView`, `KnowledgeView`, `ApercuFacture`. Côté site (shale-site, `chantier/chargement-site`) : « Mon compte » reste derrière l'icône jusqu'à ce que session et abonnement soient lus, puis paraît (0,97 → 1), filet à 8 s. Décision : `CLAUDE.md` (même date).
+
+**Prouvé** : `tsc` vert. **Vu** dans Chrome sans fenêtre, build démo du labo, réseau ralenti (latence 4 s) pour forcer l'ouverture d'un module : bureau 1470 × 923 sombre (Savoir) et téléphone 390 clair (Notes) — la lueur monte de 0 à 1 puis retombe, l'icône descend à 0,92, le texte n'arrive qu'après ≈ 1,3 s. **Pas vu** : WKWebView (Mac), iPhone, densité 110 % au vrai. **Reste** : fusion, puis le prochain build groupé (aucun Rust, aucune migration).
+
 ## 2026-10-13 (nuit) — l'IA de Shale Pro s'exécute à Paris, où que soit l'utilisateur
 
 Demande d'Antonin, sur un constat de la session du site. Branche `chantier/ia-region` (worktree `~/Desktop/Shale-chantiers/ia-region`). Suite du § 11.z du 2026-09-29.
