@@ -138,6 +138,11 @@ const fetchMixte = (async (u: string) => {
   throw new Error(`url inattendue ${u}`);
 }) as unknown as typeof fetch;
 
+// Le verrou de région (étape 0 de `coeur/traiter.ts`, site `chantier/ia-verrou-region`)
+// lit `regionExecution`. Passé par décomposition (`...EN_REGION`) : un checkout du site
+// d'avant le verrou ne connaît pas ce champ, et le banc doit tourner sur les deux.
+const EN_REGION = { regionExecution: "eu-west-3" as string | null };
+
 function deps(): Dependances {
   return {
     depot: depotPGlite(db),
@@ -150,6 +155,7 @@ function deps(): Dependances {
     compterPages: async () => 1,
     journal: () => {},
     originesAutorisees: [],
+    ...EN_REGION,
     hasard: () => 0.5,
     resoudre: async () => [PUBLIQUE],
   };

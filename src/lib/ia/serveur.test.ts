@@ -16,7 +16,13 @@ import { coutMicroUsd, reinitialisationDe } from "../../../../shale-site/supabas
 import { FONCTIONS } from "../../../../shale-site/supabase/functions/ai/coeur/fonctions.ts";
 import { echapperBalise } from "../../../../shale-site/supabase/functions/ai/coeur/prompt.ts";
 import { valider, versApi, type Schema } from "../../../../shale-site/supabase/functions/ai/coeur/schema.ts";
-import { traiter } from "../../../../shale-site/supabase/functions/ai/coeur/traiter.ts";
+import * as coeurTraiter from "../../../../shale-site/supabase/functions/ai/coeur/traiter.ts";
+import { REGION_IA } from "./runAi";
+
+const { traiter } = coeurTraiter;
+// `undefined` tant que le checkout du site lu par les tests n'a pas le verrou :
+// les tests de région sont alors SAUTÉS (et le disent), pas faussement verts.
+const REGION_EXECUTION = (coeurTraiter as { REGION_EXECUTION?: string }).REGION_EXECUTION;
 import type { DefFonction, Dependances } from "../../../../shale-site/supabase/functions/ai/coeur/types.ts";
 import { bancIa, compte, depotPGlite } from "./serveur.testutil";
 
@@ -101,6 +107,11 @@ const avecFichier: DefFonction<{ lang: string; fichier: { media_type: string; da
 
 // ── Les dépendances ──────────────────────────────────────────────────────────
 
+// Le verrou de région (étape 0 de `coeur/traiter.ts`, site `chantier/ia-verrou-region`)
+// lit `regionExecution`. Passé par décomposition (`...EN_REGION`) : un checkout du site
+// d'avant le verrou ne connaît pas ce champ, et le banc doit tourner sur les deux.
+const EN_REGION = { regionExecution: "eu-west-3" as string | null };
+
 function deps(sur: Partial<Dependances> = {}): Dependances {
   return {
     depot: depotPGlite(db),
@@ -119,6 +130,7 @@ function deps(sur: Partial<Dependances> = {}): Dependances {
     },
     journal: (e) => journal.push(JSON.stringify(e)),
     originesAutorisees: ["tauri://localhost"],
+    ...EN_REGION,
     hasard: () => 0.5,
     resoudre: async () => ["93.184.216.34"],
     ...sur,
@@ -480,6 +492,57 @@ describe("ai — ce qui ne sort jamais", () => {
     });
     expect(r.corps.code).toBe("ai_unavailable");
     expect(await usage(PRO, "2026-10")).toMatchObject({ actions: 0 });
+  });
+});
+
+describe.skipIf(REGION_EXECUTION === undefined)("ai — la région d'exécution (politique de confidentialité : Paris)", () => {
+  // Supabase exécute la fonction au plus près de l'appelant quand l'appel ne
+  // demande pas de région. Le garde refuse tout ce qui ne tourne pas à Paris,
+  // AVANT le jeton et AVANT le corps.
+  it("hors de Paris : refus ai_unavailable, sans vérifier le jeton ni lire le corps", async () => {
+    for (const region of ["eu-central-2", "us-east-1", "", null]) {
+      let jetonVu = false;
+      let corpsLu = false;
+      const req = requete({ feature: "resumer", payload: {} });
+      const lecture = req.text.bind(req);
+      req.text = async () => {
+        corpsLu = true;
+        return lecture();
+      };
+      const r = await traiter(
+        req,
+        deps({
+          ...({ regionExecution: region } as unknown as Partial<Dependances>),
+          verifierJeton: async () => {
+            jetonVu = true;
+            return null;
+          },
+        }),
+      );
+      expect(r.status).toBe(503);
+      expect(await r.json()).toEqual({ ok: false, code: "ai_unavailable" });
+      expect(jetonVu).toBe(false);
+      expect(corpsLu).toBe(false);
+    }
+    expect(journal.filter((l) => l.includes("wrong_region"))).toHaveLength(4);
+  });
+
+  it("à Paris : la requête suit son chemin (ici jusqu'au refus du jeton)", async () => {
+    const r = await traiter(requete({ feature: "resumer", payload: {} }, "jeton-inconnu"), deps(EN_REGION as unknown as Partial<Dependances>));
+    expect(r.status).toBe(401);
+    expect(REGION_EXECUTION).toBe("eu-west-3");
+  });
+
+  it("la région servie est celle que l'app demande", () => {
+    expect(REGION_EXECUTION).toBe(REGION_IA);
+  });
+
+  it("le contrôle préalable CORS reste servi partout : il ne porte aucun contenu", async () => {
+    const r = await traiter(
+      new Request("https://x/ai", { method: "OPTIONS", headers: { origin: "tauri://localhost" } }),
+      deps({ regionExecution: "us-east-1" } as unknown as Partial<Dependances>),
+    );
+    expect(r.status).toBe(204);
   });
 });
 
