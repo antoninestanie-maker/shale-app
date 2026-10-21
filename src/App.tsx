@@ -50,6 +50,8 @@ import type { AppData } from "./lib/types";
 
 import { getLang, t } from "./lib/i18n";
 import Chargement from "./components/Chargement";
+import PassageModule from "./components/PassageModule";
+import { animationEntreeAuDemarrage } from "./lib/entree/reglage";
 // Vues chargées à la demande (code-splitting) : sortent recharts et le code de chaque
 // vue du bundle de démarrage. Chaque vue devient son propre chunk, chargé au 1er affichage.
 const TodayView = lazy(() => import("./views/TodayView"));
@@ -164,6 +166,27 @@ function BandeauLecturePerimee({ onRetry }: { onRetry: () => void }) {
 
 function App() {
   const [view, setView] = useState<View>("today");
+
+  /**
+   * Le passage d'un module à l'autre (`PassageModule.tsx`, 2026-10-21). Un
+   * numéro par passage : la `key` remonte le voile si l'on change encore de
+   * module pendant qu'il joue, au lieu de le laisser finir sur l'ancien.
+   * ⚠️ Pas au premier rendu : l'entrée dans Shale s'en charge déjà. Le réglage
+   * est relu AU MIROIR à chaque changement — « Aucune » choisi dans Réglages
+   * vaut dès le module suivant.
+   */
+  const [passage, setPassage] = useState<{ n: number; mode: "complete" | "courte" } | null>(null);
+  const vuePrecedente = useRef(view);
+  // `useLayoutEffect` : le voile doit être posé AVANT que le nouveau module
+  // soit peint, sinon il paraît une image puis se fait recouvrir.
+  useLayoutEffect(() => {
+    if (vuePrecedente.current === view) return;
+    vuePrecedente.current = view;
+    const mode = animationEntreeAuDemarrage();
+    const reduit = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (mode === "aucune" || reduit) return;
+    setPassage((p) => ({ n: (p?.n ?? 0) + 1, mode }));
+  }, [view]);
   /** La vue du moment, lisible depuis `navigate` sans en faire une dépendance. */
   const vueRef = useRef(view);
   vueRef.current = view;
@@ -840,6 +863,9 @@ function App() {
           </Suspense>
           </FiletErreur>
         </div>
+        {passage && (
+          <PassageModule key={passage.n} mode={passage.mode} onFin={() => setPassage(null)} />
+        )}
       </div>
       {/* ⚠️ PORTAIL SUR <body>, HORS de #root (2026-09-29). Les éditeurs plein
           écran (carte mentale, croquis) posent `inert` sur #root : le toast y
