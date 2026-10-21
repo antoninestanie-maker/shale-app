@@ -50,7 +50,7 @@ import type { AppData } from "./lib/types";
 
 import { getLang, t } from "./lib/i18n";
 import Chargement from "./components/Chargement";
-import PassageModule from "./components/PassageModule";
+import SortieAttente, { AttenteModule, type EtatAttente } from "./components/SortieAttente";
 import { animationEntreeAuDemarrage } from "./lib/entree/reglage";
 // Vues chargées à la demande (code-splitting) : sortent recharts et le code de chaque
 // vue du bundle de démarrage. Chaque vue devient son propre chunk, chargé au 1er affichage.
@@ -168,25 +168,23 @@ function App() {
   const [view, setView] = useState<View>("today");
 
   /**
-   * Le passage d'un module à l'autre (`PassageModule.tsx`, 2026-10-21). Un
-   * numéro par passage : la `key` remonte le voile si l'on change encore de
-   * module pendant qu'il joue, au lieu de le laisser finir sur l'ancien.
-   * ⚠️ Pas au premier rendu : l'entrée dans Shale s'en charge déjà. Le réglage
-   * est relu AU MIROIR à chaque changement — « Aucune » choisi dans Réglages
-   * vaut dès le module suivant.
+   * Changer de module (2026-10-21) : RIEN si le module est prêt ; sinon
+   * l'attente (repli de `Suspense`), puis sa sortie quand il arrive
+   * (`SortieAttente.tsx` dit pourquoi). Un numéro par sortie : la `key`
+   * remonte le voile si une autre attente finit pendant qu'il joue.
+   * Le réglage de l'entrée est relu AU MIROIR : « Aucune » vaut dès le
+   * module suivant.
    */
-  const [passage, setPassage] = useState<{ n: number; mode: "complete" | "courte" } | null>(null);
-  const vuePrecedente = useRef(view);
-  // `useLayoutEffect` : le voile doit être posé AVANT que le nouveau module
-  // soit peint, sinon il paraît une image puis se fait recouvrir.
-  useLayoutEffect(() => {
-    if (vuePrecedente.current === view) return;
-    vuePrecedente.current = view;
+  const zoneModule = useRef<HTMLDivElement>(null);
+  const [sortie, setSortie] = useState<
+    { n: number; etat: EtatAttente; mode: "complete" | "courte" } | null
+  >(null);
+  const surSortieAttente = useCallback((etat: EtatAttente) => {
     const mode = animationEntreeAuDemarrage();
     const reduit = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (mode === "aucune" || reduit) return;
-    setPassage((p) => ({ n: (p?.n ?? 0) + 1, mode }));
-  }, [view]);
+    setSortie((p) => ({ n: (p?.n ?? 0) + 1, etat, mode }));
+  }, []);
   /** La vue du moment, lisible depuis `navigate` sans en faire une dépendance. */
   const vueRef = useRef(view);
   vueRef.current = view;
@@ -754,6 +752,7 @@ function App() {
           — constaté à l'écran le 2026-08-28. Elles vont sur le MÊME conteneur
           non défilant que la réserve du haut, pour la même raison. */}
       <div
+        ref={zoneModule}
         className="relative z-10 flex min-w-0 flex-1 flex-col"
         style={
           isPhone
@@ -808,7 +807,13 @@ function App() {
               chaque changement de module, ce qui efface l'erreur. */}
           <FiletErreur portee="module">
           <Suspense
-            fallback={<Chargement texte={t("Ouverture du module…")} />}
+            fallback={
+              <AttenteModule
+                texte={t("Ouverture du module…")}
+                zone={zoneModule}
+                onSortie={surSortieAttente}
+              />
+            }
           >
           {!data ? (
             erreurDonnees ? (
@@ -863,8 +868,13 @@ function App() {
           </Suspense>
           </FiletErreur>
         </div>
-        {passage && (
-          <PassageModule key={passage.n} mode={passage.mode} onFin={() => setPassage(null)} />
+        {sortie && (
+          <SortieAttente
+            key={sortie.n}
+            etat={sortie.etat}
+            mode={sortie.mode}
+            onFin={() => setSortie(null)}
+          />
         )}
       </div>
       {/* ⚠️ PORTAIL SUR <body>, HORS de #root (2026-09-29). Les éditeurs plein

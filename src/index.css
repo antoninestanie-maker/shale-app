@@ -2711,80 +2711,56 @@ html[data-feuille-plus] .toast-pile {
   }
 }
 
-/* ⭐ 2026-10-21 — LE PASSAGE D'UN MODULE À L'AUTRE (`PassageModule.tsx`).
-   Antonin : « que ce chargement s'applique à chaque changement de page aussi ».
-   L'attente jouée une fois, puis la sortie de l'entrée : l'icône paraît, sa
-   lueur s'allume, elle inspire (92 %), puis s'efface en rétrécissant (88 %)
-   pendant que le voile se lève sur le module, monté dessous dès le clic.
-   Une durée pour les trois animations (`--passage-duree`), en pourcentages :
-   changer la durée ne désaccorde rien. N'anime que `transform` et `opacity`.
-   ⚠️ Jumelle sur le site : `vitrine/src/components/Passage.astro`. */
-@keyframes passage-voile {
-  0%,
-  64% {
+/* ⭐ 2026-10-21 — LA SORTIE DE L'ATTENTE (`SortieAttente.tsx`).
+   Changer de module n'affiche RIEN si le module est prêt. S'il ne l'est pas,
+   l'attente (§ précédent) paraît ; quand il arrive, l'icône sort comme à la
+   fin de l'entrée : de son état exact (place, taille, opacité, lueur, échelle,
+   posés en variables par la mesure) jusqu'à 0,88 et transparente, pendant que
+   le voile se lève sur le module. N'anime que `transform` et `opacity`.
+   (Le matin même, un passage de 560 ms jouait à CHAQUE changement : retiré,
+   voir CLAUDE.md du 2026-10-21.)
+   ⚠️ Positions en pixels d'ÉCRAN (mesurées) : `--zoom-inv`, comme
+   `.entree-copie`, sinon la densité de 110 % décalerait l'icône. */
+@keyframes sortie-voile {
+  from {
     opacity: 1;
   }
-  100% {
+  to {
     opacity: 0;
   }
 }
-@keyframes passage-icone {
-  0% {
-    opacity: 0;
-    transform: scale(0.96);
+@keyframes sortie-icone {
+  from {
+    opacity: var(--sortie-opacite, 1);
+    transform: scale(var(--sortie-echelle, 1));
   }
-  14% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  42% {
-    transform: scale(1);
-  }
-  56% {
-    opacity: 1;
-    transform: scale(0.92);
-  }
-  100% {
+  to {
     opacity: 0;
     transform: scale(0.88);
   }
 }
-@keyframes passage-lueur {
-  0%,
-  8% {
-    opacity: 0;
-  }
-  42%,
-  64% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-.passage-module {
-  --passage-duree: 560ms;
+.sortie-attente {
+  --sortie-duree: 380ms;
   position: absolute;
   inset: 0;
   z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--color-bg);
   pointer-events: none;
-  animation: passage-voile var(--passage-duree) ease-in both;
+  animation: sortie-voile var(--sortie-duree) ease-in both;
 }
-.passage-module[data-mode="courte"] {
-  --passage-duree: 320ms;
+.sortie-attente[data-mode="courte"] {
+  --sortie-duree: 240ms;
 }
-.passage-module-icone {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  animation: passage-icone var(--passage-duree) cubic-bezier(0.45, 0, 0.55, 1) both;
+.sortie-attente-icone {
+  position: absolute;
+  left: calc(var(--sortie-x) * var(--zoom-inv, 1));
+  top: calc(var(--sortie-y) * var(--zoom-inv, 1));
+  width: calc(var(--sortie-taille) * var(--zoom-inv, 1));
+  height: calc(var(--sortie-taille) * var(--zoom-inv, 1));
+  animation: sortie-icone var(--sortie-duree) cubic-bezier(0.45, 0, 0.55, 1) both;
 }
-.passage-module-lueur {
+.sortie-attente-lueur {
   position: absolute;
   inset: 0;
-  animation: passage-lueur var(--passage-duree) ease-in-out both;
+  opacity: var(--sortie-lueur, 1);
 }
