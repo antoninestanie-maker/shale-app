@@ -75,6 +75,11 @@ const avecFichier: DefFonction<{ lang: string; fichier: { media_type: string; da
   fichier: (p) => p.fichier,
 };
 
+// Le verrou de région (étape 0 de `coeur/traiter.ts`, site `chantier/ia-verrou-region`)
+// lit `regionExecution`. Passé par décomposition (`...EN_REGION`) : un checkout du site
+// d'avant le verrou ne connaît pas ce champ, et le banc doit tourner sur les deux.
+const EN_REGION = { regionExecution: "eu-west-3" as string | null };
+
 function deps(sur: Partial<Dependances> = {}): Dependances {
   return {
     depot: depotPGlite(db),
@@ -93,6 +98,7 @@ function deps(sur: Partial<Dependances> = {}): Dependances {
     },
     journal: () => {},
     originesAutorisees: [],
+    ...EN_REGION,
     hasard: () => 0.5,
     resoudre: async () => ["93.184.216.34"],
     ...sur,
