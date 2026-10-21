@@ -2728,11 +2728,11 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches). **→ Réparé le 2026-10-20 au soir par le lot 2** (`chantier/lot2-etats`).
 
 
-## 2026-10-21 — Le passage d'un module à l'autre (`chantier/chargement`)
+## 2026-10-21 — Changer de module : l'icône seulement si le module n'est pas prêt (`chantier/chargement`)
 
-Demande d'Antonin : l'attente « à chaque changement de page aussi ». **Fait** : `PassageModule.tsx`, § « LE PASSAGE » d'`index.css`, `App.tsx`. Site : `Passage.astro` entre deux pages (publié). Décision : `CLAUDE.md` (même date).
+Demande d'Antonin : l'attente « à chaque changement de page aussi ». Un passage systématique (560 ms) a été fait puis **retiré le même jour** sur son choix : l'icône ne paraît que si le module n'est pas prêt, puis sort comme à la fin de l'entrée. **Fait** : `SortieAttente.tsx` (`AttenteModule` + `SortieAttente`), § « LA SORTIE DE L'ATTENTE » d'`index.css`, `App.tsx` ; `PassageModule.tsx` supprimé. Site : `Passage.astro` entre deux pages (publié, gardé). Décision : `CLAUDE.md` (même date, et sa suite).
 
-**Prouvé** : `tsc` vert ; 160 tests verts (vues, composants, entrée). **Vu** dans Chrome sans fenêtre, build démo : bureau 1470 × 923 sombre et téléphone 390 clair — le voile couvre la zone du module seule, la lueur monte à 1, l'icône descend à 0,92 puis 0,88 en s'effaçant, le voile est retiré à 700 ms ; « Courte » fini avant 300 ms ; « Aucune » : aucun voile. **Pas vu** : WKWebView (Mac), iPhone. **Reste** : le prochain build groupé.
+**Prouvé** : `tsc` vert ; tests des vues, composants et entrée verts. **Vu** dans Chrome sans fenêtre, build démo, journal image par image (`requestAnimationFrame`) : module pas prêt (chunk retardé de 1,5 s) — la dernière image de l'attente et la première de la sortie sont au même pixel, même taille, même lueur, à 100 %, à 110 % (zoom posé à la main) et au téléphone ; la sortie finit à 0,88, transparente, voile levé, en ≈ 380 ms. Module prêt : aucune image d'attente ni de sortie. **Pas vu** : WKWebView (Mac), iPhone. **Reste** : le prochain build groupé.
 
 ## 2026-10-20 — L'attente, variante de l'entrée (`chantier/chargement`)
 

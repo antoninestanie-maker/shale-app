@@ -8889,3 +8889,12 @@ Antonin, après l'attente du 20/10 : « j'aimerais que ce chargement s'applique 
 - **Le réglage de l'entrée le gouverne**, relu au miroir à chaque changement : « Courte » = 320 ms, « Aucune » = pas de passage. `prefers-reduced-motion` : pas de passage. Choix assumé : une animation vue cinquante fois par jour finit par se lire comme de la lenteur (`reglage.ts`) ; « Aucune » est la porte de sortie.
 - Pas au premier rendu (l'entrée s'en charge), et la `key` du voile le relance si l'on rechange de module pendant qu'il joue.
 - ⚠️ **Jumelle sur le site** : `vitrine/src/components/Passage.astro`, entre deux pages du site.
+
+### (suite, le même jour) — Retiré : l'icône seulement si le module n'est pas prêt
+
+Interrogé, j'ai déconseillé le passage à chaque clic : une demi-seconde à chaque changement de module se lit comme de la lenteur dans un outil qu'on traverse cinquante fois par jour, et le voile cachait un module souvent déjà prêt (Linear, Things, Notion changent de vue sans écran intermédiaire). Antonin a retenu l'option proposée : **l'icône seulement si le module n'est pas prêt.**
+- `PassageModule.tsx` est **supprimé**. Module prêt : il s'affiche aussitôt, rien devant.
+- Module pas prêt : le repli de `Suspense` (`AttenteModule`, dans `SortieAttente.tsx`) montre l'attente, passé 150 ms. Quand le module arrive, **l'icône sort comme à la fin de l'entrée** (0,88, transparente, 380 ms ; 240 ms en « Courte ») pendant que le voile se lève.
+- ⭐ **La sortie part de l'état exact de l'attente** : place, taille, opacité, lueur et échelle sont MESURÉES dans la fin d'un `useLayoutEffect` du repli (encore dans le document, avant que le module soit peint) et passées en variables CSS. Positions en pixels d'écran, divisées par `--zoom-inv` comme `.entree-copie`.
+- Attente de moins de 150 ms (icône jamais vue) : pas de sortie. « Aucune » et mouvement réduit : l'attente paraît, mais sans sortie animée.
+- Le site GARDE son passage entre deux pages (`Passage.astro`) : un site de vente se visite quelques fois, pas cinquante fois par jour.
