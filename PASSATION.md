@@ -2953,7 +2953,9 @@ Lancé par Antonin pour la nuit avec les six autres lots (« lance tous les lots
 - **Pas prouvé** : WKWebView (le curseur après la mention a été vu sous Chrome seulement — le défaut aussi) ; la bulle des mentions sous densité Large ; anglais à l'écran ; app installée. **Pas de build natif** (à grouper). **Aucune migration.**
 - **Pas fait** : dans l'éditeur du Savoir (`NoteComposer`, lot 1), ni « @ » ni « [[ » n'ouvrent de liste (fin du constat 5) ; la palette et les étapes liées nomment encore « Nouvelle note » une note sans titre (le titre stocké sert aussi de texte aux mentions : à trancher).
 
-## 2026-10-21 — la fonction `ai` refuse elle-même de tourner hors de Paris (écrit, à déployer)
+## 2026-10-21 — la fonction `ai` refuse elle-même de tourner hors de Paris ✅ DÉPLOYÉE
+
+> ✅ **Déployée le 2026-10-21** par Antonin (double-clic sur `Déployer le verrou IA Paris.command`, CLI reconnecté par un nouveau jeton `shale-cli`), depuis `sync-chiffree` `202c134` — fonction `ai` identique à `eea7f71`. Contrôlé en direct, sans session ni donnée : `?forceFunctionRegion=eu-west-3` → 401 `unauthorized` ; `us-east-1` et `eu-central-2` → 503 `ai_unavailable` ; région inconnue et sans région → exécutée à `eu-west-3` → 401 ; OPTIONS depuis `tauri://localhost` → 204. Le CLI Supabase de ce Mac est de nouveau connecté.
 
 Suite du 2026-10-13 (« l'IA de Shale Pro s'exécute à Paris »). Demande d'Antonin : « fais tout ce qu'il y a à faire ».
 - **Site** (`sync-chiffree` `eea7f71`, poussé) : `supabase/functions/ai/coeur/traiter.ts`, étape 0 — si `SB_REGION` (posée par Supabase) n'est pas `eu-west-3`, ou absente, `503 ai_unavailable` AVANT le jeton et AVANT la lecture du corps ; journal `{ code: "wrong_region" }`. `REGION_EXECUTION` exporté ; `types.ts` (champ `regionExecution`), `index.ts` (lit `SB_REGION`). La phrase de la politique de confidentialité devient vraie quel que soit l'appelant (vieille app, autre client, région mal écrite).
