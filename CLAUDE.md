@@ -8880,3 +8880,12 @@ Antonin a lancé tous les lots pour la nuit et autorise d'office : chaque questi
 - **Le titre d'office d'une note reste en base** (« Nouvelle note », « New note ») ; c'est l'affichage qui le traite comme absent (champ vide, extrait du texte dans la corbeille). Pas de migration, et `estSansTitre` reste la seule règle.
 - **« Cité dans »** remplace « Mentionné dans » : le panneau montre ce qui cite l'objet, et deux profils du labo le lisaient comme « ce que la note cite ».
 - **La barre latérale serre son pied d'après une MESURE**, pas d'après la hauteur de fenêtre : ce qui déborde dépend des modules affichés, des catégories repliées, de la langue et de la densité.
+
+## 2026-10-21 — Le passage d'un module à l'autre (`chantier/chargement`)
+
+Antonin, après l'attente du 20/10 : « j'aimerais que ce chargement s'applique à chaque changement de page aussi ».
+- **À chaque changement de module** (`view`), un voile de la couleur du fond couvre la zone du module (pas la barre latérale ni la barre d'onglets) : l'icône paraît, sa lueur s'allume, elle inspire (92 %), puis elle s'efface en rétrécissant (88 %, la sortie de l'entrée) pendant que le voile se lève. 560 ms. `components/PassageModule.tsx`, § « LE PASSAGE » d'`index.css`, branché par un `useLayoutEffect` sur `view` dans `App.tsx` (layout : le voile doit être là avant que le nouveau module soit peint).
+- ⭐ **Il n'ajoute pas d'attente** : le module se monte dessous dès le clic. Un module lent est ensuite couvert par l'attente en boucle (`Chargement.tsx`). Le voile ne prend aucun clic.
+- **Le réglage de l'entrée le gouverne**, relu au miroir à chaque changement : « Courte » = 320 ms, « Aucune » = pas de passage. `prefers-reduced-motion` : pas de passage. Choix assumé : une animation vue cinquante fois par jour finit par se lire comme de la lenteur (`reglage.ts`) ; « Aucune » est la porte de sortie.
+- Pas au premier rendu (l'entrée s'en charge), et la `key` du voile le relance si l'on rechange de module pendant qu'il joue.
+- ⚠️ **Jumelle sur le site** : `vitrine/src/components/Passage.astro`, entre deux pages du site.

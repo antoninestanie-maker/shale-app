@@ -2728,6 +2728,12 @@ Antonin : « si je coche des tâches en retard cela les fait apparaître dans t�
 - ⚠️ `npm run test:types` échoue sur `catalogue/tache.test.ts` (`etat` manquant dans `GestesTache`) : étranger à ce chantier (états des tâches). **→ Réparé le 2026-10-20 au soir par le lot 2** (`chantier/lot2-etats`).
 
 
+## 2026-10-21 — Le passage d'un module à l'autre (`chantier/chargement`)
+
+Demande d'Antonin : l'attente « à chaque changement de page aussi ». **Fait** : `PassageModule.tsx`, § « LE PASSAGE » d'`index.css`, `App.tsx`. Site : `Passage.astro` entre deux pages (publié). Décision : `CLAUDE.md` (même date).
+
+**Prouvé** : `tsc` vert ; 160 tests verts (vues, composants, entrée). **Vu** dans Chrome sans fenêtre, build démo : bureau 1470 × 923 sombre et téléphone 390 clair — le voile couvre la zone du module seule, la lueur monte à 1, l'icône descend à 0,92 puis 0,88 en s'effaçant, le voile est retiré à 700 ms ; « Courte » fini avant 300 ms ; « Aucune » : aucun voile. **Pas vu** : WKWebView (Mac), iPhone. **Reste** : le prochain build groupé.
+
 ## 2026-10-20 — L'attente, variante de l'entrée (`chantier/chargement`)
 
 Demande d'Antonin : le chargement de l'app et du site, « une variante de l'entrée ». **Fait** : `src/components/Chargement.tsx` + § « L'ATTENTE » en fin d'`index.css` ; branché dans `App.tsx` (module, données), `FinanceView`, `KnowledgeView`, `ApercuFacture`. Côté site (shale-site, `chantier/chargement-site`) : « Mon compte » reste derrière l'icône jusqu'à ce que session et abonnement soient lus, puis paraît (0,97 → 1), filet à 8 s. Décision : `CLAUDE.md` (même date).
